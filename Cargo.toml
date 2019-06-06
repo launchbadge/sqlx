@@ -1,0 +1,9 @@
+[package]
+name = "dbx"
+version = "0.1.0"
+authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Asynchronous and expressive database client in pure Rust."
+edition = "2018"
+
+[dependencies]
