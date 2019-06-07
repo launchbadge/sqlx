@@ -1,9 +1,20 @@
+[workspace]
+members = [
+    ".",
+    "mason-postgres"
+]
+
 [package]
-name = "dbx"
-version = "0.1.0"
+name = "mason"
+version = "0.0.0"
 authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [dependencies]
+runtime = "=0.3.0-alpha.4"
+mason-postgres = { path = "mason-postgres" }
+failure = "0.1"
+env_logger = "0.6.1"
+bytes = "0.4.12"

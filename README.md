@@ -2,7 +2,8 @@
 _Asynchronous and expressive database client in pure Rust_
 
 This is an experiment being worked on in stages. The first stage
-will be an untyped query builder.
+will be a very low-level, generic database driver (hopefully) capable of basic execution of
+simple queries.
 
 ## License
 
