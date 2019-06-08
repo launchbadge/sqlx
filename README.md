@@ -1,4 +1,4 @@
-# dbx
+# Mason
 _Asynchronous and expressive database client in pure Rust_
 
 This is an experiment being worked on in stages. The first stage
