@@ -96,9 +96,7 @@ impl Connection {
         _password: &'b str,
         database: &'b str,
     ) -> io::Result<()> {
-        let params = [("user", user), ("database", database)];
-
-        let msg = client::StartupMessage { params: &params };
+        let msg = client::StartupMessage { user, database: Some(database) };
         msg.serialize(&mut self.buf);
 
         self.writer.write_all(&self.buf).await?;
