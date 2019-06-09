@@ -51,6 +51,13 @@ async fn main() -> Result<(), failure::Error> {
 }
 ```
 
+## Notes
+
+ * [`AsyncDrop`](https://internals.rust-lang.org/t/async-await-the-challenges-besides-syntax-cancellation/10287/13) - Many of the
+   envisoned APIs would greatly benefit from something like this. There are cases where an object _must_ be closed or it would
+   be a memory leak (in either the client or server). I intended to provide both an `async fn close()` and a sync Drop impl
+   that blocks the thread and shouts a warning.. but that is obviously not ideal.
+
 ## License
 
 Licensed under either of
