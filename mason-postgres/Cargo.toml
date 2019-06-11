@@ -7,6 +7,7 @@ description = "PostgreSQL database driver for dbx."
 edition = "2018"
 
 [dependencies]
+mason-core = { path = "../mason-core" }
 runtime = "=0.3.0-alpha.4"
 futures-preview = "=0.3.0-alpha.16"
 failure = "0.1"
@@ -15,3 +16,4 @@ log = "0.4"
 hex = "0.3.2"
 bytes = "0.4.12"
 memchr = "2.2.0"
+md-5 = "0.8.0"

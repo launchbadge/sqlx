@@ -1,7 +1,8 @@
 [workspace]
 members = [
     ".",
-    "mason-postgres"
+    "mason-core",
+    "mason-postgres",
 ]
 
 [package]
@@ -14,6 +15,7 @@ edition = "2018"
 
 [dependencies]
 runtime = "=0.3.0-alpha.4"
+mason-core = { path = "mason-core" }
 mason-postgres = { path = "mason-postgres" }
 failure = "0.1"
 env_logger = "0.6.1"

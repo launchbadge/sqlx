@@ -4,11 +4,15 @@ use byteorder::{BigEndian, ByteOrder};
 // https://www.postgresql.org/docs/devel/protocol-message-formats.html
 // https://www.postgresql.org/docs/devel/protocol-message-types.html
 
+pub trait Serialize {
+    fn serialize(&self, buf: &mut Vec<u8>);
+}
+
 #[derive(Debug)]
 pub struct Terminate;
 
-impl Terminate {
-    pub fn serialize(&self, buf: &mut Vec<u8>) {
+impl Serialize for Terminate {
+    fn serialize(&self, buf: &mut Vec<u8>) {
         buf.push(b'X');
         buf.push(4);
     }
@@ -16,52 +20,40 @@ impl Terminate {
 
 #[derive(Debug)]
 pub struct StartupMessage<'a> {
-    pub user: &'a str,
-    pub database: Option<&'a str>,
+    pub params: &'a [(&'a str, Option<&'a str>)],
 }
 
-impl<'a> StartupMessage<'a> {
-    pub fn serialize(&self, buf: &mut Vec<u8>) {
+impl<'a> Serialize for StartupMessage<'a> {
+    fn serialize(&self, buf: &mut Vec<u8>) {
         with_length_prefix(buf, |buf| {
             // protocol version: major = 3, minor = 0
             buf.extend_from_slice(&0x0003_i16.to_be_bytes());
             buf.extend_from_slice(&0x0000_i16.to_be_bytes());
 
-            write_str(buf, "user");
-            write_str(buf, self.user);
-
-            if let Some(database) = self.database {
-                write_str(buf, "database");
-                write_str(buf, database);
+            for (name, value) in self.params {
+                if let Some(value) = value {
+                    write_str(buf, name);
+                    write_str(buf, value);
+                }
             }
-
-            // See this doc for more runtime parameters
-            // https://www.postgresql.org/docs/12/runtime-config-client.html
-
-            // Sets the display format for date and time values,
-            // as well as the rules for interpreting ambiguous date input values.
-            write_str(buf, "DateStyle");
-            write_str(buf, "ISO");
-
-            // Sets the display format for interval values.
-            write_str(buf, "IntervalStyle");
-            write_str(buf, "iso_8601");
-
-            // Sets the time zone for displaying and interpreting time stamps.
-            write_str(buf, "TimeZone");
-            write_str(buf, "UTC");
-
-            // Adjust postgres to return percise values for floats
-            // NOTE: This is default in postgres 12+
-            write_str(buf, "extra_float_digits");
-            write_str(buf, "3");
-
-            // Sets the client-side encoding (character set).
-            write_str(buf, "client_encoding");
-            write_str(buf, "UTF-8");
 
             // A zero byte is required as a terminator after the last name/value pair.
             buf.push(0);
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct PasswordMessage<'a> {
+    pub password: &'a str,
+}
+
+impl<'a> Serialize for PasswordMessage<'a> {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(b'p');
+
+        with_length_prefix(buf, |buf| {
+            write_str(buf, self.password);
         });
     }
 }

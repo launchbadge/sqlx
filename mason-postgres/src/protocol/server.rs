@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 use bytes::{Bytes, BytesMut};
-use std::io;
+use std::{io, str};
 
 // Reference
 // https://www.postgresql.org/docs/devel/protocol-message-formats.html
@@ -76,6 +76,9 @@ impl Message {
 
             b'R' => match BigEndian::read_i32(&buf[idx..]) {
                 0 => Message::AuthenticationOk,
+                5 => Message::AuthenticationMd5Password(AuthenticationMd5Password {
+                    salt: buf.slice_from(idx + 4),
+                }),
 
                 code => {
                     unimplemented!("unknown response code received: {:x}", code);
@@ -96,7 +99,14 @@ impl Message {
 
 #[derive(Debug)]
 pub struct AuthenticationMd5Password {
-    pub(super) salt: [u8; 4],
+    pub(super) salt: Bytes,
+}
+
+impl AuthenticationMd5Password {
+    #[inline]
+    pub fn salt(&self) -> &[u8] {
+        &self.salt
+    }
 }
 
 #[derive(Debug)]
@@ -109,6 +119,18 @@ pub struct DataRow {
 pub struct BackendKeyData {
     pub(super) process_id: i32,
     pub(super) secret_key: i32,
+}
+
+impl BackendKeyData {
+    #[inline]
+    pub fn process_id(&self) -> i32 {
+        self.process_id
+    }
+
+    #[inline]
+    pub fn secret_key(&self) -> i32 {
+        self.secret_key
+    }
 }
 
 #[derive(Debug)]
@@ -131,6 +153,18 @@ pub struct ParameterDescription {
 pub struct ParameterStatus {
     pub(super) name: Bytes,
     pub(super) value: Bytes,
+}
+
+impl ParameterStatus {
+    #[inline]
+    pub fn name(&self) -> io::Result<&str> {
+        Ok(str::from_utf8(&self.name).map_err(|_| io::ErrorKind::InvalidInput)?)
+    }
+
+    #[inline]
+    pub fn value(&self) -> io::Result<&str> {
+        Ok(str::from_utf8(&self.value).map_err(|_| io::ErrorKind::InvalidInput)?)
+    }
 }
 
 #[derive(Debug)]
