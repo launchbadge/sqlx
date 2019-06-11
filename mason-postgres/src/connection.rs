@@ -78,6 +78,10 @@ impl Connection {
                     // there is no password needed
                 }
 
+                ServerMessage::AuthenticationCleartextPassword => {
+                    conn.send(PasswordMessage { password: options.password.unwrap_or_default() }).await?;
+                }
+
                 ServerMessage::AuthenticationMd5Password(body) => {
                     // Hash password|username
                     // FIXME: ConnectOptions should prepare a default user

@@ -76,6 +76,7 @@ impl Message {
 
             b'R' => match BigEndian::read_i32(&buf[idx..]) {
                 0 => Message::AuthenticationOk,
+                3 => Message::AuthenticationCleartextPassword,
                 5 => Message::AuthenticationMd5Password(AuthenticationMd5Password {
                     salt: buf.slice_from(idx + 4),
                 }),
