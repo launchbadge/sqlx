@@ -38,6 +38,7 @@ pub async fn establish<'a, 'b: 'a>(
 
     conn.send(StartupMessage { params: &params }).await?;
 
+    // FIXME: This feels like it could be reduced (see other connection flows)
     while let Some(message) = conn.incoming.next().await {
         match message {
             ServerMessage::AuthenticationOk => {
@@ -68,7 +69,6 @@ pub async fn establish<'a, 'b: 'a>(
             }
 
             ServerMessage::ReadyForQuery(_) => {
-                // Good to go
                 break;
             }
 

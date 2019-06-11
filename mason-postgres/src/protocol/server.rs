@@ -31,6 +31,7 @@ pub enum Message {
     EmptyQueryResponse,
 
     ErrorResponse(ErrorResponse),
+    NoticeResponse(NoticeResponse),
     NoData,
     ParameterDescription(ParameterDescription),
     ParameterStatus(ParameterStatus),
@@ -41,6 +42,7 @@ pub enum Message {
 }
 
 impl Message {
+    // FIXME: Clean this up and do some benchmarking for performance
     pub fn deserialize(buf: &mut BytesMut) -> io::Result<Option<Self>> {
         if buf.len() < 5 {
             // No message is less than 5 bytes
@@ -66,6 +68,7 @@ impl Message {
 
         Ok(Some(match tag {
             b'E' => Message::ErrorResponse(ErrorResponse { storage: buf.slice_from(idx) }),
+            b'N' => Message::NoticeResponse(NoticeResponse { storage: buf.slice_from(idx) }),
 
             b'S' => {
                 let name = read_str(buf.slice_from(idx))?;
@@ -92,6 +95,8 @@ impl Message {
             }),
 
             b'Z' => Message::ReadyForQuery(ReadyForQuery { status: buf[idx] }),
+
+            b'C' => Message::CommandComplete(CommandComplete { tag: buf.slice_from(idx) }),
 
             _ => unimplemented!("unknown tag received: {:x}", tag),
         }))
@@ -139,6 +144,18 @@ pub struct CommandComplete {
     pub(super) tag: Bytes,
 }
 
+impl CommandComplete {
+    #[inline]
+    pub fn tag(&self) -> io::Result<&str> {
+        to_str(&self.tag)
+    }
+}
+
+#[derive(Debug)]
+pub struct NoticeResponse {
+    pub(super) storage: Bytes,
+}
+
 #[derive(Debug)]
 pub struct ErrorResponse {
     pub(super) storage: Bytes,
@@ -159,12 +176,12 @@ pub struct ParameterStatus {
 impl ParameterStatus {
     #[inline]
     pub fn name(&self) -> io::Result<&str> {
-        Ok(str::from_utf8(&self.name).map_err(|_| io::ErrorKind::InvalidInput)?)
+        to_str(&self.name)
     }
 
     #[inline]
     pub fn value(&self) -> io::Result<&str> {
-        Ok(str::from_utf8(&self.value).map_err(|_| io::ErrorKind::InvalidInput)?)
+        to_str(&self.value)
     }
 }
 
@@ -182,4 +199,9 @@ pub struct RowDescription {
 #[inline]
 fn read_str(buf: Bytes) -> io::Result<Bytes> {
     Ok(buf.slice_to(memchr::memchr(0, &buf).ok_or(io::ErrorKind::UnexpectedEof)?))
+}
+
+#[inline]
+fn to_str(b: &Bytes) -> io::Result<&str> {
+    Ok(str::from_utf8(b).map_err(|_| io::ErrorKind::InvalidInput)?)
 }

@@ -13,6 +13,7 @@ use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
 
 mod establish;
+mod query;
 
 pub struct Connection {
     writer: WriteHalf<TcpStream>,
@@ -49,6 +50,10 @@ impl Connection {
         establish::establish(&mut conn, options).await?;
 
         Ok(conn)
+    }
+
+    pub async fn execute<'a, 'b: 'a>(&'a mut self, query: &'b str) -> io::Result<()> {
+        query::query(self, query).await
     }
 
     pub async fn close(mut self) -> io::Result<()> {
@@ -120,6 +125,10 @@ async fn receiver(
             match message {
                 Some(ServerMessage::ParameterStatus(body)) => {
                     log::debug!("parameter {} = {}", body.name()?, body.value()?);
+                }
+
+                Some(ServerMessage::NoticeResponse(body)) => {
+                    log::warn!("notice: {:?}", body);
                 }
 
                 Some(message) => {

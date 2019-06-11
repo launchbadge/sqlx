@@ -58,6 +58,21 @@ impl<'a> Serialize for PasswordMessage<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct Query<'a> {
+    pub query: &'a str,
+}
+
+impl<'a> Serialize for Query<'a> {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(b'Q');
+
+        with_length_prefix(buf, |buf| {
+            write_str(buf, self.query);
+        });
+    }
+}
+
 // Write a string followed by a null-terminator
 #[inline]
 fn write_str(buf: &mut Vec<u8>, s: &str) {
