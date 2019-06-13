@@ -1,12 +1,36 @@
+// Reference: https://mariadb.com/kb/en/library/connection
+
+use super::server::Capabilities;
+use byteorder::ByteOrder;
+use byteorder::LittleEndian;
+
 pub trait Serialize {
     fn serialize(&self, buf: &mut Vec<u8>);
 }
 
-#[derive(Debug)]
-pub struct StartupMessage<'a> {
-    pub host: &'a str,
+#[derive(Default, Debug)]
+pub struct SSLRequestPacket {
+    pub capabilities: u32,
+    pub max_packet_size: u32,
+    pub collation: u8,
+    pub extended_capabilities: Option<u32>,
 }
 
-impl<'a> Serialize for StartupMessage<'a> {
-    fn serialize(&self, buf: &mut Vec<u8>) {}
+impl Serialize for SSLRequestPacket {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        // FIXME: Prepend length of packet in standard packet form
+        // https://mariadb.com/kb/en/library/0-packet
+        // buf.push(32);
+        LittleEndian::write_u32(buf, self.capabilities);
+        LittleEndian::write_u32(buf, self.max_packet_size);
+        buf.push(self.collation);
+        buf.extend_from_slice(&[0u8;19]);
+        if self.capabilities as u128  & Capabilities::ClientMysql as u128 > 0 {
+            if let Some(capabilities) = self.extended_capabilities {
+                LittleEndian::write_u32(buf, capabilities);
+            }
+        } else {
+            buf.extend_from_slice(&[0u8;4]);
+        }
+    }
 }

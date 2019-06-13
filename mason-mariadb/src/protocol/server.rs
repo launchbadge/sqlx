@@ -1,3 +1,5 @@
+// Reference: https://mariadb.com/kb/en/library/connection
+
 use byteorder::{ByteOrder, LittleEndian};
 use failure::Error;
 use std::iter::FromIterator;
@@ -125,16 +127,16 @@ impl Deserialize for InitialHandshakePacket {
         let mut auth_plugin_name: Option<String> = None;
         if capabilities as u128 & Capabilities::SecureConnection as u128 > 0 {
             // TODO: scramble 2nd part. Length = max(12, plugin_data_length - 9)
-            let len = max(12, plugin_data_length - 9);
+            let len = std::cmp::max(12, plugin_data_length - 9);
             scramble2 = Some(String::from_iter(
-                buf[index..index + len]
+                buf[index..index + len as usize]
                     .iter()
                     .map(|b| char::from(b.clone()))
                     .collect::<Vec<char>>()
                     .into_iter(),
             ));
             // Skip length characters + the reserved byte
-            index += len + 1;
+            index += len as usize + 1;
         } else {
             // TODO: auth_plugin_name null temrinated string
             // Find index of null character
