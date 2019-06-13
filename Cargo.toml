@@ -7,6 +7,7 @@ description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [dependencies]
+failure = "0.1"
 byteorder = "1.3.2"
 bytes = "0.4.12"
 futures-preview = "=0.3.0-alpha.17"
