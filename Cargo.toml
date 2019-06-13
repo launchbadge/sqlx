@@ -2,6 +2,7 @@
 members = [
     ".",
     "mason-core",
+    "mason-postgres-protocol",
     "mason-postgres",
 ]
 

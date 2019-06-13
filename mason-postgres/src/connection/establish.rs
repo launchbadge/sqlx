@@ -46,7 +46,7 @@ pub async fn establish<'a, 'b: 'a>(
                 // there is no password needed
             }
 
-            ServerMessage::AuthenticationCleartextPassword => {
+            ServerMessage::AuthenticationClearTextPassword => {
                 conn.send(PasswordMessage { password: options.password.unwrap_or_default() })
                     .await?;
             }
@@ -57,15 +57,15 @@ pub async fn establish<'a, 'b: 'a>(
                 let pass_user =
                     md5(options.password.unwrap_or_default(), options.user.unwrap_or_default());
 
-                let with_salt = md5(pass_user, body.salt());
+                let with_salt = md5(pass_user, body.salt);
                 let password = format!("md5{}", with_salt);
 
                 conn.send(PasswordMessage { password: &password }).await?;
             }
 
             ServerMessage::BackendKeyData(body) => {
-                conn.process_id = body.process_id();
-                conn.secret_key = body.secret_key();
+                conn.process_id = body.process_id;
+                conn.secret_key = body.secret_key;
             }
 
             ServerMessage::ReadyForQuery(_) => {
