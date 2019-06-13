@@ -8,6 +8,5 @@ pub struct StartupMessage<'a> {
 }
 
 impl<'a> Serialize for StartupMessage<'a> {
-    fn serialize(&self, buf: &mut Vec<u8>) {
-    }
+    fn serialize(&self, buf: &mut Vec<u8>) {}
 }
