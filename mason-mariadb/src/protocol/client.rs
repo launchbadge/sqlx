@@ -161,5 +161,11 @@ impl Serialize for HandshakeResponsePacket {
                 }
             }
         }
+
+        // Get length in little endian bytes
+        // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
+        buf[0] = buf.len().to_le_bytes()[0];
+        buf[1] = buf.len().to_le_bytes()[1];
+        buf[2] = buf.len().to_le_bytes()[2];
     }
 }
