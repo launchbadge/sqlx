@@ -42,6 +42,13 @@ pub struct HandshakeResponsePacket {
     pub conn_attr: Option<Vec<(Bytes, Bytes)>>,
 }
 
+#[derive(Default, Debug)]
+pub struct AuthenticationSwitchRequestPacket {
+    pub sequence_number: u8,
+    pub auth_plugin_name: Bytes,
+    pub auth_plugin_data: Bytes,
+}
+
 impl Serialize for SSLRequestPacket {
     fn serialize(&self, buf: &mut Vec<u8>) {
         // Temporary storage for length: 3 bytes
@@ -161,6 +168,34 @@ impl Serialize for HandshakeResponsePacket {
                 }
             }
         }
+
+        // Get length in little endian bytes
+        // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
+        buf[0] = buf.len().to_le_bytes()[0];
+        buf[1] = buf.len().to_le_bytes()[1];
+        buf[2] = buf.len().to_le_bytes()[2];
+    }
+}
+
+impl Serialize for AuthenticationSwitchRequestPacket {
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        // Temporary storage for length: 3 bytes
+        buf.push(0);
+        buf.push(0);
+        buf.push(0);
+
+        // Sequence Numer
+        buf.push(self.sequence_number);
+
+        // Authentication Switch Request Header
+        // int<1>
+        buf.push(0xFE);
+
+        // string<NUL>
+        buf.extend_from_slice(&self.auth_plugin_name);
+        buf.push(0);
+
+        buf.extend_from_slice(&self.auth_plugin_data);
 
         // Get length in little endian bytes
         // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
