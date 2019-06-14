@@ -1,8 +1,7 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
 use byteorder::{ByteOrder, LittleEndian};
-use failure::Error;
-use std::iter::FromIterator;
+use failure::{Error, err_msg};
 use bytes::Bytes;
 
 pub trait Deserialize: Sized {
@@ -51,6 +50,8 @@ impl Default for Capabilities {
 
 #[derive(Default, Debug)]
 pub struct InitialHandshakePacket {
+    pub length: u32,
+    pub sequence_number: u8,
     pub protocol_version: u8,
     pub server_version: Bytes,
     pub connection_id: u32,
@@ -66,7 +67,22 @@ pub struct InitialHandshakePacket {
 impl Deserialize for InitialHandshakePacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
-        let protocol_version = buf[0] as u8;
+
+        let length = (buf[0] + (buf[1]<<8) + (buf[2]<<16)) as u32;
+        index += 3;
+
+        if buf.len() != length as usize {
+            return Err(err_msg("Lengths to do not match"));
+        }
+
+        let sequence_number = buf[index];
+        index += 1;
+
+        if sequence_number != 0 {
+            return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
+        }
+
+        let protocol_version = buf[index] as u8;
         index += 1;
 
         let null_index = memchr::memchr(b'\0', &buf[index..]).unwrap();
@@ -119,6 +135,8 @@ impl Deserialize for InitialHandshakePacket {
         }
 
         Ok(InitialHandshakePacket {
+            length,
+            sequence_number,
             protocol_version,
             server_version,
             connection_id,
