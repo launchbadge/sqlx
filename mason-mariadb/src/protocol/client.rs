@@ -18,6 +18,7 @@ pub trait Serialize {
 
 #[derive(Default, Debug)]
 pub struct SSLRequestPacket {
+    pub server_capabilities: Capabilities,
     pub sequence_number: u8,
     pub capabilities: Capabilities,
     pub max_packet_size: u32,
@@ -27,6 +28,7 @@ pub struct SSLRequestPacket {
 
 #[derive(Default, Debug)]
 pub struct HandshakeResponsePacket {
+    pub server_capabilities: Capabilities,
     pub sequence_number: u8,
     pub capabilities: Capabilities,
     pub max_packet_size: u32,
@@ -67,7 +69,7 @@ impl Serialize for SSLRequestPacket {
 
         buf.extend_from_slice(&[0u8;19]);
 
-        if !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
+        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             if let Some(capabilities) = self.extended_capabilities {
                 LittleEndian::write_u32(buf, capabilities.bits() as u32);
             }
@@ -101,7 +103,7 @@ impl Serialize for HandshakeResponsePacket {
 
         buf.extend_from_slice(&[0u8;19]);
 
-        if !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
+        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             if let Some(capabilities) = self.extended_capabilities {
                 LittleEndian::write_u32(buf, capabilities.bits() as u32);
             }
@@ -113,7 +115,7 @@ impl Serialize for HandshakeResponsePacket {
         buf.extend_from_slice(&self.username);
         buf.push(0);
 
-        if !(self.capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
+        if !(self.server_capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {
                 // string<lenenc>
                 buf.push(auth_data.len().to_le_bytes()[0]);
@@ -121,7 +123,7 @@ impl Serialize for HandshakeResponsePacket {
                 buf.push(auth_data.len().to_le_bytes()[2]);
                 buf.extend_from_slice(&auth_data);
             }
-        } else if !(self.capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
+        } else if !(self.server_capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
                 buf.push(self.auth_response_len.unwrap());
                 buf.extend_from_slice(&auth_response);
@@ -130,7 +132,7 @@ impl Serialize for HandshakeResponsePacket {
             buf.push(0);
         }
 
-        if !(self.capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
+        if !(self.server_capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
             if let Some(database) = &self.database {
                 // string<NUL>
                 buf.extend_from_slice(&database);
@@ -138,7 +140,7 @@ impl Serialize for HandshakeResponsePacket {
             }
         }
 
-        if !(self.capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
+        if !(self.server_capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             if let Some(auth_plugin_name) = &self.auth_plugin_name {
                 // string<NUL>
                 buf.extend_from_slice(&auth_plugin_name);
@@ -146,7 +148,7 @@ impl Serialize for HandshakeResponsePacket {
             }
         }
 
-        if !(self.capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
+        if !(self.server_capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
             if let (Some(conn_attr_len), Some(conn_attr)) = (&self.conn_attr_len, &self.conn_attr) {
                 // int<lenenc>
                 buf.push(conn_attr_len.to_le_bytes().len().to_le_bytes()[0]);
