@@ -1,6 +1,5 @@
 use super::Connection;
 use crate::protocol::{
-    client::{PasswordMessage, StartupMessage},
     server::Message as ServerMessage,
 };
 use futures::StreamExt;
@@ -12,5 +11,14 @@ pub async fn establish<'a, 'b: 'a>(
     options: ConnectOptions<'b>,
 ) -> io::Result<()> {
     // The actual connection establishing
+
+    // if let Some(message) = conn.incoming.next().await {
+    //     if let Some(ServerMessage::InitialHandshakePacket(message)) = message {
+
+    //     } else {
+    //         unimplemented!("received {:?} unimplemented message", message);
+    //     }
+    // }
+
     Ok(())
 }

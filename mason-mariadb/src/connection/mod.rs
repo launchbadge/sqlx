@@ -1,5 +1,5 @@
 use crate::protocol::{
-    client::{Serialize, Terminate},
+    client::Serialize,
     server::Message as ServerMessage,
 };
 use bytes::BytesMut;
@@ -13,7 +13,7 @@ use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
 
 mod establish;
-mod query;
+// mod query;
 
 pub struct Connection {
     writer: WriteHalf<TcpStream>,
@@ -25,11 +25,8 @@ pub struct Connection {
     // Handle to coroutine reading messages from the stream
     receiver: JoinHandle<io::Result<()>>,
 
-    // Process ID of the Backend
-    process_id: i32,
-
-    // Backend-unique key to use to send a cancel query message to the server
-    secret_key: i32,
+    // MariaDB Connection ID
+    connection_id: i32,
 }
 
 impl Connection {
@@ -43,8 +40,7 @@ impl Connection {
             writer,
             receiver,
             incoming: rx,
-            process_id: -1,
-            secret_key: -1,
+            connection_id: -1,
         };
 
         establish::establish(&mut conn, options).await?;

@@ -2,7 +2,7 @@
 
 use byteorder::{ByteOrder, LittleEndian};
 use failure::{Error, err_msg};
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error>;
@@ -12,8 +12,9 @@ pub trait Deserialize: Sized {
 #[non_exhaustive]
 pub enum Message {
     InitialHandshakePacket(InitialHandshakePacket),
+    OkPacket(OkPacket),
+    // ErrPacket(ErrPacket),
 }
-
 
 bitflags! {
     pub struct Capabilities: u128 {
@@ -62,6 +63,25 @@ pub struct InitialHandshakePacket {
     pub plugin_data_length: u8,
     pub scramble2: Option<Bytes>,
     pub auth_plugin_name: Option<Bytes>,
+}
+
+#[derive(Default, Debug)]
+pub struct OkPacket {
+    pub affected_rows: Option<usize>,
+    pub last_insert_id: Option<usize>,
+    pub server_status: u16,
+    pub warning_count: u16,
+    pub info: Bytes,
+    pub session_state_info: Option<Bytes>,
+    pub value: Option<Bytes>,
+}
+
+impl Message {
+    pub fn deserialize(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
+        let length = buf[0] + buf[1] << 8 + buf[2] << 16;
+        let sequence_number = buf[3];
+        Ok(None)
+    }
 }
 
 impl Deserialize for InitialHandshakePacket {
@@ -147,6 +167,47 @@ impl Deserialize for InitialHandshakePacket {
             plugin_data_length,
             scramble2,
             auth_plugin_name,
+        })
+    }
+}
+
+fn deserialize_int_lenenc(buf: &Vec<u8>, index: &usize) -> (Option<usize>, usize) {
+    match buf[*index] {
+        0xFB => (None, *index + 1),
+        0xFC => (Some(LittleEndian::read_u16(&buf[*index + 1..]) as usize), *index + 2),
+        0xFD => (Some((buf[*index + 1] + buf[*index + 2] << 8 + buf[*index + 3] << 16) as usize), *index + 3),
+        0xFE => (Some(LittleEndian::read_u64(&buf[*index..]) as usize), *index + 8),
+        0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
+        _ => (Some(buf[*index] as usize), *index + 1),
+    }
+}
+
+fn deserialize_int_2(buf: &Vec<u8>, index: &usize) -> (u16, usize) {
+    (LittleEndian::read_u16(&buf[*index..]), index + 2)
+}
+
+impl Deserialize for OkPacket {
+    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
+        let mut index = 1;
+        let (affected_rows, index) = deserialize_int_lenenc(&buf, &index);
+        let (last_insert_id, index) = deserialize_int_lenenc(&buf, &index);
+        let (server_status, index) = deserialize_int_2(&buf, &index);
+        let (warning_count, index) = deserialize_int_2(&buf, &index);
+
+        // Assuming CLIENT_SESSION_TRACK is unsupported
+        let session_state_info = None;
+        let value = None;
+
+        let info = Bytes::from(&buf[index..]);
+
+        Ok(OkPacket {
+            affected_rows,
+            last_insert_id,
+            server_status,
+            warning_count,
+            info,
+            session_state_info,
+            value,
         })
     }
 }
