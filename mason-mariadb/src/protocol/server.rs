@@ -3,6 +3,7 @@
 use byteorder::{ByteOrder, LittleEndian};
 use failure::{Error, err_msg};
 use bytes::{Bytes, BytesMut};
+use crate::protocol::deserialize::*;
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error>;
@@ -60,6 +61,15 @@ bitflags! {
         const SERVER_STATUS_IN_TRANS_READONLY = 1 << 13;
         const SERVER_SESSION_STATE_CHANGED = 1 << 14;
     }
+}
+
+pub enum SessionChangeType {
+    SessionTrackSystemVariables = 0,
+    SessionTrackSchema = 1,
+    SessionTrackStateChange = 2,
+    SessionTrackGTIDS = 3,
+    SessionTrackTransactionCharacteristics = 4,
+    SessionTrackTransactionState = 5,
 }
 
 impl Default for Capabilities {
@@ -200,49 +210,6 @@ impl Deserialize for InitialHandshakePacket {
             auth_plugin_name,
         })
     }
-}
-
-#[inline]
-fn deserialize_int_lenenc(buf: &Vec<u8>, index: &usize) -> (Option<usize>, usize) {
-    match buf[*index] {
-        0xFB => (None, *index + 1),
-        0xFC => (Some(LittleEndian::read_u16(&buf[*index + 1..]) as usize), *index + 2),
-        0xFD => (Some((buf[*index + 1] + buf[*index + 2] << 8 + buf[*index + 3] << 16) as usize), *index + 3),
-        0xFE => (Some(LittleEndian::read_u64(&buf[*index..]) as usize), *index + 8),
-        0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
-        _ => (Some(buf[*index] as usize), *index + 1),
-    }
-}
-
-#[inline]
-fn deserialize_int_3(buf: &Vec<u8>, index: &usize) -> (u32, usize) {
-    ((buf[*index] + buf[index + 1] << 8 + buf[*index + 2] << 16) as u32, index + 3)
-}
-
-#[inline]
-fn deserialize_int_2(buf: &Vec<u8>, index: &usize) -> (u16, usize) {
-    (LittleEndian::read_u16(&buf[*index..]), index + 2)
-}
-
-#[inline]
-fn deserialize_int_1(buf: &Vec<u8>, index: &usize) -> (u8, usize) {
-    (buf[*index], index + 1)
-}
-
-#[inline]
-fn deserialize_string_lenenc(buf: &Vec<u8>, index: &usize) -> (Bytes, usize) {
-    let (length, index) = deserialize_int_3(&buf, &index);
-    (Bytes::from(&buf[index..index + length as usize]), index + length as usize)
-}
-
-#[inline]
-fn deserialize_string_fix(buf: &Vec<u8>, index: &usize, length: usize) -> (Bytes, usize) {
-    (Bytes::from(&buf[*index..index + length as usize]), index + length as usize)
-}
-
-#[inline]
-fn deserialize_string_eof(buf: &Vec<u8>, index: &usize) -> (Bytes, usize) {
-    (Bytes::from(&buf[*index..]), buf.len())
 }
 
 impl Deserialize for OkPacket {
