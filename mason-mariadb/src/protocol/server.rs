@@ -13,7 +13,7 @@ pub trait Deserialize: Sized {
 pub enum Message {
     InitialHandshakePacket(InitialHandshakePacket),
     OkPacket(OkPacket),
-    // ErrPacket(ErrPacket),
+    ErrPacket(ErrPacket),
 }
 
 bitflags! {
@@ -74,6 +74,18 @@ pub struct OkPacket {
     pub info: Bytes,
     pub session_state_info: Option<Bytes>,
     pub value: Option<Bytes>,
+}
+
+#[derive(Default, Debug)]
+pub struct ErrPacket {
+    pub error_code: u16,
+    pub stage: Option<u8>,
+    pub max_stage: Option<u8>,
+    pub progress: Option<u32>,
+    pub progress_info: Option<Bytes>,
+    pub sql_state_marker: Option<Bytes>,
+    pub sql_state: Option<Bytes>,
+    pub error_message: Option<Bytes>,
 }
 
 impl Message {
@@ -171,6 +183,7 @@ impl Deserialize for InitialHandshakePacket {
     }
 }
 
+#[inline]
 fn deserialize_int_lenenc(buf: &Vec<u8>, index: &usize) -> (Option<usize>, usize) {
     match buf[*index] {
         0xFB => (None, *index + 1),
@@ -182,8 +195,35 @@ fn deserialize_int_lenenc(buf: &Vec<u8>, index: &usize) -> (Option<usize>, usize
     }
 }
 
+#[inline]
+fn deserialize_int_3(buf: &Vec<u8>, index: &usize) -> (u32, usize) {
+    ((buf[*index] + buf[index + 1] << 8 + buf[*index + 2] << 16) as u32, index + 3)
+}
+
+#[inline]
 fn deserialize_int_2(buf: &Vec<u8>, index: &usize) -> (u16, usize) {
     (LittleEndian::read_u16(&buf[*index..]), index + 2)
+}
+
+#[inline]
+fn deserialize_int_1(buf: &Vec<u8>, index: &usize) -> (u8, usize) {
+    (buf[*index], index + 1)
+}
+
+#[inline]
+fn deserialize_string_lenenc(buf: &Vec<u8>, index: &usize) -> (Bytes, usize) {
+    let (length, index) = deserialize_int_3(&buf, &index);
+    (Bytes::from(&buf[index..index + length as usize]), index + length as usize)
+}
+
+#[inline]
+fn deserialize_string_fix(buf: &Vec<u8>, index: &usize, length: usize) -> (Bytes, usize) {
+    (Bytes::from(&buf[*index..index + length as usize]), index + length as usize)
+}
+
+#[inline]
+fn deserialize_string_eof(buf: &Vec<u8>, index: &usize) -> (Bytes, usize) {
+    (Bytes::from(&buf[*index..]), buf.len())
 }
 
 impl Deserialize for OkPacket {
@@ -209,5 +249,49 @@ impl Deserialize for OkPacket {
             session_state_info,
             value,
         })
+    }
+}
+
+impl Deserialize for ErrPacket {
+    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
+        let mut index = 1;
+        let (error_code, index) = deserialize_int_2(&buf, &index);
+
+        let mut stage = None;
+        let mut max_stage = None;
+        let mut progress = None;
+        let mut progress_info = None;
+
+        let mut sql_state_marker = None;
+        let mut sql_state = None;
+        let mut error_message = None;
+
+        // Progress Reporting
+        if error_code == 0xFFFF {
+            let (d_stage, index) = deserialize_int_1(&buf, &index);
+            let (d_max_stage, index) = deserialize_int_1(&buf, &index);
+            let (d_progress, index) = deserialize_int_3(&buf, &index);
+            let (d_progress_info, index) = deserialize_string_lenenc(&buf, &index);
+            stage = Some(d_stage);
+            max_stage = Some(d_max_stage);
+            progress = Some(d_progress);
+            progress_info = Some(d_progress_info);
+
+
+        } else {
+            if buf[index] == b'#' {
+                let (d_sql_state_marker, index) = deserialize_string_fix(&buf, &index, 1);
+                let (d_sql_state, index) = deserialize_string_fix(&buf, &index, 5);
+                let (d_error_message, index) = deserialize_string_eof(&buf, &index);
+                sql_state_marker = Some(d_sql_state_marker);
+                sql_state = Some(d_sql_state);
+                error_message = Some(d_error_message);
+            } else {
+                let (d_error_message, index) = deserialize_string_eof(&buf, &index);
+                error_message = Some(d_error_message);
+            }
+        }
+
+        Ok(ErrPacket::default())
     }
 }
