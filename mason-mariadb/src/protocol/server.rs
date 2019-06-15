@@ -43,6 +43,25 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct ServerStatusFlag: u16 {
+        const SERVER_STATUS_IN_TRANS = 1;
+        const SERVER_STATUS_AUTOCOMMIT = 2;
+        const SERVER_MORE_RESULTS_EXISTS = 8;
+        const SERVER_QUERY_NO_GOOD_INDEX_USED = 16;
+        const SERVER_QUERY_NO_INDEX_USED = 32;
+        const SERVER_STATUS_CURSOR_EXISTS = 64;
+        const SERVER_STATUS_LAST_ROW_SENT = 128;
+        const SERVER_STATUS_DB_DROPPED = 1 << 8;
+        const SERVER_STATUS_NO_BACKSLASH_ESAPES = 1 << 9;
+        const SERVER_STATUS_METADATA_CHANGED = 1 << 10;
+        const SERVER_QUERY_WAS_SLOW = 1 << 11;
+        const SERVER_PS_OUT_PARAMS = 1 << 12;
+        const SERVER_STATUS_IN_TRANS_READONLY = 1 << 13;
+        const SERVER_SESSION_STATE_CHANGED = 1 << 14;
+    }
+}
+
 impl Default for Capabilities {
     fn default() -> Self {
         Capabilities::CLIENT_MYSQL
