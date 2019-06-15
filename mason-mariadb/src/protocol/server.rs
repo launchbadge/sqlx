@@ -292,6 +292,15 @@ impl Deserialize for ErrPacket {
             }
         }
 
-        Ok(ErrPacket::default())
+        Ok(ErrPacket {
+            error_code,
+            stage,
+            max_stage,
+            progress,
+            progress_info,
+            sql_state_marker,
+            sql_state,
+            error_message,
+        })
     }
 }
