@@ -14,8 +14,13 @@ pub fn deserialize_int_lenenc(buf: &Vec<u8>, index: &usize) -> (Option<usize>, u
 }
 
 #[inline]
+pub fn deserialize_int_8(buf: &Vec<u8>, index: &usize) -> (u64, usize) {
+    (LittleEndian::read_u64(&buf[*index..]), index + 8)
+}
+
+#[inline]
 pub fn deserialize_int_4(buf: &Vec<u8>, index: &usize) -> (u32, usize) {
-    (LittleEndian::read_u32(&buf[*index..]), index + 3)
+    (LittleEndian::read_u32(&buf[*index..]), index + 4)
 }
 
 #[inline]

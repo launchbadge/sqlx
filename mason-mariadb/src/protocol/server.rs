@@ -90,7 +90,7 @@ pub struct InitialHandshakePacket {
     pub collation: u8,
     pub status: u16,
     pub plugin_data_length: u8,
-    pub scramble2: Option<Bytes>,
+    pub scramble: Option<Bytes>,
     pub auth_plugin_name: Option<Bytes>,
 }
 
@@ -129,70 +129,70 @@ impl Deserialize for InitialHandshakePacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = (buf[0] + (buf[1]<<8) + (buf[2]<<16)) as u32;
-        index += 3;
+        let (length, index) = deserialize_int_3(&buf, &index);
 
         if buf.len() != length as usize {
             return Err(err_msg("Lengths to do not match"));
         }
 
-        let sequence_number = buf[index];
-        index += 1;
+        let mut sequence_number = 0;
+        (sequence_number, index) = deserialize_int_1(&buf, &index);
 
         if sequence_number != 0 {
             return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
         }
 
-        let protocol_version = buf[index] as u8;
-        index += 1;
-
-        let null_index = memchr::memchr(b'\0', &buf[index..]).unwrap();
-        let server_version = Bytes::from(buf[index..null_index].to_vec());
-        index = null_index + 1;
-
-        let connection_id = LittleEndian::read_u32(&buf);
-        index += 4;
-
-        let auth_seed = Bytes::from(buf[index..index + 8].to_vec());
-        index += 8;
+        let (protocol_version, index) = deserialize_int_1(&buf, &index);
+        let (server_version, index) = deserialize_string_null(&buf, &index);
+        let (connection_id, index) = deserialize_int_4(&buf, &index);
+        let (auth_seed, index) = deserialize_string_fix(&buf, &index, 8);
 
         // Skip reserved byte
         index += 1;
 
-        let mut capabilities = Capabilities::from_bits(LittleEndian::read_u16(&buf[index..]).into()).unwrap();
-        index += 2;
+        let (cap, index) = deserialize_int_2(&buf, &index);
+        let mut capabilities = Capabilities::from_bits(cap.into()).unwrap();
 
-        let collation = buf[index];
-        index += 1;
+        let (collation, index) = deserialize_int_1(&buf, &index);
 
-        let status = LittleEndian::read_u16(&buf[index..]);
-        index += 2;
+        let (status, index) = deserialize_int_2(&buf, &index);
 
-        capabilities |= Capabilities::from_bits(LittleEndian::read_u16(&buf[index..]).into()).unwrap();
-        index += 2;
+        let (cap, index) = deserialize_int_2(&buf, &index);
+        capabilities |= Capabilities::from_bits(cap.into()).unwrap();
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            plugin_data_length = buf[index] as u8;
+            let (plugin, i) = deserialize_int_1(&buf, &index);
+            plugin_data_length = plugin;
+            index = i;
+        } else {
+            // Skip reserve byte
+            index += 1;
         }
-        index += 1;
 
         // Skip filler
         index += 6;
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
-            capabilities |= Capabilities::from_bits(LittleEndian::read_u32(&buf[index..]).into()).unwrap();
+            let (cap, i) = deserialize_int_4(&buf, &index);
+            capabilities |= Capabilities::from_bits(cap.into()).unwrap();
+            index = i;
+        } else {
+            // Skip filler
+            index += 4;
         }
-        index += 4;
 
-        let mut scramble2: Option<Bytes> = None;
+        let mut scramble: Option<Bytes> = None;
         let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
-            let len = std::cmp::max(12, plugin_data_length - 9);
-            scramble2 = Some(Bytes::from(buf[index..index + len as usize].to_vec()));
+            let len = std::cmp::max(12, plugin_data_length as usize - 9);
+            let (scram, i) = deserialize_string_fix(&buf, &index, len);
+            scramble = Some(scram);
+            index = i;
         } else {
-            let null_index = memchr::memchr(b'\0', &buf[index..]).unwrap();
-            auth_plugin_name = Some(Bytes::from(buf[index..null_index].to_vec()));
+            let (plugin, i) = deserialize_string_null(&buf, &index);
+            let auth_plugin_name = Some(plugin);
+            index = i;
         }
 
         Ok(InitialHandshakePacket {
@@ -206,7 +206,7 @@ impl Deserialize for InitialHandshakePacket {
             collation,
             status,
             plugin_data_length,
-            scramble2,
+            scramble,
             auth_plugin_name,
         })
     }
