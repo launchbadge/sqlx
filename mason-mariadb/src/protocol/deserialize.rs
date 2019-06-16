@@ -1,3 +1,4 @@
+// Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
 
@@ -123,8 +124,7 @@ pub fn deserialize_byte_eof(buf: &Vec<u8>, index: &mut usize) -> Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use matches::assert_matches;
-    use bytes::BytesMut;
+    use bytes::{Bytes, BytesMut};
     use std::error::Error;
 
     // [X] deserialize_int_lenenc
@@ -237,6 +237,73 @@ mod tests {
         let int: u8 = deserialize_int_1(&buf, &mut index);
 
         assert_eq!(int, 1);
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn it_decodes_string_lenenc() {
+        let mut buf = &b"\x01\x00\x00\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_string_lenenc(&buf, &mut index);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
+        assert_eq!(index, 4);
+    }
+
+    #[test]
+    fn it_decodes_string_fix() {
+        let mut buf = &b"\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_string_fix(&buf, &mut index, 1);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn it_decodes_string_eof() {
+        let mut buf = &b"\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_string_eof(&buf, &mut index);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn it_decodes_string_null() {
+        let mut buf = &b"\x01\x00\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_string_null(&buf, &mut index);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
+        // Skips null byte
+        assert_eq!(index, 2);
+    }
+
+    #[test]
+    fn it_decodes_byte_fix() {
+        let mut buf = &b"\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_byte_fix(&buf, &mut index, 1);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn it_decodes_byte_eof() {
+        let mut buf = &b"\x01".to_vec();
+        let mut index = 0;
+        let string: Bytes = deserialize_byte_eof(&buf, &mut index);
+
+        assert_eq!(string[0], b'\x01');
+        assert_eq!(string.len(), 1);
         assert_eq!(index, 1);
     }
 }
