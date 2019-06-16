@@ -181,11 +181,15 @@ impl Deserialize for InitialHandshakePacket {
         }
 
         let mut scramble: Option<Bytes> = None;
-        let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             let len = std::cmp::max(12, plugin_data_length as usize - 9);
             scramble = Some(deserialize_string_fix(&buf, &mut index, len));
-        } else {
+            // Skip reserve byte
+            index += 1;
+        }
+
+        let mut auth_plugin_name: Option<Bytes> = None;
+        if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             auth_plugin_name = Some(deserialize_string_null(&buf, &mut index));
         }
 
@@ -296,7 +300,7 @@ mod test {
         \x01\0\0\0\
         authseed\
         \0\
-        \x00\x10\
+        \x00\x20\
         \0\
         \x00\x00\
         \x08\x00\
@@ -309,7 +313,18 @@ mod test {
         "
         .to_vec();
 
-        let _message = InitialHandshakePacket::deserialize(&mut buf)?;
+        let message = InitialHandshakePacket::deserialize(&mut buf)?;
+        assert_eq!(message.protocol_version, 1);
+        assert_eq!(message.server_version, b"5.5.5-7".to_vec());
+        assert_eq!(message.auth_seed, b"authseed".to_vec());
+        assert_eq!(message.scramble, Some(Bytes::from(b"scrambled2nd".to_vec())));
+        assert_eq!(
+            message.auth_plugin_name,
+            Some(Bytes::from(b"authentication_plugin_name".to_vec()))
+        );
+        assert!(!(message.capabilities & Capabilities::SECURE_CONNECTION).is_empty());
+        assert!(!(message.capabilities & Capabilities::PLUGIN_AUTH).is_empty());
+        assert!(!(message.capabilities & Capabilities::MARIA_DB_CLIENT_PROGRESS).is_empty());
 
         Ok(())
     }
