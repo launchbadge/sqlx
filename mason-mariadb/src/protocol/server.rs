@@ -156,7 +156,8 @@ impl Deserialize for InitialHandshakePacket {
         let status = deserialize_int_2(&buf, &mut index);
 
         capabilities |=
-            Capabilities::from_bits(deserialize_int_2(&buf, &mut index).into()).unwrap();
+            Capabilities::from_bits(((deserialize_int_2(&buf, &mut index) as u32) << 16).into())
+                .unwrap();
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
@@ -170,8 +171,10 @@ impl Deserialize for InitialHandshakePacket {
         index += 6;
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
-            capabilities |=
-                Capabilities::from_bits(deserialize_int_4(&buf, &mut index).into()).unwrap();
+            capabilities |= Capabilities::from_bits(
+                ((deserialize_int_4(&buf, &mut index) as u128) << 32).into(),
+            )
+            .unwrap();
         } else {
             // Skip filler
             index += 4;
@@ -269,5 +272,45 @@ impl Deserialize for ErrPacket {
             sql_state,
             error_message,
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_decodes_capabilities() {
+        let buf = b"\x00\x10".to_vec();
+        let mut index = 0;
+        Capabilities::from_bits(deserialize_int_2(&buf, &mut index).into()).unwrap();
+    }
+
+    #[test]
+    fn it_decodes_initialhandshakepacket() -> Result<(), Error> {
+        let mut buf = b"\
+        \x54\x00\x00\
+        \0\
+        \x01\
+        5.5.5-7\0\
+        \x01\0\0\0\
+        authseed\
+        \0\
+        \x00\x10\
+        \0\
+        \x00\x00\
+        \x08\x00\
+        \x0A\
+        \0\0\0\0\0\0\
+        \x01\x00\x00\x00\
+        scrambled2nd\
+        \0\
+        authentication_plugin_name\0\
+        "
+        .to_vec();
+
+        let _message = InitialHandshakePacket::deserialize(&mut buf)?;
+
+        Ok(())
     }
 }
