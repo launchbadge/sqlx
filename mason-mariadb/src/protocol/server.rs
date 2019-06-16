@@ -1,9 +1,9 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
-use byteorder::{ByteOrder, LittleEndian};
-use failure::{Error, err_msg};
-use bytes::{Bytes, BytesMut};
 use crate::protocol::deserialize::*;
+use byteorder::{ByteOrder, LittleEndian};
+use bytes::{Bytes, BytesMut};
+use failure::{err_msg, Error};
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error>;
@@ -129,42 +129,38 @@ impl Deserialize for InitialHandshakePacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
 
-        let (length, index) = deserialize_int_3(&buf, &index);
+        let length = deserialize_int_3(&buf, &mut index);
 
         if buf.len() != length as usize {
             return Err(err_msg("Lengths to do not match"));
         }
 
-        let mut sequence_number = 0;
-        (sequence_number, index) = deserialize_int_1(&buf, &index);
+        let sequence_number = deserialize_int_1(&buf, &mut index);
 
         if sequence_number != 0 {
             return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
         }
 
-        let (protocol_version, index) = deserialize_int_1(&buf, &index);
-        let (server_version, index) = deserialize_string_null(&buf, &index);
-        let (connection_id, index) = deserialize_int_4(&buf, &index);
-        let (auth_seed, index) = deserialize_string_fix(&buf, &index, 8);
+        let protocol_version = deserialize_int_1(&buf, &mut index);
+        let server_version = deserialize_string_null(&buf, &mut index);
+        let connection_id = deserialize_int_4(&buf, &mut index);
+        let auth_seed = deserialize_string_fix(&buf, &mut index, 8);
 
         // Skip reserved byte
         index += 1;
 
-        let (cap, index) = deserialize_int_2(&buf, &index);
-        let mut capabilities = Capabilities::from_bits(cap.into()).unwrap();
+        let mut capabilities =
+            Capabilities::from_bits(deserialize_int_2(&buf, &mut index).into()).unwrap();
 
-        let (collation, index) = deserialize_int_1(&buf, &index);
+        let collation = deserialize_int_1(&buf, &mut index);
+        let status = deserialize_int_2(&buf, &mut index);
 
-        let (status, index) = deserialize_int_2(&buf, &index);
-
-        let (cap, index) = deserialize_int_2(&buf, &index);
-        capabilities |= Capabilities::from_bits(cap.into()).unwrap();
+        capabilities |=
+            Capabilities::from_bits(deserialize_int_2(&buf, &mut index).into()).unwrap();
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            let (plugin, i) = deserialize_int_1(&buf, &index);
-            plugin_data_length = plugin;
-            index = i;
+            plugin_data_length = deserialize_int_1(&buf, &mut index);
         } else {
             // Skip reserve byte
             index += 1;
@@ -174,9 +170,8 @@ impl Deserialize for InitialHandshakePacket {
         index += 6;
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
-            let (cap, i) = deserialize_int_4(&buf, &index);
-            capabilities |= Capabilities::from_bits(cap.into()).unwrap();
-            index = i;
+            capabilities |=
+                Capabilities::from_bits(deserialize_int_4(&buf, &mut index).into()).unwrap();
         } else {
             // Skip filler
             index += 4;
@@ -186,13 +181,9 @@ impl Deserialize for InitialHandshakePacket {
         let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             let len = std::cmp::max(12, plugin_data_length as usize - 9);
-            let (scram, i) = deserialize_string_fix(&buf, &index, len);
-            scramble = Some(scram);
-            index = i;
+            scramble = Some(deserialize_string_fix(&buf, &mut index, len));
         } else {
-            let (plugin, i) = deserialize_string_null(&buf, &index);
-            let auth_plugin_name = Some(plugin);
-            index = i;
+            auth_plugin_name = Some(deserialize_string_null(&buf, &mut index));
         }
 
         Ok(InitialHandshakePacket {
@@ -215,10 +206,10 @@ impl Deserialize for InitialHandshakePacket {
 impl Deserialize for OkPacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 1;
-        let (affected_rows, index) = deserialize_int_lenenc(&buf, &index);
-        let (last_insert_id, index) = deserialize_int_lenenc(&buf, &index);
-        let (server_status, index) = deserialize_int_2(&buf, &index);
-        let (warning_count, index) = deserialize_int_2(&buf, &index);
+        let affected_rows = deserialize_int_lenenc(&buf, &mut index);
+        let last_insert_id = deserialize_int_lenenc(&buf, &mut index);
+        let server_status = deserialize_int_2(&buf, &mut index);
+        let warning_count = deserialize_int_2(&buf, &mut index);
 
         // Assuming CLIENT_SESSION_TRACK is unsupported
         let session_state_info = None;
@@ -241,7 +232,7 @@ impl Deserialize for OkPacket {
 impl Deserialize for ErrPacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 1;
-        let (error_code, index) = deserialize_int_2(&buf, &index);
+        let error_code = deserialize_int_2(&buf, &mut index);
 
         let mut stage = None;
         let mut max_stage = None;
@@ -254,27 +245,17 @@ impl Deserialize for ErrPacket {
 
         // Progress Reporting
         if error_code == 0xFFFF {
-            let (d_stage, index) = deserialize_int_1(&buf, &index);
-            let (d_max_stage, index) = deserialize_int_1(&buf, &index);
-            let (d_progress, index) = deserialize_int_3(&buf, &index);
-            let (d_progress_info, index) = deserialize_string_lenenc(&buf, &index);
-            stage = Some(d_stage);
-            max_stage = Some(d_max_stage);
-            progress = Some(d_progress);
-            progress_info = Some(d_progress_info);
-
-
+            stage = Some(deserialize_int_1(&buf, &mut index));
+            max_stage = Some(deserialize_int_1(&buf, &mut index));
+            progress = Some(deserialize_int_3(&buf, &mut index));
+            progress_info = Some(deserialize_string_lenenc(&buf, &mut index));
         } else {
             if buf[index] == b'#' {
-                let (d_sql_state_marker, index) = deserialize_string_fix(&buf, &index, 1);
-                let (d_sql_state, index) = deserialize_string_fix(&buf, &index, 5);
-                let (d_error_message, index) = deserialize_string_eof(&buf, &index);
-                sql_state_marker = Some(d_sql_state_marker);
-                sql_state = Some(d_sql_state);
-                error_message = Some(d_error_message);
+                sql_state_marker = Some(deserialize_string_fix(&buf, &mut index, 1));
+                sql_state = Some(deserialize_string_fix(&buf, &mut index, 5));
+                error_message = Some(deserialize_string_eof(&buf, &mut index));
             } else {
-                let (d_error_message, index) = deserialize_string_eof(&buf, &index);
-                error_message = Some(d_error_message);
+                error_message = Some(deserialize_string_eof(&buf, &mut index));
             }
         }
 
