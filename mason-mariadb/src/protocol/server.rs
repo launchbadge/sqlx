@@ -119,8 +119,8 @@ pub struct ErrPacket {
 
 impl Message {
     pub fn deserialize(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
-        let length = buf[0] + buf[1] << 8 + buf[2] << 16;
-        let sequence_number = buf[3];
+        // let length = deserialize_int_3(buf, &
+        // let sequence_number = buf[3];
         Ok(None)
     }
 }
