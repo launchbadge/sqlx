@@ -428,4 +428,29 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn it_decodes_okpacket() -> Result<(), Error> {
+        let mut buf = b"\
+        \x0F\x00\x00\
+        \x01\
+        \xFF\
+        \xFB\
+        \xFB\
+        \x01\x01\
+        \x00\x00\
+        info\
+        "
+        .to_vec();
+
+        let message = OkPacket::deserialize(&mut buf)?;
+
+        assert_eq!(message.affected_rows, None);
+        assert_eq!(message.last_insert_id, None);
+        assert!(!(message.server_status & ServerStatusFlag::SERVER_STATUS_IN_TRANS).is_empty());
+        assert_eq!(message.warning_count, 0);
+        assert_eq!(message.info, b"info".to_vec());
+
+        Ok(())
+    }
 }
