@@ -313,7 +313,21 @@ impl Deserialize for OkPacket {
 
 impl Deserialize for ErrPacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
-        let mut index = 1;
+        let mut index = 0;
+
+        let length = deserialize_int_3(&buf, &mut index);
+
+        if buf.len() != length as usize {
+            return Err(err_msg("Lengths to do not match"));
+        }
+
+        let _sequence_number = deserialize_int_1(&buf, &mut index);
+
+        let packet_header = deserialize_int_1(&buf, &mut index);
+        if packet_header != 0xFF {
+            panic!("Packet header is not 0xFF for ErrPacket");
+        }
+
         let error_code = deserialize_int_2(&buf, &mut index);
 
         let mut stage = None;
@@ -430,26 +444,24 @@ mod test {
     }
 
     #[test]
-    fn it_decodes_okpacket() -> Result<(), Error> {
+    fn it_decodes_errpacket() -> Result<(), Error> {
         let mut buf = b"\
         \x0F\x00\x00\
         \x01\
         \xFF\
-        \xFB\
-        \xFB\
-        \x01\x01\
-        \x00\x00\
-        info\
+        \xEA\x03\
+        #\
+        HY000\
+        NO\
         "
         .to_vec();
 
-        let message = OkPacket::deserialize(&mut buf)?;
+        let message = ErrPacket::deserialize(&mut buf)?;
 
-        assert_eq!(message.affected_rows, None);
-        assert_eq!(message.last_insert_id, None);
-        assert!(!(message.server_status & ServerStatusFlag::SERVER_STATUS_IN_TRANS).is_empty());
-        assert_eq!(message.warning_count, 0);
-        assert_eq!(message.info, b"info".to_vec());
+        assert_eq!(message.error_code, 1002);
+        assert_eq!(message.sql_state_marker, Some(Bytes::from(b"#".to_vec())));
+        assert_eq!(message.sql_state, Some(Bytes::from(b"HY000".to_vec())));
+        assert_eq!(message.error_message, Some(Bytes::from(b"NO".to_vec())));
 
         Ok(())
     }
