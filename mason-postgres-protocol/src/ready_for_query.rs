@@ -16,7 +16,7 @@ pub enum TransactionStatus {
     Error = b'E',
 }
 
-/// ReadyForQuery is sent whenever the backend is ready for a new query cycle.
+/// `ReadyForQuery` is sent whenever the backend is ready for a new query cycle.
 #[derive(Debug)]
 pub struct ReadyForQuery {
     pub status: TransactionStatus,
@@ -24,9 +24,7 @@ pub struct ReadyForQuery {
 
 impl Encode for ReadyForQuery {
     #[inline]
-    fn size_hint() -> usize {
-        6
-    }
+    fn size_hint() -> usize { 6 }
 
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         buf.write_u8(b'Z')?;
@@ -38,13 +36,13 @@ impl Encode for ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(buf: &Bytes) -> io::Result<Self> {
-        if buf.len() != 1 {
+    fn decode(b: Bytes) -> io::Result<Self> {
+        if b.len() != 1 {
             return Err(io::ErrorKind::InvalidInput)?;
         }
 
         Ok(Self {
-            status: match buf[0] {
+            status: match b[0] {
                 // FIXME: Variant value are duplicated with declaration
                 b'I' => TransactionStatus::Idle,
                 b'T' => TransactionStatus::Transaction,
@@ -60,7 +58,6 @@ impl Decode for ReadyForQuery {
 mod tests {
     use super::{ReadyForQuery, TransactionStatus};
     use crate::{Decode, Encode};
-    use bytes::Bytes;
     use std::io;
 
     #[test]

@@ -15,9 +15,7 @@ impl<'a> Default for ConnectOptions<'a> {
 
 impl<'a> ConnectOptions<'a> {
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
+    pub fn new() -> Self { Self::default() }
 
     #[inline]
     pub fn user(mut self, user: &'a str) -> Self {
