@@ -1,6 +1,7 @@
 //! https://www.postgresql.org/docs/devel/protocol.html
-#![feature(non_exhaustive)]
 
+mod authentication;
+mod backend_key_data;
 mod decode;
 mod encode;
 mod message;
