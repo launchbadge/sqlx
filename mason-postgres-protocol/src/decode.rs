@@ -4,7 +4,8 @@ use std::{io, str};
 
 pub trait Decode {
     fn decode(b: Bytes) -> io::Result<Self>
-    where Self: Sized;
+    where
+        Self: Sized;
 }
 
 #[inline]

@@ -1,7 +1,9 @@
-use crate::{decode::get_str, Decode};
+use crate::{decode::get_str, Decode, Encode};
+use byteorder::{BigEndian, WriteBytesExt};
 use bytes::Bytes;
 use std::{
-    fmt, io,
+    fmt,
+    io::{self, Write},
     pin::Pin,
     ptr::NonNull,
     str::{self, FromStr},
@@ -182,9 +184,26 @@ impl fmt::Debug for NoticeResponse {
     }
 }
 
+// FIXME: `Encode` here is (mostly) useless as its not easy to construct a NoticeResponse.
+//        Need a `NoticeResponse::builder().severity(...).build()` etc. type thing
+
+impl Encode for NoticeResponse {
+    fn size_hint(&self) -> usize { self.storage.len() + 5 }
+
+    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
+        buf.write_u8(b'Z')?;
+        buf.write_u32::<BigEndian>((4 + self.storage.len()) as u32)?;
+        buf.write_all(&self.storage)?;
+
+        Ok(())
+    }
+}
+
 impl Decode for NoticeResponse {
     fn decode(b: Bytes) -> io::Result<Self>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         let storage = Pin::new(b);
 
         let mut code = None::<&str>;
@@ -384,7 +403,8 @@ mod tests {
 
             body
         })
-        .join().unwrap();
+        .join()
+        .unwrap();
 
         assert_eq!(body.code(), "42710");
         assert_eq!(body.routine(), Some("CreateExtension"));

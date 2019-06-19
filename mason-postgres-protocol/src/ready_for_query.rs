@@ -24,7 +24,7 @@ pub struct ReadyForQuery {
 
 impl Encode for ReadyForQuery {
     #[inline]
-    fn size_hint() -> usize { 6 }
+    fn size_hint(&self) -> usize { 6 }
 
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         buf.write_u8(b'Z')?;
@@ -57,13 +57,32 @@ impl Decode for ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{ReadyForQuery, TransactionStatus};
-    use crate::{Decode, Encode};
+    use crate::{Decode, Encode, Message};
+    use bytes::Bytes;
     use std::io;
 
     #[test]
     fn it_encodes_ready_for_query() -> io::Result<()> {
         let message = ReadyForQuery { status: TransactionStatus::Error };
         assert_eq!(&*message.to_bytes()?, &b"Z\0\0\0\x05E"[..]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_decodes_ready_for_query() -> io::Result<()> {
+        // FIXME: A test-utils type thing could be useful here as these 7 lines are quite..
+        //        duplicated
+
+        let b = Bytes::from_static(b"Z\0\0\0\x05E");
+        let message = Message::decode(b)?;
+        let body = if let Message::ReadyForQuery(body) = message {
+            body
+        } else {
+            unreachable!();
+        };
+
+        assert_eq!(body.status, TransactionStatus::Error);
 
         Ok(())
     }
