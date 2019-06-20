@@ -26,23 +26,23 @@ impl Encode for Message {
 }
 
 impl Decode for Message {
-    fn decode(b: Bytes) -> io::Result<Self>
+    fn decode(src: Bytes) -> io::Result<Self>
     where
         Self: Sized,
     {
-        let mut buf = Cursor::new(&b);
+        let mut buf = Cursor::new(&src);
 
         let token = buf.read_u8()?;
         let len = buf.read_u32::<BigEndian>()? as usize;
         let pos = buf.position() as usize;
 
         // `len` includes the size of the length u32
-        let b = b.slice(pos, pos + len - 4);
+        let src = src.slice(pos, pos + len - 4);
 
         Ok(match token {
             // FIXME: These tokens are duplicated here and in the respective encode functions
-            b'N' => Message::NoticeResponse(NoticeResponse::decode(b)?),
-            b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(b)?),
+            b'N' => Message::NoticeResponse(NoticeResponse::decode(src)?),
+            b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         })

@@ -14,3 +14,8 @@ md-5 = "0.8.0"
 
 [dev-dependencies]
 matches = "0.1.8"
+criterion = "0.2"
+
+[[bench]]
+name = "decode"
+harness = false

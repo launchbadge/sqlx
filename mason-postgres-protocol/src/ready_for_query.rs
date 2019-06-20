@@ -36,13 +36,13 @@ impl Encode for ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(b: Bytes) -> io::Result<Self> {
-        if b.len() != 1 {
+    fn decode(src: Bytes) -> io::Result<Self> {
+        if src.len() != 1 {
             return Err(io::ErrorKind::InvalidInput)?;
         }
 
         Ok(Self {
-            status: match b[0] {
+            status: match src[0] {
                 // FIXME: Variant value are duplicated with declaration
                 b'I' => TransactionStatus::Idle,
                 b'T' => TransactionStatus::Transaction,

@@ -21,3 +21,6 @@ mason-postgres = { path = "mason-postgres" }
 failure = "0.1"
 env_logger = "0.6.1"
 bytes = "0.4.12"
+
+[profile.bench]
+lto = true
