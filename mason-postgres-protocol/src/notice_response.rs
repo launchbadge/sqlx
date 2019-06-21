@@ -8,6 +8,7 @@ use std::{
     ptr::NonNull,
     str::{self, FromStr},
 };
+use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Severity {
@@ -48,9 +49,7 @@ pub struct NoticeResponse(Bytes);
 
 impl NoticeResponse {
     #[inline]
-    pub fn fields(self) -> io::Result<NoticeResponseFields> {
-        NoticeResponseFields::decode(self.0)
-    }
+    pub fn fields(self) -> io::Result<NoticeResponseFields> { NoticeResponseFields::decode(self.0) }
 }
 
 impl fmt::Debug for NoticeResponse {
@@ -62,9 +61,7 @@ impl fmt::Debug for NoticeResponse {
 
 impl Encode for NoticeResponse {
     #[inline]
-    fn size_hint(&self) -> usize {
-        self.0.len() + 5
-    }
+    fn size_hint(&self) -> usize { self.0.len() + 5 }
 
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
@@ -82,6 +79,7 @@ impl Decode for NoticeResponse {
     where
         Self: Sized,
     {
+        // NOTE: Further decoding is delayed until `.fields()`
         Ok(Self(src))
     }
 }
@@ -388,9 +386,72 @@ impl Decode for NoticeResponseFields {
     }
 }
 
+pub struct NoticeResponseBuilder<'a> {
+    severity: Severity,
+    code: Cow<'a, str>,
+    message: Cow<'a, str>,
+    detail: Option<Cow<'a, str>>,
+    hint: Option<Cow<'a, str>>,
+    position: Option<usize>,
+    internal_position: Option<usize>,
+    internal_query: Option<Cow<'a, str>>,
+    where_: Option<Cow<'a, str>>,
+    schema: Option<Cow<'a, str>>,
+    table: Option<Cow<'a, str>>,
+    column: Option<Cow<'a, str>>,
+    data_type: Option<Cow<'a, str>>,
+    constraint: Option<Cow<'a, str>>,
+    file: Option<Cow<'a, str>>,
+    line: Option<usize>,
+    routine: Option<Cow<'a, str>>,
+}
+
+impl Default for NoticeResponseBuilder<'_> {
+    fn default() -> Self {
+        Self {
+            severity: Severity::Notice,
+            message: Cow::Borrowed(""),
+            code: Cow::Borrowed("XX000"),  // internal_error
+            detail: None,
+            hint: None,
+            position: None,
+            internal_position: None,
+            internal_query: None,
+            where_: None,
+            schema: None,
+            table: None,
+            column: None,
+            data_type: None,
+            constraint: None,
+            file: None,
+            line: None,
+            routine: None,
+        }
+    }
+}
+
+impl<'a> NoticeResponseBuilder<'a> {
+    #[inline]
+    pub fn new() -> NoticeResponseBuilder<'a> {
+        Self::default()
+    }
+
+    #[inline]
+    pub fn severity(mut self, severity: Severity) -> Self {
+        self.severity = severity;
+        self
+    }
+
+    #[inline]
+    pub fn message(mut self, message: impl Into<Cow<'a, str>>) -> Self {
+        self.message = message.into();
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Message, Severity, Decode};
+    use crate::{Decode, Message, Severity};
     use bytes::Bytes;
     use std::io;
 

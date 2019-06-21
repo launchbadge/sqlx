@@ -12,6 +12,6 @@ pub use self::{
     decode::Decode,
     encode::Encode,
     message::Message,
-    notice_response::{NoticeResponse, Severity},
+    notice_response::{NoticeResponse, NoticeResponseBuilder, NoticeResponseFields, Severity},
     ready_for_query::{ReadyForQuery, TransactionStatus},
 };
