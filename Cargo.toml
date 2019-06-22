@@ -24,3 +24,5 @@ bytes = "0.4.12"
 
 [profile.bench]
 lto = true
+codegen-units = 1
+incremental = false

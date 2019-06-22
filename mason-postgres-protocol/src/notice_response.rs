@@ -9,6 +9,7 @@ use std::{
     ptr::NonNull,
     str::{self, FromStr},
 };
+use core::fmt::Debug;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Severity {
@@ -625,13 +626,13 @@ impl<'a> Encode for NoticeResponseBuilder<'a> {
 
         if let Some(position) = &self.position {
             buf.push(b'P');
-            buf.write_all(position.to_string().as_bytes())?;
+            itoa::write(&mut *buf, *position)?;
             buf.push(0);
         }
 
         if let Some(internal_position) = &self.internal_position {
             buf.push(b'p');
-            buf.write_all(internal_position.to_string().as_bytes())?;
+            itoa::write(&mut *buf, *internal_position)?;
             buf.push(0);
         }
 
@@ -685,7 +686,7 @@ impl<'a> Encode for NoticeResponseBuilder<'a> {
 
         if let Some(line) = &self.line {
             buf.push(b'L');
-            buf.write_all(line.to_string().as_bytes())?;
+            itoa::write(&mut *buf, *line)?;
             buf.push(0);
         }
 
