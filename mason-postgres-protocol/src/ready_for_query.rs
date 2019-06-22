@@ -59,32 +59,30 @@ impl Decode for ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{ReadyForQuery, TransactionStatus};
-    use crate::{Decode, Encode, Message};
+    use crate::{Decode, Encode};
     use bytes::Bytes;
     use std::io;
+
+    const READY_FOR_QUERY: &[u8] = b"E";
 
     #[test]
     fn it_encodes_ready_for_query() -> io::Result<()> {
         let message = ReadyForQuery { status: TransactionStatus::Error };
-        assert_eq!(&*message.to_bytes()?, &b"Z\0\0\0\x05E"[..]);
+
+        let mut dst = Vec::with_capacity(message.size_hint());
+        message.encode(&mut dst)?;
+
+        assert_eq!(&dst[5..], READY_FOR_QUERY);
 
         Ok(())
     }
 
     #[test]
     fn it_decodes_ready_for_query() -> io::Result<()> {
-        // FIXME: A test-utils type thing could be useful here as these 7 lines are quite..
-        //        duplicated
+        let src = Bytes::from_static(READY_FOR_QUERY);
+        let message = ReadyForQuery::decode(src)?;
 
-        let b = Bytes::from_static(b"Z\0\0\0\x05E");
-        let message = Message::decode(b)?;
-        let body = if let Message::ReadyForQuery(body) = message {
-            body
-        } else {
-            unreachable!();
-        };
-
-        assert_eq!(body.status, TransactionStatus::Error);
+        assert_eq!(message.status, TransactionStatus::Error);
 
         Ok(())
     }

@@ -5,13 +5,13 @@ mod backend_key_data;
 mod decode;
 mod encode;
 mod message;
-mod notice_response;
 mod ready_for_query;
+mod response;
 
 pub use self::{
     decode::Decode,
     encode::Encode,
     message::Message,
-    notice_response::{NoticeResponse, NoticeResponseBuilder, NoticeResponseFields, Severity},
     ready_for_query::{ReadyForQuery, TransactionStatus},
+    response::{Response, ResponseBuilder, Severity},
 };

@@ -1,4 +1,4 @@
-use crate::{Decode, Encode, NoticeResponse, ReadyForQuery};
+use crate::{Decode, Encode, ReadyForQuery, Response};
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::Bytes;
 use std::io::{self, Cursor};
@@ -6,21 +6,21 @@ use std::io::{self, Cursor};
 #[derive(Debug)]
 pub enum Message {
     ReadyForQuery(ReadyForQuery),
-    NoticeResponse(NoticeResponse),
+    Response(Response),
 }
 
 impl Encode for Message {
     fn size_hint(&self) -> usize {
         match self {
             Message::ReadyForQuery(body) => body.size_hint(),
-            Message::NoticeResponse(body) => body.size_hint(),
+            Message::Response(body) => body.size_hint(),
         }
     }
 
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         match self {
             Message::ReadyForQuery(body) => body.encode(buf),
-            Message::NoticeResponse(body) => body.encode(buf),
+            Message::Response(body) => body.encode(buf),
         }
     }
 }
@@ -41,7 +41,7 @@ impl Decode for Message {
 
         Ok(match token {
             // FIXME: These tokens are duplicated here and in the respective encode functions
-            b'N' => Message::NoticeResponse(NoticeResponse::decode(src)?),
+            b'N' | b'E' => Message::Response(Response::decode(src)?),
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
