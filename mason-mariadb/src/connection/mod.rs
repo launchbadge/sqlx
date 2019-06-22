@@ -15,6 +15,7 @@ use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
 use failure::Error;
 use failure::err_msg;
+use byteorder::{ByteOrder, LittleEndian};
 
 mod establish;
 // mod query;
@@ -73,6 +74,7 @@ async fn receiver(
 ) -> Result<(), Error> {
     let mut rbuf = BytesMut::with_capacity(0);
     let mut len = 0;
+    let mut first_packet = true;
 
     loop {
         // This uses an adaptive system to extend the vector when it fills. We want to
@@ -96,17 +98,35 @@ async fn receiver(
         // TODO: Need a select! on a channel that I can trigger to cancel this
         let bytes_read = reader.read(&mut rbuf[len..]).await?;
 
-        // Read 0 bytes from the server; end-of-stream
-        if bytes_read <= 0 {
+        if bytes_read > 0 {
+            len += bytes_read;
+        } else {
+            // Read 0 bytes from the server; end-of-stream
             break;
         }
 
-        while bytes_read > 0 {
-//            let message = ServerMessage::init(&mut rbuf)?;
-//            println!("{:?}", rbuf);
-//            let message = InitialHandshakePacket::deserialize(&mut rbuf.to_vec())?;
-            sender.send(ServerMessage::InitialHandshakePacket(InitialHandshakePacket::default())).await?;
-//            len += bytes_read;
+        while len > 0 {
+            let size = rbuf.len();
+            println!("Buffer: {:?}", rbuf);
+            let message = if first_packet {
+                println!("init");
+                ServerMessage::init(&mut rbuf)?
+            } else {
+                println!("deser");
+                ServerMessage::deserialize(&mut rbuf)?
+            };
+            println!("Message: {:?}", message);
+            len -= size - rbuf.len();
+
+            if let Some(message) = message {
+                first_packet = false;
+                sender.send(message).await.unwrap();
+            } else {
+                // Did not receive enough bytes to
+                // deserialize a complete message
+                break;
+            }
+
         }
 
 
