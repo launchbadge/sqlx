@@ -24,7 +24,9 @@ pub struct ReadyForQuery {
 
 impl Encode for ReadyForQuery {
     #[inline]
-    fn size_hint(&self) -> usize { 6 }
+    fn size_hint(&self) -> usize {
+        6
+    }
 
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         buf.write_u8(b'Z')?;

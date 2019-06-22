@@ -5,7 +5,6 @@ edition = "2018"
 format_strings = true
 version = "Two"
 format_macro_matchers = true
-fn_single_line = true
 reorder_impl_items = true
 condense_wildcard_suffixes = true
 use_field_init_shorthand = true

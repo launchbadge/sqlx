@@ -19,3 +19,7 @@ criterion = "0.2"
 [[bench]]
 name = "decode"
 harness = false
+
+[[bench]]
+name = "encode"
+harness = false

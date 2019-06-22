@@ -2,13 +2,13 @@ use crate::{decode::get_str, Decode, Encode};
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes::Bytes;
 use std::{
+    borrow::Cow,
     fmt,
     io::{self, Write},
     pin::Pin,
     ptr::NonNull,
     str::{self, FromStr},
 };
-use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Severity {
@@ -20,6 +20,21 @@ pub enum Severity {
     Debug,
     Info,
     Log,
+}
+
+impl Severity {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Severity::Panic => "PANIC",
+            Severity::Fatal => "FATAL",
+            Severity::Error => "ERROR",
+            Severity::Warning => "WARNING",
+            Severity::Notice => "NOTICE",
+            Severity::Debug => "DEBUG",
+            Severity::Info => "INFO",
+            Severity::Log => "LOG",
+        }
+    }
 }
 
 impl FromStr for Severity {
@@ -49,7 +64,14 @@ pub struct NoticeResponse(Bytes);
 
 impl NoticeResponse {
     #[inline]
-    pub fn fields(self) -> io::Result<NoticeResponseFields> { NoticeResponseFields::decode(self.0) }
+    pub fn builder() -> NoticeResponseBuilder<'static> {
+        NoticeResponseBuilder::new()
+    }
+
+    #[inline]
+    pub fn fields(self) -> io::Result<NoticeResponseFields> {
+        NoticeResponseFields::decode(self.0)
+    }
 }
 
 impl fmt::Debug for NoticeResponse {
@@ -61,7 +83,9 @@ impl fmt::Debug for NoticeResponse {
 
 impl Encode for NoticeResponse {
     #[inline]
-    fn size_hint(&self) -> usize { self.0.len() + 5 }
+    fn size_hint(&self) -> usize {
+        self.0.len() + 5
+    }
 
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
@@ -112,7 +136,9 @@ unsafe impl Sync for NoticeResponseFields {}
 
 impl NoticeResponseFields {
     #[inline]
-    pub fn severity(&self) -> Severity { self.severity }
+    pub fn severity(&self) -> Severity {
+        self.severity
+    }
 
     #[inline]
     pub fn code(&self) -> &str {
@@ -139,10 +165,14 @@ impl NoticeResponseFields {
     }
 
     #[inline]
-    pub fn position(&self) -> Option<usize> { self.position }
+    pub fn position(&self) -> Option<usize> {
+        self.position
+    }
 
     #[inline]
-    pub fn internal_position(&self) -> Option<usize> { self.internal_position }
+    pub fn internal_position(&self) -> Option<usize> {
+        self.internal_position
+    }
 
     #[inline]
     pub fn internal_query(&self) -> Option<&str> {
@@ -193,7 +223,9 @@ impl NoticeResponseFields {
     }
 
     #[inline]
-    pub fn line(&self) -> Option<usize> { self.line }
+    pub fn line(&self) -> Option<usize> {
+        self.line
+    }
 
     #[inline]
     pub fn routine(&self) -> Option<&str> {
@@ -411,7 +443,7 @@ impl Default for NoticeResponseBuilder<'_> {
         Self {
             severity: Severity::Notice,
             message: Cow::Borrowed(""),
-            code: Cow::Borrowed("XX000"),  // internal_error
+            code: Cow::Borrowed("XX000"), // internal_error
             detail: None,
             hint: None,
             position: None,
@@ -437,37 +469,274 @@ impl<'a> NoticeResponseBuilder<'a> {
     }
 
     #[inline]
-    pub fn severity(mut self, severity: Severity) -> Self {
+    pub fn severity(&mut self, severity: Severity) -> &mut Self {
         self.severity = severity;
         self
     }
 
     #[inline]
-    pub fn message(mut self, message: impl Into<Cow<'a, str>>) -> Self {
+    pub fn message(&mut self, message: impl Into<Cow<'a, str>>) -> &mut Self {
         self.message = message.into();
         self
+    }
+
+    #[inline]
+    pub fn code(&mut self, code: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.code = code.into();
+        self
+    }
+
+    #[inline]
+    pub fn detail(&mut self, detail: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.detail = Some(detail.into());
+        self
+    }
+
+    #[inline]
+    pub fn hint(&mut self, hint: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.hint = Some(hint.into());
+        self
+    }
+
+    #[inline]
+    pub fn position(&mut self, position: usize) -> &mut Self {
+        self.position = Some(position);
+        self
+    }
+
+    #[inline]
+    pub fn internal_position(&mut self, position: usize) -> &mut Self {
+        self.internal_position = Some(position);
+        self
+    }
+
+    #[inline]
+    pub fn internal_query(&mut self, query: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.internal_query = Some(query.into());
+        self
+    }
+
+    #[inline]
+    pub fn where_(&mut self, where_: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.where_ = Some(where_.into());
+        self
+    }
+
+    #[inline]
+    pub fn schema(&mut self, schema: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.schema = Some(schema.into());
+        self
+    }
+
+    #[inline]
+    pub fn table(&mut self, table: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.table = Some(table.into());
+        self
+    }
+
+    #[inline]
+    pub fn column(&mut self, column: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.column = Some(column.into());
+        self
+    }
+
+    #[inline]
+    pub fn data_type(&mut self, data_type: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.data_type = Some(data_type.into());
+        self
+    }
+
+    #[inline]
+    pub fn constraint(&mut self, constraint: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.constraint = Some(constraint.into());
+        self
+    }
+
+    #[inline]
+    pub fn file(&mut self, file: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.file = Some(file.into());
+        self
+    }
+
+    #[inline]
+    pub fn line(&mut self, line: usize) -> &mut Self {
+        self.line = Some(line);
+        self
+    }
+
+    #[inline]
+    pub fn routine(&mut self, routine: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.routine = Some(routine.into());
+        self
+    }
+
+    #[inline]
+    pub fn build(&self) -> NoticeResponse {
+        let mut buf = Vec::new();
+
+        // FIXME: Should Encode even be fallible?
+        // PANIC: Cannot fail
+        self.encode(&mut buf).unwrap();
+
+        NoticeResponse(Bytes::from(buf))
+    }
+}
+
+impl<'a> Encode for NoticeResponseBuilder<'a> {
+    fn size_hint(&self) -> usize {
+        // Too variable to measure efficiently
+        0
+    }
+
+    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
+        // Severity and Localized Severity (required)
+        let sev = self.severity.to_str().as_bytes();
+        buf.push(b'S');
+        buf.write_all(sev)?;
+        buf.push(0);
+        buf.push(b'V');
+        buf.write_all(sev)?;
+        buf.push(0);
+
+        // Code (required)
+        buf.push(b'C');
+        buf.write_all(self.code.as_bytes())?;
+        buf.push(0);
+
+        // Message (required)
+        buf.push(b'M');
+        buf.write_all(self.message.as_bytes())?;
+        buf.push(0);
+
+        // All remaining fields are optional and
+        // should be encoded if present
+
+        if let Some(detail) = &self.detail {
+            buf.push(b'D');
+            buf.write_all(detail.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(hint) = &self.hint {
+            buf.push(b'H');
+            buf.write_all(hint.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(position) = &self.position {
+            buf.push(b'P');
+            buf.write_all(position.to_string().as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(internal_position) = &self.internal_position {
+            buf.push(b'p');
+            buf.write_all(internal_position.to_string().as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(internal_query) = &self.internal_query {
+            buf.push(b'q');
+            buf.write_all(internal_query.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(where_) = &self.where_ {
+            buf.push(b'w');
+            buf.write_all(where_.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(schema) = &self.schema {
+            buf.push(b's');
+            buf.write_all(schema.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(table) = &self.table {
+            buf.push(b't');
+            buf.write_all(table.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(column) = &self.column {
+            buf.push(b'c');
+            buf.write_all(column.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(data_type) = &self.data_type {
+            buf.push(b'd');
+            buf.write_all(data_type.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(constraint) = &self.constraint {
+            buf.push(b'n');
+            buf.write_all(constraint.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(file) = &self.file {
+            buf.push(b'F');
+            buf.write_all(file.as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(line) = &self.line {
+            buf.push(b'L');
+            buf.write_all(line.to_string().as_bytes())?;
+            buf.push(0);
+        }
+
+        if let Some(routine) = &self.routine {
+            buf.push(b'R');
+            buf.write_all(routine.as_bytes())?;
+            buf.push(0);
+        }
+
+        // After the final field, there is a nul terminator
+        buf.push(0);
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Decode, Message, Severity};
+    use super::{NoticeResponse, Severity};
+    use crate::{Decode, Encode};
     use bytes::Bytes;
     use std::io;
 
+    const NOTICE_RESPONSE: &[u8] =
+        b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
+          skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
+
+    #[test]
+    fn it_encodes_notice_response() -> io::Result<()> {
+        let message = NoticeResponse::builder()
+            .severity(Severity::Notice)
+            .code("42710")
+            .message("extension \"uuid-ossp\" already exists, skipping")
+            .file("extension.c")
+            .line(1656)
+            .routine("CreateExtension")
+            .build();
+
+        let mut dst = Vec::with_capacity(message.size_hint());
+        message.encode(&mut dst)?;
+
+        assert_eq!(&dst[5..], NOTICE_RESPONSE);
+
+        Ok(())
+    }
+
     #[test]
     fn it_decodes_notice_response() -> io::Result<()> {
-        let src = Bytes::from_static(b"N\0\0\0pSNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, skipping\0Fextension.c\0L1656\0RCreateExtension\0\0");
-        let message = Message::decode(src)?;
-
-        // FIXME: Is there a simpler pattern here for tests?
-        let body = if let Message::NoticeResponse(body) = message {
-            body
-        } else {
-            panic!("unexpected {:?}", message);
-        };
-
-        let fields = body.fields()?;
+        let src = Bytes::from_static(NOTICE_RESPONSE);
+        let message = NoticeResponse::decode(src)?;
+        let fields = message.fields()?;
 
         assert_eq!(fields.severity(), Severity::Notice);
         assert_eq!(fields.message(), "extension \"uuid-ossp\" already exists, skipping");
