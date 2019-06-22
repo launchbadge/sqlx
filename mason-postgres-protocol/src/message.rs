@@ -40,7 +40,6 @@ impl Decode for Message {
         let src = src.slice(pos, pos + len - 4);
 
         Ok(match token {
-            // FIXME: These tokens are duplicated here and in the respective encode functions
             b'N' | b'E' => Message::Response(Response::decode(src)?),
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
 
