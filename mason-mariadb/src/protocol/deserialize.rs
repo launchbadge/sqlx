@@ -1,6 +1,19 @@
 // Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
+use failure::Error;
+use failure::err_msg;
+
+#[inline]
+pub fn deserialize_length(buf: &Vec<u8>, index: &mut usize) -> Result<u32, Error> {
+    let length = deserialize_int_3(&buf, index);
+
+    if buf.len() < length as usize {
+        return Err(err_msg("Lengths to do not match"));
+    }
+
+    Ok(length)
+}
 
 #[inline]
 pub fn deserialize_int_lenenc(buf: &Vec<u8>, index: &mut usize) -> Option<usize> {

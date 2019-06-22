@@ -105,17 +105,15 @@ async fn receiver(
             break;
         }
 
+         println!("{:?}", rbuf);
+
         while len > 0 {
             let size = rbuf.len();
-            println!("Buffer: {:?}", rbuf);
             let message = if first_packet {
-                println!("init");
                 ServerMessage::init(&mut rbuf)?
             } else {
-                println!("deser");
                 ServerMessage::deserialize(&mut rbuf)?
             };
-            println!("Message: {:?}", message);
             len -= size - rbuf.len();
 
             if let Some(message) = message {

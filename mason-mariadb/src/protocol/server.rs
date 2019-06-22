@@ -17,7 +17,6 @@ pub enum Message {
 }
 
 bitflags! {
-//    1111011111111110
     pub struct Capabilities: u128 {
         const CLIENT_MYSQL = 1;
         const FOUND_ROWS = 2;
@@ -149,7 +148,7 @@ pub struct InitialHandshakePacket {
     pub auth_seed: Bytes,
     pub capabilities: Capabilities,
     pub collation: u8,
-    pub status: u16,
+    pub status: ServerStatusFlag,
     pub plugin_data_length: u8,
     pub scramble: Option<Bytes>,
     pub auth_plugin_name: Option<Bytes>,
@@ -196,12 +195,7 @@ impl Deserialize for InitialHandshakePacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = deserialize_int_3(&buf, &mut index);
-
-        if buf.len() < length as usize {
-            return Err(err_msg("Lengths to do not match"));
-        }
-
+        let length = deserialize_length(&buf, &mut index)?;
         let sequence_number = deserialize_int_1(&buf, &mut index);
 
         if sequence_number != 0 {
@@ -220,7 +214,7 @@ impl Deserialize for InitialHandshakePacket {
             Capabilities::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
 
         let collation = deserialize_int_1(&buf, &mut index);
-        let status = deserialize_int_2(&buf, &mut index);
+        let status = ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
 
         capabilities |=
             Capabilities::from_bits_truncate(((deserialize_int_2(&buf, &mut index) as u32) << 16).into());
@@ -279,12 +273,7 @@ impl Deserialize for OkPacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = deserialize_int_3(&buf, &mut index);
-
-        if buf.len() != length as usize {
-            return Err(err_msg("Lengths to do not match"));
-        }
-
+        let length = deserialize_length(&buf, &mut index)?;
         let _sequence_number = deserialize_int_1(&buf, &mut index);
 
         let packet_header = deserialize_int_1(&buf, &mut index);
@@ -319,12 +308,7 @@ impl Deserialize for ErrPacket {
     fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = deserialize_int_3(&buf, &mut index);
-
-        if buf.len() != length as usize {
-            return Err(err_msg("Lengths to do not match"));
-        }
-
+        let length = deserialize_length(&buf, &mut index)?;
         let _sequence_number = deserialize_int_1(&buf, &mut index);
 
         let packet_header = deserialize_int_1(&buf, &mut index);
