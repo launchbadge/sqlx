@@ -1,7 +1,6 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
 use crate::protocol::deserialize::*;
-use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
 use failure::{err_msg, Error};
 
@@ -183,6 +182,9 @@ impl Message {
         // let length = deserialize_int_3(buf, &
         // let sequence_number = buf[3];
         Ok(None)
+    }
+    pub fn init(buf: &mut BytesMut) -> Result<Self, Error> {
+        Ok(Message::InitialHandshakePacket(InitialHandshakePacket::deserialize(&mut buf.to_vec())?))
     }
 }
 
@@ -414,6 +416,30 @@ mod test {
         assert!(!(message.capabilities & Capabilities::SECURE_CONNECTION).is_empty());
         assert!(!(message.capabilities & Capabilities::PLUGIN_AUTH).is_empty());
         assert!(!(message.capabilities & Capabilities::MARIA_DB_CLIENT_PROGRESS).is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_decodes_initialhandshakepacket_real() -> Result<(), Error> {
+        let mut buf = b"\
+        n\0\0\
+        \0\
+        \n\
+        5.5.5-10.4.6-MariaDB-1:10.4\0".to_vec();
+
+        let message = InitialHandshakePacket::deserialize(&mut buf)?;
+//        assert_eq!(message.protocol_version, 1);
+//        assert_eq!(message.server_version, b"5.5.5-7".to_vec());
+//        assert_eq!(message.auth_seed, b"authseed".to_vec());
+//        assert_eq!(message.scramble, Some(Bytes::from(b"scrambled2nd".to_vec())));
+//        assert_eq!(
+//            message.auth_plugin_name,
+//            Some(Bytes::from(b"authentication_plugin_name".to_vec()))
+//        );
+//        assert!(!(message.capabilities & Capabilities::SECURE_CONNECTION).is_empty());
+//        assert!(!(message.capabilities & Capabilities::PLUGIN_AUTH).is_empty());
+//        assert!(!(message.capabilities & Capabilities::MARIA_DB_CLIENT_PROGRESS).is_empty());
 
         Ok(())
     }
