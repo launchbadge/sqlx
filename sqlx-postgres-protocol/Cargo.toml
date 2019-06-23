@@ -1,5 +1,5 @@
 [package]
-name = "mason-postgres-protocol"
+name = "sqlx-postgres-protocol"
 version = "0.0.0"
 authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
 license = "MIT OR Apache-2.0"

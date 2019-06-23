@@ -1,5 +1,5 @@
 [package]
-name = "mason-postgres"
+name = "sqlx-postgres"
 version = "0.0.0"
 authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -7,7 +7,7 @@ description = "PostgreSQL database driver for dbx."
 edition = "2018"
 
 [dependencies]
-mason-core = { path = "../mason-core" }
+sqlx-core = { path = "../sqlx-core" }
 runtime = "=0.3.0-alpha.4"
 futures-preview = "=0.3.0-alpha.16"
 failure = "0.1"

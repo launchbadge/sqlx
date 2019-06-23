@@ -2,7 +2,7 @@
 extern crate criterion;
 
 use criterion::Criterion;
-use mason_postgres_protocol::{Encode, PasswordMessage, StartupMessage, Response, Severity};
+use sqlx_postgres_protocol::{Encode, PasswordMessage, StartupMessage, Response, Severity};
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("encode Response(Builder)", |b| {

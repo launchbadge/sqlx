@@ -8,7 +8,7 @@ use futures::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     SinkExt, StreamExt,
 };
-use mason_core::ConnectOptions;
+use sqlx_core::ConnectOptions;
 use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
 

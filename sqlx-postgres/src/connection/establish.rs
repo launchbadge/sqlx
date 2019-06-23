@@ -4,7 +4,7 @@ use crate::protocol::{
     server::Message as ServerMessage,
 };
 use futures::StreamExt;
-use mason_core::ConnectOptions;
+use sqlx_core::ConnectOptions;
 use md5::{Digest, Md5};
 use std::io;
 

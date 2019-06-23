@@ -1,13 +1,13 @@
 [workspace]
 members = [
     ".",
-    "mason-core",
-    "mason-postgres-protocol",
-    "mason-postgres",
+    "sqlx-core",
+    "sqlx-postgres-protocol",
+    "sqlx-postgres",
 ]
 
 [package]
-name = "mason"
+name = "sqlx"
 version = "0.0.0"
 authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -16,8 +16,8 @@ edition = "2018"
 
 [dependencies]
 runtime = "=0.3.0-alpha.4"
-mason-core = { path = "mason-core" }
-mason-postgres = { path = "mason-postgres" }
+sqlx-core = { path = "sqlx-core" }
+sqlx-postgres = { path = "sqlx-postgres" }
 failure = "0.1"
 env_logger = "0.6.1"
 bytes = "0.4.12"

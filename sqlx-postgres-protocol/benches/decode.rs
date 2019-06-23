@@ -3,7 +3,7 @@ extern crate criterion;
 
 use bytes::Bytes;
 use criterion::{black_box, Criterion};
-use mason_postgres_protocol::{Decode, Response};
+use sqlx_postgres_protocol::{Decode, Response};
 
 fn criterion_benchmark(c: &mut Criterion) {
     // NOTE: This is sans header (for direct decoding)

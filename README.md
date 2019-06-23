@@ -1,4 +1,4 @@
-# Mason
+# sqlx
 _Asynchronous and expressive database client in pure Rust_
 
 This is an experiment being worked on in stages. The first stage
@@ -12,12 +12,12 @@ What follows is _experimental_ usage (for thinking on API design) that is not cu
 ```rust
 #![feature(async_await)]
 
-use mason::pg::Connection;
+use sqlx::pg::Connection;
 
 #[runtime::main]
 async fn main() -> Result<(), failure::Error> {
     // this will likely be something like eventually:
-    //  mason::Connection::<Pg>::establish(...)
+    //  sqlx::Connection::<Pg>::establish(...)
 
     let mut conn = Connection::establish(ConnectOptions::new().user("postgres")).await?;
     // or: Connection::establish("postgres://postgres@localhost/").await?;

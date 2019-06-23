@@ -1,6 +1,6 @@
 #![feature(async_await)]
 
-//use mason::{pg::Connection, ConnectOptions};
+//use sqlx::{pg::Connection, ConnectOptions};
 
 #[runtime::main]
 async fn main() -> Result<(), failure::Error> {

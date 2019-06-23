@@ -1,2 +1,2 @@
-pub use mason_core::ConnectOptions;
-pub use mason_postgres as pg;
+pub use sqlx_core::ConnectOptions;
+pub use sqlx_postgres as pg;
