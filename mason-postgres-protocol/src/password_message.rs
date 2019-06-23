@@ -3,26 +3,34 @@ use bytes::Bytes;
 use md5::{Digest, Md5};
 use std::io;
 
+#[derive(Debug)]
 pub struct PasswordMessage {
     password: Bytes,
 }
 
 impl PasswordMessage {
     /// Create a `PasswordMessage` with an unecrypted password.
-    pub fn cleartext(password: impl AsRef<str>) -> Self {
-        Self { password: Bytes::from(password.as_ref()) }
+    pub fn cleartext(password: &str) -> Self {
+        Self { password: Bytes::from(password) }
     }
 
     /// Create a `PasswordMessage` by hasing the password, user, and salt together using MD5.
-    pub fn md5(password: impl AsRef<str>, user: impl AsRef<str>, salt: &[u8; 4]) -> Self {
-        let credentials =
-            hex::encode(Md5::new().chain(password.as_ref()).chain(user.as_ref()).result());
+    pub fn md5(password: &str, user: &str, salt: &[u8; 4]) -> Self {
+        let mut hasher = Md5::new();
 
-        let salted = hex::encode(Md5::new().chain(credentials).chain(salt).result());
+        hasher.input(password);
+        hasher.input(user);
+
+        let credentials = hex::encode(hasher.result_reset());
+
+        hasher.input(credentials);
+        hasher.input(salt);
+
+        let salted = hex::encode(hasher.result());
 
         let mut password = Vec::with_capacity(3 + salted.len());
-        password.copy_from_slice(b"md5");
-        password.copy_from_slice(salted.as_bytes());
+        password.extend_from_slice(b"md5");
+        password.extend_from_slice(salted.as_bytes());
 
         Self { password: Bytes::from(password) }
     }
@@ -51,8 +59,8 @@ impl Encode for PasswordMessage {
 
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         buf.push(b'p');
-        buf.copy_from_slice(&(self.password.len() + 4).to_be_bytes());
-        buf.copy_from_slice(&self.password);
+        buf.extend_from_slice(&(self.password.len() + 4).to_be_bytes());
+        buf.extend_from_slice(&self.password);
 
         Ok(())
     }

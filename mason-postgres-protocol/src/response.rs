@@ -247,7 +247,7 @@ impl Encode for Response {
         }
 
         buf.write_u32::<BigEndian>((4 + self.storage.len()) as u32)?;
-        buf.write_all(&self.storage)?;
+        buf.extend_from_slice(&self.storage);
 
         Ok(())
     }
@@ -437,8 +437,7 @@ pub struct ResponseBuilder {
 impl Default for ResponseBuilder {
     fn default() -> Self {
         Self {
-            // FIXME: Remove this allocation (on the quest for zero-allocation)
-            storage: Vec::with_capacity(128),
+            storage: Vec::with_capacity(256),
             severity: None,
             message: None,
             code: None,
@@ -460,10 +459,10 @@ impl Default for ResponseBuilder {
     }
 }
 
-fn put_str(buf: &mut Vec<u8>, tag: u8, value: impl AsRef<str>) -> Range<usize> {
+fn put_str(buf: &mut Vec<u8>, tag: u8, value: &str) -> Range<usize> {
     buf.push(tag);
     let beg = buf.len();
-    buf.extend_from_slice(value.as_ref().as_bytes());
+    buf.extend_from_slice(value.as_bytes());
     let end = buf.len();
     buf.push(0);
     beg..end
@@ -487,25 +486,25 @@ impl ResponseBuilder {
     }
 
     #[inline]
-    pub fn message(mut self, message: impl AsRef<str>) -> Self {
+    pub fn message(mut self, message: &str) -> Self {
         self.message = Some(put_str(&mut self.storage, b'M', message));
         self
     }
 
     #[inline]
-    pub fn code(mut self, code: impl AsRef<str>) -> Self {
+    pub fn code(mut self, code: &str) -> Self {
         self.code = Some(put_str(&mut self.storage, b'C', code));
         self
     }
 
     #[inline]
-    pub fn detail(mut self, detail: impl AsRef<str>) -> Self {
+    pub fn detail(mut self, detail: &str) -> Self {
         self.detail = Some(put_str(&mut self.storage, b'D', detail));
         self
     }
 
     #[inline]
-    pub fn hint(mut self, hint: impl AsRef<str>) -> Self {
+    pub fn hint(mut self, hint: &str) -> Self {
         self.hint = Some(put_str(&mut self.storage, b'H', hint));
         self
     }
@@ -533,49 +532,49 @@ impl ResponseBuilder {
     }
 
     #[inline]
-    pub fn internal_query(mut self, query: impl AsRef<str>) -> Self {
+    pub fn internal_query(mut self, query: &str) -> Self {
         self.internal_query = Some(put_str(&mut self.storage, b'q', query));
         self
     }
 
     #[inline]
-    pub fn where_(mut self, where_: impl AsRef<str>) -> Self {
+    pub fn where_(mut self, where_: &str) -> Self {
         self.where_ = Some(put_str(&mut self.storage, b'w', where_));
         self
     }
 
     #[inline]
-    pub fn schema(mut self, schema: impl AsRef<str>) -> Self {
+    pub fn schema(mut self, schema: &str) -> Self {
         self.schema = Some(put_str(&mut self.storage, b's', schema));
         self
     }
 
     #[inline]
-    pub fn table(mut self, table: impl AsRef<str>) -> Self {
+    pub fn table(mut self, table: &str) -> Self {
         self.table = Some(put_str(&mut self.storage, b't', table));
         self
     }
 
     #[inline]
-    pub fn column(mut self, column: impl AsRef<str>) -> Self {
+    pub fn column(mut self, column: &str) -> Self {
         self.column = Some(put_str(&mut self.storage, b'c', column));
         self
     }
 
     #[inline]
-    pub fn data_type(mut self, data_type: impl AsRef<str>) -> Self {
+    pub fn data_type(mut self, data_type: &str) -> Self {
         self.data_type = Some(put_str(&mut self.storage, b'd', data_type));
         self
     }
 
     #[inline]
-    pub fn constraint(mut self, constraint: impl AsRef<str>) -> Self {
+    pub fn constraint(mut self, constraint: &str) -> Self {
         self.constraint = Some(put_str(&mut self.storage, b'n', constraint));
         self
     }
 
     #[inline]
-    pub fn file(mut self, file: impl AsRef<str>) -> Self {
+    pub fn file(mut self, file: &str) -> Self {
         self.file = Some(put_str(&mut self.storage, b'F', file));
         self
     }
@@ -592,7 +591,7 @@ impl ResponseBuilder {
     }
 
     #[inline]
-    pub fn routine(mut self, routine: impl AsRef<str>) -> Self {
+    pub fn routine(mut self, routine: &str) -> Self {
         self.routine = Some(put_str(&mut self.storage, b'R', routine));
         self
     }
@@ -660,7 +659,7 @@ impl Encode for ResponseBuilder {
         }
 
         buf.write_u32::<BigEndian>((5 + self.storage.len()) as u32)?;
-        buf.write_all(&self.storage)?;
+        buf.extend_from_slice(&self.storage);
         buf.push(0);
 
         Ok(())
