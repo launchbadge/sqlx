@@ -1,4 +1,6 @@
+use crate::Decode;
 use bytes::Bytes;
+use std::io;
 
 #[derive(Debug)]
 pub enum Authentication {
@@ -35,4 +37,14 @@ pub enum Authentication {
 
     /// SASL authentication has completed.
     SaslFinal { data: Bytes },
+}
+
+impl Decode for Authentication {
+    fn decode(src: Bytes) -> io::Result<Self> {
+        Ok(match src[0] {
+            0 => Authentication::Ok,
+
+            token => unimplemented!("decode not implemented for token: {}", token),
+        })
+    }
 }

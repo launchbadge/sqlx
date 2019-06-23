@@ -16,3 +16,11 @@ pub(crate) fn get_str(src: &[u8]) -> io::Result<&str> {
 
     Ok(s)
 }
+
+#[inline]
+pub(crate) fn get_str_bytes_unchecked(src: &Bytes) -> Bytes {
+    let end = memchr(b'\0', &src).unwrap();
+    let buf = src.slice_to(end);
+
+    buf
+}

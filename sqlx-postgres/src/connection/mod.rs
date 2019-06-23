@@ -1,35 +1,33 @@
-use crate::protocol::{
-    client::{Serialize, Terminate},
-    server::Message as ServerMessage,
-};
 use bytes::BytesMut;
 use futures::{
     channel::mpsc,
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
-    SinkExt, StreamExt,
+    SinkExt,
 };
-use sqlx_core::ConnectOptions;
 use runtime::{net::TcpStream, task::JoinHandle};
+use sqlx_core::ConnectOptions;
+use sqlx_postgres_protocol::{Encode, Message, Terminate};
 use std::io;
 
 mod establish;
-mod query;
+// mod query;
 
 pub struct Connection {
     writer: WriteHalf<TcpStream>,
-    incoming: mpsc::UnboundedReceiver<ServerMessage>,
+    incoming: mpsc::UnboundedReceiver<Message>,
 
     // Buffer used when serializing outgoing messages
+    // FIXME: Use BytesMut
     wbuf: Vec<u8>,
 
     // Handle to coroutine reading messages from the stream
     receiver: JoinHandle<io::Result<()>>,
 
     // Process ID of the Backend
-    process_id: i32,
+    process_id: u32,
 
     // Backend-unique key to use to send a cancel query message to the server
-    secret_key: i32,
+    secret_key: u32,
 }
 
 impl Connection {
@@ -43,8 +41,8 @@ impl Connection {
             writer,
             receiver,
             incoming: rx,
-            process_id: -1,
-            secret_key: -1,
+            process_id: 0,
+            secret_key: 0,
         };
 
         establish::establish(&mut conn, options).await?;
@@ -52,9 +50,9 @@ impl Connection {
         Ok(conn)
     }
 
-    pub async fn execute<'a, 'b: 'a>(&'a mut self, query: &'b str) -> io::Result<()> {
-        query::query(self, query).await
-    }
+    // pub async fn execute<'a, 'b: 'a>(&'a mut self, query: &'b str) -> io::Result<()> {
+    //     query::query(self, query).await
+    // }
 
     pub async fn close(mut self) -> io::Result<()> {
         self.send(Terminate).await?;
@@ -64,14 +62,16 @@ impl Connection {
         Ok(())
     }
 
-    // Send client-serializable message to the server
-    async fn send<S>(&mut self, message: S) -> io::Result<()>
+    // Send client message to the server
+    async fn send<T>(&mut self, message: T) -> io::Result<()>
     where
-        S: Serialize,
+        T: Encode,
     {
         self.wbuf.clear();
 
-        message.serialize(&mut self.wbuf);
+        message.encode(&mut self.wbuf)?;
+
+        log::trace!("sending: {:?}", bytes::Bytes::from(self.wbuf.clone()));
 
         self.writer.write_all(&self.wbuf).await?;
         self.writer.flush().await?;
@@ -82,7 +82,7 @@ impl Connection {
 
 async fn receiver(
     mut reader: ReadHalf<TcpStream>,
-    mut sender: mpsc::UnboundedSender<ServerMessage>,
+    mut sender: mpsc::UnboundedSender<Message>,
 ) -> io::Result<()> {
     let mut rbuf = BytesMut::with_capacity(0);
     let mut len = 0;
@@ -107,6 +107,7 @@ async fn receiver(
         }
 
         // TODO: Need a select! on a channel that I can trigger to cancel this
+        log::trace!("waiting to read ...");
         let cnt = reader.read(&mut rbuf[len..]).await?;
 
         if cnt > 0 {
@@ -117,28 +118,29 @@ async fn receiver(
         }
 
         while len > 0 {
+            log::trace!("{} in rbuf", len);
+            log::trace!("rbuf: {:?}", rbuf);
+
             let size = rbuf.len();
-            let message = ServerMessage::deserialize(&mut rbuf)?;
+            let message = Message::decode(&mut rbuf)?;
             len -= size - rbuf.len();
 
-            // TODO: Some messages should be kept behind here
             match message {
-                Some(ServerMessage::ParameterStatus(body)) => {
-                    log::debug!("parameter {} = {}", body.name()?, body.value()?);
+                Some(Message::ParameterStatus(body)) => {
+                    log::debug!("parameter: {} = {}", body.name(), body.value());
                 }
 
-                Some(ServerMessage::NoticeResponse(body)) => {
-                    log::warn!("notice: {:?}", body);
+                Some(Message::Response(body)) => {
+                    log::warn!("response: {:?}", body);
                 }
 
                 Some(message) => {
-                    // TODO: Handle this error?
                     sender.send(message).await.unwrap();
                 }
 
                 None => {
                     // Did not receive enough bytes to
-                    // deserialize a complete message
+                    // decode a complete message
                     break;
                 }
             }

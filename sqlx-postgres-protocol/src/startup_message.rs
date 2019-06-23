@@ -1,4 +1,4 @@
-use crate::{Decode, Encode};
+use crate::Encode;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::io;
 
@@ -25,7 +25,7 @@ impl StartupMessage {
 
 impl Encode for StartupMessage {
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        let len = self.params.len() + 9;
+        let len = self.params.len() + 8;
         buf.reserve(len);
         buf.put_u32_be(len as u32);
         buf.put_u16_be(self.version.0);
@@ -36,11 +36,8 @@ impl Encode for StartupMessage {
     }
 }
 
+// TODO: Impl Iterator to iter over params
 pub struct StartupMessageParams<'a>(&'a [u8]);
-
-// impl Iterator for StartupMessageParams {
-
-// }
 
 pub struct StartupMessageBuilder {
     // (major, minor)
@@ -89,7 +86,7 @@ mod tests {
     use crate::Encode;
     use std::io;
 
-    const STARTUP_MESSAGE: &[u8] = b"\0\0\0*\0\x03\0\0user\0postgres\0database\0postgres\0\0";
+    const STARTUP_MESSAGE: &[u8] = b"\0\0\0)\0\x03\0\0user\0postgres\0database\0postgres\0\0";
 
     #[test]
     fn it_encodes_startup_message() -> io::Result<()> {

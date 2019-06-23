@@ -2,8 +2,7 @@ use crate::{decode::get_str, Decode, Encode};
 use byteorder::{BigEndian, WriteBytesExt};
 use bytes::Bytes;
 use std::{
-    fmt,
-    io::{self, Write},
+    fmt, io,
     ops::Range,
     pin::Pin,
     ptr::NonNull,

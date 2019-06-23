@@ -1,49 +1,53 @@
-use crate::{Decode, Encode, ReadyForQuery, Response};
-use byteorder::{BigEndian, ReadBytesExt};
-use bytes::Bytes;
-use std::io::{self, Cursor};
+use crate::{Authentication, BackendKeyData, Decode, ParameterStatus, ReadyForQuery, Response};
+use byteorder::{BigEndian, ByteOrder};
+use bytes::BytesMut;
+use std::io;
 
 #[derive(Debug)]
 pub enum Message {
+    Authentication(Authentication),
+    ParameterStatus(ParameterStatus),
+    BackendKeyData(BackendKeyData),
     ReadyForQuery(ReadyForQuery),
     Response(Response),
 }
 
-impl Encode for Message {
-    fn size_hint(&self) -> usize {
-        match self {
-            Message::ReadyForQuery(body) => body.size_hint(),
-            Message::Response(body) => body.size_hint(),
-        }
-    }
-
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        match self {
-            Message::ReadyForQuery(body) => body.encode(buf),
-            Message::Response(body) => body.encode(buf),
-        }
-    }
-}
-
-impl Decode for Message {
-    fn decode(src: Bytes) -> io::Result<Self>
+impl Message {
+    // FIXME: `Message::decode` shares the name of the remaining message type `::decode` despite being very
+    //        different
+    pub fn decode(src: &mut BytesMut) -> io::Result<Option<Self>>
     where
         Self: Sized,
     {
-        let mut buf = Cursor::new(&src);
+        if src.len() < 5 {
+            // No message is less than 5 bytes
+            return Ok(None);
+        }
 
-        let token = buf.read_u8()?;
-        let len = buf.read_u32::<BigEndian>()? as usize;
-        let pos = buf.position() as usize;
+        let token = src[0];
+        if token == 0 {
+            // FIXME: Handle end-of-stream
+            return Err(io::ErrorKind::InvalidData)?;
+        }
 
-        // `len` includes the size of the length u32
-        let src = src.slice(pos, pos + len - 4);
+        // FIXME: What happens if len(u32) < len(usize) ?
+        let len = BigEndian::read_u32(&src[1..5]) as usize;
 
-        Ok(match token {
+        if src.len() < len {
+            // We don't have enough in the stream yet
+            return Ok(None);
+        }
+
+        let src = src.split_to(len + 1).freeze().slice_from(5);
+
+        Ok(Some(match token {
             b'N' | b'E' => Message::Response(Response::decode(src)?),
+            b'S' => Message::ParameterStatus(ParameterStatus::decode(src)?),
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
+            b'R' => Message::Authentication(Authentication::decode(src)?),
+            b'K' => Message::BackendKeyData(BackendKeyData::decode(src)?),
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
-        })
+        }))
     }
 }

@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 sqlx-core = { path = "../sqlx-core" }
+sqlx-postgres-protocol = { path = "../sqlx-postgres-protocol" }
 runtime = "=0.3.0-alpha.4"
 futures-preview = "=0.3.0-alpha.16"
 failure = "0.1"
