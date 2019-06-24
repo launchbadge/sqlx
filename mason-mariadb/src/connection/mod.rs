@@ -105,8 +105,6 @@ async fn receiver(
             break;
         }
 
-         println!("{:?}", rbuf);
-
         while len > 0 {
             let size = rbuf.len();
             let message = if first_packet {

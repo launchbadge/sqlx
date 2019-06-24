@@ -39,8 +39,8 @@ pub fn deserialize_int_lenenc(buf: &Bytes, index: &mut usize) -> Option<usize> {
         }
         0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
         _ => {
-            let value = Some(buf[*index + 1] as usize);
-            *index += 2;
+            let value = Some(buf[*index] as usize);
+            *index += 1;
             value
         }
     }
@@ -198,12 +198,12 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fa() {
-        let buf = BytesMut::from(b"\xFA\x01".to_vec());
+        let buf = BytesMut::from(b"\xFA".to_vec());
         let mut index = 0;
         let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
-        assert_eq!(int, Some(1));
-        assert_eq!(index, 2);
+        assert_eq!(int, Some(0xfA));
+        assert_eq!(index, 1);
     }
 
     #[test]

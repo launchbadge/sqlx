@@ -195,13 +195,11 @@ impl Message {
         let serial_number = [3];
         let tag = buf[4];
 
-        println!("{:?}", buf);
-
         Ok(Some(match tag {
             0xFF => {
                Message::ErrPacket(ErrPacket::deserialize(&buf)?)
             }
-            0x00 => {
+            0x00 | 0xFE => {
                 Message::OkPacket(OkPacket::deserialize(&buf)?)
             }
             _ => {
@@ -215,7 +213,6 @@ impl Message {
             return Ok(None);
         }
 
-        println!("length: {:?}", length);
         match InitialHandshakePacket::deserialize(&buf.split_to(length + 4).freeze()) {
             Ok(v) => Ok(Some(Message::InitialHandshakePacket(v))),
             Err(_) => Ok(None),
@@ -305,12 +302,14 @@ impl Deserialize for OkPacket {
     fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
+        // Packet header
         let length = deserialize_length(&buf, &mut index)?;
         let _sequence_number = deserialize_int_1(&buf, &mut index);
 
+        // Packet body
         let packet_header = deserialize_int_1(&buf, &mut index);
-        if packet_header != 0 {
-            panic!("Packet header is not 0 for OkPacket");
+        if packet_header != 0 && packet_header != 0xFE {
+            panic!("Packet header is not 0 or 0xFE for OkPacket");
         }
 
         let affected_rows = deserialize_int_lenenc(&buf, &mut index);

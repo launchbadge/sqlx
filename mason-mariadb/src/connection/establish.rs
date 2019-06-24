@@ -28,16 +28,14 @@ pub async fn establish<'a, 'b: 'a>(
          Err(failure::err_msg("Failed to connect"))
      }?;
 
-//     println!("{:?}", init_packet);
-
     let handshake = HandshakeResponsePacket {
         server_capabilities: init_packet.capabilities,
-        sequence_number: 0,
-        capabilities: init_packet.capabilities,
+        sequence_number: 1,
+        capabilities: Capabilities::CLIENT_PROTOCOL_41,
         max_packet_size: 1024,
         collation: 0,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: Bytes::from("username"),
+        username: Bytes::from("root"),
         auth_data: None,
         auth_response_len: None,
         auth_response: None,
@@ -49,7 +47,6 @@ pub async fn establish<'a, 'b: 'a>(
     conn.send(handshake).await?;
 
     if let Some(message) = conn.incoming.next().await {
-        println!("{:?}", message);
         Ok(())
     } else {
         Err(failure::err_msg("Handshake Failed"))
