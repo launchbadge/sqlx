@@ -55,31 +55,27 @@ impl Serialize for SSLRequestPacket {
     fn serialize(&self, buf: &mut Vec<u8>) {
         // Temporary storage for length: 3 bytes
         buf.write_u24::<LittleEndian>(0);
+        // Sequence Number
+        serialize_int_1(buf, self.sequence_number);
 
-        // Sequence Numer
-        buf.push(self.sequence_number);
+        // Packet body
+        serialize_int_4(buf, self.capabilities.bits() as u32);
+        serialize_int_4(buf, self.max_packet_size);
+        serialize_int_1(buf, self.collation);
 
-        LittleEndian::write_u32(buf, self.capabilities.bits() as u32);
+        // Filler
+        serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
 
-        LittleEndian::write_u32(buf, self.max_packet_size);
-
-        buf.push(self.collation);
-
-        buf.extend_from_slice(&[0u8;19]);
-
-        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
+        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() &&
+            !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             if let Some(capabilities) = self.extended_capabilities {
-                LittleEndian::write_u32(buf, capabilities.bits() as u32);
+                serialize_int_4(buf, capabilities.bits() as u32);
             }
         } else {
-            buf.extend_from_slice(&[0u8;4]);
+            serialize_byte_fix(buf, &Bytes::from_static(&[0u8;4]), 4);
         }
-	
-        // Get length in little endian bytes
-        // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
-        buf[0] = buf.len().to_le_bytes()[0];
-        buf[1] = buf.len().to_le_bytes()[1];
-        buf[2] = buf.len().to_le_bytes()[2];
+
+        // Set packet length
         serialize_length(buf);
     }
 }
@@ -87,121 +83,87 @@ impl Serialize for SSLRequestPacket {
 impl Serialize for HandshakeResponsePacket {
     fn serialize(&self, buf: &mut Vec<u8>) {
         // Temporary storage for length: 3 bytes
-        buf.push(0);
-        buf.push(0);
-        buf.push(0);
+        buf.write_u24::<LittleEndian>(0);
+        // Sequence Number
+        serialize_int_1(buf, self.sequence_number);
 
-        // Sequence Numer
-        buf.push(self.sequence_number);
+        // Packet body
+        serialize_int_4(buf, self.capabilities.bits() as u32);
+        serialize_int_4(buf, self.max_packet_size);
+        serialize_int_1(buf, self.collation);
 
-        LittleEndian::write_u32(buf, self.capabilities.bits() as u32);
+        // Filler
+        serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
 
-        LittleEndian::write_u32(buf, self.max_packet_size);
-
-        buf.push(self.collation);
-
-        buf.extend_from_slice(&[0u8;19]);
-
-        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
+        if !(self.server_capabilities & Capabilities::CLIENT_MYSQL).is_empty() &&
+            !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             if let Some(capabilities) = self.extended_capabilities {
-                LittleEndian::write_u32(buf, capabilities.bits() as u32);
+                serialize_int_4(buf, capabilities.bits() as u32);
             }
         } else {
-            buf.extend_from_slice(&[0u8;4]);
+            serialize_byte_fix(buf, &Bytes::from_static(&[0u8;4]), 4);
         }
 
-        // Username: string<NUL>
-        buf.extend_from_slice(&self.username);
-        buf.push(0);
+        serialize_string_null(buf, &self.username);
 
         if !(self.server_capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {
-                // string<lenenc>
-                buf.push(auth_data.len().to_le_bytes()[0]);
-                buf.push(auth_data.len().to_le_bytes()[1]);
-                buf.push(auth_data.len().to_le_bytes()[2]);
-                buf.extend_from_slice(&auth_data);
+                serialize_string_lenenc(buf, &auth_data);
             }
         } else if !(self.server_capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
-                buf.push(self.auth_response_len.unwrap());
-                buf.extend_from_slice(&auth_response);
+                serialize_int_1(buf, self.auth_response_len.unwrap());
+                serialize_string_fix(buf, &auth_response, self.auth_response_len.unwrap() as usize);
             }
         } else {
-            buf.push(0);
+            serialize_int_1(buf, 0);
         }
 
         if !(self.server_capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
             if let Some(database) = &self.database {
                 // string<NUL>
-                buf.extend_from_slice(&database);
-                buf.push(0);
+                serialize_string_null(buf, &database);
             }
         }
 
         if !(self.server_capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             if let Some(auth_plugin_name) = &self.auth_plugin_name {
                 // string<NUL>
-                buf.extend_from_slice(&auth_plugin_name);
-                buf.push(0);
+                serialize_string_null(buf, &auth_plugin_name);
             }
         }
 
         if !(self.server_capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
             if let (Some(conn_attr_len), Some(conn_attr)) = (&self.conn_attr_len, &self.conn_attr) {
                 // int<lenenc>
-                buf.push(conn_attr_len.to_le_bytes().len().to_le_bytes()[0]);
-                buf.extend_from_slice(&conn_attr_len.to_le_bytes());
+                serialize_int_lenenc(buf, Some(conn_attr_len));
 
                 // Loop
                 for (key, value) in conn_attr {
-                    // string<lenenc>
-                    buf.push(key.len().to_le_bytes()[0]);
-                    buf.push(key.len().to_le_bytes()[1]);
-                    buf.push(key.len().to_le_bytes()[2]);
-                    buf.extend_from_slice(&key);
-
-                    // string<lenenc>
-                    buf.push(value.len().to_le_bytes()[0]);
-                    buf.push(value.len().to_le_bytes()[1]);
-                    buf.push(value.len().to_le_bytes()[2]);
-                    buf.extend_from_slice(&value);
+                    serialize_string_lenenc(buf, &key);
+                    serialize_string_lenenc(buf, &value);
                 }
             }
         }
 
-        // Get length in little endian bytes
-        // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
-        buf[0] = buf.len().to_le_bytes()[0];
-        buf[1] = buf.len().to_le_bytes()[1];
-        buf[2] = buf.len().to_le_bytes()[2];
+        // Set packet length
+        serialize_length(buf);
     }
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
     fn serialize(&self, buf: &mut Vec<u8>) {
         // Temporary storage for length: 3 bytes
-        buf.push(0);
-        buf.push(0);
-        buf.push(0);
+        buf.write_u24::<LittleEndian>(0);
+        // Sequence Number
+        serialize_int_1(buf, self.sequence_number);
 
-        // Sequence Numer
-        buf.push(self.sequence_number);
+        // Packet body
+        serialize_int_1(buf, 0xFE);
+        serialize_string_null(buf, &self.auth_plugin_name);
+        serialize_byte_eof(buf, &self.auth_plugin_data);
 
-        // Authentication Switch Request Header
-        // int<1>
-        buf.push(0xFE);
-
-        // string<NUL>
-        buf.extend_from_slice(&self.auth_plugin_name);
-        buf.push(0);
-
-        buf.extend_from_slice(&self.auth_plugin_data);
-
-        // Get length in little endian bytes
-        // packet length = byte[0] + (byte[1]<<8) + (byte[2]<<16)
-        buf[0] = buf.len().to_le_bytes()[0];
-        buf[1] = buf.len().to_le_bytes()[1];
-        buf[2] = buf.len().to_le_bytes()[2];
+        // Set packet length
+        serialize_length(buf);
     }
 }

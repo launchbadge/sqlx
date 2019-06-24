@@ -19,11 +19,11 @@ pub enum Message {
 bitflags! {
     pub struct Capabilities: u128 {
         const CLIENT_MYSQL = 1;
-        const FOUND_ROWS = 2;
-        const CONNECT_WITH_DB = 8;
-        const COMPRESS = 32;
-        const LOCAL_FILES = 128;
-        const IGNORE_SPACE = 256;
+        const FOUND_ROWS = 1 << 1;
+        const CONNECT_WITH_DB = 1 << 3;
+        const COMPRESS = 1 << 5;
+        const LOCAL_FILES = 1 << 7;
+        const IGNORE_SPACE = 1 << 8;
         const CLIENT_PROTOCOL_41 = 1 << 9;
         const CLIENT_INTERACTIVE = 1 << 10;
         const SSL = 1 << 11;

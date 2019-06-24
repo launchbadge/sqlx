@@ -49,20 +49,20 @@ pub fn serialize_int_1(buf: &mut Vec<u8>, value: u8) {
 }
 
 #[inline]
-pub fn serialize_int_lenenc(buf: &mut Vec<u8>, value: Option<usize>) {
+pub fn serialize_int_lenenc(buf: &mut Vec<u8>, value: Option<&usize>) {
     if let Some(value) = value {
-        if value > U24_MAX && value <= std::u64::MAX as usize{
+        if *value > U24_MAX && *value <= std::u64::MAX as usize{
             buf.write_u8(0xFE);
-            serialize_int_8(buf, value as u64);
-        } else if value > std::u16::MAX as usize && value <= U24_MAX {
+            serialize_int_8(buf, *value as u64);
+        } else if *value > std::u16::MAX as usize && *value <= U24_MAX {
             buf.write_u8(0xFD);
-            serialize_int_3(buf, value as u32);
-        } else if value > std::u8::MAX as usize && value <= std::u16::MAX as usize{
+            serialize_int_3(buf, *value as u32);
+        } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize{
             buf.write_u8(0xFC);
-            serialize_int_2(buf, value as u16);
-        } else if value >= 0 && value <= std::u8::MAX as usize {
+            serialize_int_2(buf, *value as u16);
+        } else if *value >= 0 && *value <= std::u8::MAX as usize {
             buf.write_u8(0xFA);
-            serialize_int_1(buf, value as u8);
+            serialize_int_1(buf, *value as u8);
         } else {
             panic!("Value is too long");
         }
@@ -72,35 +72,35 @@ pub fn serialize_int_lenenc(buf: &mut Vec<u8>, value: Option<usize>) {
 }
 
 #[inline]
-pub fn serialize_string_lenenc(buf: &mut Vec<u8>, string: &'static str) {
+pub fn serialize_string_lenenc(buf: &mut Vec<u8>, string: &Bytes) {
     if string.len() > 0xFFF {
         panic!("String inside string lenenc serialization is too long");
     }
 
     serialize_int_3(buf, string.len() as u32);
     if string.len() > 0 {
-        buf.extend_from_slice(string.as_bytes());
+        buf.extend_from_slice(string);
     }
 }
 
 #[inline]
-pub fn serialize_string_fix(buf: &mut Vec<u8>, string: &'static str, size: usize) {
-    if size != string.len() {
-        panic!("Sizes do not match");
-    }
-    buf.extend_from_slice(string.as_bytes());
-}
-
-#[inline]
-pub fn serialize_string_null(buf: &mut Vec<u8>, string: &'static str) {
-    buf.extend_from_slice(string.as_bytes());
+pub fn serialize_string_null(buf: &mut Vec<u8>, string: &Bytes) {
+    buf.extend_from_slice(string);
     buf.write_u8(0);
 }
 
 #[inline]
-pub fn serialize_string_eof(buf: &mut Vec<u8>, string: &'static str) {
-    // Ignore the null terminator
-    buf.extend_from_slice(string.as_bytes());
+pub fn serialize_string_fix(buf: &mut Vec<u8>, bytes: &Bytes, size: usize) {
+    if size != bytes.len() {
+        panic!("Sizes do not match");
+    }
+
+    buf.extend_from_slice(bytes);
+}
+
+#[inline]
+pub fn serialize_string_eof(buf: &mut Vec<u8>, bytes: &Bytes) {
+    buf.extend_from_slice(bytes);
 }
 
 #[inline]
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u8() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_int_lenenc(&mut buf, Some(std::u8::MAX as usize));
+        serialize_int_lenenc(&mut buf, Some(&(std::u8::MAX as usize)));
 
         assert_eq!(buf, b"\xFA\xFF".to_vec());
     }
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u16() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_int_lenenc(&mut buf, Some(std::u16::MAX as usize));
+        serialize_int_lenenc(&mut buf, Some(&(std::u16::MAX as usize)));
 
         assert_eq!(buf, b"\xFC\xFF\xFF".to_vec());
     }
@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u24() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_int_lenenc(&mut buf, Some(U24_MAX));
+        serialize_int_lenenc(&mut buf, Some(&U24_MAX));
 
         assert_eq!(buf, b"\xFD\xFF\xFF\xFF".to_vec());
     }
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u64() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_int_lenenc(&mut buf, Some(std::u64::MAX as usize));
+        serialize_int_lenenc(&mut buf, Some(&(std::u64::MAX as usize)));
 
         assert_eq!(buf, b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF".to_vec());
     }
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn it_encodes_string_lenenc() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_string_lenenc(&mut buf, "random_string");
+        serialize_string_lenenc(&mut buf, &Bytes::from_static(b"random_string"));
 
         assert_eq!(buf, b"\x0D\x00\x00random_string".to_vec());
     }
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn it_encodes_string_fix() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_string_fix(&mut buf, "random_string", 13);
+        serialize_string_fix(&mut buf, &Bytes::from_static(b"random_string"), 13);
 
         assert_eq!(buf, b"random_string".to_vec());
     }
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn it_encodes_string_null() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_string_null(&mut buf, "random_string");
+        serialize_string_null(&mut buf, &Bytes::from_static(b"random_string"));
 
         assert_eq!(buf, b"random_string\0".to_vec());
     }
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn it_encodes_string_eof() {
         let mut buf: Vec<u8> = Vec::new();
-        serialize_string_eof(&mut buf, "random_string");
+        serialize_string_eof(&mut buf, &Bytes::from_static(b"random_string"));
 
         assert_eq!(buf, b"random_string".to_vec());
     }
