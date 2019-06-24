@@ -6,6 +6,24 @@ use failure::err_msg;
 const U24_MAX: usize = 0xFF_FF_FF;
 
 #[inline]
+pub fn serialize_length(buf: &mut Vec<u8>) {
+    let mut length =  [0;  3];
+    if buf.len() > U24_MAX {
+        panic!("Buffer too long");
+    } else if buf.len() <= 4 {
+        panic!("Buffer too short. Only contains packet length and sequence number")
+    }
+
+    LittleEndian::write_u24(&mut length, buf.len() as u32 - 4);
+
+    // Set length at the start of the buffer
+    // sadly there is no `prepend` for rust Vec
+    buf[0] = length[0];
+    buf[1] = length[1];
+    buf[2] = length[2];
+}
+
+#[inline]
 pub fn serialize_int_8(buf: &mut Vec<u8>, value: u64) {
     buf.write_u64::<LittleEndian>(value).unwrap();
 }
@@ -112,16 +130,39 @@ pub fn serialize_byte_eof(buf: &mut Vec<u8>, bytes: &Bytes) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
-    // [ ] serialize_int_lenenc
+    // [X] serialize_int_lenenc_u64
+    // [X] serialize_int_lenenc_u32
+    // [X] serialize_int_lenenc_u24
+    // [X] serialize_int_lenenc_u16
+    // [X] serialize_int_lenenc_u8
+    // [X] serialize_int_u64
+    // [X] serialize_int_u32
+    // [X] serialize_int_u24
+    // [X] serialize_int_u16
+    // [X] serialize_int_u8
+    // [X] serialize_string_lenenc
+    // [X] serialize_string_fix
+    // [X] serialize_string_null
+    // [X] serialize_string_eof
+    // [X] serialize_byte_lenenc
+    // [X] serialize_byte_fix
+    // [X] serialize_byte_eof
+
+    #[test]
+    fn it_encodes_length() {
+        let mut buf: Vec<u8> = Vec::new();
+        // Reserve space of length
+        buf.write_u24::<LittleEndian>(0);
+        // Sequence number; typically 0
+        buf.write_u8(0x00);
+        // Contents of buffer
+        buf.write_u8(0xFF);
+        serialize_length(&mut buf);
+
+        assert_eq!(buf, b"\x01\0\0\0\xFF".to_vec());
+    }
 
     #[test]
     fn it_encodes_int_lenenc_none() {

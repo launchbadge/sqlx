@@ -8,9 +8,9 @@
 // TODO: Handle when capability is set, but field is None
 
 use super::server::Capabilities;
-use byteorder::ByteOrder;
-use byteorder::LittleEndian;
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use bytes::Bytes;
+use crate::protocol::serialize::*;
 
 pub trait Serialize {
     fn serialize(&self, buf: &mut Vec<u8>);
@@ -54,9 +54,7 @@ pub struct AuthenticationSwitchRequestPacket {
 impl Serialize for SSLRequestPacket {
     fn serialize(&self, buf: &mut Vec<u8>) {
         // Temporary storage for length: 3 bytes
-        buf.push(0);
-        buf.push(0);
-        buf.push(0);
+        buf.write_u24::<LittleEndian>(0);
 
         // Sequence Numer
         buf.push(self.sequence_number);
@@ -82,6 +80,7 @@ impl Serialize for SSLRequestPacket {
         buf[0] = buf.len().to_le_bytes()[0];
         buf[1] = buf.len().to_le_bytes()[1];
         buf[2] = buf.len().to_le_bytes()[2];
+        serialize_length(buf);
     }
 }
 
