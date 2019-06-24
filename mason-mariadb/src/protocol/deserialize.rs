@@ -17,7 +17,6 @@ pub fn deserialize_length(buf: &Vec<u8>, index: &mut usize) -> Result<u32, Error
 
 #[inline]
 pub fn deserialize_int_lenenc(buf: &Vec<u8>, index: &mut usize) -> Option<usize> {
-    println!("{:?}", buf);
     match buf[*index] {
         0xFB => {
             *index += 1;
@@ -146,12 +145,12 @@ mod tests {
     // [X] deserialize_int_3
     // [X] deserialize_int_2
     // [X] deserialize_int_1
-    // [ ] deserialize_string_lenenc
-    // [ ] deserialize_string_fix
-    // [ ] deserialize_string_eof
-    // [ ] deserialize_string_null
-    // [ ] deserialize_byte_lenenc
-    // [ ] deserialize_byte_eof
+    // [X] deserialize_string_lenenc
+    // [X] deserialize_string_fix
+    // [X] deserialize_string_eof
+    // [X] deserialize_string_null
+    // [X] deserialize_byte_lenenc
+    // [X] deserialize_byte_eof
 
     #[test]
     fn it_decodes_int_lenenc_0x_fb() {
@@ -286,22 +285,22 @@ mod tests {
         assert_eq!(index, 1);
     }
 
-    // #[test]
-    // fn it_decodes_string_null() {
-    //     let mut buf = &b"random\x00\x01".to_vec();
-    //     let mut index = 0;
-    //     let string: Bytes = deserialize_string_null(&buf, &mut index);
+     #[test]
+     fn it_decodes_string_null() {
+         let mut buf = &b"random\x00\x01".to_vec();
+         let mut index = 0;
+         let string: Bytes = deserialize_string_null(&buf, &mut index);
 
-    //     assert_eq!(string[0], b'r');
-    //     assert_eq!(string[1], b'a');
-    //     assert_eq!(string[2], b'n');
-    //     assert_eq!(string[3], b'd');
-    //     assert_eq!(string[4], b'o');
-    //     assert_eq!(string[5], b'm');
-    //     assert_eq!(string.len(), 6);
-    //     // Skips null byte
-    //     assert_eq!(index, 7);
-    // }
+         assert_eq!(string[0], b'r');
+         assert_eq!(string[1], b'a');
+         assert_eq!(string[2], b'n');
+         assert_eq!(string[3], b'd');
+         assert_eq!(string[4], b'o');
+         assert_eq!(string[5], b'm');
+         assert_eq!(string.len(), 6);
+         // Skips null byte
+         assert_eq!(index, 7);
+     }
 
     #[test]
     fn it_decodes_byte_fix() {

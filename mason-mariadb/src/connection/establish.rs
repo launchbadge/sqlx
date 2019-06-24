@@ -32,7 +32,7 @@ pub async fn establish<'a, 'b: 'a>(
 
     let handshake = HandshakeResponsePacket {
         server_capabilities: init_packet.capabilities,
-        sequence_number: 1,
+        sequence_number: 0,
         capabilities: Capabilities::from_bits_truncate(0),
         max_packet_size: 1024,
         collation: 0,
