@@ -3,9 +3,10 @@
 use crate::protocol::deserialize::*;
 use bytes::{Bytes, BytesMut};
 use failure::{err_msg, Error};
+use byteorder::{LittleEndian, ByteOrder};
 
 pub trait Deserialize: Sized {
-    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error>;
+    fn deserialize(buf: &Bytes) -> Result<Self, Error>;
 }
 
 #[derive(Debug)]
@@ -179,12 +180,38 @@ pub struct ErrPacket {
 
 impl Message {
     pub fn deserialize(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
-        // let length = deserialize_int_3(buf, &
-        // let sequence_number = buf[3];
-        Ok(None)
+        if buf.len() < 4 {
+            return Ok(None);
+        }
+
+        let mut index = 0_usize;
+        let length = LittleEndian::read_u24(&buf[0..]) as usize;
+        if buf.len() < length + 4 {
+            return Ok(None);
+        }
+
+        let buf = buf.split_to(length + 1).freeze();
+        let serial_number = deserialize_int_1(&buf, &mut index);
+        let tag = deserialize_int_1(&buf, &mut index);
+
+        Ok(Some(match tag {
+            0xFF => {
+               Message::ErrPacket(ErrPacket::deserialize(&buf)?)
+            }
+            0x00 => {
+                Message::OkPacket(OkPacket::deserialize(&buf)?)
+            }
+            _ => {
+                unimplemented!()
+            }
+        }))
     }
     pub fn init(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
-        match InitialHandshakePacket::deserialize(&mut buf.to_vec()) {
+        let length = LittleEndian::read_u24(&buf[0..]) as usize;
+        if buf.len() < length + 4 {
+            return Ok(None);
+        }
+        match InitialHandshakePacket::deserialize(&buf.split_to(length + 1).freeze()) {
             Ok(v) => Ok(Some(Message::InitialHandshakePacket(v))),
             Err(_) => Ok(None),
         }
@@ -192,7 +219,7 @@ impl Message {
 }
 
 impl Deserialize for InitialHandshakePacket {
-    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
+    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
         let length = deserialize_length(&buf, &mut index)?;
@@ -270,7 +297,7 @@ impl Deserialize for InitialHandshakePacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
+    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
         let length = deserialize_length(&buf, &mut index)?;
@@ -305,7 +332,7 @@ impl Deserialize for OkPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize(buf: &mut Vec<u8>) -> Result<Self, Error> {
+    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
         let length = deserialize_length(&buf, &mut index)?;
@@ -329,17 +356,17 @@ impl Deserialize for ErrPacket {
 
         // Progress Reporting
         if error_code == 0xFFFF {
-            stage = Some(deserialize_int_1(&buf, &mut index));
-            max_stage = Some(deserialize_int_1(&buf, &mut index));
-            progress = Some(deserialize_int_3(&buf, &mut index));
+            stage = Some(deserialize_int_1(buf, &mut index));
+            max_stage = Some(deserialize_int_1(buf, &mut index));
+            progress = Some(deserialize_int_3(buf, &mut index));
             progress_info = Some(deserialize_string_lenenc(&buf, &mut index));
         } else {
             if buf[index] == b'#' {
-                sql_state_marker = Some(deserialize_string_fix(&buf, &mut index, 1));
-                sql_state = Some(deserialize_string_fix(&buf, &mut index, 5));
-                error_message = Some(deserialize_string_eof(&buf, &mut index));
+                sql_state_marker = Some(deserialize_string_fix(buf, &mut index, 1));
+                sql_state = Some(deserialize_string_fix(buf, &mut index, 5));
+                error_message = Some(deserialize_string_eof(buf, &mut index));
             } else {
-                error_message = Some(deserialize_string_eof(&buf, &mut index));
+                error_message = Some(deserialize_string_eof(buf, &mut index));
             }
         }
 
@@ -362,14 +389,14 @@ mod test {
 
     #[test]
     fn it_decodes_capabilities() {
-        let buf = b"\xfe\xf7".to_vec();
+        let buf = BytesMut::from(b"\xfe\xf7".to_vec());
         let mut index = 0;
-        Capabilities::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
+        Capabilities::from_bits_truncate(deserialize_int_2(&buf.freeze(), &mut index).into());
     }
 
     #[test]
     fn it_decodes_initialhandshakepacket() -> Result<(), Error> {
-        let mut buf = b"\
+        let buf = BytesMut::from(b"\
         n\0\0\
         \0\
         \n\
@@ -386,16 +413,16 @@ mod test {
         \x07\0\0\0\
         JQ8cihP4Q}Dx\
         \0\
-        mysql_native_password\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".to_vec();
+        mysql_native_password\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".to_vec());
 
-        let _message = InitialHandshakePacket::deserialize(&mut buf)?;
+        let _message = InitialHandshakePacket::deserialize(&buf.freeze())?;
 
         Ok(())
     }
 
     #[test]
     fn it_decodes_okpacket() -> Result<(), Error> {
-        let mut buf = b"\
+        let buf = BytesMut::from(b"\
         \x0F\x00\x00\
         \x01\
         \x00\
@@ -404,10 +431,9 @@ mod test {
         \x01\x01\
         \x00\x00\
         info\
-        "
-        .to_vec();
+        ".to_vec());
 
-        let message = OkPacket::deserialize(&mut buf)?;
+        let message = OkPacket::deserialize(&buf.freeze())?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);
@@ -420,7 +446,7 @@ mod test {
 
     #[test]
     fn it_decodes_errpacket() -> Result<(), Error> {
-        let mut buf = b"\
+        let buf = BytesMut::from(b"\
         \x0F\x00\x00\
         \x01\
         \xFF\
@@ -429,9 +455,9 @@ mod test {
         HY000\
         NO\
         "
-        .to_vec();
+        .to_vec());
 
-        let message = ErrPacket::deserialize(&mut buf)?;
+        let message = ErrPacket::deserialize(&buf.freeze())?;
 
         assert_eq!(message.error_code, 1002);
         assert_eq!(message.sql_state_marker, Some(Bytes::from(b"#".to_vec())));

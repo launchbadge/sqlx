@@ -5,7 +5,7 @@ use failure::Error;
 use failure::err_msg;
 
 #[inline]
-pub fn deserialize_length(buf: &Vec<u8>, index: &mut usize) -> Result<u32, Error> {
+pub fn deserialize_length(buf: &Bytes, index: &mut usize) -> Result<u32, Error> {
     let length = deserialize_int_3(&buf, index);
 
     if buf.len() < length as usize {
@@ -16,7 +16,7 @@ pub fn deserialize_length(buf: &Vec<u8>, index: &mut usize) -> Result<u32, Error
 }
 
 #[inline]
-pub fn deserialize_int_lenenc(buf: &Vec<u8>, index: &mut usize) -> Option<usize> {
+pub fn deserialize_int_lenenc(buf: &Bytes, index: &mut usize) -> Option<usize> {
     match buf[*index] {
         0xFB => {
             *index += 1;
@@ -47,42 +47,42 @@ pub fn deserialize_int_lenenc(buf: &Vec<u8>, index: &mut usize) -> Option<usize>
 }
 
 #[inline]
-pub fn deserialize_int_8(buf: &Vec<u8>, index: &mut usize) -> u64 {
+pub fn deserialize_int_8(buf: &Bytes, index: &mut usize) -> u64 {
     let value = LittleEndian::read_u64(&buf[*index..]);
     *index += 8;
     value
 }
 
 #[inline]
-pub fn deserialize_int_4(buf: &Vec<u8>, index: &mut usize) -> u32 {
+pub fn deserialize_int_4(buf: &Bytes, index: &mut usize) -> u32 {
     let value = LittleEndian::read_u32(&buf[*index..]);
     *index += 4;
     value
 }
 
 #[inline]
-pub fn deserialize_int_3(buf: &Vec<u8>, index: &mut usize) -> u32 {
+pub fn deserialize_int_3(buf: &Bytes, index: &mut usize) -> u32 {
     let value = LittleEndian::read_u24(&buf[*index..]);
     *index += 3;
     value
 }
 
 #[inline]
-pub fn deserialize_int_2(buf: &Vec<u8>, index: &mut usize) -> u16 {
+pub fn deserialize_int_2(buf: &Bytes, index: &mut usize) -> u16 {
     let value = LittleEndian::read_u16(&buf[*index..]);
     *index += 2;
     value
 }
 
 #[inline]
-pub fn deserialize_int_1(buf: &Vec<u8>, index: &mut usize) -> u8 {
+pub fn deserialize_int_1(buf: &Bytes, index: &mut usize) -> u8 {
     let value = buf[*index];
     *index += 1;
     value
 }
 
 #[inline]
-pub fn deserialize_string_lenenc(buf: &Vec<u8>, index: &mut usize) -> Bytes {
+pub fn deserialize_string_lenenc(buf: &Bytes, index: &mut usize) -> Bytes {
     let length = deserialize_int_3(&buf, &mut *index);
     let value = Bytes::from(&buf[*index..*index + length as usize]);
     *index = *index + length as usize;
@@ -90,21 +90,21 @@ pub fn deserialize_string_lenenc(buf: &Vec<u8>, index: &mut usize) -> Bytes {
 }
 
 #[inline]
-pub fn deserialize_string_fix(buf: &Vec<u8>, index: &mut usize, length: usize) -> Bytes {
+pub fn deserialize_string_fix(buf: &Bytes, index: &mut usize, length: usize) -> Bytes {
     let value = Bytes::from(&buf[*index..*index + length as usize]);
     *index = *index + length as usize;
     value
 }
 
 #[inline]
-pub fn deserialize_string_eof(buf: &Vec<u8>, index: &mut usize) -> Bytes {
+pub fn deserialize_string_eof(buf: &Bytes, index: &mut usize) -> Bytes {
     let value = Bytes::from(&buf[*index..]);
     *index = buf.len();
     value
 }
 
 #[inline]
-pub fn deserialize_string_null(buf: &Vec<u8>, index: &mut usize) -> Bytes {
+pub fn deserialize_string_null(buf: &Bytes, index: &mut usize) -> Bytes {
     let null_index = memchr::memchr(0, &buf[*index..]).unwrap();
     let value = Bytes::from(&buf[*index..*index + null_index]);
     *index = *index + null_index + 1;
@@ -112,14 +112,14 @@ pub fn deserialize_string_null(buf: &Vec<u8>, index: &mut usize) -> Bytes {
 }
 
 #[inline]
-pub fn deserialize_byte_fix(buf: &Vec<u8>, index: &mut usize, length: usize) -> Bytes {
+pub fn deserialize_byte_fix(buf: &Bytes, index: &mut usize, length: usize) -> Bytes {
     let value = Bytes::from(&buf[*index..*index + length as usize]);
     *index = *index + length as usize;
     value
 }
 
 #[inline]
-pub fn deserialize_byte_lenenc(buf: &Vec<u8>, index: &mut usize) -> Bytes {
+pub fn deserialize_byte_lenenc(buf: &Bytes, index: &mut usize) -> Bytes {
     let length = deserialize_int_3(&buf, &mut *index);
     let value = Bytes::from(&buf[*index..*index + length as usize]);
     *index = *index + length as usize;
@@ -127,7 +127,7 @@ pub fn deserialize_byte_lenenc(buf: &Vec<u8>, index: &mut usize) -> Bytes {
 }
 
 #[inline]
-pub fn deserialize_byte_eof(buf: &Vec<u8>, index: &mut usize) -> Bytes {
+pub fn deserialize_byte_eof(buf: &Bytes, index: &mut usize) -> Bytes {
     let value = Bytes::from(&buf[*index..]);
     *index = buf.len();
     value
@@ -154,9 +154,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fb() {
-        let mut buf: Vec<u8> = b"\xFB".to_vec();
+        let buf: BytesMut  = BytesMut::from(b"\xFB".to_vec());
         let mut index = 0;
-        let int: Option<usize> = deserialize_int_lenenc(&buf, &mut index);
+        let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(int, None);
         assert_eq!(index, 1);
@@ -164,9 +164,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fc() {
-        let mut buf = b"\xFC\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\xFC\x01\x01".to_vec());
         let mut index = 0;
-        let int: Option<usize> = deserialize_int_lenenc(&buf, &mut index);
+        let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(int, Some(257));
         assert_eq!(index, 3);
@@ -174,9 +174,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fd() {
-        let mut buf = b"\xFD\x01\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\xFD\x01\x01\x01".to_vec());
         let mut index = 0;
-        let int: Option<usize> = deserialize_int_lenenc(&buf, &mut index);
+        let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(int, Some(65793));
         assert_eq!(index, 4);
@@ -184,9 +184,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fe() {
-        let mut buf = b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec());
         let mut index = 0;
-        let int: Option<usize> = deserialize_int_lenenc(&buf, &mut index);
+        let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(int, Some(72340172838076673));
         assert_eq!(index, 9);
@@ -194,9 +194,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fa() {
-        let mut buf = b"\xFA\x01".to_vec();
+        let buf = BytesMut::from(b"\xFA\x01".to_vec());
         let mut index = 0;
-        let int: Option<usize> = deserialize_int_lenenc(&buf, &mut index);
+        let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(int, Some(1));
         assert_eq!(index, 2);
@@ -204,9 +204,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_8() {
-        let mut buf = b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec());
         let mut index = 0;
-        let int: u64 = deserialize_int_8(&buf, &mut index);
+        let int: u64 = deserialize_int_8(&buf.freeze(), &mut index);
 
         assert_eq!(int, 72340172838076673);
         assert_eq!(index, 8);
@@ -214,9 +214,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_4() {
-        let mut buf = b"\x01\x01\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\x01\x01\x01\x01".to_vec());
         let mut index = 0;
-        let int: u32 = deserialize_int_4(&buf, &mut index);
+        let int: u32 = deserialize_int_4(&buf.freeze(), &mut index);
 
         assert_eq!(int, 16843009);
         assert_eq!(index, 4);
@@ -224,9 +224,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_3() {
-        let mut buf = b"\x01\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\x01\x01\x01".to_vec());
         let mut index = 0;
-        let int: u32 = deserialize_int_3(&buf, &mut index);
+        let int: u32 = deserialize_int_3(&buf.freeze(), &mut index);
 
         assert_eq!(int, 65793);
         assert_eq!(index, 3);
@@ -234,9 +234,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_2() {
-        let mut buf = b"\x01\x01".to_vec();
+        let buf = BytesMut::from(b"\x01\x01".to_vec());
         let mut index = 0;
-        let int: u16 = deserialize_int_2(&buf, &mut index);
+        let int: u16 = deserialize_int_2(&buf.freeze(), &mut index);
 
         assert_eq!(int, 257);
         assert_eq!(index, 2);
@@ -244,9 +244,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_1() {
-        let mut buf = &b"\x01".to_vec();
+        let buf = BytesMut::from(b"\x01".to_vec());
         let mut index = 0;
-        let int: u8 = deserialize_int_1(&buf, &mut index);
+        let int: u8 = deserialize_int_1(&buf.freeze(), &mut index);
 
         assert_eq!(int, 1);
         assert_eq!(index, 1);
@@ -254,9 +254,9 @@ mod tests {
 
     #[test]
     fn it_decodes_string_lenenc() {
-        let mut buf = &b"\x01\x00\x00\x01".to_vec();
+        let buf = BytesMut::from(b"\x01\x00\x00\x01".to_vec());
         let mut index = 0;
-        let string: Bytes = deserialize_string_lenenc(&buf, &mut index);
+        let string: Bytes = deserialize_string_lenenc(&buf.freeze(), &mut index);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -265,9 +265,9 @@ mod tests {
 
     #[test]
     fn it_decodes_string_fix() {
-        let mut buf = &b"\x01".to_vec();
+        let buf = BytesMut::from(b"\x01".to_vec());
         let mut index = 0;
-        let string: Bytes = deserialize_string_fix(&buf, &mut index, 1);
+        let string: Bytes = deserialize_string_fix(&buf.freeze(), &mut index, 1);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -276,9 +276,9 @@ mod tests {
 
     #[test]
     fn it_decodes_string_eof() {
-        let mut buf = &b"\x01".to_vec();
+        let buf = BytesMut::from(b"\x01".to_vec());
         let mut index = 0;
-        let string: Bytes = deserialize_string_eof(&buf, &mut index);
+        let string: Bytes = deserialize_string_eof(&buf.freeze(), &mut index);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -287,9 +287,9 @@ mod tests {
 
      #[test]
      fn it_decodes_string_null() {
-         let mut buf = &b"random\x00\x01".to_vec();
+         let buf = BytesMut::from(b"random\x00\x01".to_vec());
          let mut index = 0;
-         let string: Bytes = deserialize_string_null(&buf, &mut index);
+         let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index);
 
          assert_eq!(string[0], b'r');
          assert_eq!(string[1], b'a');
@@ -304,9 +304,9 @@ mod tests {
 
     #[test]
     fn it_decodes_byte_fix() {
-        let mut buf = &b"\x01".to_vec();
+        let buf = BytesMut::from(b"\x01".to_vec());
         let mut index = 0;
-        let string: Bytes = deserialize_byte_fix(&buf, &mut index, 1);
+        let string: Bytes = deserialize_byte_fix(&buf.freeze(), &mut index, 1);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -315,9 +315,9 @@ mod tests {
 
     #[test]
     fn it_decodes_byte_eof() {
-        let mut buf = &b"\x01".to_vec();
+        let buf = BytesMut::from(b"\x01".to_vec());
         let mut index = 0;
-        let string: Bytes = deserialize_byte_eof(&buf, &mut index);
+        let string: Bytes = deserialize_byte_eof(&buf.freeze(), &mut index);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
