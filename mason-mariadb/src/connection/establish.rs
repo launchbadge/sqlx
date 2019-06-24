@@ -33,7 +33,7 @@ pub async fn establish<'a, 'b: 'a>(
     let handshake = HandshakeResponsePacket {
         server_capabilities: init_packet.capabilities,
         sequence_number: 0,
-        capabilities: Capabilities::from_bits_truncate(0),
+        capabilities: init_packet.capabilities,
         max_packet_size: 1024,
         collation: 0,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
@@ -49,12 +49,11 @@ pub async fn establish<'a, 'b: 'a>(
     conn.send(handshake).await?;
 
     if let Some(message) = conn.incoming.next().await {
+        println!("{:?}", message);
         Ok(())
     } else {
         Err(failure::err_msg("Handshake Failed"))
     }
-
-//    Ok(())
 }
 
 #[cfg(test)]

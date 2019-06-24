@@ -104,11 +104,15 @@ pub fn deserialize_string_eof(buf: &Bytes, index: &mut usize) -> Bytes {
 }
 
 #[inline]
-pub fn deserialize_string_null(buf: &Bytes, index: &mut usize) -> Bytes {
-    let null_index = memchr::memchr(0, &buf[*index..]).unwrap();
-    let value = Bytes::from(&buf[*index..*index + null_index]);
-    *index = *index + null_index + 1;
-    value
+pub fn deserialize_string_null(buf: &Bytes, index: &mut usize) -> Result<Bytes, Error> {
+    if let Some(null_index) = memchr::memchr(0, &buf[*index..]) {
+        let new_index = null_index + *index;
+        let value = Bytes::from(&buf[*index..*index + null_index]);
+        *index = *index + null_index + 1;
+        Ok(value)
+    } else {
+        Err(err_msg("Null index no found"))
+    }
 }
 
 #[inline]
@@ -137,7 +141,7 @@ pub fn deserialize_byte_eof(buf: &Bytes, index: &mut usize) -> Bytes {
 mod tests {
     use super::*;
     use bytes::{Bytes, BytesMut};
-    use std::error::Error;
+    use failure::Error;
 
     // [X] deserialize_int_lenenc
     // [X] deserialize_int_8
@@ -286,10 +290,10 @@ mod tests {
     }
 
      #[test]
-     fn it_decodes_string_null() {
+     fn it_decodes_string_null() -> Result<(), Error> {
          let buf = BytesMut::from(b"random\x00\x01".to_vec());
          let mut index = 0;
-         let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index);
+         let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index)?;
 
          assert_eq!(string[0], b'r');
          assert_eq!(string[1], b'a');
@@ -300,6 +304,8 @@ mod tests {
          assert_eq!(string.len(), 6);
          // Skips null byte
          assert_eq!(index, 7);
+
+         Ok(())
      }
 
     #[test]

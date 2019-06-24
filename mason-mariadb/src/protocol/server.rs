@@ -4,6 +4,7 @@ use crate::protocol::deserialize::*;
 use bytes::{Bytes, BytesMut};
 use failure::{err_msg, Error};
 use byteorder::{LittleEndian, ByteOrder};
+use core::num::FpCategory::Infinite;
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &Bytes) -> Result<Self, Error>;
@@ -190,9 +191,11 @@ impl Message {
             return Ok(None);
         }
 
-        let buf = buf.split_to(length + 1).freeze();
-        let serial_number = deserialize_int_1(&buf, &mut index);
-        let tag = deserialize_int_1(&buf, &mut index);
+        let buf = buf.split_to(length + 4).freeze();
+        let serial_number = [3];
+        let tag = buf[4];
+
+        println!("{:?}", buf);
 
         Ok(Some(match tag {
             0xFF => {
@@ -211,7 +214,9 @@ impl Message {
         if buf.len() < length + 4 {
             return Ok(None);
         }
-        match InitialHandshakePacket::deserialize(&buf.split_to(length + 1).freeze()) {
+
+        println!("length: {:?}", length);
+        match InitialHandshakePacket::deserialize(&buf.split_to(length + 4).freeze()) {
             Ok(v) => Ok(Some(Message::InitialHandshakePacket(v))),
             Err(_) => Ok(None),
         }
@@ -230,7 +235,7 @@ impl Deserialize for InitialHandshakePacket {
         }
 
         let protocol_version = deserialize_int_1(&buf, &mut index);
-        let server_version = deserialize_string_null(&buf, &mut index);
+        let server_version = deserialize_string_null(&buf, &mut index)?;
         let connection_id = deserialize_int_4(&buf, &mut index);
         let auth_seed = deserialize_string_fix(&buf, &mut index, 8);
 
@@ -276,7 +281,7 @@ impl Deserialize for InitialHandshakePacket {
 
         let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            auth_plugin_name = Some(deserialize_string_null(&buf, &mut index));
+            auth_plugin_name = Some(deserialize_string_null(&buf, &mut index)?);
         }
 
         Ok(InitialHandshakePacket {
@@ -392,6 +397,14 @@ mod test {
         let buf = BytesMut::from(b"\xfe\xf7".to_vec());
         let mut index = 0;
         Capabilities::from_bits_truncate(deserialize_int_2(&buf.freeze(), &mut index).into());
+    }
+
+    #[test]
+    fn it_decodes_errpacket_real() -> Result<(), Error> {
+        let buf = BytesMut::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
+        let _message = InitialHandshakePacket::deserialize(&buf.freeze())?;
+
+        Ok(())
     }
 
     #[test]
