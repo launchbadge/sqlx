@@ -1,6 +1,7 @@
 use crate::protocol::{
     client::Serialize,
     server::Message as ServerMessage,
+    server::Capabilities,
     server::InitialHandshakePacket,
     server::Deserialize
 };
@@ -15,7 +16,8 @@ use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
 use failure::Error;
 use failure::err_msg;
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use crate::protocol::serialize::serialize_length;
 
 mod establish;
 // mod query;
@@ -32,6 +34,12 @@ pub struct Connection {
 
     // MariaDB Connection ID
     connection_id: i32,
+
+    // Sequence Number
+    sequence_number: u8,
+
+    // Server Capabilities
+    server_capabilities: Capabilities,
 }
 
 impl Connection {
@@ -46,6 +54,8 @@ impl Connection {
             receiver,
             incoming: rx,
             connection_id: -1,
+            sequence_number: 1,
+            server_capabilities: Capabilities::default(),
         };
 
         establish::establish(&mut conn, options).await?;
@@ -59,7 +69,20 @@ impl Connection {
     {
         self.wbuf.clear();
 
-        message.serialize(&mut self.wbuf);
+        /*
+            Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
+            `self.wbuf.write_u32::<LittleEndian>(0_u32);`
+            causes compiler to panic
+            self.wbuf.write
+            rustc 1.37.0-nightly (7cdaffd79 2019-06-05) running on x86_64-unknown-linux-gnu
+            https://github.com/rust-lang/rust/issues/62126
+        */
+        self.wbuf.extend_from_slice(&[0, 0, 0, 0]);
+
+        message.serialize(&mut self.wbuf, &self.server_capabilities)?;
+        serialize_length(&mut self.wbuf);
+        self.wbuf[3] = self.sequence_number;
+        self.sequence_number += 1;
 
         self.writer.write_all(&self.wbuf).await?;
         self.writer.flush().await?;

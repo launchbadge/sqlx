@@ -17,20 +17,21 @@ pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
-     let init_packet =  if let Some(message) = conn.incoming.next().await {
-         match message {
-             ServerMessage::InitialHandshakePacket(message) => {
-                    Ok(message)
-             },
-             _ => Err(failure::err_msg("Incorrect First Packet")),
-         }
-     } else {
-         Err(failure::err_msg("Failed to connect"))
-     }?;
+    let init_packet =  if let Some(message) = conn.incoming.next().await {
+        match message {
+            ServerMessage::InitialHandshakePacket(message) => {
+                Ok(message)
+            },
+            _ => Err(failure::err_msg("Incorrect First Packet")),
+        }
+    } else {
+        Err(failure::err_msg("Failed to connect"))
+    }?;
+
+    conn.server_capabilities = init_packet.capabilities;
 
     let handshake = HandshakeResponsePacket {
-        server_capabilities: init_packet.capabilities,
-        sequence_number: 1,
+        // Minimum client capabilities required to establish connection
         capabilities: Capabilities::CLIENT_PROTOCOL_41,
         max_packet_size: 1024,
         collation: 0,
