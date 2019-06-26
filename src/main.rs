@@ -6,10 +6,12 @@ use sqlx::{pg::Connection, ConnectOptions};
 async fn main() -> Result<(), failure::Error> {
     env_logger::try_init()?;
 
-    let conn =
-        Connection::establish(ConnectOptions::new().user("postgres").password("password")).await?;
+    let conn = Connection::establish(
+        ConnectOptions::new().port(5433).user("postgres").password("password"),
+    )
+    .await?;
 
-    conn.close().await?;
+    //    conn.close().await?;
 
     Ok(())
 }

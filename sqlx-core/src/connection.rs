@@ -1,3 +1,4 @@
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ConnectOptions<'a> {
     pub host: &'a str,
     pub port: u16,
@@ -17,6 +18,18 @@ impl<'a> ConnectOptions<'a> {
     #[inline]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[inline]
+    pub fn host(mut self, host: &'a str) -> Self {
+        self.host = host;
+        self
+    }
+
+    #[inline]
+    pub fn port(mut self, port: u16) -> Self {
+        self.port = port;
+        self
     }
 
     #[inline]

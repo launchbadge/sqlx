@@ -107,7 +107,6 @@ async fn receiver(
         }
 
         // TODO: Need a select! on a channel that I can trigger to cancel this
-        log::trace!("waiting to read ...");
         let cnt = reader.read(&mut rbuf[len..]).await?;
 
         if cnt > 0 {
@@ -118,7 +117,6 @@ async fn receiver(
         }
 
         while len > 0 {
-            log::trace!("{} in rbuf", len);
             log::trace!("rbuf: {:?}", rbuf);
 
             let size = rbuf.len();
