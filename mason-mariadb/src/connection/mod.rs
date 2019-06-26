@@ -18,6 +18,7 @@ use failure::Error;
 use failure::err_msg;
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use crate::protocol::serialize::serialize_length;
+use bytes::BufMut;
 
 mod establish;
 // mod query;
@@ -27,7 +28,7 @@ pub struct Connection {
     incoming: mpsc::UnboundedReceiver<ServerMessage>,
 
     // Buffer used when serializing outgoing messages
-    wbuf: Vec<u8>,
+    wbuf: BytesMut,
 
     // Handle to coroutine reading messages from the stream
     receiver: JoinHandle<Result<(), Error>>,
@@ -43,13 +44,13 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub async fn establish(options: ConnectOptions<'_>) -> Result<Self, Error> {
+    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream = TcpStream::connect((options.host, options.port)).await?;
         let (reader, writer) = stream.split();
         let (tx, rx) = mpsc::unbounded();
         let receiver: JoinHandle<Result<(), Error>> = runtime::spawn(receiver(reader, tx));
         let mut conn = Self {
-            wbuf: Vec::with_capacity(1024),
+            wbuf: BytesMut::with_capacity(1024),
             writer,
             receiver,
             incoming: rx,
@@ -70,19 +71,19 @@ impl Connection {
         self.wbuf.clear();
 
         /*
-            Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
             `self.wbuf.write_u32::<LittleEndian>(0_u32);`
             causes compiler to panic
             self.wbuf.write
             rustc 1.37.0-nightly (7cdaffd79 2019-06-05) running on x86_64-unknown-linux-gnu
             https://github.com/rust-lang/rust/issues/62126
         */
-        self.wbuf.extend_from_slice(&[0, 0, 0, 0]);
+        // Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
+        self.wbuf.extend_from_slice(&[0; 3]);
+        self.wbuf.put(self.sequence_number);
+        self.sequence_number += 1;
 
         message.serialize(&mut self.wbuf, &self.server_capabilities)?;
         serialize_length(&mut self.wbuf);
-        self.wbuf[3] = self.sequence_number;
-        self.sequence_number += 1;
 
         self.writer.write_all(&self.wbuf).await?;
         self.writer.flush().await?;

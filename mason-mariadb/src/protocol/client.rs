@@ -12,9 +12,10 @@ use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use bytes::Bytes;
 use crate::protocol::serialize::*;
 use failure::Error;
+use bytes::BytesMut;
 
 pub trait Serialize {
-    fn serialize(&self, buf: &mut Vec<u8>, server_capabilities: &Capabilities) -> Result<(), Error>;
+    fn serialize(&self, buf: &mut BytesMut, server_capabilities: &Capabilities) -> Result<(), Error>;
 }
 
 pub enum TextProtocol {
@@ -119,7 +120,7 @@ pub struct AuthenticationSwitchRequestPacket {
 }
 
 impl Serialize for ComQuit {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComQuit.into());
 
         Ok(())
@@ -127,7 +128,7 @@ impl Serialize for ComQuit {
 }
 
 impl Serialize for ComInitDb {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComInitDb.into());
         serialize_string_null(buf, &self.schema_name);
 
@@ -136,7 +137,7 @@ impl Serialize for ComInitDb {
 }
 
 impl Serialize for ComDebug {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComDebug.into());
 
         Ok(())
@@ -144,7 +145,7 @@ impl Serialize for ComDebug {
 }
 
 impl Serialize for ComPing {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComPing.into());
 
         Ok(())
@@ -152,7 +153,7 @@ impl Serialize for ComPing {
 }
 
 impl Serialize for ComProcessKill {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComProcessKill.into());
         serialize_int_4(buf, self.process_id);
 
@@ -161,7 +162,7 @@ impl Serialize for ComProcessKill {
 }
 
 impl Serialize for ComQuery {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComQuery.into());
         serialize_string_eof(buf, &self.sql_statement);
 
@@ -170,7 +171,7 @@ impl Serialize for ComQuery {
 }
 
 impl Serialize for ComResetConnection {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
        serialize_int_1(buf,  TextProtocol::ComResetConnection.into());
 
         Ok(())
@@ -178,7 +179,7 @@ impl Serialize for ComResetConnection {
 }
 
 impl Serialize for ComSetOption {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComSetOption.into());
         serialize_int_2(buf, self.option.into());
 
@@ -187,7 +188,7 @@ impl Serialize for ComSetOption {
 }
 
 impl Serialize for ComShutdown {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComShutdown.into());
         serialize_int_1(buf, self.option.into());
 
@@ -196,7 +197,7 @@ impl Serialize for ComShutdown {
 }
 
 impl Serialize for ComSleep {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComSleep.into());
 
         Ok(())
@@ -204,7 +205,7 @@ impl Serialize for ComSleep {
 }
 
 impl Serialize for ComStatistics {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf,  TextProtocol::ComStatistics.into());
 
         Ok(())
@@ -213,7 +214,7 @@ impl Serialize for ComStatistics {
 
 
 impl Serialize for SSLRequestPacket {
-    fn serialize(&self, buf: &mut Vec<u8>, server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_4(buf, self.capabilities.bits() as u32);
         serialize_int_4(buf, self.max_packet_size);
         serialize_int_1(buf, self.collation);
@@ -235,7 +236,7 @@ impl Serialize for SSLRequestPacket {
 }
 
 impl Serialize for HandshakeResponsePacket {
-    fn serialize(&self, buf: &mut Vec<u8>, server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_4(buf, self.capabilities.bits() as u32);
         serialize_int_4(buf, self.max_packet_size);
         serialize_int_1(buf, self.collation);
@@ -299,7 +300,7 @@ impl Serialize for HandshakeResponsePacket {
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize(&self, buf: &mut Vec<u8>, _server_capabilities: &Capabilities) -> Result<(), Error> {
+    fn serialize(&self, buf: &mut BytesMut, _server_capabilities: &Capabilities) -> Result<(), Error> {
         serialize_int_1(buf, 0xFE);
         serialize_string_null(buf, &self.auth_plugin_name);
         serialize_byte_eof(buf, &self.auth_plugin_data);

@@ -29,14 +29,15 @@ pub async fn establish<'a, 'b: 'a>(
     }?;
 
     conn.server_capabilities = init_packet.capabilities;
+    let username: &'b [u8] = &options.user.unwrap().as_bytes().clone();
 
-    let handshake = HandshakeResponsePacket {
+    let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
         // Minimum client capabilities required to establish connection
         capabilities: Capabilities::CLIENT_PROTOCOL_41,
         max_packet_size: 1024,
         collation: 0,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: Bytes::from("root"),
+        username: Bytes::from_static(username),
         auth_data: None,
         auth_response_len: None,
         auth_response: None,
