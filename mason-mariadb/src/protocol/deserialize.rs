@@ -295,12 +295,8 @@ mod tests {
          let mut index = 0;
          let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index)?;
 
-         assert_eq!(string[0], b'r');
-         assert_eq!(string[1], b'a');
-         assert_eq!(string[2], b'n');
-         assert_eq!(string[3], b'd');
-         assert_eq!(string[4], b'o');
-         assert_eq!(string[5], b'm');
+         assert_eq!(&string[..], b"random");
+
          assert_eq!(string.len(), 6);
          // Skips null byte
          assert_eq!(index, 7);
