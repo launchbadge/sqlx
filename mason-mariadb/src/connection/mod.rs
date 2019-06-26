@@ -1,5 +1,7 @@
 use crate::protocol::{
     client::Serialize,
+    client::ComQuit,
+    client::ComPing,
     server::Message as ServerMessage,
     server::Capabilities,
     server::InitialHandshakePacket,
@@ -79,14 +81,28 @@ impl Connection {
         */
         // Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
         self.wbuf.extend_from_slice(&[0; 4]);
-        self.wbuf[3] =self.sequence_number;
-        self.sequence_number += 1;
+        self.wbuf[3] = self.sequence_number;
 
         message.serialize(&mut self.wbuf, &self.server_capabilities)?;
         serialize_length(&mut self.wbuf);
 
+        println!("{:?}", self.wbuf);
+
         self.writer.write_all(&self.wbuf).await?;
         self.writer.flush().await?;
+
+        Ok(())
+    }
+
+    async fn quit(&mut self) -> Result<(), Error> {
+        self.send(ComQuit()).await?;
+
+        Ok(())
+    }
+
+    async fn ping(&mut self) -> Result<(), Error> {
+        self.sequence_number = 0;
+        self.send(ComPing()).await?;
 
         Ok(())
     }

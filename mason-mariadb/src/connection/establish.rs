@@ -5,6 +5,8 @@ use crate::protocol::{
     server::Deserialize,
     server::Capabilities,
     client::HandshakeResponsePacket,
+    client::ComQuit,
+    client::ComPing,
     client::Serialize
 };
 use futures::StreamExt;
@@ -18,6 +20,7 @@ pub async fn establish<'a, 'b: 'a>(
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
     let init_packet =  if let Some(message) = conn.incoming.next().await {
+        conn.sequence_number = message.sequence_number();
         match message {
             ServerMessage::InitialHandshakePacket(message) => {
                 Ok(message)
@@ -50,6 +53,7 @@ pub async fn establish<'a, 'b: 'a>(
 
     if let Some(message) = conn.incoming.next().await {
         println!("{:?}", message);
+        conn.sequence_number = message.sequence_number();
         Ok(())
     } else {
         Err(failure::err_msg("Handshake Failed"))
@@ -60,10 +64,11 @@ pub async fn establish<'a, 'b: 'a>(
 mod test {
     use super::*;
     use failure::Error;
+    use failure::err_msg;
 
     #[runtime::test]
     async fn it_connects() -> Result<(), Error> {
-        Connection::establish(ConnectOptions {
+        let mut conn = Connection::establish(ConnectOptions {
             host: "localhost",
             port: 3306,
             user: Some("root"),
@@ -71,7 +76,22 @@ mod test {
             password: None,
         }).await?;
 
-        Ok(())
+        conn.ping().await?;
+
+        if let Some(message) = conn.incoming.next().await {
+            match message {
+                ServerMessage::OkPacket(packet) => {
+                    conn.quit().await?;
+                    Ok(())
+                }
+                ServerMessage::ErrPacket(packet) => {
+                    Err(err_msg(format!("{:?}", packet)))
+                }
+                _ => Err(err_msg("Server Failed"))
+            }
+        } else {
+            Err(err_msg("Server Failed"))
+        }
     }
 }
 
