@@ -46,41 +46,6 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct FieldTypes: u8 {
-        const MYSQL_TYPE_TINY = 1;
-        const MYSQL_TYPE_SHORT = 2;
-        const MYSQL_TYPE_LONG = 3;
-        const MYSQL_TYPE_FLOAT = 4;
-        const MYSQL_TYPE_DOUBLE = 5;
-        const MYSQL_TYPE_NULL = 6;
-        const MYSQL_TYPE_TIMESTAMP = 7;
-        const MYSQL_TYPE_LONGLONG = 8;
-        const MYSQL_TYPE_INT24 = 9;
-        const MYSQL_TYPE_DATE = 10;
-        const MYSQL_TYPE_TIME = 11;
-        const MYSQL_TYPE_DATETIME = 12;
-        const MYSQL_TYPE_YEAR = 13;
-        const MYSQL_TYPE_NEWDATE = 14;
-        const MYSQL_TYPE_VARCHAR = 15;
-        const MYSQL_TYPE_BIT = 16;
-        const MYSQL_TYPE_TIMESTAMP2 = 17;
-        const MYSQL_TYPE_DATETIME2 = 18;
-        const MYSQL_TYPE_TIME2 = 19;
-        const MYSQL_TYPE_JSON = 245;
-        const MYSQL_TYPE_NEWDECIMAL = 246;
-        const MYSQL_TYPE_ENUM = 247;
-        const MYSQL_TYPE_SET = 248;
-        const MYSQL_TYPE_TINY_BLOB = 249;
-        const MYSQL_TYPE_MEDIUM_BLOB = 250;
-        const MYSQL_TYPE_LONG_BLOB = 251;
-        const MYSQL_TYPE_BLOB = 252;
-        const MYSQL_TYPE_VAR_STRING = 253;
-        const MYSQL_TYPE_STRING = 254;
-        const MYSQL_TYPE_GEOMETRY = 255;
-    }
-}
-
-bitflags! {
     pub struct FieldDetailFlag: u16 {
         const NOT_NULL = 1;
         const PRIMARY_KEY = 2;

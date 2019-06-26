@@ -78,8 +78,8 @@ impl Connection {
             https://github.com/rust-lang/rust/issues/62126
         */
         // Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
-        self.wbuf.extend_from_slice(&[0; 3]);
-        self.wbuf.put(self.sequence_number);
+        self.wbuf.extend_from_slice(&[0; 4]);
+        self.wbuf[3] =self.sequence_number;
         self.sequence_number += 1;
 
         message.serialize(&mut self.wbuf, &self.server_capabilities)?;

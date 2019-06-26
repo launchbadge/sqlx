@@ -27,49 +27,50 @@ pub fn serialize_length(buf: &mut BytesMut) {
 
 #[inline]
 pub fn serialize_int_8(buf: &mut BytesMut, value: u64) {
-    LittleEndian::write_u64(buf, value);
+    buf.put_u64::<LittleEndian>(value);
 }
 
 #[inline]
 pub fn serialize_int_4(buf: &mut BytesMut, value: u32) {
-    LittleEndian::write_u32(buf, value);
+    buf.put_u32::<LittleEndian>(value);
 }
 
 #[inline]
 pub fn serialize_int_3(buf: &mut BytesMut, value: u32) {
-    LittleEndian::write_u24(buf, value);
+    let length =  value.to_le_bytes();
+    buf.extend_from_slice(&length[0..3]);
 }
 
 #[inline]
 pub fn serialize_int_2(buf: &mut BytesMut, value: u16) {
-    LittleEndian::write_u16(buf, value);
+    buf.put_u16::<LittleEndian>(value);
 }
 
 #[inline]
 pub fn serialize_int_1(buf: &mut BytesMut, value: u8) {
-    buf.put(value);
+    buf.put_u8(value);
 }
 
 #[inline]
 pub fn serialize_int_lenenc(buf: &mut BytesMut, value: Option<&usize>) {
     if let Some(value) = value {
         if *value > U24_MAX && *value <= std::u64::MAX as usize{
-            buf.put(0xFE_u8);
+            buf.put_u8(0xFE);
             serialize_int_8(buf, *value as u64);
         } else if *value > std::u16::MAX as usize && *value <= U24_MAX {
-            buf.put(0xFD_u8);
+            buf.put_u8(0xFD);
             serialize_int_3(buf, *value as u32);
         } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize{
-            buf.put(0xFC_u8);
+            buf.put_u8(0xFC);
             serialize_int_2(buf, *value as u16);
         } else if *value >= 0 && *value <= std::u8::MAX as usize {
-            buf.put(0xFA_u8);
+            buf.put_u8(0xFA);
             serialize_int_1(buf, *value as u8);
         } else {
             panic!("Value is too long");
         }
     } else {
-        buf.put(0xFB_u8);
+        buf.put_u8(0xFB);
     }
 }
 
@@ -153,25 +154,11 @@ mod tests {
     // [X] serialize_byte_eof
 
     #[test]
-    fn it_encodes_length() {
-        let mut buf = BytesMut::new();
-        // Reserve space of length
-        buf.write_u24::<LittleEndian>(0);
-        // Sequence number; typically 0
-        buf.write_u8(0x00);
-        // Contents of buffer
-        buf.write_u8(0xFF);
-        serialize_length(&mut buf);
-
-        assert_eq!(buf, b"\x01\0\0\0\xFF".to_vec());
-    }
-
-    #[test]
     fn it_encodes_int_lenenc_none() {
         let mut buf = BytesMut::new();
         serialize_int_lenenc(&mut buf, None);
 
-        assert_eq!(buf, b"\xFB".to_vec());
+        assert_eq!(&buf[..], b"\xFB");
     }
 
     #[test]
@@ -179,7 +166,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_lenenc(&mut buf, Some(&(std::u8::MAX as usize)));
 
-        assert_eq!(buf, b"\xFA\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFA\xFF");
     }
 
     #[test]
@@ -187,7 +174,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_lenenc(&mut buf, Some(&(std::u16::MAX as usize)));
 
-        assert_eq!(buf, b"\xFC\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFC\xFF\xFF");
     }
 
     #[test]
@@ -195,7 +182,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_lenenc(&mut buf, Some(&U24_MAX));
 
-        assert_eq!(buf, b"\xFD\xFF\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFD\xFF\xFF\xFF");
     }
 
     #[test]
@@ -203,7 +190,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_lenenc(&mut buf, Some(&(std::u64::MAX as usize)));
 
-        assert_eq!(buf, b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
 
     #[test]
@@ -211,7 +198,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_8(&mut buf, std::u64::MAX);
 
-        assert_eq!(buf, b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
 
 
@@ -220,7 +207,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_4(&mut buf, std::u32::MAX);
 
-        assert_eq!(buf, b"\xFF\xFF\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF");
     }
 
 
@@ -229,7 +216,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_3(&mut buf, U24_MAX as u32);
 
-        assert_eq!(buf.to_vec(), b"\xFF\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFF\xFF\xFF");
     }
 
 
@@ -238,7 +225,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_2(&mut buf, std::u16::MAX);
 
-        assert_eq!(buf.to_vec(), b"\xFF\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFF\xFF");
     }
 
 
@@ -247,7 +234,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_int_1(&mut buf, std::u8::MAX);
 
-        assert_eq!(buf, b"\xFF".to_vec());
+        assert_eq!(&buf[..], b"\xFF");
     }
 
     #[test]
@@ -255,7 +242,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_string_lenenc(&mut buf, &Bytes::from_static(b"random_string"));
 
-        assert_eq!(buf, b"\x0D\x00\x00random_string".to_vec());
+        assert_eq!(&buf[..], b"\x0D\x00\x00random_string");
     }
 
     #[test]
@@ -263,7 +250,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_string_fix(&mut buf, &Bytes::from_static(b"random_string"), 13);
 
-        assert_eq!(buf, b"random_string".to_vec());
+        assert_eq!(&buf[..], b"random_string");
     }
 
     #[test]
@@ -271,7 +258,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_string_null(&mut buf, &Bytes::from_static(b"random_string"));
 
-        assert_eq!(buf, b"random_string\0".to_vec());
+        assert_eq!(&buf[..], b"random_string\0");
     }
 
 
@@ -280,7 +267,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_string_eof(&mut buf, &Bytes::from_static(b"random_string"));
 
-        assert_eq!(buf, b"random_string".to_vec());
+        assert_eq!(&buf[..], b"random_string");
     }
 
     #[test]
@@ -288,7 +275,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_byte_lenenc(&mut buf, &Bytes::from("random_string"));
 
-        assert_eq!(buf, b"\x0D\x00\x00random_string".to_vec());
+        assert_eq!(&buf[..], b"\x0D\x00\x00random_string");
     }
 
     #[test]
@@ -296,7 +283,7 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_byte_fix(&mut buf, &Bytes::from("random_string"), 13);
 
-        assert_eq!(buf, b"random_string".to_vec());
+        assert_eq!(&buf[..], b"random_string");
     }
 
     #[test]
@@ -304,6 +291,6 @@ mod tests {
         let mut buf = BytesMut::new();
         serialize_byte_eof(&mut buf, &Bytes::from("random_string"));
 
-        assert_eq!(buf, b"random_string".to_vec());
+        assert_eq!(&buf[..], b"random_string");
     }
 }

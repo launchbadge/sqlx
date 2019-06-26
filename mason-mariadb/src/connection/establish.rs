@@ -29,7 +29,6 @@ pub async fn establish<'a, 'b: 'a>(
     }?;
 
     conn.server_capabilities = init_packet.capabilities;
-    let username: &'b [u8] = &options.user.unwrap().as_bytes().clone();
 
     let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
         // Minimum client capabilities required to establish connection
@@ -37,7 +36,7 @@ pub async fn establish<'a, 'b: 'a>(
         max_packet_size: 1024,
         collation: 0,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: Bytes::from_static(username),
+        username: Bytes::from_static(b"root"),
         auth_data: None,
         auth_response_len: None,
         auth_response: None,
@@ -46,9 +45,11 @@ pub async fn establish<'a, 'b: 'a>(
         conn_attr_len: None,
         conn_attr: None,
     };
+
     conn.send(handshake).await?;
 
     if let Some(message) = conn.incoming.next().await {
+        println!("{:?}", message);
         Ok(())
     } else {
         Err(failure::err_msg("Handshake Failed"))
