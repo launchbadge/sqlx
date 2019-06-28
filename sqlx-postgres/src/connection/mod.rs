@@ -84,7 +84,7 @@ async fn receiver(
     mut reader: ReadHalf<TcpStream>,
     mut sender: mpsc::UnboundedSender<Message>,
 ) -> io::Result<()> {
-    let mut rbuf = BytesMut::with_capacity(0);
+    let mut rbuf = BytesMut::with_capacity(1024);
     let mut len = 0;
 
     loop {
