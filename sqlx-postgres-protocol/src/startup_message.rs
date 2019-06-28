@@ -47,7 +47,7 @@ pub struct StartupMessageBuilder {
 
 impl Default for StartupMessageBuilder {
     fn default() -> Self {
-        StartupMessageBuilder { version: (3, 0), params: BytesMut::with_capacity(128) }
+        StartupMessageBuilder { version: (3, 0), params: BytesMut::with_capacity(156) }
     }
 }
 
@@ -56,7 +56,7 @@ impl StartupMessageBuilder {
         StartupMessageBuilder::default()
     }
 
-    /// Set the protocol version number. Defaults to `3` and `0`.
+    /// Set the protocol version number. Defaults to `3.0`.
     pub fn version(mut self, major: u16, minor: u16) -> Self {
         self.version = (major, minor);
         self

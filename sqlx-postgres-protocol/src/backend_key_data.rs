@@ -1,6 +1,7 @@
 use crate::Decode;
-use bytes::{Buf, Bytes};
-use std::io::{self, Cursor};
+use byteorder::{BigEndian, ByteOrder};
+use bytes::Bytes;
+use std::io;
 
 #[derive(Debug)]
 pub struct BackendKeyData {
@@ -23,10 +24,30 @@ impl BackendKeyData {
 
 impl Decode for BackendKeyData {
     fn decode(src: Bytes) -> io::Result<Self> {
-        let mut reader = Cursor::new(src);
-        let process_id = reader.get_u32_be();
-        let secret_key = reader.get_u32_be();
+        let process_id = BigEndian::read_u32(&src[..4]);
+        let secret_key = BigEndian::read_u32(&src[4..]);
 
         Ok(Self { process_id, secret_key })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BackendKeyData};
+    use crate::{Decode};
+    use bytes::Bytes;
+    use std::io;
+
+    const BACKEND_KEY_DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
+
+    #[test]
+    fn it_decodes_backend_key_data() -> io::Result<()> {
+        let src = Bytes::from_static(BACKEND_KEY_DATA);
+        let message = BackendKeyData::decode(src)?;
+
+        assert_eq!(message.process_id(), 10182);
+        assert_eq!(message.secret_key(), 2303903019);
+
+        Ok(())
     }
 }
