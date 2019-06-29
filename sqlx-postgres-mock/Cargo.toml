@@ -7,6 +7,5 @@ description = "Mock the PostgreSQL wire protocol. Used internally to test and be
 edition = "2018"
 
 [dependencies]
-runtime = "=0.3.0-alpha.4"
+runtime = "=0.3.0-alpha.6"
 futures-preview = "=0.3.0-alpha.16"
-failure = "0.1"

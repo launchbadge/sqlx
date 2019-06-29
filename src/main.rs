@@ -1,10 +1,11 @@
 #![feature(async_await)]
 
 use sqlx::{pg::Connection, ConnectOptions};
+use std::io;
 
 #[runtime::main]
-async fn main() -> Result<(), failure::Error> {
-    env_logger::try_init()?;
+async fn main() -> io::Result<()> {
+    env_logger::init();
 
     let conn = Connection::establish(
         ConnectOptions::new()

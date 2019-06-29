@@ -16,10 +16,9 @@ description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [dependencies]
-runtime = "=0.3.0-alpha.4"
+runtime = "=0.3.0-alpha.6"
 sqlx-core = { path = "sqlx-core" }
 sqlx-postgres = { path = "sqlx-postgres" }
-failure = "0.1"
 env_logger = "0.6.1"
 bytes = "0.4.12"
 
