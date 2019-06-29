@@ -27,14 +27,17 @@ impl Decode for BackendKeyData {
         let process_id = BigEndian::read_u32(&src[..4]);
         let secret_key = BigEndian::read_u32(&src[4..]);
 
-        Ok(Self { process_id, secret_key })
+        Ok(Self {
+            process_id,
+            secret_key,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{BackendKeyData};
-    use crate::{Decode};
+    use super::BackendKeyData;
+    use crate::Decode;
     use bytes::Bytes;
     use std::io;
 

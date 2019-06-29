@@ -314,12 +314,19 @@ impl Decode for Response {
                 }
 
                 b'P' => {
-                    position = Some(field_value.parse().map_err(|_| io::ErrorKind::InvalidData)?);
+                    position = Some(
+                        field_value
+                            .parse()
+                            .map_err(|_| io::ErrorKind::InvalidData)?,
+                    );
                 }
 
                 b'p' => {
-                    internal_position =
-                        Some(field_value.parse().map_err(|_| io::ErrorKind::InvalidData)?);
+                    internal_position = Some(
+                        field_value
+                            .parse()
+                            .map_err(|_| io::ErrorKind::InvalidData)?,
+                    );
                 }
 
                 b'q' => {
@@ -355,7 +362,11 @@ impl Decode for Response {
                 }
 
                 b'L' => {
-                    line = Some(field_value.parse().map_err(|_| io::ErrorKind::InvalidData)?);
+                    line = Some(
+                        field_value
+                            .parse()
+                            .map_err(|_| io::ErrorKind::InvalidData)?,
+                    );
                 }
 
                 b'R' => {
@@ -718,7 +729,10 @@ mod tests {
         let message = Response::decode(src)?;
 
         assert_eq!(message.severity(), Severity::Notice);
-        assert_eq!(message.message(), "extension \"uuid-ossp\" already exists, skipping");
+        assert_eq!(
+            message.message(),
+            "extension \"uuid-ossp\" already exists, skipping"
+        );
         assert_eq!(message.code(), "42710");
         assert_eq!(message.file(), Some("extension.c"));
         assert_eq!(message.line(), Some(1656));

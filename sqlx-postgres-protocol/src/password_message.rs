@@ -11,7 +11,9 @@ pub struct PasswordMessage {
 impl PasswordMessage {
     /// Create a `PasswordMessage` with an unecrypted password.
     pub fn cleartext(password: &str) -> Self {
-        Self { password: Bytes::from(password) }
+        Self {
+            password: Bytes::from(password),
+        }
     }
 
     /// Create a `PasswordMessage` by hasing the password, user, and salt together using MD5.
@@ -32,7 +34,9 @@ impl PasswordMessage {
         password.extend_from_slice(b"md5");
         password.extend_from_slice(salted.as_bytes());
 
-        Self { password: Bytes::from(password) }
+        Self {
+            password: Bytes::from(password),
+        }
     }
 
     /// The password (encrypted, if requested).

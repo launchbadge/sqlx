@@ -117,8 +117,6 @@ async fn receiver(
         }
 
         while len > 0 {
-            log::trace!("rbuf: {:?}", rbuf);
-
             let size = rbuf.len();
             let message = Message::decode(&mut rbuf)?;
             len -= size - rbuf.len();

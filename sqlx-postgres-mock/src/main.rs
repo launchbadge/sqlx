@@ -17,8 +17,7 @@ const ESTABLISH: &[u8] = b"\
     S\0\0\0#session_authorization\0postgres\0\
     S\0\0\0#standard_conforming_strings\0on\0\
     S\0\0\0\x11TimeZone\0UTC\0\
-    K\0\0\0\x0c\0\0'\xc6\x89\
-    R\xc5+\
+    K\0\0\0\x0c\0\0'\xc6\x89R\xc5+\
     Z\0\0\0\x05I";
 
 #[runtime::main]

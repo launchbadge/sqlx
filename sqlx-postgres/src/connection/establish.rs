@@ -48,7 +48,10 @@ pub async fn establish<'a, 'b: 'a>(
 
             Message::Authentication(Authentication::CleartextPassword) => {
                 // FIXME: Should error early (before send) if the user did not supply a password
-                conn.send(PasswordMessage::cleartext(options.password.unwrap_or_default())).await?;
+                conn.send(PasswordMessage::cleartext(
+                    options.password.unwrap_or_default(),
+                ))
+                .await?;
             }
 
             Message::Authentication(Authentication::Md5Password { salt }) => {

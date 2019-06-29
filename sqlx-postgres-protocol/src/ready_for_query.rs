@@ -67,7 +67,9 @@ mod tests {
 
     #[test]
     fn it_encodes_ready_for_query() -> io::Result<()> {
-        let message = ReadyForQuery { status: TransactionStatus::Error };
+        let message = ReadyForQuery {
+            status: TransactionStatus::Error,
+        };
 
         let mut dst = Vec::with_capacity(message.size_hint());
         message.encode(&mut dst)?;

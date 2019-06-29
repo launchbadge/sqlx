@@ -35,8 +35,8 @@ impl Decode for ParameterStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::{ParameterStatus};
-    use crate::{Decode};
+    use super::ParameterStatus;
+    use crate::Decode;
     use bytes::Bytes;
     use std::io;
 

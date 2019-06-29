@@ -10,7 +10,13 @@ pub struct ConnectOptions<'a> {
 impl<'a> Default for ConnectOptions<'a> {
     #[inline]
     fn default() -> Self {
-        Self { host: "localhost", port: 5432, user: None, database: None, password: None }
+        Self {
+            host: "localhost",
+            port: 5432,
+            user: None,
+            database: None,
+            password: None,
+        }
     }
 }
 

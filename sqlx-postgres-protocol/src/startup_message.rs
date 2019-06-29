@@ -47,7 +47,10 @@ pub struct StartupMessageBuilder {
 
 impl Default for StartupMessageBuilder {
     fn default() -> Self {
-        StartupMessageBuilder { version: (3, 0), params: BytesMut::with_capacity(156) }
+        StartupMessageBuilder {
+            version: (3, 0),
+            params: BytesMut::with_capacity(156),
+        }
     }
 }
 
@@ -76,7 +79,10 @@ impl StartupMessageBuilder {
         self.params.reserve(1);
         self.params.put_u8(0);
 
-        StartupMessage { version: self.version, params: self.params.freeze() }
+        StartupMessage {
+            version: self.version,
+            params: self.params.freeze(),
+        }
     }
 }
 
