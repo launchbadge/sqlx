@@ -1,26 +1,19 @@
 use super::Connection;
 use crate::protocol::{
-    server::Message as ServerMessage,
-    server::InitialHandshakePacket,
-    server::Deserialize,
-    server::Capabilities,
-    client::HandshakeResponsePacket,
-    client::ComQuit,
-    client::ComPing,
-    client::Serialize
+    client::{ComPing, ComQuit, HandshakeResponsePacket, Serialize},
+    server::{Capabilities, Deserialize, InitialHandshakePacket, Message as ServerMessage},
 };
+use bytes::Bytes;
+use failure::{err_msg, Error};
 use futures::StreamExt;
 use mason_core::ConnectOptions;
 use std::io;
-use failure::Error;
-use bytes::Bytes;
-use failure::err_msg;
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
-    let init_packet =  InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?)?;
+    let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?)?;
 
     conn.capabilities = init_packet.capabilities;
 
@@ -37,14 +30,11 @@ pub async fn establish<'a, 'b: 'a>(
 
     match conn.stream.next().await? {
         Some(ServerMessage::OkPacket(message)) => {
-            println!("{:?}", message);
             conn.seq_no = message.seq_no;
             Ok(())
         }
 
-        Some(ServerMessage::ErrPacket(message)) => {
-            Err(err_msg(format!("{:?}", message)))
-        }
+        Some(ServerMessage::ErrPacket(message)) => Err(err_msg(format!("{:?}", message))),
 
         Some(message) => {
             panic!("Did not receive OkPacket nor ErrPacket");
@@ -59,8 +49,7 @@ pub async fn establish<'a, 'b: 'a>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use failure::Error;
-    use failure::err_msg;
+    use failure::{err_msg, Error};
 
     #[runtime::test]
     async fn it_connects() -> Result<(), Error> {
@@ -70,11 +59,11 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
-//
-//        conn.ping().await?;
+        })
+        .await?;
+
+        conn.ping().await?;
 
         Ok(())
     }
 }
-

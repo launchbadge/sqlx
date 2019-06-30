@@ -1,10 +1,10 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
 use crate::protocol::deserialize::*;
+use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
-use failure::{err_msg, Error};
-use byteorder::{LittleEndian, ByteOrder};
 use core::num::FpCategory::Infinite;
+use failure::{err_msg, Error};
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &Bytes) -> Result<Self, Error>;
@@ -163,15 +163,9 @@ impl Message {
         let tag = buf[4];
 
         Ok(Some(match tag {
-            0xFF => {
-               Message::ErrPacket(ErrPacket::deserialize(&buf)?)
-            }
-            0x00 | 0xFE => {
-                Message::OkPacket(OkPacket::deserialize(&buf)?)
-            }
-            _ => {
-                unimplemented!()
-            }
+            0xFF => Message::ErrPacket(ErrPacket::deserialize(&buf)?),
+            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&buf)?),
+            _ => unimplemented!(),
         }))
     }
     pub fn init(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
@@ -210,10 +204,12 @@ impl Deserialize for InitialHandshakePacket {
             Capabilities::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
 
         let collation = deserialize_int_1(&buf, &mut index);
-        let status = ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
+        let status =
+            ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
 
-        capabilities |=
-            Capabilities::from_bits_truncate(((deserialize_int_2(&buf, &mut index) as u32) << 16).into());
+        capabilities |= Capabilities::from_bits_truncate(
+            ((deserialize_int_2(&buf, &mut index) as u32) << 16).into(),
+        );
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
@@ -281,7 +277,8 @@ impl Deserialize for OkPacket {
 
         let affected_rows = deserialize_int_lenenc(&buf, &mut index);
         let last_insert_id = deserialize_int_lenenc(&buf, &mut index);
-        let server_status = ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
+        let server_status =
+            ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
         let warning_count = deserialize_int_2(&buf, &mut index);
 
         // Assuming CLIENT_SESSION_TRACK is unsupported
@@ -377,7 +374,8 @@ mod test {
 
     #[test]
     fn it_decodes_initialhandshakepacket() -> Result<(), Error> {
-        let buf = BytesMut::from(b"\
+        let buf = BytesMut::from(
+            b"\
         n\0\0\
         \0\
         \n\
@@ -394,7 +392,9 @@ mod test {
         \x07\0\0\0\
         JQ8cihP4Q}Dx\
         \0\
-        mysql_native_password\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".to_vec());
+        mysql_native_password\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                .to_vec(),
+        );
 
         let _message = InitialHandshakePacket::deserialize(&buf.freeze())?;
 
@@ -403,7 +403,8 @@ mod test {
 
     #[test]
     fn it_decodes_okpacket() -> Result<(), Error> {
-        let buf = BytesMut::from(b"\
+        let buf = BytesMut::from(
+            b"\
         \x0F\x00\x00\
         \x01\
         \x00\
@@ -412,7 +413,9 @@ mod test {
         \x01\x01\
         \x00\x00\
         info\
-        ".to_vec());
+        "
+            .to_vec(),
+        );
 
         let message = OkPacket::deserialize(&buf.freeze())?;
 
@@ -427,7 +430,8 @@ mod test {
 
     #[test]
     fn it_decodes_errpacket() -> Result<(), Error> {
-        let buf = BytesMut::from(b"\
+        let buf = BytesMut::from(
+            b"\
         \x0F\x00\x00\
         \x01\
         \xFF\
@@ -436,7 +440,8 @@ mod test {
         HY000\
         NO\
         "
-        .to_vec());
+            .to_vec(),
+        );
 
         let message = ErrPacket::deserialize(&buf.freeze())?;
 

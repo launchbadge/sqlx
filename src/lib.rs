@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #![feature(non_exhaustive, async_await)]
 #![cfg_attr(test, feature(test))]
 

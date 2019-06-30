@@ -1,29 +1,23 @@
 use crate::protocol::{
-    client::Serialize,
-    client::ComQuit,
-    client::ComPing,
-    server::Message as ServerMessage,
-    server::ServerStatusFlag,
-    server::Capabilities,
-    server::InitialHandshakePacket,
-    server::Deserialize
+    client::{ComPing, ComQuit, Serialize},
+    serialize::serialize_length,
+    server::{
+        Capabilities, Deserialize, InitialHandshakePacket, Message as ServerMessage,
+        ServerStatusFlag, OkPacket
+    },
 };
-use bytes::BytesMut;
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use bytes::{BufMut, Bytes, BytesMut};
+use failure::{err_msg, Error};
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
+    prelude::*,
     task::{Context, Poll},
     Stream,
 };
-use futures::prelude::*;
 use mason_core::ConnectOptions;
 use runtime::{net::TcpStream, task::JoinHandle};
 use std::io;
-use failure::Error;
-use failure::err_msg;
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
-use crate::protocol::serialize::serialize_length;
-use bytes::BufMut;
-use bytes::Bytes;
 
 mod establish;
 // mod query;
@@ -84,8 +78,6 @@ impl Connection {
         message.serialize(&mut self.wbuf, &self.capabilities)?;
         serialize_length(&mut self.wbuf);
 
-        println!("{:?}", self.wbuf);
-
         self.stream.inner.write_all(&self.wbuf).await?;
         self.stream.inner.flush().await?;
 
@@ -102,25 +94,10 @@ impl Connection {
         self.seq_no = 0;
         self.send(ComPing()).await?;
 
-        match self.stream.next().await? {
-            Some(ServerMessage::OkPacket(message)) => {
-                println!("{:?}", message);
-                self.seq_no = message.seq_no;
-                Ok(())
-            }
+        // Ping response must be an OkPacket
+        OkPacket::deserialize(&self.stream.next_bytes().await?)?;
 
-            Some(ServerMessage::ErrPacket(message)) => {
-                Err(err_msg(format!("{:?}", message)))
-            }
-
-            Some(message) => {
-                panic!("Did not receive OkPacket nor ErrPacket");
-            }
-
-            None => {
-                panic!("Did not recieve packet");
-            }
-        }
+        Ok(())
     }
 }
 
@@ -166,8 +143,6 @@ impl Framed {
                 // Read 0 bytes from the server; end-of-stream
                 return Ok(Bytes::new());
             }
-
-            println!("buf len: {:?}", rbuf);
 
             if len > 0 && packet_len == 0 {
                 packet_len = LittleEndian::read_u24(&rbuf[0..]);
@@ -221,69 +196,6 @@ impl Framed {
             }
         }
 
-        Err(err_msg("Failed to get next packet"))
+        Ok(None)
     }
 }
-
-//async fn receiver(
-//    mut reader: ReadHalf<TcpStream>,
-//    mut sender: mpsc::UnboundedSender<ServerMessage>,
-//) -> Result<(), Error> {
-//    let mut rbuf = BytesMut::with_capacity(0);
-//    let mut len = 0;
-//    let mut first_packet = true;
-//
-//    loop {
-//        // This uses an adaptive system to extend the vector when it fills. We want to
-//        // avoid paying to allocate and zero a huge chunk of memory if the reader only
-//        // has 4 bytes while still making large reads if the reader does have a ton
-//        // of data to return.
-//
-//        // See: https://github.com/rust-lang-nursery/futures-rs/blob/master/futures-util/src/io/read_to_end.rs#L50-L54
-//
-//        if len == rbuf.len() {
-//            rbuf.reserve(32);
-//
-//            unsafe {
-//                // Set length to the capacity and efficiently
-//                // zero-out the memory
-//                rbuf.set_len(rbuf.capacity());
-//                reader.initializer().initialize(&mut rbuf[len..]);
-//            }
-//        }
-//
-//        // TODO: Need a select! on a channel that I can trigger to cancel this
-//        let bytes_read = reader.read(&mut rbuf[len..]).await?;
-//
-//        if bytes_read > 0 {
-//            len += bytes_read;
-//        } else {
-//            // Read 0 bytes from the server; end-of-stream
-//            break;
-//        }
-//
-//        while len > 0 {
-//            let size = rbuf.len();
-//            let message = if first_packet {
-//                ServerMessage::init(&mut rbuf)
-//            } else {
-//                ServerMessage::deserialize(&mut rbuf)
-//            }?;
-//            len -= size - rbuf.len();
-//
-//            if let Some(message) = message {
-//                first_packet = false;
-//                sender.send(message).await.unwrap();
-//            } else {
-//                // Did not receive enough bytes to
-//                // deserialize a complete message
-//                break;
-//            }
-//
-//        }
-//
-//
-//    }
-//
-//    Ok(())
-//}

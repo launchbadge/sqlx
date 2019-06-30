@@ -1,15 +1,12 @@
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::Bytes;
-use failure::Error;
-use failure::err_msg;
-use bytes::BytesMut;
-use bytes::BufMut;
+use bytes::{BufMut, Bytes, BytesMut};
+use failure::{err_msg, Error};
 
 const U24_MAX: usize = 0xFF_FF_FF;
 
 #[inline]
 pub fn serialize_length(buf: &mut BytesMut) {
-    let mut length =  [0;  3];
+    let mut length = [0; 3];
     if buf.len() > U24_MAX {
         panic!("Buffer too long");
     } else if buf.len() <= 4 {
@@ -37,7 +34,7 @@ pub fn serialize_int_4(buf: &mut BytesMut, value: u32) {
 
 #[inline]
 pub fn serialize_int_3(buf: &mut BytesMut, value: u32) {
-    let length =  value.to_le_bytes();
+    let length = value.to_le_bytes();
     buf.extend_from_slice(&length[0..3]);
 }
 
@@ -54,13 +51,13 @@ pub fn serialize_int_1(buf: &mut BytesMut, value: u8) {
 #[inline]
 pub fn serialize_int_lenenc(buf: &mut BytesMut, value: Option<&usize>) {
     if let Some(value) = value {
-        if *value > U24_MAX && *value <= std::u64::MAX as usize{
+        if *value > U24_MAX && *value <= std::u64::MAX as usize {
             buf.put_u8(0xFE);
             serialize_int_8(buf, *value as u64);
         } else if *value > std::u16::MAX as usize && *value <= U24_MAX {
             buf.put_u8(0xFD);
             serialize_int_3(buf, *value as u32);
-        } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize{
+        } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize {
             buf.put_u8(0xFC);
             serialize_int_2(buf, *value as u16);
         } else if *value >= 0 && *value <= std::u8::MAX as usize {
@@ -201,7 +198,6 @@ mod tests {
         assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
 
-
     #[test]
     fn it_encodes_int_u32() {
         let mut buf = BytesMut::new();
@@ -209,7 +205,6 @@ mod tests {
 
         assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF");
     }
-
 
     #[test]
     fn it_encodes_int_u24() {
@@ -219,7 +214,6 @@ mod tests {
         assert_eq!(&buf[..], b"\xFF\xFF\xFF");
     }
 
-
     #[test]
     fn it_encodes_int_u16() {
         let mut buf = BytesMut::new();
@@ -227,7 +221,6 @@ mod tests {
 
         assert_eq!(&buf[..], b"\xFF\xFF");
     }
-
 
     #[test]
     fn it_encodes_int_u8() {
@@ -260,7 +253,6 @@ mod tests {
 
         assert_eq!(&buf[..], b"random_string\0");
     }
-
 
     #[test]
     fn it_encodes_string_eof() {

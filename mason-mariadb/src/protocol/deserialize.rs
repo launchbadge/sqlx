@@ -1,8 +1,7 @@
 // Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
-use failure::Error;
-use failure::err_msg;
+use failure::{err_msg, Error};
 
 #[inline]
 pub fn deserialize_length(buf: &Bytes, index: &mut usize) -> Result<u32, Error> {
@@ -158,7 +157,7 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fb() {
-        let buf: BytesMut  = BytesMut::from(b"\xFB".to_vec());
+        let buf: BytesMut = BytesMut::from(b"\xFB".to_vec());
         let mut index = 0;
         let int: Option<usize> = deserialize_int_lenenc(&buf.freeze(), &mut index);
 
@@ -289,20 +288,20 @@ mod tests {
         assert_eq!(index, 1);
     }
 
-     #[test]
-     fn it_decodes_string_null() -> Result<(), Error> {
-         let buf = BytesMut::from(b"random\x00\x01".to_vec());
-         let mut index = 0;
-         let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index)?;
+    #[test]
+    fn it_decodes_string_null() -> Result<(), Error> {
+        let buf = BytesMut::from(b"random\x00\x01".to_vec());
+        let mut index = 0;
+        let string: Bytes = deserialize_string_null(&buf.freeze(), &mut index)?;
 
-         assert_eq!(&string[..], b"random");
+        assert_eq!(&string[..], b"random");
 
-         assert_eq!(string.len(), 6);
-         // Skips null byte
-         assert_eq!(index, 7);
+        assert_eq!(string.len(), 6);
+        // Skips null byte
+        assert_eq!(index, 7);
 
-         Ok(())
-     }
+        Ok(())
+    }
 
     #[test]
     fn it_decodes_byte_fix() {
