@@ -3,7 +3,6 @@
 use crate::protocol::deserialize::*;
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
-use core::num::FpCategory::Infinite;
 use failure::{err_msg, Error};
 
 pub trait Deserialize: Sized {
@@ -123,6 +122,7 @@ pub struct InitialHandshakePacket {
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
+    pub length: u32,
     pub seq_no: u8,
     pub affected_rows: Option<usize>,
     pub last_insert_id: Option<usize>,
@@ -135,6 +135,7 @@ pub struct OkPacket {
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
+    pub length: u32,
     pub seq_no: u8,
     pub error_code: u16,
     pub stage: Option<u8>,
@@ -152,14 +153,13 @@ impl Message {
             return Ok(None);
         }
 
-        let mut index = 0_usize;
         let length = LittleEndian::read_u24(&buf[0..]) as usize;
         if buf.len() < length + 4 {
             return Ok(None);
         }
 
         let buf = buf.split_to(length + 4).freeze();
-        let serial_number = [3];
+        let _seq_no = [3];
         let tag = buf[4];
 
         Ok(Some(match tag {
@@ -167,17 +167,6 @@ impl Message {
             0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&buf)?),
             _ => unimplemented!(),
         }))
-    }
-    pub fn init(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
-        let length = LittleEndian::read_u24(&buf[0..]) as usize;
-        if buf.len() < length + 4 {
-            return Ok(None);
-        }
-
-        match InitialHandshakePacket::deserialize(&buf.split_to(length + 4).freeze()) {
-            Ok(v) => Ok(Some(Message::InitialHandshakePacket(v))),
-            Err(_) => Ok(None),
-        }
     }
 }
 
@@ -288,6 +277,7 @@ impl Deserialize for OkPacket {
         let info = Bytes::from(&buf[index..]);
 
         Ok(OkPacket {
+            length,
             seq_no,
             affected_rows,
             last_insert_id,
@@ -340,6 +330,7 @@ impl Deserialize for ErrPacket {
         }
 
         Ok(ErrPacket {
+            length,
             seq_no,
             error_code,
             stage,

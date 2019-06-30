@@ -2,22 +2,19 @@ use crate::protocol::{
     client::{ComPing, ComQuit, Serialize},
     serialize::serialize_length,
     server::{
-        Capabilities, Deserialize, InitialHandshakePacket, Message as ServerMessage,
+        Capabilities, Deserialize, Message as ServerMessage,
         ServerStatusFlag, OkPacket
     },
 };
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::{BufMut, Bytes, BytesMut};
-use failure::{err_msg, Error};
+use byteorder::{ByteOrder, LittleEndian};
+use bytes::{Bytes, BytesMut};
+use failure::Error;
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
     prelude::*,
-    task::{Context, Poll},
-    Stream,
 };
 use mason_core::ConnectOptions;
-use runtime::{net::TcpStream, task::JoinHandle};
-use std::io;
+use runtime::net::TcpStream;
 
 mod establish;
 // mod query;

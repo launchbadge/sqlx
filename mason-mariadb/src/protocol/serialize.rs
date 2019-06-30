@@ -1,6 +1,5 @@
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{ByteOrder, LittleEndian};
 use bytes::{BufMut, Bytes, BytesMut};
-use failure::{err_msg, Error};
 
 const U24_MAX: usize = 0xFF_FF_FF;
 
@@ -24,12 +23,12 @@ pub fn serialize_length(buf: &mut BytesMut) {
 
 #[inline]
 pub fn serialize_int_8(buf: &mut BytesMut, value: u64) {
-    buf.put_u64::<LittleEndian>(value);
+    buf.put_u64_le(value);
 }
 
 #[inline]
 pub fn serialize_int_4(buf: &mut BytesMut, value: u32) {
-    buf.put_u32::<LittleEndian>(value);
+    buf.put_u32_le(value);
 }
 
 #[inline]
@@ -40,7 +39,7 @@ pub fn serialize_int_3(buf: &mut BytesMut, value: u32) {
 
 #[inline]
 pub fn serialize_int_2(buf: &mut BytesMut, value: u16) {
-    buf.put_u16::<LittleEndian>(value);
+    buf.put_u16_le(value);
 }
 
 #[inline]
@@ -60,7 +59,7 @@ pub fn serialize_int_lenenc(buf: &mut BytesMut, value: Option<&usize>) {
         } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize {
             buf.put_u8(0xFC);
             serialize_int_2(buf, *value as u16);
-        } else if *value >= 0 && *value <= std::u8::MAX as usize {
+        } else if *value <= std::u8::MAX as usize {
             buf.put_u8(0xFA);
             serialize_int_1(buf, *value as u8);
         } else {
@@ -130,7 +129,6 @@ pub fn serialize_byte_eof(buf: &mut BytesMut, bytes: &Bytes) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 
     // [X] serialize_int_lenenc_u64
     // [X] serialize_int_lenenc_u32

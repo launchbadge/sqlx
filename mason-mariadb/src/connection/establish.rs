@@ -1,17 +1,15 @@
 use super::Connection;
 use crate::protocol::{
-    client::{ComPing, ComQuit, HandshakeResponsePacket, Serialize},
+    client::HandshakeResponsePacket,
     server::{Capabilities, Deserialize, InitialHandshakePacket, Message as ServerMessage},
 };
 use bytes::Bytes;
 use failure::{err_msg, Error};
-use futures::StreamExt;
 use mason_core::ConnectOptions;
-use std::io;
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
-    options: ConnectOptions<'b>,
+    _options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
     let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?)?;
 
@@ -37,7 +35,7 @@ pub async fn establish<'a, 'b: 'a>(
         Some(ServerMessage::ErrPacket(message)) => Err(err_msg(format!("{:?}", message))),
 
         Some(message) => {
-            panic!("Did not receive OkPacket nor ErrPacket");
+            panic!("Did not receive OkPacket nor ErrPacket. Received: {:?}", message);
         }
 
         None => {
@@ -49,7 +47,7 @@ pub async fn establish<'a, 'b: 'a>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use failure::{err_msg, Error};
+    use failure::Error;
 
     #[runtime::test]
     async fn it_connects() -> Result<(), Error> {

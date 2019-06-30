@@ -9,7 +9,6 @@
 
 use super::server::Capabilities;
 use crate::protocol::serialize::*;
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use bytes::{Bytes, BytesMut};
 use failure::Error;
 

@@ -105,7 +105,6 @@ pub fn deserialize_string_eof(buf: &Bytes, index: &mut usize) -> Bytes {
 #[inline]
 pub fn deserialize_string_null(buf: &Bytes, index: &mut usize) -> Result<Bytes, Error> {
     if let Some(null_index) = memchr::memchr(0, &buf[*index..]) {
-        let new_index = null_index + *index;
         let value = Bytes::from(&buf[*index..*index + null_index]);
         *index = *index + null_index + 1;
         Ok(value)
