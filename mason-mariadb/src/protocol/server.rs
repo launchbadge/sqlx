@@ -18,17 +18,6 @@ pub enum Message {
     ErrPacket(ErrPacket),
 }
 
-impl Message {
-    pub fn sequence_number(&self) -> u8 {
-        match self {
-            Message::InitialHandshakePacket(InitialHandshakePacket{ sequence_number, ..}) => sequence_number + 1,
-            Message::OkPacket(OkPacket{ sequence_number, ..}) => sequence_number + 1,
-            Message::ErrPacket(ErrPacket { sequence_number, .. }) => sequence_number + 1,
-            _ => 0
-        }
-    }
-}
-
 bitflags! {
     pub struct Capabilities: u128 {
         const CLIENT_MYSQL = 1;
@@ -119,7 +108,7 @@ impl Default for ServerStatusFlag {
 #[derive(Default, Debug)]
 pub struct InitialHandshakePacket {
     pub length: u32,
-    pub sequence_number: u8,
+    pub seq_no: u8,
     pub protocol_version: u8,
     pub server_version: Bytes,
     pub connection_id: u32,
@@ -134,7 +123,7 @@ pub struct InitialHandshakePacket {
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
-    pub sequence_number: u8,
+    pub seq_no: u8,
     pub affected_rows: Option<usize>,
     pub last_insert_id: Option<usize>,
     pub server_status: ServerStatusFlag,
@@ -146,7 +135,7 @@ pub struct OkPacket {
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
-    pub sequence_number: u8,
+    pub seq_no: u8,
     pub error_code: u16,
     pub stage: Option<u8>,
     pub max_stage: Option<u8>,
@@ -203,9 +192,9 @@ impl Deserialize for InitialHandshakePacket {
         let mut index = 0;
 
         let length = deserialize_length(&buf, &mut index)?;
-        let sequence_number = deserialize_int_1(&buf, &mut index);
+        let seq_no = deserialize_int_1(&buf, &mut index);
 
-        if sequence_number != 0 {
+        if seq_no != 0 {
             return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
         }
 
@@ -261,7 +250,7 @@ impl Deserialize for InitialHandshakePacket {
 
         Ok(InitialHandshakePacket {
             length,
-            sequence_number,
+            seq_no,
             protocol_version,
             server_version,
             connection_id,
@@ -282,7 +271,7 @@ impl Deserialize for OkPacket {
 
         // Packet header
         let length = deserialize_length(&buf, &mut index)?;
-        let sequence_number = deserialize_int_1(&buf, &mut index);
+        let seq_no = deserialize_int_1(&buf, &mut index);
 
         // Packet body
         let packet_header = deserialize_int_1(&buf, &mut index);
@@ -302,7 +291,7 @@ impl Deserialize for OkPacket {
         let info = Bytes::from(&buf[index..]);
 
         Ok(OkPacket {
-            sequence_number,
+            seq_no,
             affected_rows,
             last_insert_id,
             server_status,
@@ -319,7 +308,7 @@ impl Deserialize for ErrPacket {
         let mut index = 0;
 
         let length = deserialize_length(&buf, &mut index)?;
-        let sequence_number = deserialize_int_1(&buf, &mut index);
+        let seq_no = deserialize_int_1(&buf, &mut index);
 
         let packet_header = deserialize_int_1(&buf, &mut index);
         if packet_header != 0xFF {
@@ -354,7 +343,7 @@ impl Deserialize for ErrPacket {
         }
 
         Ok(ErrPacket {
-            sequence_number,
+            seq_no,
             error_code,
             stage,
             max_stage,
