@@ -14,7 +14,6 @@ pub async fn query<'a, 'b: 'a>(conn: &'a mut Connection, query: &'a str) -> io::
             }
 
             ServerMessage::CommandComplete(body) => {
-                log::debug!("command complete: {}", body.tag()?);
             }
 
             _ => {

@@ -10,13 +10,13 @@ async fn main() -> io::Result<()> {
     let conn = Connection::establish(
         ConnectOptions::new()
             .host("127.0.0.1")
-            .port(5433)
+            .port(5432)
             .user("postgres")
             .password("password"),
     )
     .await?;
 
-    //    conn.close().await?;
+    conn.close().await?;
 
     Ok(())
 }

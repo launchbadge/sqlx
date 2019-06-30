@@ -39,8 +39,8 @@ pub async fn establish<'a, 'b: 'a>(
     conn.send(message).await?;
 
     // FIXME: This feels like it could be reduced (see other connection flows)
-    while let Some(message) = conn.incoming.next().await {
-        match message {
+    while let Some(message) = conn.stream.next().await {
+        match message? {
             Message::Authentication(Authentication::Ok) => {
                 // Do nothing; server is just telling us that
                 // there is no password needed
@@ -73,7 +73,7 @@ pub async fn establish<'a, 'b: 'a>(
                 break;
             }
 
-            _ => {
+            message => {
                 unimplemented!("received {:?} unimplemented message", message);
             }
         }
