@@ -4,6 +4,7 @@ use futures::{
     task::{Context, Poll},
     Stream,
 };
+use std::fmt::Debug;
 use runtime::net::TcpStream;
 use sqlx_core::ConnectOptions;
 use sqlx_postgres_protocol::{Encode, Message, Terminate};
@@ -55,11 +56,15 @@ impl Connection {
     // Send client message to the server
     async fn send<T>(&mut self, message: T) -> io::Result<()>
     where
-        T: Encode,
+        T: Encode + Debug,
     {
         self.wbuf.clear();
 
+        log::trace!("send {:?}", message);
+
         message.encode(&mut self.wbuf)?;
+
+        log::trace!("send buffer {:?}", bytes::Bytes::from(&*self.wbuf));
 
         self.stream.inner.write_all(&self.wbuf).await?;
         self.stream.inner.flush().await?;
@@ -102,7 +107,17 @@ where
                 }
 
                 loop {
-                    match Message::decode(&mut self_.buffer)? {
+                    log::trace!("recv buffer {:?}", self_.buffer);
+
+                    let message = Message::decode(&mut self_.buffer)?;
+
+                    if log::log_enabled!(log::Level::Trace) {
+                        if let Some(message) = &message {
+                            log::trace!("recv {:?}", message);
+                        }
+                    }
+
+                    match message {
                         Some(Message::ParameterStatus(_body)) => {
                             // TODO: Not sure what to do with these but ignore
                         }

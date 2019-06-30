@@ -2,6 +2,7 @@ use crate::Encode;
 use bytes::BufMut;
 use std::io;
 
+#[derive(Debug)]
 pub struct Terminate;
 
 impl Encode for Terminate {
