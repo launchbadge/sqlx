@@ -1,4 +1,7 @@
-use crate::{Authentication, BackendKeyData, Decode, ParameterStatus, ReadyForQuery, Response};
+use crate::{
+    Authentication, BackendKeyData, Decode, ParameterStatus, ReadyForQuery, Response,
+    RowDescription,
+};
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
 use std::io;
@@ -9,6 +12,7 @@ pub enum Message {
     ParameterStatus(ParameterStatus),
     BackendKeyData(BackendKeyData),
     ReadyForQuery(ReadyForQuery),
+    RowDescription(RowDescription),
     Response(Box<Response>),
 }
 
@@ -46,6 +50,7 @@ impl Message {
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
             b'R' => Message::Authentication(Authentication::decode(src)?),
             b'K' => Message::BackendKeyData(BackendKeyData::decode(src)?),
+            b'T' => Message::RowDescription(RowDescription::decode(src)?),
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         }))

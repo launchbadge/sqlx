@@ -10,6 +10,7 @@ mod password_message;
 mod query;
 mod ready_for_query;
 mod response;
+mod row_description;
 mod startup_message;
 mod terminate;
 
@@ -24,6 +25,7 @@ pub use self::{
     query::Query,
     ready_for_query::{ReadyForQuery, TransactionStatus},
     response::{Response, ResponseBuilder, Severity},
+    row_description::{FieldDescription, FieldDescriptions, RowDescription},
     startup_message::StartupMessage,
     terminate::Terminate,
 };

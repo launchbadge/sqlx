@@ -8,6 +8,10 @@ pub async fn query<'a: 'b, 'b>(conn: &'a mut Connection, query: &'b str) -> io::
 
     while let Some(message) = conn.stream.next().await {
         match message? {
+            Message::RowDescription(_) => {
+                // Do nothing
+            }
+
             Message::ReadyForQuery(_) => {
                 break;
             }
