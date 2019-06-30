@@ -4,14 +4,13 @@ use futures::{
     task::{Context, Poll},
     Stream,
 };
-use std::fmt::Debug;
 use runtime::net::TcpStream;
 use sqlx_core::ConnectOptions;
 use sqlx_postgres_protocol::{Encode, Message, Terminate};
-use std::{io, pin::Pin};
+use std::{fmt::Debug, io, pin::Pin};
 
 mod establish;
-// mod query;
+mod query;
 
 pub struct Connection {
     stream: Framed<TcpStream>,
@@ -42,9 +41,9 @@ impl Connection {
         Ok(conn)
     }
 
-    // pub async fn execute<'a, 'b: 'a>(&'a mut self, query: &'b str) -> io::Result<()> {
-    //     query::query(self, query).await
-    // }
+    pub async fn execute<'a: 'b, 'b>(&'a mut self, query: &'b str) -> io::Result<()> {
+        query::query(self, query).await
+    }
 
     pub async fn close(mut self) -> io::Result<()> {
         self.send(Terminate).await?;

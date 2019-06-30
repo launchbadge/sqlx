@@ -1,22 +1,18 @@
 use super::Connection;
-use crate::protocol::{client::Query, server::Message as ServerMessage};
 use futures::StreamExt;
+use sqlx_postgres_protocol::{Message, Query};
 use std::io;
 
-pub async fn query<'a, 'b: 'a>(conn: &'a mut Connection, query: &'a str) -> io::Result<()> {
-    conn.send(Query { query }).await?;
+pub async fn query<'a: 'b, 'b>(conn: &'a mut Connection, query: &'b str) -> io::Result<()> {
+    conn.send(Query::new(query)).await?;
 
-    // FIXME: This feels like it could be reduced (see other connection flows)
-    while let Some(message) = conn.incoming.next().await {
-        match message {
-            ServerMessage::ReadyForQuery(_) => {
+    while let Some(message) = conn.stream.next().await {
+        match message? {
+            Message::ReadyForQuery(_) => {
                 break;
             }
 
-            ServerMessage::CommandComplete(body) => {
-            }
-
-            _ => {
+            message => {
                 unimplemented!("received {:?} unimplemented message", message);
             }
         }

@@ -7,7 +7,7 @@ use std::io;
 async fn main() -> io::Result<()> {
     env_logger::init();
 
-    let conn = Connection::establish(
+    let mut conn = Connection::establish(
         ConnectOptions::new()
             .host("127.0.0.1")
             .port(5432)
@@ -15,6 +15,8 @@ async fn main() -> io::Result<()> {
             .password("password"),
     )
     .await?;
+
+    conn.execute("SELECT 1").await?;
 
     conn.close().await?;
 

@@ -14,3 +14,24 @@ impl Encode for Terminate {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Terminate;
+    use crate::Encode;
+    use std::io;
+
+    const TERMINATE: &[u8] = b"X\0\0\0\x04";
+
+    #[test]
+    fn it_encodes_terminate() -> io::Result<()> {
+        let message = Terminate;
+
+        let mut buf = Vec::new();
+        message.encode(&mut buf)?;
+
+        assert_eq!(&*buf, TERMINATE);
+
+        Ok(())
+    }
+}

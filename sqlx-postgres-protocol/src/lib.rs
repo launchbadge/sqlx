@@ -7,6 +7,7 @@ mod encode;
 mod message;
 mod parameter_status;
 mod password_message;
+mod query;
 mod ready_for_query;
 mod response;
 mod startup_message;
@@ -20,6 +21,7 @@ pub use self::{
     message::Message,
     parameter_status::ParameterStatus,
     password_message::PasswordMessage,
+    query::Query,
     ready_for_query::{ReadyForQuery, TransactionStatus},
     response::{Response, ResponseBuilder, Severity},
     startup_message::StartupMessage,
