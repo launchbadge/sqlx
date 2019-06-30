@@ -104,8 +104,6 @@ impl<'a> Iterator for FieldDescriptions<'a> {
             return None;
         }
 
-        self.rem -= 1;
-
         let name_end = memchr(0, &self.buf).unwrap();
         let mut idx = name_end + 1;
         let name = unsafe { str::from_utf8_unchecked(&self.buf[..name_end]) };
@@ -126,6 +124,10 @@ impl<'a> Iterator for FieldDescriptions<'a> {
         idx += size_of_val(&type_modifier);
 
         let format = BigEndian::read_i16(&self.buf[idx..]);
+        idx += size_of_val(&format);
+
+        self.rem -= 1;
+        self.buf = &self.buf[idx..];
 
         Some(FieldDescription {
             name,
@@ -148,24 +150,23 @@ mod tests {
     use bytes::Bytes;
     use std::io;
 
-    const ROW_DESC_1: &[u8] = b"\0\x01?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0D\0\0\0\x0b\0\x01\0\0\0\x011";
+    const ROW_DESC: &[u8] = b"\0\x03?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0";
 
     #[test]
     fn it_decodes_row_description() -> io::Result<()> {
-        let src = Bytes::from_static(ROW_DESC_1);
+        let src = Bytes::from_static(ROW_DESC);
         let message = RowDescription::decode(src)?;
-        assert_eq!(message.fields().len(), 1);
+        assert_eq!(message.fields().len(), 3);
 
-        let mut fields = message.fields();
-
-        let field_1 = fields.next().unwrap();
-        assert_eq!(field_1.name(), "?column?");
-        assert_eq!(field_1.table_oid(), None);
-        assert_eq!(field_1.column_attribute_num(), None);
-        assert_eq!(field_1.type_oid(), 23);
-        assert_eq!(field_1.type_size(), 4);
-        assert_eq!(field_1.type_modifier(), -1);
-        assert_eq!(field_1.format(), 0);
+        for field in message.fields() {
+            assert_eq!(field.name(), "?column?");
+            assert_eq!(field.table_oid(), None);
+            assert_eq!(field.column_attribute_num(), None);
+            assert_eq!(field.type_oid(), 23);
+            assert_eq!(field.type_size(), 4);
+            assert_eq!(field.type_modifier(), -1);
+            assert_eq!(field.format(), 0);
+        }
 
         Ok(())
     }

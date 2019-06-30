@@ -12,8 +12,16 @@ pub async fn query<'a: 'b, 'b>(conn: &'a mut Connection, query: &'b str) -> io::
                 // Do nothing
             }
 
+            Message::DataRow(_) => {
+                // Do nothing (for now)
+            }
+
             Message::ReadyForQuery(_) => {
                 break;
+            }
+
+            Message::CommandComplete(_) => {
+                // Do nothing (for now)
             }
 
             message => {

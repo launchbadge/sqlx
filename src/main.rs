@@ -16,7 +16,7 @@ async fn main() -> io::Result<()> {
     )
     .await?;
 
-    conn.execute("SELECT 1").await?;
+    conn.execute("SELECT 1, 2, 3").await?;
 
     conn.close().await?;
 
