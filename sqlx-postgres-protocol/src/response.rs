@@ -22,14 +22,14 @@ pub enum Severity {
 }
 
 impl Severity {
-    pub fn is_error(&self) -> bool {
+    pub fn is_error(self) -> bool {
         match self {
             Severity::Panic | Severity::Fatal | Severity::Error => true,
             _ => false,
         }
     }
 
-    pub fn is_notice(&self) -> bool {
+    pub fn is_notice(self) -> bool {
         match self {
             Severity::Warning
             | Severity::Notice
@@ -41,7 +41,7 @@ impl Severity {
         }
     }
 
-    pub fn to_str(&self) -> &'static str {
+    pub fn to_str(self) -> &'static str {
         match self {
             Severity::Panic => "PANIC",
             Severity::Fatal => "FATAL",

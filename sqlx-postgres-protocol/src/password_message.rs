@@ -17,7 +17,7 @@ impl PasswordMessage {
     }
 
     /// Create a `PasswordMessage` by hasing the password, user, and salt together using MD5.
-    pub fn md5(password: &str, user: &str, salt: &[u8; 4]) -> Self {
+    pub fn md5(password: &str, user: &str, salt: [u8; 4]) -> Self {
         let mut hasher = Md5::new();
 
         hasher.input(password);

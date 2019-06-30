@@ -59,7 +59,7 @@ pub async fn establish<'a, 'b: 'a>(
                 conn.send(PasswordMessage::md5(
                     options.password.unwrap_or_default(),
                     options.user.unwrap_or_default(),
-                    &salt,
+                    salt,
                 ))
                 .await?;
             }

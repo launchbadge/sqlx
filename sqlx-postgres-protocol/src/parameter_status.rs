@@ -1,4 +1,4 @@
-use crate::{decode::get_str_bytes_unchecked, Decode};
+use crate::Decode;
 use bytes::Bytes;
 use std::{io, str};
 
