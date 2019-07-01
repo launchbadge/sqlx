@@ -6,5 +6,5 @@
 #[macro_use]
 extern crate bitflags;
 
-mod connection;
-mod protocol;
+pub mod connection;
+pub mod protocol;

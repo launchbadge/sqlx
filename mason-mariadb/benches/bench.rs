@@ -1,18 +1,21 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{Criterion, black_box};
+use criterion::Criterion;
+use mason_core::ConnectOptions;
+use mason_mariadb::connection::Connection;
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("establish connection", |b| {
         b.iter(|| {
-            let conn = Connection::establish(ConnectOptions {
+            Connection::establish(ConnectOptions {
                 host: "127.0.0.1",
                 port: 3306,
                 user: Some("root"),
                 database: None,
                 password: None,
-            });
+            })
+            .await.unwarp();
         })
     });
 }
