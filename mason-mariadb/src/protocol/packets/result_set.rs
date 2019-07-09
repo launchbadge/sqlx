@@ -48,7 +48,11 @@ impl Deserialize for ResultSet {
             }
 
             // Decode each column as string<lenenc>
-            rows.push((0..column_packet.columns.unwrap_or(0)).map(|_| decoder.decode_string_lenenc()).collect::<Vec<Bytes>>())
+            rows.push(
+                (0..column_packet.columns.unwrap_or(0))
+                    .map(|_| decoder.decode_string_lenenc())
+                    .collect::<Vec<Bytes>>(),
+            )
         }
 
         Ok(ResultSet { length, seq_no, column_packet, columns, rows })

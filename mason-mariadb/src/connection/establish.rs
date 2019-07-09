@@ -1,7 +1,8 @@
 use super::Connection;
 use crate::protocol::{
-    client::HandshakeResponsePacket, deserialize::Deserialize,
-    packets::initial::InitialHandshakePacket, server::Message as ServerMessage,
+    deserialize::Deserialize,
+    packets::{handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket},
+    server::Message as ServerMessage,
     types::Capabilities,
 };
 use bytes::Bytes;

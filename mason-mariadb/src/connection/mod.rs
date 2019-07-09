@@ -1,8 +1,7 @@
 use crate::protocol::{
-    client::{ComPing, ComQuit},
     deserialize::Deserialize,
     encode::encode_length,
-    packets::ok::OkPacket,
+    packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
     serialize::Serialize,
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
