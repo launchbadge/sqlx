@@ -10,10 +10,7 @@ pub struct Decoder<'a> {
 
 impl<'a> Decoder<'a> {
     pub fn new(buf: &'a Bytes) -> Self {
-        Decoder {
-            buf,
-            index: 0,
-        }
+        Decoder { buf, index: 0 }
     }
 
     #[inline]
@@ -27,8 +24,14 @@ impl<'a> Decoder<'a> {
         Ok(length)
     }
 
+    #[inline]
     pub fn skip_bytes(&mut self, amount: usize) {
         self.index += amount;
+    }
+
+    #[inline]
+    pub fn eof(&self) -> bool {
+        self.buf.len() == self.index
     }
 
     #[inline]
@@ -153,8 +156,6 @@ impl<'a> Decoder<'a> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -203,7 +204,9 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fe() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze());
+        let mut decoder = Decoder::new(
+            &BytesMut::from(b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze(),
+        );
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(72340172838076673));
@@ -221,7 +224,8 @@ mod tests {
 
     #[test]
     fn it_decodes_int_8() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze());
+        let mut decoder =
+            Decoder::new(&BytesMut::from(b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze());
         let int: u64 = decoder.decode_int_8();
 
         assert_eq!(int, 72340172838076673);

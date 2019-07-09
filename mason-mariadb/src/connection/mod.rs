@@ -1,10 +1,11 @@
 use crate::protocol::{
-    client::{ComPing, ComQuit, Serialize},
+    client::{ComPing, ComQuit},
+    deserialize::Deserialize,
     encode::encode_length,
-    server::{
-        Capabilities, Deserialize, Message as ServerMessage,
-        ServerStatusFlag, OkPacket
-    },
+    packets::ok::OkPacket,
+    serialize::Serialize,
+    server::Message as ServerMessage,
+    types::{Capabilities, ServerStatusFlag},
 };
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};

@@ -1,5 +1,9 @@
 pub mod client;
 pub mod decode;
-pub mod error_codes;
+pub mod deserialize;
 pub mod encode;
+pub mod error_codes;
+pub mod packets;
+pub mod serialize;
 pub mod server;
+pub mod types;

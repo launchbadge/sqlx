@@ -7,18 +7,10 @@
 // TODO: Handle different Capabilities for server and client
 // TODO: Handle when capability is set, but field is None
 
-use super::server::Capabilities;
+use super::{serialize::Serialize, types::Capabilities};
 use crate::protocol::encode::*;
 use bytes::{Bytes, BytesMut};
 use failure::Error;
-
-pub trait Serialize {
-    fn serialize(
-        &self,
-        buf: &mut BytesMut,
-        server_capabilities: &Capabilities,
-    ) -> Result<(), Error>;
-}
 
 pub enum TextProtocol {
     ComChangeUser = 0x11,

@@ -15,7 +15,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                 database: None,
                 password: None,
             })
-            .await.unwarp();
+            .await
+            .unwarp();
         })
     });
 }
