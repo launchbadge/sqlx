@@ -7,7 +7,7 @@ use failure::{err_msg, Error};
 use std::convert::TryFrom;
 
 pub trait Deserialize: Sized {
-    fn deserialize<'a: 'b, 'b>(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error>;
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error>;
 }
 
 #[derive(Debug)]
@@ -223,8 +223,11 @@ pub struct ColumnDefPacket {
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
-    pub columns: Vec<(ColumnPacket, ColumnDefPacket)>,
-    pub rows: Vec<Bytes>,
+    pub length: u32,
+    pub seq_no: u8,
+    pub column_packet: ColumnPacket,
+    pub columns: Vec<ColumnDefPacket>,
+    pub rows: Vec<Vec<Bytes>>,
 }
 
 impl Message {
@@ -251,8 +254,14 @@ impl Message {
 }
 
 impl Deserialize for InitialHandshakePacket {
-    fn deserialize<'a: 'b, 'b>(buf: &'a Bytes, decoder: Option<&mut Decoder<'b>>) -> Result<Self, Error> {
-        let mut decoder: &mut Decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
+
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -330,8 +339,13 @@ impl Deserialize for InitialHandshakePacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
-        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
 
         // Packet header
         let length = decoder.decode_length()?;
@@ -370,8 +384,13 @@ impl Deserialize for OkPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
-        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
 
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
@@ -424,8 +443,13 @@ impl Deserialize for ErrPacket {
 }
 
 impl Deserialize for ColumnPacket {
-    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
-        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
 
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
@@ -440,8 +464,13 @@ impl Deserialize for ColumnPacket {
 }
 
 impl Deserialize for ColumnDefPacket {
-    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
-        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
 
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
@@ -460,7 +489,7 @@ impl Deserialize for ColumnDefPacket {
         let decimals = decoder.decode_int_1();
 
         // Skip last two unused bytes
-        // index += 2;
+        decoder.skip_bytes(2);
 
         Ok(ColumnDefPacket {
             length,
@@ -481,24 +510,51 @@ impl Deserialize for ColumnDefPacket {
     }
 }
 
-//impl Deserialize for ResultSet {
-//    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-//        let mut index = 0;
-//
-//        let length = decode_length(&buf, &mut index)?;
-//        let seq_no = decode_int_1(&buf, &mut index);
-//
-//        let column_packet = ColumnPacket::deserialize(&but)?;
-//
-//        let column_definitions = if let Some(columns) = column_packet.columns {
-//            (0..columns).map(|_| {
-//                ColumnDefPacket::deserialize()
-//            })
-//        };
-//
-//        Ok(ResultSet::default())
-//    }
-//}
+impl Deserialize for ResultSet {
+    fn deserialize<'a, 'b>(buf: &'a Bytes, decoder: Option<&'b mut Decoder<'a>>) -> Result<Self, Error> {
+        let mut new_decoder = Decoder::new(&buf);
+        let mut decoder = if let Some(decoder) = decoder {
+            decoder
+        } else {
+            &mut new_decoder
+        };
+
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
+
+        let column_packet = ColumnPacket::deserialize(&buf, Some(&mut decoder))?;
+
+        let columns: Vec<ColumnDefPacket> = if let Some(columns) = column_packet.columns {
+            (0..columns).map(|_| {
+                    match ColumnDefPacket::deserialize(&buf, Some(&mut decoder)) {
+                        Ok(v) => Some(v),
+                        Err(_) => None,
+                    }
+                })
+                .filter(Option::is_some)
+                .map(Option::unwrap)
+                .collect::<Vec<ColumnDefPacket>>()
+        } else {
+            Vec::new()
+        };
+
+        let mut rows = Vec::new();
+
+        while decoder.index < buf.len() {
+            rows.push((0..column_packet.columns.unwrap_or(0))
+                .map(|_| decoder.decode_string_lenenc())
+                .collect::<Vec<Bytes>>());
+        }
+
+        Ok(ResultSet {
+            length,
+            seq_no,
+            column_packet,
+            columns,
+            rows,
+        })
+    }
+}
 
 #[cfg(test)]
 mod test {
