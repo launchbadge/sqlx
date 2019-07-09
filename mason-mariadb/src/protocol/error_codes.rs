@@ -1,4 +1,9 @@
-pub enum ErrorCodes {
+use std::convert::TryFrom;
+
+#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
+#[TryFromPrimitiveType="u16"]
+pub enum ErrorCode {
+    ErDefault = 0,
     ErHashchk = 1000,
     ErNisamchk = 1001,
     ErNo = 1002,
@@ -972,4 +977,10 @@ pub enum ErrorCodes {
     ErKillQueryDeniedError = 1979,
     ErNoEisForField = 1980,
     ErWarnAggfuncDependence = 1981,
+}
+
+impl Default for ErrorCode {
+    fn default() -> Self {
+        ErrorCode::ErDefault
+    }
 }

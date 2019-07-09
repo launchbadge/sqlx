@@ -5,6 +5,8 @@
 
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate enum_tryfrom_derive;
 
 pub mod connection;
 pub mod protocol;

@@ -8,7 +8,7 @@
 // TODO: Handle when capability is set, but field is None
 
 use super::server::Capabilities;
-use crate::protocol::serialize::*;
+use crate::protocol::encode::*;
 use bytes::{Bytes, BytesMut};
 use failure::Error;
 
@@ -127,7 +127,7 @@ impl Serialize for ComQuit {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComQuit.into());
+        encode_int_1(buf, TextProtocol::ComQuit.into());
 
         Ok(())
     }
@@ -139,8 +139,8 @@ impl Serialize for ComInitDb {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComInitDb.into());
-        serialize_string_null(buf, &self.schema_name);
+        encode_int_1(buf, TextProtocol::ComInitDb.into());
+        encode_string_null(buf, &self.schema_name);
 
         Ok(())
     }
@@ -152,7 +152,7 @@ impl Serialize for ComDebug {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComDebug.into());
+        encode_int_1(buf, TextProtocol::ComDebug.into());
 
         Ok(())
     }
@@ -164,7 +164,7 @@ impl Serialize for ComPing {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComPing.into());
+        encode_int_1(buf, TextProtocol::ComPing.into());
 
         Ok(())
     }
@@ -176,8 +176,8 @@ impl Serialize for ComProcessKill {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComProcessKill.into());
-        serialize_int_4(buf, self.process_id);
+        encode_int_1(buf, TextProtocol::ComProcessKill.into());
+        encode_int_4(buf, self.process_id);
 
         Ok(())
     }
@@ -189,8 +189,8 @@ impl Serialize for ComQuery {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComQuery.into());
-        serialize_string_eof(buf, &self.sql_statement);
+        encode_int_1(buf, TextProtocol::ComQuery.into());
+        encode_string_eof(buf, &self.sql_statement);
 
         Ok(())
     }
@@ -202,7 +202,7 @@ impl Serialize for ComResetConnection {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComResetConnection.into());
+        encode_int_1(buf, TextProtocol::ComResetConnection.into());
 
         Ok(())
     }
@@ -214,8 +214,8 @@ impl Serialize for ComSetOption {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComSetOption.into());
-        serialize_int_2(buf, self.option.into());
+        encode_int_1(buf, TextProtocol::ComSetOption.into());
+        encode_int_2(buf, self.option.into());
 
         Ok(())
     }
@@ -227,8 +227,8 @@ impl Serialize for ComShutdown {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComShutdown.into());
-        serialize_int_1(buf, self.option.into());
+        encode_int_1(buf, TextProtocol::ComShutdown.into());
+        encode_int_1(buf, self.option.into());
 
         Ok(())
     }
@@ -240,7 +240,7 @@ impl Serialize for ComSleep {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComSleep.into());
+        encode_int_1(buf, TextProtocol::ComSleep.into());
 
         Ok(())
     }
@@ -252,7 +252,7 @@ impl Serialize for ComStatistics {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, TextProtocol::ComStatistics.into());
+        encode_int_1(buf, TextProtocol::ComStatistics.into());
 
         Ok(())
     }
@@ -264,21 +264,21 @@ impl Serialize for SSLRequestPacket {
         buf: &mut BytesMut,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_4(buf, self.capabilities.bits() as u32);
-        serialize_int_4(buf, self.max_packet_size);
-        serialize_int_1(buf, self.collation);
+        encode_int_4(buf, self.capabilities.bits() as u32);
+        encode_int_4(buf, self.max_packet_size);
+        encode_int_1(buf, self.collation);
 
         // Filler
-        serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
+        encode_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
 
         if !(*server_capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                serialize_int_4(buf, capabilities.bits() as u32);
+                encode_int_4(buf, capabilities.bits() as u32);
             }
         } else {
-            serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 4]), 4);
+            encode_byte_fix(buf, &Bytes::from_static(&[0u8; 4]), 4);
         }
 
         Ok(())
@@ -291,61 +291,61 @@ impl Serialize for HandshakeResponsePacket {
         buf: &mut BytesMut,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_4(buf, self.capabilities.bits() as u32);
-        serialize_int_4(buf, self.max_packet_size);
-        serialize_int_1(buf, self.collation);
+        encode_int_4(buf, self.capabilities.bits() as u32);
+        encode_int_4(buf, self.max_packet_size);
+        encode_int_1(buf, self.collation);
 
         // Filler
-        serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
+        encode_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
 
         if !(*server_capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                serialize_int_4(buf, capabilities.bits() as u32);
+                encode_int_4(buf, capabilities.bits() as u32);
             }
         } else {
-            serialize_byte_fix(buf, &Bytes::from_static(&[0u8; 4]), 4);
+            encode_byte_fix(buf, &Bytes::from_static(&[0u8; 4]), 4);
         }
 
-        serialize_string_null(buf, &self.username);
+        encode_string_null(buf, &self.username);
 
         if !(*server_capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {
-                serialize_string_lenenc(buf, &auth_data);
+                encode_string_lenenc(buf, &auth_data);
             }
         } else if !(*server_capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
-                serialize_int_1(buf, self.auth_response_len.unwrap());
-                serialize_string_fix(buf, &auth_response, self.auth_response_len.unwrap() as usize);
+                encode_int_1(buf, self.auth_response_len.unwrap());
+                encode_string_fix(buf, &auth_response, self.auth_response_len.unwrap() as usize);
             }
         } else {
-            serialize_int_1(buf, 0);
+            encode_int_1(buf, 0);
         }
 
         if !(*server_capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
             if let Some(database) = &self.database {
                 // string<NUL>
-                serialize_string_null(buf, &database);
+                encode_string_null(buf, &database);
             }
         }
 
         if !(*server_capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             if let Some(auth_plugin_name) = &self.auth_plugin_name {
                 // string<NUL>
-                serialize_string_null(buf, &auth_plugin_name);
+                encode_string_null(buf, &auth_plugin_name);
             }
         }
 
         if !(*server_capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
             if let (Some(conn_attr_len), Some(conn_attr)) = (&self.conn_attr_len, &self.conn_attr) {
                 // int<lenenc>
-                serialize_int_lenenc(buf, Some(conn_attr_len));
+                encode_int_lenenc(buf, Some(conn_attr_len));
 
                 // Loop
                 for (key, value) in conn_attr {
-                    serialize_string_lenenc(buf, &key);
-                    serialize_string_lenenc(buf, &value);
+                    encode_string_lenenc(buf, &key);
+                    encode_string_lenenc(buf, &value);
                 }
             }
         }
@@ -360,9 +360,9 @@ impl Serialize for AuthenticationSwitchRequestPacket {
         buf: &mut BytesMut,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        serialize_int_1(buf, 0xFE);
-        serialize_string_null(buf, &self.auth_plugin_name);
-        serialize_byte_eof(buf, &self.auth_plugin_data);
+        encode_int_1(buf, 0xFE);
+        encode_string_null(buf, &self.auth_plugin_name);
+        encode_byte_eof(buf, &self.auth_plugin_data);
 
         Ok(())
     }

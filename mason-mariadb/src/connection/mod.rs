@@ -1,6 +1,6 @@
 use crate::protocol::{
     client::{ComPing, ComQuit, Serialize},
-    serialize::serialize_length,
+    encode::encode_length,
     server::{
         Capabilities, Deserialize, Message as ServerMessage,
         ServerStatusFlag, OkPacket
@@ -73,7 +73,7 @@ impl Connection {
         self.wbuf[3] = self.seq_no;
 
         message.serialize(&mut self.wbuf, &self.capabilities)?;
-        serialize_length(&mut self.wbuf);
+        encode_length(&mut self.wbuf);
 
         self.stream.inner.write_all(&self.wbuf).await?;
         self.stream.inner.flush().await?;
@@ -116,7 +116,7 @@ impl Framed {
     }
 
     async fn next_bytes(&mut self) -> Result<Bytes, Error> {
-        let mut rbuf = BytesMut::with_capacity(0);
+        let mut rbuf = BytesMut::new();
         let mut len = 0;
         let mut packet_len: u32 = 0;
 
@@ -155,7 +155,7 @@ impl Framed {
     }
 
     async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
-        let mut rbuf = BytesMut::with_capacity(0);
+        let mut rbuf = BytesMut::new();
         let mut len = 0;
 
         loop {

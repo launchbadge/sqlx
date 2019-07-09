@@ -1,9 +1,10 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
-use crate::protocol::deserialize::*;
+use crate::protocol::{decode::*, error_codes::ErrorCode};
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
 use failure::{err_msg, Error};
+use std::convert::TryFrom;
 
 pub trait Deserialize: Sized {
     fn deserialize(buf: &Bytes) -> Result<Self, Error>;
@@ -92,6 +93,42 @@ pub enum SessionChangeType {
     SessionTrackTransactionState = 5,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
+#[TryFromPrimitiveType="u8"]
+pub enum FieldType {
+    MysqlTypeDecimal = 0,
+    MysqlTypeTiny = 1,	
+    MysqlTypeShort = 2,	
+    MysqlTypeLong = 3,	
+    MysqlTypeFloat = 4,	
+    MysqlTypeDouble = 5,	
+    MysqlTypeNull = 6,	
+    MysqlTypeTimestamp = 7,	
+    MysqlTypeLonglong = 8,	
+    MysqlTypeInt24 = 9,	
+    MysqlTypeDate = 10,	
+    MysqlTypeTime = 11,	
+    MysqlTypeDatetime = 12,	
+    MysqlTypeYear = 13,	
+    MysqlTypeNewdate = 14,	
+    MysqlTypeVarchar = 15,	
+    MysqlTypeBit = 16,	
+    MysqlTypeTimestamp2 = 17,	
+    MysqlTypeDatetime2 = 18,	
+    MysqlTypeTime2 = 19,	
+    MysqlTypeJson = 245,	
+    MysqlTypeNewdecimal = 246,	
+    MysqlTypeEnum = 247,	
+    MysqlTypeSet = 248,	
+    MysqlTypeTinyBlob = 249,	
+    MysqlTypeMediumBlob = 250,	
+    MysqlTypeLongBlob = 251,	
+    MysqlTypeBlob = 252,	
+    MysqlTypeVarString = 253,	
+    MysqlTypeString = 254,	
+    MysqlTypeGeometry = 255,	
+}
+
 impl Default for Capabilities {
     fn default() -> Self {
         Capabilities::CLIENT_MYSQL
@@ -101,6 +138,12 @@ impl Default for Capabilities {
 impl Default for ServerStatusFlag {
     fn default() -> Self {
         ServerStatusFlag::SERVER_STATUS_IN_TRANS
+    }
+}
+
+impl Default for FieldType {
+    fn default() -> Self {
+        FieldType::MysqlTypeDecimal
     }
 }
 
@@ -137,7 +180,7 @@ pub struct OkPacket {
 pub struct ErrPacket {
     pub length: u32,
     pub seq_no: u8,
-    pub error_code: u16,
+    pub error_code: ErrorCode,
     pub stage: Option<u8>,
     pub max_stage: Option<u8>,
     pub progress: Option<u32>,
@@ -145,6 +188,36 @@ pub struct ErrPacket {
     pub sql_state_marker: Option<Bytes>,
     pub sql_state: Option<Bytes>,
     pub error_message: Option<Bytes>,
+}
+
+#[derive(Default, Debug)]
+pub struct ColumnPacket {
+    pub length: u32,
+    pub seq_no: u8,
+    pub columns: Option<usize>,
+}
+
+pub struct ColumnDefPacket {
+    pub length: u32,
+    pub seq_no: u8,
+    pub catalog: Bytes,
+    pub schema: Bytes,
+    pub table_alias: Bytes,
+    pub table: Bytes,
+    pub column_alias: Bytes,
+    pub column: Bytes,
+    pub length_of_fixed_fields: Option<usize>,
+    pub char_set: u16,
+    pub max_columns: u32,
+    pub field_type: FieldType,
+    pub field_details: FieldDetailFlag,
+    pub decimals: u8,
+}
+
+#[derive(Debug, Default)]
+pub struct ResultSet {
+    pub columns: Vec<(ColumnPacket, ColumnDefPacket)>,
+    pub rows: Vec<Bytes>,
 }
 
 impl Message {
@@ -174,35 +247,35 @@ impl Deserialize for InitialHandshakePacket {
     fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = deserialize_length(&buf, &mut index)?;
-        let seq_no = deserialize_int_1(&buf, &mut index);
+        let length = decode_length(&buf, &mut index)?;
+        let seq_no = decode_int_1(&buf, &mut index);
 
         if seq_no != 0 {
             return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
         }
 
-        let protocol_version = deserialize_int_1(&buf, &mut index);
-        let server_version = deserialize_string_null(&buf, &mut index)?;
-        let connection_id = deserialize_int_4(&buf, &mut index);
-        let auth_seed = deserialize_string_fix(&buf, &mut index, 8);
+        let protocol_version = decode_int_1(&buf, &mut index);
+        let server_version = decode_string_null(&buf, &mut index)?;
+        let connection_id = decode_int_4(&buf, &mut index);
+        let auth_seed = decode_string_fix(&buf, &mut index, 8);
 
         // Skip reserved byte
         index += 1;
 
         let mut capabilities =
-            Capabilities::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
+            Capabilities::from_bits_truncate(decode_int_2(&buf, &mut index).into());
 
-        let collation = deserialize_int_1(&buf, &mut index);
+        let collation = decode_int_1(&buf, &mut index);
         let status =
-            ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
+            ServerStatusFlag::from_bits_truncate(decode_int_2(&buf, &mut index).into());
 
         capabilities |= Capabilities::from_bits_truncate(
-            ((deserialize_int_2(&buf, &mut index) as u32) << 16).into(),
+            ((decode_int_2(&buf, &mut index) as u32) << 16).into(),
         );
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            plugin_data_length = deserialize_int_1(&buf, &mut index);
+            plugin_data_length = decode_int_1(&buf, &mut index);
         } else {
             // Skip reserve byte
             index += 1;
@@ -213,7 +286,7 @@ impl Deserialize for InitialHandshakePacket {
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             capabilities |= Capabilities::from_bits_truncate(
-                ((deserialize_int_4(&buf, &mut index) as u128) << 32).into(),
+                ((decode_int_4(&buf, &mut index) as u128) << 32).into(),
             );
         } else {
             // Skip filler
@@ -223,14 +296,14 @@ impl Deserialize for InitialHandshakePacket {
         let mut scramble: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             let len = std::cmp::max(12, plugin_data_length as usize - 9);
-            scramble = Some(deserialize_string_fix(&buf, &mut index, len));
+            scramble = Some(decode_string_fix(&buf, &mut index, len));
             // Skip reserve byte
             index += 1;
         }
 
         let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            auth_plugin_name = Some(deserialize_string_null(&buf, &mut index)?);
+            auth_plugin_name = Some(decode_string_null(&buf, &mut index)?);
         }
 
         Ok(InitialHandshakePacket {
@@ -255,20 +328,20 @@ impl Deserialize for OkPacket {
         let mut index = 0;
 
         // Packet header
-        let length = deserialize_length(&buf, &mut index)?;
-        let seq_no = deserialize_int_1(&buf, &mut index);
+        let length = decode_length(&buf, &mut index)?;
+        let seq_no = decode_int_1(&buf, &mut index);
 
         // Packet body
-        let packet_header = deserialize_int_1(&buf, &mut index);
+        let packet_header = decode_int_1(&buf, &mut index);
         if packet_header != 0 && packet_header != 0xFE {
             panic!("Packet header is not 0 or 0xFE for OkPacket");
         }
 
-        let affected_rows = deserialize_int_lenenc(&buf, &mut index);
-        let last_insert_id = deserialize_int_lenenc(&buf, &mut index);
+        let affected_rows = decode_int_lenenc(&buf, &mut index);
+        let last_insert_id = decode_int_lenenc(&buf, &mut index);
         let server_status =
-            ServerStatusFlag::from_bits_truncate(deserialize_int_2(&buf, &mut index).into());
-        let warning_count = deserialize_int_2(&buf, &mut index);
+            ServerStatusFlag::from_bits_truncate(decode_int_2(&buf, &mut index).into());
+        let warning_count = decode_int_2(&buf, &mut index);
 
         // Assuming CLIENT_SESSION_TRACK is unsupported
         let session_state_info = None;
@@ -294,15 +367,15 @@ impl Deserialize for ErrPacket {
     fn deserialize(buf: &Bytes) -> Result<Self, Error> {
         let mut index = 0;
 
-        let length = deserialize_length(&buf, &mut index)?;
-        let seq_no = deserialize_int_1(&buf, &mut index);
+        let length = decode_length(&buf, &mut index)?;
+        let seq_no = decode_int_1(&buf, &mut index);
 
-        let packet_header = deserialize_int_1(&buf, &mut index);
+        let packet_header = decode_int_1(&buf, &mut index);
         if packet_header != 0xFF {
             panic!("Packet header is not 0xFF for ErrPacket");
         }
 
-        let error_code = deserialize_int_2(&buf, &mut index);
+        let error_code = ErrorCode::try_from(decode_int_2(&buf, &mut index))?;
 
         let mut stage = None;
         let mut max_stage = None;
@@ -314,18 +387,18 @@ impl Deserialize for ErrPacket {
         let mut error_message = None;
 
         // Progress Reporting
-        if error_code == 0xFFFF {
-            stage = Some(deserialize_int_1(buf, &mut index));
-            max_stage = Some(deserialize_int_1(buf, &mut index));
-            progress = Some(deserialize_int_3(buf, &mut index));
-            progress_info = Some(deserialize_string_lenenc(&buf, &mut index));
+        if error_code as u16 == 0xFFFF {
+            stage = Some(decode_int_1(buf, &mut index));
+            max_stage = Some(decode_int_1(buf, &mut index));
+            progress = Some(decode_int_3(buf, &mut index));
+            progress_info = Some(decode_string_lenenc(&buf, &mut index));
         } else {
             if buf[index] == b'#' {
-                sql_state_marker = Some(deserialize_string_fix(buf, &mut index, 1));
-                sql_state = Some(deserialize_string_fix(buf, &mut index, 5));
-                error_message = Some(deserialize_string_eof(buf, &mut index));
+                sql_state_marker = Some(decode_string_fix(buf, &mut index, 1));
+                sql_state = Some(decode_string_fix(buf, &mut index, 5));
+                error_message = Some(decode_string_eof(buf, &mut index));
             } else {
-                error_message = Some(deserialize_string_eof(buf, &mut index));
+                error_message = Some(decode_string_eof(buf, &mut index));
             }
         }
 
@@ -344,6 +417,83 @@ impl Deserialize for ErrPacket {
     }
 }
 
+impl Deserialize for ColumnPacket {
+    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
+        let mut index = 0;
+
+        let length = decode_length(&buf, &mut index)?;
+        let seq_no = decode_int_1(&buf, &mut index);
+        let columns = decode_int_lenenc(&buf, &mut index);
+
+        Ok(ColumnPacket {
+            length,
+            seq_no,
+            columns,
+        })
+    }
+}
+
+impl Deserialize for ColumnDefPacket {
+    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
+        let mut index = 0;
+
+        let length = decode_length(&buf, &mut index)?;
+        let seq_no = decode_int_1(&buf, &mut index);
+
+        let catalog = decode_string_lenenc(&buf, &mut index);
+        let schema = decode_string_lenenc(&buf, &mut index);
+        let table_alias = decode_string_lenenc(&buf, &mut index);
+        let table = decode_string_lenenc(&buf, &mut index);
+        let column_alias = decode_string_lenenc(&buf, &mut index);
+        let column = decode_string_lenenc(&buf, &mut index);
+        let length_of_fixed_fields = decode_int_lenenc(&buf, &mut index);
+        let char_set = decode_int_2(&buf, &mut index);
+        let max_columns = decode_int_4(&buf, &mut index);
+        let field_type = FieldType::try_from(decode_int_1(&buf, &mut index))?;
+        let field_details = FieldDetailFlag::from_bits_truncate(decode_int_2(&buf, &mut index));
+        let decimals = decode_int_1(&buf, &mut index);
+
+        // Skip last two unused bytes
+        // index += 2;
+
+        Ok(ColumnDefPacket {
+            length,
+            seq_no,
+            catalog,
+            schema,
+            table_alias,
+            table,
+            column_alias,
+            column,
+            length_of_fixed_fields,
+            char_set,
+            max_columns,
+            field_type,
+            field_details,
+            decimals,
+        })
+    }
+}
+
+//impl Deserialize for ResultSet {
+//    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
+//        let mut index = 0;
+//
+//        let length = decode_length(&buf, &mut index)?;
+//        let seq_no = decode_int_1(&buf, &mut index);
+//
+//        let column_packet = ColumnPacket::deserialize(&but)?;
+//
+//        let column_definitions = if let Some(columns) = column_packet.columns {
+//            (0..columns).map(|_| {
+//                ColumnDefPacket::deserialize()
+//            })
+//        };
+//
+//        Ok(ResultSet::default())
+//    }
+//}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -352,7 +502,7 @@ mod test {
     fn it_decodes_capabilities() {
         let buf = BytesMut::from(b"\xfe\xf7".to_vec());
         let mut index = 0;
-        Capabilities::from_bits_truncate(deserialize_int_2(&buf.freeze(), &mut index).into());
+        Capabilities::from_bits_truncate(decode_int_2(&buf.freeze(), &mut index).into());
     }
 
     #[test]

@@ -17,6 +17,8 @@ hex = "0.3.2"
 bytes = "0.4.12"
 memchr = "2.2.0"
 bitflags = "1.1.0"
+enum-tryfrom = "0.2.1"
+enum-tryfrom-derive = "0.2.1"
 
 
 [dev-dependencies]
