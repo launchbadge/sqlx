@@ -11,7 +11,7 @@ pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
     _options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
-    let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?)?;
+    let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
 
     conn.capabilities = init_packet.capabilities;
 

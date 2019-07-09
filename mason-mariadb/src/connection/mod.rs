@@ -92,7 +92,7 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        OkPacket::deserialize(&self.stream.next_bytes().await?)?;
+        OkPacket::deserialize(&self.stream.next_bytes().await?, None)?;
 
         Ok(())
     }

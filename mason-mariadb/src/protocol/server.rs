@@ -7,7 +7,7 @@ use failure::{err_msg, Error};
 use std::convert::TryFrom;
 
 pub trait Deserialize: Sized {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error>;
+    fn deserialize<'a: 'b, 'b>(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error>;
 }
 
 #[derive(Debug)]
@@ -141,6 +141,12 @@ impl Default for ServerStatusFlag {
     }
 }
 
+impl Default for FieldDetailFlag {
+    fn default() -> Self {
+        FieldDetailFlag::NOT_NULL
+    }
+}
+
 impl Default for FieldType {
     fn default() -> Self {
         FieldType::MysqlTypeDecimal
@@ -197,6 +203,7 @@ pub struct ColumnPacket {
     pub columns: Option<usize>,
 }
 
+#[derive(Debug, Default)]
 pub struct ColumnDefPacket {
     pub length: u32,
     pub seq_no: u8,
@@ -236,74 +243,73 @@ impl Message {
         let tag = buf[4];
 
         Ok(Some(match tag {
-            0xFF => Message::ErrPacket(ErrPacket::deserialize(&buf)?),
-            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&buf)?),
+            0xFF => Message::ErrPacket(ErrPacket::deserialize(&buf, None)?),
+            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&buf, None)?),
             _ => unimplemented!(),
         }))
     }
 }
 
 impl Deserialize for InitialHandshakePacket {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-        let mut index = 0;
-
-        let length = decode_length(&buf, &mut index)?;
-        let seq_no = decode_int_1(&buf, &mut index);
+    fn deserialize<'a: 'b, 'b>(buf: &'a Bytes, decoder: Option<&mut Decoder<'b>>) -> Result<Self, Error> {
+        let mut decoder: &mut Decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
 
         if seq_no != 0 {
-            return Err(err_msg("Squence Number of Initial Handshake Packet is not 0"));
+            return Err(err_msg("Sequence Number of Initial Handshake Packet is not 0"));
         }
 
-        let protocol_version = decode_int_1(&buf, &mut index);
-        let server_version = decode_string_null(&buf, &mut index)?;
-        let connection_id = decode_int_4(&buf, &mut index);
-        let auth_seed = decode_string_fix(&buf, &mut index, 8);
+        let protocol_version = decoder.decode_int_1();
+        let server_version = decoder.decode_string_null()?;
+        let connection_id = decoder.decode_int_4();
+        let auth_seed = decoder.decode_string_fix(8);
 
         // Skip reserved byte
-        index += 1;
+        decoder.skip_bytes(1);
 
         let mut capabilities =
-            Capabilities::from_bits_truncate(decode_int_2(&buf, &mut index).into());
+            Capabilities::from_bits_truncate(decoder.decode_int_2().into());
 
-        let collation = decode_int_1(&buf, &mut index);
+        let collation = decoder.decode_int_1();
         let status =
-            ServerStatusFlag::from_bits_truncate(decode_int_2(&buf, &mut index).into());
+            ServerStatusFlag::from_bits_truncate(decoder.decode_int_2().into());
 
         capabilities |= Capabilities::from_bits_truncate(
-            ((decode_int_2(&buf, &mut index) as u32) << 16).into(),
+            ((decoder.decode_int_2() as u32) << 16).into(),
         );
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            plugin_data_length = decode_int_1(&buf, &mut index);
+            plugin_data_length = decoder.decode_int_1();
         } else {
             // Skip reserve byte
-            index += 1;
+            decoder.skip_bytes(1);
         }
 
         // Skip filler
-        index += 6;
+        decoder.skip_bytes(6);
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             capabilities |= Capabilities::from_bits_truncate(
-                ((decode_int_4(&buf, &mut index) as u128) << 32).into(),
+                ((decoder.decode_int_4() as u128) << 32).into(),
             );
         } else {
             // Skip filler
-            index += 4;
+            decoder.skip_bytes(4);
         }
 
         let mut scramble: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             let len = std::cmp::max(12, plugin_data_length as usize - 9);
-            scramble = Some(decode_string_fix(&buf, &mut index, len));
+            scramble = Some(decoder.decode_string_fix(len as u32));
             // Skip reserve byte
-            index += 1;
+            decoder.skip_bytes(1);
         }
 
         let mut auth_plugin_name: Option<Bytes> = None;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            auth_plugin_name = Some(decode_string_null(&buf, &mut index)?);
+            auth_plugin_name = Some(decoder.decode_string_null()?);
         }
 
         Ok(InitialHandshakePacket {
@@ -324,30 +330,30 @@ impl Deserialize for InitialHandshakePacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-        let mut index = 0;
+    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
+        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
 
         // Packet header
-        let length = decode_length(&buf, &mut index)?;
-        let seq_no = decode_int_1(&buf, &mut index);
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
 
         // Packet body
-        let packet_header = decode_int_1(&buf, &mut index);
+        let packet_header = decoder.decode_int_1();
         if packet_header != 0 && packet_header != 0xFE {
             panic!("Packet header is not 0 or 0xFE for OkPacket");
         }
 
-        let affected_rows = decode_int_lenenc(&buf, &mut index);
-        let last_insert_id = decode_int_lenenc(&buf, &mut index);
+        let affected_rows = decoder.decode_int_lenenc();
+        let last_insert_id = decoder.decode_int_lenenc();
         let server_status =
-            ServerStatusFlag::from_bits_truncate(decode_int_2(&buf, &mut index).into());
-        let warning_count = decode_int_2(&buf, &mut index);
+            ServerStatusFlag::from_bits_truncate(decoder.decode_int_2().into());
+        let warning_count = decoder.decode_int_2();
 
         // Assuming CLIENT_SESSION_TRACK is unsupported
         let session_state_info = None;
         let value = None;
 
-        let info = Bytes::from(&buf[index..]);
+        let info = decoder.decode_byte_eof();
 
         Ok(OkPacket {
             length,
@@ -364,18 +370,18 @@ impl Deserialize for OkPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-        let mut index = 0;
+    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
+        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
 
-        let length = decode_length(&buf, &mut index)?;
-        let seq_no = decode_int_1(&buf, &mut index);
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
 
-        let packet_header = decode_int_1(&buf, &mut index);
+        let packet_header = decoder.decode_int_1();
         if packet_header != 0xFF {
             panic!("Packet header is not 0xFF for ErrPacket");
         }
 
-        let error_code = ErrorCode::try_from(decode_int_2(&buf, &mut index))?;
+        let error_code = ErrorCode::try_from(decoder.decode_int_2())?;
 
         let mut stage = None;
         let mut max_stage = None;
@@ -388,17 +394,17 @@ impl Deserialize for ErrPacket {
 
         // Progress Reporting
         if error_code as u16 == 0xFFFF {
-            stage = Some(decode_int_1(buf, &mut index));
-            max_stage = Some(decode_int_1(buf, &mut index));
-            progress = Some(decode_int_3(buf, &mut index));
-            progress_info = Some(decode_string_lenenc(&buf, &mut index));
+            stage = Some(decoder.decode_int_1());
+            max_stage = Some(decoder.decode_int_1());
+            progress = Some(decoder.decode_int_3());
+            progress_info = Some(decoder.decode_string_lenenc());
         } else {
-            if buf[index] == b'#' {
-                sql_state_marker = Some(decode_string_fix(buf, &mut index, 1));
-                sql_state = Some(decode_string_fix(buf, &mut index, 5));
-                error_message = Some(decode_string_eof(buf, &mut index));
+            if buf[decoder.index] == b'#' {
+                sql_state_marker = Some(decoder.decode_string_fix(1));
+                sql_state = Some(decoder.decode_string_fix(5));
+                error_message = Some(decoder.decode_string_eof());
             } else {
-                error_message = Some(decode_string_eof(buf, &mut index));
+                error_message = Some(decoder.decode_string_eof());
             }
         }
 
@@ -418,12 +424,12 @@ impl Deserialize for ErrPacket {
 }
 
 impl Deserialize for ColumnPacket {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-        let mut index = 0;
+    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
+        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
 
-        let length = decode_length(&buf, &mut index)?;
-        let seq_no = decode_int_1(&buf, &mut index);
-        let columns = decode_int_lenenc(&buf, &mut index);
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
+        let columns = decoder.decode_int_lenenc();
 
         Ok(ColumnPacket {
             length,
@@ -434,24 +440,24 @@ impl Deserialize for ColumnPacket {
 }
 
 impl Deserialize for ColumnDefPacket {
-    fn deserialize(buf: &Bytes) -> Result<Self, Error> {
-        let mut index = 0;
+    fn deserialize(buf: &Bytes, decoder: Option<&mut Decoder>) -> Result<Self, Error> {
+        let mut decoder = decoder.unwrap_or(&mut Decoder::new(&buf));
 
-        let length = decode_length(&buf, &mut index)?;
-        let seq_no = decode_int_1(&buf, &mut index);
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
 
-        let catalog = decode_string_lenenc(&buf, &mut index);
-        let schema = decode_string_lenenc(&buf, &mut index);
-        let table_alias = decode_string_lenenc(&buf, &mut index);
-        let table = decode_string_lenenc(&buf, &mut index);
-        let column_alias = decode_string_lenenc(&buf, &mut index);
-        let column = decode_string_lenenc(&buf, &mut index);
-        let length_of_fixed_fields = decode_int_lenenc(&buf, &mut index);
-        let char_set = decode_int_2(&buf, &mut index);
-        let max_columns = decode_int_4(&buf, &mut index);
-        let field_type = FieldType::try_from(decode_int_1(&buf, &mut index))?;
-        let field_details = FieldDetailFlag::from_bits_truncate(decode_int_2(&buf, &mut index));
-        let decimals = decode_int_1(&buf, &mut index);
+        let catalog = decoder.decode_string_lenenc();
+        let schema = decoder.decode_string_lenenc();
+        let table_alias = decoder.decode_string_lenenc();
+        let table = decoder.decode_string_lenenc();
+        let column_alias = decoder.decode_string_lenenc();
+        let column = decoder.decode_string_lenenc();
+        let length_of_fixed_fields = decoder.decode_int_lenenc();
+        let char_set = decoder.decode_int_2();
+        let max_columns = decoder.decode_int_4();
+        let field_type = FieldType::try_from(decoder.decode_int_1())?;
+        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_2());
+        let decimals = decoder.decode_int_1();
 
         // Skip last two unused bytes
         // index += 2;
