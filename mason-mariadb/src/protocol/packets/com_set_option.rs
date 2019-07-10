@@ -1,5 +1,4 @@
-use super::super::{client::TextProtocol, encode::*, serialize::Serialize, types::Capabilities};
-use bytes::BytesMut;
+use super::super::{client::TextProtocol, encode::Encoder, serialize::Serialize, types::Capabilities};
 use failure::Error;
 
 #[derive(Clone, Copy)]
@@ -13,13 +12,13 @@ pub struct ComSetOption {
 }
 
 impl Serialize for ComSetOption {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        encode_int_1(buf, TextProtocol::ComSetOption.into());
-        encode_int_2(buf, self.option.into());
+        encoder.encode_int_1(TextProtocol::ComSetOption.into());
+        encoder.encode_int_2(self.option.into());
 
         Ok(())
     }

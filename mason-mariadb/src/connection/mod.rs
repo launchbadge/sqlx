@@ -1,6 +1,6 @@
 use crate::protocol::{
     deserialize::Deserialize,
-    encode::encode_length,
+    encode::Encoder,
     packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
     serialize::Serialize,
     server::Message as ServerMessage,
@@ -15,15 +15,17 @@ use futures::{
 };
 use mason_core::ConnectOptions;
 use runtime::net::TcpStream;
+use super::protocol::packets::{initial::InitialHandshakePacket, handshake_response::HandshakeResponsePacket};
+use failure::err_msg;
 
 mod establish;
 // mod query;
 
-pub struct Connection {
+pub struct Connection<'a> {
     stream: Framed,
 
     // Buffer used when serializing outgoing messages
-    wbuf: BytesMut,
+    encoder: Encoder<'a>,
 
     // MariaDB Connection ID
     connection_id: i32,
@@ -38,44 +40,62 @@ pub struct Connection {
     status: ServerStatusFlag,
 }
 
-impl Connection {
-    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
+impl<'a> Connection<'a> {
+    pub async fn establish<'b: 'a>(options: ConnectOptions<'b>) -> Result<Connection<'a>, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
-        let mut conn = Self {
+        let mut conn : Connection<'a> = Self {
             stream,
-            wbuf: BytesMut::with_capacity(1024),
+            encoder: Encoder::new(1024),
             connection_id: -1,
             seq_no: 1,
             capabilities: Capabilities::default(),
             status: ServerStatusFlag::default(),
         };
 
-        establish::establish(&mut conn, options).await?;
+        let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
 
-        Ok(conn)
+        conn.capabilities = init_packet.capabilities;
+
+        let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
+            // Minimum client capabilities required to establish connection
+            capabilities: Capabilities::CLIENT_PROTOCOL_41,
+            max_packet_size: 1024,
+            extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
+            username: Bytes::from_static(b"root"),
+            ..Default::default()
+        };
+
+        conn.send(handshake).await?;
+
+        match conn.stream.next().await? {
+            Some(ServerMessage::OkPacket(message)) => {
+                conn.seq_no = message.seq_no;
+                Ok(conn)
+            }
+
+            Some(ServerMessage::ErrPacket(message)) => Err(err_msg(format!("{:?}", message))),
+
+            Some(message) => {
+                panic!("Did not receive OkPacket nor ErrPacket. Received: {:?}", message);
+            }
+
+            None => {
+                panic!("Did not recieve packet");
+            }
+        }
     }
 
     async fn send<S>(&mut self, message: S) -> Result<(), Error>
     where
         S: Serialize,
     {
-        self.wbuf.clear();
+        self.encoder.clear();
+        self.encoder.alloc_packet_header();
+        self.encoder.seq_no(self.seq_no);
+        self.encoder.serialize(message, &self.capabilities)?;
+        self.encoder.encode_length();
 
-        /*
-            `self.wbuf.write_u32::<LittleEndian>(0_u32);`
-            causes compiler to panic
-            self.wbuf.write
-            rustc 1.37.0-nightly (7cdaffd79 2019-06-05) running on x86_64-unknown-linux-gnu
-            https://github.com/rust-lang/rust/issues/62126
-        */
-        // Reserve space for packet header; Packet Body Length (3 bytes) and sequence number (1 byte)
-        self.wbuf.extend_from_slice(&[0; 4]);
-        self.wbuf[3] = self.seq_no;
-
-        message.serialize(&mut self.wbuf, &self.capabilities)?;
-        encode_length(&mut self.wbuf);
-
-        self.stream.inner.write_all(&self.wbuf).await?;
+        self.stream.inner.write_all(self.encoder.buf()).await?;
         self.stream.inner.flush().await?;
 
         Ok(())

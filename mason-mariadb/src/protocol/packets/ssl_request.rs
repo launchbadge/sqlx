@@ -1,5 +1,5 @@
-use super::super::{encode::*, serialize::Serialize, types::Capabilities};
-use bytes::{Bytes, BytesMut};
+use super::super::{encode::Encoder, serialize::Serialize, types::Capabilities};
+use bytes::Bytes;
 use failure::Error;
 
 #[derive(Default, Debug)]
@@ -11,26 +11,26 @@ pub struct SSLRequestPacket {
 }
 
 impl Serialize for SSLRequestPacket {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        encode_int_4(buf, self.capabilities.bits() as u32);
-        encode_int_4(buf, self.max_packet_size);
-        encode_int_1(buf, self.collation);
+        encoder.encode_int_4(self.capabilities.bits() as u32);
+        encoder.encode_int_4(self.max_packet_size);
+        encoder.encode_int_1(self.collation);
 
         // Filler
-        encode_byte_fix(buf, &Bytes::from_static(&[0u8; 19]), 19);
+        encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
         if !(*server_capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                encode_int_4(buf, capabilities.bits() as u32);
+                encoder.encode_int_4(capabilities.bits() as u32);
             }
         } else {
-            encode_byte_fix(buf, &Bytes::from_static(&[0u8; 4]), 4);
+            encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
         }
 
         Ok(())

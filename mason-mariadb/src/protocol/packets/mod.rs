@@ -1,3 +1,4 @@
+pub mod auth_switch_request;
 pub mod column;
 pub mod column_def;
 pub mod com_debug;

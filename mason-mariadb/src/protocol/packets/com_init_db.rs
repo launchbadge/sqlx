@@ -1,5 +1,5 @@
-use super::super::{client::TextProtocol, encode::*, serialize::Serialize, types::Capabilities};
-use bytes::BytesMut;
+use super::super::{client::TextProtocol, encode::Encoder, serialize::Serialize, types::Capabilities};
+use bytes:: Bytes;
 use failure::Error;
 
 pub struct ComInitDb {
@@ -7,13 +7,13 @@ pub struct ComInitDb {
 }
 
 impl Serialize for ComInitDb {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        encode_int_1(buf, TextProtocol::ComInitDb.into());
-        encode_string_null(buf, &self.schema_name);
+        encoder.encode_int_1(TextProtocol::ComInitDb.into());
+        encoder.encode_string_null(&self.schema_name);
 
         Ok(())
     }

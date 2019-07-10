@@ -1,5 +1,5 @@
-use super::super::{serialize::Serialize, types::Capabilities};
-use bytes::{Bytes, BytesMut};
+use super::super::{encode::Encoder, serialize::Serialize, types::Capabilities};
+use bytes::Bytes;
 use failure::Error;
 
 #[derive(Default, Debug)]
@@ -9,14 +9,14 @@ pub struct AuthenticationSwitchRequestPacket {
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        encode_int_1(buf, 0xFE);
-        encode_string_null(buf, &self.auth_plugin_name);
-        encode_byte_eof(buf, &self.auth_plugin_data);
+        encoder.encode_int_1(0xFE);
+        encoder.encode_string_null(&self.auth_plugin_name);
+        encoder.encode_byte_eof(&self.auth_plugin_data);
 
         Ok(())
     }

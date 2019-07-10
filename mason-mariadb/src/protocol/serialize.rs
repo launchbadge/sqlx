@@ -1,11 +1,11 @@
 use super::types::Capabilities;
-use bytes::BytesMut;
 use failure::Error;
+use super::encode::Encoder;
 
 pub trait Serialize {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error>;
 }

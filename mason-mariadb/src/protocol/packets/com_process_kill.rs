@@ -1,5 +1,4 @@
-use super::super::{client::TextProtocol, encode::*, serialize::Serialize, types::Capabilities};
-use bytes::BytesMut;
+use super::super::{client::TextProtocol, encode::Encoder, serialize::Serialize, types::Capabilities};
 use failure::Error;
 
 pub struct ComProcessKill {
@@ -7,13 +6,13 @@ pub struct ComProcessKill {
 }
 
 impl Serialize for ComProcessKill {
-    fn serialize(
+    fn serialize<'a, 'b>(
         &self,
-        buf: &mut BytesMut,
+        encoder: &'b mut Encoder<'a>,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
-        encode_int_1(buf, TextProtocol::ComProcessKill.into());
-        encode_int_4(buf, self.process_id);
+        encoder.encode_int_1(TextProtocol::ComProcessKill.into());
+        encoder.encode_int_4(self.process_id);
 
         Ok(())
     }
