@@ -18,7 +18,6 @@ use mason_core::ConnectOptions;
 use runtime::net::TcpStream;
 
 mod establish;
-// mod query;
 
 pub struct Connection {
     stream: Framed,
@@ -40,21 +39,6 @@ pub struct Connection {
 }
 
 impl Connection {
-    #[cfg(test)]
-    pub async fn mock() -> Self {
-        let stream: Framed = Framed::new(TcpStream::connect(("127.0.0.1", "3306")).await?);
-        let mut conn: Connection = Self {
-            stream,
-            encoder: Encoder::new(1024),
-            connection_id: -1,
-            seq_no: 1,
-            capabilities: Capabilities::default(),
-            status: ServerStatusFlag::default(),
-        };
-
-        Ok(conn)
-    }
-
     pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
         let mut conn: Connection = Self {

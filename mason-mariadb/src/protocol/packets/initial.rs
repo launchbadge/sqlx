@@ -101,11 +101,19 @@ impl Deserialize for InitialHandshakePacket {
 mod test {
     use super::*;
     use bytes::BytesMut;
+    use mason_core::ConnectOptions;
 
-    #[test]
-    fn it_decodes_initialhandshakepacket() -> Result<(), Error> {
-        let buf = BytesMut::from(
-            b"\
+    #[runtime::test]
+    async fn it_decodes_initial_handshake_packet() -> Result<(), Error> {
+        let mut conn = Connection::establish(ConnectOptions {
+            host: "127.0.0.1",
+            port: 3306,
+            user: Some("root"),
+            database: None,
+            password: None,
+        }).await?;
+
+        let buf = BytesMut::from(b"\
         n\0\0\
         \0\
         \n\
@@ -126,7 +134,7 @@ mod test {
                 .to_vec(),
         );
 
-        let _message = InitialHandshakePacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf.freeze()))?;
+        let _message = InitialHandshakePacket::deserialize(&mut conn, &mut Decoder::new(&buf.freeze()))?;
 
         Ok(())
     }

@@ -70,11 +70,21 @@ impl Deserialize for ColumnDefPacket {
 mod test {
     use bytes::Bytes;
     use super::*;
+    use mason_core::ConnectOptions;
 
-    #[test]
-    fn it_decodes_column_def_packet() -> Result<(), Error> {
+    #[runtime::test]
+    async fn it_decodes_column_def_packet() -> Result<(), Error> {
+        let mut conn = Connection::establish(ConnectOptions {
+            host: "127.0.0.1",
+            port: 3306,
+            user: Some("root"),
+            database: None,
+            password: None,
+        }).await?;
+
         let buf = Bytes::from(b"\
-        \0\0\0\x01
+        \0\0\0\
+        \x01\
         \x01\0\0a\
         \x01\0\0b\
         \x01\0\0c\
@@ -89,7 +99,7 @@ mod test {
         \x01\
         \0\0
         ".to_vec());
-        let message = ColumnDefPacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf))?;
+        let message = ColumnDefPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
 
         assert_eq!(&message.catalog[..], b"a");
         assert_eq!(&message.schema[..], b"b");

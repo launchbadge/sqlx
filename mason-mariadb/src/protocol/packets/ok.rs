@@ -2,6 +2,7 @@ use super::super::{decode::Decoder, deserialize::Deserialize, types::ServerStatu
 use bytes::Bytes;
 use failure::Error;
 use crate::connection::Connection;
+use failure::err_msg;
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -24,9 +25,9 @@ impl Deserialize for OkPacket {
 
         // Packet body
         let packet_header = decoder.decode_int_1();
-        if packet_header != 0 && packet_header != 0xFE {
-            panic!("Packet header is not 0 or 0xFE for OkPacket");
-        }
+//        if packet_header != 0 && packet_header != 0xFE {
+//            return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
+//        }
 
         let affected_rows = decoder.decode_int_lenenc();
         let last_insert_id = decoder.decode_int_lenenc();
@@ -57,11 +58,19 @@ impl Deserialize for OkPacket {
 mod test {
     use super::*;
     use bytes::BytesMut;
+    use mason_core::ConnectOptions;
 
-    #[test]
-    fn it_decodes_okpacket() -> Result<(), Error> {
-        let buf = BytesMut::from(
-            b"\
+    #[runtime::test]
+    async fn it_decodes_ok_packet() -> Result<(), Error> {
+        let mut conn = Connection::establish(ConnectOptions {
+            host: "127.0.0.1",
+            port: 3306,
+            user: Some("root"),
+            database: None,
+            password: None,
+        }).await?;
+
+        let buf = BytesMut::from(b"\
         \x0F\x00\x00\
         \x01\
         \x00\
@@ -74,7 +83,7 @@ mod test {
             .to_vec(),
         );
 
-        let message = OkPacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf.freeze()))?;
+        let message = OkPacket::deserialize(&mut conn, &mut Decoder::new(&buf.freeze()))?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);

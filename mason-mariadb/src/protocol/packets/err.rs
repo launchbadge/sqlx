@@ -74,11 +74,20 @@ impl Deserialize for ErrPacket {
 mod test {
     use bytes::Bytes;
     use super::*;
+    use mason_core::ConnectOptions;
 
-    #[test]
-    fn it_decodes_err_packet() -> Result<(), Error> {
+    #[runtime::test]
+    async fn it_decodes_err_packet() -> Result<(), Error> {
+        let mut conn = Connection::establish(ConnectOptions {
+            host: "127.0.0.1",
+            port: 3306,
+            user: Some("root"),
+            database: None,
+            password: None,
+        }).await?;
+
         let buf = Bytes::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
-        let _message = ErrPacket::deserialize(&mut Decoder::new(&buf))?;
+        let _message = ErrPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
 
         Ok(())
     }
