@@ -1,8 +1,7 @@
 use std::convert::TryFrom;
-
 use bytes::Bytes;
 use failure::Error;
-
+use crate::connection::Connection;
 use super::super::{decode::Decoder, deserialize::Deserialize, error_codes::ErrorCode};
 
 #[derive(Default, Debug)]
@@ -20,7 +19,7 @@ pub struct ErrPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -73,14 +72,13 @@ impl Deserialize for ErrPacket {
 
 #[cfg(test)]
 mod test {
-    use bytes::BytesMut;
-
+    use bytes::Bytes;
     use super::*;
 
     #[test]
-    fn it_decodes_errpacket() -> Result<(), Error> {
-        let buf = BytesMut::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
-        let _message = ErrPacket::deserialize(&mut Decoder::new(&buf.freeze()))?;
+    fn it_decodes_err_packet() -> Result<(), Error> {
+        let buf = Bytes::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
+        let _message = ErrPacket::deserialize(&mut Decoder::new(&buf))?;
 
         Ok(())
     }

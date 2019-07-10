@@ -13,8 +13,9 @@ pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
+    let buf = &conn.stream.next_bytes().await?;
     let init_packet =
-        InitialHandshakePacket::deserialize(&mut Decoder::new(&conn.stream.next_bytes().await?))?;
+        InitialHandshakePacket::deserialize(conn, &mut Decoder::new(&buf))?;
 
     conn.capabilities = init_packet.capabilities;
 
@@ -29,7 +30,7 @@ pub async fn establish<'a, 'b: 'a>(
 
     conn.send(handshake).await?;
 
-    match conn.stream.next().await? {
+    match conn.next().await? {
         Some(ServerMessage::OkPacket(message)) => {
             conn.seq_no = message.seq_no;
             Ok(())
@@ -66,5 +67,20 @@ mod test {
         conn.ping().await?;
 
         Ok(())
+    }
+
+    #[runtime::test]
+    async fn it_does_not_connect() -> Result<(), Error> {
+        match Connection::establish(ConnectOptions {
+            host: "127.0.0.1",
+            port: 3306,
+            user: Some("roote"),
+            database: None,
+            password: None,
+        })
+        .await {
+            Ok(_) => Err(err_msg("Bad username still worked?")),
+            Err(_) => Ok(())
+        }
     }
 }

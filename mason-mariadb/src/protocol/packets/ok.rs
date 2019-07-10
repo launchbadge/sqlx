@@ -1,6 +1,7 @@
 use super::super::{decode::Decoder, deserialize::Deserialize, types::ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
+use crate::connection::Connection;
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -16,7 +17,7 @@ pub struct OkPacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
         // Packet header
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
@@ -73,7 +74,7 @@ mod test {
             .to_vec(),
         );
 
-        let message = OkPacket::deserialize(&mut Decoder::new(&buf.freeze()))?;
+        let message = OkPacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf.freeze()))?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);

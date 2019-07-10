@@ -1,14 +1,12 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 
-use byteorder::{ByteOrder, LittleEndian};
-use bytes::BytesMut;
 use failure::Error;
-
 use super::{
     decode::Decoder,
     deserialize::Deserialize,
     packets::{err::ErrPacket, initial::InitialHandshakePacket, ok::OkPacket},
 };
+use crate::connection::Connection;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -19,23 +17,21 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn deserialize(buf: &mut BytesMut) -> Result<Option<Self>, Error> {
-        if buf.len() < 4 {
+    pub fn deserialize(conn: &mut Connection, decoder: &mut Decoder) -> Result<Option<Self>, Error> {
+        if decoder.buf.len() < 4 {
             return Ok(None);
         }
 
-        let length = LittleEndian::read_u24(&buf[0..]) as usize;
-        if buf.len() < length + 4 {
+        let length = decoder.decode_length()?;
+        if decoder.buf.len() < (length + 4) as usize {
             return Ok(None);
         }
 
-        let buf = buf.split_to(length + 4).freeze();
-        let _seq_no = [3];
-        let tag = buf[4];
+        let tag = decoder.buf[4];
 
         Ok(Some(match tag {
-            0xFF => Message::ErrPacket(ErrPacket::deserialize(&mut Decoder::new(&buf))?),
-            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&mut Decoder::new(&buf))?),
+            0xFF => Message::ErrPacket(ErrPacket::deserialize(conn, decoder)?),
+            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(conn, decoder)?),
             _ => unimplemented!(),
         }))
     }

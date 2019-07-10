@@ -5,6 +5,7 @@ use super::super::{
 };
 use bytes::Bytes;
 use failure::{err_msg, Error};
+use crate::connection::Connection;
 
 #[derive(Default, Debug)]
 pub struct InitialHandshakePacket {
@@ -23,7 +24,7 @@ pub struct InitialHandshakePacket {
 }
 
 impl Deserialize for InitialHandshakePacket {
-    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -125,7 +126,7 @@ mod test {
                 .to_vec(),
         );
 
-        let _message = InitialHandshakePacket::deserialize(&mut Decoder::new(&buf.freeze()))?;
+        let _message = InitialHandshakePacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf.freeze()))?;
 
         Ok(())
     }

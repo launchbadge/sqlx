@@ -26,9 +26,6 @@ pub struct Connection {
     // Buffer used when serializing outgoing messages
     pub encoder: Encoder,
 
-    // Serializer for Messages
-    //    serializer: Serializer<'a>,
-
     // MariaDB Connection ID
     pub connection_id: i32,
 
@@ -43,6 +40,21 @@ pub struct Connection {
 }
 
 impl Connection {
+    #[cfg(test)]
+    pub async fn mock() -> Self {
+        let stream: Framed = Framed::new(TcpStream::connect(("127.0.0.1", "3306")).await?);
+        let mut conn: Connection = Self {
+            stream,
+            encoder: Encoder::new(1024),
+            connection_id: -1,
+            seq_no: 1,
+            capabilities: Capabilities::default(),
+            status: ServerStatusFlag::default(),
+        };
+
+        Ok(conn)
+    }
+
     pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
         let mut conn: Connection = Self {
@@ -86,9 +98,52 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        OkPacket::deserialize(&mut Decoder::new(&self.stream.next_bytes().await?))?;
+        let buf = self.stream.next_bytes().await?;
+        OkPacket::deserialize(self, &mut Decoder::new(&buf))?;
 
         Ok(())
+    }
+
+    async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
+        let mut rbuf = BytesMut::new();
+        let mut len = 0;
+
+        loop {
+            if len == rbuf.len() {
+                rbuf.reserve(32);
+
+                unsafe {
+                    // Set length to the capacity and efficiently
+                    // zero-out the memory
+                    rbuf.set_len(rbuf.capacity());
+                    self.stream.inner.initializer().initialize(&mut rbuf[len..]);
+                }
+            }
+
+            let bytes_read = self.stream.inner.read(&mut rbuf[len..]).await?;
+
+            if bytes_read > 0 {
+                len += bytes_read;
+            } else {
+                // Read 0 bytes from the server; end-of-stream
+                break;
+            }
+
+            while len > 0 {
+                let size = rbuf.len();
+                let message = ServerMessage::deserialize(self, &mut Decoder::new(&rbuf.as_ref().into()))?;
+                len -= size - rbuf.len();
+
+                match message {
+                    message @ Some(_) => return Ok(message),
+                    // Did not receive enough bytes to
+                    // deserialize a complete message
+                    None => break,
+                }
+            }
+        }
+
+        Ok(None)
     }
 }
 
@@ -146,47 +201,5 @@ impl Framed {
                 return Ok(rbuf.freeze());
             }
         }
-    }
-
-    async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
-        let mut rbuf = BytesMut::new();
-        let mut len = 0;
-
-        loop {
-            if len == rbuf.len() {
-                rbuf.reserve(32);
-
-                unsafe {
-                    // Set length to the capacity and efficiently
-                    // zero-out the memory
-                    rbuf.set_len(rbuf.capacity());
-                    self.inner.initializer().initialize(&mut rbuf[len..]);
-                }
-            }
-
-            let bytes_read = self.inner.read(&mut rbuf[len..]).await?;
-
-            if bytes_read > 0 {
-                len += bytes_read;
-            } else {
-                // Read 0 bytes from the server; end-of-stream
-                break;
-            }
-
-            while len > 0 {
-                let size = rbuf.len();
-                let message = ServerMessage::deserialize(&mut rbuf)?;
-                len -= size - rbuf.len();
-
-                match message {
-                    message @ Some(_) => return Ok(message),
-                    // Did not receive enough bytes to
-                    // deserialize a complete message
-                    None => break,
-                }
-            }
-        }
-
-        Ok(None)
     }
 }

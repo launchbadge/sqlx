@@ -33,7 +33,6 @@ impl<'a> Decoder<'a> {
     pub fn eof(&self) -> bool {
         self.buf.len() == self.index
     }
-
     #[inline]
     pub fn decode_int_lenenc(&mut self) -> Option<usize> {
         match self.buf[self.index] {

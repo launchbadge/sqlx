@@ -1,8 +1,7 @@
 use std::convert::TryFrom;
-
 use bytes::Bytes;
 use failure::Error;
-
+use crate::connection::Connection;
 use super::super::{
     decode::Decoder,
     deserialize::Deserialize,
@@ -28,7 +27,7 @@ pub struct ColumnDefPacket {
 }
 
 impl Deserialize for ColumnDefPacket {
-    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -64,5 +63,41 @@ impl Deserialize for ColumnDefPacket {
             field_details,
             decimals,
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bytes::Bytes;
+    use super::*;
+
+    #[test]
+    fn it_decodes_column_def_packet() -> Result<(), Error> {
+        let buf = Bytes::from(b"\
+        \0\0\0\x01
+        \x01\0\0a\
+        \x01\0\0b\
+        \x01\0\0c\
+        \x01\0\0d\
+        \x01\0\0e\
+        \x01\0\0f\
+        \xfc\x01\x01\
+        \x01\x01\
+        \x01\x01\x01\x01\
+        \x00\
+        \x00\x00\
+        \x01\
+        \0\0
+        ".to_vec());
+        let message = ColumnDefPacket::deserialize(&mut Connection::mock(), &mut Decoder::new(&buf))?;
+
+        assert_eq!(&message.catalog[..], b"a");
+        assert_eq!(&message.schema[..], b"b");
+        assert_eq!(&message.table_alias[..], b"c");
+        assert_eq!(&message.table[..], b"d");
+        assert_eq!(&message.column_alias[..], b"e");
+        assert_eq!(&message.column[..], b"f");
+
+        Ok(())
     }
 }
