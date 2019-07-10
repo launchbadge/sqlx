@@ -13,7 +13,7 @@ pub struct SSLRequestPacket {
 impl Serialize for SSLRequestPacket {
     fn serialize<'a, 'b>(
         &self,
-        encoder: &'b mut Encoder<'a>,
+        encoder: &mut Encoder,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
         encoder.encode_int_4(self.capabilities.bits() as u32);

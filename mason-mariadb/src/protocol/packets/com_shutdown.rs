@@ -13,7 +13,7 @@ pub struct ComShutdown {
 impl Serialize for ComShutdown {
     fn serialize<'a, 'b>(
         &self,
-        encoder: &'b mut Encoder<'a>,
+        encoder: &mut Encoder,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
         encoder.encode_int_1(TextProtocol::ComShutdown.into());

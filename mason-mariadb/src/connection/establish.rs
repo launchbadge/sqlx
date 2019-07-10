@@ -10,7 +10,7 @@ use failure::{err_msg, Error};
 use mason_core::ConnectOptions;
 
 pub async fn establish<'a, 'b: 'a>(
-    conn: &'a mut Connection<'a>,
+    conn: &'a mut Connection,
     _options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
     let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;

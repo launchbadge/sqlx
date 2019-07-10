@@ -21,7 +21,7 @@ pub struct HandshakeResponsePacket {
 impl Serialize for HandshakeResponsePacket {
     fn serialize<'a, 'b>(
         &self,
-        encoder: &'b mut Encoder<'a>,
+        encoder: &mut Encoder,
         server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
         encoder.encode_int_4(self.capabilities.bits() as u32);

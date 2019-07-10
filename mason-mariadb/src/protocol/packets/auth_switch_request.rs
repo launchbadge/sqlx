@@ -9,9 +9,9 @@ pub struct AuthenticationSwitchRequestPacket {
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize<'a, 'b>(
+    fn serialize(
         &self,
-        encoder: &'b mut Encoder<'a>,
+        encoder: &mut Encoder,
         _server_capabilities: &Capabilities,
     ) -> Result<(), Error> {
         encoder.encode_int_1(0xFE);

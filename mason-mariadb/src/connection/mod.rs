@@ -1,49 +1,53 @@
+use super::protocol::packets::{
+    handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket,
+};
 use crate::protocol::{
     deserialize::Deserialize,
     encode::Encoder,
     packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
-    serialize::Serialize,
+    serialize::{Serialize, Serializer},
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
 };
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
-use failure::Error;
+use failure::{err_msg, Error};
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
     prelude::*,
 };
 use mason_core::ConnectOptions;
 use runtime::net::TcpStream;
-use super::protocol::packets::{initial::InitialHandshakePacket, handshake_response::HandshakeResponsePacket};
-use failure::err_msg;
 
 mod establish;
 // mod query;
 
-pub struct Connection<'a> {
+pub struct Connection {
     stream: Framed,
 
     // Buffer used when serializing outgoing messages
-    encoder: Encoder<'a>,
+    pub encoder: Encoder,
+
+    // Serializer for Messages
+    //    serializer: Serializer<'a>,
 
     // MariaDB Connection ID
-    connection_id: i32,
+    pub connection_id: i32,
 
     // Sequence Number
-    seq_no: u8,
+    pub seq_no: u8,
 
     // Server Capabilities
-    capabilities: Capabilities,
+    pub capabilities: Capabilities,
 
     // Server status
-    status: ServerStatusFlag,
+    pub status: ServerStatusFlag,
 }
 
-impl<'a> Connection<'a> {
-    pub async fn establish<'b: 'a>(options: ConnectOptions<'b>) -> Result<Connection<'a>, Error> {
+impl Connection {
+    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
-        let mut conn : Connection<'a> = Self {
+        let mut conn: Connection = Self {
             stream,
             encoder: Encoder::new(1024),
             connection_id: -1,
@@ -52,20 +56,24 @@ impl<'a> Connection<'a> {
             status: ServerStatusFlag::default(),
         };
 
-        let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
+        let init_packet =
+            InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
 
         conn.capabilities = init_packet.capabilities;
 
-        let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
-            // Minimum client capabilities required to establish connection
-            capabilities: Capabilities::CLIENT_PROTOCOL_41,
-            max_packet_size: 1024,
-            extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-            username: Bytes::from_static(b"root"),
-            ..Default::default()
-        };
+        if let Some(user) = options.user {
+            let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
+                // Minimum client capabilities required to establish connection
+                capabilities: Capabilities::CLIENT_PROTOCOL_41,
+                max_packet_size: 1024,
+                username: Bytes::from(user.as_bytes()),
+                ..Default::default()
+            };
 
-        conn.send(handshake).await?;
+            conn.send(handshake).await?;
+        } else {
+            return Err(err_msg("Username is required"));
+        }
 
         match conn.stream.next().await? {
             Some(ServerMessage::OkPacket(message)) => {
@@ -80,7 +88,7 @@ impl<'a> Connection<'a> {
             }
 
             None => {
-                panic!("Did not recieve packet");
+                panic!("Did not receive packet");
             }
         }
     }
@@ -92,10 +100,10 @@ impl<'a> Connection<'a> {
         self.encoder.clear();
         self.encoder.alloc_packet_header();
         self.encoder.seq_no(self.seq_no);
-        self.encoder.serialize(message, &self.capabilities)?;
+        Serializer::new(self).serialize(message)?;
         self.encoder.encode_length();
 
-        self.stream.inner.write_all(self.encoder.buf()).await?;
+        self.stream.inner.write_all(&self.encoder.buf).await?;
         self.stream.inner.flush().await?;
 
         Ok(())
