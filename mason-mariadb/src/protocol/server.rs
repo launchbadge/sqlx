@@ -5,6 +5,7 @@ use bytes::BytesMut;
 use failure::Error;
 
 use super::{
+    decode::Decoder,
     deserialize::Deserialize,
     packets::{err::ErrPacket, initial::InitialHandshakePacket, ok::OkPacket},
 };
@@ -33,8 +34,8 @@ impl Message {
         let tag = buf[4];
 
         Ok(Some(match tag {
-            0xFF => Message::ErrPacket(ErrPacket::deserialize(&buf, None)?),
-            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&buf, None)?),
+            0xFF => Message::ErrPacket(ErrPacket::deserialize(&mut Decoder::new(&buf))?),
+            0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(&mut Decoder::new(&buf))?),
             _ => unimplemented!(),
         }))
     }

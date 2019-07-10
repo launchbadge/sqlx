@@ -20,13 +20,7 @@ pub struct ErrPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize<'a, 'b>(
-        buf: &'a Bytes,
-        decoder: Option<&'b mut Decoder<'a>>,
-    ) -> Result<Self, Error> {
-        let mut new_decoder = Decoder::new(&buf);
-        let decoder = decoder.unwrap_or(&mut new_decoder);
-
+    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -53,7 +47,7 @@ impl Deserialize for ErrPacket {
             progress = Some(decoder.decode_int_3());
             progress_info = Some(decoder.decode_string_lenenc());
         } else {
-            if buf[decoder.index] == b'#' {
+            if decoder.buf[decoder.index] == b'#' {
                 sql_state_marker = Some(decoder.decode_string_fix(1));
                 sql_state = Some(decoder.decode_string_fix(5));
                 error_message = Some(decoder.decode_string_eof());
@@ -86,7 +80,7 @@ mod test {
     #[test]
     fn it_decodes_errpacket() -> Result<(), Error> {
         let buf = BytesMut::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
-        let _message = ErrPacket::deserialize(&buf.freeze())?;
+        let _message = ErrPacket::deserialize(&mut Decoder::new(&buf.freeze()))?;
 
         Ok(())
     }

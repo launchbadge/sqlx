@@ -1,4 +1,4 @@
-use super::Connection;
+use super::{Connection, Decoder};
 use crate::protocol::{
     deserialize::Deserialize,
     packets::{handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket},
@@ -11,9 +11,10 @@ use mason_core::ConnectOptions;
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
-    _options: ConnectOptions<'b>,
+    options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
-    let init_packet = InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
+    let init_packet =
+        InitialHandshakePacket::deserialize(&mut Decoder::new(&conn.stream.next_bytes().await?))?;
 
     conn.capabilities = init_packet.capabilities;
 
@@ -22,7 +23,7 @@ pub async fn establish<'a, 'b: 'a>(
         capabilities: Capabilities::CLIENT_PROTOCOL_41,
         max_packet_size: 1024,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: Bytes::from_static(b"root"),
+        username: Bytes::from(options.user.unwrap_or("")),
         ..Default::default()
     };
 

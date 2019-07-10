@@ -1,6 +1,4 @@
-use super::protocol::packets::{
-    handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket,
-};
+use super::protocol::decode::Decoder;
 use crate::protocol::{
     deserialize::Deserialize,
     encode::Encoder,
@@ -11,7 +9,7 @@ use crate::protocol::{
 };
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
-use failure::{err_msg, Error};
+use failure::Error;
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
     prelude::*,
@@ -56,41 +54,9 @@ impl Connection {
             status: ServerStatusFlag::default(),
         };
 
-        let init_packet =
-            InitialHandshakePacket::deserialize(&conn.stream.next_bytes().await?, None)?;
+        establish::establish(&mut conn, options).await?;
 
-        conn.capabilities = init_packet.capabilities;
-
-        if let Some(user) = options.user {
-            let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
-                // Minimum client capabilities required to establish connection
-                capabilities: Capabilities::CLIENT_PROTOCOL_41,
-                max_packet_size: 1024,
-                username: Bytes::from(user.as_bytes()),
-                ..Default::default()
-            };
-
-            conn.send(handshake).await?;
-        } else {
-            return Err(err_msg("Username is required"));
-        }
-
-        match conn.stream.next().await? {
-            Some(ServerMessage::OkPacket(message)) => {
-                conn.seq_no = message.seq_no;
-                Ok(conn)
-            }
-
-            Some(ServerMessage::ErrPacket(message)) => Err(err_msg(format!("{:?}", message))),
-
-            Some(message) => {
-                panic!("Did not receive OkPacket nor ErrPacket. Received: {:?}", message);
-            }
-
-            None => {
-                panic!("Did not receive packet");
-            }
-        }
+        Ok(conn)
     }
 
     async fn send<S>(&mut self, message: S) -> Result<(), Error>
@@ -120,7 +86,7 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        OkPacket::deserialize(&self.stream.next_bytes().await?, None)?;
+        OkPacket::deserialize(&mut Decoder::new(&self.stream.next_bytes().await?))?;
 
         Ok(())
     }

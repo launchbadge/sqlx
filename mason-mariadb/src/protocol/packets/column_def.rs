@@ -28,13 +28,7 @@ pub struct ColumnDefPacket {
 }
 
 impl Deserialize for ColumnDefPacket {
-    fn deserialize<'a, 'b>(
-        buf: &'a Bytes,
-        decoder: Option<&'b mut Decoder<'a>>,
-    ) -> Result<Self, Error> {
-        let mut new_decoder = Decoder::new(&buf);
-        let decoder = decoder.unwrap_or(&mut new_decoder);
-
+    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 

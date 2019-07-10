@@ -159,7 +159,7 @@ impl<'a> Decoder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::{Bytes, BytesMut};
+    use bytes::Bytes;
     use failure::Error;
 
     // [X] it_decodes_int_lenenc
@@ -177,158 +177,171 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fb() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\xFB".to_vec()).freeze());
+        let buf = Bytes::from(b"\xFB".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, None);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_int_lenenc_0x_fc() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\xFC\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\xFC\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(257));
-        assert_eq!(index, 3);
+        assert_eq!(decoder.index, 3);
     }
 
     #[test]
     fn it_decodes_int_lenenc_0x_fd() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\xFD\x01\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\xFD\x01\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(65793));
-        assert_eq!(index, 4);
+        assert_eq!(decoder.index, 4);
     }
 
     #[test]
     fn it_decodes_int_lenenc_0x_fe() {
-        let mut decoder = Decoder::new(
-            &BytesMut::from(b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze(),
-        );
+        let buf = Bytes::from(b"\xFE\x01\x01\x01\x01\x01\x01\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(72340172838076673));
-        assert_eq!(index, 9);
+        assert_eq!(decoder.index, 9);
     }
 
     #[test]
     fn it_decodes_int_lenenc_0x_fa() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\xFA".to_vec()).freeze());
+        let buf = Bytes::from(b"\xFA".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: Option<usize> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(0xfA));
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_int_8() {
-        let mut decoder =
-            Decoder::new(&BytesMut::from(b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01\x01\x01\x01\x01\x01\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: u64 = decoder.decode_int_8();
 
         assert_eq!(int, 72340172838076673);
-        assert_eq!(index, 8);
+        assert_eq!(decoder.index, 8);
     }
 
     #[test]
     fn it_decodes_int_4() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01\x01\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01\x01\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: u32 = decoder.decode_int_4();
 
         assert_eq!(int, 16843009);
-        assert_eq!(index, 4);
+        assert_eq!(decoder.index, 4);
     }
 
     #[test]
     fn it_decodes_int_3() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: u32 = decoder.decode_int_3();
 
         assert_eq!(int, 65793);
-        assert_eq!(index, 3);
+        assert_eq!(decoder.index, 3);
     }
 
     #[test]
     fn it_decodes_int_2() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: u16 = decoder.decode_int_2();
 
         assert_eq!(int, 257);
-        assert_eq!(index, 2);
+        assert_eq!(decoder.index, 2);
     }
 
     #[test]
     fn it_decodes_int_1() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let int: u8 = decoder.decode_int_1();
 
         assert_eq!(int, 1);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_string_lenenc() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01\x00\x00\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01\x00\x00\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_string_lenenc();
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
-        assert_eq!(index, 4);
+        assert_eq!(decoder.index, 4);
     }
 
     #[test]
     fn it_decodes_string_fix() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_string_fix(1);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_string_eof() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_string_eof();
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_string_null() -> Result<(), Error> {
-        let mut decoder = Decoder::new(&BytesMut::from(b"random\x00\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"random\x00\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_string_null()?;
 
         assert_eq!(&string[..], b"random");
 
         assert_eq!(string.len(), 6);
         // Skips null byte
-        assert_eq!(index, 7);
+        assert_eq!(decoder.index, 7);
 
         Ok(())
     }
 
     #[test]
     fn it_decodes_byte_fix() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_byte_fix(1);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 
     #[test]
     fn it_decodes_byte_eof() {
-        let mut decoder = Decoder::new(&BytesMut::from(b"\x01".to_vec()).freeze());
+        let buf = Bytes::from(b"\x01".to_vec());
+        let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_byte_eof();
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
-        assert_eq!(index, 1);
+        assert_eq!(decoder.index, 1);
     }
 }

@@ -137,13 +137,13 @@ impl Default for FieldType {
 
 #[cfg(test)]
 mod test {
-    use super::{super::types::Capabilities, *};
-    use bytes::BytesMut;
+    use super::super::{decode::Decoder, types::Capabilities};
+    use bytes::Bytes;
 
     #[test]
     fn it_decodes_capabilities() {
-        let buf = BytesMut::from(b"\xfe\xf7".to_vec());
-        let mut index = 0;
-        Capabilities::from_bits_truncate(decode_int_2(&buf.freeze(), &mut index).into());
+        let buf = Bytes::from(b"\xfe\xf7".to_vec());
+        let mut decoder = Decoder::new(&buf);
+        Capabilities::from_bits_truncate(decoder.decode_int_2().into());
     }
 }

@@ -17,21 +17,15 @@ pub struct ResultSet {
 }
 
 impl Deserialize for ResultSet {
-    fn deserialize<'a, 'b>(
-        buf: &'a Bytes,
-        decoder: Option<&'b mut Decoder<'a>>,
-    ) -> Result<Self, Error> {
-        let mut new_decoder = Decoder::new(&buf);
-        let mut decoder = decoder.unwrap_or(&mut new_decoder);
-
+    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
-        let column_packet = ColumnPacket::deserialize(&buf, Some(&mut decoder))?;
+        let column_packet = ColumnPacket::deserialize(decoder)?;
 
         let columns = if let Some(columns) = column_packet.columns {
             (0..columns)
-                .map(|_| ColumnDefPacket::deserialize(&buf, Some(&mut decoder)))
+                .map(|_| ColumnDefPacket::deserialize(decoder))
                 .filter(Result::is_ok)
                 .map(Result::unwrap)
                 .collect::<Vec<ColumnDefPacket>>()

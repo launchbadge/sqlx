@@ -16,13 +16,7 @@ pub struct OkPacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize<'a, 'b>(
-        buf: &'a Bytes,
-        decoder: Option<&'b mut Decoder<'a>>,
-    ) -> Result<Self, Error> {
-        let mut new_decoder = Decoder::new(&buf);
-        let decoder = decoder.unwrap_or(&mut new_decoder);
-
+    fn deserialize(decoder: &mut Decoder) -> Result<Self, Error> {
         // Packet header
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
@@ -79,7 +73,7 @@ mod test {
             .to_vec(),
         );
 
-        let message = OkPacket::deserialize(&buf.freeze())?;
+        let message = OkPacket::deserialize(&mut Decoder::new(&buf.freeze()))?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);

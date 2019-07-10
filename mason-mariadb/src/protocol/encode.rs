@@ -181,137 +181,137 @@ mod tests {
 
     #[test]
     fn it_encodes_int_lenenc_none() {
-        let mut encoder = Encoder::new(&mut BytesMut::new());
-        encode_int_lenenc(&mut buf, None);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(None);
 
-        assert_eq!(&buf[..], b"\xFB");
+        assert_eq!(&encoder.buf[..], b"\xFB");
     }
 
     #[test]
     fn it_encodes_int_lenenc_u8() {
-        let mut buf = BytesMut::new();
-        encode_int_lenenc(&mut buf, Some(&(std::u8::MAX as usize)));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(std::u8::MAX as usize)));
 
-        assert_eq!(&buf[..], b"\xFA\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFA\xFF");
     }
 
     #[test]
     fn it_encodes_int_lenenc_u16() {
-        let mut buf = BytesMut::new();
-        encode_int_lenenc(&mut buf, Some(&(std::u16::MAX as usize)));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(std::u16::MAX as usize)));
 
-        assert_eq!(&buf[..], b"\xFC\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFC\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_lenenc_u24() {
-        let mut buf = BytesMut::new();
-        encode_int_lenenc(&mut buf, Some(&U24_MAX));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&U24_MAX));
 
-        assert_eq!(&buf[..], b"\xFD\xFF\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFD\xFF\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_lenenc_u64() {
-        let mut buf = BytesMut::new();
-        encode_int_lenenc(&mut buf, Some(&(std::u64::MAX as usize)));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(std::u64::MAX as usize)));
 
-        assert_eq!(&buf[..], b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_u64() {
-        let mut buf = BytesMut::new();
-        encode_int_8(&mut buf, std::u64::MAX);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_8(std::u64::MAX);
 
-        assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_u32() {
-        let mut buf = BytesMut::new();
-        encode_int_4(&mut buf, std::u32::MAX);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_4(std::u32::MAX);
 
-        assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_u24() {
-        let mut buf = BytesMut::new();
-        encode_int_3(&mut buf, U24_MAX as u32);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_3(U24_MAX as u32);
 
-        assert_eq!(&buf[..], b"\xFF\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_u16() {
-        let mut buf = BytesMut::new();
-        encode_int_2(&mut buf, std::u16::MAX);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_2(std::u16::MAX);
 
-        assert_eq!(&buf[..], b"\xFF\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFF\xFF");
     }
 
     #[test]
     fn it_encodes_int_u8() {
-        let mut buf = BytesMut::new();
-        encode_int_1(&mut buf, std::u8::MAX);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_1(std::u8::MAX);
 
-        assert_eq!(&buf[..], b"\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFF");
     }
 
     #[test]
     fn it_encodes_string_lenenc() {
-        let mut buf = BytesMut::new();
-        encode_string_lenenc(&mut buf, &Bytes::from_static(b"random_string"));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_string_lenenc(&Bytes::from_static(b"random_string"));
 
-        assert_eq!(&buf[..], b"\x0D\x00\x00random_string");
+        assert_eq!(&encoder.buf[..], b"\x0D\x00\x00random_string");
     }
 
     #[test]
     fn it_encodes_string_fix() {
-        let mut buf = BytesMut::new();
-        encode_string_fix(&mut buf, &Bytes::from_static(b"random_string"), 13);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_string_fix(&Bytes::from_static(b"random_string"), 13);
 
-        assert_eq!(&buf[..], b"random_string");
+        assert_eq!(&encoder.buf[..], b"random_string");
     }
 
     #[test]
     fn it_encodes_string_null() {
-        let mut buf = BytesMut::new();
-        encode_string_null(&mut buf, &Bytes::from_static(b"random_string"));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_string_null(&Bytes::from_static(b"random_string"));
 
-        assert_eq!(&buf[..], b"random_string\0");
+        assert_eq!(&encoder.buf[..], b"random_string\0");
     }
 
     #[test]
     fn it_encodes_string_eof() {
-        let mut buf = BytesMut::new();
-        encode_string_eof(&mut buf, &Bytes::from_static(b"random_string"));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_string_eof(&Bytes::from_static(b"random_string"));
 
-        assert_eq!(&buf[..], b"random_string");
+        assert_eq!(&encoder.buf[..], b"random_string");
     }
 
     #[test]
     fn it_encodes_byte_lenenc() {
-        let mut buf = BytesMut::new();
-        encode_byte_lenenc(&mut buf, &Bytes::from("random_string"));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_byte_lenenc(&Bytes::from("random_string"));
 
-        assert_eq!(&buf[..], b"\x0D\x00\x00random_string");
+        assert_eq!(&encoder.buf[..], b"\x0D\x00\x00random_string");
     }
 
     #[test]
     fn it_encodes_byte_fix() {
-        let mut buf = BytesMut::new();
-        encode_byte_fix(&mut buf, &Bytes::from("random_string"), 13);
+        let mut encoder = Encoder::new(128);
+        encoder.encode_byte_fix(&Bytes::from("random_string"), 13);
 
-        assert_eq!(&buf[..], b"random_string");
+        assert_eq!(&encoder.buf[..], b"random_string");
     }
 
     #[test]
     fn it_encodes_byte_eof() {
-        let mut buf = BytesMut::new();
-        encode_byte_eof(&mut buf, &Bytes::from("random_string"));
+        let mut encoder = Encoder::new(128);
+        encoder.encode_byte_eof(&Bytes::from("random_string"));
 
-        assert_eq!(&buf[..], b"random_string");
+        assert_eq!(&encoder.buf[..], b"random_string");
     }
 }
