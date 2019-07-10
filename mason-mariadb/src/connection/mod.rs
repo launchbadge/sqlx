@@ -5,7 +5,7 @@ use crate::protocol::{
     deserialize::Deserialize,
     encode::Encoder,
     packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
-    serialize::{Serialize, Serializer},
+    serialize::Serialize,
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
 };
@@ -100,7 +100,7 @@ impl Connection {
         self.encoder.clear();
         self.encoder.alloc_packet_header();
         self.encoder.seq_no(self.seq_no);
-        Serializer::new(self).serialize(message)?;
+        message.serialize(self)?;
         self.encoder.encode_length();
 
         self.stream.inner.write_all(&self.encoder.buf).await?;

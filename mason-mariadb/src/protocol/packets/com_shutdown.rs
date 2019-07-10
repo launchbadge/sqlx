@@ -1,4 +1,5 @@
-use super::super::{client::TextProtocol, encode::*, serialize::Serialize, types::Capabilities};
+use super::super::{client::TextProtocol, serialize::Serialize};
+use crate::connection::Connection;
 use failure::Error;
 
 #[derive(Clone, Copy)]
@@ -11,13 +12,9 @@ pub struct ComShutdown {
 }
 
 impl Serialize for ComShutdown {
-    fn serialize<'a, 'b>(
-        &self,
-        encoder: &mut Encoder,
-        _server_capabilities: &Capabilities,
-    ) -> Result<(), Error> {
-        encoder.encode_int_1(TextProtocol::ComShutdown.into());
-        encoder.encode_int_1(self.option.into());
+    fn serialize<'a, 'b>(&self, conn: &mut Connection) -> Result<(), Error> {
+        conn.encoder.encode_int_1(TextProtocol::ComShutdown.into());
+        conn.encoder.encode_int_1(self.option.into());
 
         Ok(())
     }

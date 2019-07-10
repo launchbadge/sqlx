@@ -1,6 +1,5 @@
-use super::super::{
-    client::TextProtocol, encode::Encoder, serialize::Serialize, types::Capabilities,
-};
+use super::super::{client::TextProtocol, serialize::Serialize};
+use crate::connection::Connection;
 use bytes::Bytes;
 use failure::Error;
 
@@ -9,13 +8,9 @@ pub struct ComQuery {
 }
 
 impl Serialize for ComQuery {
-    fn serialize<'a, 'b>(
-        &self,
-        encoder: &mut Encoder,
-        _server_capabilities: &Capabilities,
-    ) -> Result<(), Error> {
-        encoder.encode_int_1(TextProtocol::ComQuery.into());
-        encoder.encode_string_eof(&self.sql_statement);
+    fn serialize<'a, 'b>(&self, conn: &mut Connection) -> Result<(), Error> {
+        conn.encoder.encode_int_1(TextProtocol::ComQuery.into());
+        conn.encoder.encode_string_eof(&self.sql_statement);
 
         Ok(())
     }

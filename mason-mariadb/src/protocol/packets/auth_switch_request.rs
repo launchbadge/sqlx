@@ -1,4 +1,5 @@
-use super::super::{encode::Encoder, serialize::Serialize, types::Capabilities};
+use super::super::serialize::Serialize;
+use crate::connection::Connection;
 use bytes::Bytes;
 use failure::Error;
 
@@ -9,14 +10,10 @@ pub struct AuthenticationSwitchRequestPacket {
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize(
-        &self,
-        encoder: &mut Encoder,
-        _server_capabilities: &Capabilities,
-    ) -> Result<(), Error> {
-        encoder.encode_int_1(0xFE);
-        encoder.encode_string_null(&self.auth_plugin_name);
-        encoder.encode_byte_eof(&self.auth_plugin_data);
+    fn serialize(&self, conn: &mut Connection) -> Result<(), Error> {
+        conn.encoder.encode_int_1(0xFE);
+        conn.encoder.encode_string_null(&self.auth_plugin_name);
+        conn.encoder.encode_byte_eof(&self.auth_plugin_data);
 
         Ok(())
     }

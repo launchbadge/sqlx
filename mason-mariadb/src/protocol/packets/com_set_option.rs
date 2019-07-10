@@ -1,6 +1,5 @@
-use super::super::{
-    client::TextProtocol, encode::Encoder, serialize::Serialize, types::Capabilities,
-};
+use super::super::{client::TextProtocol, serialize::Serialize};
+use crate::connection::Connection;
 use failure::Error;
 
 #[derive(Clone, Copy)]
@@ -14,13 +13,9 @@ pub struct ComSetOption {
 }
 
 impl Serialize for ComSetOption {
-    fn serialize<'a, 'b>(
-        &self,
-        encoder: &mut Encoder,
-        _server_capabilities: &Capabilities,
-    ) -> Result<(), Error> {
-        encoder.encode_int_1(TextProtocol::ComSetOption.into());
-        encoder.encode_int_2(self.option.into());
+    fn serialize<'a, 'b>(&self, conn: &mut Connection) -> Result<(), Error> {
+        conn.encoder.encode_int_1(TextProtocol::ComSetOption.into());
+        conn.encoder.encode_int_2(self.option.into());
 
         Ok(())
     }
