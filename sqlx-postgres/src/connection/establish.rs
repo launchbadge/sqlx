@@ -10,31 +10,26 @@ pub async fn establish<'a, 'b: 'a>(
 ) -> io::Result<()> {
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
-    let mut message = StartupMessage::builder();
-
-    if let Some(user) = options.user {
-        // FIXME: User is technically required. We should default this like psql does.
-        message = message.param("user", user);
-    }
-
-    if let Some(database) = options.database {
-        message = message.param("database", database);
-    }
-
-    let message = message
+    let params = &[
+        // FIXME: ConnectOptions user and database need to be required parameters and error
+        //        before they get here
+        ("user", options.user.expect("user is required")),
+        ("database", options.database.expect("database is required")),
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
-        .param("DateStyle", "ISO, MDY")
+        ("DateStyle", "ISO, MDY"),
         // Sets the display format for interval values.
-        .param("IntervalStyle", "iso_8601")
+        ("IntervalStyle", "iso_8601"),
         // Sets the time zone for displaying and interpreting time stamps.
-        .param("TimeZone", "UTC")
+        ("TimeZone", "UTC"),
         // Adjust postgres to return percise values for floats
         // NOTE: This is default in postgres 12+
-        .param("extra_float_digits", "3")
+        ("extra_float_digits", "3"),
         // Sets the client-side encoding (character set).
-        .param("client_encoding", "UTF-8")
-        .build();
+        ("client_encoding", "UTF-8"),
+    ];
+
+    let message = StartupMessage::new(params);
 
     conn.send(message).await?;
 

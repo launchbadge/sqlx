@@ -6,7 +6,7 @@ use sqlx_postgres_protocol::{Encode, PasswordMessage, Response, Severity, Startu
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("encode Response::builder()", |b| {
-        let mut dst = Vec::new();
+        let mut dst = Vec::with_capacity(1024);
         b.iter(|| {
             dst.clear();
             Response::builder()
@@ -22,7 +22,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("encode PasswordMessage::cleartext", |b| {
-        let mut dst = Vec::new();
+        let mut dst = Vec::with_capacity(1024);
         b.iter(|| {
             dst.clear();
             PasswordMessage::cleartext("8e323AMF9YSE9zftFnuhQcvhz7Vf342W4cWU")
@@ -32,31 +32,31 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("encode StartupMessage", |b| {
-        let mut dst = Vec::new();
+        let mut dst = Vec::with_capacity(1024);
         b.iter(|| {
             dst.clear();
-            StartupMessage::builder()
-                .param("user", "postgres")
-                .param("database", "postgres")
-                .param("DateStyle", "ISO, MDY")
-                .param("IntervalStyle", "iso_8601")
-                .param("TimeZone", "UTC")
-                .param("extra_float_digits", "3")
-                .param("client_encoding", "UTF-8")
-                .build()
-                .encode(&mut dst)
-                .unwrap();
+            StartupMessage::new(&[
+                ("user", "postgres"),
+                ("database", "postgres"),
+                ("DateStyle", "ISO, MDY"),
+                ("IntervalStyle", "iso_8601"),
+                ("TimeZone", "UTC"),
+                ("extra_float_digits", "3"),
+                ("client_encoding", "UTF-8"),
+            ])
+            .encode(&mut dst)
+            .unwrap();
         })
     });
 
     c.bench_function("encode Password(MD5)", |b| {
-        let mut dst = Vec::new();
+        let mut dst = Vec::with_capacity(1024);
         b.iter(|| {
             dst.clear();
             PasswordMessage::md5(
                 "8e323AMF9YSE9zftFnuhQcvhz7Vf342W4cWU",
                 "postgres",
-                &[10, 41, 20, 150],
+                [10, 41, 20, 150],
             )
             .encode(&mut dst)
             .unwrap();
