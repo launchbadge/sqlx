@@ -1,5 +1,4 @@
-use crate::{Decode, Encode};
-use byteorder::{WriteBytesExt, BE};
+use crate::Decode;
 use bytes::Bytes;
 use std::io;
 
@@ -20,21 +19,6 @@ pub enum TransactionStatus {
 #[derive(Debug)]
 pub struct ReadyForQuery {
     pub status: TransactionStatus,
-}
-
-impl Encode for ReadyForQuery {
-    #[inline]
-    fn size_hint(&self) -> usize {
-        6
-    }
-
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        buf.write_u8(b'Z')?;
-        buf.write_u32::<BE>(5)?;
-        buf.write_u8(self.status as u8)?;
-
-        Ok(())
-    }
 }
 
 impl Decode for ReadyForQuery {
@@ -59,25 +43,11 @@ impl Decode for ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{ReadyForQuery, TransactionStatus};
-    use crate::{Decode, Encode};
+    use crate::Decode;
     use bytes::Bytes;
     use std::io;
 
     const READY_FOR_QUERY: &[u8] = b"E";
-
-    #[test]
-    fn it_encodes_ready_for_query() -> io::Result<()> {
-        let message = ReadyForQuery {
-            status: TransactionStatus::Error,
-        };
-
-        let mut dst = Vec::with_capacity(message.size_hint());
-        message.encode(&mut dst)?;
-
-        assert_eq!(&dst[5..], READY_FOR_QUERY);
-
-        Ok(())
-    }
 
     #[test]
     fn it_decodes_ready_for_query() -> io::Result<()> {

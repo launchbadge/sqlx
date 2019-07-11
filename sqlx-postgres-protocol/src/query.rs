@@ -1,11 +1,11 @@
 use crate::Encode;
-use bytes::BufMut;
 use std::io;
 
 #[derive(Debug)]
 pub struct Query<'a>(&'a str);
 
 impl<'a> Query<'a> {
+    #[inline]
     pub fn new(query: &'a str) -> Self {
         Self(query)
     }
@@ -14,11 +14,10 @@ impl<'a> Query<'a> {
 impl Encode for Query<'_> {
     fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
         let len = self.0.len() + 4 + 1;
-        buf.reserve(len + 1);
-        buf.put_u8(b'Q');
-        buf.put_u32_be(len as u32);
-        buf.put(self.0);
-        buf.put_u8(0);
+        buf.push(b'Q');
+        buf.extend_from_slice(&(len as u32).to_be_bytes());
+        buf.extend_from_slice(self.0.as_bytes());
+        buf.push(0);
 
         Ok(())
     }

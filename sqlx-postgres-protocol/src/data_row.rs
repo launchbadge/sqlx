@@ -39,10 +39,6 @@ pub struct DataValues<'a> {
 impl<'a> Iterator for DataValues<'a> {
     type Item = Option<&'a [u8]>;
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.rem as usize, Some(self.rem as usize))
-    }
-
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem == 0 {
             return None;
@@ -61,6 +57,10 @@ impl<'a> Iterator for DataValues<'a> {
         self.buf = &self.buf[(size + 4)..];
 
         Some(value)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.rem as usize, Some(self.rem as usize))
     }
 }
 

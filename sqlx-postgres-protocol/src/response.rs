@@ -1,9 +1,7 @@
-use crate::{decode::get_str, Decode, Encode};
-use byteorder::{BigEndian, WriteBytesExt};
+use crate::{decode::get_str, Decode};
 use bytes::Bytes;
 use std::{
     fmt, io,
-    ops::Range,
     pin::Pin,
     ptr::NonNull,
     str::{self, FromStr},
@@ -104,11 +102,6 @@ unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
 
 impl Response {
-    #[inline]
-    pub fn builder() -> ResponseBuilder {
-        ResponseBuilder::new()
-    }
-
     #[inline]
     pub fn severity(&self) -> Severity {
         self.severity
@@ -229,26 +222,6 @@ impl fmt::Debug for Response {
             .field("line", &self.line())
             .field("routine", &self.routine())
             .finish()
-    }
-}
-
-impl Encode for Response {
-    #[inline]
-    fn size_hint(&self) -> usize {
-        self.storage.len() + 5
-    }
-
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        if self.severity.is_error() {
-            buf.push(b'E');
-        } else {
-            buf.push(b'N');
-        }
-
-        buf.write_u32::<BigEndian>((4 + self.storage.len()) as u32)?;
-        buf.extend_from_slice(&self.storage);
-
-        Ok(())
     }
 }
 
@@ -423,305 +396,15 @@ impl Decode for Response {
     }
 }
 
-pub struct ResponseBuilder {
-    storage: Vec<u8>,
-    severity: Option<Severity>,
-    code: Option<Range<usize>>,
-    message: Option<Range<usize>>,
-    detail: Option<Range<usize>>,
-    hint: Option<Range<usize>>,
-    position: Option<usize>,
-    internal_position: Option<usize>,
-    internal_query: Option<Range<usize>>,
-    where_: Option<Range<usize>>,
-    schema: Option<Range<usize>>,
-    table: Option<Range<usize>>,
-    column: Option<Range<usize>>,
-    data_type: Option<Range<usize>>,
-    constraint: Option<Range<usize>>,
-    file: Option<Range<usize>>,
-    line: Option<usize>,
-    routine: Option<Range<usize>>,
-}
-
-impl Default for ResponseBuilder {
-    fn default() -> Self {
-        Self {
-            storage: Vec::with_capacity(256),
-            severity: None,
-            message: None,
-            code: None,
-            detail: None,
-            hint: None,
-            position: None,
-            internal_position: None,
-            internal_query: None,
-            where_: None,
-            schema: None,
-            table: None,
-            column: None,
-            data_type: None,
-            constraint: None,
-            file: None,
-            line: None,
-            routine: None,
-        }
-    }
-}
-
-fn put_str(buf: &mut Vec<u8>, tag: u8, value: &str) -> Range<usize> {
-    buf.push(tag);
-    let beg = buf.len();
-    buf.extend_from_slice(value.as_bytes());
-    let end = buf.len();
-    buf.push(0);
-    beg..end
-}
-
-impl ResponseBuilder {
-    #[inline]
-    pub fn new() -> ResponseBuilder {
-        Self::default()
-    }
-
-    #[inline]
-    pub fn severity(mut self, severity: Severity) -> Self {
-        let sev = severity.to_str();
-
-        let _ = put_str(&mut self.storage, b'S', sev);
-        let _ = put_str(&mut self.storage, b'V', sev);
-
-        self.severity = Some(severity);
-        self
-    }
-
-    #[inline]
-    pub fn message(mut self, message: &str) -> Self {
-        self.message = Some(put_str(&mut self.storage, b'M', message));
-        self
-    }
-
-    #[inline]
-    pub fn code(mut self, code: &str) -> Self {
-        self.code = Some(put_str(&mut self.storage, b'C', code));
-        self
-    }
-
-    #[inline]
-    pub fn detail(mut self, detail: &str) -> Self {
-        self.detail = Some(put_str(&mut self.storage, b'D', detail));
-        self
-    }
-
-    #[inline]
-    pub fn hint(mut self, hint: &str) -> Self {
-        self.hint = Some(put_str(&mut self.storage, b'H', hint));
-        self
-    }
-
-    #[inline]
-    pub fn position(mut self, position: usize) -> Self {
-        self.storage.push(b'P');
-        // PANIC: Write to Vec<u8> is infallible
-        itoa::write(&mut self.storage, position).unwrap();
-        self.storage.push(0);
-
-        self.position = Some(position);
-        self
-    }
-
-    #[inline]
-    pub fn internal_position(mut self, position: usize) -> Self {
-        self.storage.push(b'p');
-        // PANIC: Write to Vec<u8> is infallible
-        itoa::write(&mut self.storage, position).unwrap();
-        self.storage.push(0);
-
-        self.internal_position = Some(position);
-        self
-    }
-
-    #[inline]
-    pub fn internal_query(mut self, query: &str) -> Self {
-        self.internal_query = Some(put_str(&mut self.storage, b'q', query));
-        self
-    }
-
-    #[inline]
-    pub fn where_(mut self, where_: &str) -> Self {
-        self.where_ = Some(put_str(&mut self.storage, b'w', where_));
-        self
-    }
-
-    #[inline]
-    pub fn schema(mut self, schema: &str) -> Self {
-        self.schema = Some(put_str(&mut self.storage, b's', schema));
-        self
-    }
-
-    #[inline]
-    pub fn table(mut self, table: &str) -> Self {
-        self.table = Some(put_str(&mut self.storage, b't', table));
-        self
-    }
-
-    #[inline]
-    pub fn column(mut self, column: &str) -> Self {
-        self.column = Some(put_str(&mut self.storage, b'c', column));
-        self
-    }
-
-    #[inline]
-    pub fn data_type(mut self, data_type: &str) -> Self {
-        self.data_type = Some(put_str(&mut self.storage, b'd', data_type));
-        self
-    }
-
-    #[inline]
-    pub fn constraint(mut self, constraint: &str) -> Self {
-        self.constraint = Some(put_str(&mut self.storage, b'n', constraint));
-        self
-    }
-
-    #[inline]
-    pub fn file(mut self, file: &str) -> Self {
-        self.file = Some(put_str(&mut self.storage, b'F', file));
-        self
-    }
-
-    #[inline]
-    pub fn line(mut self, line: usize) -> Self {
-        self.storage.push(b'L');
-        // PANIC: Write to Vec<u8> is infallible
-        itoa::write(&mut self.storage, line).unwrap();
-        self.storage.push(0);
-
-        self.line = Some(line);
-        self
-    }
-
-    #[inline]
-    pub fn routine(mut self, routine: &str) -> Self {
-        self.routine = Some(put_str(&mut self.storage, b'R', routine));
-        self
-    }
-
-    pub fn build(mut self) -> Response {
-        // Add a \0 terminator
-        self.storage.push(0);
-
-        // Freeze the storage and Pin so we can self-reference it
-        let storage = Pin::new(Bytes::from(self.storage));
-
-        let make_str_ref = |val: Option<Range<usize>>| unsafe {
-            val.map(|r| NonNull::from(str::from_utf8_unchecked(&storage[r])))
-        };
-
-        let code = make_str_ref(self.code);
-        let message = make_str_ref(self.message);
-        let detail = make_str_ref(self.detail);
-        let hint = make_str_ref(self.hint);
-        let internal_query = make_str_ref(self.internal_query);
-        let where_ = make_str_ref(self.where_);
-        let schema = make_str_ref(self.schema);
-        let table = make_str_ref(self.table);
-        let column = make_str_ref(self.column);
-        let data_type = make_str_ref(self.data_type);
-        let constraint = make_str_ref(self.constraint);
-        let file = make_str_ref(self.file);
-        let routine = make_str_ref(self.routine);
-
-        Response {
-            storage,
-            // FIXME: Default and don't panic here
-            severity: self.severity.expect("`severity` required by protocol"),
-            code: code.expect("`code` required by protocol"),
-            message: message.expect("`message` required by protocol"),
-            detail,
-            hint,
-            internal_query,
-            where_,
-            schema,
-            table,
-            column,
-            data_type,
-            constraint,
-            file,
-            routine,
-            line: self.line,
-            position: self.position,
-            internal_position: self.internal_position,
-        }
-    }
-}
-
-impl Encode for ResponseBuilder {
-    #[inline]
-    fn size_hint(&self) -> usize {
-        self.storage.len() + 6
-    }
-
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        if self.severity.as_ref().map_or(false, |s| s.is_error()) {
-            buf.push(b'E');
-        } else {
-            buf.push(b'N');
-        }
-
-        buf.write_u32::<BigEndian>((5 + self.storage.len()) as u32)?;
-        buf.extend_from_slice(&self.storage);
-        buf.push(0);
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{Response, Severity};
-    use crate::{Decode, Encode};
+    use crate::Decode;
     use bytes::Bytes;
     use std::io;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
           skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
-
-    #[test]
-    fn it_encodes_response() -> io::Result<()> {
-        let message = Response::builder()
-            .severity(Severity::Notice)
-            .code("42710")
-            .message("extension \"uuid-ossp\" already exists, skipping")
-            .file("extension.c")
-            .line(1656)
-            .routine("CreateExtension")
-            .build();
-
-        let mut dst = Vec::with_capacity(message.size_hint());
-        message.encode(&mut dst)?;
-
-        assert_eq!(&dst[5..], RESPONSE);
-
-        Ok(())
-    }
-
-    #[test]
-    fn it_encodes_response_builder() -> io::Result<()> {
-        let message = Response::builder()
-            .severity(Severity::Notice)
-            .code("42710")
-            .message("extension \"uuid-ossp\" already exists, skipping")
-            .file("extension.c")
-            .line(1656)
-            .routine("CreateExtension");
-
-        let mut dst = Vec::with_capacity(message.size_hint());
-        message.encode(&mut dst)?;
-
-        assert_eq!(&dst[5..], RESPONSE);
-
-        Ok(())
-    }
 
     #[test]
     fn it_decodes_response() -> io::Result<()> {

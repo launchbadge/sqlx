@@ -28,7 +28,7 @@ pub use self::{
     password_message::PasswordMessage,
     query::Query,
     ready_for_query::{ReadyForQuery, TransactionStatus},
-    response::{Response, ResponseBuilder, Severity},
+    response::{Response, Severity},
     row_description::{FieldDescription, FieldDescriptions, RowDescription},
     startup_message::StartupMessage,
     terminate::Terminate,

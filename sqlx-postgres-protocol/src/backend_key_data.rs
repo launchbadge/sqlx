@@ -1,7 +1,7 @@
 use crate::Decode;
-use byteorder::{BigEndian, ByteOrder};
 use bytes::Bytes;
 use std::io;
+use std::convert::TryInto;
 
 #[derive(Debug)]
 pub struct BackendKeyData {
@@ -24,8 +24,8 @@ impl BackendKeyData {
 
 impl Decode for BackendKeyData {
     fn decode(src: Bytes) -> io::Result<Self> {
-        let process_id = BigEndian::read_u32(&src[..4]);
-        let secret_key = BigEndian::read_u32(&src[4..]);
+        let process_id = u32::from_be_bytes(src.as_ref()[0..4].try_into().unwrap());
+        let secret_key = u32::from_be_bytes(src.as_ref()[4..8].try_into().unwrap());
 
         Ok(Self {
             process_id,

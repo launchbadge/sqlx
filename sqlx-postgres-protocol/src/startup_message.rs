@@ -8,10 +8,12 @@ pub struct StartupMessage<'a> {
 }
 
 impl<'a> StartupMessage<'a> {
+    #[inline]
     pub fn new(params: &'a [(&'a str, &'a str)]) -> Self {
         Self { params }
     }
 
+    #[inline]
     pub fn params(&self) -> &'a [(&'a str, &'a str)] {
         self.params
     }

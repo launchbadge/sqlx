@@ -3,12 +3,13 @@ extern crate criterion;
 
 use bytes::Bytes;
 use criterion::{black_box, Criterion};
-use sqlx_postgres_protocol::{BackendKeyData, Decode, ParameterStatus, Response};
+use sqlx_postgres_protocol::{BackendKeyData, Decode, ParameterStatus, ReadyForQuery, Response};
 
 fn criterion_benchmark(c: &mut Criterion) {
     const NOTICE_RESPONSE: &[u8]  = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
     const PARAM_STATUS: &[u8] = b"session_authorization\0postgres\0";
     const BACKEND_KEY_DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
+    const READY_FOR_QUERY: &[u8] = b"E";
 
     c.bench_function("decode Response", |b| {
         b.iter(|| {
@@ -26,6 +27,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("decode ParameterStatus", |b| {
         b.iter(|| {
             let _ = ParameterStatus::decode(black_box(Bytes::from_static(PARAM_STATUS))).unwrap();
+        })
+    });
+
+    c.bench_function("decode ReadyForQuery", |b| {
+        b.iter(|| {
+            let _ = ReadyForQuery::decode(black_box(Bytes::from_static(READY_FOR_QUERY))).unwrap();
         })
     });
 }
