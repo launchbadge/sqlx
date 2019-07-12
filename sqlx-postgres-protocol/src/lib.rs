@@ -20,7 +20,7 @@ pub use self::{
     authentication::Authentication,
     backend_key_data::BackendKeyData,
     command_complete::CommandComplete,
-    data_row::{DataRow, DataValues},
+    data_row::DataRow,
     decode::Decode,
     encode::Encode,
     message::Message,

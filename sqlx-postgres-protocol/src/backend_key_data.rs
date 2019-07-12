@@ -1,7 +1,6 @@
 use crate::Decode;
 use bytes::Bytes;
-use std::io;
-use std::convert::TryInto;
+use std::{convert::TryInto, io};
 
 #[derive(Debug)]
 pub struct BackendKeyData {

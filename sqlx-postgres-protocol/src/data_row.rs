@@ -1,70 +1,82 @@
 use crate::Decode;
-use byteorder::{BigEndian, ByteOrder};
 use bytes::Bytes;
-use std::io;
+use std::{
+    convert::TryInto,
+    fmt::{self, Debug},
+    io,
+    ops::Range,
+};
 
-// TODO: Custom Debug for DataRow
-
-#[derive(Debug)]
 pub struct DataRow {
-    len: u16,
-    data: Bytes,
-}
-
-impl DataRow {
-    pub fn values(&self) -> DataValues<'_> {
-        DataValues {
-            rem: self.len,
-            buf: &*self.data,
-        }
-    }
+    ranges: Vec<Option<Range<usize>>>,
+    buf: Bytes,
 }
 
 impl Decode for DataRow {
     fn decode(src: Bytes) -> io::Result<Self> {
-        let len = BigEndian::read_u16(&src[..2]);
+        let len = u16::from_be_bytes(src.as_ref()[..2].try_into().unwrap());
 
-        Ok(Self {
-            len,
-            data: src.slice_from(2),
-        })
-    }
-}
+        let mut ranges = Vec::with_capacity(len as usize);
+        let mut rem = len;
+        let mut index = 2;
 
-pub struct DataValues<'a> {
-    rem: u16,
-    buf: &'a [u8],
-}
+        while rem > 0 {
+            // The length of the column value, in bytes (this count does not include itself).
+            // Can be zero. As a special case, -1 indicates a NULL column value.
+            // No value bytes follow in the NULL case.
+            let value_len =
+                i32::from_be_bytes(src.as_ref()[index..(index + 4)].try_into().unwrap());
+            index += 4;
 
-impl<'a> Iterator for DataValues<'a> {
-    type Item = Option<&'a [u8]>;
+            if value_len == -1 {
+                ranges.push(None);
+            } else {
+                let value_beg = index;
+                let value_end = value_beg + (value_len as usize);
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.rem == 0 {
-            return None;
+                ranges.push(Some(value_beg..(value_end as usize)));
+
+                index += value_len as usize;
+            }
+
+            rem -= 1;
         }
 
-        let len = BigEndian::read_i32(self.buf);
-        let size = (if len < 0 { 0 } else { len }) as usize;
-
-        let value = if len == -1 {
-            None
-        } else {
-            Some(&self.buf[4..(4 + len) as usize])
-        };
-
-        self.rem -= 1;
-        self.buf = &self.buf[(size + 4)..];
-
-        Some(value)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.rem as usize, Some(self.rem as usize))
+        Ok(Self { ranges, buf: src })
     }
 }
 
-impl<'a> ExactSizeIterator for DataValues<'a> {}
+impl DataRow {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.ranges.is_empty()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.ranges.len()
+    }
+
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&[u8]> {
+        Some(&self.buf[self.ranges[index].clone()?])
+    }
+}
+
+impl Debug for DataRow {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("DataRow")
+            .field(
+                "values",
+                &self
+                    .ranges
+                    .iter()
+                    .map(|range| Some(Bytes::from(&self.buf[range.clone()?])))
+                    .collect::<Vec<_>>(),
+            )
+            .finish()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -79,12 +91,14 @@ mod tests {
     fn it_decodes_data_row() -> io::Result<()> {
         let src = Bytes::from_static(DATA_ROW);
         let message = DataRow::decode(src)?;
-        assert_eq!(message.values().len(), 3);
 
-        for (index, value) in message.values().enumerate() {
-            // "1", "2", "3"
-            assert_eq!(value, Some(&[(index + 1 + 48) as u8][..]));
-        }
+        println!("{:?}", message);
+
+        assert_eq!(message.len(), 3);
+
+        assert_eq!(message.get(0), Some(&b"1"[..]));
+        assert_eq!(message.get(1), Some(&b"2"[..]));
+        assert_eq!(message.get(2), Some(&b"3"[..]));
 
         Ok(())
     }
