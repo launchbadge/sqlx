@@ -43,6 +43,19 @@ impl Decode for Authentication {
     fn decode(src: Bytes) -> io::Result<Self> {
         Ok(match src[0] {
             0 => Authentication::Ok,
+            2 => Authentication::KerberosV5,
+            3 => Authentication::CleartextPassword,
+            
+            5 => {
+                let mut salt = [0_u8; 4];
+                salt.copy_from_slice(&src[1..5]);
+
+                Authentication::Md5Password { salt }
+            },
+
+            6 => Authentication::ScmCredential,
+            7 => Authentication::Gss,
+            9 => Authentication::Sspi,
 
             token => unimplemented!("decode not implemented for token: {}", token),
         })
