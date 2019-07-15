@@ -12,10 +12,12 @@ pub struct BackendKeyData {
 }
 
 impl BackendKeyData {
+    #[inline]
     pub fn process_id(&self) -> u32 {
         self.process_id
     }
 
+    #[inline]
     pub fn secret_key(&self) -> u32 {
         self.secret_key
     }
