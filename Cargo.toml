@@ -18,7 +18,7 @@ edition = "2018"
 runtime = "=0.3.0-alpha.6"
 sqlx-core = { path = "sqlx-core" }
 sqlx-postgres = { path = "sqlx-postgres" }
-env_logger = "0.6.1"
+env_logger = "0.6.2"
 bytes = "0.4.12"
 
 [profile.bench]

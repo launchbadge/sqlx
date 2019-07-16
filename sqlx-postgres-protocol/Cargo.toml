@@ -9,11 +9,11 @@ edition = "2018"
 [dependencies]
 byteorder = "1.3.2"
 bytes = "0.4.12"
-memchr = "2.2.0"
+memchr = "2.2.1"
 md-5 = "0.8.0"
 itoa = "0.4.4"
 hex = "0.3.2"
-log = "0.4.6"
+log = "0.4.7"
 
 [dev-dependencies]
 matches = "0.1.8"
