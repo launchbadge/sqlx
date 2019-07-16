@@ -1,19 +1,23 @@
 use bytes::{BufMut, BytesMut};
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
+    ready,
     task::{Context, Poll},
     Stream,
 };
 use runtime::net::TcpStream;
 use sqlx_core::ConnectOptions;
 use sqlx_postgres_protocol::{Encode, Message, Terminate};
-use std::{fmt::Debug, io, pin::Pin};
+use std::{fmt::Debug, io, pin::Pin, sync::atomic::AtomicU64};
 
 mod establish;
-mod query;
+mod execute;
 
 pub struct Connection {
-    stream: Framed<TcpStream>,
+    pub(super) stream: Framed<TcpStream>,
+
+    // HACK: This is how we currently "name" queries when executing
+    statement_index: AtomicU64,
 
     // Buffer used when serializing outgoing messages
     // FIXME: Use BytesMut
@@ -34,6 +38,7 @@ impl Connection {
             stream: Framed::new(stream),
             process_id: 0,
             secret_key: 0,
+            statement_index: AtomicU64::new(0),
         };
 
         establish::establish(&mut conn, options).await?;
@@ -41,8 +46,9 @@ impl Connection {
         Ok(conn)
     }
 
-    pub async fn execute<'a: 'b, 'b>(&'a mut self, query: &'b str) -> io::Result<()> {
-        query::query(self, query).await
+    #[inline]
+    pub fn execute<'a>(&'a mut self, query: &'a str) -> execute::Execute<'a> {
+        execute::execute(self, query)
     }
 
     pub async fn close(mut self) -> io::Result<()> {
@@ -52,18 +58,13 @@ impl Connection {
         Ok(())
     }
 
-    // Send client message to the server
     async fn send<T>(&mut self, message: T) -> io::Result<()>
     where
         T: Encode + Debug,
     {
         self.wbuf.clear();
 
-        log::trace!("send {:?}", message);
-
         message.encode(&mut self.wbuf)?;
-
-        log::trace!("send buffer {:?}", bytes::Bytes::from(&*self.wbuf));
 
         self.stream.inner.write_all(&self.wbuf).await?;
         self.stream.inner.flush().await?;
@@ -72,7 +73,7 @@ impl Connection {
     }
 }
 
-struct Framed<S> {
+pub(super) struct Framed<S> {
     inner: S,
     readable: bool,
     eof: bool,
@@ -106,17 +107,7 @@ where
                 }
 
                 loop {
-                    log::trace!("recv buffer {:?}", self_.buffer);
-
-                    let message = Message::decode(&mut self_.buffer)?;
-
-                    if log::log_enabled!(log::Level::Trace) {
-                        if let Some(message) = &message {
-                            log::trace!("recv {:?}", message);
-                        }
-                    }
-
-                    match message {
+                    match Message::decode(&mut self_.buffer)? {
                         Some(Message::ParameterStatus(_body)) => {
                             // TODO: Not sure what to do with these but ignore
                         }
@@ -141,15 +132,9 @@ where
 
             let n = unsafe {
                 let b = self_.buffer.bytes_mut();
-
                 self_.inner.initializer().initialize(b);
 
-                let n = match Pin::new(&mut self_.inner).poll_read(cx, b)? {
-                    Poll::Ready(cnt) => cnt,
-                    Poll::Pending => {
-                        return Poll::Pending;
-                    }
-                };
+                let n = ready!(Pin::new(&mut self_.inner).poll_read(cx, b))?;
 
                 self_.buffer.advance_mut(n);
 

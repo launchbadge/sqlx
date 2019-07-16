@@ -16,6 +16,8 @@ pub enum Message {
     RowDescription(RowDescription),
     DataRow(DataRow),
     Response(Box<Response>),
+    ParseComplete,
+    BindComplete,
 }
 
 impl Message {
@@ -55,6 +57,8 @@ impl Message {
             b'T' => Message::RowDescription(RowDescription::decode(src)?),
             b'D' => Message::DataRow(DataRow::decode(src)?),
             b'C' => Message::CommandComplete(CommandComplete::decode(src)?),
+            b'1' => Message::ParseComplete,
+            b'2' => Message::BindComplete,
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         }))

@@ -92,8 +92,6 @@ mod tests {
         let src = Bytes::from_static(DATA_ROW);
         let message = DataRow::decode(src)?;
 
-        println!("{:?}", message);
-
         assert_eq!(message.len(), 3);
 
         assert_eq!(message.get(0), Some(&b"1"[..]));

@@ -45,13 +45,13 @@ impl Decode for Authentication {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,
             3 => Authentication::CleartextPassword,
-            
+
             5 => {
                 let mut salt = [0_u8; 4];
                 salt.copy_from_slice(&src[1..5]);
 
                 Authentication::Md5Password { salt }
-            },
+            }
 
             6 => Authentication::ScmCredential,
             7 => Authentication::Gss,
