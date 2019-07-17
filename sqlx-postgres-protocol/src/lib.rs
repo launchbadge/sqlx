@@ -9,6 +9,7 @@ mod decode;
 mod encode;
 mod execute;
 mod message;
+mod notification_response;
 mod parameter_status;
 mod parse;
 mod password_message;
@@ -30,6 +31,7 @@ pub use self::{
     encode::Encode,
     execute::Execute,
     message::Message,
+    notification_response::NotificationResponse,
     parameter_status::ParameterStatus,
     parse::Parse,
     password_message::PasswordMessage,

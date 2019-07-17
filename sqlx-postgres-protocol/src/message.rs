@@ -1,6 +1,6 @@
 use crate::{
-    Authentication, BackendKeyData, CommandComplete, DataRow, Decode, ParameterStatus,
-    ReadyForQuery, Response, RowDescription,
+    Authentication, BackendKeyData, CommandComplete, DataRow, Decode, NotificationResponse,
+    ParameterStatus, ReadyForQuery, Response, RowDescription,
 };
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
@@ -15,9 +15,11 @@ pub enum Message {
     CommandComplete(CommandComplete),
     RowDescription(RowDescription),
     DataRow(DataRow),
-    Response(Box<Response>),
+    Response(Response),
+    NotificationResponse(NotificationResponse),
     ParseComplete,
     BindComplete,
+    NoData,
 }
 
 impl Message {
@@ -49,7 +51,7 @@ impl Message {
         let src = src.split_to(len + 1).freeze().slice_from(5);
 
         Ok(Some(match token {
-            b'N' | b'E' => Message::Response(Box::new(Response::decode(src)?)),
+            b'N' | b'E' => Message::Response(Response::decode(src)?),
             b'S' => Message::ParameterStatus(ParameterStatus::decode(src)?),
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
             b'R' => Message::Authentication(Authentication::decode(src)?),
@@ -57,8 +59,10 @@ impl Message {
             b'T' => Message::RowDescription(RowDescription::decode(src)?),
             b'D' => Message::DataRow(DataRow::decode(src)?),
             b'C' => Message::CommandComplete(CommandComplete::decode(src)?),
+            b'A' => Message::NotificationResponse(NotificationResponse::decode(src)?),
             b'1' => Message::ParseComplete,
             b'2' => Message::BindComplete,
+            b'n' => Message::NoData,
 
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         }))
