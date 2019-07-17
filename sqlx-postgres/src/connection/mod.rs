@@ -1,27 +1,33 @@
 use bytes::{BufMut, BytesMut};
 use futures::{
-    io::{AsyncRead, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     ready,
     task::{Context, Poll},
-    Stream,
+    Future,
 };
 use runtime::net::TcpStream;
 use sqlx_core::ConnectOptions;
 use sqlx_postgres_protocol::{Encode, Message, Terminate};
-use std::{fmt::Debug, io, pin::Pin, sync::atomic::AtomicU64};
+use std::{fmt::Debug, io, pin::Pin};
 
 mod establish;
-mod execute;
+mod prepare;
 
 pub struct Connection {
-    pub(super) stream: Framed<TcpStream>,
+    pub(super) stream: TcpStream,
 
-    // HACK: This is how we currently "name" queries when executing
-    statement_index: AtomicU64,
+    // Do we think that there is data in the read buffer to be decoded
+    stream_readable: bool,
 
-    // Buffer used when serializing outgoing messages
-    // FIXME: Use BytesMut
+    // Have we reached end-of-file (been disconnected)
+    stream_eof: bool,
+
+    // Buffer used when sending outgoing messages
     wbuf: Vec<u8>,
+
+    // Buffer used when reading incoming messages
+    // TODO: Evaluate if we _really_ want to use BytesMut here
+    rbuf: BytesMut,
 
     // Process ID of the Backend
     process_id: u32,
@@ -35,10 +41,12 @@ impl Connection {
         let stream = TcpStream::connect((options.host, options.port)).await?;
         let mut conn = Self {
             wbuf: Vec::with_capacity(1024),
-            stream: Framed::new(stream),
+            rbuf: BytesMut::with_capacity(1024 * 8),
+            stream,
+            stream_readable: false,
+            stream_eof: false,
             process_id: 0,
             secret_key: 0,
-            statement_index: AtomicU64::new(0),
         };
 
         establish::establish(&mut conn, options).await?;
@@ -46,106 +54,131 @@ impl Connection {
         Ok(conn)
     }
 
-    #[inline]
-    pub fn execute<'a>(&'a mut self, query: &'a str) -> execute::Execute<'a> {
-        execute::execute(self, query)
+    pub fn prepare(&mut self, query: &str) -> prepare::Prepare {
+        prepare::prepare(self, query)
     }
 
     pub async fn close(mut self) -> io::Result<()> {
-        self.send(Terminate).await?;
-        self.stream.inner.close().await?;
+        self.send(Terminate);
+        self.flush().await?;
+        self.stream.close().await?;
 
         Ok(())
     }
 
-    async fn send<T>(&mut self, message: T) -> io::Result<()>
-    where
-        T: Encode + Debug,
-    {
-        self.wbuf.clear();
-
-        message.encode(&mut self.wbuf)?;
-
-        self.stream.inner.write_all(&self.wbuf).await?;
-        self.stream.inner.flush().await?;
-
-        Ok(())
-    }
-}
-
-pub(super) struct Framed<S> {
-    inner: S,
-    readable: bool,
-    eof: bool,
-    buffer: BytesMut,
-}
-
-impl<S> Framed<S> {
-    fn new(stream: S) -> Self {
-        Self {
-            readable: false,
-            eof: false,
-            inner: stream,
-            buffer: BytesMut::with_capacity(8 * 1024),
-        }
-    }
-}
-
-impl<S> Stream for Framed<S>
-where
-    S: AsyncRead + Unpin,
-{
-    type Item = io::Result<Message>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let self_ = Pin::get_mut(self);
-
+    // Wait and return the next message to be received from Postgres.
+    async fn receive(&mut self) -> io::Result<Option<Message>> {
         loop {
-            if self_.readable {
-                if self_.eof {
-                    return Poll::Ready(None);
-                }
+            if self.stream_eof {
+                // Reached end-of-file on a previous read call.
+                return Ok(None);
+            }
 
+            if self.stream_readable {
                 loop {
-                    match Message::decode(&mut self_.buffer)? {
+                    match Message::decode(&mut self.rbuf)? {
                         Some(Message::ParameterStatus(_body)) => {
-                            // TODO: Not sure what to do with these but ignore
+                            // TODO: not sure what to do with these yet
                         }
 
                         Some(Message::Response(_body)) => {
-                            // TODO: Handle notices and errors
+                            // TODO: Transform Errors+ into an error type and return
+                            // TODO: Log all others
                         }
 
                         Some(message) => {
-                            return Poll::Ready(Some(Ok(message)));
+                            return Ok(Some(message));
                         }
 
                         None => {
-                            self_.readable = false;
+                            // Not enough data in the read buffer to parse a message
+                            self.stream_readable = true;
                             break;
                         }
                     }
                 }
             }
 
-            self_.buffer.reserve(32);
+            // Ensure there is at least 32-bytes of space available
+            // in the read buffer so we can safely detect end-of-file
+            self.rbuf.reserve(32);
 
-            let n = unsafe {
-                let b = self_.buffer.bytes_mut();
-                self_.inner.initializer().initialize(b);
+            // SAFE: Read data in directly to buffer without zero-initializing the data.
+            //       Postgres is a self-describing format and the TCP frames encode
+            //       length headers. We will never attempt to decode more than we
+            //       received.
+            let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await?;
 
-                let n = ready!(Pin::new(&mut self_.inner).poll_read(cx, b))?;
-
-                self_.buffer.advance_mut(n);
-
-                n
-            };
+            // SAFE: After we read in N bytes, we can tell the buffer that it actually
+            //       has that many bytes for the decode routines to look at
+            unsafe { self.rbuf.set_len(n) }
 
             if n == 0 {
-                self_.eof = true;
+                self.stream_eof = true;
             }
 
-            self_.readable = true;
+            self.stream_readable = true;
         }
+    }
+
+    fn send<T>(&mut self, message: T)
+    where
+        T: Encode + Debug,
+    {
+        log::trace!("encode {:?}", message);
+
+        // TODO: Encoding should not be fallible
+        message.encode(&mut self.wbuf).unwrap();
+    }
+
+    async fn flush(&mut self) -> io::Result<()> {
+        // TODO: Find some other way to print a Vec<u8> as an ASCII escaped string
+        log::trace!("send {:?}", bytes::Bytes::from(&*self.wbuf));
+
+        WriteAllVec::new(&mut self.stream, &mut self.wbuf).await?;
+
+        self.stream.flush().await?;
+
+        Ok(())
+    }
+}
+
+// Derived from: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/src/futures_util/io/write_all.rs.html#10-13
+// With alterations to be more efficient if we're writing from a mutable vector
+// that we can erase
+
+// TODO: Move to Core under 'sqlx_core::io' perhaps?
+// TODO: Perhaps the futures project wants this?
+
+pub struct WriteAllVec<'a, W: ?Sized + Unpin> {
+    writer: &'a mut W,
+    buf: &'a mut Vec<u8>,
+}
+
+impl<W: ?Sized + Unpin> Unpin for WriteAllVec<'_, W> {}
+
+impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAllVec<'a, W> {
+    pub(super) fn new(writer: &'a mut W, buf: &'a mut Vec<u8>) -> Self {
+        WriteAllVec { writer, buf }
+    }
+}
+
+impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAllVec<'_, W> {
+    type Output = io::Result<()>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = &mut *self;
+
+        while !this.buf.is_empty() {
+            let n = ready!(Pin::new(&mut this.writer).poll_write(cx, this.buf))?;
+
+            this.buf.truncate(this.buf.len() - n);
+
+            if n == 0 {
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
+            }
+        }
+
+        Poll::Ready(Ok(()))
     }
 }

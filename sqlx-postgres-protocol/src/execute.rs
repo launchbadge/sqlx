@@ -1,6 +1,7 @@
 use crate::Encode;
 use std::io;
 
+#[derive(Debug)]
 pub struct Execute<'a> {
     portal: &'a str,
     limit: i32,

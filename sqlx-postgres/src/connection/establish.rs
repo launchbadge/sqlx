@@ -1,5 +1,4 @@
 use super::Connection;
-use futures::StreamExt;
 use sqlx_core::ConnectOptions;
 use sqlx_postgres_protocol::{Authentication, Message, PasswordMessage, StartupMessage};
 use std::io;
@@ -31,10 +30,11 @@ pub async fn establish<'a, 'b: 'a>(
 
     let message = StartupMessage::new(params);
 
-    conn.send(message).await?;
+    conn.send(message);
+    conn.flush().await?;
 
-    while let Some(message) = conn.stream.next().await {
-        match message? {
+    while let Some(message) = conn.receive().await? {
+        match message {
             Message::Authentication(Authentication::Ok) => {
                 // Do nothing; server is just telling us that
                 // there is no password needed
@@ -44,8 +44,8 @@ pub async fn establish<'a, 'b: 'a>(
                 // FIXME: Should error early (before send) if the user did not supply a password
                 conn.send(PasswordMessage::cleartext(
                     options.password.unwrap_or_default(),
-                ))
-                .await?;
+                ));
+                conn.flush().await?;
             }
 
             Message::Authentication(Authentication::Md5Password { salt }) => {
@@ -54,8 +54,8 @@ pub async fn establish<'a, 'b: 'a>(
                     options.password.unwrap_or_default(),
                     options.user.unwrap_or_default(),
                     salt,
-                ))
-                .await?;
+                ));
+                conn.flush().await?;
             }
 
             Message::BackendKeyData(body) => {

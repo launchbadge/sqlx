@@ -52,7 +52,7 @@ impl Decode for NotificationResponse {
 
         // offset from pid=4
         let channel_name = get_str(&storage[4..])?;
-        
+
         // offset = pid + channel_name.len() + \0
         let message = get_str(&storage[(4 + channel_name.len() + 1)..])?;
 

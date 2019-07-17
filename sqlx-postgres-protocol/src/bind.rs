@@ -2,6 +2,7 @@ use crate::Encode;
 use byteorder::{BigEndian, ByteOrder};
 use std::io;
 
+#[derive(Debug)]
 pub struct Bind<'a> {
     // The name of the destination portal (an empty string selects the unnamed portal).
     portal: &'a str,

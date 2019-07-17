@@ -20,11 +20,23 @@ async fn main() -> io::Result<()> {
     )
     .await?;
 
-    conn.execute("INSERT INTO \"users\" (name) VALUES ($1)")
-        .bind(b"Joe")
+    conn.prepare(
+        r#"
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+        "#,
+    )
+    .execute()
+    .await?;
+
+    conn.prepare("INSERT INTO users (name) VALUES ('George')")
+        // .bind(b"Joe")
+        .execute()
         .await?;
 
-    let count = conn.execute("SELECT name FROM users").await?;
+    let count = conn.prepare("SELECT name FROM users").execute().await?;
     println!("users: {}", count);
 
     conn.close().await?;

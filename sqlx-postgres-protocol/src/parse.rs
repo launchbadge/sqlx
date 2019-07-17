@@ -1,6 +1,7 @@
 use crate::Encode;
 use std::io;
 
+#[derive(Debug)]
 pub struct Parse<'a> {
     portal: &'a str,
     query: &'a str,

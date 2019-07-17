@@ -1,6 +1,7 @@
 use crate::Encode;
 use std::io;
 
+#[derive(Debug)]
 pub struct Sync;
 
 impl Encode for Sync {
