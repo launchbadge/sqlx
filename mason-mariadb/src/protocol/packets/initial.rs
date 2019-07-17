@@ -1,11 +1,9 @@
 use super::super::{
-    decode::Decoder,
-    deserialize::Deserialize,
+    deserialize::{Deserialize, DeContext},
     types::{Capabilities, ServerStatusFlag},
 };
 use bytes::Bytes;
 use failure::{err_msg, Error};
-use crate::connection::Connection;
 
 #[derive(Default, Debug)]
 pub struct InitialHandshakePacket {
@@ -24,7 +22,8 @@ pub struct InitialHandshakePacket {
 }
 
 impl Deserialize for InitialHandshakePacket {
-    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
@@ -79,6 +78,9 @@ impl Deserialize for InitialHandshakePacket {
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             auth_plugin_name = Some(decoder.decode_string_null()?);
         }
+
+        ctx.conn.capabilities = capabilities;
+        ctx.conn.last_seq_no = seq_no;
 
         Ok(InitialHandshakePacket {
             length,

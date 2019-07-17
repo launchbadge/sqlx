@@ -1,6 +1,5 @@
-use super::super::{decode::Decoder, deserialize::Deserialize};
+use super::super::deserialize::{Deserialize, DeContext};
 use failure::Error;
-use crate::connection::Connection;
 
 #[derive(Default, Debug)]
 pub struct ColumnPacket {
@@ -10,7 +9,8 @@ pub struct ColumnPacket {
 }
 
 impl Deserialize for ColumnPacket {
-    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
         let columns = decoder.decode_int_lenenc();

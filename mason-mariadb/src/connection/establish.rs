@@ -1,6 +1,6 @@
-use super::{Connection, Decoder};
+use super::{Connection};
 use crate::protocol::{
-    deserialize::Deserialize,
+    deserialize::{Deserialize, DeContext},
     packets::{handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket},
     server::Message as ServerMessage,
     types::Capabilities,
@@ -14,10 +14,8 @@ pub async fn establish<'a, 'b: 'a>(
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
     let buf = &conn.stream.next_bytes().await?;
-    let init_packet =
-        InitialHandshakePacket::deserialize(conn, &mut Decoder::new(&buf))?;
-
-    conn.capabilities = init_packet.capabilities;
+    let mut de_ctx = DeContext::new(conn, &buf);
+    let _ = InitialHandshakePacket::deserialize(&mut de_ctx)?;
 
     let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
         // Minimum client capabilities required to establish connection

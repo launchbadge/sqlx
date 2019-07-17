@@ -1,8 +1,7 @@
 use std::convert::TryFrom;
 use bytes::Bytes;
 use failure::Error;
-use crate::connection::Connection;
-use super::super::{decode::Decoder, deserialize::Deserialize, error_codes::ErrorCode};
+use super::super::{deserialize::Deserialize, deserialize::DeContext, error_codes::ErrorCode};
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
@@ -19,7 +18,8 @@ pub struct ErrPacket {
 }
 
 impl Deserialize for ErrPacket {
-    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 

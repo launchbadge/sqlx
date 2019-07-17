@@ -1,6 +1,5 @@
-use super::protocol::decode::Decoder;
 use crate::protocol::{
-    deserialize::Deserialize,
+    deserialize::{Deserialize, DeContext},
     encode::Encoder,
     packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
     serialize::Serialize,
@@ -31,6 +30,9 @@ pub struct Connection {
     // Sequence Number
     pub seq_no: u8,
 
+    // Last sequence number return by MariaDB
+    pub last_seq_no: u8,
+
     // Server Capabilities
     pub capabilities: Capabilities,
 
@@ -46,6 +48,7 @@ impl Connection {
             encoder: Encoder::new(1024),
             connection_id: -1,
             seq_no: 1,
+            last_seq_no: 0,
             capabilities: Capabilities::default(),
             status: ServerStatusFlag::default(),
         };
@@ -83,7 +86,7 @@ impl Connection {
 
         // Ping response must be an OkPacket
         let buf = self.stream.next_bytes().await?;
-        OkPacket::deserialize(self, &mut Decoder::new(&buf))?;
+        OkPacket::deserialize(&mut DeContext::new(self, &buf))?;
 
         Ok(())
     }
@@ -115,7 +118,7 @@ impl Connection {
 
             while len > 0 {
                 let size = rbuf.len();
-                let message = ServerMessage::deserialize(self, &mut Decoder::new(&rbuf.as_ref().into()))?;
+                let message = ServerMessage::deserialize(&mut DeContext::new(self, &rbuf.as_ref().into()))?;
                 len -= size - rbuf.len();
 
                 match message {

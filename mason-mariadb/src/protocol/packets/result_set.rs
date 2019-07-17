@@ -1,10 +1,7 @@
 use bytes::Bytes;
 use failure::Error;
-use crate::connection::Connection;
-
 use super::super::{
-    decode::Decoder,
-    deserialize::Deserialize,
+    deserialize::{Deserialize, DeContext},
     packets::{column::ColumnPacket, column_def::ColumnDefPacket},
 };
 
@@ -18,15 +15,15 @@ pub struct ResultSet {
 }
 
 impl Deserialize for ResultSet {
-    fn deserialize(conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let length = ctx.decoder.decode_length()?;
+        let seq_no = ctx.decoder.decode_int_1();
 
-        let column_packet = ColumnPacket::deserialize(conn, decoder)?;
+        let column_packet = ColumnPacket::deserialize(ctx)?;
 
         let columns = if let Some(columns) = column_packet.columns {
             (0..columns)
-                .map(|_| ColumnDefPacket::deserialize(conn, decoder))
+                .map(|_| ColumnDefPacket::deserialize(ctx))
                 .filter(Result::is_ok)
                 .map(Result::unwrap)
                 .collect::<Vec<ColumnDefPacket>>()
@@ -38,19 +35,25 @@ impl Deserialize for ResultSet {
 
         for _ in 0.. {
             // if end of buffer stop
-            if decoder.eof() {
+            if ctx.decoder.eof() {
                 break;
             }
 
             // Decode each column as string<lenenc>
             rows.push(
                 (0..column_packet.columns.unwrap_or(0))
-                    .map(|_| decoder.decode_string_lenenc())
+                    .map(|_| ctx.decoder.decode_string_lenenc())
                     .collect::<Vec<Bytes>>(),
             )
         }
 
-        Ok(ResultSet { length, seq_no, column_packet, columns, rows })
+        Ok(ResultSet {
+            length,
+            seq_no,
+            column_packet,
+            columns,
+            rows,
+        })
     }
 }
 

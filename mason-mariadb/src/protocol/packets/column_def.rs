@@ -1,10 +1,8 @@
 use std::convert::TryFrom;
 use bytes::Bytes;
 use failure::Error;
-use crate::connection::Connection;
 use super::super::{
-    decode::Decoder,
-    deserialize::Deserialize,
+    deserialize::{Deserialize, DeContext},
     types::{FieldDetailFlag, FieldType},
 };
 
@@ -27,7 +25,8 @@ pub struct ColumnDefPacket {
 }
 
 impl Deserialize for ColumnDefPacket {
-    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 

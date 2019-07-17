@@ -1,7 +1,6 @@
-use super::super::{decode::Decoder, deserialize::Deserialize, types::ServerStatusFlag};
+use super::super::{deserialize::Deserialize, deserialize::DeContext, types::ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
-use crate::connection::Connection;
 use failure::err_msg;
 
 #[derive(Default, Debug)]
@@ -18,16 +17,17 @@ pub struct OkPacket {
 }
 
 impl Deserialize for OkPacket {
-    fn deserialize(_conn: &mut Connection, decoder: &mut Decoder) -> Result<Self, Error> {
+    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+        let decoder = &mut ctx.decoder;
         // Packet header
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
         // Packet body
         let packet_header = decoder.decode_int_1();
-//        if packet_header != 0 && packet_header != 0xFE {
-//            return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
-//        }
+        if packet_header != 0 && packet_header != 0xFE {
+            return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
+        }
 
         let affected_rows = decoder.decode_int_lenenc();
         let last_insert_id = decoder.decode_int_lenenc();
