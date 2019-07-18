@@ -1,8 +1,5 @@
 use byteorder::{BigEndian, ByteOrder};
 
-// FIXME: Having structs here is breaking down. I think front-end messages should be
-//        simple functions that take the wbuf as a mut Vec
-
 pub fn header(buf: &mut Vec<u8>, portal: &str, statement: &str, formats: &[u16]) -> (usize, usize) {
     buf.push(b'B');
 
