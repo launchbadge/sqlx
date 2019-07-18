@@ -6,10 +6,12 @@ pub mod bind;
 mod command_complete;
 mod data_row;
 mod decode;
+mod describe;
 mod encode;
 mod execute;
 mod message;
 mod notification_response;
+mod parameter_description;
 mod parameter_status;
 mod parse;
 mod password_message;
@@ -27,10 +29,12 @@ pub use self::{
     command_complete::CommandComplete,
     data_row::DataRow,
     decode::Decode,
+    describe::{Describe, DescribeKind},
     encode::Encode,
     execute::Execute,
     message::Message,
     notification_response::NotificationResponse,
+    parameter_description::ParameterDescription,
     parameter_status::ParameterStatus,
     parse::Parse,
     password_message::PasswordMessage,

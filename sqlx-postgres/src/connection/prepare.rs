@@ -16,7 +16,11 @@ pub fn prepare<'a, 'b>(connection: &'a mut Connection, query: &'b str) -> Prepar
 
     let bind_state = proto::bind::header(&mut connection.wbuf, "", "", &[]);
 
-    Prepare { connection, bind_state, bind_values: 0 }
+    Prepare {
+        connection,
+        bind_state,
+        bind_values: 0,
+    }
 }
 
 impl<'a> Prepare<'a> {
@@ -36,7 +40,12 @@ impl<'a> Prepare<'a> {
 
     #[inline]
     pub async fn execute(self) -> io::Result<u64> {
-        proto::bind::trailer(&mut self.connection.wbuf, self.bind_state, self.bind_values, &[]);
+        proto::bind::trailer(
+            &mut self.connection.wbuf,
+            self.bind_state,
+            self.bind_values,
+            &[],
+        );
 
         self.connection.send(Execute::new("", 0));
         self.connection.send(Sync);
