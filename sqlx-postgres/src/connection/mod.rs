@@ -110,8 +110,8 @@ impl Connection {
             let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await?;
 
             // SAFE: After we read in N bytes, we can tell the buffer that it actually
-            //       has that many bytes for the decode routines to look at
-            unsafe { self.rbuf.set_len(n) }
+            //       has that many bytes MORE for the decode routines to look at
+            unsafe { self.rbuf.advance_mut(n) }
 
             if n == 0 {
                 self.stream_eof = true;
