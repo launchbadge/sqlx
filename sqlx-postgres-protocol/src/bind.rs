@@ -1,6 +1,4 @@
-use crate::Encode;
 use byteorder::{BigEndian, ByteOrder};
-use std::io;
 
 // FIXME: Having structs here is breaking down. I think front-end messages should be
 //        simple functions that take the wbuf as a mut Vec

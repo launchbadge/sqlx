@@ -1,6 +1,6 @@
 use crate::{
     Authentication, BackendKeyData, CommandComplete, DataRow, Decode, NotificationResponse,
-    ParameterStatus, ReadyForQuery, Response, RowDescription,
+    ParameterStatus, ReadyForQuery, Response, RowDescription, ParameterDescription,
 };
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
@@ -20,6 +20,8 @@ pub enum Message {
     ParseComplete,
     BindComplete,
     NoData,
+    PortalSuspended,
+    ParameterDescription(ParameterDescription),
 }
 
 impl Message {
@@ -65,7 +67,8 @@ impl Message {
             b'1' => Message::ParseComplete,
             b'2' => Message::BindComplete,
             b'n' => Message::NoData,
-
+            b's' => Message::PortalSuspended,
+            b't' => Message::ParameterDescription(ParameterDescription::decode(src)?),
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         };
 
