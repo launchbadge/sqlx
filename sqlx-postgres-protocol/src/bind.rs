@@ -2,80 +2,55 @@ use crate::Encode;
 use byteorder::{BigEndian, ByteOrder};
 use std::io;
 
-#[derive(Debug)]
-pub struct Bind<'a> {
-    // The name of the destination portal (an empty string selects the unnamed portal).
-    portal: &'a str,
+// FIXME: Having structs here is breaking down. I think front-end messages should be
+//        simple functions that take the wbuf as a mut Vec
 
-    // The name of the source prepared statement (an empty string selects the unnamed prepared statement).
-    statement: &'a str,
+pub fn header(buf: &mut Vec<u8>, portal: &str, statement: &str, formats: &[u16]) -> (usize, usize) {
+    buf.push(b'B');
 
-    // The parameter format codes.
-    formats: &'a [i16],
+    // reserve room for the length
+    let len_pos = buf.len();
+    buf.extend_from_slice(&[0, 0, 0, 0]);
 
-    // The values of the parameters.
-    // Arranged as: [len][size_0][value_0][size_1][value_1] etc...
-    buffer: &'a [u8],
+    buf.extend_from_slice(portal.as_bytes());
+    buf.push(b'\0');
 
-    // The result-column format codes.
-    result_formats: &'a [i16],
+    buf.extend_from_slice(statement.as_bytes());
+    buf.push(b'\0');
+
+    buf.extend_from_slice(&(formats.len() as i16).to_be_bytes());
+
+    for format in formats {
+        buf.extend_from_slice(&format.to_be_bytes());
+    }
+
+    // reserve room for the values count
+    let value_len_pos = buf.len();
+    buf.extend_from_slice(&[0, 0]);
+
+    (len_pos, value_len_pos)
 }
 
-impl<'a> Bind<'a> {
-    pub fn new(
-        portal: &'a str,
-        statement: &'a str,
-        formats: &'a [i16],
-        buffer: &'a [u8],
-        result_formats: &'a [i16],
-    ) -> Self {
-        Self {
-            portal,
-            statement,
-            formats,
-            buffer,
-            result_formats,
-        }
-    }
+pub fn value(buf: &mut Vec<u8>, value: &[u8]) {
+    buf.extend_from_slice(&(value.len() as u32).to_be_bytes());
+    buf.extend_from_slice(value);
 }
 
-impl<'a> Encode for Bind<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        buf.push(b'B');
+pub fn value_null(buf: &mut Vec<u8>) {
+    buf.extend_from_slice(&(-1_i32).to_be_bytes());
+}
 
-        let pos = buf.len();
-        buf.extend_from_slice(&[0, 0, 0, 0]);
+pub fn trailer(buf: &mut Vec<u8>, state: (usize, usize), values: usize, result_formats: &[i16]) {
+    buf.extend_from_slice(&(result_formats.len() as i16).to_be_bytes());
 
-        // portal
-        buf.extend_from_slice(self.portal.as_bytes());
-        buf.push(b'\0');
-
-        // statement
-        buf.extend_from_slice(self.statement.as_bytes());
-        buf.push(b'\0');
-
-        // formats.len
-        buf.extend_from_slice(&(self.formats.len() as i16).to_be_bytes());
-
-        // formats
-        for format in self.formats {
-            buf.extend_from_slice(&format.to_be_bytes());
-        }
-
-        // values
-        buf.extend_from_slice(&self.buffer);
-
-        // result_formats.len
-        buf.extend_from_slice(&(self.result_formats.len() as i16).to_be_bytes());
-
-        // result_formats
-        for format in self.result_formats {
-            buf.extend_from_slice(&format.to_be_bytes());
-        }
-
-        let len = buf.len() - pos;
-        BigEndian::write_u32(&mut buf[pos..], len as u32);
-
-        Ok(())
+    for format in result_formats {
+        buf.extend_from_slice(&format.to_be_bytes());
     }
+
+    // Calculate and emplace the total len of the message
+    let len = buf.len() - state.0;
+    BigEndian::write_u32(&mut buf[(state.0)..], len as u32);
+
+    // Emplace the total num of values
+    BigEndian::write_u32(&mut buf[(state.1)..], values as u32);
 }

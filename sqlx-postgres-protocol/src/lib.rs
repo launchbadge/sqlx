@@ -2,7 +2,7 @@
 
 mod authentication;
 mod backend_key_data;
-mod bind;
+pub mod bind;
 mod command_complete;
 mod data_row;
 mod decode;
@@ -24,7 +24,6 @@ mod terminate;
 pub use self::{
     authentication::Authentication,
     backend_key_data::BackendKeyData,
-    bind::Bind,
     command_complete::CommandComplete,
     data_row::DataRow,
     decode::Decode,

@@ -1,9 +1,11 @@
 use super::Connection;
-use sqlx_postgres_protocol::{Bind, Execute, Message, Parse, Sync};
+use sqlx_postgres_protocol::{self as proto, Execute, Message, Parse, Sync};
 use std::io;
 
 pub struct Prepare<'a> {
     connection: &'a mut Connection,
+    bind_state: (usize, usize),
+    bind_values: usize,
 }
 
 #[inline]
@@ -12,20 +14,30 @@ pub fn prepare<'a, 'b>(connection: &'a mut Connection, query: &'b str) -> Prepar
     // TODO: Use named statements
     connection.send(Parse::new("", query, &[]));
 
-    Prepare { connection }
+    let bind_state = proto::bind::header(&mut connection.wbuf, "", "", &[]);
+
+    Prepare { connection, bind_state, bind_values: 0 }
 }
 
 impl<'a> Prepare<'a> {
     #[inline]
-    pub fn bind<'b>(self, value: &'b [u8]) -> Self {
-        // TODO: Encode the value here onto the wbuf
+    pub fn bind<'b>(mut self, value: &'b [u8]) -> Self {
+        proto::bind::value(&mut self.connection.wbuf, value);
+        self.bind_values += 1;
+        self
+    }
+
+    #[inline]
+    pub fn bind_null<'b>(mut self) -> Self {
+        proto::bind::value_null(&mut self.connection.wbuf);
+        self.bind_values += 1;
         self
     }
 
     #[inline]
     pub async fn execute(self) -> io::Result<u64> {
-        // FIXME: Break this up into BindHeader, BindValue, and BindTrailer
-        self.connection.send(Bind::new("", "", &[], &[0, 0], &[]));
+        proto::bind::trailer(&mut self.connection.wbuf, self.bind_state, self.bind_values, &[]);
+
         self.connection.send(Execute::new("", 0));
         self.connection.send(Sync);
         self.connection.flush().await?;
