@@ -25,7 +25,7 @@ impl<'a> Encode for Describe<'a> {
 
         let len = 4 + self.name.len() + 1 + 4;
         buf.extend_from_slice(&(len as i32).to_be_bytes());
-        
+
         match &self.kind {
             DescribeKind::Portal => buf.push(b'P'),
             DescribeKind::PreparedStatement => buf.push(b'S'),

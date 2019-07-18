@@ -1,6 +1,6 @@
 use crate::{
     Authentication, BackendKeyData, CommandComplete, DataRow, Decode, NotificationResponse,
-    ParameterStatus, ReadyForQuery, Response, RowDescription, ParameterDescription,
+    ParameterDescription, ParameterStatus, ReadyForQuery, Response, RowDescription,
 };
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;

@@ -1,4 +1,4 @@
-use crate::{Decode};
+use crate::Decode;
 use byteorder::{BigEndian, ByteOrder};
 use bytes::Bytes;
 
@@ -14,17 +14,17 @@ pub struct ParameterDescription {
 impl Decode for ParameterDescription {
     fn decode(src: Bytes) -> io::Result<Self> {
         let count = BigEndian::read_u16(&*src) as usize;
-        
+
         // todo: error handling
         assert_eq!(src.len(), count * 4 + 2);
-        
+
         let mut ids = Vec::with_capacity(count);
         for i in 0..count {
             let offset = i * 4 + 2; // 4==size_of(u32), 2==size_of(u16)
             ids.push(BigEndian::read_u32(&src[offset..]));
         }
 
-        Ok(ParameterDescription {ids})
+        Ok(ParameterDescription { ids })
     }
 }
 
