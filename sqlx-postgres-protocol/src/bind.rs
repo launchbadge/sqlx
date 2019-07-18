@@ -50,5 +50,22 @@ pub fn trailer(buf: &mut Vec<u8>, state: (usize, usize), values: usize, result_f
     BigEndian::write_u32(&mut buf[(state.0)..], len as u32);
 
     // Emplace the total num of values
-    BigEndian::write_u32(&mut buf[(state.1)..], values as u32);
+    BigEndian::write_u16(&mut buf[(state.1)..], values as u16);
+}
+
+#[cfg(test)]
+mod tests {
+    const BIND: &[u8] = b"B\0\0\0\x16\0\0\0\0\0\x02\0\0\0\x011\0\0\0\x012\0\0";
+
+    #[test]
+    fn it_encodes_bind_for_two() {
+        let mut buf = Vec::new();
+
+        let state = super::header(&mut buf, "", "", &[]);
+        super::value(&mut buf, b"1");
+        super::value(&mut buf, b"2");
+        super::trailer(&mut buf, state, 2, &[]);
+
+        assert_eq!(buf, BIND);
+    }
 }

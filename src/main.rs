@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS users (
     .execute()
     .await?;
 
-    conn.prepare("INSERT INTO users (name) VALUES ('George')")
-        // .bind(b"Joe")
+    conn.prepare("INSERT INTO users (name) VALUES ($1)")
+        .bind(b"Joe")
         .execute()
         .await?;
 
