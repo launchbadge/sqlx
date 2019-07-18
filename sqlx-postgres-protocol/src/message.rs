@@ -43,7 +43,7 @@ impl Message {
         // FIXME: What happens if len(u32) < len(usize) ?
         let len = BigEndian::read_u32(&src[1..5]) as usize;
 
-        if src.len() < len {
+        if src.len() < (len + 1) {
             // We don't have enough in the stream yet
             return Ok(None);
         }
