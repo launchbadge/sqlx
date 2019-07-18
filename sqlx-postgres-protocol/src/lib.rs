@@ -6,6 +6,7 @@ pub mod bind;
 mod command_complete;
 mod data_row;
 mod decode;
+mod describe;
 mod encode;
 mod execute;
 mod message;
@@ -28,6 +29,7 @@ pub use self::{
     command_complete::CommandComplete,
     data_row::DataRow,
     decode::Decode,
+    describe::{Describe, DescribeKind},
     encode::Encode,
     execute::Execute,
     message::Message,
