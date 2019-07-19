@@ -31,10 +31,13 @@ CREATE TABLE IF NOT EXISTS users (
     .execute()
     .await?;
 
-    conn.prepare("INSERT INTO users (name) VALUES ($1)")
+    let row_id = conn
+        .prepare("INSERT INTO users (name) VALUES ($1) RETURNING id")
         .bind(b"Joe")
-        .execute()
+        .get_result()
         .await?;
+
+    println!("row_id: {:?}", row_id);
 
     let count = conn.prepare("SELECT name FROM users").execute().await?;
     println!("users: {}", count);

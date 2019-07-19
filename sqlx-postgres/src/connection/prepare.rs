@@ -1,5 +1,5 @@
 use super::Connection;
-use sqlx_postgres_protocol::{self as proto, Execute, Message, Parse, Sync};
+use sqlx_postgres_protocol::{self as proto, DataRow, Execute, Message, Parse, Sync};
 use std::io;
 
 pub struct Prepare<'a> {
@@ -70,6 +70,51 @@ impl<'a> Prepare<'a> {
                 Message::ReadyForQuery(_) => {
                     // Successful completion of the whole cycle
                     return Ok(rows);
+                }
+
+                message => {
+                    unimplemented!("received {:?} unimplemented message", message);
+                }
+            }
+        }
+
+        // FIXME: This is an end-of-file error. How we should bubble this up here?
+        unreachable!()
+    }
+
+    #[inline]
+    pub async fn get_result(self) -> io::Result<Option<DataRow>> {
+        proto::bind::trailer(
+            &mut self.connection.wbuf,
+            self.bind_state,
+            self.bind_values,
+            &[],
+        );
+
+        self.connection.send(Execute::new("", 0));
+        self.connection.send(Sync);
+        self.connection.flush().await?;
+
+        let mut row: Option<DataRow> = None;
+
+        while let Some(message) = self.connection.receive().await? {
+            match message {
+                Message::BindComplete | Message::ParseComplete => {
+                    // Indicates successful completion of a phase
+                }
+
+                Message::DataRow(data_row) => {
+                    // we only care about the first result.
+                    if row.is_none() {
+                        row = Some(data_row);
+                    }
+                }
+
+                Message::CommandComplete(_) => {}
+
+                Message::ReadyForQuery(_) => {
+                    // Successful completion of the whole cycle
+                    return Ok(row);
                 }
 
                 message => {
