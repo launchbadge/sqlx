@@ -1,5 +1,6 @@
 #![feature(async_await)]
 
+use futures::TryStreamExt;
 use sqlx::{pg::Connection, ConnectOptions};
 use std::io;
 
@@ -38,6 +39,14 @@ CREATE TABLE IF NOT EXISTS users (
         .await?;
 
     println!("row_id: {:?}", row_id);
+
+    let mut row_ids = conn.prepare("SELECT id FROM users").get_results();
+
+    while let Some(row_id) = row_ids.try_next().await? {
+        println!("row_ids: {:?}", row_id);
+    }
+
+    std::mem::drop(row_ids);
 
     let count = conn.prepare("SELECT name FROM users").execute().await?;
     println!("users: {}", count);
