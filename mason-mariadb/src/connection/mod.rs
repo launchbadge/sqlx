@@ -1,7 +1,7 @@
 use crate::protocol::{
     deserialize::{DeContext, Deserialize},
     encode::Encoder,
-    packets::{com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, ok::OkPacket},
+    packets::{com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, com_init_db::ComInitDb, ok::OkPacket},
     serialize::Serialize,
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
@@ -19,7 +19,7 @@ use runtime::net::TcpStream;
 mod establish;
 
 pub struct Connection {
-    stream: Framed,
+    pub stream: Framed,
 
     // Buffer used when serializing outgoing messages
     pub encoder: Encoder,
@@ -47,7 +47,7 @@ pub struct ConnContext {
 }
 
 impl Connection {
-    pub(crate) async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
+    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
         let mut conn: Connection = Self {
             stream,
@@ -66,7 +66,7 @@ impl Connection {
         Ok(conn)
     }
 
-    pub(crate) async fn send<S>(&mut self, message: S) -> Result<(), Error>
+    pub async fn send<S>(&mut self, message: S) -> Result<(), Error>
     where
         S: Serialize,
     {
@@ -82,19 +82,29 @@ impl Connection {
         Ok(())
     }
 
-    pub(crate) async fn quit(&mut self) -> Result<(), Error> {
+    pub async fn quit(&mut self) -> Result<(), Error> {
+        self.context.seq_no = 0;
         self.send(ComQuit()).await?;
 
         Ok(())
     }
 
-    pub(crate) async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<(), Error> {
+    pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<(), Error> {
+        self.context.seq_no = 0;
         self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
 
         Ok(())
     }
 
-    pub(crate) async fn ping(&mut self) -> Result<(), Error> {
+
+    pub async fn select_db<'a>(&'a mut self, db: &'a str) -> Result<(), Error> {
+        self.context.seq_no = 0;
+        self.send(ComInitDb { schema_name: bytes::Bytes::from(db) }).await?;
+
+        Ok(())
+    }
+
+    pub async fn ping(&mut self) -> Result<(), Error> {
         self.context.seq_no = 0;
         self.send(ComPing()).await?;
 
@@ -105,7 +115,7 @@ impl Connection {
         Ok(())
     }
 
-    pub(crate) async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
+    pub async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
         let mut rbuf = BytesMut::new();
         let mut len = 0;
 
@@ -151,7 +161,7 @@ impl Connection {
     }
 }
 
-struct Framed {
+pub struct Framed {
     inner: TcpStream,
     readable: bool,
     eof: bool,
@@ -168,14 +178,14 @@ impl Framed {
         }
     }
 
-    async fn next_bytes(&mut self) -> Result<Bytes, Error> {
+    pub async fn next_bytes(&mut self) -> Result<Bytes, Error> {
         let mut rbuf = BytesMut::new();
         let mut len = 0;
         let mut packet_len: u32 = 0;
 
         loop {
             if len == rbuf.len() {
-                rbuf.reserve(32);
+                rbuf.reserve(20000);
 
                 unsafe {
                     // Set length to the capacity and efficiently

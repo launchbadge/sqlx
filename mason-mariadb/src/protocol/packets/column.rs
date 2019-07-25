@@ -1,7 +1,7 @@
 use super::super::deserialize::{DeContext, Deserialize};
 use failure::Error;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 // ColumnPacket doesn't have a packet header because
 // it's nested inside a result set packet
 pub struct ColumnPacket {

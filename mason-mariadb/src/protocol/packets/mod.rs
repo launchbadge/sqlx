@@ -20,3 +20,4 @@ pub mod ok;
 pub mod packet_header;
 pub mod result_set;
 pub mod ssl_request;
+pub mod result_row;

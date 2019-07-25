@@ -9,30 +9,26 @@ use failure::Error;
 use std::convert::TryFrom;
 
 #[derive(Default, Debug)]
-pub struct EofPacket {
+pub struct ResultRow {
     pub length: u32,
     pub seq_no: u8,
-    pub warning_count: u16,
-    pub status: ServerStatusFlag,
+    pub row: Vec<Bytes>,
 }
 
-impl Deserialize for EofPacket {
+impl Deserialize for ResultRow {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
 
-        let packet_header = decoder.decode_int_1();
+        let row = if let Some(columns) = ctx.columns {
+            (0..columns).map(|_| decoder.decode_string_lenenc()).collect::<Vec<Bytes>>()
+        } else {
+            Vec::new()
+        };
 
-//        if packet_header != 0xFE {
-//            panic!("Packet header is not 0xFE for ErrPacket");
-//        }
-
-        let warning_count = decoder.decode_int_2();
-        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2());
-
-        Ok(EofPacket { length, seq_no, warning_count, status })
+        Ok(ResultRow { length, seq_no, row })
     }
 }
 
@@ -44,32 +40,28 @@ mod test {
     use mason_core::ConnectOptions;
 
     #[runtime::test]
-    async fn it_decodes_eof_packet() -> Result<(), Error> {
+    async fn it_decodes_result_row_packet() -> Result<(), Error> {
         let mut conn = Connection::establish(ConnectOptions {
             host: "127.0.0.1",
             port: 3306,
             user: Some("root"),
             database: None,
             password: None,
-        })
-        .await?;
+        }).await?;
 
         #[rustfmt::skip]
-        let buf = __bytes_builder!(
+            let buf = __bytes_builder!(
             // int<3> length
             1u8, 0u8, 0u8,
             // int<1> seq_no
             1u8,
-            // int<1> 0xfe : EOF header
-            0xFE_u8,
-            // int<2> warning count
-            0u8, 0u8,
-            // int<2> server status
-            1u8, 1u8
+            // string<lenenc> column data
+            1u8, b"s"
         );
 
-        let buf = Bytes::from_static(b"\x01\0\0\x01\xFE\x00\x00\x01\x00");
-        let _message = EofPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
+        let mut ctx = DeContext::new(&mut conn.context, &buf);
+        ctx.columns = Some(1);
+        let _message = ResultRow::deserialize(&mut ctx)?;
 
         Ok(())
     }

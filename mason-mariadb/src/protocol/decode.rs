@@ -51,6 +51,12 @@ impl<'a> Decoder<'a> {
     pub fn eof(&self) -> bool {
         self.buf.len() == self.index
     }
+
+    #[inline]
+    pub fn eof_byte(&self) -> bool {
+        self.buf[self.index] == 0xFE
+    }
+
     #[inline]
     pub fn decode_int_lenenc(&mut self) -> Option<usize> {
         match self.buf[self.index] {
@@ -119,7 +125,7 @@ impl<'a> Decoder<'a> {
 
     #[inline]
     pub fn decode_string_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_3();
+        let length = self.decode_int_1();
         let value = Bytes::from(&self.buf[self.index..self.index + length as usize]);
         self.index = self.index + length as usize;
         value
@@ -294,12 +300,12 @@ mod tests {
 
     #[test]
     fn it_decodes_string_lenenc() {
-        let buf = Bytes::from(b"\x01\x00\x00\x01".to_vec());
+        let buf = Bytes::from(b"\x03sup".to_vec());
         let mut decoder = Decoder::new(&buf);
         let string: Bytes = decoder.decode_string_lenenc();
 
-        assert_eq!(string[0], b'\x01');
-        assert_eq!(string.len(), 1);
+        assert_eq!(string[..], b"sup"[..]);
+        assert_eq!(string.len(), 3);
         assert_eq!(decoder.index, 4);
     }
 

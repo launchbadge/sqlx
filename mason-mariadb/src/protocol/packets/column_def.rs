@@ -27,22 +27,36 @@ pub struct ColumnDefPacket {
 impl Deserialize for ColumnDefPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
 
+        // string<lenenc> catalog (always 'def')
         let catalog = decoder.decode_string_lenenc();
+        // string<lenenc> schema
         let schema = decoder.decode_string_lenenc();
+        // string<lenenc> table alias
         let table_alias = decoder.decode_string_lenenc();
+        // string<lenenc> table
         let table = decoder.decode_string_lenenc();
+        // string<lenenc> column alias
         let column_alias = decoder.decode_string_lenenc();
+        // string<lenenc> column
         let column = decoder.decode_string_lenenc();
+        // int<lenenc> length of fixed fields (=0xC)
         let length_of_fixed_fields = decoder.decode_int_lenenc();
+        // int<2> character set number
         let char_set = decoder.decode_int_2();
+        // int<4> max. column size
         let max_columns = decoder.decode_int_4();
+        // int<1> Field types
         let field_type = FieldType::try_from(decoder.decode_int_1())?;
+        // int<2> Field detail flag
         let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_2());
+        // int<1> decimals
         let decimals = decoder.decode_int_1();
-
-        // Skip last two unused bytes
+        // int<2> - unused -
         decoder.skip_bytes(2);
+
 
         Ok(ColumnDefPacket {
             catalog,
@@ -81,18 +95,22 @@ mod test {
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
+            // length
+            1u8, 0u8, 0u8,
+            // seq_no
+            0u8,
             // string<lenenc> catalog (always 'def')
-            1u8, 0u8, 0u8, b'a',
+            1u8, b'a',
             // string<lenenc> schema
-            1u8, 0u8, 0u8, b'b',
+            1u8, b'b',
             // string<lenenc> table alias
-            1u8, 0u8, 0u8, b'c',
+            1u8, b'c',
             // string<lenenc> table
-            1u8, 0u8, 0u8, b'd',
+            1u8, b'd',
             // string<lenenc> column alias
-            1u8, 0u8, 0u8, b'e',
+            1u8, b'e',
             // string<lenenc> column
-            1u8, 0u8, 0u8, b'f',
+            1u8, b'f',
             // int<lenenc> length of fixed fields (=0xC)
             0xFC_u8, 1u8, 1u8,
             // int<2> character set number

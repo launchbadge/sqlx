@@ -1,9 +1,12 @@
 use super::super::{
     deserialize::{DeContext, Deserialize},
-    packets::{column::ColumnPacket, column_def::ColumnDefPacket},
+    packets::{ok::OkPacket, err::ErrPacket, eof::EofPacket, column::ColumnPacket, column_def::ColumnDefPacket, result_row::ResultRow},
 };
 use bytes::Bytes;
 use failure::Error;
+use crate::protocol::server::Message;
+use crate::protocol::types::Capabilities;
+use crate::protocol::decode::Decoder;
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
@@ -11,7 +14,7 @@ pub struct ResultSet {
     pub seq_no: u8,
     pub column_packet: ColumnPacket,
     pub columns: Vec<ColumnDefPacket>,
-    pub rows: Vec<Vec<Bytes>>,
+    pub rows: Vec<ResultRow>,
 }
 
 impl Deserialize for ResultSet {
@@ -20,18 +23,6 @@ impl Deserialize for ResultSet {
         let seq_no = ctx.decoder.decode_int_1();
 
         let column_packet = ColumnPacket::deserialize(ctx)?;
-
-        match ctx.decoder.decode_int_1() {
-            // 0x00 -> PACKET_OK
-            0x00 => {}
-
-            // 0xFF -> PACKET_ERR
-            0xFF => {}
-
-            _ => {
-                panic!("Didn't receive 0x00 nor 0xFF");
-            }
-        }
 
         let columns = if let Some(columns) = column_packet.columns {
             (0..columns)
@@ -43,22 +34,43 @@ impl Deserialize for ResultSet {
             Vec::new()
         };
 
-        let mut rows = Vec::new();
+        println!("length: {:?}", length);
+        println!("seq_no: {:?}", seq_no);
 
-        loop {
-            // if end of buffer stop
-            if ctx.decoder.eof() {
-                break;
-            }
+        let eof_packet = if !(ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
+            Some(EofPacket::deserialize(ctx)?)
+        } else {
+            None
+        };
 
-            let columns = if let Some(columns) = column_packet.columns {
-                (0..columns).map(|_| ctx.decoder.decode_string_lenenc()).collect::<Vec<Bytes>>()
-            } else {
-                Vec::new()
-            };
+        println!("column_packet: {:?}", column_packet);
+
+        for col in &columns {
+            println!("col: {:?}", col);
         }
 
-        Ok(ResultSet { length, seq_no, column_packet, columns, rows })
+        println!("eof_packet: {:?}", eof_packet);
+
+        ctx.columns = column_packet.columns.clone();
+
+        // TODO: Deserialize all rows
+        let rows = vec![ResultRow::deserialize(ctx)?];
+
+        if (ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
+            println!("eof_packet: {:?}", EofPacket::deserialize(ctx)?);
+        } else {
+            println!("ok_packet: {:?}", OkPacket::deserialize(ctx)?);
+        }
+
+        println!("rows: {:?}", rows);
+
+        Ok(ResultSet {
+            length,
+            seq_no,
+            column_packet,
+            columns,
+            rows
+        })
     }
 }
 
@@ -67,6 +79,7 @@ mod test {
     use super::*;
     use crate::{__bytes_builder, connection::Connection};
     use bytes::{BufMut, Bytes};
+    use crate::protocol::packets::{ok::OkPacket, err::ErrPacket, eof::EofPacket, result_row::ResultRow};
 
     #[runtime::test]
     async fn it_decodes_result_set_packet() -> Result<(), Error> {
@@ -79,7 +92,27 @@ mod test {
         })
         .await?;
 
-        //        conn.query("SELECT * FROM users");
+        conn.select_db("test").await?;
+
+        match conn.next().await? {
+            Some(Message::OkPacket(_)) => {},
+            Some(message @ Message::ErrPacket(_)) => {
+                failure::bail!("Received an ErrPacket packet: {:?}", message);
+            },
+            Some(message) => {
+                failure::bail!("Received an unexpected packet type: {:?}", message);
+            }
+            None => {
+                failure::bail!("Did not receive a packet when one was expected");
+            }
+        }
+
+        conn.query("SELECT * FROM users").await?;
+
+        let buf = conn.stream.next_bytes().await?;
+        let mut ctx = DeContext::new(&mut conn.context, &buf);
+
+        ResultSet::deserialize(&mut ctx)?;
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
@@ -88,120 +121,120 @@ mod test {
             // ------------------- //
 
             // length
-            0x02_u8, 0x0_u8, 0x0_u8,
+            2u8, 0u8, 0u8,
             // seq_no
-            0x02_u8,
+            2u8,
             // int<lenenc> Column count packet
-            0x02_u8, 0x00_u8,
+            2u8, 0u8,
 
             // ------------------------ //
             // Column Definition packet //
             // ------------------------ //
 
             // length
-            0x02_u8, 0x0_u8, 0x0_u8,
+            2u8, 0u8, 0u8,
             // seq_no
-            0x02_u8,
+            2u8,
             // string<lenenc> catalog (always 'def')
-            0x03_u8, 0x0_u8, 0x0_u8, b"def",
+            3u8, b"def",
             // string<lenenc> schema
-            0x01_u8, 0x0_u8, 0x0_u8, b'b',
+            1u8, b'b',
             // string<lenenc> table alias
-            0x01_u8, 0x0_u8, 0x0_u8, b'c',
+            1u8, b'c',
             // string<lenenc> table
-            0x01_u8, 0x0_u8, 0x0_u8, b'd',
+            1u8, b'd',
             // string<lenenc> column alias
-            0x01_u8, 0x0_u8, 0x0_u8, b'e',
+            1u8, b'e',
             // string<lenenc> column
-            0x01_u8, 0x0_u8, 0x0_u8, b'f',
+            1u8, b'f',
             // int<lenenc> length of fixed fields (=0xC)
-            0xfc_u8, 0x01_u8, 0x01_u8,
+            0xFC_u8, 1u8, 1u8,
             // int<2> character set number
-            0x01_u8, 0x01_u8,
+            1u8, 1u8,
             // int<4> max. column size
-            0x01_u8, 0x01_u8, 0x01_u8, 0x01_u8,
+            1u8, 1u8, 1u8, 1u8,
             // int<1> Field types
-            0x00_u8,
+            0u8,
             // int<2> Field detail flag
-            0x00_u8, 0x00_u8,
+            0u8, 0u8,
             // int<1> decimals
-            0x01_u8,
+            1u8,
             // int<2> - unused -
-            0x0_u8, 0x0_u8,
+            0u8, 0u8,
 
             // ------------------------ //
             // Column Definition packet //
             // ------------------------ //
 
             // length
-            0x02_u8, 0x0_u8, 0x0_u8,
+            2u8, 0u8, 0u8,
             // seq_no
-            0x02_u8,
+            2u8,
             // string<lenenc> catalog (always 'def')
-            0x03_u8, 0x0_u8, 0x0_u8, b"def",
+            3u8, b"def",
             // string<lenenc> schema
-            0x01_u8, 0x0_u8, 0x0_u8, b'b',
+            1u8, b'b',
             // string<lenenc> table alias
-            0x01_u8, 0x0_u8, 0x0_u8, b'c',
+            1u8, b'c',
             // string<lenenc> table
-            0x01_u8, 0x0_u8, 0x0_u8, b'd',
+            1u8, b'd',
             // string<lenenc> column alias
-            0x01_u8, 0x0_u8, 0x0_u8, b'e',
+            1u8, b'e',
             // string<lenenc> column
-            0x01_u8, 0x0_u8, 0x0_u8, b'f',
+            1u8, b'f',
             // int<lenenc> length of fixed fields (=0xC)
-            0xfc_u8, 0x01_u8, 0x01_u8,
+            0xFC_u8, 1u8, 1u8,
             // int<2> character set number
-            0x01_u8, 0x01_u8,
+            1u8, 1u8,
             // int<4> max. column size
-            0x01_u8, 0x01_u8, 0x01_u8, 0x01_u8,
+            1u8, 1u8, 1u8, 1u8,
             // int<1> Field types
-            0x00_u8,
-             // int<2> Field detail flag
-            0x00_u8, 0x00_u8,
+            0u8,
+            // int<2> Field detail flag
+            0u8, 0u8,
             // int<1> decimals
-            0x01_u8,
+            1u8,
             // int<2> - unused -
-            0x0_u8, 0x00_u8,
+            0u8, 0u8,
 
             // ---------- //
             // EOF Packet //
             // ---------- //
 
             // length
-            0x02_u8, 0x0_u8, 0x0_u8,
+            1u8, 0u8, 0u8,
             // seq_no
-            0x02_u8,
+            1u8,
             // int<1> 0xfe : EOF header
-            0xfe_u8,
+            0xFE_u8,
             // int<2> warning count
-            0x0_u8, 0x0_u8,
+            0u8, 0u8,
             // int<2> server status
-            0x01_u8, 0x00_u8,
+            1u8, 0u8,
 
             // ------------------- //
             // N Result Row Packet //
             // ------------------- //
 
             // string<lenenc> column data
-            0x01_u8, 0x0_u8, 0x0_u8, b'h',
+            1u8, b'h',
             // string<lenenc> column data
-            0x01_u8, 0x0_u8, 0x0_u8, b'i',
+            1u8, b'i',
 
             // ---------- //
             // EOF Packet //
             // ---------- //
 
             // length
-            0x02_u8, 0x0_u8, 0x0_u8,
+            1u8, 0u8, 0u8,
             // seq_no
-            0x02_u8,
+            1u8,
             // int<1> 0xfe : EOF header
-            0xfe_u8,
+            0xFE_u8,
             // int<2> warning count
-            0x0_u8, 0x0_u8,
+            0u8, 0u8,
             // int<2> server status
-            0x01_u8, 0x00_u8
+            1u8, 0u8
         );
 
         Ok(())
