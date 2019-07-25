@@ -1,28 +1,27 @@
-use super::super::deserialize::{Deserialize, DeContext};
+use super::super::deserialize::{DeContext, Deserialize};
 use failure::Error;
 
 #[derive(Default, Debug)]
+// ColumnPacket doesn't have a packet header because
+// it's nested inside a result set packet
 pub struct ColumnPacket {
-    pub length: u32,
-    pub seq_no: u8,
     pub columns: Option<usize>,
 }
 
 impl Deserialize for ColumnPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
         let columns = decoder.decode_int_lenenc();
 
-        Ok(ColumnPacket { length, seq_no, columns })
+        Ok(ColumnPacket { columns })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use bytes::Bytes;
     use super::*;
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+    use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
@@ -33,10 +32,15 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = Bytes::from(b"\x01\0\0\x01\xFB".to_vec());
-        let message = ColumnPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
+        let buf = __bytes_builder!(
+            // int<lenenc> tag code: None
+            0xFB_u8
+        );
+
+        let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         assert_eq!(message.columns, None);
 
@@ -51,10 +55,16 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = Bytes::from(b"\x04\0\0\x01\xFD\x01\x01\x01".to_vec());
-        let message = ColumnPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
+        let buf = __bytes_builder!(
+            // int<lenenc> tag code: Some(3 bytes)
+            0xFD_u8, // value: 3 bytes
+            0x01_u8, 0x01_u8, 0x01_u8
+        );
+
+        let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         assert_eq!(message.columns, Some(0x010101));
 
@@ -69,14 +79,21 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = Bytes::from(b"\x03\0\0\x01\xFC\x01\x01".to_vec());
-        let message = ColumnPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
+        #[rustfmt::skip]
+        let buf = __bytes_builder!(
+            // int<lenenc> tag code: Some(3 bytes)
+            0xFC_u8,
+            // value: 2 bytes
+            0x01_u8, 0x01_u8
+        );
+
+        let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         assert_ne!(message.columns, Some(0x0100));
 
         Ok(())
     }
 }
-

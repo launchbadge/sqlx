@@ -28,7 +28,7 @@ impl Serialize for HandshakeResponsePacket {
         // Filler
         conn.encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
-        if !(conn.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
+        if !(conn.context.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
@@ -40,11 +40,11 @@ impl Serialize for HandshakeResponsePacket {
 
         conn.encoder.encode_string_null(&self.username);
 
-        if !(conn.capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
+        if !(conn.context.capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {
                 conn.encoder.encode_string_lenenc(&auth_data);
             }
-        } else if !(conn.capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
+        } else if !(conn.context.capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
                 conn.encoder.encode_int_1(self.auth_response_len.unwrap());
                 conn.encoder
@@ -54,21 +54,21 @@ impl Serialize for HandshakeResponsePacket {
             conn.encoder.encode_int_1(0);
         }
 
-        if !(conn.capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
+        if !(conn.context.capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
             if let Some(database) = &self.database {
                 // string<NUL>
                 conn.encoder.encode_string_null(&database);
             }
         }
 
-        if !(conn.capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
+        if !(conn.context.capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             if let Some(auth_plugin_name) = &self.auth_plugin_name {
                 // string<NUL>
                 conn.encoder.encode_string_null(&auth_plugin_name);
             }
         }
 
-        if !(conn.capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
+        if !(conn.context.capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
             if let (Some(conn_attr_len), Some(conn_attr)) = (&self.conn_attr_len, &self.conn_attr) {
                 // int<lenenc>
                 conn.encoder.encode_int_lenenc(Some(conn_attr_len));

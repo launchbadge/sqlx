@@ -1,15 +1,15 @@
-use std::convert::TryFrom;
-use bytes::Bytes;
-use failure::Error;
 use super::super::{
-    deserialize::{Deserialize, DeContext},
+    deserialize::{DeContext, Deserialize},
     types::{FieldDetailFlag, FieldType},
 };
+use bytes::Bytes;
+use failure::Error;
+use std::convert::TryFrom;
 
 #[derive(Debug, Default)]
+// ColumnDefPacket doesn't have a packet header because
+// it's nested inside a result set packet
 pub struct ColumnDefPacket {
-    pub length: u32,
-    pub seq_no: u8,
     pub catalog: Bytes,
     pub schema: Bytes,
     pub table_alias: Bytes,
@@ -27,8 +27,6 @@ pub struct ColumnDefPacket {
 impl Deserialize for ColumnDefPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
 
         let catalog = decoder.decode_string_lenenc();
         let schema = decoder.decode_string_lenenc();
@@ -47,8 +45,6 @@ impl Deserialize for ColumnDefPacket {
         decoder.skip_bytes(2);
 
         Ok(ColumnDefPacket {
-            length,
-            seq_no,
             catalog,
             schema,
             table_alias,
@@ -67,8 +63,9 @@ impl Deserialize for ColumnDefPacket {
 
 #[cfg(test)]
 mod test {
-    use bytes::Bytes;
     use super::*;
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+    use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
@@ -79,26 +76,40 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = Bytes::from(b"\
-        \0\0\0\
-        \x01\
-        \x01\0\0a\
-        \x01\0\0b\
-        \x01\0\0c\
-        \x01\0\0d\
-        \x01\0\0e\
-        \x01\0\0f\
-        \xfc\x01\x01\
-        \x01\x01\
-        \x01\x01\x01\x01\
-        \x00\
-        \x00\x00\
-        \x01\
-        \0\0
-        ".to_vec());
-        let message = ColumnDefPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
+        #[rustfmt::skip]
+        let buf = __bytes_builder!(
+            // string<lenenc> catalog (always 'def')
+            1u8, 0u8, 0u8, b'a',
+            // string<lenenc> schema
+            1u8, 0u8, 0u8, b'b',
+            // string<lenenc> table alias
+            1u8, 0u8, 0u8, b'c',
+            // string<lenenc> table
+            1u8, 0u8, 0u8, b'd',
+            // string<lenenc> column alias
+            1u8, 0u8, 0u8, b'e',
+            // string<lenenc> column
+            1u8, 0u8, 0u8, b'f',
+            // int<lenenc> length of fixed fields (=0xC)
+            0xFC_u8, 1u8, 1u8,
+            // int<2> character set number
+            1u8, 1u8,
+            // int<4> max. column size
+            1u8, 1u8, 1u8, 1u8,
+            // int<1> Field types
+            1u8,
+            // int<2> Field detail flag
+            1u8, 0u8,
+            // int<1> decimals
+            1u8,
+            // int<2> - unused -
+            0u8, 0u8
+        );
+
+        let message = ColumnDefPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         assert_eq!(&message.catalog[..], b"a");
         assert_eq!(&message.schema[..], b"b");

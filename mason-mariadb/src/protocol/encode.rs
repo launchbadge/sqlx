@@ -56,7 +56,7 @@ impl Encoder {
     }
 
     #[inline]
-    pub fn encode_int_3(&mut self, value: u32)  {
+    pub fn encode_int_3(&mut self, value: u32) {
         self.buf.extend_from_slice(&value.to_le_bytes()[0..3]);
     }
 
@@ -74,22 +74,22 @@ impl Encoder {
     pub fn encode_int_lenenc(&mut self, value: Option<&usize>) {
         if let Some(value) = value {
             if *value > U24_MAX && *value <= std::u64::MAX as usize {
-                self.buf.push(0xFE);
+                self.buf.put_u8(0xFE);
                 self.encode_int_8(*value as u64);
             } else if *value > std::u16::MAX as usize && *value <= U24_MAX {
-                self.buf.push(0xFD);
+                self.buf.put_u8(0xFD);
                 self.encode_int_3(*value as u32);
             } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize {
-                self.buf.push(0xFC);
+                self.buf.put_u8(0xFC);
                 self.encode_int_2(*value as u16);
             } else if *value <= std::u8::MAX as usize {
-                self.buf.push(0xFA);
+                self.buf.put_u8(0xFA);
                 self.encode_int_1(*value as u8);
             } else {
                 panic!("Value is too long");
             }
         } else {
-            self.buf.push(0xFB);
+            self.buf.put_u8(0xFB);
         }
     }
 

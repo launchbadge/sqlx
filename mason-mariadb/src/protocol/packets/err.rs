@@ -1,7 +1,10 @@
-use std::convert::TryFrom;
+use super::super::{
+    deserialize::{DeContext, Deserialize},
+    error_codes::ErrorCode,
+};
 use bytes::Bytes;
 use failure::Error;
-use super::super::{deserialize::Deserialize, deserialize::DeContext, error_codes::ErrorCode};
+use std::convert::TryFrom;
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
@@ -72,8 +75,9 @@ impl Deserialize for ErrPacket {
 
 #[cfg(test)]
 mod test {
-    use bytes::Bytes;
     use super::*;
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+    use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
@@ -84,10 +88,39 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = Bytes::from(b"!\0\0\x01\xff\x84\x04#08S01Got packets out of order".to_vec());
-        let _message = ErrPacket::deserialize(&mut conn, &mut Decoder::new(&buf))?;
+        #[rustfmt::skip]
+        let buf = __bytes_builder!(
+            // int<3> length
+            1u8, 0u8, 0u8,
+            // int<1> seq_no
+            1u8,
+            // int<1> 0xfe : EOF header
+            0xFF_u8,
+            // int<2> error code
+            0x84_u8, 0x04_u8,
+            // if (errorcode == 0xFFFF) /* progress reporting */ {
+            //     int<1> stage
+            //     int<1> max_stage
+            //     int<3> progress
+            //     string<lenenc> progress_info
+            // } else {
+            //     if (next byte = '#') {
+            //         string<1> sql state marker '#'
+                        b"#",
+            //         string<5>sql state
+                        b"08S01",
+            //         string<EOF> error message
+                        b"Got packets out of order"
+            //     } else {
+            //         string<EOF> error message
+            //     }
+            // }
+        );
+
+        let _message = ErrPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         Ok(())
     }

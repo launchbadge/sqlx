@@ -1,7 +1,9 @@
-use super::super::{deserialize::Deserialize, deserialize::DeContext, types::ServerStatusFlag};
+use super::super::{
+    deserialize::{DeContext, Deserialize},
+    types::ServerStatusFlag,
+};
 use bytes::Bytes;
-use failure::Error;
-use failure::err_msg;
+use failure::{err_msg, Error};
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -57,7 +59,7 @@ impl Deserialize for OkPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bytes::BytesMut;
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
     use mason_core::ConnectOptions;
 
     #[runtime::test]
@@ -68,22 +70,38 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = BytesMut::from(b"\
-        \x0F\x00\x00\
-        \x01\
-        \x00\
-        \xFB\
-        \xFB\
-        \x01\x01\
-        \x00\x00\
-        info\
-        "
-            .to_vec(),
+        #[rustfmt::skip]
+        let buf = __bytes_builder!(
+            // length
+            0x0F_u8, 0x0_u8, 0x0_u8,
+            // seq_no
+            0x01_u8,
+            // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
+            0x00_u8,
+            // int<lenenc> affected rows
+            0xFB_u8,
+            // int<lenenc> last insert id
+            0xFB_u8,
+            // int<2> server status
+            0x01_u8, 0x01_u8,
+            // int<2> warning count
+            0x0_u8, 0x0_u8,
+            // if session_tracking_supported (see CLIENT_SESSION_TRACK) {
+            //   string<lenenc> info
+            //   if (status flags & SERVER_SESSION_STATE_CHANGED) {
+            //     string<lenenc> session state info
+            //     string<lenenc> value of variable
+            //   }
+            // } else {
+            //   string<EOF> info
+                b"info"
+            // }
         );
 
-        let message = OkPacket::deserialize(&mut conn, &mut Decoder::new(&buf.freeze()))?;
+        let message = OkPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);

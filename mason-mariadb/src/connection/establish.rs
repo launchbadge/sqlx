@@ -1,11 +1,11 @@
-use super::{Connection};
+use super::Connection;
 use crate::protocol::{
-    deserialize::{Deserialize, DeContext},
+    deserialize::{DeContext, Deserialize},
     packets::{handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket},
     server::Message as ServerMessage,
     types::Capabilities,
 };
-use bytes::Bytes;
+use bytes::{BufMut, Bytes};
 use failure::{err_msg, Error};
 use mason_core::ConnectOptions;
 
@@ -14,7 +14,7 @@ pub async fn establish<'a, 'b: 'a>(
     options: ConnectOptions<'b>,
 ) -> Result<(), Error> {
     let buf = &conn.stream.next_bytes().await?;
-    let mut de_ctx = DeContext::new(conn, &buf);
+    let mut de_ctx = DeContext::new(&mut conn.context, &buf);
     let _ = InitialHandshakePacket::deserialize(&mut de_ctx)?;
 
     let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
@@ -30,7 +30,7 @@ pub async fn establish<'a, 'b: 'a>(
 
     match conn.next().await? {
         Some(ServerMessage::OkPacket(message)) => {
-            conn.seq_no = message.seq_no;
+            conn.context.seq_no = message.seq_no;
             Ok(())
         }
 
@@ -41,7 +41,7 @@ pub async fn establish<'a, 'b: 'a>(
         }
 
         None => {
-            panic!("Did not recieve packet");
+            panic!("Did not receive packet");
         }
     }
 }
@@ -76,9 +76,10 @@ mod test {
             database: None,
             password: None,
         })
-        .await {
+        .await
+        {
             Ok(_) => Err(err_msg("Bad username still worked?")),
-            Err(_) => Ok(())
+            Err(_) => Ok(()),
         }
     }
 }

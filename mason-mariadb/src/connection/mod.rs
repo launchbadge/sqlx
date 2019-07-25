@@ -1,7 +1,7 @@
 use crate::protocol::{
-    deserialize::{Deserialize, DeContext},
+    deserialize::{DeContext, Deserialize},
     encode::Encoder,
-    packets::{com_ping::ComPing, com_quit::ComQuit, ok::OkPacket},
+    packets::{com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, ok::OkPacket},
     serialize::Serialize,
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
@@ -24,6 +24,12 @@ pub struct Connection {
     // Buffer used when serializing outgoing messages
     pub encoder: Encoder,
 
+    // Context for the connection
+    // Explicitly declared to easily send to deserializers
+    pub context: ConnContext,
+}
+
+pub struct ConnContext {
     // MariaDB Connection ID
     pub connection_id: i32,
 
@@ -41,16 +47,18 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
+    pub(crate) async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
         let mut conn: Connection = Self {
             stream,
             encoder: Encoder::new(1024),
-            connection_id: -1,
-            seq_no: 1,
-            last_seq_no: 0,
-            capabilities: Capabilities::default(),
-            status: ServerStatusFlag::default(),
+            context: ConnContext {
+                connection_id: -1,
+                seq_no: 1,
+                last_seq_no: 0,
+                capabilities: Capabilities::default(),
+                status: ServerStatusFlag::default(),
+            },
         };
 
         establish::establish(&mut conn, options).await?;
@@ -58,13 +66,13 @@ impl Connection {
         Ok(conn)
     }
 
-    async fn send<S>(&mut self, message: S) -> Result<(), Error>
+    pub(crate) async fn send<S>(&mut self, message: S) -> Result<(), Error>
     where
         S: Serialize,
     {
         self.encoder.clear();
         self.encoder.alloc_packet_header();
-        self.encoder.seq_no(self.seq_no);
+        self.encoder.seq_no(self.context.seq_no);
         message.serialize(self)?;
         self.encoder.encode_length();
 
@@ -74,24 +82,30 @@ impl Connection {
         Ok(())
     }
 
-    async fn quit(&mut self) -> Result<(), Error> {
+    pub(crate) async fn quit(&mut self) -> Result<(), Error> {
         self.send(ComQuit()).await?;
 
         Ok(())
     }
 
-    async fn ping(&mut self) -> Result<(), Error> {
-        self.seq_no = 0;
-        self.send(ComPing()).await?;
-
-        // Ping response must be an OkPacket
-        let buf = self.stream.next_bytes().await?;
-        OkPacket::deserialize(&mut DeContext::new(self, &buf))?;
+    pub(crate) async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<(), Error> {
+        self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
 
         Ok(())
     }
 
-    async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
+    pub(crate) async fn ping(&mut self) -> Result<(), Error> {
+        self.context.seq_no = 0;
+        self.send(ComPing()).await?;
+
+        // Ping response must be an OkPacket
+        let buf = self.stream.next_bytes().await?;
+        OkPacket::deserialize(&mut DeContext::new(&mut self.context, &buf))?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
         let mut rbuf = BytesMut::new();
         let mut len = 0;
 
@@ -118,7 +132,10 @@ impl Connection {
 
             while len > 0 {
                 let size = rbuf.len();
-                let message = ServerMessage::deserialize(&mut DeContext::new(self, &rbuf.as_ref().into()))?;
+                let message = ServerMessage::deserialize(&mut DeContext::new(
+                    &mut self.context,
+                    &rbuf.as_ref().into(),
+                ))?;
                 len -= size - rbuf.len();
 
                 match message {

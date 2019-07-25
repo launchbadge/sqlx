@@ -1,5 +1,5 @@
 use super::super::{
-    deserialize::{Deserialize, DeContext},
+    deserialize::{DeContext, Deserialize},
     types::{Capabilities, ServerStatusFlag},
 };
 use bytes::Bytes;
@@ -102,41 +102,84 @@ impl Deserialize for InitialHandshakePacket {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
     use bytes::BytesMut;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
     async fn it_decodes_initial_handshake_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
+        let mut conn = crate::connection::Connection::establish(ConnectOptions {
             host: "127.0.0.1",
             port: 3306,
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
-        let buf = BytesMut::from(b"\
-        n\0\0\
-        \0\
-        \n\
-        5.5.5-10.4.6-MariaDB-1:10.4.6+maria~bionic\0\
-        \x13\0\0\0\
-        ?~~|vZAu\
-        \0\
-        \xfe\xf7\
-        \x08\
-        \x02\0\
-        \xff\x81\
-        \x15\
-        \0\0\0\0\0\0\
-        \x07\0\0\0\
-        JQ8cihP4Q}Dx\
-        \0\
-        mysql_native_password\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-                .to_vec(),
+        let buf = __bytes_builder!(
+            // int<3> length
+            1u8,
+            0u8,
+            0u8,
+            // int<1> seq_no
+            0u8,
+            //int<1> protocol version
+            10u8,
+            //string<NUL> server version (MariaDB server version is by default prefixed by "5.5.5-")
+            b"5.5.5-10.4.6-MariaDB-1:10.4.6+maria~bionic\0",
+            //int<4> connection id
+            13u8,
+            0u8,
+            0u8,
+            0u8,
+            //string<8> scramble 1st part (authentication seed)
+            b"?~~|vZAu",
+            //string<1> reserved byte
+            0u8,
+            //int<2> server capabilities (1st part)
+            0xFEu8,
+            0xF7u8,
+            //int<1> server default collation
+            8u8,
+            //int<2> status flags
+            2u8,
+            0u8,
+            //int<2> server capabilities (2nd part)
+            0xFF_u8,
+            0x81_u8,
+            //if (server_capabilities & PLUGIN_AUTH)
+            //  int<1> plugin data length
+            //else
+            //  int<1> 0x00
+            15u8,
+            //string<6> filler
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            //if (server_capabilities & CLIENT_MYSQL)
+            //    string<4> filler
+            //else
+            //    int<4> server capabilities 3rd part . MariaDB specific flags /* MariaDB 10.2 or later */
+            7u8,
+            0u8,
+            0u8,
+            0u8,
+            //if (server_capabilities & CLIENT_SECURE_CONNECTION)
+            //  string<n> scramble 2nd part . Length = max(12, plugin data length - 9)
+            b"JQ8cihP4Q}Dx",
+            //  string<1> reserved byte
+            0u8,
+            //if (server_capabilities & PLUGIN_AUTH)
+            //  string<NUL> authentication plugin name
+            b"mysql_native_password\0"
         );
 
-        let _message = InitialHandshakePacket::deserialize(&mut conn, &mut Decoder::new(&buf.freeze()))?;
+        let _message =
+            InitialHandshakePacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
 
         Ok(())
     }

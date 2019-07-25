@@ -18,14 +18,7 @@ pub enum Message {
 impl Message {
     pub fn deserialize(ctx: &mut DeContext) -> Result<Option<Self>, Error> {
         let decoder = &mut ctx.decoder;
-        if decoder.buf.len() < 4 {
-            return Ok(None);
-        }
-
-        let length = decoder.decode_length()?;
-        if decoder.buf.len() < (length + 4) as usize {
-            return Ok(None);
-        }
+        let _packet_header = decoder.peek_packet_header()?;
 
         let tag = decoder.buf[4];
 

@@ -20,7 +20,7 @@ impl Serialize for SSLRequestPacket {
         // Filler
         conn.encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
-        if !(conn.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
+        if !(conn.context.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {

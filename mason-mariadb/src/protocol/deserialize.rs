@@ -1,19 +1,16 @@
 use super::decode::Decoder;
-use failure::Error;
-use crate::connection::Connection;
+use crate::connection::{ConnContext, Connection};
 use bytes::Bytes;
+use failure::Error;
 
 pub struct DeContext<'a> {
-    pub conn: &'a mut Connection,
+    pub conn: &'a mut ConnContext,
     pub decoder: Decoder<'a>,
 }
 
 impl<'a> DeContext<'a> {
-    pub fn new(conn: &'a mut Connection, buf: &'a Bytes) -> Self {
-        DeContext {
-            conn,
-            decoder: Decoder::new(&buf),
-        }
+    pub fn new(conn: &'a mut ConnContext, buf: &'a Bytes) -> Self {
+        DeContext { conn, decoder: Decoder::new(&buf) }
     }
 }
 

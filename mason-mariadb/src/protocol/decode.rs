@@ -1,4 +1,5 @@
 // Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
+use super::packets::packet_header::PacketHeader;
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
 use failure::{err_msg, Error};
@@ -22,6 +23,23 @@ impl<'a> Decoder<'a> {
         }
 
         Ok(length)
+    }
+
+    #[inline]
+    pub fn peek_tag(&self) -> Option<&u8> {
+        self.buf.get(4)
+    }
+
+    #[inline]
+    pub fn peek_packet_header(&self) -> Result<PacketHeader, Error> {
+        let length = LittleEndian::read_u24(&self.buf[self.index..]);
+        let seq_no = self.buf[3];
+
+        if self.buf.len() < length as usize {
+            return Err(err_msg("Lengths to do not match"));
+        }
+
+        Ok(PacketHeader { length, seq_no })
     }
 
     #[inline]
