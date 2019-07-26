@@ -1,28 +1,38 @@
-use super::super::deserialize::{DeContext, Deserialize};
 use failure::Error;
+
+use super::super::deserialize::{DeContext, Deserialize};
 
 #[derive(Default, Debug, Clone, Copy)]
 // ColumnPacket doesn't have a packet header because
 // it's nested inside a result set packet
 pub struct ColumnPacket {
+    pub length: u32,
+    pub seq_no: u8,
     pub columns: Option<usize>,
 }
 
 impl Deserialize for ColumnPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
+
+        let length = decoder.decode_length()?;
+        let seq_no = decoder.decode_int_1();
+
         let columns = decoder.decode_int_lenenc();
 
-        Ok(ColumnPacket { columns })
+        Ok(ColumnPacket { length, seq_no, columns })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
     use bytes::Bytes;
+
     use mason_core::ConnectOptions;
+
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+
+    use super::*;
 
     #[runtime::test]
     async fn it_decodes_column_packet_0x_fb() -> Result<(), Error> {

@@ -12,8 +12,6 @@ use super::super::{
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
-    pub length: u32,
-    pub seq_no: u8,
     pub column_packet: ColumnPacket,
     pub columns: Vec<ColumnDefPacket>,
     pub rows: Vec<ResultRow>,
@@ -21,9 +19,6 @@ pub struct ResultSet {
 
 impl Deserialize for ResultSet {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
-        let length = ctx.decoder.decode_length()?;
-        let seq_no = ctx.decoder.decode_int_1();
-
         let column_packet = ColumnPacket::deserialize(ctx)?;
 
         let columns = if let Some(columns) = column_packet.columns {
@@ -74,8 +69,6 @@ impl Deserialize for ResultSet {
         }
 
         Ok(ResultSet {
-            length,
-            seq_no,
             column_packet,
             columns,
             rows
@@ -103,137 +96,156 @@ mod test {
         })
         .await?;
 
+        // TODO: Use byte string as input for test; this is a valid return from a mariadb.
+        // Reference: b"\x01\0\0\x01\x04(\0\0\x02\x03def\x04test\x05users\x05users\x02id\x02id\x0c\x08\0\x80\0\0\0\xfd\x03@\0\0\04\0\0\x03\x03def\x04test\x05users\x05users\x08username\x08username\x0c\x08\0\xff\xff\0\0\xfc\x11\x10\0\0\04\0\0\x04\x03def\x04test\x05users\x05users\x08password\x08password\x0c\x08\0\xff\xff\0\0\xfc\x11\x10\0\0\0<\0\0\x05\x03def\x04test\x05users\x05users\x0caccess_level\x0caccess_level\x0c\x08\0\x07\0\0\0\xfe\x01\x11\0\0\0\x05\0\0\x06\xfe\0\0\"\0>\0\0\x07$044d3f34-af65-11e9-a2e5-0242ac110003\x04josh\x0bpassword123\x07regular4\0\0\x08$d83dd1c4-ada9-11e9-96bc-0242ac110003\x06daniel\x01f\x05admin\x05\0\0\t\xfe\0\0\"\0\0
+        #[rustfmt::skip]
+            let buf = __bytes_builder!(
+        // ------------------- //
+        // Column Count packet //
+        // ------------------- //
+        1u8, 0u8, 0u8,
+        1u8,
+        4u8,
+
+        // ------------------------ //
+        // Column Definition packet //
+        // ------------------------ //
+        40u8, 0u8, 0u8,
+        2u8,
+        3u8, b"def",
+        4u8, b"test",
+        5u8, b"users",
+        5u8, b"users",
+        2u8, b"id",
+        2u8, b"id",
+        0x0C_u8,
+        8u8, 0u8,
+        0x80_u8, 0u8, 0u8, 0u8,
+        0xFD_u8,
+        3u8, 64u8,
+        0u8,
+        0u8, 0u8,
+
+        // ------------------------ //
+        // Column Definition packet //
+        // ------------------------ //
+        52u8, 0u8, 0u8,
+        3u8,
+        3u8, b"def",
+        4u8, b"test",
+        5u8, b"users",
+        5u8, b"users",
+        8u8, b"username",
+        8u8, b"username",
+        0x0C_u8,
+        8u8, 0u8,
+        0xFF_u8, 0xFF_u8, 0u8, 0u8,
+        0xFC_u8,
+        0x11_u8, 0x10_u8,
+        0u8,
+        0u8, 0u8,
+
+        // ------------------------ //
+        // Column Definition packet //
+        // ------------------------ //
+        52u8, 0u8, 0u8,
+        4u8,
+        3u8, b"def",
+        4u8, b"test",
+        5u8, b"users",
+        5u8, b"users",
+        8u8, b"password",
+        8u8, b"password",
+        0x0C_u8,
+        8u8, 0u8,
+        0xFF_u8, 0xFF_u8, 0u8, 0u8,
+        0xFC_u8,
+        0x11_u8, 0x10_u8,
+        0u8,
+        0u8, 0u8,
+
+        // ------------------------ //
+        // Column Definition packet //
+        // ------------------------ //
+        60u8, 0u8, 0u8,
+        5u8,
+        3u8, b"def",
+        4u8, b"test",
+        5u8, b"users",
+        5u8, b"users",
+        12u8, b"access_level",
+        12u8, b"access_level",
+        12u8,
+        8u8, 0u8,
+        7u8, 0u8, 0u8, 0u8,
+        0xFE_u8,
+        1u8, 0x11_u8,
+        0u8,
+        0u8, 0u8,
+
+
+        // ---------- //
+        // EOF Packet //
+        // ---------- //
+        5u8, 0u8, 0u8,
+        6u8,
+        0xFE_u8,
+        0u8, 0u8,
+        34u8, 0u8,
+
+        // ----------------- //
+        // Result Row Packet //
+        // ----------------- //
+        62u8, 0u8, 0u8,
+        7u8,
+        32u8, b"044d3f34-af65-11e9-a2e5-0242ac110003",
+        4u8, b"josh",
+        11u8, b"password123",
+        7u8, b"regular",
+
+        // ----------------- //
+        // Result Row Packet //
+        // ----------------- //
+        52u8, 0u8, 0u8,
+        8u8,
+        32u8, b"d83dd1c4-ada9-11e9-96bc-0242ac110003",
+        6u8, b"daniel",
+        1u8, b"f",
+        5u8, b"admin",
+        5u8, 0u8, 0u8,
+        9u8,
+        0xFE_u8,
+        0u8, 0u8,
+        34u8, 0u8
+        );
+
         conn.select_db("test").await?;
 
         conn.query("SELECT * FROM users").await?;
 
         let buf = conn.stream.next_bytes().await?;
+        println!("{:?}", buf);
         let mut ctx = DeContext::new(&mut conn.context, &buf);
 
         ResultSet::deserialize(&mut ctx)?;
 
-        #[rustfmt::skip]
-        let buf = __bytes_builder!(
-            // ------------------- //
-            // Column Count packet //
-            // ------------------- //
 
-            // length
-            2u8, 0u8, 0u8,
-            // seq_no
-            2u8,
-            // int<lenenc> Column count packet
-            2u8, 0u8,
 
             // ------------------------ //
             // Column Definition packet //
             // ------------------------ //
-
-            // length
-            2u8, 0u8, 0u8,
-            // seq_no
-            2u8,
-            // string<lenenc> catalog (always 'def')
-            3u8, b"def",
-            // string<lenenc> schema
-            1u8, b'b',
-            // string<lenenc> table alias
-            1u8, b'c',
-            // string<lenenc> table
-            1u8, b'd',
-            // string<lenenc> column alias
-            1u8, b'e',
-            // string<lenenc> column
-            1u8, b'f',
-            // int<lenenc> length of fixed fields (=0xC)
-            0xFC_u8, 1u8, 1u8,
-            // int<2> character set number
-            1u8, 1u8,
-            // int<4> max. column size
-            1u8, 1u8, 1u8, 1u8,
-            // int<1> Field types
-            0u8,
-            // int<2> Field detail flag
-            0u8, 0u8,
-            // int<1> decimals
-            1u8,
-            // int<2> - unused -
-            0u8, 0u8,
-
-            // ------------------------ //
-            // Column Definition packet //
-            // ------------------------ //
-
-            // length
-            2u8, 0u8, 0u8,
-            // seq_no
-            2u8,
-            // string<lenenc> catalog (always 'def')
-            3u8, b"def",
-            // string<lenenc> schema
-            1u8, b'b',
-            // string<lenenc> table alias
-            1u8, b'c',
-            // string<lenenc> table
-            1u8, b'd',
-            // string<lenenc> column alias
-            1u8, b'e',
-            // string<lenenc> column
-            1u8, b'f',
-            // int<lenenc> length of fixed fields (=0xC)
-            0xFC_u8, 1u8, 1u8,
-            // int<2> character set number
-            1u8, 1u8,
-            // int<4> max. column size
-            1u8, 1u8, 1u8, 1u8,
-            // int<1> Field types
-            0u8,
-            // int<2> Field detail flag
-            0u8, 0u8,
-            // int<1> decimals
-            1u8,
-            // int<2> - unused -
-            0u8, 0u8,
 
             // ---------- //
             // EOF Packet //
             // ---------- //
-
-            // length
-            1u8, 0u8, 0u8,
-            // seq_no
-            1u8,
-            // int<1> 0xfe : EOF header
-            0xFE_u8,
-            // int<2> warning count
-            0u8, 0u8,
-            // int<2> server status
-            1u8, 0u8,
 
             // ------------------- //
             // N Result Row Packet //
             // ------------------- //
 
-            // string<lenenc> column data
-            1u8, b'h',
-            // string<lenenc> column data
-            1u8, b'i',
-
             // ---------- //
             // EOF Packet //
             // ---------- //
-
-            // length
-            1u8, 0u8, 0u8,
-            // seq_no
-            1u8,
-            // int<1> 0xfe : EOF header
-            0xFE_u8,
-            // int<2> warning count
-            0u8, 0u8,
-            // int<2> server status
-            1u8, 0u8
-        );
 
         Ok(())
     }
