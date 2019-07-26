@@ -15,3 +15,14 @@ pub fn execute(buf: &mut Vec<u8>, portal: &str, limit: i32) {
     // limit
     buf.extend_from_slice(&limit.to_be_bytes());
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_encodes_execute() {
+        let mut buf = Vec::new();
+        super::execute(&mut buf, "", 0);
+
+        assert_eq!(&*buf, b"E\0\0\0\t\0\0\0\0\0");
+    }
+}
