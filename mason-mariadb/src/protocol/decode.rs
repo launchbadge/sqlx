@@ -144,8 +144,12 @@ impl<'a> Decoder<'a> {
     }
 
     #[inline]
-    pub fn decode_string_eof(&mut self) -> Bytes {
-        let value = self.buf.slice(self.index, self.buf.len());
+    pub fn decode_string_eof(&mut self, length: usize) -> Bytes {
+        let value = self.buf.slice(self.index, if length >= self.index {
+            length
+        } else {
+            self.buf.len()
+        });
         self.index = self.buf.len();
         value
     }
@@ -177,8 +181,12 @@ impl<'a> Decoder<'a> {
     }
 
     #[inline]
-    pub fn decode_byte_eof(&mut self) -> Bytes {
-        let value = self.buf.slice(self.index, self.buf.len());
+    pub fn decode_byte_eof(&mut self, length: usize) -> Bytes {
+        let value = self.buf.slice(self.index, if length >= self.index {
+            length
+        } else {
+            self.buf.len()
+        });
         self.index = self.buf.len();
         value
     }
@@ -330,7 +338,7 @@ mod tests {
     fn it_decodes_string_eof() {
         let buf = Bytes::from(b"\x01".to_vec());
         let mut decoder = Decoder::new(&buf);
-        let string: Bytes = decoder.decode_string_eof();
+        let string: Bytes = decoder.decode_string_eof(0);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -367,7 +375,7 @@ mod tests {
     fn it_decodes_byte_eof() {
         let buf = Bytes::from(b"\x01".to_vec());
         let mut decoder = Decoder::new(&buf);
-        let string: Bytes = decoder.decode_byte_eof();
+        let string: Bytes = decoder.decode_byte_eof(0);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);

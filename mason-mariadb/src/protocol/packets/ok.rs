@@ -22,9 +22,13 @@ pub struct OkPacket {
 impl Deserialize for OkPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
+
         // Packet header
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_1();
+
+        // Used later for the byte_eof decoding
+        let index = decoder.index;
 
         // Packet body
         let packet_header = decoder.decode_int_1();
@@ -41,7 +45,7 @@ impl Deserialize for OkPacket {
         let session_state_info = None;
         let value = None;
 
-        let info = decoder.decode_byte_eof();
+        let info = decoder.decode_byte_eof(index + length as usize);
 
         Ok(OkPacket {
             length,
@@ -78,9 +82,9 @@ mod test {
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // length
+            // int<3> length
             0u8, 0u8, 0u8,
-            // seq_no
+            // // int<1> seq_no
             1u8,
             // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
             0u8,
