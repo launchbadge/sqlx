@@ -15,4 +15,16 @@ mod tests {
 
         assert_eq!(&*buf, b"S\0\0\0\x04");
     }
+
+    #[bench]
+    fn bench_encode_sync(b: &mut test::Bencher) {
+        let mut buf = Vec::new();
+
+        b.iter(|| {
+            for _ in 0..1000 {
+                buf.clear();
+                super::sync(&mut buf);
+            }
+        });
+    }
 }
