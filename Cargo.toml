@@ -16,4 +16,7 @@ log = "0.4.7"
 md-5 = "0.8.0"
 memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }
+
+[dev-dependencies]
 runtime-tokio = { version = "=0.3.0-alpha.5" }
+env_logger = "0.6.2"

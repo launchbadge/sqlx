@@ -9,6 +9,8 @@ use std::io;
 
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() -> io::Result<()> {
+    env_logger::init();
+
     // Connect as postgres / postgres and DROP the sqlx__dev database
     // if exists and then re-create it
     let mut conn = Connection::establish(
