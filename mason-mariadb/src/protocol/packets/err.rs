@@ -93,21 +93,12 @@ mod test {
 
     use mason_core::ConnectOptions;
 
-    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+    use crate::{__bytes_builder, connection::ConnContext, protocol::decode::Decoder};
 
     use super::*;
 
     #[runtime::test]
     async fn it_decodes_err_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
-        .await?;
-
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // int<3> length
@@ -137,7 +128,10 @@ mod test {
             // }
         );
 
-        let _message = ErrPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, &buf);
+
+        let _message = ErrPacket::deserialize(&mut ctx)?;
 
         Ok(())
     }

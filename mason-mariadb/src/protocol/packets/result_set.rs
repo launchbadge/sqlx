@@ -82,20 +82,13 @@ mod test {
 
     use crate::{__bytes_builder, connection::Connection};
     use crate::protocol::packets::{eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow};
+    use crate::protocol::types::{ServerStatusFlag, Capabilities};
+    use crate::connection::ConnContext;
 
     use super::*;
 
     #[runtime::test]
     async fn it_decodes_result_set_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(mason_core::ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
-        .await?;
-
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
         let buf = __bytes_builder!(
@@ -306,7 +299,8 @@ mod test {
         34u8, 0u8
         );
 
-        let mut ctx = DeContext::new(&mut conn.context, &buf);
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, &buf);
 
         ResultSet::deserialize(&mut ctx)?;
 

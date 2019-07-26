@@ -78,21 +78,12 @@ impl Deserialize for ColumnDefPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+    use crate::{__bytes_builder, connection::ConnContext, protocol::decode::Decoder};
     use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
     async fn it_decodes_column_def_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
-        .await?;
-
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // length
@@ -127,7 +118,10 @@ mod test {
             0u8, 0u8
         );
 
-        let message = ColumnDefPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, &buf);
+
+        let message = ColumnDefPacket::deserialize(&mut ctx)?;
 
         assert_eq!(&message.catalog[..], b"a");
         assert_eq!(&message.schema[..], b"b");

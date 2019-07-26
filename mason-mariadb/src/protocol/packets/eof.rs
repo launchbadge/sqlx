@@ -39,21 +39,12 @@ impl Deserialize for EofPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, connection::Connection};
+    use crate::{__bytes_builder, connection::ConnContext};
     use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
     async fn it_decodes_eof_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
-        .await?;
-
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -69,7 +60,11 @@ mod test {
         );
 
         let buf = Bytes::from_static(b"\x01\0\0\x01\xFE\x00\x00\x01\x00");
-        let _message = EofPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
+
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, &buf);
+
+        let _message = EofPacket::deserialize(&mut ctx)?;
 
         Ok(())
     }

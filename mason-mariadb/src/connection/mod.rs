@@ -32,6 +32,7 @@ pub struct Connection {
     pub context: ConnContext,
 }
 
+#[derive(Debug)]
 pub struct ConnContext {
     // MariaDB Connection ID
     pub connection_id: i32,
@@ -47,6 +48,38 @@ pub struct ConnContext {
 
     // Server status
     pub status: ServerStatusFlag,
+}
+
+impl ConnContext {
+    #[cfg(test)]
+    pub fn new() -> Self {
+        ConnContext {
+            connection_id: 0,
+            seq_no: 2,
+            last_seq_no: 0,
+            capabilities: Capabilities::FOUND_ROWS
+                | Capabilities::CONNECT_WITH_DB
+                | Capabilities::COMPRESS
+                | Capabilities::LOCAL_FILES
+                | Capabilities::IGNORE_SPACE
+                | Capabilities::CLIENT_PROTOCOL_41
+                | Capabilities::CLIENT_INTERACTIVE
+                | Capabilities::TRANSACTIONS
+                | Capabilities::SECURE_CONNECTION
+                | Capabilities::MULTI_STATEMENTS
+                | Capabilities::MULTI_RESULTS
+                | Capabilities::PS_MULTI_RESULTS
+                | Capabilities::PLUGIN_AUTH
+                | Capabilities::CONNECT_ATTRS
+                | Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA
+                | Capabilities::CLIENT_SESSION_TRACK
+                | Capabilities::CLIENT_DEPRECATE_EOF
+                | Capabilities::MARIA_DB_CLIENT_PROGRESS
+                | Capabilities::MARIA_DB_CLIENT_COM_MULTI
+                | Capabilities::MARIA_CLIENT_STMT_BULK_OPERATIONS,
+            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS
+        }
+    }
 }
 
 impl Connection {

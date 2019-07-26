@@ -35,20 +35,12 @@ impl Deserialize for ResultRow {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, connection::Connection};
+    use crate::{__bytes_builder, connection::ConnContext};
     use bytes::Bytes;
     use mason_core::ConnectOptions;
 
     #[runtime::test]
     async fn it_decodes_result_row_packet() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        }).await?;
-
         #[rustfmt::skip]
             let buf = __bytes_builder!(
             // int<3> length
@@ -59,8 +51,11 @@ mod test {
             1u8, b"s"
         );
 
-        let mut ctx = DeContext::new(&mut conn.context, &buf);
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, &buf);
+
         ctx.columns = Some(1);
+
         let _message = ResultRow::deserialize(&mut ctx)?;
 
         Ok(())
