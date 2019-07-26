@@ -80,15 +80,16 @@ impl Deserialize for ResultSet {
 mod test {
     use bytes::{BufMut, Bytes};
 
-    use crate::{__bytes_builder, connection::Connection};
-    use crate::protocol::packets::{eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow};
-    use crate::protocol::types::{ServerStatusFlag, Capabilities};
-    use crate::connection::ConnContext;
+    use crate::__bytes_builder;
+    use crate::mariadb::{connection::Connection};
+    use crate::mariadb::protocol::packets::{eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow};
+    use crate::mariadb::protocol::types::{ServerStatusFlag, Capabilities};
+    use crate::mariadb::connection::ConnContext;
 
     use super::*;
 
-    #[runtime::test]
-    async fn it_decodes_result_set_packet() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_result_set_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
         let buf = __bytes_builder!(

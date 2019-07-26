@@ -51,35 +51,35 @@ mod test {
     use super::*;
     use failure::Error;
 
-    #[runtime::test]
-    async fn it_connects() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
-        .await?;
-
-        conn.ping().await?;
-
-        Ok(())
-    }
-
-    #[runtime::test]
-    async fn it_does_not_connect() -> Result<(), Error> {
-        match Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("roote"),
-            database: None,
-            password: None,
-        })
-        .await
-        {
-            Ok(_) => Err(err_msg("Bad username still worked?")),
-            Err(_) => Ok(()),
-        }
-    }
+//    #[runtime::test]
+//    async fn it_connects() -> Result<(), Error> {
+//        let mut conn = Connection::establish(ConnectOptions {
+//            host: "127.0.0.1",
+//            port: 3306,
+//            user: Some("root"),
+//            database: None,
+//            password: None,
+//        })
+//        .await?;
+//
+//        conn.ping().await?;
+//
+//        Ok(())
+//    }
+//
+//    #[runtime::test]
+//    async fn it_does_not_connect() -> Result<(), Error> {
+//        match Connection::establish(ConnectOptions {
+//            host: "127.0.0.1",
+//            port: 3306,
+//            user: Some("roote"),
+//            database: None,
+//            password: None,
+//        })
+//        .await
+//        {
+//            Ok(_) => Err(err_msg("Bad username still worked?")),
+//            Err(_) => Ok(()),
+//        }
+//    }
 }

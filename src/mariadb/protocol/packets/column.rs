@@ -28,14 +28,14 @@ impl Deserialize for ColumnPacket {
 mod test {
     use bytes::Bytes;
 
-    use mason_core::ConnectOptions;
+    use crate::ConnectOptions;
 
-    use crate::{__bytes_builder, connection::ConnContext, protocol::decode::Decoder};
+    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
 
     use super::*;
 
-    #[runtime::test]
-    async fn it_decodes_column_packet_0x_fb() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_column_packet_0x_fb() -> Result<(), Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -56,8 +56,8 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
-    async fn it_decodes_column_packet_0x_fd() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_column_packet_0x_fd() -> Result<(), Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -80,8 +80,8 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
-    async fn it_fails_to_decode_column_packet_0x_fc() -> Result<(), Error> {
+    #[test]
+    fn it_fails_to_decode_column_packet_0x_fc() -> Result<(), Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length

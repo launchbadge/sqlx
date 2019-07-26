@@ -3,6 +3,9 @@
 
 #![allow(clippy::needless_lifetimes)]
 
+// FIXME: Remove this once API has matured
+#![allow(dead_code, unused_imports, unused_variables)]
+
 #[cfg(test)]
 extern crate test;
 
@@ -16,3 +19,7 @@ pub use self::options::ConnectOptions;
 
 pub mod postgres;
 pub mod mariadb;
+
+// Helper macro for writing long complex tests
+#[macro_use]
+pub mod macros;

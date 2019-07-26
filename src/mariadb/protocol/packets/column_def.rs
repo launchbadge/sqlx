@@ -78,12 +78,12 @@ impl Deserialize for ColumnDefPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, connection::ConnContext, protocol::decode::Decoder};
+    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
     use bytes::Bytes;
-    use mason_core::ConnectOptions;
+    use crate::ConnectOptions;
 
-    #[runtime::test]
-    async fn it_decodes_column_def_packet() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_column_def_packet() -> Result<(), Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // length

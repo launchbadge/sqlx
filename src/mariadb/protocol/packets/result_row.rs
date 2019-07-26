@@ -35,12 +35,12 @@ impl Deserialize for ResultRow {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, connection::ConnContext};
+    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
     use bytes::Bytes;
-    use mason_core::ConnectOptions;
+    use crate::ConnectOptions;
 
-    #[runtime::test]
-    async fn it_decodes_result_row_packet() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_result_row_packet() -> Result<(), Error> {
         #[rustfmt::skip]
             let buf = __bytes_builder!(
             // int<3> length

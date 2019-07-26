@@ -63,14 +63,14 @@ impl Deserialize for OkPacket {
 
 #[cfg(test)]
 mod test {
-    use mason_core::ConnectOptions;
+    use crate::ConnectOptions;
 
-    use crate::{__bytes_builder, connection::ConnContext, protocol::decode::Decoder};
+    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
 
     use super::*;
 
-    #[runtime::test]
-    async fn it_decodes_ok_packet() -> Result<(), Error> {
+    #[test]
+    fn it_decodes_ok_packet() -> Result<(), Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
