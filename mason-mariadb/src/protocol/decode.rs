@@ -131,21 +131,21 @@ impl<'a> Decoder<'a> {
     #[inline]
     pub fn decode_string_lenenc(&mut self) -> Bytes {
         let length = self.decode_int_1();
-        let value = Bytes::from(&self.buf[self.index..self.index + length as usize]);
+        let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
     }
 
     #[inline]
     pub fn decode_string_fix(&mut self, length: u32) -> Bytes {
-        let value = Bytes::from(&self.buf[self.index..self.index + length as usize]);
+        let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
     }
 
     #[inline]
     pub fn decode_string_eof(&mut self) -> Bytes {
-        let value = Bytes::from(&self.buf[self.index..]);
+        let value = self.buf.slice(self.index, self.buf.len());
         self.index = self.buf.len();
         value
     }
@@ -153,7 +153,7 @@ impl<'a> Decoder<'a> {
     #[inline]
     pub fn decode_string_null(&mut self) -> Result<Bytes, Error> {
         if let Some(null_index) = memchr::memchr(0, &self.buf[self.index..]) {
-            let value = Bytes::from(&self.buf[self.index..self.index + null_index]);
+            let value = self.buf.slice(self.index, self.index + null_index);
             self.index = self.index + null_index + 1;
             Ok(value)
         } else {
@@ -163,22 +163,22 @@ impl<'a> Decoder<'a> {
 
     #[inline]
     pub fn decode_byte_fix(&mut self, length: u32) -> Bytes {
-        let value = Bytes::from(&self.buf[self.index..self.index + length as usize]);
+        let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
     }
 
     #[inline]
     pub fn decode_byte_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_3();
-        let value = Bytes::from(&self.buf[self.index..self.index + length as usize]);
+        let length = self.decode_int_1();
+        let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
     }
 
     #[inline]
     pub fn decode_byte_eof(&mut self) -> Bytes {
-        let value = Bytes::from(&self.buf[self.index..]);
+        let value = self.buf.slice(self.index, self.buf.len());
         self.index = self.buf.len();
         value
     }
