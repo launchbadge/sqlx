@@ -1,2 +1,7 @@
-pub use sqlx_core::ConnectOptions;
-pub use sqlx_postgres as pg;
+#![feature(non_exhaustive, async_await)]
+#![allow(clippy::needless_lifetimes)]
+
+mod options;
+pub use self::options::ConnectOptions;
+
+pub mod postgres;

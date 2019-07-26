@@ -1,9 +1,0 @@
-[package]
-name = "sqlx-core"
-version = "0.0.0"
-authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
-license = "MIT OR Apache-2.0"
-description = "Shared types and traits for sqlx."
-edition = "2018"
-
-[dependencies]

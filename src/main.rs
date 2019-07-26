@@ -1,7 +1,7 @@
 #![feature(async_await)]
 
 use futures::{future, TryStreamExt};
-use sqlx::{pg::Connection, ConnectOptions};
+use sqlx::{postgres::Connection, ConnectOptions};
 use std::io;
 
 // TODO: ToSql and FromSql (to [de]serialize values from/to Rust and SQL)
