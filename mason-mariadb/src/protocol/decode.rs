@@ -1,8 +1,9 @@
-// Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
-use super::packets::packet_header::PacketHeader;
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
 use failure::{err_msg, Error};
+
+// Deserializing bytes and string do the same thing. Except that string also has a null terminated deserialzer
+use super::packets::packet_header::PacketHeader;
 
 pub struct Decoder<'a> {
     pub buf: &'a Bytes,
@@ -18,8 +19,8 @@ impl<'a> Decoder<'a> {
     pub fn decode_length(&mut self) -> Result<u32, Error> {
         let length = self.decode_int_3();
 
-        if self.buf.len() < length as usize {
-            return Err(err_msg("Lengths to do not match"));
+        if self.buf.len() - self.index < length as usize {
+            return Err(err_msg("Lengths to do not match when decoding length"));
         }
 
         Ok(length)
@@ -27,16 +28,20 @@ impl<'a> Decoder<'a> {
 
     #[inline]
     pub fn peek_tag(&self) -> Option<&u8> {
-        self.buf.get(4)
+        if self.buf.len() < self.index + 4 {
+            None
+        } else {
+            Some(&self.buf[self.index + 4])
+        }
     }
 
     #[inline]
     pub fn peek_packet_header(&self) -> Result<PacketHeader, Error> {
-        let length = LittleEndian::read_u24(&self.buf[self.index..]);
-        let seq_no = self.buf[3];
+        let length: u32 = (self.buf[self.index] as u32) + ((self.buf[self.index + 1] as u32) << 8) + ((self.buf[self.index + 2] as u32) << 16);
+        let seq_no = self.buf[self.index + 3];
 
-        if self.buf.len() < length as usize {
-            return Err(err_msg("Lengths to do not match"));
+        if self.buf.len() - self.index < length as usize {
+            return Err(err_msg("Lengths to do not match when peeking header"));
         }
 
         Ok(PacketHeader { length, seq_no })
@@ -181,11 +186,12 @@ impl<'a> Decoder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use bytes::Bytes;
     use failure::Error;
 
-    // [X] it_decodes_int_lenenc
+    use super::*;
+
+// [X] it_decodes_int_lenenc
     // [X] it_decodes_int_8
     // [X] it_decodes_int_4
     // [X] it_decodes_int_3

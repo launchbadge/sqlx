@@ -1,12 +1,14 @@
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    packets::{ok::OkPacket, err::ErrPacket, eof::EofPacket, column::ColumnPacket, column_def::ColumnDefPacket, result_row::ResultRow},
-};
 use bytes::Bytes;
 use failure::Error;
+
+use crate::protocol::decode::Decoder;
 use crate::protocol::server::Message;
 use crate::protocol::types::Capabilities;
-use crate::protocol::decode::Decoder;
+
+use super::super::{
+    deserialize::{DeContext, Deserialize},
+    packets::{column::ColumnPacket, column_def::ColumnDefPacket, eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow},
+};
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
@@ -34,35 +36,42 @@ impl Deserialize for ResultSet {
             Vec::new()
         };
 
-        println!("length: {:?}", length);
-        println!("seq_no: {:?}", seq_no);
-
         let eof_packet = if !(ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
             Some(EofPacket::deserialize(ctx)?)
         } else {
             None
         };
 
-        println!("column_packet: {:?}", column_packet);
-
-        for col in &columns {
-            println!("col: {:?}", col);
-        }
-
-        println!("eof_packet: {:?}", eof_packet);
-
         ctx.columns = column_packet.columns.clone();
 
-        // TODO: Deserialize all rows
-        let rows = vec![ResultRow::deserialize(ctx)?];
+        let mut rows = Vec::new();
 
-        if (ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
-            println!("eof_packet: {:?}", EofPacket::deserialize(ctx)?);
-        } else {
-            println!("ok_packet: {:?}", OkPacket::deserialize(ctx)?);
+        loop {
+            let packet_header = match ctx.decoder.peek_packet_header() {
+                Ok(v) => v,
+                Err(_) => break,
+            };
+
+            let tag = ctx.decoder.peek_tag();
+            if tag == Some(&0xFE) && packet_header.length <= 0xFFFFFF {
+                break;
+            } else {
+                let index = ctx.decoder.index;
+                match ResultRow::deserialize(ctx) {
+                    Ok(v) => rows.push(v),
+                    Err(_) => {
+                        ctx.decoder.index = index;
+                        break;
+                    },
+                }
+            }
         }
 
-        println!("rows: {:?}", rows);
+        if (ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
+            EofPacket::deserialize(ctx)?;
+        } else {
+            OkPacket::deserialize(ctx)?;
+        }
 
         Ok(ResultSet {
             length,
@@ -76,10 +85,12 @@ impl Deserialize for ResultSet {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{__bytes_builder, connection::Connection};
     use bytes::{BufMut, Bytes};
-    use crate::protocol::packets::{ok::OkPacket, err::ErrPacket, eof::EofPacket, result_row::ResultRow};
+
+    use crate::{__bytes_builder, connection::Connection};
+    use crate::protocol::packets::{eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow};
+
+    use super::*;
 
     #[runtime::test]
     async fn it_decodes_result_set_packet() -> Result<(), Error> {
@@ -93,19 +104,6 @@ mod test {
         .await?;
 
         conn.select_db("test").await?;
-
-        match conn.next().await? {
-            Some(Message::OkPacket(_)) => {},
-            Some(message @ Message::ErrPacket(_)) => {
-                failure::bail!("Received an ErrPacket packet: {:?}", message);
-            },
-            Some(message) => {
-                failure::bail!("Received an unexpected packet type: {:?}", message);
-            }
-            None => {
-                failure::bail!("Did not receive a packet when one was expected");
-            }
-        }
 
         conn.query("SELECT * FROM users").await?;
 

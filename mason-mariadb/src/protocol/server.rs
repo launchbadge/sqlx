@@ -18,9 +18,15 @@ pub enum Message {
 impl Message {
     pub fn deserialize(ctx: &mut DeContext) -> Result<Option<Self>, Error> {
         let decoder = &mut ctx.decoder;
-        let _packet_header = decoder.peek_packet_header()?;
+        let _packet_header = match decoder.peek_packet_header() {
+            Ok(v) => v,
+            Err(_) => return Ok(None),
+        };
 
-        let tag = decoder.buf[4];
+        let tag = match decoder.peek_tag() {
+            Some(v) => v,
+            None => return Ok(None),
+        };
 
         Ok(Some(match tag {
             0xFF => Message::ErrPacket(ErrPacket::deserialize(ctx)?),

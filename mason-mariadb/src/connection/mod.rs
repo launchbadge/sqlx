@@ -1,11 +1,3 @@
-use crate::protocol::{
-    deserialize::{DeContext, Deserialize},
-    encode::Encoder,
-    packets::{com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, com_init_db::ComInitDb, ok::OkPacket},
-    serialize::Serialize,
-    server::Message as ServerMessage,
-    types::{Capabilities, ServerStatusFlag},
-};
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
 use failure::Error;
@@ -13,8 +5,19 @@ use futures::{
     io::{AsyncRead, AsyncWriteExt},
     prelude::*,
 };
-use mason_core::ConnectOptions;
 use runtime::net::TcpStream;
+
+use mason_core::ConnectOptions;
+
+use crate::protocol::{
+    deserialize::{DeContext, Deserialize},
+    encode::Encoder,
+    packets::{com_init_db::ComInitDb, com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, ok::OkPacket},
+    serialize::Serialize,
+    server::Message as ServerMessage,
+    types::{Capabilities, ServerStatusFlag},
+};
+use crate::protocol::server::Message;
 
 mod establish;
 
@@ -100,6 +103,20 @@ impl Connection {
     pub async fn select_db<'a>(&'a mut self, db: &'a str) -> Result<(), Error> {
         self.context.seq_no = 0;
         self.send(ComInitDb { schema_name: bytes::Bytes::from(db) }).await?;
+
+
+        match self.next().await? {
+            Some(Message::OkPacket(_)) => {},
+            Some(message @ Message::ErrPacket(_)) => {
+                failure::bail!("Received an ErrPacket packet: {:?}", message);
+            },
+            Some(message) => {
+                failure::bail!("Received an unexpected packet type: {:?}", message);
+            }
+            None => {
+                failure::bail!("Did not receive a packet when one was expected");
+            }
+        }
 
         Ok(())
     }

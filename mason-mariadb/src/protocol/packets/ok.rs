@@ -1,9 +1,10 @@
+use bytes::Bytes;
+use failure::{err_msg, Error};
+
 use super::super::{
     deserialize::{DeContext, Deserialize},
     types::ServerStatusFlag,
 };
-use bytes::Bytes;
-use failure::{err_msg, Error};
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -58,9 +59,11 @@ impl Deserialize for OkPacket {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
     use mason_core::ConnectOptions;
+
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+
+    use super::*;
 
     #[runtime::test]
     async fn it_decodes_ok_packet() -> Result<(), Error> {
@@ -76,19 +79,19 @@ mod test {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // length
-            0x0F_u8, 0x0_u8, 0x0_u8,
+            0u8, 0u8, 0u8,
             // seq_no
-            0x01_u8,
+            1u8,
             // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
-            0x00_u8,
+            0u8,
             // int<lenenc> affected rows
             0xFB_u8,
             // int<lenenc> last insert id
             0xFB_u8,
             // int<2> server status
-            0x01_u8, 0x01_u8,
+            1u8, 1u8,
             // int<2> warning count
-            0x0_u8, 0x0_u8,
+            0u8, 0u8,
             // if session_tracking_supported (see CLIENT_SESSION_TRACK) {
             //   string<lenenc> info
             //   if (status flags & SERVER_SESSION_STATE_CHANGED) {

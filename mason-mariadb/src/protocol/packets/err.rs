@@ -1,10 +1,12 @@
+use std::convert::TryFrom;
+
+use bytes::Bytes;
+use failure::Error;
+
 use super::super::{
     deserialize::{DeContext, Deserialize},
     error_codes::ErrorCode,
 };
-use bytes::Bytes;
-use failure::Error;
-use std::convert::TryFrom;
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
@@ -73,12 +75,27 @@ impl Deserialize for ErrPacket {
     }
 }
 
+impl std::error::Error for ErrPacket {
+    fn description(&self) -> &str {
+        "Received error packet"
+    }
+}
+
+impl std::fmt::Display for ErrPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "{:?}:{:?}", self.error_code, self.error_message)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
     use bytes::Bytes;
+
     use mason_core::ConnectOptions;
+
+    use crate::{__bytes_builder, connection::Connection, protocol::decode::Decoder};
+
+    use super::*;
 
     #[runtime::test]
     async fn it_decodes_err_packet() -> Result<(), Error> {
