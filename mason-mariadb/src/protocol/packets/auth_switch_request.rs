@@ -10,10 +10,10 @@ pub struct AuthenticationSwitchRequestPacket {
 }
 
 impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize(&self, conn: &mut Connection) -> Result<(), Error> {
-        conn.encoder.encode_int_1(0xFE);
-        conn.encoder.encode_string_null(&self.auth_plugin_name);
-        conn.encoder.encode_byte_eof(&self.auth_plugin_data);
+    fn serialize<'a, 'b>(&self, ctx: &mut crate::connection::ConnContext, encoder: &mut crate::protocol::encode::Encoder) -> Result<(), Error> {
+        encoder.encode_int_1(0xFE);
+        encoder.encode_string_null(&self.auth_plugin_name);
+        encoder.encode_byte_eof(&self.auth_plugin_data);
 
         Ok(())
     }

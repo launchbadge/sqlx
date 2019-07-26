@@ -109,7 +109,7 @@ impl Connection {
         self.encoder.clear();
         self.encoder.alloc_packet_header();
         self.encoder.seq_no(self.context.seq_no);
-        message.serialize(self)?;
+        message.serialize(&mut self.context, &mut self.encoder)?;
         self.encoder.encode_length();
 
         self.stream.inner.write_all(&self.encoder.buf).await?;

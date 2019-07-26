@@ -8,9 +8,9 @@ pub struct ComInitDb {
 }
 
 impl Serialize for ComInitDb {
-    fn serialize<'a, 'b>(&self, conn: &mut Connection) -> Result<(), Error> {
-        conn.encoder.encode_int_1(TextProtocol::ComInitDb.into());
-        conn.encoder.encode_string_null(&self.schema_name);
+    fn serialize<'a, 'b>(&self, ctx: &mut crate::connection::ConnContext, encoder: &mut crate::protocol::encode::Encoder) -> Result<(), Error> {
+        encoder.encode_int_1(TextProtocol::ComInitDb.into());
+        encoder.encode_string_null(&self.schema_name);
 
         Ok(())
     }

@@ -12,22 +12,22 @@ pub struct SSLRequestPacket {
 }
 
 impl Serialize for SSLRequestPacket {
-    fn serialize<'a, 'b>(&self, conn: &mut Connection) -> Result<(), Error> {
-        conn.encoder.encode_int_4(self.capabilities.bits() as u32);
-        conn.encoder.encode_int_4(self.max_packet_size);
-        conn.encoder.encode_int_1(self.collation);
+    fn serialize<'a, 'b>(&self, ctx: &mut crate::connection::ConnContext, encoder: &mut crate::protocol::encode::Encoder) -> Result<(), Error> {
+        encoder.encode_int_4(self.capabilities.bits() as u32);
+        encoder.encode_int_4(self.max_packet_size);
+        encoder.encode_int_1(self.collation);
 
         // Filler
-        conn.encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
+        encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
-        if !(conn.context.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
+        if !(ctx.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                conn.encoder.encode_int_4(capabilities.bits() as u32);
+                encoder.encode_int_4(capabilities.bits() as u32);
             }
         } else {
-            conn.encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
+            encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
         }
 
         Ok(())
