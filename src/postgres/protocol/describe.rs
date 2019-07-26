@@ -1,4 +1,3 @@
-
 /// The Describe message (portal variant) specifies the name of an existing portal
 /// (or an empty string for the unnamed portal). The response is a RowDescription message
 /// describing the rows that will be returned by executing the portal; or a NoData message

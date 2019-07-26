@@ -1,5 +1,5 @@
 use super::prepare::Prepare;
-use crate::postgres::protocol::{self, DataRow, Execute, Message, Sync};
+use crate::postgres::protocol::{self, DataRow, Message};
 use std::io;
 
 impl<'a> Prepare<'a> {
@@ -11,8 +11,9 @@ impl<'a> Prepare<'a> {
             &[],
         );
 
-        self.connection.send(Execute::new("", 0));
-        self.connection.send(Sync);
+        protocol::execute(&mut self.connection.wbuf, "", 0);
+        protocol::sync(&mut self.connection.wbuf);
+
         self.connection.flush().await?;
 
         let mut row: Option<DataRow> = None;
