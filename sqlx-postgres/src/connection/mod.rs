@@ -11,7 +11,10 @@ use sqlx_postgres_protocol::{Encode, Message, Terminate};
 use std::{fmt::Debug, io, pin::Pin};
 
 mod establish;
+mod execute;
+mod get;
 mod prepare;
+mod select;
 
 pub struct Connection {
     pub(super) stream: TcpStream,

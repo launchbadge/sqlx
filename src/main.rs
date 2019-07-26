@@ -1,12 +1,11 @@
 #![feature(async_await)]
 
-use futures::TryStreamExt;
+use futures::{future, TryStreamExt};
 use sqlx::{pg::Connection, ConnectOptions};
 use std::io;
 
 // TODO: ToSql and FromSql (to [de]serialize values from/to Rust and SQL)
 // TODO: Connection strings ala postgres@localhost/sqlx_dev
-// TODO: Queries (currently we only support EXECUTE [drop results])
 
 #[runtime::main]
 async fn main() -> io::Result<()> {
@@ -32,24 +31,22 @@ CREATE TABLE IF NOT EXISTS users (
     .execute()
     .await?;
 
-    let row_id = conn
+    let new_id = conn
         .prepare("INSERT INTO users (name) VALUES ($1) RETURNING id")
         .bind(b"Joe")
-        .get_result()
+        .get()
         .await?;
 
-    println!("row_id: {:?}", row_id);
+    println!("insert {:?}", new_id);
 
-    let mut row_ids = conn.prepare("SELECT id FROM users").get_results();
+    conn.prepare("SELECT id FROM users")
+        .select()
+        .try_for_each(|row| {
+            println!("select {:?}", row.get(0));
 
-    while let Some(row_id) = row_ids.try_next().await? {
-        println!("row_ids: {:?}", row_id);
-    }
-
-    std::mem::drop(row_ids);
-
-    let count = conn.prepare("SELECT name FROM users").execute().await?;
-    println!("users: {}", count);
+            future::ok(())
+        })
+        .await?;
 
     conn.close().await?;
 
