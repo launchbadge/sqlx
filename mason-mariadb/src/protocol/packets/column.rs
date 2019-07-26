@@ -45,9 +45,14 @@ mod test {
         })
         .await?;
 
+        #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<lenenc> tag code: None
-            0xFB_u8
+        // int<3> length
+        0u8, 0u8, 0u8,
+        // int<1> seq_no
+        0u8,
+        // int<lenenc> tag code: None
+        0xFB_u8
         );
 
         let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
@@ -68,10 +73,16 @@ mod test {
         })
         .await?;
 
+        #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<lenenc> tag code: Some(3 bytes)
-            0xFD_u8, // value: 3 bytes
-            0x01_u8, 0x01_u8, 0x01_u8
+        // int<3> length
+        0u8, 0u8, 0u8,
+        // int<1> seq_no
+        0u8,
+        // int<lenenc> tag code: Some(3 bytes)
+        0xFD_u8,
+        // value: 3 bytes
+        0x01_u8, 0x01_u8, 0x01_u8
         );
 
         let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;
@@ -94,10 +105,14 @@ mod test {
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<lenenc> tag code: Some(3 bytes)
-            0xFC_u8,
-            // value: 2 bytes
-            0x01_u8, 0x01_u8
+        // int<3> length
+        0u8, 0u8, 0u8,
+        // int<1> seq_no
+        0u8,
+        // int<lenenc> tag code: Some(3 bytes)
+        0xFC_u8,
+        // value: 2 bytes
+        0x01_u8, 0x01_u8
         );
 
         let message = ColumnPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;

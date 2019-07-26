@@ -45,7 +45,7 @@ impl Deserialize for OkPacket {
         let session_state_info = None;
         let value = None;
 
-        let info = decoder.decode_byte_eof(index + length as usize);
+        let info = decoder.decode_byte_eof(Some(index + length as usize));
 
         Ok(OkPacket {
             length,
@@ -82,30 +82,30 @@ mod test {
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            0u8, 0u8, 0u8,
-            // // int<1> seq_no
-            1u8,
-            // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
-            0u8,
-            // int<lenenc> affected rows
-            0xFB_u8,
-            // int<lenenc> last insert id
-            0xFB_u8,
-            // int<2> server status
-            1u8, 1u8,
-            // int<2> warning count
-            0u8, 0u8,
-            // if session_tracking_supported (see CLIENT_SESSION_TRACK) {
-            //   string<lenenc> info
-            //   if (status flags & SERVER_SESSION_STATE_CHANGED) {
-            //     string<lenenc> session state info
-            //     string<lenenc> value of variable
-            //   }
-            // } else {
-            //   string<EOF> info
-                b"info"
-            // }
+        // int<3> length
+        0u8, 0u8, 0u8,
+        // // int<1> seq_no
+        1u8,
+        // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
+        0u8,
+        // int<lenenc> affected rows
+        0xFB_u8,
+        // int<lenenc> last insert id
+        0xFB_u8,
+        // int<2> server status
+        1u8, 1u8,
+        // int<2> warning count
+        0u8, 0u8,
+        // if session_tracking_supported (see CLIENT_SESSION_TRACK) {
+        //   string<lenenc> info
+        //   if (status flags & SERVER_SESSION_STATE_CHANGED) {
+        //     string<lenenc> session state info
+        //     string<lenenc> value of variable
+        //   }
+        // } else {
+        //   string<EOF> info
+            b"info"
+        // }
         );
 
         let message = OkPacket::deserialize(&mut DeContext::new(&mut conn.context, &buf))?;

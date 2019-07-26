@@ -144,9 +144,13 @@ impl<'a> Decoder<'a> {
     }
 
     #[inline]
-    pub fn decode_string_eof(&mut self, length: usize) -> Bytes {
-        let value = self.buf.slice(self.index, if length >= self.index {
-            length
+    pub fn decode_string_eof(&mut self, length: Option<usize>) -> Bytes {
+        let value = self.buf.slice(self.index, if let Some(len) = length {
+            if len >= self.index {
+                len
+            } else {
+                self.buf.len()
+            }
         } else {
             self.buf.len()
         });
@@ -181,9 +185,13 @@ impl<'a> Decoder<'a> {
     }
 
     #[inline]
-    pub fn decode_byte_eof(&mut self, length: usize) -> Bytes {
-        let value = self.buf.slice(self.index, if length >= self.index {
-            length
+    pub fn decode_byte_eof(&mut self, length: Option<usize>) -> Bytes {
+        let value = self.buf.slice(self.index, if let Some(len) = length {
+            if len >= self.index {
+                len
+            } else {
+                self.buf.len()
+            }
         } else {
             self.buf.len()
         });
@@ -199,7 +207,7 @@ mod tests {
 
     use super::*;
 
-// [X] it_decodes_int_lenenc
+    // [X] it_decodes_int_lenenc
     // [X] it_decodes_int_8
     // [X] it_decodes_int_4
     // [X] it_decodes_int_3
@@ -338,7 +346,7 @@ mod tests {
     fn it_decodes_string_eof() {
         let buf = Bytes::from(b"\x01".to_vec());
         let mut decoder = Decoder::new(&buf);
-        let string: Bytes = decoder.decode_string_eof(0);
+        let string: Bytes = decoder.decode_string_eof(None);
 
         assert_eq!(string[0], b'\x01');
         assert_eq!(string.len(), 1);
@@ -375,9 +383,9 @@ mod tests {
     fn it_decodes_byte_eof() {
         let buf = Bytes::from(b"\x01".to_vec());
         let mut decoder = Decoder::new(&buf);
-        let string: Bytes = decoder.decode_byte_eof(0);
+        let string: Bytes = decoder.decode_byte_eof(None);
 
-        assert_eq!(string[0], b'\x01');
+        assert_eq!(&string[..], b"\x01");
         assert_eq!(string.len(), 1);
         assert_eq!(decoder.index, 1);
     }

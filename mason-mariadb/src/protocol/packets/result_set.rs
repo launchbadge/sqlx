@@ -98,7 +98,7 @@ mod test {
 
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
-            let buf = __bytes_builder!(
+        let buf = __bytes_builder!(
         // ------------------- //
         // Column Count packet //
         // ------------------- //

@@ -25,9 +25,9 @@ impl Deserialize for EofPacket {
 
         let packet_header = decoder.decode_int_1();
 
-//        if packet_header != 0xFE {
-//            panic!("Packet header is not 0xFE for ErrPacket");
-//        }
+        if packet_header != 0xFE {
+            panic!("Packet header is not 0xFE for ErrPacket");
+        }
 
         let warning_count = decoder.decode_int_2();
         let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2());
@@ -56,16 +56,16 @@ mod test {
 
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            1u8, 0u8, 0u8,
-            // int<1> seq_no
-            1u8,
-            // int<1> 0xfe : EOF header
-            0xFE_u8,
-            // int<2> warning count
-            0u8, 0u8,
-            // int<2> server status
-            1u8, 1u8
+        // int<3> length
+        1u8, 0u8, 0u8,
+        // int<1> seq_no
+        1u8,
+        // int<1> 0xfe : EOF header
+        0xFE_u8,
+        // int<2> warning count
+        0u8, 0u8,
+        // int<2> server status
+        1u8, 1u8
         );
 
         let buf = Bytes::from_static(b"\x01\0\0\x01\xFE\x00\x00\x01\x00");

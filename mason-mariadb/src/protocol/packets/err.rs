@@ -54,9 +54,9 @@ impl Deserialize for ErrPacket {
             if decoder.buf[decoder.index] == b'#' {
                 sql_state_marker = Some(decoder.decode_string_fix(1));
                 sql_state = Some(decoder.decode_string_fix(5));
-                error_message = Some(decoder.decode_string_eof(length as usize));
+                error_message = Some(decoder.decode_string_eof(Some(length as usize)));
             } else {
-                error_message = Some(decoder.decode_string_eof(length as usize));
+                error_message = Some(decoder.decode_string_eof(Some(length as usize)));
             }
         }
 
