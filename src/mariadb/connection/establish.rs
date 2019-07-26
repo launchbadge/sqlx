@@ -1,5 +1,5 @@
 use super::Connection;
-use crate::protocol::{
+use crate::mariadb::protocol::{
     deserialize::{DeContext, Deserialize},
     packets::{handshake_response::HandshakeResponsePacket, initial::InitialHandshakePacket},
     server::Message as ServerMessage,
@@ -7,7 +7,7 @@ use crate::protocol::{
 };
 use bytes::{BufMut, Bytes};
 use failure::{err_msg, Error};
-use mason_core::ConnectOptions;
+use crate::ConnectOptions;
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,

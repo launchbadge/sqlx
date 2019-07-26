@@ -17,6 +17,9 @@ log = "0.4.7"
 md-5 = "0.8.0"
 memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }
+bitflags = "1.1.0"
+enum-tryfrom = "0.2.1"
+enum-tryfrom-derive = "0.2.1"
 
 [dev-dependencies]
 runtime-tokio = { version = "=0.3.0-alpha.5" }

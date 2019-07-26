@@ -1,5 +1,5 @@
 use super::decode::Decoder;
-use crate::connection::{ConnContext, Connection};
+use crate::mariadb::connection::{ConnContext, Connection};
 use bytes::Bytes;
 use failure::Error;
 

@@ -7,9 +7,9 @@ use futures::{
 };
 use runtime::net::TcpStream;
 
-use mason_core::ConnectOptions;
+use crate::ConnectOptions;
 
-use crate::protocol::{
+use crate::mariadb::protocol::{
     deserialize::{DeContext, Deserialize},
     encode::Encoder,
     packets::{com_init_db::ComInitDb, com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, ok::OkPacket},
@@ -17,7 +17,7 @@ use crate::protocol::{
     server::Message as ServerMessage,
     types::{Capabilities, ServerStatusFlag},
 };
-use crate::protocol::server::Message;
+use crate::mariadb::protocol::server::Message;
 
 mod establish;
 

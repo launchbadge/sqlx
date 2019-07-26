@@ -1,5 +1,5 @@
 use super::super::{serialize::Serialize, types::Capabilities};
-use crate::connection::Connection;
+use crate::mariadb::connection::Connection;
 use bytes::Bytes;
 use failure::Error;
 
@@ -12,7 +12,7 @@ pub struct SSLRequestPacket {
 }
 
 impl Serialize for SSLRequestPacket {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::connection::ConnContext, encoder: &mut crate::protocol::encode::Encoder) -> Result<(), Error> {
+    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
         encoder.encode_int_4(self.capabilities.bits() as u32);
         encoder.encode_int_4(self.max_packet_size);
         encoder.encode_int_1(self.collation);

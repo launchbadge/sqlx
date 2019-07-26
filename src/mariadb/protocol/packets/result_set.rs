@@ -1,9 +1,9 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::protocol::decode::Decoder;
-use crate::protocol::server::Message;
-use crate::protocol::types::Capabilities;
+use crate::mariadb::protocol::decode::Decoder;
+use crate::mariadb::protocol::server::Message;
+use crate::mariadb::protocol::types::Capabilities;
 
 use super::super::{
     deserialize::{DeContext, Deserialize},
