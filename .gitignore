@@ -1,3 +1,6 @@
 .idea/
 target/
 Cargo.lock
+
+*.vim
+*.vi
