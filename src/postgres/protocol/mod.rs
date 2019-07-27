@@ -18,6 +18,7 @@ mod terminate;
 
 pub mod bind;
 pub mod describe;
+pub mod close;
 
 mod execute;
 mod sync;

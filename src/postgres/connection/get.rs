@@ -11,7 +11,8 @@ impl<'a> Prepare<'a> {
             &[],
         );
 
-        protocol::execute(&mut self.connection.wbuf, "", 0);
+        protocol::execute(&mut self.connection.wbuf, "", 1);
+        protocol::close::portal(&mut self.connection.wbuf, "");
         protocol::sync(&mut self.connection.wbuf);
 
         self.connection.flush().await?;
@@ -20,21 +21,18 @@ impl<'a> Prepare<'a> {
 
         while let Some(message) = self.connection.receive().await? {
             match message {
-                Message::BindComplete | Message::ParseComplete => {
+                Message::BindComplete | Message::ParseComplete | Message::PortalSuspended | Message::CloseComplete => {
                     // Indicates successful completion of a phase
                 }
 
                 Message::DataRow(data_row) => {
-                    // we only care about the first result.
-                    if row.is_none() {
-                        row = Some(data_row);
-                    }
+                    // note: because we used `EXECUTE 1` this will only execute once
+                    row = Some(data_row);
                 }
 
                 Message::CommandComplete(_) => {}
 
                 Message::ReadyForQuery(_) => {
-                    // Successful completion of the whole cycle
                     return Ok(row);
                 }
 

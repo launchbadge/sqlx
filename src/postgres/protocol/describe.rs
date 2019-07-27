@@ -5,7 +5,7 @@
 pub fn portal(buf: &mut Vec<u8>, name: &str) {
     buf.push(b'D');
 
-    let len = 4 + name.len() + 1 + 4;
+    let len = 4 + name.len() + 2;
     buf.extend_from_slice(&(len as i32).to_be_bytes());
 
     buf.push(b'P');
@@ -25,7 +25,7 @@ pub fn portal(buf: &mut Vec<u8>, name: &str) {
 pub fn statement(buf: &mut Vec<u8>, name: &str) {
     buf.push(b'D');
 
-    let len = 4 + name.len() + 1 + 4;
+    let len = 4 + name.len() + 2;
     buf.extend_from_slice(&(len as i32).to_be_bytes());
 
     buf.push(b'S');

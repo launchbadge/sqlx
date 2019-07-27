@@ -1,6 +1,5 @@
 #![feature(async_await)]
 
-use futures::{future, TryStreamExt};
 use sqlx::{postgres::Connection, ConnectOptions};
 use std::io;
 
@@ -68,18 +67,18 @@ CREATE TABLE IF NOT EXISTS users (
 
     println!("insert {:?}", new_id);
 
-    println!(" :: select");
+    // println!(" :: select");
 
-    conn.prepare("SELECT id FROM users")
-        .select()
-        .try_for_each(|row| {
-            let id = row.get(0);
+    // conn.prepare("SELECT id FROM users")
+    //     .select()
+    //     .try_for_each(|row| {
+    //         let id = row.get(0);
 
-            println!("select {:?}", id);
+    //         println!("select {:?}", id);
 
-            future::ok(())
-        })
-        .await?;
+    //         future::ok(())
+    //     })
+    //     .await?;
 
     conn.close().await?;
 
