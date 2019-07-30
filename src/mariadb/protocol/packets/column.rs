@@ -1,10 +1,11 @@
 use failure::Error;
 
-use super::super::deserialize::{DeContext, Deserialize};
+use crate::mariadb::{DeContext, Deserialize};
 
+// The column packet is the first packet of a result set.
+// Inside of it it contains the number of columns in the result set
+// encoded as an int<lenenc>.
 #[derive(Default, Debug, Clone, Copy)]
-// ColumnPacket doesn't have a packet header because
-// it's nested inside a result set packet
 pub struct ColumnPacket {
     pub length: u32,
     pub seq_no: u8,
@@ -29,9 +30,7 @@ mod test {
     use bytes::Bytes;
 
     use crate::ConnectOptions;
-
     use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
-
     use super::*;
 
     #[test]

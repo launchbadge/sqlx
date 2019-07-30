@@ -1,8 +1,5 @@
-use super::super::{
-    decode::Decoder,
-    deserialize::{DeContext, Deserialize},
-    error_codes::ErrorCode,
-    types::ServerStatusFlag,
+use crate::mariadb::{
+    Decoder, DeContext, Deserialize, ErrorCode, ServerStatusFlag,
 };
 use bytes::Bytes;
 use failure::Error;
@@ -39,9 +36,8 @@ impl Deserialize for EofPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::connection::ConnContext};
+    use crate::{__bytes_builder, ConnectOptions, mariadb::ConnContext};
     use bytes::Bytes;
-    use crate::ConnectOptions;
 
     #[test]
     fn it_decodes_eof_packet() -> Result<(), Error> {

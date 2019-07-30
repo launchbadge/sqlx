@@ -1,5 +1,4 @@
-use super::super::{client::TextProtocol, serialize::Serialize};
-use crate::mariadb::connection::Connection;
+use crate::mariadb::{Connection, TextProtocol, Serialize};
 use failure::Error;
 
 pub struct ComDebug();

@@ -1,6 +1,4 @@
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    types::{Capabilities, ServerStatusFlag},
+use crate::mariadb::{DeContext, Deserialize, Capabilities, ServerStatusFlag
 };
 use bytes::Bytes;
 use failure::{err_msg, Error};
@@ -102,9 +100,8 @@ impl Deserialize for InitialHandshakePacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
+    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use bytes::BytesMut;
-    use crate::ConnectOptions;
 
     #[test]
     fn it_decodes_initial_handshake_packet() -> Result<(), Error> {

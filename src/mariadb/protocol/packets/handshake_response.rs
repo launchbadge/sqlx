@@ -1,5 +1,4 @@
-use super::super::{serialize::Serialize, types::Capabilities};
-use crate::mariadb::connection::Connection;
+use crate::mariadb::{Serialize, Capabilities, Connection};
 use bytes::Bytes;
 use failure::Error;
 

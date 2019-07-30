@@ -1,7 +1,4 @@
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    types::{FieldDetailFlag, FieldType},
-};
+use crate::mariadb::{DeContext, Deserialize, FieldDetailFlag, FieldType};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -78,9 +75,8 @@ impl Deserialize for ColumnDefPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
+    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use bytes::Bytes;
-    use crate::ConnectOptions;
 
     #[test]
     fn it_decodes_column_def_packet() -> Result<(), Error> {

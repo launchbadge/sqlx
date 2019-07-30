@@ -1,5 +1,5 @@
-use super::super::serialize::Serialize;
-use crate::mariadb::connection::Connection;
+use crate::mariadb::Connection;
+use crate::mariadb::Serialize;
 use bytes::Bytes;
 use failure::Error;
 

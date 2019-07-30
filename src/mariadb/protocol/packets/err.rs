@@ -3,9 +3,7 @@ use std::convert::TryFrom;
 use bytes::Bytes;
 use failure::Error;
 
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    error_codes::ErrorCode,
+use crate::mariadb::{DeContext, Deserialize, ErrorCode,
 };
 
 #[derive(Default, Debug)]
@@ -91,10 +89,7 @@ impl std::fmt::Display for ErrPacket {
 mod test {
     use bytes::Bytes;
 
-    use crate::ConnectOptions;
-
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
-
+    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use super::*;
 
     #[test]

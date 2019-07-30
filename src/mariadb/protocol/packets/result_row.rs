@@ -1,8 +1,5 @@
-use super::super::{
-    decode::Decoder,
-    deserialize::{DeContext, Deserialize},
-    error_codes::ErrorCode,
-    types::ServerStatusFlag,
+use crate::mariadb::{
+    Decoder, DeContext, Deserialize, ErrorCode, ServerStatusFlag,
 };
 use bytes::Bytes;
 use failure::Error;
@@ -35,9 +32,8 @@ impl Deserialize for ResultRow {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
+    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use bytes::Bytes;
-    use crate::ConnectOptions;
 
     #[test]
     fn it_decodes_result_row_packet() -> Result<(), Error> {

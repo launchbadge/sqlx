@@ -211,9 +211,9 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u8() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_lenenc(Some(&(std::u8::MAX as usize)));
+        encoder.encode_int_lenenc(Some(&(0xFA as usize)));
 
-        assert_eq!(&encoder.buf[..], b"\xFA\xFF");
+        assert_eq!(&encoder.buf[..], b"\xFA");
     }
 
     #[test]
@@ -285,7 +285,7 @@ mod tests {
         let mut encoder = Encoder::new(128);
         encoder.encode_string_lenenc(&Bytes::from_static(b"random_string"));
 
-        assert_eq!(&encoder.buf[..], b"\x0D\x00\x00random_string");
+        assert_eq!(&encoder.buf[..], b"\x0Drandom_string");
     }
 
     #[test]

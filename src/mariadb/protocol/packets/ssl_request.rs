@@ -1,7 +1,7 @@
-use super::super::{serialize::Serialize, types::Capabilities};
-use crate::mariadb::connection::Connection;
 use bytes::Bytes;
 use failure::Error;
+
+use crate::mariadb::{Capabilities, Connection, Serialize};
 
 #[derive(Default, Debug)]
 pub struct SSLRequestPacket {

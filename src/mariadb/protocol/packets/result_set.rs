@@ -1,9 +1,9 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::protocol::decode::Decoder;
-use crate::mariadb::protocol::server::Message;
-use crate::mariadb::protocol::types::Capabilities;
+use crate::mariadb::Decoder;
+use crate::mariadb::Message;
+use crate::mariadb::Capabilities;
 
 use super::super::{
     deserialize::{DeContext, Deserialize},
@@ -80,12 +80,7 @@ impl Deserialize for ResultSet {
 mod test {
     use bytes::{BufMut, Bytes};
 
-    use crate::__bytes_builder;
-    use crate::mariadb::{connection::Connection};
-    use crate::mariadb::protocol::packets::{eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow};
-    use crate::mariadb::protocol::types::{ServerStatusFlag, Capabilities};
-    use crate::mariadb::connection::ConnContext;
-
+    use crate::{__bytes_builder, mariadb::{Connection, EofPacket, ErrPacket, OkPacket, ResultRow, ServerStatusFlag, Capabilities, ConnContext}};
     use super::*;
 
     #[test]

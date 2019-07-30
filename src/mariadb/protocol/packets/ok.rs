@@ -1,9 +1,7 @@
 use bytes::Bytes;
 use failure::{err_msg, Error};
 
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    types::ServerStatusFlag,
+use crate::mariadb::{DeContext, Deserialize, ServerStatusFlag,
 };
 
 #[derive(Default, Debug)]
@@ -63,10 +61,7 @@ impl Deserialize for OkPacket {
 
 #[cfg(test)]
 mod test {
-    use crate::ConnectOptions;
-
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
-
+    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use super::*;
 
     #[test]
