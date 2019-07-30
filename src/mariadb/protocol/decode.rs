@@ -130,7 +130,7 @@ impl<'a> Decoder<'a> {
 
     #[inline]
     pub fn decode_string_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_1();
+        let length = self.decode_int_lenenc().unwrap_or(0usize);
         let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
