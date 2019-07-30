@@ -98,8 +98,17 @@ impl Encoder {
                 self.encode_int_2(*value as u16);
 
             } else if *value <= std::u8::MAX as usize {
-                self.encode_int_1(*value as u8);
+                match *value {
+                    // If the value is of size u8 and one of the key bytes used in length encoding
+                    // we must encode that single byte as a u16
+                    0xFB | 0xFC | 0xFD | 0xFE | 0xFF => {
+                        self.buf.put_u8(0xFC);
+                        self.buf.put_u8(*value as u8);
+                        self.buf.put_u8(0);
+                    }
 
+                    v => self.buf.put_u8(v as u8),
+                }
             } else {
                 panic!("Value is too long");
             }
@@ -238,6 +247,46 @@ mod tests {
         encoder.encode_int_lenenc(Some(&(std::u64::MAX as usize)));
 
         assert_eq!(&encoder.buf[..], b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
+    }
+
+    #[test]
+    fn it_encodes_int_lenenc_fb() {
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(0xFB as usize)));
+
+        assert_eq!(&encoder.buf[..], b"\xFC\xFB\x00");
+    }
+
+    #[test]
+    fn it_encodes_int_lenenc_fc() {
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(0xFC as usize)));
+
+        assert_eq!(&encoder.buf[..], b"\xFC\xFC\x00");
+    }
+
+    #[test]
+    fn it_encodes_int_lenenc_fd() {
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(0xFD as usize)));
+
+        assert_eq!(&encoder.buf[..], b"\xFC\xFD\x00");
+    }
+
+
+    #[test]
+    fn it_encodes_int_lenenc_fe() {
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(0xFE as usize)));
+
+        assert_eq!(&encoder.buf[..], b"\xFC\xFE\x00");
+    }
+
+    fn it_encodes_int_lenenc_ff() {
+        let mut encoder = Encoder::new(128);
+        encoder.encode_int_lenenc(Some(&(0xFF as usize)));
+
+        assert_eq!(&encoder.buf[..], b"\xFC\xFF\x00");
     }
 
     #[test]
