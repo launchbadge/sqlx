@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
-#[TryFromPrimitiveType = "u16"]
+#[TryFromPrimitiveType = "i16"]
 pub enum ErrorCode {
     ErDefault = 0,
     ErHashchk = 1000,

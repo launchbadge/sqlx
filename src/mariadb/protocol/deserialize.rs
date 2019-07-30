@@ -10,7 +10,7 @@ use failure::Error;
 pub struct DeContext<'a> {
     pub conn: &'a mut ConnContext,
     pub decoder: Decoder<'a>,
-    pub columns: Option<usize>,
+    pub columns: Option<i64>,
 }
 
 impl<'a> DeContext<'a> {

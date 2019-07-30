@@ -8,10 +8,10 @@ use crate::mariadb::{DeContext, Deserialize, ServerStatusFlag,
 pub struct OkPacket {
     pub length: u32,
     pub seq_no: u8,
-    pub affected_rows: Option<usize>,
-    pub last_insert_id: Option<usize>,
+    pub affected_rows: Option<i64>,
+    pub last_insert_id: Option<i64>,
     pub server_status: ServerStatusFlag,
-    pub warning_count: u16,
+    pub warning_count: i16,
     pub info: Bytes,
     pub session_state_info: Option<Bytes>,
     pub value: Option<Bytes>,
@@ -36,7 +36,7 @@ impl Deserialize for OkPacket {
 
         let affected_rows = decoder.decode_int_lenenc();
         let last_insert_id = decoder.decode_int_lenenc();
-        let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2().into());
+        let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned().into());
         let warning_count = decoder.decode_int_2();
 
         // Assuming CLIENT_SESSION_TRACK is unsupported

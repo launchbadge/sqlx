@@ -9,7 +9,7 @@ pub struct InitialHandshakePacket {
     pub seq_no: u8,
     pub protocol_version: u8,
     pub server_version: Bytes,
-    pub connection_id: u32,
+    pub connection_id: i32,
     pub auth_seed: Bytes,
     pub capabilities: Capabilities,
     pub collation: u8,
@@ -37,10 +37,10 @@ impl Deserialize for InitialHandshakePacket {
         // Skip reserved byte
         decoder.skip_bytes(1);
 
-        let mut capabilities = Capabilities::from_bits_truncate(decoder.decode_int_2().into());
+        let mut capabilities = Capabilities::from_bits_truncate(decoder.decode_int_2_unsigned().into());
 
         let collation = decoder.decode_int_1();
-        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2().into());
+        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned().into());
 
         capabilities |=
             Capabilities::from_bits_truncate(((decoder.decode_int_2() as u32) << 16).into());
@@ -58,7 +58,7 @@ impl Deserialize for InitialHandshakePacket {
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             capabilities |=
-                Capabilities::from_bits_truncate(((decoder.decode_int_4() as u128) << 32).into());
+                Capabilities::from_bits_truncate(((decoder.decode_int_4_unsigned() as u128) << 32).into());
         } else {
             // Skip filler
             decoder.skip_bytes(4);

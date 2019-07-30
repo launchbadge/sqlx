@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 pub struct EofPacket {
     pub length: u32,
     pub seq_no: u8,
-    pub warning_count: u16,
+    pub warning_count: i16,
     pub status: ServerStatusFlag,
 }
 
@@ -27,7 +27,7 @@ impl Deserialize for EofPacket {
         }
 
         let warning_count = decoder.decode_int_2();
-        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2());
+        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned());
 
         Ok(EofPacket { length, seq_no, warning_count, status })
     }

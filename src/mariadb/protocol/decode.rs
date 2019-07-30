@@ -22,7 +22,8 @@ impl<'a> Decoder<'a> {
     // Length is the first 3 bytes of the packet in little endian format
     #[inline]
     pub fn decode_length(&mut self) -> Result<u32, Error> {
-        let length = self.decode_int_3();
+        let length: u32 = (self.buf[self.index] as u32) + ((self.buf[self.index + 1] as u32) << 8) + ((self.buf[self.index + 2] as u32) << 16);
+        self.index += 3;
 
         if self.buf.len() - self.index < length as usize {
             return Err(err_msg("Lengths to do not match when decoding length"));
@@ -69,69 +70,87 @@ impl<'a> Decoder<'a> {
     // The first byte of the int<lenenc> determines the length of the int.
     // If the first byte is
     //      0xFB then the int is "NULL" or None in Rust terms.
-    //      0xFC then the following 2 bytes are the int value u16.
-    //      0xFD then the following 3 bytes are the int value u24.
-    //      0xFE then the following 8 bytes are teh int value u64.
+    //      0xFC then the following 2 bytes are the int value i16.
+    //      0xFD then the following 3 bytes are the int value i24.
+    //      0xFE then the following 8 bytes are teh int value i64.
     //      0xFF then there was an error.
     // If the first byte is not in the previous list then that byte is the int value.
     #[inline]
-    pub fn decode_int_lenenc(&mut self) -> Option<usize> {
+    pub fn decode_int_lenenc(&mut self) -> Option<i64> {
         match self.buf[self.index] {
             0xFB => {
                 self.index += 1;
                 None
             }
             0xFC => {
-                let value = Some(LittleEndian::read_u16(&self.buf[self.index + 1..]) as usize);
+                let value = Some(LittleEndian::read_i16(&self.buf[self.index + 1..]) as i64);
                 self.index += 3;
                 value
             }
             0xFD => {
-                let value = Some(LittleEndian::read_u24(&self.buf[self.index + 1..]) as usize);
+                let value = Some(LittleEndian::read_i24(&self.buf[self.index + 1..]) as i64);
                 self.index += 4;
                 value
             }
             0xFE => {
-                let value = Some(LittleEndian::read_u64(&self.buf[self.index + 1..]) as usize);
+                let value = Some(LittleEndian::read_i64(&self.buf[self.index + 1..]) as i64);
                 self.index += 9;
                 value
             }
             0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
             _ => {
-                let value = Some(self.buf[self.index] as usize);
+                let value = Some(self.buf[self.index] as i64);
                 self.index += 1;
                 value
             }
         }
     }
 
-    // Decode an int<8> which is a u64
+    // Decode an int<8> which is a i64
     #[inline]
-    pub fn decode_int_8(&mut self) -> u64 {
-        let value = LittleEndian::read_u64(&self.buf[self.index..]);
+    pub fn decode_int_8(&mut self) -> i64 {
+        let value = LittleEndian::read_i64(&self.buf[self.index..]);
         self.index += 8;
         value
     }
 
-    // Decode an int<4> which is a u32
+    // Decode an int<4> which is a i32
     #[inline]
-    pub fn decode_int_4(&mut self) -> u32 {
+    pub fn decode_int_4(&mut self) -> i32 {
+        let value = LittleEndian::read_i32(&self.buf[self.index..]);
+        self.index += 4;
+        value
+    }
+
+    // Decode an int<4> which is a i32
+    // This is a helper method for decoding flags.
+    #[inline]
+    pub fn decode_int_4_unsigned(&mut self) -> u32 {
         let value = LittleEndian::read_u32(&self.buf[self.index..]);
         self.index += 4;
         value
     }
 
-    // Decode an int<3> which is a u24
+    // Decode an int<3> which is a i24
     #[inline]
-    pub fn decode_int_3(&mut self) -> u32 {
-        let value = LittleEndian::read_u24(&self.buf[self.index..]);
+    pub fn decode_int_3(&mut self) -> i32 {
+        let value = LittleEndian::read_i24(&self.buf[self.index..]);
         self.index += 3;
         value
     }
 
-    // Decode an int<2> which is a u16
+    // Decode an int<2> which is a i16
     #[inline]
-    pub fn decode_int_2(&mut self) -> u16 {
+    pub fn decode_int_2(&mut self) -> i16 {
+        let value = LittleEndian::read_i16(&self.buf[self.index..]);
+        self.index += 2;
+        value
+    }
+
+    // Decode an int<2> as an u16
+    // This is a helper method for decoding flags.
+    #[inline]
+    pub fn decode_int_2_unsigned(&mut self) -> u16 {
         let value = LittleEndian::read_u16(&self.buf[self.index..]);
         self.index += 2;
         value
@@ -149,7 +168,7 @@ impl<'a> Decoder<'a> {
     // the length of the string, and the the following n bytes are the contents.
     #[inline]
     pub fn decode_string_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_lenenc().unwrap_or(0usize);
+        let length = self.decode_int_lenenc().unwrap_or(0);
         let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
@@ -250,7 +269,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fb() {
         let buf = __bytes_builder!(0xFB_u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<usize> = decoder.decode_int_lenenc();
+        let int: Option<i64> = decoder.decode_int_lenenc();
 
         assert_eq!(int, None);
         assert_eq!(decoder.index, 1);
@@ -260,7 +279,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fc() {
         let buf =__bytes_builder!(0xFCu8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<usize> = decoder.decode_int_lenenc();
+        let int: Option<i64> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(0x0101));
         assert_eq!(decoder.index, 3);
@@ -270,7 +289,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fd() {
         let buf = __bytes_builder!(0xFDu8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<usize> = decoder.decode_int_lenenc();
+        let int: Option<i64> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(0x010101));
         assert_eq!(decoder.index, 4);
@@ -280,7 +299,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fe() {
         let buf = __bytes_builder!(0xFE_u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<usize> = decoder.decode_int_lenenc();
+        let int: Option<i64> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(0x0101010101010101));
         assert_eq!(decoder.index, 9);
@@ -290,7 +309,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fa() {
         let buf = __bytes_builder!(0xFA_u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<usize> = decoder.decode_int_lenenc();
+        let int: Option<i64> = decoder.decode_int_lenenc();
 
         assert_eq!(int, Some(0xFA));
         assert_eq!(decoder.index, 1);
@@ -300,7 +319,7 @@ mod tests {
     fn it_decodes_int_8() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: u64 = decoder.decode_int_8();
+        let int: i64 = decoder.decode_int_8();
 
         assert_eq!(int, 0x0101010101010101);
         assert_eq!(decoder.index, 8);
@@ -310,7 +329,7 @@ mod tests {
     fn it_decodes_int_4() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: u32 = decoder.decode_int_4();
+        let int: i32 = decoder.decode_int_4();
 
         assert_eq!(int, 0x01010101);
         assert_eq!(decoder.index, 4);
@@ -320,7 +339,7 @@ mod tests {
     fn it_decodes_int_3() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: u32 = decoder.decode_int_3();
+        let int: i32 = decoder.decode_int_3();
 
         assert_eq!(int, 0x010101);
         assert_eq!(decoder.index, 3);
@@ -330,7 +349,7 @@ mod tests {
     fn it_decodes_int_2() {
         let buf = __bytes_builder!(1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: u16 = decoder.decode_int_2();
+        let int: i16 = decoder.decode_int_2();
 
         assert_eq!(int, 0x0101);
         assert_eq!(decoder.index, 2);

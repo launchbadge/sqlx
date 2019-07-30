@@ -13,7 +13,7 @@ pub struct ErrPacket {
     pub error_code: ErrorCode,
     pub stage: Option<u8>,
     pub max_stage: Option<u8>,
-    pub progress: Option<u32>,
+    pub progress: Option<i32>,
     pub progress_info: Option<Bytes>,
     pub sql_state_marker: Option<Bytes>,
     pub sql_state: Option<Bytes>,

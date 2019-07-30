@@ -144,6 +144,6 @@ mod test {
     fn it_decodes_capabilities() {
         let buf = Bytes::from(b"\xfe\xf7".to_vec());
         let mut decoder = Decoder::new(&buf);
-        Capabilities::from_bits_truncate(decoder.decode_int_2().into());
+        Capabilities::from_bits_truncate(decoder.decode_int_2_unsigned().into());
     }
 }

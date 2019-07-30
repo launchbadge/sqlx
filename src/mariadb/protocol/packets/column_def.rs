@@ -13,9 +13,9 @@ pub struct ColumnDefPacket {
     pub table: Bytes,
     pub column_alias: Bytes,
     pub column: Bytes,
-    pub length_of_fixed_fields: Option<usize>,
-    pub char_set: u16,
-    pub max_columns: u32,
+    pub length_of_fixed_fields: Option<i64>,
+    pub char_set: i16,
+    pub max_columns: i32,
     pub field_type: FieldType,
     pub field_details: FieldDetailFlag,
     pub decimals: u8,
@@ -48,7 +48,7 @@ impl Deserialize for ColumnDefPacket {
         // int<1> Field types
         let field_type = FieldType::try_from(decoder.decode_int_1())?;
         // int<2> Field detail flag
-        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_2());
+        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_2_unsigned());
         // int<1> decimals
         let decimals = decoder.decode_int_1();
         // int<2> - unused -
