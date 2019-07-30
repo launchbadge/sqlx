@@ -7,8 +7,13 @@
 // TODO: Handle different Capabilities for server and client
 // TODO: Handle when capability is set, but field is None
 
-use super::packets::{com_set_option::SetOptionOptions, com_shutdown::ShutdownOptions};
+use super::packets::{SetOptionOptions, ShutdownOptions};
 
+// This is an enum of text protocol packet tags.
+// Tags are the 5th byte of the packet (1st byte of packet body)
+// and are used to determine which type of query was sent.
+// The name of the enum variant represents the type of query, and
+// the value is the byte value required by the server.
 pub enum TextProtocol {
     ComChangeUser = 0x11,
     ComDebug = 0x0D,
@@ -24,19 +29,8 @@ pub enum TextProtocol {
     ComStatistics = 0x09,
 }
 
+// Helper method to easily transform into u8
 impl Into<u8> for TextProtocol {
-    fn into(self) -> u8 {
-        self as u8
-    }
-}
-
-impl Into<u16> for SetOptionOptions {
-    fn into(self) -> u16 {
-        self as u16
-    }
-}
-
-impl Into<u8> for ShutdownOptions {
     fn into(self) -> u8 {
         self as u8
     }

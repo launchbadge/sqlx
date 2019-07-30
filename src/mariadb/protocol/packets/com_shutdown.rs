@@ -19,3 +19,10 @@ impl Serialize for ComShutdown {
         Ok(())
     }
 }
+
+// Helper method to easily transform into u8
+impl Into<u8> for ShutdownOptions {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}

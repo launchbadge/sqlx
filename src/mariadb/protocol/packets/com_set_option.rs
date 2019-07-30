@@ -20,3 +20,10 @@ impl Serialize for ComSetOption {
         Ok(())
     }
 }
+
+// Helper method to easily transform into u16
+impl Into<u16> for SetOptionOptions {
+    fn into(self) -> u16 {
+        self as u16
+    }
+}
