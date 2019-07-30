@@ -1,5 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{BufMut, Bytes, BytesMut};
+use crate::mariadb::FieldType;
 
 const U24_MAX: usize = 0xFF_FF_FF;
 
@@ -37,7 +38,7 @@ impl Encoder {
         let mut length = [0; 3];
         if self.buf.len() > U24_MAX {
             panic!("Buffer too long");
-        } else if self.buf.len() <= 4 {
+        } else if self.buf.len() < 4 {
             panic!("Buffer too short. Only contains packet length and sequence number")
         }
 
@@ -52,31 +53,80 @@ impl Encoder {
 
     // Encode a u64 as an int<8>
     #[inline]
-    pub fn encode_int_8(&mut self, value: u64) {
+    pub fn encode_int_u64(&mut self, value: u64) {
         self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    // Encode a i64 as an int<8>
+    #[inline]
+    pub fn encode_int_i64(&mut self, value: i64) {
+        self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    #[inline]
+    pub fn encode_int_8(&mut self, bytes: &Bytes) {
+        self.buf.extend_from_slice(bytes);
     }
 
     // Encode a u32 as an int<4>
     #[inline]
-    pub fn encode_int_4(&mut self, value: u32) {
+    pub fn encode_int_u32(&mut self, value: u32) {
         self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    // Encode a i32 as an int<4>
+    #[inline]
+    pub fn encode_int_i32(&mut self, value: i32) {
+        self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    #[inline]
+    pub fn encode_int_4(&mut self, bytes: &Bytes) {
+        self.buf.extend_from_slice(bytes);
     }
 
     // Encode a u32 (truncated to u24) as an int<3>
     #[inline]
-    pub fn encode_int_3(&mut self, value: u32) {
+    pub fn encode_int_u24(&mut self, value: u32) {
+        self.buf.extend_from_slice(&value.to_le_bytes()[0..3]);
+    }
+    // Encode a i32 (truncated to i24) as an int<3>
+    #[inline]
+    pub fn encode_int_i24(&mut self, value: i32) {
         self.buf.extend_from_slice(&value.to_le_bytes()[0..3]);
     }
 
     // Encode a u16 as an int<2>
     #[inline]
-    pub fn encode_int_2(&mut self, value: u16) {
+    pub fn encode_int_u16(&mut self, value: u16) {
         self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    // Encode a i16 as an int<2>
+    #[inline]
+    pub fn encode_int_i16(&mut self, value: i16) {
+        self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    #[inline]
+    pub fn encode_int_2(&mut self, bytes: &Bytes) {
+        self.buf.extend_from_slice(bytes);
     }
 
     // Encode a u8 as an int<1>
     #[inline]
-    pub fn encode_int_1(&mut self, value: u8) {
+    pub fn encode_int_u8(&mut self, value: u8) {
+        self.buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    #[inline]
+    pub fn encode_int_1(&mut self, bytes: &Bytes) {
+        self.buf.extend_from_slice(bytes);
+    }
+
+    // Encode a i8 as an int<1>
+    #[inline]
+    pub fn encode_int_i8(&mut self, value: i8) {
         self.buf.extend_from_slice(&value.to_le_bytes());
     }
 
@@ -87,15 +137,15 @@ impl Encoder {
         if let Some(value) = value {
             if *value > U24_MAX && *value <= std::u64::MAX as usize {
                 self.buf.put_u8(0xFE);
-                self.encode_int_8(*value as u64);
+                self.encode_int_u64(*value as u64);
 
             } else if *value > std::u16::MAX as usize && *value <= U24_MAX {
                 self.buf.put_u8(0xFD);
-                self.encode_int_3(*value as u32);
+                self.encode_int_u24(*value as u32);
 
             } else if *value > std::u8::MAX as usize && *value <= std::u16::MAX as usize {
                 self.buf.put_u8(0xFC);
-                self.encode_int_2(*value as u16);
+                self.encode_int_u16(*value as u16);
 
             } else if *value <= std::u8::MAX as usize {
                 match *value {
@@ -160,7 +210,7 @@ impl Encoder {
             panic!("String inside string lenenc serialization is too long");
         }
 
-        self.encode_int_3(bytes.len() as u32);
+        self.encode_int_u24(bytes.len() as u32);
         self.buf.extend_from_slice(bytes);
     }
 
@@ -178,6 +228,43 @@ impl Encoder {
     #[inline]
     pub fn encode_byte_eof(&mut self, bytes: &Bytes) {
         self.buf.extend_from_slice(bytes);
+    }
+
+    #[inline]
+    pub fn encode_binary(&mut self, bytes: &Bytes, ty: &FieldType) {
+        match ty {
+            FieldType::MysqlTypeDecimal => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeTiny => self.encode_int_1(bytes),
+            FieldType::MysqlTypeShort => self.encode_int_2(bytes),
+            FieldType::MysqlTypeLong => self.encode_int_4(bytes),
+            FieldType::MysqlTypeFloat => self.encode_int_4(bytes),
+            FieldType::MysqlTypeDouble => self.encode_int_8(bytes),
+            FieldType::MysqlTypeNull => panic!("Type cannot be FieldType::MysqlTypeNull"),
+            FieldType::MysqlTypeTimestamp => unimplemented!(),
+            FieldType::MysqlTypeLonglong => self.encode_int_8(bytes),
+            FieldType::MysqlTypeInt24 => self.encode_int_4(bytes),
+            FieldType::MysqlTypeDate => unimplemented!(),
+            FieldType::MysqlTypeTime => unimplemented!(),
+            FieldType::MysqlTypeDatetime => unimplemented!(),
+            FieldType::MysqlTypeYear => self.encode_int_4(bytes),
+            FieldType::MysqlTypeNewdate => unimplemented!(),
+            FieldType::MysqlTypeVarchar => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeBit => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeTimestamp2 => unimplemented!(),
+            FieldType::MysqlTypeDatetime2 => unimplemented!(),
+            FieldType::MysqlTypeTime2 =>unimplemented!(),
+            FieldType::MysqlTypeJson => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeNewdecimal => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeEnum => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeSet => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeTinyBlob => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeMediumBlob => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeLongBlob => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeBlob => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeVarString => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeString => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeGeometry => self.encode_string_lenenc(bytes),
+        }
     }
 }
 
@@ -292,7 +379,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u64() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_8(std::u64::MAX);
+        encoder.encode_int_u64(std::u64::MAX);
 
         assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
@@ -300,7 +387,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u32() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_4(std::u32::MAX);
+        encoder.encode_int_u32(std::u32::MAX);
 
         assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF\xFF");
     }
@@ -308,7 +395,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u24() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_3(U24_MAX as u32);
+        encoder.encode_int_u24(U24_MAX as u32);
 
         assert_eq!(&encoder.buf[..], b"\xFF\xFF\xFF");
     }
@@ -316,7 +403,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u16() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_2(std::u16::MAX);
+        encoder.encode_int_u16(std::u16::MAX);
 
         assert_eq!(&encoder.buf[..], b"\xFF\xFF");
     }
@@ -324,7 +411,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u8() {
         let mut encoder = Encoder::new(128);
-        encoder.encode_int_1(std::u8::MAX);
+        encoder.encode_int_u8(std::u8::MAX);
 
         assert_eq!(&encoder.buf[..], b"\xFF");
     }

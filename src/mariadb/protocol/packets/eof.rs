@@ -18,16 +18,16 @@ impl Deserialize for EofPacket {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
-        let packet_header = decoder.decode_int_1();
+        let packet_header = decoder.decode_int_u8();
 
         if packet_header != 0xFE {
             panic!("Packet header is not 0xFE for ErrPacket");
         }
 
-        let warning_count = decoder.decode_int_2();
-        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned());
+        let warning_count = decoder.decode_int_i16();
+        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16());
 
         Ok(EofPacket { length, seq_no, warning_count, status })
     }

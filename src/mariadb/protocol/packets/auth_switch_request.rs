@@ -11,7 +11,7 @@ pub struct AuthenticationSwitchRequestPacket {
 
 impl Serialize for AuthenticationSwitchRequestPacket {
     fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
-        encoder.encode_int_1(0xFE);
+        encoder.encode_int_u8(0xFE);
         encoder.encode_string_null(&self.auth_plugin_name);
         encoder.encode_byte_eof(&self.auth_plugin_data);
 

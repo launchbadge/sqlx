@@ -17,7 +17,7 @@ impl Deserialize for ResultRow {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
         let row = if let Some(columns) = ctx.columns {
             (0..columns).map(|_| decoder.decode_string_lenenc()).collect::<Vec<Bytes>>()

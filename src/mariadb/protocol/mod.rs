@@ -34,6 +34,11 @@ pub use packets::PacketHeader;
 pub use packets::ResultSet;
 pub use packets::ResultRow;
 pub use packets::SSLRequestPacket;
+pub use packets::ComStmtPrepare;
+pub use packets::ComStmtPrepareOk;
+pub use packets::ComStmtPrepareResp;
+pub use packets::ComStmtClose;
+pub use packets::ComStmtExec;
 
 pub use decode::Decoder;
 
@@ -53,5 +58,7 @@ pub use types::ServerStatusFlag;
 pub use types::FieldType;
 pub use types::FieldDetailFlag;
 pub use types::SessionChangeType;
+pub use types::StmtExecFlag;
 
 pub use client::TextProtocol;
+pub use client::BinaryProtocol;

@@ -25,7 +25,7 @@ impl Deserialize for ColumnDefPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
         // string<lenenc> catalog (always 'def')
         let catalog = decoder.decode_string_lenenc();
@@ -42,15 +42,15 @@ impl Deserialize for ColumnDefPacket {
         // int<lenenc> length of fixed fields (=0xC)
         let length_of_fixed_fields = decoder.decode_int_lenenc();
         // int<2> character set number
-        let char_set = decoder.decode_int_2();
+        let char_set = decoder.decode_int_i16();
         // int<4> max. column size
-        let max_columns = decoder.decode_int_4();
+        let max_columns = decoder.decode_int_i32();
         // int<1> Field types
-        let field_type = FieldType::try_from(decoder.decode_int_1())?;
+        let field_type = FieldType::try_from(decoder.decode_int_u8())?;
         // int<2> Field detail flag
-        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_2_unsigned());
+        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_u16());
         // int<1> decimals
-        let decimals = decoder.decode_int_1();
+        let decimals = decoder.decode_int_u8();
         // int<2> - unused -
         decoder.skip_bytes(2);
 

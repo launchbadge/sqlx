@@ -35,3 +35,16 @@ impl Into<u8> for TextProtocol {
         self as u8
     }
 }
+
+pub enum BinaryProtocol {
+    ComStmtPrepare = 0x16,
+    ComStmtClose = 0x19,
+    ComStmtExec = 0x17,
+}
+
+// Helper method to easily transform into u8
+impl Into<u8> for BinaryProtocol {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}

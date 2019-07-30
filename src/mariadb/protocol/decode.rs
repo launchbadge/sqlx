@@ -108,7 +108,7 @@ impl<'a> Decoder<'a> {
 
     // Decode an int<8> which is a i64
     #[inline]
-    pub fn decode_int_8(&mut self) -> i64 {
+    pub fn decode_int_i64(&mut self) -> i64 {
         let value = LittleEndian::read_i64(&self.buf[self.index..]);
         self.index += 8;
         value
@@ -116,16 +116,16 @@ impl<'a> Decoder<'a> {
 
     // Decode an int<4> which is a i32
     #[inline]
-    pub fn decode_int_4(&mut self) -> i32 {
+    pub fn decode_int_i32(&mut self) -> i32 {
         let value = LittleEndian::read_i32(&self.buf[self.index..]);
         self.index += 4;
         value
     }
 
-    // Decode an int<4> which is a i32
+    // Decode an int<4> which is a u32
     // This is a helper method for decoding flags.
     #[inline]
-    pub fn decode_int_4_unsigned(&mut self) -> u32 {
+    pub fn decode_int_u32(&mut self) -> u32 {
         let value = LittleEndian::read_u32(&self.buf[self.index..]);
         self.index += 4;
         value
@@ -133,7 +133,7 @@ impl<'a> Decoder<'a> {
 
     // Decode an int<3> which is a i24
     #[inline]
-    pub fn decode_int_3(&mut self) -> i32 {
+    pub fn decode_int_i24(&mut self) -> i32 {
         let value = LittleEndian::read_i24(&self.buf[self.index..]);
         self.index += 3;
         value
@@ -141,7 +141,7 @@ impl<'a> Decoder<'a> {
 
     // Decode an int<2> which is a i16
     #[inline]
-    pub fn decode_int_2(&mut self) -> i16 {
+    pub fn decode_int_i16(&mut self) -> i16 {
         let value = LittleEndian::read_i16(&self.buf[self.index..]);
         self.index += 2;
         value
@@ -150,7 +150,7 @@ impl<'a> Decoder<'a> {
     // Decode an int<2> as an u16
     // This is a helper method for decoding flags.
     #[inline]
-    pub fn decode_int_2_unsigned(&mut self) -> u16 {
+    pub fn decode_int_u16(&mut self) -> u16 {
         let value = LittleEndian::read_u16(&self.buf[self.index..]);
         self.index += 2;
         value
@@ -158,7 +158,7 @@ impl<'a> Decoder<'a> {
 
     // Decode an int<1> which is a u8
     #[inline]
-    pub fn decode_int_1(&mut self) -> u8 {
+    pub fn decode_int_u8(&mut self) -> u8 {
         let value = self.buf[self.index];
         self.index += 1;
         value
@@ -221,7 +221,7 @@ impl<'a> Decoder<'a> {
     // Same as the string counter part, but copied to maintain consistency with the spec.
     #[inline]
     pub fn decode_byte_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_1();
+        let length = self.decode_int_u8();
         let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
@@ -319,7 +319,7 @@ mod tests {
     fn it_decodes_int_8() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: i64 = decoder.decode_int_8();
+        let int: i64 = decoder.decode_int_i64();
 
         assert_eq!(int, 0x0101010101010101);
         assert_eq!(decoder.index, 8);
@@ -329,7 +329,7 @@ mod tests {
     fn it_decodes_int_4() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: i32 = decoder.decode_int_4();
+        let int: i32 = decoder.decode_int_i32();
 
         assert_eq!(int, 0x01010101);
         assert_eq!(decoder.index, 4);
@@ -339,7 +339,7 @@ mod tests {
     fn it_decodes_int_3() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: i32 = decoder.decode_int_3();
+        let int: i32 = decoder.decode_int_i24();
 
         assert_eq!(int, 0x010101);
         assert_eq!(decoder.index, 3);
@@ -349,7 +349,7 @@ mod tests {
     fn it_decodes_int_2() {
         let buf = __bytes_builder!(1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: i16 = decoder.decode_int_2();
+        let int: i16 = decoder.decode_int_i16();
 
         assert_eq!(int, 0x0101);
         assert_eq!(decoder.index, 2);
@@ -359,7 +359,7 @@ mod tests {
     fn it_decodes_int_1() {
         let buf = __bytes_builder!(1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: u8 = decoder.decode_int_1();
+        let int: u8 = decoder.decode_int_u8();
 
         assert_eq!(int, 1u8);
         assert_eq!(decoder.index, 1);

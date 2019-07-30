@@ -23,21 +23,21 @@ impl Deserialize for OkPacket {
 
         // Packet header
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
         // Used later for the byte_eof decoding
         let index = decoder.index;
 
         // Packet body
-        let packet_header = decoder.decode_int_1();
+        let packet_header = decoder.decode_int_u8();
         if packet_header != 0 && packet_header != 0xFE {
             return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
         }
 
         let affected_rows = decoder.decode_int_lenenc();
         let last_insert_id = decoder.decode_int_lenenc();
-        let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned().into());
-        let warning_count = decoder.decode_int_2();
+        let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16().into());
+        let warning_count = decoder.decode_int_i16();
 
         // Assuming CLIENT_SESSION_TRACK is unsupported
         let session_state_info = None;

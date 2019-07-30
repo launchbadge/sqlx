@@ -23,31 +23,31 @@ impl Deserialize for InitialHandshakePacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
         if seq_no != 0 {
             return Err(err_msg("Sequence Number of Initial Handshake Packet is not 0"));
         }
 
-        let protocol_version = decoder.decode_int_1();
+        let protocol_version = decoder.decode_int_u8();
         let server_version = decoder.decode_string_null()?;
-        let connection_id = decoder.decode_int_4();
+        let connection_id = decoder.decode_int_i32();
         let auth_seed = decoder.decode_string_fix(8);
 
         // Skip reserved byte
         decoder.skip_bytes(1);
 
-        let mut capabilities = Capabilities::from_bits_truncate(decoder.decode_int_2_unsigned().into());
+        let mut capabilities = Capabilities::from_bits_truncate(decoder.decode_int_u16().into());
 
-        let collation = decoder.decode_int_1();
-        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_2_unsigned().into());
+        let collation = decoder.decode_int_u8();
+        let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16().into());
 
         capabilities |=
-            Capabilities::from_bits_truncate(((decoder.decode_int_2() as u32) << 16).into());
+            Capabilities::from_bits_truncate(((decoder.decode_int_i16() as u32) << 16).into());
 
         let mut plugin_data_length = 0;
         if !(capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
-            plugin_data_length = decoder.decode_int_1();
+            plugin_data_length = decoder.decode_int_u8();
         } else {
             // Skip reserve byte
             decoder.skip_bytes(1);
@@ -58,7 +58,7 @@ impl Deserialize for InitialHandshakePacket {
 
         if (capabilities & Capabilities::CLIENT_MYSQL).is_empty() {
             capabilities |=
-                Capabilities::from_bits_truncate(((decoder.decode_int_4_unsigned() as u128) << 32).into());
+                Capabilities::from_bits_truncate(((decoder.decode_int_u32() as u128) << 32).into());
         } else {
             // Skip filler
             decoder.skip_bytes(4);

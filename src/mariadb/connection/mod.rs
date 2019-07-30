@@ -102,15 +102,10 @@ impl Connection {
         Ok(conn)
     }
 
-    pub async fn send<S>(&mut self, message: S) -> Result<(), Error>
-    where
-        S: Serialize,
-    {
+    pub async fn send<S>(&mut self, message: S) -> Result<(), Error> where S: Serialize {
         self.encoder.clear();
-        self.encoder.alloc_packet_header();
-        self.encoder.seq_no(self.context.seq_no);
+
         message.serialize(&mut self.context, &mut self.encoder)?;
-        self.encoder.encode_length();
 
         self.stream.inner.write_all(&self.encoder.buf).await?;
         self.stream.inner.flush().await?;

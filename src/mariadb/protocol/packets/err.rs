@@ -24,14 +24,14 @@ impl Deserialize for ErrPacket {
     fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
-        let packet_header = decoder.decode_int_1();
+        let packet_header = decoder.decode_int_u8();
         if packet_header != 0xFF {
             panic!("Packet header is not 0xFF for ErrPacket");
         }
 
-        let error_code = ErrorCode::try_from(decoder.decode_int_2())?;
+        let error_code = ErrorCode::try_from(decoder.decode_int_i16())?;
 
         let mut stage = None;
         let mut max_stage = None;
@@ -44,9 +44,9 @@ impl Deserialize for ErrPacket {
 
         // Progress Reporting
         if error_code as u16 == 0xFFFF {
-            stage = Some(decoder.decode_int_1());
-            max_stage = Some(decoder.decode_int_1());
-            progress = Some(decoder.decode_int_3());
+            stage = Some(decoder.decode_int_u8());
+            max_stage = Some(decoder.decode_int_u8());
+            progress = Some(decoder.decode_int_i24());
             progress_info = Some(decoder.decode_string_lenenc());
         } else {
             if decoder.buf[decoder.index] == b'#' {

@@ -17,7 +17,7 @@ impl Deserialize for ColumnPacket {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_1();
+        let seq_no = decoder.decode_int_u8();
 
         let columns = decoder.decode_int_lenenc();
 

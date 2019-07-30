@@ -111,6 +111,21 @@ pub enum FieldType {
     MysqlTypeGeometry = 255,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
+#[TryFromPrimitiveType = "u8"]
+pub enum StmtExecFlag {
+	NoCursor = 0,
+	ReadOnly = 1,
+	CursorForUpdate = 2,
+	ScrollableCursor = 3,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
+#[TryFromPrimitiveType = "u8"]
+pub enum ParamFlag {
+    Unsigned = 128,
+}
+
 impl Default for Capabilities {
     fn default() -> Self {
         Capabilities::CLIENT_MYSQL
@@ -135,6 +150,18 @@ impl Default for FieldType {
     }
 }
 
+impl Default for StmtExecFlag {
+    fn default() -> Self {
+        StmtExecFlag::NoCursor
+    }
+}
+
+impl Default for ParamFlag {
+    fn default() -> Self {
+        ParamFlag::Unsigned
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::super::{decode::Decoder, types::Capabilities};
@@ -144,6 +171,6 @@ mod test {
     fn it_decodes_capabilities() {
         let buf = Bytes::from(b"\xfe\xf7".to_vec());
         let mut decoder = Decoder::new(&buf);
-        Capabilities::from_bits_truncate(decoder.decode_int_2_unsigned().into());
+        Capabilities::from_bits_truncate(decoder.decode_int_u16().into());
     }
 }

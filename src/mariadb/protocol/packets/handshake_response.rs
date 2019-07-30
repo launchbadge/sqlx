@@ -20,9 +20,12 @@ pub struct HandshakeResponsePacket {
 
 impl Serialize for HandshakeResponsePacket {
     fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
-        encoder.encode_int_4(self.capabilities.bits() as u32);
-        encoder.encode_int_4(self.max_packet_size);
-        encoder.encode_int_1(self.collation);
+        encoder.alloc_packet_header();
+        encoder.seq_no(0);
+
+        encoder.encode_int_u32(self.capabilities.bits() as u32);
+        encoder.encode_int_u32(self.max_packet_size);
+        encoder.encode_int_u8(self.collation);
 
         // Filler
         encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
@@ -31,7 +34,7 @@ impl Serialize for HandshakeResponsePacket {
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                encoder.encode_int_4(capabilities.bits() as u32);
+                encoder.encode_int_u32(capabilities.bits() as u32);
             }
         } else {
             encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
@@ -45,12 +48,12 @@ impl Serialize for HandshakeResponsePacket {
             }
         } else if !(ctx.capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
-                encoder.encode_int_1(self.auth_response_len.unwrap());
+                encoder.encode_int_u8(self.auth_response_len.unwrap());
                 encoder
                     .encode_string_fix(&auth_response, self.auth_response_len.unwrap() as usize);
             }
         } else {
-            encoder.encode_int_1(0);
+            encoder.encode_int_u8(0);
         }
 
         if !(ctx.capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
@@ -79,6 +82,8 @@ impl Serialize for HandshakeResponsePacket {
                 }
             }
         }
+
+        encoder.encode_length();
 
         Ok(())
     }
