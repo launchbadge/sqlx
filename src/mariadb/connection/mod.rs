@@ -6,18 +6,7 @@ use futures::{
     prelude::*,
 };
 use runtime::net::TcpStream;
-
-use crate::ConnectOptions;
-
-use crate::mariadb::protocol::{
-    deserialize::{DeContext, Deserialize},
-    encode::Encoder,
-    packets::{com_init_db::ComInitDb, com_ping::ComPing, com_query::ComQuery, com_quit::ComQuit, ok::OkPacket},
-    serialize::Serialize,
-    server::Message as ServerMessage,
-    types::{Capabilities, ServerStatusFlag},
-};
-use crate::mariadb::protocol::server::Message;
+use crate::{ConnectOptions, mariadb::protocol::{DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag}};
 
 mod establish;
 
@@ -160,7 +149,7 @@ impl Connection {
         Ok(())
     }
 
-    pub async fn next(&mut self) -> Result<Option<ServerMessage>, Error> {
+    pub async fn next(&mut self) -> Result<Option<Message>, Error> {
         let mut rbuf = BytesMut::new();
         let mut len = 0;
 
@@ -187,7 +176,7 @@ impl Connection {
 
             while len > 0 {
                 let size = rbuf.len();
-                let message = ServerMessage::deserialize(&mut DeContext::new(
+                let message = Message::deserialize(&mut DeContext::new(
                     &mut self.context,
                     &rbuf.as_ref().into(),
                 ))?;

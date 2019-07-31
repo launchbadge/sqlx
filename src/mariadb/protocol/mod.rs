@@ -1,4 +1,12 @@
-pub mod client;
+// Reference: https://mariadb.com/kb/en/library/connection
+// Packets: https://mariadb.com/kb/en/library/0-packet
+
+// TODO: Handle lengths which are greater than 3 bytes
+// Either break the packet into several smaller ones, or
+// return error
+// TODO: Handle different Capabilities for server and client
+// TODO: Handle when capability is set, but field is None
+
 pub mod decode;
 pub mod deserialize;
 pub mod encode;
@@ -39,6 +47,8 @@ pub use packets::ComStmtPrepareOk;
 pub use packets::ComStmtPrepareResp;
 pub use packets::ComStmtClose;
 pub use packets::ComStmtExec;
+pub use packets::ComStmtFetch;
+pub use packets::ComStmtReset;
 
 pub use decode::Decoder;
 
@@ -59,6 +69,3 @@ pub use types::FieldType;
 pub use types::FieldDetailFlag;
 pub use types::SessionChangeType;
 pub use types::StmtExecFlag;
-
-pub use client::TextProtocol;
-pub use client::BinaryProtocol;

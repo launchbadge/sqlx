@@ -31,7 +31,7 @@ impl Deserialize for ResultSet {
             Vec::new()
         };
 
-        let eof_packet = if !(ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
+        let eof_packet = if !ctx.conn.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
             Some(EofPacket::deserialize(ctx)?)
         } else {
             None
@@ -62,7 +62,7 @@ impl Deserialize for ResultSet {
             }
         }
 
-        if (ctx.conn.capabilities & Capabilities::CLIENT_DEPRECATE_EOF).is_empty() {
+        if ctx.conn.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
             OkPacket::deserialize(ctx)?;
         } else {
             EofPacket::deserialize(ctx)?;

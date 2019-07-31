@@ -231,7 +231,7 @@ impl Encoder {
     }
 
     #[inline]
-    pub fn encode_binary(&mut self, bytes: &Bytes, ty: &FieldType) {
+    pub fn encode_param(&mut self, bytes: &Bytes, ty: &FieldType) {
         match ty {
             FieldType::MysqlTypeDecimal => self.encode_string_lenenc(bytes),
             FieldType::MysqlTypeTiny => self.encode_int_1(bytes),

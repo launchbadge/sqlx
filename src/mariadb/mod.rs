@@ -47,5 +47,3 @@ pub use protocol::FieldType;
 pub use protocol::FieldDetailFlag;
 pub use protocol::SessionChangeType;
 pub use protocol::StmtExecFlag;
-pub use protocol::TextProtocol;
-pub use protocol::BinaryProtocol;
