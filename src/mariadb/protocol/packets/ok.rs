@@ -9,7 +9,7 @@ pub struct OkPacket {
     pub length: u32,
     pub seq_no: u8,
     pub affected_rows: Option<u64>,
-    pub last_insert_id: Option<u64>,
+    pub last_insert_id: Option<i64>,
     pub server_status: ServerStatusFlag,
     pub warning_count: i16,
     pub info: Bytes,
@@ -34,8 +34,8 @@ impl Deserialize for OkPacket {
             return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
         }
 
-        let affected_rows = decoder.decode_int_lenenc();
-        let last_insert_id = decoder.decode_int_lenenc();
+        let affected_rows = decoder.decode_int_lenenc_unsigned();
+        let last_insert_id = decoder.decode_int_lenenc_signed();
         let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16().into());
         let warning_count = decoder.decode_int_i16();
 

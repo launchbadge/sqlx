@@ -40,7 +40,7 @@ impl Deserialize for ColumnDefPacket {
         // string<lenenc> column
         let column = decoder.decode_string_lenenc();
         // int<lenenc> length of fixed fields (=0xC)
-        let length_of_fixed_fields = decoder.decode_int_lenenc();
+        let length_of_fixed_fields = decoder.decode_int_lenenc_unsigned();
         // int<2> character set number
         let char_set = decoder.decode_int_i16();
         // int<4> max. column size

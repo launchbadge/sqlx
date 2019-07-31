@@ -96,7 +96,7 @@ mod tests {
                 table: Bytes::from_static(b"users"),
                 column_alias: Bytes::from_static(b"username"),
                 column: Bytes::from_static(b"username"),
-                length_of_fixed_fields: Some(0x0Ci64),
+                length_of_fixed_fields: Some(0x0Cu64),
                 char_set: 1,
                 max_columns: 1,
                 field_type: FieldType::MysqlTypeString,

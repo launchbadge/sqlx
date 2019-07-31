@@ -19,7 +19,7 @@ impl Deserialize for ColumnPacket {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
 
-        let columns = decoder.decode_int_lenenc();
+        let columns = decoder.decode_int_lenenc_unsigned();
 
         Ok(ColumnPacket { length, seq_no, columns })
     }

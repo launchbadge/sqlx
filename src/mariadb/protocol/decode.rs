@@ -7,6 +7,57 @@ use super::packets::packet_header::PacketHeader;
 
 // This is a simple wrapper around Bytes to make decoding easier
 // since the index is always tracked
+// The decoder is used to decode mysql protocol data-types
+// into the appropriate Rust type or bytes::Bytes otherwise
+// There are two types of protocols: Text and Binary.
+// Text protocol is used for most things, and binary is used
+// only for the results of prepared statements.
+// MySql Text protocol data-types:
+//      - byte<n> : Fixed-length bytes
+//      - byte<lenenc> : Length-encoded bytes
+//      - byte<EOF> : End-of-file length bytes
+//      - int<n> : Fixed-length integers
+//      - int<lenenc> : Length-encoded integers
+//      - string<fix> : Fixed-length strings
+//      - string<NUL> : Null-terminated strings
+//      - string<lenenc> : Length-encoded strings
+//      - string<EOF> : End-of-file length strings
+// The decoder will decode all of the Text Protocol types, and if the data-type
+// is of type int<*> then the decoder will convert that into the
+// appropriate Rust type.
+// The second protocol (Binary) protocol data-types (these rely on knowing the type from the column definition packet):
+//      - DECIMAL : DECIMAL has no fixed size, so will be encoded as string<lenenc>.
+//      - DOUBLE : DOUBLE is the IEEE 754 floating-point value in Little-endian format on 8 bytes.
+//      - BIGINT : BIGINT is the value in Little-endian format on 8 bytes. Signed is defined by the Column field detail flag.
+//      - INTEGER: INTEGER is the value in Little-endian format on 4 bytes. Signed is defined by the Column field detail flag.
+//      - MEDIUMINT : MEDIUMINT is similar to INTEGER binary encoding, even if MEDIUM int is 3-bytes encoded server side. (Last byte will always be 0x00).
+//      - FLOAT : FLOAT is the IEEE 754 floating-point value in Little-endian format on 4 bytes.
+//      - SMALLINT : SMALLINT is the value in Little-endian format on 2 bytes. Signed is defined by the Column field detail flag.
+//      - YEAR : YEAR uses the same format as SMALLINT.
+//      - TINYINT : TINYINT is the value of 1 byte. Signed is defined by the Column field detail flag.
+//      - DATE : Data is encoded in 5 bytes.
+//          - First byte is the date length which must be 4
+//          - Bytes 2-3 are the year on 2 bytes little-endian format
+//          - Byte 4 is the month (1=january - 12=december)
+//          - Byte 5 is the day of the month (0 - 31)
+//      - TIMESTAMP: Data is encoded in 8 bytes without fractional seconds, 12 bytes with fractional seconds.
+//          - Byte 1 is data length; 7 without fractional seconds, 11 with fractional seconds
+//          - Bytes 2-3	are the year on 2 bytes little-endian format
+//          - Byte 4 is the month (1=january - 12=december)
+//          - Byte 5 is the day of the month (0 - 31)
+//          - Byte 6 is the hour of day (0 if DATE type) (0-23)
+//          - Byte 7 is the minutes (0 if DATE type) (0-59)
+//          - Byte 8 is the seconds (0 if DATE type) (0-59)
+//          - Bytes 9-12 is the micro-second on 4 bytes little-endian format (only if data-length is > 7) (0-9999)
+//      - DATETIME : DATETIME uses the same format as TIMESTAMP binary encoding
+//      - TIME : Data is encoded in 9 bytes without fractional seconds, 13 bytes with fractional seconds.
+//          - Byte 1 is the data length; 8 without fractional seconds, 12 with fractional seconds
+//          - Byte 2 determines negativity
+//          - Bytes 3-6	are the date on 4 bytes little-endian format
+//          - Byte 6 is the hour of day (0 if DATE type) (0-23)
+//          - Byte 7 is the minutes (0 if DATE type) (0-59)
+//          - Byte 8 is the seconds (0 if DATE type) (0-59)
+//          - Bytes 10-13 are the micro-seconds on 4 bytes little-endian format (only if data-length is > 7)
 pub struct Decoder<'a> {
     pub buf: &'a Bytes,
     pub index: usize,
@@ -76,24 +127,56 @@ impl<'a> Decoder<'a> {
     //      0xFF then there was an error.
     // If the first byte is not in the previous list then that byte is the int value.
     #[inline]
-    pub fn decode_int_lenenc(&mut self) -> Option<u64> {
+    pub fn decode_int_lenenc_signed(&mut self) -> Option<i64> {
         match self.buf[self.index] {
             0xFB => {
                 self.index += 1;
                 None
             }
             0xFC => {
-                let value = Some(LittleEndian::read_i16(&self.buf[self.index + 1..]) as u64);
+                let value = Some(LittleEndian::read_i16(&self.buf[self.index + 1..]) as i64);
                 self.index += 3;
                 value
             }
             0xFD => {
-                let value = Some(LittleEndian::read_i24(&self.buf[self.index + 1..]) as u64);
+                let value = Some(LittleEndian::read_i24(&self.buf[self.index + 1..]) as i64);
                 self.index += 4;
                 value
             }
             0xFE => {
-                let value = Some(LittleEndian::read_i64(&self.buf[self.index + 1..]) as u64);
+                let value = Some(LittleEndian::read_i64(&self.buf[self.index + 1..]) as i64);
+                self.index += 9;
+                value
+            }
+            0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
+            _ => {
+                let value = Some(self.buf[self.index] as i64);
+                self.index += 1;
+                value
+            }
+        }
+    }
+
+    // This is functionally identical to the previous method, but this one returns an u64 instead
+    #[inline]
+    pub fn decode_int_lenenc_unsigned(&mut self) -> Option<u64> {
+        match self.buf[self.index] {
+            0xFB => {
+                self.index += 1;
+                None
+            }
+            0xFC => {
+                let value = Some(LittleEndian::read_u16(&self.buf[self.index + 1..]) as u64);
+                self.index += 3;
+                value
+            }
+            0xFD => {
+                let value = Some(LittleEndian::read_u24(&self.buf[self.index + 1..]) as u64);
+                self.index += 4;
+                value
+            }
+            0xFE => {
+                let value = Some(LittleEndian::read_u64(&self.buf[self.index + 1..]) as u64);
                 self.index += 9;
                 value
             }
@@ -168,7 +251,7 @@ impl<'a> Decoder<'a> {
     // the length of the string, and the the following n bytes are the contents.
     #[inline]
     pub fn decode_string_lenenc(&mut self) -> Bytes {
-        let length = self.decode_int_lenenc().unwrap_or(0);
+        let length = self.decode_int_lenenc_unsigned().unwrap_or(0);
         let value = self.buf.slice(self.index, self.index + length as usize);
         self.index = self.index + length as usize;
         value
@@ -327,12 +410,8 @@ impl<'a> Decoder<'a> {
 
     #[inline]
     pub fn decode_binary_time(&mut self) -> Bytes {
-        let length = self.decode_int_u8();
-        if length != 8 && length != 12 {
-            panic!("Date length is not 8 or 12 (the only two possible values)");
-        }
-        let value = self.buf.slice(self.index, self.index + length as usize);
-        self.index += length as usize;
+        let value = self.buf.slice(self.index, self.index + 13);
+        self.index += 13;
         value
 
     }
@@ -363,7 +442,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fb() {
         let buf = __bytes_builder!(0xFB_u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<i64> = decoder.decode_int_lenenc();
+        let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, None);
         assert_eq!(decoder.index, 1);
@@ -373,7 +452,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fc() {
         let buf =__bytes_builder!(0xFCu8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<i64> = decoder.decode_int_lenenc();
+        let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x0101));
         assert_eq!(decoder.index, 3);
@@ -383,7 +462,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fd() {
         let buf = __bytes_builder!(0xFDu8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<i64> = decoder.decode_int_lenenc();
+        let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x010101));
         assert_eq!(decoder.index, 4);
@@ -393,7 +472,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fe() {
         let buf = __bytes_builder!(0xFE_u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<i64> = decoder.decode_int_lenenc();
+        let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x0101010101010101));
         assert_eq!(decoder.index, 9);
@@ -403,7 +482,7 @@ mod tests {
     fn it_decodes_int_lenenc_0x_fa() {
         let buf = __bytes_builder!(0xFA_u8);
         let mut decoder = Decoder::new(&buf);
-        let int: Option<i64> = decoder.decode_int_lenenc();
+        let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0xFA));
         assert_eq!(decoder.index, 1);
