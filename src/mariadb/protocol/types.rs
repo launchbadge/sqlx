@@ -128,7 +128,7 @@ pub enum ParamFlag {
 
 impl Default for Capabilities {
     fn default() -> Self {
-        Capabilities::CLIENT_MYSQL
+        Capabilities::CLIENT_PROTOCOL_41
     }
 }
 

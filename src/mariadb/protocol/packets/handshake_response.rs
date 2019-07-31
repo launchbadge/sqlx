@@ -21,7 +21,7 @@ pub struct HandshakeResponsePacket {
 impl Serialize for HandshakeResponsePacket {
     fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
         encoder.alloc_packet_header();
-        encoder.seq_no(0);
+        encoder.seq_no(1);
 
         encoder.encode_int_u32(self.capabilities.bits() as u32);
         encoder.encode_int_u32(self.max_packet_size);

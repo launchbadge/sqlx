@@ -6,7 +6,7 @@ use futures::{
     prelude::*,
 };
 use runtime::net::TcpStream;
-use crate::{ConnectOptions, mariadb::protocol::{DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag}};
+use crate::{ConnectOptions, mariadb::protocol::{DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag, ComStmtPrepare, ComStmtPrepareResp, ResultSet, ErrPacket}};
 
 mod establish;
 
@@ -46,26 +46,18 @@ impl ConnContext {
             connection_id: 0,
             seq_no: 2,
             last_seq_no: 0,
-            capabilities: Capabilities::FOUND_ROWS
-                | Capabilities::CONNECT_WITH_DB
-                | Capabilities::COMPRESS
-                | Capabilities::LOCAL_FILES
-                | Capabilities::IGNORE_SPACE
-                | Capabilities::CLIENT_PROTOCOL_41
-                | Capabilities::CLIENT_INTERACTIVE
-                | Capabilities::TRANSACTIONS
-                | Capabilities::SECURE_CONNECTION
-                | Capabilities::MULTI_STATEMENTS
-                | Capabilities::MULTI_RESULTS
-                | Capabilities::PS_MULTI_RESULTS
-                | Capabilities::PLUGIN_AUTH
-                | Capabilities::CONNECT_ATTRS
-                | Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA
-                | Capabilities::CLIENT_SESSION_TRACK
-                | Capabilities::CLIENT_DEPRECATE_EOF
-                | Capabilities::MARIA_DB_CLIENT_PROGRESS
-                | Capabilities::MARIA_DB_CLIENT_COM_MULTI
-                | Capabilities::MARIA_CLIENT_STMT_BULK_OPERATIONS,
+            capabilities: Capabilities::CLIENT_PROTOCOL_41,
+            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_eof() -> Self {
+        ConnContext {
+            connection_id: 0,
+            seq_no: 2,
+            last_seq_no: 0,
+            capabilities: Capabilities::CLIENT_PROTOCOL_41 | Capabilities::CLIENT_DEPRECATE_EOF,
             status: ServerStatusFlag::SERVER_STATUS_IN_TRANS
         }
     }
@@ -81,7 +73,7 @@ impl Connection {
                 connection_id: -1,
                 seq_no: 1,
                 last_seq_no: 0,
-                capabilities: Capabilities::default(),
+                capabilities: Capabilities::CLIENT_PROTOCOL_41,
                 status: ServerStatusFlag::default(),
             },
         };
@@ -103,22 +95,33 @@ impl Connection {
     }
 
     pub async fn quit(&mut self) -> Result<(), Error> {
-        self.context.seq_no = 0;
         self.send(ComQuit()).await?;
 
         Ok(())
     }
 
-    pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<(), Error> {
-        self.context.seq_no = 0;
+    pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<Option<ResultSet>, Error> {
         self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
 
-        Ok(())
+        let buf = self.stream.next_bytes().await?;
+        let mut ctx = DeContext::new(&mut self.context, &buf);
+        if let Some(tag) = ctx.decoder.peek_tag() {
+            match tag {
+                0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
+                0x00 => {
+                    OkPacket::deserialize(&mut ctx)?;
+                    Ok(None)
+                },
+                0xFB => unimplemented!(),
+                _ => Ok(Some(ResultSet::deserialize(&mut ctx)?))
+            }
+        } else {
+            panic!("Tag not found in result packet");
+        }
     }
 
 
     pub async fn select_db<'a>(&'a mut self, db: &'a str) -> Result<(), Error> {
-        self.context.seq_no = 0;
         self.send(ComInitDb { schema_name: bytes::Bytes::from(db) }).await?;
 
 
@@ -139,12 +142,23 @@ impl Connection {
     }
 
     pub async fn ping(&mut self) -> Result<(), Error> {
-        self.context.seq_no = 0;
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
         let buf = self.stream.next_bytes().await?;
         OkPacket::deserialize(&mut DeContext::new(&mut self.context, &buf))?;
+
+        Ok(())
+    }
+
+    pub async fn prepare(&mut self, query: &str) -> Result<(), Error> {
+        self.send(ComStmtPrepare {
+            statement: Bytes::from(query),
+        }).await?;
+
+        let buf = self.stream.next_bytes().await?;
+
+        ComStmtPrepareResp::deserialize(&mut DeContext::new(&mut self.context, &buf))?;
 
         Ok(())
     }

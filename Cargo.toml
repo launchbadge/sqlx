@@ -16,7 +16,7 @@ itoa = "0.4.4"
 log = "0.4.7"
 md-5 = "0.8.0"
 memchr = "2.2.1"
-runtime = { version = "=0.3.0-alpha.6", default-features = false }
+runtime = { version = "=0.3.0-alpha.6", default-features = true }
 bitflags = "1.1.0"
 enum-tryfrom = "0.2.1"
 enum-tryfrom-derive = "0.2.1"

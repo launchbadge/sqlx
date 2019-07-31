@@ -77,8 +77,7 @@ impl Deserialize for InitialHandshakePacket {
             auth_plugin_name = Some(decoder.decode_string_null()?);
         }
 
-        ctx.conn.capabilities = capabilities;
-        ctx.conn.last_seq_no = seq_no;
+        ctx.ctx.last_seq_no = seq_no;
 
         Ok(InitialHandshakePacket {
             length,

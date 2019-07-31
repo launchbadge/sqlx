@@ -8,14 +8,14 @@ use failure::Error;
 // access to the connection context.
 // Mainly used to simply to simplify number of parameters for deserializing functions
 pub struct DeContext<'a> {
-    pub conn: &'a mut ConnContext,
+    pub ctx: &'a mut ConnContext,
     pub decoder: Decoder<'a>,
     pub columns: Option<i64>,
 }
 
 impl<'a> DeContext<'a> {
     pub fn new(conn: &'a mut ConnContext, buf: &'a Bytes) -> Self {
-        DeContext { conn, decoder: Decoder::new(&buf), columns: None }
+        DeContext { ctx: conn, decoder: Decoder::new(&buf), columns: None }
     }
 }
 

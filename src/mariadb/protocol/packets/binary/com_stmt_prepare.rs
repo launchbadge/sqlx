@@ -2,7 +2,7 @@ use bytes::Bytes;
 
 #[derive(Debug)]
 pub struct ComStmtPrepare {
-    statement: Bytes
+    pub statement: Bytes
 }
 
 impl crate::mariadb::Serialize for ComStmtPrepare {
