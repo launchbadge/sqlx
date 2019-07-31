@@ -67,7 +67,7 @@ impl Deserialize for InitialHandshakePacket {
         let mut scramble: Option<Bytes> = None;
         if !(capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             let len = std::cmp::max(12, plugin_data_length as usize - 9);
-            scramble = Some(decoder.decode_string_fix(len as u32));
+            scramble = Some(decoder.decode_string_fix(len as usize));
             // Skip reserve byte
             decoder.skip_bytes(1);
         }

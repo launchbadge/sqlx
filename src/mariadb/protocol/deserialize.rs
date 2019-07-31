@@ -1,5 +1,4 @@
-use super::decode::Decoder;
-use crate::mariadb::connection::{ConnContext, Connection};
+use crate::mariadb::{Decoder, ConnContext, Connection, ColumnDefPacket};
 use bytes::Bytes;
 use failure::Error;
 
@@ -10,12 +9,13 @@ use failure::Error;
 pub struct DeContext<'a> {
     pub ctx: &'a mut ConnContext,
     pub decoder: Decoder<'a>,
-    pub columns: Option<i64>,
+    pub columns: Option<u64>,
+    pub column_defs: Option<Vec<ColumnDefPacket>>,
 }
 
 impl<'a> DeContext<'a> {
     pub fn new(conn: &'a mut ConnContext, buf: &'a Bytes) -> Self {
-        DeContext { ctx: conn, decoder: Decoder::new(&buf), columns: None }
+        DeContext { ctx: conn, decoder: Decoder::new(&buf), columns: None , column_defs: None }
     }
 }
 

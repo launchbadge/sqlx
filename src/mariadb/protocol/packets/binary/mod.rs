@@ -5,6 +5,7 @@ pub mod com_stmt_close;
 pub mod com_stmt_exec;
 pub mod com_stmt_fetch;
 pub mod com_stmt_reset;
+pub mod result_row;
 
 pub use com_stmt_prepare::ComStmtPrepare;
 pub use com_stmt_prepare_ok::ComStmtPrepareOk;

@@ -76,30 +76,30 @@ impl<'a> Decoder<'a> {
     //      0xFF then there was an error.
     // If the first byte is not in the previous list then that byte is the int value.
     #[inline]
-    pub fn decode_int_lenenc(&mut self) -> Option<i64> {
+    pub fn decode_int_lenenc(&mut self) -> Option<u64> {
         match self.buf[self.index] {
             0xFB => {
                 self.index += 1;
                 None
             }
             0xFC => {
-                let value = Some(LittleEndian::read_i16(&self.buf[self.index + 1..]) as i64);
+                let value = Some(LittleEndian::read_i16(&self.buf[self.index + 1..]) as u64);
                 self.index += 3;
                 value
             }
             0xFD => {
-                let value = Some(LittleEndian::read_i24(&self.buf[self.index + 1..]) as i64);
+                let value = Some(LittleEndian::read_i24(&self.buf[self.index + 1..]) as u64);
                 self.index += 4;
                 value
             }
             0xFE => {
-                let value = Some(LittleEndian::read_i64(&self.buf[self.index + 1..]) as i64);
+                let value = Some(LittleEndian::read_i64(&self.buf[self.index + 1..]) as u64);
                 self.index += 9;
                 value
             }
             0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
             _ => {
-                let value = Some(self.buf[self.index] as i64);
+                let value = Some(self.buf[self.index] as u64);
                 self.index += 1;
                 value
             }
@@ -176,8 +176,8 @@ impl<'a> Decoder<'a> {
 
     // Decode a string<fix> which is a string of fixed length.
     #[inline]
-    pub fn decode_string_fix(&mut self, length: u32) -> Bytes {
-        let value = self.buf.slice(self.index, self.index + length as usize);
+    pub fn decode_string_fix(&mut self, length: usize) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + length);
         self.index = self.index + length as usize;
         value
     }
@@ -212,8 +212,8 @@ impl<'a> Decoder<'a> {
 
     // Same as the string counter part, but copied to maintain consistency with the spec.
     #[inline]
-    pub fn decode_byte_fix(&mut self, length: u32) -> Bytes {
-        let value = self.buf.slice(self.index, self.index + length as usize);
+    pub fn decode_byte_fix(&mut self, length: usize) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + length);
         self.index = self.index + length as usize;
         value
     }
@@ -241,6 +241,100 @@ impl<'a> Decoder<'a> {
         });
         self.index = self.buf.len();
         value
+    }
+
+    #[inline]
+    pub fn decode_binary_decimal(&mut self) -> Bytes {
+        self.decode_string_lenenc()
+    }
+
+    #[inline]
+    pub fn decode_binary_double(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 8);
+        self.index += 8;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_bigint(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 8);
+        self.index += 8;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_int(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 4);
+        self.index += 4;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_mediumint(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 4);
+        self.index += 4;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_float(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 4);
+        self.index += 4;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_smallint(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 2);
+        self.index += 2;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_year(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 2);
+        self.index += 2;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_tinyint(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 1);
+        self.index += 1;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_date(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 5);
+        self.index += 5;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_timestamp(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 12);
+        self.index += 12;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_datetime(&mut self) -> Bytes {
+        let value = self.buf.slice(self.index, self.index + 12);
+        self.index += 12;
+        value
+    }
+
+    #[inline]
+    pub fn decode_binary_time(&mut self) -> Bytes {
+        let length = self.decode_int_u8();
+        if length != 8 && length != 12 {
+            panic!("Date length is not 8 or 12 (the only two possible values)");
+        }
+        let value = self.buf.slice(self.index, self.index + length as usize);
+        self.index += length as usize;
+        value
+
     }
 }
 

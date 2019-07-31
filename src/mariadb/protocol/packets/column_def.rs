@@ -13,7 +13,7 @@ pub struct ColumnDefPacket {
     pub table: Bytes,
     pub column_alias: Bytes,
     pub column: Bytes,
-    pub length_of_fixed_fields: Option<i64>,
+    pub length_of_fixed_fields: Option<u64>,
     pub char_set: i16,
     pub max_columns: i32,
     pub field_type: FieldType,

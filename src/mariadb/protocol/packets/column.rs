@@ -9,7 +9,7 @@ use crate::mariadb::{DeContext, Deserialize};
 pub struct ColumnPacket {
     pub length: u32,
     pub seq_no: u8,
-    pub columns: Option<i64>,
+    pub columns: Option<u64>,
 }
 
 impl Deserialize for ColumnPacket {

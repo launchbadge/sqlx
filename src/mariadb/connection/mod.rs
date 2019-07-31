@@ -151,16 +151,14 @@ impl Connection {
         Ok(())
     }
 
-    pub async fn prepare(&mut self, query: &str) -> Result<(), Error> {
+    pub async fn prepare(&mut self, query: &str) -> Result<ComStmtPrepareResp, Error> {
         self.send(ComStmtPrepare {
             statement: Bytes::from(query),
         }).await?;
 
         let buf = self.stream.next_bytes().await?;
 
-        ComStmtPrepareResp::deserialize(&mut DeContext::new(&mut self.context, &buf))?;
-
-        Ok(())
+        ComStmtPrepareResp::deserialize(&mut DeContext::new(&mut self.context, &buf))
     }
 
     pub async fn next(&mut self) -> Result<Option<Message>, Error> {
