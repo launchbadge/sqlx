@@ -2,7 +2,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use bytes::{BufMut, Bytes, BytesMut};
 use crate::mariadb::FieldType;
 
-const U24_MAX: usize = 0xFF_FF_FF;
+pub const U24_MAX: usize = 0xFF_FF_FF;
 
 // A simple wrapper around a BytesMut to easily encode values
 pub struct Encoder {
@@ -253,17 +253,17 @@ impl Encoder {
             FieldType::MysqlTypeTimestamp2 => unimplemented!(),
             FieldType::MysqlTypeDatetime2 => unimplemented!(),
             FieldType::MysqlTypeTime2 =>unimplemented!(),
-            FieldType::MysqlTypeJson => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeNewdecimal => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeEnum => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeSet => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeTinyBlob => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeMediumBlob => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeLongBlob => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeBlob => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeVarString => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeString => self.encode_string_lenenc(bytes),
-            FieldType::MysqlTypeGeometry => self.encode_string_lenenc(bytes),
+            FieldType::MysqlTypeJson => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeNewdecimal => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeEnum => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeSet => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeTinyBlob => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeMediumBlob => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeLongBlob => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeBlob => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeVarString => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeString => self.encode_byte_lenenc(bytes),
+            FieldType::MysqlTypeGeometry => self.encode_byte_lenenc(bytes),
         }
     }
 }

@@ -153,7 +153,7 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let _message = InitialHandshakePacket::deserialize(&mut ctx)?;
 

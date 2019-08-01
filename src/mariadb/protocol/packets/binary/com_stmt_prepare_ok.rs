@@ -64,7 +64,7 @@ mod tests {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let message = ComStmtPrepareOk::deserialize(&mut ctx)?;
 

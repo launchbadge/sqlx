@@ -1,4 +1,4 @@
-use crate::mariadb::{ComStmtPrepareOk, ColumnDefPacket, Capabilities, EofPacket};
+use crate::mariadb::{DeContext, Deserialize, ComStmtPrepareOk, ColumnDefPacket, Capabilities, EofPacket};
 
 #[derive(Debug, Default)]
 pub struct ComStmtPrepareResp {
@@ -7,18 +7,22 @@ pub struct ComStmtPrepareResp {
     pub res_columns: Option<Vec<ColumnDefPacket>>,
 }
 
-impl crate::mariadb::Deserialize for ComStmtPrepareResp {
-    fn deserialize(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
-        let ok = ComStmtPrepareOk::deserialize(ctx)?;
+impl ComStmtPrepareResp {
+    pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, failure::Error> {
+        let ok = ComStmtPrepareOk::deserialize(&mut ctx)?;
 
         let param_defs = if ok.params > 0 {
-            let param_defs = (0..ok.params).map(|_| ColumnDefPacket::deserialize(ctx))
-                .filter(Result::is_ok)
-                .map(Result::unwrap)
-                .collect::<Vec<ColumnDefPacket>>();
+            let mut param_defs = Vec::new();
+
+            for _ in 0..ok.params {
+                ctx.next_packet().await?;
+                param_defs.push(ColumnDefPacket::deserialize(&mut ctx)?);
+            }
+
+            ctx.next_packet().await?;
 
             if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
-                EofPacket::deserialize(ctx)?;
+                EofPacket::deserialize(&mut ctx)?;
             }
 
             Some(param_defs)
@@ -27,16 +31,20 @@ impl crate::mariadb::Deserialize for ComStmtPrepareResp {
         };
 
         let res_columns = if ok.columns > 0 {
-            let param_defs = (0..ok.columns).map(|_| ColumnDefPacket::deserialize(ctx))
-                .filter(Result::is_ok)
-                .map(Result::unwrap)
-                .collect::<Vec<ColumnDefPacket>>();
+            let mut res_columns = Vec::new();
 
-            if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
-                EofPacket::deserialize(ctx)?;
+            for _ in 0..ok.columns {
+                ctx.next_packet().await?;
+                res_columns.push(ColumnDefPacket::deserialize(&mut ctx)?);
             }
 
-            Some(param_defs)
+            ctx.next_packet().await?;
+
+            if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+                EofPacket::deserialize(&mut ctx)?;
+            }
+
+            Some(res_columns)
         } else {
             None
         };
@@ -54,8 +62,8 @@ mod test {
     use super::*;
     use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, DeContext, Deserialize}};
 
-    #[test]
-    fn it_decodes_com_stmt_prepare_resp_eof() -> Result<(), failure::Error> {
+    #[runtime::test]
+    async fn it_decodes_com_stmt_prepare_resp_eof() -> Result<(), failure::Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // ---------------------------- //
@@ -153,15 +161,15 @@ mod test {
         );
 
         let mut context = ConnContext::with_eof();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ComStmtPrepareResp::deserialize(&mut ctx)?;
+        let message = ComStmtPrepareResp::deserialize(ctx).await?;
 
         Ok(())
     }
 
-    #[test]
-    fn it_decodes_com_stmt_prepare_resp() -> Result<(), failure::Error> {
+    #[runtime::test]
+    async fn it_decodes_com_stmt_prepare_resp() -> Result<(), failure::Error> {
         #[rustfmt::skip]
             let buf = __bytes_builder!(
         // ---------------------------- //
@@ -287,9 +295,9 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ComStmtPrepareResp::deserialize(&mut ctx)?;
+        let message = ComStmtPrepareResp::deserialize(ctx).await?;
 
         Ok(())
     }

@@ -46,7 +46,7 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let message = ColumnPacket::deserialize(&mut ctx)?;
 
@@ -70,7 +70,7 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let message = ColumnPacket::deserialize(&mut ctx)?;
 
@@ -94,7 +94,7 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let message = ColumnPacket::deserialize(&mut ctx)?;
 

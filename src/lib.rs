@@ -1,4 +1,4 @@
-#![feature(non_exhaustive, async_await)]
+#![feature(non_exhaustive, async_await, async_closure)]
 #![cfg_attr(test, feature(test))]
 #![allow(clippy::needless_lifetimes)]
 // FIXME: Remove this once API has matured

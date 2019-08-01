@@ -170,7 +170,7 @@ mod test {
     #[test]
     fn it_decodes_capabilities() {
         let buf = Bytes::from(b"\xfe\xf7".to_vec());
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         Capabilities::from_bits_truncate(decoder.decode_int_u16().into());
     }
 }

@@ -17,56 +17,48 @@ impl crate::mariadb::Serialize for ComStmtExec {
         encoder.encode_int_u8(super::BinaryProtocol::ComStmtExec.into());
         encoder.encode_int_i32(self.stmt_id);
         encoder.encode_int_u8(self.flags as u8);
-        encoder.encode_int_u8(0);
+        encoder.encode_int_u8(1);
 
-        if let Some(params) = &self.params {
-            if let Some(param_defs) = &self.param_defs {
-                if params.len() != param_defs.len() {
-                    failure::bail!("Unequal number of params and param definitions supplied");
+        match (&self.params, &self.param_defs) {
+            (Some(params), Some(param_defs)) if params.len() > 0 => {
+                let null_bitmap_size = (params.len() + 7) / 8;
+                let mut shift_amount = 0u8;
+                let mut bitmap = vec![0u8];
+                let send_type = 1u8;
+
+                // Generate NULL-bitmap from params
+                for param in params {
+                    if param.is_some() {
+                        let last_byte = bitmap.pop().unwrap();
+                        bitmap.push(last_byte & (1 << shift_amount));
+                    }
+
+                    shift_amount = (shift_amount + 1) % 8;
+
+                    if shift_amount % 8 == 0 {
+                        bitmap.push(0u8);
+                    }
                 }
-            }
 
-            let null_bitmap_size = (params.len() + 7) / 8;
-            let mut shift_amount = 0u8;
-            let mut bitmap = vec![0u8];
+                encoder.encode_byte_fix(&Bytes::from(bitmap), null_bitmap_size);
+                encoder.encode_int_u8(send_type);
 
-            // Generate NULL-bitmap from params
-            for param in params {
-               if param.is_none() {
-                   bitmap.push(bitmap.last().unwrap() & (1 << shift_amount));
-                }
-
-                shift_amount = (shift_amount + 1) % 8;
-
-                if shift_amount % 8 == 0 {
-                    bitmap.push(0u8);
-                }
-            }
-
-            // Do not send the param types
-            encoder.encode_int_u8(if self.param_defs.is_some() {
-                1u8
-            } else {
-                0u8
-            });
-
-            if let Some(params_defs) = &self.param_defs {
-                for param in params_defs {
-                    encoder.encode_int_u8(param.field_type as u8);
-                    encoder.encode_int_u8(if (param.field_details & FieldDetailFlag::UNSIGNED).is_empty() {
-                        1u8
-                    } else {
-                        0u8
-                    });
+                if send_type > 0 {
+                    for param in param_defs {
+                        encoder.encode_int_u8(param.field_type as u8);
+                        encoder.encode_int_u8(0);
+                    }
                 }
 
                 // Encode params
                 for index in 0..params.len() {
                     if let Some(bytes) = &params[index] {
-                        encoder.encode_param(&bytes, &params_defs[index].field_type);
+                        encoder.encode_param(&bytes, &param_defs[index].field_type);
                     }
                 }
-            }
+            },
+            _ => {},
+
         }
 
         encoder.encode_length();

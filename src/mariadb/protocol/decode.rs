@@ -58,14 +58,14 @@ use super::packets::packet_header::PacketHeader;
 //          - Byte 7 is the minutes (0 if DATE type) (0-59)
 //          - Byte 8 is the seconds (0 if DATE type) (0-59)
 //          - Bytes 10-13 are the micro-seconds on 4 bytes little-endian format (only if data-length is > 7)
-pub struct Decoder<'a> {
-    pub buf: &'a Bytes,
+pub struct Decoder {
+    pub buf: Bytes,
     pub index: usize,
 }
 
-impl<'a> Decoder<'a> {
+impl Decoder {
     // Create a new Decoder from an existing Bytes
-    pub fn new(buf: &'a Bytes) -> Self {
+    pub fn new(buf: Bytes) -> Self {
         Decoder { buf, index: 0 }
     }
 
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn it_decodes_int_lenenc_0x_fb() {
         let buf = __bytes_builder!(0xFB_u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, None);
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn it_decodes_int_lenenc_0x_fc() {
         let buf =__bytes_builder!(0xFCu8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x0101));
@@ -461,7 +461,7 @@ mod tests {
     #[test]
     fn it_decodes_int_lenenc_0x_fd() {
         let buf = __bytes_builder!(0xFDu8, 1u8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x010101));
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn it_decodes_int_lenenc_0x_fe() {
         let buf = __bytes_builder!(0xFE_u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0x0101010101010101));
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn it_decodes_int_lenenc_0x_fa() {
         let buf = __bytes_builder!(0xFA_u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 
         assert_eq!(int, Some(0xFA));
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn it_decodes_int_8() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int: i64 = decoder.decode_int_i64();
 
         assert_eq!(int, 0x0101010101010101);
@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn it_decodes_int_4() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int: i32 = decoder.decode_int_i32();
 
         assert_eq!(int, 0x01010101);
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn it_decodes_int_3() {
         let buf = __bytes_builder!(1u8, 1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int: i32 = decoder.decode_int_i24();
 
         assert_eq!(int, 0x010101);
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn it_decodes_int_2() {
         let buf = __bytes_builder!(1u8, 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int: i16 = decoder.decode_int_i16();
 
         assert_eq!(int, 0x0101);
@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn it_decodes_int_1() {
         let buf = __bytes_builder!(1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let int: u8 = decoder.decode_int_u8();
 
         assert_eq!(int, 1u8);
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn it_decodes_string_lenenc() {
         let buf = __bytes_builder!(3u8, b"sup");
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_string_lenenc();
 
         assert_eq!(string[..], b"sup"[..]);
@@ -552,7 +552,7 @@ mod tests {
     #[test]
     fn it_decodes_string_fix() {
         let buf = __bytes_builder!(b"a");
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_string_fix(1);
 
         assert_eq!(&string[..], b"a");
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn it_decodes_string_eof() {
         let buf = __bytes_builder!(b"a");
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_string_eof(None);
 
         assert_eq!(&string[..], b"a");
@@ -574,7 +574,7 @@ mod tests {
     #[test]
     fn it_decodes_string_null() -> Result<(), Error> {
         let buf = __bytes_builder!(b"random\0", 1u8);
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_string_null()?;
 
         assert_eq!(&string[..], b"random");
@@ -589,7 +589,7 @@ mod tests {
     #[test]
     fn it_decodes_byte_fix() {
         let buf = __bytes_builder!(b"a");
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_byte_fix(1);
 
         assert_eq!(&string[..], b"a");
@@ -600,7 +600,7 @@ mod tests {
     #[test]
     fn it_decodes_byte_eof() {
         let buf = __bytes_builder!(b"a");
-        let mut decoder = Decoder::new(&buf);
+        let mut decoder = Decoder::new(buf);
         let string: Bytes = decoder.decode_byte_eof(None);
 
         assert_eq!(&string[..], b"a");

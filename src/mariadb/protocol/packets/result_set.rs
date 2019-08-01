@@ -1,14 +1,7 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::Decoder;
-use crate::mariadb::Message;
-use crate::mariadb::Capabilities;
-
-use super::super::{
-    deserialize::{DeContext, Deserialize},
-    packets::{column::ColumnPacket, column_def::ColumnDefPacket, eof::EofPacket, err::ErrPacket, ok::OkPacket, result_row::ResultRow},
-};
+use crate::mariadb::{Deserialize, ConnContext, Framed, Decoder, Message, Capabilities, DeContext, ColumnPacket, ColumnDefPacket, EofPacket, ErrPacket, OkPacket, ResultRow};
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
@@ -17,22 +10,28 @@ pub struct ResultSet {
     pub rows: Vec<ResultRow>,
 }
 
-impl Deserialize for ResultSet {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
-        let column_packet = ColumnPacket::deserialize(ctx)?;
+impl ResultSet {
+    pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, Error> {
+        let column_packet = ColumnPacket::deserialize(&mut ctx)?;
 
         let columns = if let Some(columns) = column_packet.columns {
-            (0..columns)
-                .map(|_| ColumnDefPacket::deserialize(ctx))
-                .filter(Result::is_ok)
-                .map(Result::unwrap)
-                .collect::<Vec<ColumnDefPacket>>()
+            let mut column_defs = Vec::new();
+            for _ in 0..columns {
+                ctx.next_packet().await?;
+                column_defs.push(ColumnDefPacket::deserialize(&mut ctx)?);
+            }
+            column_defs
         } else {
             Vec::new()
         };
 
+        ctx.next_packet().await?;
+
         let eof_packet = if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
-            Some(EofPacket::deserialize(ctx)?)
+            // If we get an eof packet we must update ctx to hold a new buffer of the next packet.
+            let eof_packet = Some(EofPacket::deserialize(&mut ctx)?);
+            ctx.next_packet().await?;
+            eof_packet
         } else {
             None
         };
@@ -48,12 +47,15 @@ impl Deserialize for ResultSet {
             };
 
             let tag = ctx.decoder.peek_tag();
-            if tag == Some(&0xFE) && packet_header.length <= 0xFFFFFF {
+            if tag == Some(&0xFE) && packet_header.length <= 0xFFFFFF || packet_header.length == 0 {
                 break;
             } else {
                 let index = ctx.decoder.index;
-                match ResultRow::deserialize(ctx) {
-                    Ok(v) => rows.push(v),
+                match ResultRow::deserialize(&mut ctx) {
+                    Ok(v) => {
+                        rows.push(v);
+                        ctx.next_packet().await?;
+                    },
                     Err(_) => {
                         ctx.decoder.index = index;
                         break;
@@ -62,10 +64,12 @@ impl Deserialize for ResultSet {
             }
         }
 
-        if ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
-            OkPacket::deserialize(ctx)?;
-        } else {
-            EofPacket::deserialize(ctx)?;
+        if ctx.decoder.peek_packet_header()?.length > 0 {
+            if  ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+                OkPacket::deserialize(&mut ctx)?;
+            } else {
+                EofPacket::deserialize(&mut ctx)?;
+            }
         }
 
         Ok(ResultSet {
@@ -83,8 +87,8 @@ mod test {
     use crate::{__bytes_builder, mariadb::{Connection, EofPacket, ErrPacket, OkPacket, ResultRow, ServerStatusFlag, Capabilities, ConnContext}};
     use super::*;
 
-    #[test]
-    fn it_decodes_result_set_packet() -> Result<(), Error> {
+    #[runtime::test]
+    async fn it_decodes_result_set_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
         let buf = __bytes_builder!(
@@ -296,9 +300,9 @@ mod test {
         );
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
-        ResultSet::deserialize(&mut ctx)?;
+        ResultSet::deserialize(ctx).await?;
 
         Ok(())
     }

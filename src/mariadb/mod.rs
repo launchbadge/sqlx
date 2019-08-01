@@ -4,6 +4,7 @@ pub mod protocol;
 // Re-export all the things
 pub use connection::ConnContext;
 pub use connection::Connection;
+pub use connection::Framed;
 pub use protocol::AuthenticationSwitchRequestPacket;
 pub use protocol::ColumnPacket;
 pub use protocol::ColumnDefPacket;

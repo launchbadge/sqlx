@@ -58,7 +58,7 @@ mod test {
         let buf = Bytes::from_static(b"\x01\0\0\x01\xFE\x00\x00\x01\x00");
 
         let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, &buf);
+        let mut ctx = DeContext::new(&mut context, buf);
 
         let _message = EofPacket::deserialize(&mut ctx)?;
 

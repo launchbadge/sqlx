@@ -6,7 +6,8 @@ use futures::{
     prelude::*,
 };
 use runtime::net::TcpStream;
-use crate::{ConnectOptions, mariadb::protocol::{DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag, ComStmtPrepare, ComStmtPrepareResp, ResultSet, ErrPacket}};
+use core::convert::TryFrom;
+use crate::{ConnectOptions, mariadb::{protocol::encode, PacketHeader, Decoder, DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag, ComStmtPrepare, ComStmtPrepareResp, ResultSet, ErrPacket}};
 
 mod establish;
 
@@ -103,8 +104,8 @@ impl Connection {
     pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<Option<ResultSet>, Error> {
         self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
 
-        let buf = self.stream.next_bytes().await?;
-        let mut ctx = DeContext::new(&mut self.context, &buf);
+        let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
+        ctx.next_packet().await?;
         if let Some(tag) = ctx.decoder.peek_tag() {
             match tag {
                 0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
@@ -113,7 +114,9 @@ impl Connection {
                     Ok(None)
                 },
                 0xFB => unimplemented!(),
-                _ => Ok(Some(ResultSet::deserialize(&mut ctx)?))
+                _ => {
+                    Ok(Some(ResultSet::deserialize(ctx).await?))
+                }
             }
         } else {
             panic!("Tag not found in result packet");
@@ -125,17 +128,19 @@ impl Connection {
         self.send(ComInitDb { schema_name: bytes::Bytes::from(db) }).await?;
 
 
-        match self.next().await? {
-            Some(Message::OkPacket(_)) => {},
-            Some(message @ Message::ErrPacket(_)) => {
-                failure::bail!("Received an ErrPacket packet: {:?}", message);
-            },
-            Some(message) => {
-                failure::bail!("Received an unexpected packet type: {:?}", message);
+        let mut ctx = DeContext::new(&mut self.context, self.stream.next_packet().await?);
+        if let Some(tag) = ctx.decoder.peek_tag() {
+            match tag {
+                0xFF => {
+                    ErrPacket::deserialize(&mut ctx)?;
+                },
+                0x00 => {
+                    OkPacket::deserialize(&mut ctx)?;
+                },
+                _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
             }
-            None => {
-                failure::bail!("Did not receive a packet when one was expected");
-            }
+        } else {
+            failure::bail!("No tag found");
         }
 
         Ok(())
@@ -145,8 +150,7 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        let buf = self.stream.next_bytes().await?;
-        OkPacket::deserialize(&mut DeContext::new(&mut self.context, &buf))?;
+        OkPacket::deserialize(&mut DeContext::new(&mut self.context, self.stream.next_packet().await?))?;
 
         Ok(())
     }
@@ -156,109 +160,94 @@ impl Connection {
             statement: Bytes::from(query),
         }).await?;
 
-        let buf = self.stream.next_bytes().await?;
-
-        ComStmtPrepareResp::deserialize(&mut DeContext::new(&mut self.context, &buf))
-    }
-
-    pub async fn next(&mut self) -> Result<Option<Message>, Error> {
-        let mut rbuf = BytesMut::new();
-        let mut len = 0;
-
-        loop {
-            if len == rbuf.len() {
-                rbuf.reserve(32);
-
-                unsafe {
-                    // Set length to the capacity and efficiently
-                    // zero-out the memory
-                    rbuf.set_len(rbuf.capacity());
-                    self.stream.inner.initializer().initialize(&mut rbuf[len..]);
-                }
-            }
-
-            let bytes_read = self.stream.inner.read(&mut rbuf[len..]).await?;
-
-            if bytes_read > 0 {
-                len += bytes_read;
-            } else {
-                // Read 0 bytes from the server; end-of-stream
-                break;
-            }
-
-            while len > 0 {
-                let size = rbuf.len();
-                let message = Message::deserialize(&mut DeContext::new(
-                    &mut self.context,
-                    &rbuf.as_ref().into(),
-                ))?;
-                len -= size - rbuf.len();
-
-                match message {
-                    message @ Some(_) => return Ok(message),
-                    // Did not receive enough bytes to
-                    // deserialize a complete message
-                    None => break,
-                }
-            }
-        }
-
-        Ok(None)
+//        let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
+//        ctx.next_packet().await?;
+//        ComStmtPrepareResp::deserialize(&mut ctx)
+        Ok(ComStmtPrepareResp::default())
     }
 }
 
 pub struct Framed {
     inner: TcpStream,
-    readable: bool,
-    eof: bool,
-    buffer: BytesMut,
+    buf: BytesMut,
 }
 
 impl Framed {
     fn new(stream: TcpStream) -> Self {
         Self {
-            readable: false,
-            eof: false,
             inner: stream,
-            buffer: BytesMut::with_capacity(8 * 1024),
+            buf: BytesMut::with_capacity(8 * 1024),
         }
     }
 
-    pub async fn next_bytes(&mut self) -> Result<Bytes, Error> {
+    pub async fn next_packet(&mut self) -> Result<Bytes, Error> {
         let mut rbuf = BytesMut::new();
-        let mut len = 0;
-        let mut packet_len: u32 = 0;
+        let mut len = 0usize;
+        let mut packet_headers: Vec<PacketHeader> = Vec::new();
 
         loop {
-            if len == rbuf.len() {
-                rbuf.reserve(20000);
+            if let Some(packet_header) = packet_headers.last() {
+                if packet_header.combined_length() > rbuf.len() {
+                    let reserve = packet_header.combined_length() - rbuf.len();
+                    rbuf.reserve(reserve);
+
+                    unsafe {
+                        rbuf.set_len(rbuf.capacity());
+                        self.inner.initializer().initialize(&mut rbuf[len..]);
+                    }
+                }
+            } else if rbuf.len() == len {
+                rbuf.reserve(32);
 
                 unsafe {
-                    // Set length to the capacity and efficiently
-                    // zero-out the memory
                     rbuf.set_len(rbuf.capacity());
                     self.inner.initializer().initialize(&mut rbuf[len..]);
                 }
             }
 
-            let bytes_read = self.inner.read(&mut rbuf[len..]).await?;
+            // If we have a packet_header and the amount of currently read bytes (len) is less than
+            // the specified length inside packet_header, then we can continue reading to rbuf; but
+            // only up until packet_header.length.
+            // Else if the total number of bytes read is equal to packet_header then we will
+            // return rbuf as it should contain the entire packet.
+            // Else we read too many bytes -- which shouldn't happen -- and will return an error.
+            let bytes_read;
+
+            if let Some(packet_header) = packet_headers.last() {
+                if packet_header.combined_length() > len {
+                    bytes_read = self.inner.read(&mut rbuf[len..packet_header.combined_length()]).await?;
+                } else {
+                    return Ok(rbuf.freeze());
+                }
+            } else {
+                // Only read header to make sure that we dont' read the next packets buffer.
+                bytes_read = self.inner.read(&mut rbuf[len..len + 4]).await?;
+            }
 
             if bytes_read > 0 {
                 len += bytes_read;
+                // If we have read less than 4 bytes, and we don't already have a packet_header
+                // we must try to read again. The packet_header is always present and is 4 bytes long.
+                if bytes_read < 4 && packet_headers.len() == 0 {
+                    continue;
+                }
             } else {
                 // Read 0 bytes from the server; end-of-stream
-                return Ok(Bytes::new());
-            }
-
-            if len > 0 && packet_len == 0 {
-                packet_len = LittleEndian::read_u24(&rbuf[0..]);
-            }
-
-            // Loop until the length of the buffer is the length of the packet
-            if packet_len as usize > len {
-                continue;
-            } else {
                 return Ok(rbuf.freeze());
+            }
+
+            // If we don't have a packet header or the last packet header had a length of
+            // 0xFF_FF_FF (the max possible length); then we must continue receiving packets
+            // because the entire message hasn't been received.
+            // After this operation we know that packet_headers.last() *SHOULD* always return valid data,
+            // so the the use of packet_headers.last().unwrap() is allowed.
+            // TODO: Stitch packets together by removing the length and seq_no from in-between packet definitions.
+            if let Some(packet_header) = packet_headers.last() {
+                if packet_header.length as usize == encode::U24_MAX {
+                    packet_headers.push(PacketHeader::try_from(&rbuf[0..])?);
+                }
+            } else {
+                packet_headers.push(PacketHeader::try_from(&rbuf[0..])?);
             }
         }
     }
