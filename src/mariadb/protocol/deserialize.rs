@@ -31,13 +31,15 @@ impl<'a> DeContext<'a> {
 
     pub async fn next_packet(&mut self) -> Result<(), failure::Error> {
         if let Some(stream) = &mut self.stream {
-            println!("Called next packet");
             self.decoder = Decoder::new(stream.next_packet().await?);
 
-            Ok(())
-        } else {
-            failure::bail!("Calling next_packet on DeContext with no stream provided")
+            return Ok(());
+        } else if self.decoder.buf.len() > 0 {
+            // There is still data in the buffer
+            return Ok(())
         }
+
+        failure::bail!("Calling next_packet on DeContext with no stream provided")
     }
 }
 

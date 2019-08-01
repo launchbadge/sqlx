@@ -1,4 +1,4 @@
-use crate::mariadb::{DeContext, Deserialize, ComStmtPrepareOk, ColumnDefPacket, Capabilities, EofPacket};
+use crate::mariadb::{Framed, DeContext, Deserialize, ComStmtPrepareOk, ColumnDefPacket, Capabilities, EofPacket};
 
 #[derive(Debug, Default)]
 pub struct ComStmtPrepareResp {
