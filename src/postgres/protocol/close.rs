@@ -1,43 +1,61 @@
+use super::{BufMut, Encode};
 
-pub fn portal(buf: &mut Vec<u8>, name: &str) {
-    buf.push(b'C');
+// TODO: Separate into two structs, ClosePortal and CloseStatement (?)
 
-    let len = 4 + name.len() + 2;
-    buf.extend_from_slice(&(len as i32).to_be_bytes());
-
-    buf.push(b'P');
-
-    buf.extend_from_slice(name.as_bytes());
-    buf.push(b'\0');
+#[repr(u8)]
+pub enum CloseKind {
+    PreparedStatement,
+    Portal,
 }
 
-pub fn statement(buf: &mut Vec<u8>, name: &str) {
-    buf.push(b'C');
+pub struct Close<'a> {
+    kind: CloseKind,
 
-    let len = 4 + name.len() + 2;
-    buf.extend_from_slice(&(len as i32).to_be_bytes());
+    /// The name of the prepared statement or portal to close (an empty string selects the
+    /// unnamed prepared statement or portal).
+    name: &'a str,
+}
 
-    buf.push(b'S');
-
-    buf.extend_from_slice(name.as_bytes());
-    buf.push(b'\0');
+impl Encode for Close<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_byte(b'C');
+        // len + kind + nul + len(string)
+        buf.put_int_32((4 + 1 + 1 + self.name.len()) as i32);
+        buf.put_byte(match self.kind {
+            CloseKind::PreparedStatement => b'S',
+            CloseKind::Portal => b'P',
+        });
+        buf.put_str(self.name);
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use super::{BufMut, Close, CloseKind, Encode};
+
     #[test]
     fn it_encodes_close_portal() {
-        let mut buf = vec![];
-        super::portal(&mut buf, "ABC123");
+        let mut buf = Vec::new();
+        let m = Close {
+            kind: CloseKind::Portal,
+            name: "__sqlx_p_1",
+        };
 
-        assert_eq!(&buf, b"C\x00\x00\x00\x0fPABC123\x00");
+        m.encode(&mut buf);
+
+        assert_eq!(buf, b"C\0\0\0\x10P__sqlx_p_1\0");
     }
 
     #[test]
     fn it_encodes_close_statement() {
-        let mut buf = vec![];
-        super::statement(&mut buf, "95 apples");
+        let mut buf = Vec::new();
+        let m = Close {
+            kind: CloseKind::PreparedStatement,
+            name: "__sqlx_s_1",
+        };
 
-        assert_eq!(&buf, b"C\x00\x00\x00\x12S95 apples\x00");
+        m.encode(&mut buf);
+
+        assert_eq!(buf, b"C\0\0\0\x10S__sqlx_s_1\0");
     }
 }

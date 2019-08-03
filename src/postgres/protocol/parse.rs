@@ -1,43 +1,22 @@
-use super::Encode;
-use std::io;
+use super::{BufMut, Encode};
 
-#[derive(Debug)]
 pub struct Parse<'a> {
-    portal: &'a str,
-    query: &'a str,
-    param_types: &'a [i32],
+    pub portal: &'a str,
+    pub query: &'a str,
+    pub param_types: &'a [i32],
 }
 
-impl<'a> Parse<'a> {
-    pub fn new(portal: &'a str, query: &'a str, param_types: &'a [i32]) -> Self {
-        Self {
-            portal,
-            query,
-            param_types,
-        }
-    }
-}
+impl Encode for Parse<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_byte(b'P');
 
-impl<'a> Encode for Parse<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        buf.push(b'P');
-
+        // len + portal + nul + query + null + len(param_types) + param_types
         let len = 4 + self.portal.len() + 1 + self.query.len() + 1 + 2 + self.param_types.len() * 4;
+        buf.put_int_32(len as i32);
 
-        buf.extend_from_slice(&(len as i32).to_be_bytes());
+        buf.put_str(self.portal);
+        buf.put_str(self.query);
 
-        buf.extend_from_slice(self.portal.as_bytes());
-        buf.push(b'\0');
-
-        buf.extend_from_slice(self.query.as_bytes());
-        buf.push(b'\0');
-
-        buf.extend_from_slice(&(self.param_types.len() as i16).to_be_bytes());
-
-        for param_type in self.param_types {
-            buf.extend_from_slice(&param_type.to_be_bytes());
-        }
-
-        Ok(())
+        buf.put_array_int_32(&self.param_types);
     }
 }

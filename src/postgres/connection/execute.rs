@@ -4,15 +4,15 @@ use std::io;
 
 impl<'a> Prepare<'a> {
     pub async fn execute(self) -> io::Result<u64> {
-        protocol::bind::trailer(
-            &mut self.connection.wbuf,
-            self.bind_state,
-            self.bind_values,
-            &[],
-        );
+        // protocol::bind::trailer(
+        //     &mut self.connection.wbuf,
+        //     self.bind_state,
+        //     self.bind_values,
+        //     &[],
+        // );
 
-        protocol::execute(&mut self.connection.wbuf, "", 0);
-        protocol::sync(&mut self.connection.wbuf);
+        // protocol::execute(&mut self.connection.wbuf, "", 0);
+        // protocol::sync(&mut self.connection.wbuf);
 
         self.connection.flush().await?;
 

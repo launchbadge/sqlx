@@ -1,8 +1,6 @@
 #![feature(non_exhaustive, async_await)]
 #![cfg_attr(test, feature(test))]
-
 #![allow(clippy::needless_lifetimes)]
-
 // FIXME: Remove this once API has matured
 #![allow(dead_code, unused_imports, unused_variables)]
 
@@ -17,8 +15,8 @@ extern crate enum_tryfrom_derive;
 mod options;
 pub use self::options::ConnectOptions;
 
-pub mod postgres;
 pub mod mariadb;
+pub mod postgres;
 
 // Helper macro for writing long complex tests
 #[macro_use]

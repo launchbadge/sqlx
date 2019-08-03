@@ -1,44 +1,31 @@
-use super::Encode;
-use std::io;
+use super::{BufMut, Encode};
 
-#[derive(Debug)]
-pub struct Query<'a>(&'a str);
-
-impl<'a> Query<'a> {
-    #[inline]
-    pub fn new(query: &'a str) -> Self {
-        Self(query)
-    }
-}
+pub struct Query<'a>(pub &'a str);
 
 impl Encode for Query<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
-        let len = self.0.len() + 4 + 1;
-        buf.push(b'Q');
-        buf.extend_from_slice(&(len as u32).to_be_bytes());
-        buf.extend_from_slice(self.0.as_bytes());
-        buf.push(0);
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_byte(b'Q');
 
-        Ok(())
+        // len + query + nul
+        buf.put_int_32((4 + self.0.len() + 1) as i32);
+
+        buf.put_str(self.0);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Encode, Query};
-    use std::io;
+    use super::{BufMut, Encode, Query};
 
     const QUERY_SELECT_1: &[u8] = b"Q\0\0\0\rSELECT 1\0";
 
     #[test]
-    fn it_encodes_query() -> io::Result<()> {
-        let message = Query::new("SELECT 1");
-
+    fn it_encodes_query() {
         let mut buf = Vec::new();
-        message.encode(&mut buf)?;
+        let m = Query("SELECT 1");
 
-        assert_eq!(&*buf, QUERY_SELECT_1);
+        m.encode(&mut buf);
 
-        Ok(())
+        assert_eq!(buf, QUERY_SELECT_1);
     }
 }

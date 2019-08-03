@@ -62,7 +62,7 @@ impl Connection {
     }
 
     pub async fn close(mut self) -> io::Result<()> {
-        self.send(Terminate);
+        self.write(Terminate);
         self.flush().await?;
         self.stream.close().await?;
 
@@ -124,64 +124,14 @@ impl Connection {
         }
     }
 
-    fn send<T>(&mut self, message: T)
-    where
-        T: Encode + Debug,
-    {
-        log::trace!("encode {:?}", message);
-
-        // TODO: Encoding should not be fallible
-        message.encode(&mut self.wbuf).unwrap();
+    fn write(&mut self, message: impl Encode) {
+        message.encode(&mut self.wbuf);
     }
 
     async fn flush(&mut self) -> io::Result<()> {
-        // TODO: Find some other way to print a Vec<u8> as an ASCII escaped string
-        log::trace!("send {:?}", bytes::Bytes::from(&*self.wbuf));
-
-        WriteAllVec::new(&mut self.stream, &mut self.wbuf).await?;
-
-        self.stream.flush().await?;
+        self.stream.write_all(&self.wbuf).await?;
+        self.wbuf.clear();
 
         Ok(())
-    }
-}
-
-// Derived from: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/src/futures_util/io/write_all.rs.html#10-13
-// With alterations to be more efficient if we're writing from a mutable vector
-// that we can erase
-
-// TODO: Move to Core under 'sqlx_core::io' perhaps?
-// TODO: Perhaps the futures project wants this?
-
-pub struct WriteAllVec<'a, W: ?Sized + Unpin> {
-    writer: &'a mut W,
-    buf: &'a mut Vec<u8>,
-}
-
-impl<W: ?Sized + Unpin> Unpin for WriteAllVec<'_, W> {}
-
-impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAllVec<'a, W> {
-    pub(super) fn new(writer: &'a mut W, buf: &'a mut Vec<u8>) -> Self {
-        WriteAllVec { writer, buf }
-    }
-}
-
-impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAllVec<'_, W> {
-    type Output = io::Result<()>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let this = &mut *self;
-
-        while !this.buf.is_empty() {
-            let n = ready!(Pin::new(&mut this.writer).poll_write(cx, this.buf))?;
-
-            this.buf.truncate(this.buf.len() - n);
-
-            if n == 0 {
-                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
-            }
-        }
-
-        Poll::Ready(Ok(()))
     }
 }

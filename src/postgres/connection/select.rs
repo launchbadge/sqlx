@@ -5,15 +5,15 @@ use std::io;
 
 impl<'a> Prepare<'a> {
     pub fn select(self) -> impl Stream<Item = Result<DataRow, io::Error>> + 'a + Unpin {
-        protocol::bind::trailer(
-            &mut self.connection.wbuf,
-            self.bind_state,
-            self.bind_values,
-            &[],
-        );
+        // protocol::bind::trailer(
+        //     &mut self.connection.wbuf,
+        //     self.bind_state,
+        //     self.bind_values,
+        //     &[],
+        // );
 
-        protocol::execute(&mut self.connection.wbuf, "", 0);
-        protocol::sync(&mut self.connection.wbuf);
+        // protocol::execute(&mut self.connection.wbuf, "", 0);
+        // protocol::sync(&mut self.connection.wbuf);
 
         // FIXME: Manually implement Stream on a new type to avoid the unfold adapter
         stream::unfold(self.connection, |conn| {

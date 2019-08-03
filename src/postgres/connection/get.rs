@@ -4,16 +4,16 @@ use std::io;
 
 impl<'a> Prepare<'a> {
     pub async fn get(self) -> io::Result<Option<DataRow>> {
-        protocol::bind::trailer(
-            &mut self.connection.wbuf,
-            self.bind_state,
-            self.bind_values,
-            &[],
-        );
+        // protocol::bind::trailer(
+        //     &mut self.connection.wbuf,
+        //     self.bind_state,
+        //     self.bind_values,
+        //     &[],
+        // );
 
-        protocol::execute(&mut self.connection.wbuf, "", 1);
-        protocol::close::portal(&mut self.connection.wbuf, "");
-        protocol::sync(&mut self.connection.wbuf);
+        // protocol::execute(&mut self.connection.wbuf, "", 1);
+        // protocol::close::portal(&mut self.connection.wbuf, "");
+        // protocol::sync(&mut self.connection.wbuf);
 
         self.connection.flush().await?;
 
@@ -21,7 +21,10 @@ impl<'a> Prepare<'a> {
 
         while let Some(message) = self.connection.receive().await? {
             match message {
-                Message::BindComplete | Message::ParseComplete | Message::PortalSuspended | Message::CloseComplete => {
+                Message::BindComplete
+                | Message::ParseComplete
+                | Message::PortalSuspended
+                | Message::CloseComplete => {
                     // Indicates successful completion of a phase
                 }
 

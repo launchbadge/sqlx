@@ -1,28 +1,20 @@
-/// Specifies the portal name (empty string denotes the unnamed portal) and a maximum
-/// result-row count (zero meaning “fetch all rows”). The result-row count is only meaningful
-/// for portals containing commands that return row sets; in other cases the command is
-/// always executed to completion, and the row count is ignored.
-pub fn execute(buf: &mut Vec<u8>, portal: &str, limit: i32) {
-    buf.push(b'E');
+use super::{BufMut, Encode};
 
-    let len = 4 + portal.len() + 1 + 4;
-    buf.extend_from_slice(&(len as i32).to_be_bytes());
+pub struct Execute<'a> {
+    /// The name of the portal to execute (an empty string selects the unnamed portal).
+    pub portal: &'a str,
 
-    // portal
-    buf.extend_from_slice(portal.as_bytes());
-    buf.push(b'\0');
-
-    // limit
-    buf.extend_from_slice(&limit.to_be_bytes());
+    /// Maximum number of rows to return, if portal contains a query
+    /// that returns rows (ignored otherwise). Zero denotes “no limit”.
+    pub limit: i32,
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_encodes_execute() {
-        let mut buf = Vec::new();
-        super::execute(&mut buf, "", 0);
-
-        assert_eq!(&*buf, b"E\0\0\0\t\0\0\0\0\0");
+impl Encode for Execute<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_byte(b'E');
+        // len + nul + len(string) + limit
+        buf.put_int_32((4 + 1 + self.portal.len() + 4) as i32);
+        buf.put_str(&self.portal);
+        buf.put_int_32(self.limit);
     }
 }

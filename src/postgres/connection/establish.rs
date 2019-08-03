@@ -30,9 +30,9 @@ pub async fn establish<'a, 'b: 'a>(
         ("client_encoding", "UTF-8"),
     ];
 
-    let message = StartupMessage::new(params);
+    let message = StartupMessage { params };
 
-    conn.send(message);
+    conn.write(message);
     conn.flush().await?;
 
     while let Some(message) = conn.receive().await? {
@@ -44,19 +44,21 @@ pub async fn establish<'a, 'b: 'a>(
 
             Message::Authentication(Authentication::CleartextPassword) => {
                 // FIXME: Should error early (before send) if the user did not supply a password
-                conn.send(PasswordMessage::cleartext(
+                conn.write(PasswordMessage::Cleartext(
                     options.password.unwrap_or_default(),
                 ));
+
                 conn.flush().await?;
             }
 
             Message::Authentication(Authentication::Md5Password { salt }) => {
                 // FIXME: Should error early (before send) if the user did not supply a password
-                conn.send(PasswordMessage::md5(
-                    options.password.unwrap_or_default(),
-                    options.user.unwrap_or_default(),
+                conn.write(PasswordMessage::Md5 {
+                    password: options.password.unwrap_or_default(),
+                    user: options.user.unwrap_or_default(),
                     salt,
-                ));
+                });
+
                 conn.flush().await?;
             }
 

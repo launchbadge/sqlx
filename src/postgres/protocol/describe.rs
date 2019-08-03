@@ -1,54 +1,61 @@
-/// The Describe message (portal variant) specifies the name of an existing portal
-/// (or an empty string for the unnamed portal). The response is a RowDescription message
-/// describing the rows that will be returned by executing the portal; or a NoData message
-/// if the portal does not contain a query that will return rows; or ErrorResponse if there is no such portal.
-pub fn portal(buf: &mut Vec<u8>, name: &str) {
-    buf.push(b'D');
+use super::{BufMut, Encode};
 
-    let len = 4 + name.len() + 2;
-    buf.extend_from_slice(&(len as i32).to_be_bytes());
+// TODO: Separate into two structs, DescribePortal and DescribeStatement (?)
 
-    buf.push(b'P');
-
-    buf.extend_from_slice(name.as_bytes());
-    buf.push(b'\0');
+#[repr(u8)]
+pub enum DescribeKind {
+    PreparedStatement,
+    Portal,
 }
 
-/// The Describe message (statement variant) specifies the name of an existing prepared statement
-/// (or an empty string for the unnamed prepared statement). The response is a ParameterDescription
-/// message describing the parameters needed by the statement, followed by a RowDescription message
-/// describing the rows that will be returned when the statement is eventually executed
-/// (or a NoData message if the statement will not return rows). ErrorResponse is issued if
-/// there is no such prepared statement. Note that since Bind has not yet been issued,
-/// the formats to be used for returned columns are not yet known to the backend; the
-/// format code fields in the RowDescription message will be zeroes in this case.
-pub fn statement(buf: &mut Vec<u8>, name: &str) {
-    buf.push(b'D');
+pub struct Describe<'a> {
+    kind: DescribeKind,
 
-    let len = 4 + name.len() + 2;
-    buf.extend_from_slice(&(len as i32).to_be_bytes());
+    /// The name of the prepared statement or portal to describe (an empty string selects the
+    /// unnamed prepared statement or portal).
+    name: &'a str,
+}
 
-    buf.push(b'S');
-
-    buf.extend_from_slice(name.as_bytes());
-    buf.push(b'\0');
+impl Encode for Describe<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_byte(b'D');
+        // len + kind + nul + len(string)
+        buf.put_int_32((4 + 1 + 1 + self.name.len()) as i32);
+        buf.put_byte(match self.kind {
+            DescribeKind::PreparedStatement => b'S',
+            DescribeKind::Portal => b'P',
+        });
+        buf.put_str(self.name);
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use super::{BufMut, Describe, DescribeKind, Encode};
+
     #[test]
     fn it_encodes_describe_portal() {
-        let mut buf = vec![];
-        super::portal(&mut buf, "ABC123");
+        let mut buf = Vec::new();
+        let m = Describe {
+            kind: DescribeKind::Portal,
+            name: "__sqlx_p_1",
+        };
 
-        assert_eq!(&buf, b"D\x00\x00\x00\x0fPABC123\x00");
+        m.encode(&mut buf);
+
+        assert_eq!(buf, b"D\0\0\0\x10P__sqlx_p_1\0");
     }
 
     #[test]
     fn it_encodes_describe_statement() {
-        let mut buf = vec![];
-        super::statement(&mut buf, "95 apples");
+        let mut buf = Vec::new();
+        let m = Describe {
+            kind: DescribeKind::PreparedStatement,
+            name: "__sqlx_s_1",
+        };
 
-        assert_eq!(&buf, b"D\x00\x00\x00\x12S95 apples\x00");
+        m.encode(&mut buf);
+
+        assert_eq!(buf, b"D\0\0\0\x10S__sqlx_s_1\0");
     }
 }

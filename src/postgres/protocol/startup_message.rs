@@ -1,64 +1,46 @@
-use super::Encode;
+use super::{BufMut, Encode};
 use byteorder::{BigEndian, ByteOrder};
-use std::io;
 
-#[derive(Debug)]
 pub struct StartupMessage<'a> {
-    params: &'a [(&'a str, &'a str)],
+    pub params: &'a [(&'a str, &'a str)],
 }
 
-impl<'a> StartupMessage<'a> {
-    #[inline]
-    pub fn new(params: &'a [(&'a str, &'a str)]) -> Self {
-        Self { params }
-    }
-
-    #[inline]
-    pub fn params(&self) -> &'a [(&'a str, &'a str)] {
-        self.params
-    }
-}
-
-impl<'a> Encode for StartupMessage<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) -> io::Result<()> {
+impl Encode for StartupMessage<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
         let pos = buf.len();
-        buf.extend_from_slice(&(0 as u32).to_be_bytes()); // skip over len
-        buf.extend_from_slice(&3_u16.to_be_bytes()); // major version
-        buf.extend_from_slice(&0_u16.to_be_bytes()); // minor version
+        buf.put_int_32(0); // skip over len
+
+        // protocol version number (3.0)
+        buf.put_int_32(196608);
 
         for (name, value) in self.params {
-            buf.extend_from_slice(name.as_bytes());
-            buf.push(0);
-            buf.extend_from_slice(value.as_bytes());
-            buf.push(0);
+            buf.put_str(name);
+            buf.put_str(value);
         }
 
-        buf.push(0);
+        buf.put_byte(0);
 
         // Write-back the len to the beginning of this frame
         let len = buf.len() - pos;
-        BigEndian::write_u32(&mut buf[pos..], len as u32);
-
-        Ok(())
+        BigEndian::write_i32(&mut buf[pos..], len as i32);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Encode, StartupMessage};
-    use std::io;
+    use super::{BufMut, Encode, StartupMessage};
 
     const STARTUP_MESSAGE: &[u8] = b"\0\0\0)\0\x03\0\0user\0postgres\0database\0postgres\0\0";
 
     #[test]
-    fn it_encodes_startup_message() -> io::Result<()> {
-        let message = StartupMessage::new(&[("user", "postgres"), ("database", "postgres")]);
-
+    fn it_encodes_startup_message() {
         let mut buf = Vec::new();
-        message.encode(&mut buf)?;
+        let m = StartupMessage {
+            params: &[("user", "postgres"), ("database", "postgres")],
+        };
 
-        assert_eq!(&*buf, STARTUP_MESSAGE);
+        m.encode(&mut buf);
 
-        Ok(())
+        assert_eq!(buf, STARTUP_MESSAGE);
     }
 }
