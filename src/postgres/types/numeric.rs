@@ -1,4 +1,4 @@
-use crate::types::{ToSql, ToSqlAs, FromSql, SmallInt, Int, BigInt, Real, Double};
+use crate::types::{BigInt, Double, FromSql, Int, Real, SmallInt, ToSql, ToSqlAs};
 use byteorder::{BigEndian, ByteOrder};
 
 impl ToSql for i16 {

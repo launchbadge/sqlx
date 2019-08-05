@@ -1,4 +1,4 @@
-use crate::types::{ToSql, ToSqlAs, FromSql, Text};
+use crate::types::{FromSql, Text, ToSql, ToSqlAs};
 
 impl ToSql for &'_ str {
     type Type = Text;

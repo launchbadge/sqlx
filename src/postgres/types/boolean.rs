@@ -1,4 +1,4 @@
-use crate::types::{SqlType, ToSql, ToSqlAs, FromSql};
+use crate::types::{FromSql, SqlType, ToSql, ToSqlAs};
 
 pub struct Bool;
 
