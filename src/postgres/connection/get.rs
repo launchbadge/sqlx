@@ -2,24 +2,15 @@ use super::prepare::Prepare;
 use crate::postgres::protocol::{self, DataRow, Message};
 use std::io;
 
-impl<'a> Prepare<'a> {
+impl<'a, 'b> Prepare<'a, 'b> {
     pub async fn get(self) -> io::Result<Option<DataRow>> {
-        // protocol::bind::trailer(
-        //     &mut self.connection.wbuf,
-        //     self.bind_state,
-        //     self.bind_values,
-        //     &[],
-        // );
+        let conn = self.finish();
 
-        // protocol::execute(&mut self.connection.wbuf, "", 1);
-        // protocol::close::portal(&mut self.connection.wbuf, "");
-        // protocol::sync(&mut self.connection.wbuf);
-
-        self.connection.flush().await?;
+        conn.flush().await?;
 
         let mut row: Option<DataRow> = None;
 
-        while let Some(message) = self.connection.receive().await? {
+        while let Some(message) = conn.receive().await? {
             match message {
                 Message::BindComplete
                 | Message::ParseComplete

@@ -3,20 +3,10 @@ use crate::postgres::protocol::{self, DataRow, Message};
 use futures::{stream, Stream};
 use std::io;
 
-impl<'a> Prepare<'a> {
+impl<'a, 'b> Prepare<'a, 'b> {
     pub fn select(self) -> impl Stream<Item = Result<DataRow, io::Error>> + 'a + Unpin {
-        // protocol::bind::trailer(
-        //     &mut self.connection.wbuf,
-        //     self.bind_state,
-        //     self.bind_values,
-        //     &[],
-        // );
-
-        // protocol::execute(&mut self.connection.wbuf, "", 0);
-        // protocol::sync(&mut self.connection.wbuf);
-
         // FIXME: Manually implement Stream on a new type to avoid the unfold adapter
-        stream::unfold(self.connection, |conn| {
+        stream::unfold(self.finish(), |conn| {
             Box::pin(async {
                 if !conn.wbuf.is_empty() {
                     if let Err(e) = conn.flush().await {

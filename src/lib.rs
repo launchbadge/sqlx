@@ -21,3 +21,5 @@ pub mod postgres;
 // Helper macro for writing long complex tests
 #[macro_use]
 pub mod macros;
+
+pub mod types;

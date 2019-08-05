@@ -57,7 +57,7 @@ impl Connection {
         Ok(conn)
     }
 
-    pub fn prepare(&mut self, query: &str) -> prepare::Prepare {
+    pub fn prepare<'a, 'b>(&'a mut self, query: &'b str) -> prepare::Prepare<'a, 'b> {
         prepare::prepare(self, query)
     }
 

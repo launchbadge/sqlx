@@ -2,23 +2,15 @@ use super::prepare::Prepare;
 use crate::postgres::protocol::{self, Message};
 use std::io;
 
-impl<'a> Prepare<'a> {
+impl<'a, 'b> Prepare<'a, 'b> {
     pub async fn execute(self) -> io::Result<u64> {
-        // protocol::bind::trailer(
-        //     &mut self.connection.wbuf,
-        //     self.bind_state,
-        //     self.bind_values,
-        //     &[],
-        // );
+        let conn = self.finish();
 
-        // protocol::execute(&mut self.connection.wbuf, "", 0);
-        // protocol::sync(&mut self.connection.wbuf);
-
-        self.connection.flush().await?;
+        conn.flush().await?;
 
         let mut rows = 0;
 
-        while let Some(message) = self.connection.receive().await? {
+        while let Some(message) = conn.receive().await? {
             match message {
                 Message::BindComplete | Message::ParseComplete => {
                     // Indicates successful completion of a phase
