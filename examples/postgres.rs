@@ -58,15 +58,15 @@ async fn main() -> io::Result<()> {
     //     println!(" :: insert");
 
     let row = conn
-        .prepare("SELECT pg_typeof($1), pg_typeof($2)")
-        .bind(20)
-        .bind_as::<sqlx::postgres::types::BigInt, _>(10)
+        .prepare("SELECT $1")
+        .bind("We're cooking with fire now")
         .get()
-        .await?;
+        .await?
+        .unwrap();
 
-    println!("{:?}", row);
+    let value: String = row.get(0);
 
-    // println!(" :: select");
+    println!(" - {}", value);
 
     // conn.prepare("SELECT id FROM users")
     //     .select()

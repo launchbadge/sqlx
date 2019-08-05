@@ -50,7 +50,7 @@ impl<'a, 'b> Prepare<'a, 'b> {
             formats: self.bind.formats(),
             values_len: self.bind.values_len(),
             values: self.bind.values(),
-            result_formats: &[],
+            result_formats: &[1],
         });
 
         self.connection.write(protocol::Execute {

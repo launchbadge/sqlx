@@ -22,4 +22,5 @@ pub mod postgres;
 #[macro_use]
 pub mod macros;
 
+pub mod row;
 pub mod types;

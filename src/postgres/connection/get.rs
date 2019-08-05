@@ -1,14 +1,17 @@
 use super::prepare::Prepare;
-use crate::postgres::protocol::{self, DataRow, Message};
+use crate::{
+    postgres::protocol::{self, DataRow, Message},
+    row::Row,
+};
 use std::io;
 
 impl<'a, 'b> Prepare<'a, 'b> {
-    pub async fn get(self) -> io::Result<Option<DataRow>> {
+    pub async fn get(self) -> io::Result<Option<Row>> {
         let conn = self.finish();
 
         conn.flush().await?;
 
-        let mut row: Option<DataRow> = None;
+        let mut raw: Option<DataRow> = None;
 
         while let Some(message) = conn.receive().await? {
             match message {
@@ -21,13 +24,13 @@ impl<'a, 'b> Prepare<'a, 'b> {
 
                 Message::DataRow(data_row) => {
                     // note: because we used `EXECUTE 1` this will only execute once
-                    row = Some(data_row);
+                    raw = Some(data_row);
                 }
 
                 Message::CommandComplete(_) => {}
 
                 Message::ReadyForQuery(_) => {
-                    return Ok(row);
+                    return Ok(raw.map(Row));
                 }
 
                 message => {
