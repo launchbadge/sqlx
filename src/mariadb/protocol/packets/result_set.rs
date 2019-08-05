@@ -47,7 +47,7 @@ impl ResultSet {
             };
 
             let tag = ctx.decoder.peek_tag();
-            if tag == Some(&0xFE) && packet_header.length <= 0xFFFFFF || packet_header.length == 0 {
+            if tag == &0xFE && packet_header.length <= 0xFFFFFF || packet_header.length == 0 {
                 break;
             } else {
                 let index = ctx.decoder.index;

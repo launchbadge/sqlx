@@ -106,20 +106,16 @@ impl Connection {
 
         let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
         ctx.next_packet().await?;
-        if let Some(tag) = ctx.decoder.peek_tag() {
-            match tag {
-                0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
-                0x00 => {
-                    OkPacket::deserialize(&mut ctx)?;
-                    Ok(None)
-                },
-                0xFB => unimplemented!(),
-                _ => {
-                    Ok(Some(ResultSet::deserialize(ctx).await?))
-                }
+        match ctx.decoder.peek_tag() {
+            0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
+            0x00 => {
+                OkPacket::deserialize(&mut ctx)?;
+                Ok(None)
+            },
+            0xFB => unimplemented!(),
+            _ => {
+                Ok(Some(ResultSet::deserialize(ctx).await?))
             }
-        } else {
-            panic!("Tag not found in result packet");
         }
     }
 
@@ -129,18 +125,14 @@ impl Connection {
 
 
         let mut ctx = DeContext::new(&mut self.context, self.stream.next_packet().await?);
-        if let Some(tag) = ctx.decoder.peek_tag() {
-            match tag {
-                0xFF => {
-                    ErrPacket::deserialize(&mut ctx)?;
-                },
-                0x00 => {
-                    OkPacket::deserialize(&mut ctx)?;
-                },
-                _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
-            }
-        } else {
-            failure::bail!("No tag found");
+        match ctx.decoder.peek_tag() {
+            0xFF => {
+                ErrPacket::deserialize(&mut ctx)?;
+            },
+            0x00 => {
+                OkPacket::deserialize(&mut ctx)?;
+            },
+            _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
         }
 
         Ok(())

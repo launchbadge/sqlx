@@ -87,12 +87,8 @@ impl Decoder {
     // to exist or to be used for each packet. NOTE: Peeking at a tag DOES NOT increment index. This is used
     // to determine which type of packet was received before attempting to decode.
     #[inline]
-    pub fn peek_tag(&self) -> Option<&u8> {
-        if self.buf.len() < self.index + 4 {
-            None
-        } else {
-            Some(&self.buf[self.index + 4])
-        }
+    pub fn peek_tag(&self) -> &u8 {
+        &self.buf[self.index + 4]
     }
 
     // Helper method to get the packet header. The packet header consist of the length (3 bytes) and
@@ -102,10 +98,6 @@ impl Decoder {
     pub fn peek_packet_header(&self) -> Result<PacketHeader, Error> {
         let length: u32 = (self.buf[self.index] as u32) + ((self.buf[self.index + 1] as u32) << 8) + ((self.buf[self.index + 2] as u32) << 16);
         let seq_no = self.buf[self.index + 3];
-
-        if self.buf.len() - self.index < length as usize {
-            return Err(err_msg("Lengths to do not match when peeking header"));
-        }
 
         Ok(PacketHeader { length, seq_no })
     }
@@ -117,7 +109,7 @@ impl Decoder {
         self.index += amount;
     }
 
-    // Deocde an int<lenenc> which is a length encoded int.
+    // Decode an int<lenenc> which is a length encoded int.
     // The first byte of the int<lenenc> determines the length of the int.
     // If the first byte is
     //      0xFB then the int is "NULL" or None in Rust terms.

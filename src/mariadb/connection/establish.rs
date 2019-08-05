@@ -28,18 +28,14 @@ pub async fn establish<'a, 'b: 'a>(
 
     let mut ctx = DeContext::new(&mut conn.context, conn.stream.next_packet().await?);
 
-    if let Some(tag) = ctx.decoder.peek_tag() {
-        match tag {
-            0xFF => {
-                return Err(ErrPacket::deserialize(&mut ctx)?.into());
-            },
-            0x00 => {
-                OkPacket::deserialize(&mut ctx)?;
-            },
-            _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one is expected"),
-        }
-    } else {
-        failure::bail!("Did not receive an appropriately tagged packet when one is expected");
+    match ctx.decoder.peek_tag() {
+        0xFF => {
+            return Err(ErrPacket::deserialize(&mut ctx)?.into());
+        },
+        0x00 => {
+            OkPacket::deserialize(&mut ctx)?;
+        },
+        _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one is expected"),
     }
 
     Ok(())
