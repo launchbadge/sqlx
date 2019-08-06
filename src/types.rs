@@ -36,32 +36,16 @@ where
 
 pub struct Text;
 
-// impl SqlType for Text {
-//     const OID: u32 = 25;
-// }
-
 // Numeric types
 
 // i16
 pub struct SmallInt;
 
-// impl SqlType for SmallInt {
-//     const OID: u32 = 21;
-// }
-
 // i32
 pub struct Int;
 
-// impl SqlType for Int {
-//     const OID: u32 = 23;
-// }
-
 // i64
 pub struct BigInt;
-
-// impl SqlType for BigInt {
-//     const OID: u32 = 20;
-// }
 
 // decimal?
 // TODO pub struct Decimal;
@@ -69,13 +53,5 @@ pub struct BigInt;
 // f32
 pub struct Real;
 
-// impl SqlType for Real {
-//     const OID: u32 = 700;
-// }
-
 // f64
 pub struct Double;
-
-// impl SqlType for Double {
-//     const OID: u32 = 701;
-// }
