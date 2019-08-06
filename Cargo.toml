@@ -7,13 +7,13 @@ description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [dependencies]
-failure = "0.1"
+failure = "0.1.5"
 byteorder = "1.3.2"
 bytes = "0.4.12"
 futures-preview = "=0.3.0-alpha.17"
 hex = "0.3.2"
 itoa = "0.4.4"
-log = "0.4.7"
+log = "0.4.8"
 md-5 = "0.8.0"
 memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = true }
