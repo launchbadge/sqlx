@@ -1,10 +1,25 @@
 use super::prepare::Prepare;
-use crate::postgres::protocol::{self, DataRow, Message};
-use futures::{stream, Stream};
+use crate::{
+    postgres::protocol::{self, DataRow, Message},
+    row::{FromRow, Row},
+};
+use futures::{stream, Stream, TryStreamExt};
 use std::io;
 
 impl<'a, 'b> Prepare<'a, 'b> {
-    pub fn select(self) -> impl Stream<Item = Result<DataRow, io::Error>> + 'a + Unpin {
+    #[inline]
+    pub fn select<Record: 'a, T: 'static>(
+        self,
+    ) -> impl Stream<Item = Result<T, io::Error>> + 'a + Unpin
+    where
+        T: FromRow<Record>,
+    {
+        self.select_raw().map_ok(T::from_row)
+    }
+
+    // TODO: Better name?
+    // TODO: Should this be public?
+    fn select_raw(self) -> impl Stream<Item = Result<Row, io::Error>> + 'a + Unpin {
         // FIXME: Manually implement Stream on a new type to avoid the unfold adapter
         stream::unfold(self.finish(), |conn| {
             Box::pin(async {
@@ -28,7 +43,7 @@ impl<'a, 'b> Prepare<'a, 'b> {
                         }
 
                         Message::DataRow(row) => {
-                            break Some((Ok(row), conn));
+                            break Some((Ok(Row(row)), conn));
                         }
 
                         Message::CommandComplete(_) => {}

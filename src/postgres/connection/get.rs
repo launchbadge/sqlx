@@ -1,17 +1,30 @@
 use super::prepare::Prepare;
 use crate::{
     postgres::protocol::{self, DataRow, Message},
-    row::Row,
+    row::{FromRow, Row},
+    types::SqlType,
 };
 use std::io;
 
+// TODO: Think through how best to handle null _rows_ and null _values_
+
 impl<'a, 'b> Prepare<'a, 'b> {
-    pub async fn get(self) -> io::Result<Option<Row>> {
+    #[inline]
+    pub async fn get<Record, T>(self) -> io::Result<T>
+    where
+        T: FromRow<Record>,
+    {
+        Ok(T::from_row(self.get_raw().await?.unwrap()))
+    }
+
+    // TODO: Better name?
+    // TODO: Should this be public?
+    async fn get_raw(self) -> io::Result<Option<Row>> {
         let conn = self.finish();
 
         conn.flush().await?;
 
-        let mut raw: Option<DataRow> = None;
+        let mut row: Option<Row> = None;
 
         while let Some(message) = conn.receive().await? {
             match message {
@@ -22,15 +35,15 @@ impl<'a, 'b> Prepare<'a, 'b> {
                     // Indicates successful completion of a phase
                 }
 
-                Message::DataRow(data_row) => {
+                Message::DataRow(body) => {
                     // note: because we used `EXECUTE 1` this will only execute once
-                    raw = Some(data_row);
+                    row = Some(Row(body));
                 }
 
                 Message::CommandComplete(_) => {}
 
                 Message::ReadyForQuery(_) => {
-                    return Ok(raw.map(Row));
+                    return Ok(row);
                 }
 
                 message => {
