@@ -23,7 +23,7 @@ impl crate::mariadb::Serialize for ComStmtExec {
             (Some(params), Some(param_defs)) if params.len() > 0 => {
                 let null_bitmap_size = (params.len() + 7) / 8;
                 let mut shift_amount = 0u8;
-                let mut bitmap = vec![0u8];
+                let mut bitmap = vec![1u8];
                 let send_type = 1u8;
 
                 // Generate NULL-bitmap from params

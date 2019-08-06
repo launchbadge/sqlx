@@ -104,11 +104,9 @@ impl Connection {
     pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<Option<ResultSet>, Error> {
         self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
 
-        println!("awaiting next packet");
         let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
         ctx.next_packet().await?;
 
-        println!("Got next packet");
         match ctx.decoder.peek_tag() {
             0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
             0x00 => {
@@ -155,10 +153,9 @@ impl Connection {
             statement: Bytes::from(query),
         }).await?;
 
-//        let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
-//        ctx.next_packet().await?;
-//        ComStmtPrepareResp::deserialize(&mut ctx)
-        Ok(ComStmtPrepareResp::default())
+        let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
+        ctx.next_packet().await?;
+        Ok(ComStmtPrepareResp::deserialize(ctx).await?)
     }
 }
 
@@ -187,6 +184,7 @@ impl Framed {
             // After this operation we know that packet_headers.last() *SHOULD* always return valid data,
             // so the the use of packet_headers.last().unwrap() is allowed.
             // TODO: Stitch packets together by removing the length and seq_no from in-between packet definitions.
+            println!("{:?}", self.buf);
             if let Some(packet_header) = packet_headers.last() {
                 if packet_header.length as usize == encode::U24_MAX {
                     packet_headers.push(PacketHeader::try_from(&self.buf[self.index..])?);

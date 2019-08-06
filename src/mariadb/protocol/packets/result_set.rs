@@ -14,6 +14,8 @@ impl ResultSet {
     pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, Error> {
         let column_packet = ColumnPacket::deserialize(&mut ctx)?;
 
+        println!("{:?}", column_packet);
+
         let columns = if let Some(columns) = column_packet.columns {
             let mut column_defs = Vec::new();
             for _ in 0..columns {
@@ -25,11 +27,14 @@ impl ResultSet {
             Vec::new()
         };
 
+        println!("{:?}", columns);
+
         ctx.next_packet().await?;
 
         let eof_packet = if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
             // If we get an eof packet we must update ctx to hold a new buffer of the next packet.
             let eof_packet = Some(EofPacket::deserialize(&mut ctx)?);
+            println!("{:?}", eof_packet);
             ctx.next_packet().await?;
             eof_packet
         } else {

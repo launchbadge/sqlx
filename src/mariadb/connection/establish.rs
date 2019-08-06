@@ -139,7 +139,7 @@ mod test {
 
         conn.select_db("test").await?;
 
-        let mut prepared = conn.prepare("SELECT username FROM users WHERE username = ?;").await?;
+        let mut prepared = conn.prepare("PREPARE password_stmt FROM 'SELECT username FROM users WHERE password = ?';").await?;
 
         println!("{:?}", prepared);
 
@@ -148,24 +148,33 @@ mod test {
         }
 
         let exec = ComStmtExec {
-            stmt_id: -1,
-            flags: StmtExecFlag::ReadOnly,
-            params: Some(vec![Some(Bytes::from_static(b"daniel"))]),
+            stmt_id: prepared.ok.stmt_id,
+            flags: StmtExecFlag::NoCursor,
+            params: Some(vec![Some(Bytes::from_static(b"random"))]),
             param_defs: prepared.param_defs,
         };
 
-        println!("{:?}", ResultSet::deserialize(DeContext::with_stream(&mut conn.context, &mut conn.stream)).await?);
+        conn.send(exec).await?;
 
-        let fetch = ComStmtFetch {
-            stmt_id: -1,
-            rows: 10,
-        };
+        let mut ctx = DeContext::with_stream(&mut conn.context, &mut conn.stream);
+        ctx.next_packet().await?;
 
-        conn.send(fetch).await?;
+        match ctx.decoder.peek_tag() {
+            0xFF => println!("{:?}", ErrPacket::deserialize(&mut ctx)?),
+            0x00 => println!("{:?}", OkPacket::deserialize(&mut ctx)?),
+            _ => println!("{:?}", ResultSet::deserialize(ctx).await?),
+        }
 
-        let buf = conn.stream.next_packet().await?;
-
-        println!("{:?}", buf);
+//        let fetch = ComStmtFetch {
+//            stmt_id: -1,
+//            rows: 10,
+//        };
+//
+//        conn.send(fetch).await?;
+//
+//        let buf = conn.stream.next_packet().await?;
+//
+//        println!("{:?}", buf);
 
 //        println!("{:?}", ResultSet::deserialize(&mut DeContext::new(&mut conn.context, &buf))?);
 

@@ -210,8 +210,10 @@ impl Encoder {
             panic!("String inside string lenenc serialization is too long");
         }
 
-        self.encode_int_u24(bytes.len() as u32);
-        self.buf.extend_from_slice(bytes);
+        self.encode_int_lenenc(Some(&bytes.len()));
+        if bytes.len() > 0 {
+            self.buf.extend_from_slice(bytes);
+        }
     }
 
     // Same as the string counterpart copied to maintain consistency with the spec.
