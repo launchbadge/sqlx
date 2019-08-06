@@ -7,9 +7,8 @@ pub use protocol::{
     AuthenticationSwitchRequestPacket, BufMut, Capabilities, ColumnDefPacket, ColumnPacket,
     ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,
     ComSetOption, ComShutdown, ComSleep, ComStatistics, ComStmtClose, ComStmtExec, ComStmtFetch,
-    ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp, DeContext, Decoder, Deserialize, Encode,
+    ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp, DeContext, Decode, Decoder, Encode,
     EofPacket, ErrPacket, ErrorCode, FieldDetailFlag, FieldType, HandshakeResponsePacket,
-    InitialHandshakePacket, Message, OkPacket, PacketHeader, ResultRow, ResultSet,
-    SSLRequestPacket, ServerStatusFlag, SessionChangeType, SetOptionOptions, ShutdownOptions,
-    StmtExecFlag,
+    InitialHandshakePacket, OkPacket, PacketHeader, ResultRow, ResultSet, SSLRequestPacket,
+    ServerStatusFlag, SessionChangeType, SetOptionOptions, ShutdownOptions, StmtExecFlag,
 };

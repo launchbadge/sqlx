@@ -1,4 +1,4 @@
-use crate::mariadb::{DeContext, Deserialize, FieldDetailFlag, FieldType};
+use crate::mariadb::{DeContext, Decode, FieldDetailFlag, FieldType};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -21,8 +21,8 @@ pub struct ColumnDefPacket {
     pub decimals: u8,
 }
 
-impl Deserialize for ColumnDefPacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for ColumnDefPacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
@@ -120,7 +120,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ColumnDefPacket::deserialize(&mut ctx)?;
+        let message = ColumnDefPacket::decode(&mut ctx)?;
 
         assert_eq!(&message.catalog[..], b"a");
         assert_eq!(&message.schema[..], b"b");

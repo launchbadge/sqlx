@@ -1,8 +1,8 @@
 use super::Connection;
 use crate::{
     mariadb::{
-        Capabilities, ComStmtExec, DeContext, Deserialize, EofPacket, ErrPacket,
-        HandshakeResponsePacket, InitialHandshakePacket, Message, OkPacket, StmtExecFlag,
+        Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket,
+        HandshakeResponsePacket, InitialHandshakePacket, OkPacket, StmtExecFlag,
     },
     ConnectOptions,
 };
@@ -16,7 +16,7 @@ pub async fn establish<'a, 'b: 'a>(
 ) -> Result<(), Error> {
     let buf = conn.stream.next_packet().await?;
     let mut de_ctx = DeContext::new(&mut conn.context, buf);
-    let initial = InitialHandshakePacket::deserialize(&mut de_ctx)?;
+    let initial = InitialHandshakePacket::decode(&mut de_ctx)?;
 
     de_ctx.ctx.capabilities = de_ctx.ctx.capabilities.bitand(initial.capabilities);
 
@@ -25,7 +25,7 @@ pub async fn establish<'a, 'b: 'a>(
         capabilities: de_ctx.ctx.capabilities,
         max_packet_size: 1024,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: Bytes::from(options.user.unwrap_or("")),
+        username: options.user.unwrap_or(""),
         ..Default::default()
     };
 
@@ -35,10 +35,10 @@ pub async fn establish<'a, 'b: 'a>(
 
     match ctx.decoder.peek_tag() {
         0xFF => {
-            return Err(ErrPacket::deserialize(&mut ctx)?.into());
+            return Err(ErrPacket::decode(&mut ctx)?.into());
         }
         0x00 => {
-            OkPacket::deserialize(&mut ctx)?;
+            OkPacket::decode(&mut ctx)?;
         }
         _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one is expected"),
     }
@@ -174,8 +174,8 @@ mod test {
         ctx.next_packet().await?;
 
         match ctx.decoder.peek_tag() {
-            0xFF => println!("{:?}", ErrPacket::deserialize(&mut ctx)?),
-            0x00 => println!("{:?}", OkPacket::deserialize(&mut ctx)?),
+            0xFF => println!("{:?}", ErrPacket::decode(&mut ctx)?),
+            0x00 => println!("{:?}", OkPacket::decode(&mut ctx)?),
             _ => println!("{:?}", ResultSet::deserialize(ctx).await?),
         }
 

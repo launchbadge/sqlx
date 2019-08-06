@@ -3,12 +3,12 @@ use bytes::Bytes;
 use failure::Error;
 
 #[derive(Default, Debug)]
-pub struct HandshakeResponsePacket {
+pub struct HandshakeResponsePacket<'a> {
     pub capabilities: Capabilities,
     pub max_packet_size: u32,
     pub collation: u8,
     pub extended_capabilities: Option<Capabilities>,
-    pub username: Bytes,
+    pub username: &'a str,
     pub auth_data: Option<Bytes>,
     pub auth_response_len: Option<u8>,
     pub auth_response: Option<Bytes>,
@@ -18,7 +18,7 @@ pub struct HandshakeResponsePacket {
     pub conn_attr: Option<Vec<(Bytes, Bytes)>>,
 }
 
-impl Encode for HandshakeResponsePacket {
+impl<'a> Encode for HandshakeResponsePacket<'a> {
     fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
         buf.alloc_packet_header();
         buf.seq_no(1);
@@ -40,7 +40,7 @@ impl Encode for HandshakeResponsePacket {
             buf.put_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
         }
 
-        buf.put_string_null(&self.username);
+        buf.put_str_null(self.username);
 
         if !(ctx.capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {

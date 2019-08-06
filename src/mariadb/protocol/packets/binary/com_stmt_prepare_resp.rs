@@ -1,5 +1,5 @@
 use crate::mariadb::{
-    Capabilities, ColumnDefPacket, ComStmtPrepareOk, DeContext, Deserialize, EofPacket, Framed,
+    Capabilities, ColumnDefPacket, ComStmtPrepareOk, DeContext, Decode, EofPacket, Framed,
 };
 
 #[derive(Debug, Default)]
@@ -11,14 +11,14 @@ pub struct ComStmtPrepareResp {
 
 impl ComStmtPrepareResp {
     pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, failure::Error> {
-        let ok = ComStmtPrepareOk::deserialize(&mut ctx)?;
+        let ok = ComStmtPrepareOk::decode(&mut ctx)?;
 
         let param_defs = if ok.params > 0 {
             let mut param_defs = Vec::new();
 
             for _ in 0..ok.params {
                 ctx.next_packet().await?;
-                param_defs.push(ColumnDefPacket::deserialize(&mut ctx)?);
+                param_defs.push(ColumnDefPacket::decode(&mut ctx)?);
             }
 
             ctx.next_packet().await?;
@@ -28,7 +28,7 @@ impl ComStmtPrepareResp {
                 .capabilities
                 .contains(Capabilities::CLIENT_DEPRECATE_EOF)
             {
-                EofPacket::deserialize(&mut ctx)?;
+                EofPacket::decode(&mut ctx)?;
             }
 
             Some(param_defs)
@@ -41,7 +41,7 @@ impl ComStmtPrepareResp {
 
             for _ in 0..ok.columns {
                 ctx.next_packet().await?;
-                res_columns.push(ColumnDefPacket::deserialize(&mut ctx)?);
+                res_columns.push(ColumnDefPacket::decode(&mut ctx)?);
             }
 
             ctx.next_packet().await?;
@@ -51,7 +51,7 @@ impl ComStmtPrepareResp {
                 .capabilities
                 .contains(Capabilities::CLIENT_DEPRECATE_EOF)
             {
-                EofPacket::deserialize(&mut ctx)?;
+                EofPacket::decode(&mut ctx)?;
             }
 
             Some(res_columns)
@@ -72,7 +72,7 @@ mod test {
     use super::*;
     use crate::{
         __bytes_builder,
-        mariadb::{ConnContext, DeContext, Deserialize},
+        mariadb::{ConnContext, DeContext, Decode},
         ConnectOptions,
     };
 

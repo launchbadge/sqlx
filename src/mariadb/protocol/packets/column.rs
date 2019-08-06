@@ -1,6 +1,6 @@
 use failure::Error;
 
-use crate::mariadb::{DeContext, Deserialize};
+use crate::mariadb::{DeContext, Decode};
 
 // The column packet is the first packet of a result set.
 // Inside of it it contains the number of columns in the result set
@@ -12,8 +12,8 @@ pub struct ColumnPacket {
     pub columns: Option<u64>,
 }
 
-impl Deserialize for ColumnPacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for ColumnPacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
@@ -54,7 +54,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ColumnPacket::deserialize(&mut ctx)?;
+        let message = ColumnPacket::decode(&mut ctx)?;
 
         assert_eq!(message.columns, None);
 
@@ -78,7 +78,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ColumnPacket::deserialize(&mut ctx)?;
+        let message = ColumnPacket::decode(&mut ctx)?;
 
         assert_eq!(message.columns, Some(0x010101));
 
@@ -102,7 +102,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ColumnPacket::deserialize(&mut ctx)?;
+        let message = ColumnPacket::decode(&mut ctx)?;
 
         assert_ne!(message.columns, Some(0x0100));
 

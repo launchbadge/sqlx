@@ -8,11 +8,9 @@
 // TODO: Handle when capability is set, but field is None
 
 pub mod decode;
-pub mod deserialize;
 pub mod encode;
 pub mod error_codes;
 pub mod packets;
-pub mod server;
 pub mod types;
 
 // Re-export all the things
@@ -25,15 +23,11 @@ pub use packets::{
     SetOptionOptions, ShutdownOptions,
 };
 
-pub use decode::Decoder;
-
-pub use deserialize::{DeContext, Deserialize};
+pub use decode::{DeContext, Decode, Decoder};
 
 pub use encode::{BufMut, Encode};
 
 pub use error_codes::ErrorCode;
-
-pub use server::Message;
 
 pub use types::{
     Capabilities, FieldDetailFlag, FieldType, ServerStatusFlag, SessionChangeType, StmtExecFlag,

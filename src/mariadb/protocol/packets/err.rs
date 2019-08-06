@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::{DeContext, Deserialize, ErrorCode};
+use crate::mariadb::{DeContext, Decode, ErrorCode};
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
@@ -19,8 +19,8 @@ pub struct ErrPacket {
     pub error_message: Option<Bytes>,
 }
 
-impl Deserialize for ErrPacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for ErrPacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
@@ -129,7 +129,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let _message = ErrPacket::deserialize(&mut ctx)?;
+        let _message = ErrPacket::decode(&mut ctx)?;
 
         Ok(())
     }

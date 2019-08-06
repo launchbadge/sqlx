@@ -1,4 +1,4 @@
-use crate::mariadb::{DeContext, Decoder, Deserialize, ErrorCode, ServerStatusFlag};
+use crate::mariadb::{DeContext, Decode, Decoder, ErrorCode, ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -11,8 +11,8 @@ pub struct EofPacket {
     pub status: ServerStatusFlag,
 }
 
-impl Deserialize for EofPacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for EofPacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
@@ -63,7 +63,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let _message = EofPacket::deserialize(&mut ctx)?;
+        let _message = EofPacket::decode(&mut ctx)?;
 
         Ok(())
     }

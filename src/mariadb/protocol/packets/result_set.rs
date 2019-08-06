@@ -2,8 +2,8 @@ use bytes::Bytes;
 use failure::Error;
 
 use crate::mariadb::{
-    Capabilities, ColumnDefPacket, ColumnPacket, ConnContext, DeContext, Decoder, Deserialize,
-    EofPacket, ErrPacket, Framed, Message, OkPacket, ResultRow,
+    Capabilities, ColumnDefPacket, ColumnPacket, ConnContext, DeContext, Decode, Decoder,
+    EofPacket, ErrPacket, Framed, OkPacket, ResultRow,
 };
 
 #[derive(Debug, Default)]
@@ -15,7 +15,7 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, Error> {
-        let column_packet = ColumnPacket::deserialize(&mut ctx)?;
+        let column_packet = ColumnPacket::decode(&mut ctx)?;
 
         println!("{:?}", column_packet);
 
@@ -23,7 +23,7 @@ impl ResultSet {
             let mut column_defs = Vec::new();
             for _ in 0..columns {
                 ctx.next_packet().await?;
-                column_defs.push(ColumnDefPacket::deserialize(&mut ctx)?);
+                column_defs.push(ColumnDefPacket::decode(&mut ctx)?);
             }
             column_defs
         } else {
@@ -40,7 +40,7 @@ impl ResultSet {
             .contains(Capabilities::CLIENT_DEPRECATE_EOF)
         {
             // If we get an eof packet we must update ctx to hold a new buffer of the next packet.
-            let eof_packet = Some(EofPacket::deserialize(&mut ctx)?);
+            let eof_packet = Some(EofPacket::decode(&mut ctx)?);
             println!("{:?}", eof_packet);
             ctx.next_packet().await?;
             eof_packet
@@ -63,7 +63,7 @@ impl ResultSet {
                 break;
             } else {
                 let index = ctx.decoder.index;
-                match ResultRow::deserialize(&mut ctx) {
+                match ResultRow::decode(&mut ctx) {
                     Ok(v) => {
                         rows.push(v);
                         ctx.next_packet().await?;
@@ -82,9 +82,9 @@ impl ResultSet {
                 .capabilities
                 .contains(Capabilities::CLIENT_DEPRECATE_EOF)
             {
-                OkPacket::deserialize(&mut ctx)?;
+                OkPacket::decode(&mut ctx)?;
             } else {
-                EofPacket::deserialize(&mut ctx)?;
+                EofPacket::decode(&mut ctx)?;
             }
         }
 

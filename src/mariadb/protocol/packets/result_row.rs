@@ -1,4 +1,4 @@
-use crate::mariadb::{DeContext, Decoder, Deserialize, ErrorCode, ServerStatusFlag};
+use crate::mariadb::{DeContext, Decode, Decoder, ErrorCode, ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -10,8 +10,8 @@ pub struct ResultRow {
     pub row: Vec<Bytes>,
 }
 
-impl Deserialize for ResultRow {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for ResultRow {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;
@@ -60,7 +60,7 @@ mod test {
 
         ctx.columns = Some(1);
 
-        let _message = ResultRow::deserialize(&mut ctx)?;
+        let _message = ResultRow::decode(&mut ctx)?;
 
         Ok(())
     }

@@ -6,8 +6,8 @@ pub struct ResultRow {
     pub columns: Vec<Option<Bytes>>,
 }
 
-impl crate::mariadb::Deserialize for ResultRow {
-    fn deserialize(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
+impl crate::mariadb::Decode for ResultRow {
+    fn decode(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
         let decoder = &mut ctx.decoder;
 
         let length = decoder.decode_length()?;

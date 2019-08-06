@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use failure::{err_msg, Error};
 
-use crate::mariadb::{DeContext, Deserialize, ServerStatusFlag};
+use crate::mariadb::{DeContext, Decode, ServerStatusFlag};
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -16,8 +16,8 @@ pub struct OkPacket {
     pub value: Option<Bytes>,
 }
 
-impl Deserialize for OkPacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for OkPacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
 
         // Packet header
@@ -100,7 +100,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = OkPacket::deserialize(&mut ctx)?;
+        let message = OkPacket::decode(&mut ctx)?;
 
         assert_eq!(message.affected_rows, None);
         assert_eq!(message.last_insert_id, None);

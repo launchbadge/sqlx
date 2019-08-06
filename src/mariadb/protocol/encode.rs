@@ -87,6 +87,9 @@ pub trait BufMut {
     #[inline]
     fn put_string_null(&mut self, string: &Bytes);
 
+    // TODO: Combine with previous method
+    fn put_str_null(&mut self, string: &str);
+
     // Encode a string<fix>; a string of fixed length
     #[inline]
     fn put_string_fix(&mut self, bytes: &Bytes, size: usize);
@@ -270,10 +273,18 @@ impl BufMut for Vec<u8> {
         }
     }
 
-    // Encode a string<null>; a null termianted string (C style)
+    // Encode a string<null>; a null terminated string (C style)
     #[inline]
     fn put_string_null(&mut self, string: &Bytes) {
         self.extend_from_slice(string);
+        self.push(0_u8);
+    }
+
+    // TODO: Combine this method with the previous
+    // Encode a string<null>; a null terminated string (C style)
+    #[inline]
+    fn put_str_null(&mut self, string: &str) {
+        self.extend_from_slice(string.as_bytes());
         self.push(0_u8);
     }
 

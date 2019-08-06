@@ -1,4 +1,4 @@
-use crate::mariadb::{Capabilities, DeContext, Deserialize, ServerStatusFlag};
+use crate::mariadb::{Capabilities, DeContext, Decode, ServerStatusFlag};
 use bytes::Bytes;
 use failure::{err_msg, Error};
 
@@ -18,8 +18,8 @@ pub struct InitialHandshakePacket {
     pub auth_plugin_name: Option<Bytes>,
 }
 
-impl Deserialize for InitialHandshakePacket {
-    fn deserialize(ctx: &mut DeContext) -> Result<Self, Error> {
+impl Decode for InitialHandshakePacket {
+    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
@@ -160,7 +160,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let _message = InitialHandshakePacket::deserialize(&mut ctx)?;
+        let _message = InitialHandshakePacket::decode(&mut ctx)?;
 
         Ok(())
     }

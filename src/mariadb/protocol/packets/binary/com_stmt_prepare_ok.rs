@@ -8,8 +8,8 @@ pub struct ComStmtPrepareOk {
     pub warnings: i16,
 }
 
-impl crate::mariadb::Deserialize for ComStmtPrepareOk {
-    fn deserialize(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
+impl crate::mariadb::Decode for ComStmtPrepareOk {
+    fn decode(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
         let decoder = &mut ctx.decoder;
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
@@ -40,7 +40,7 @@ mod tests {
     use super::*;
     use crate::{
         __bytes_builder,
-        mariadb::{ConnContext, DeContext, Deserialize},
+        mariadb::{ConnContext, DeContext, Decode},
         ConnectOptions,
     };
     use bytes::Bytes;
@@ -70,7 +70,7 @@ mod tests {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        let message = ComStmtPrepareOk::deserialize(&mut ctx)?;
+        let message = ComStmtPrepareOk::decode(&mut ctx)?;
 
         assert_eq!(message.stmt_id, 1);
         assert_eq!(message.columns, 10);

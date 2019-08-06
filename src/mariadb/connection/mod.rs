@@ -1,8 +1,8 @@
 use crate::{
     mariadb::{
         protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
-        ComStmtPrepareResp, DeContext, Decoder, Deserialize, Encode, ErrPacket, Message, OkPacket,
-        PacketHeader, ResultSet, ServerStatusFlag,
+        ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
+        ResultSet, ServerStatusFlag,
     },
     ConnectOptions,
 };
@@ -81,7 +81,7 @@ impl Connection {
                 connection_id: -1,
                 seq_no: 1,
                 last_seq_no: 0,
-                capabilities: Capabilities::CLIENT_MYSQL,
+                capabilities: Capabilities::CLIENT_PROTOCOL_41,
                 status: ServerStatusFlag::default(),
             },
         };
@@ -124,9 +124,9 @@ impl Connection {
         ctx.next_packet().await?;
 
         match ctx.decoder.peek_tag() {
-            0xFF => Err(ErrPacket::deserialize(&mut ctx)?.into()),
+            0xFF => Err(ErrPacket::decode(&mut ctx)?.into()),
             0x00 => {
-                OkPacket::deserialize(&mut ctx)?;
+                OkPacket::decode(&mut ctx)?;
                 Ok(None)
             }
             0xFB => unimplemented!(),
@@ -143,10 +143,10 @@ impl Connection {
         let mut ctx = DeContext::new(&mut self.context, self.stream.next_packet().await?);
         match ctx.decoder.peek_tag() {
             0xFF => {
-                ErrPacket::deserialize(&mut ctx)?;
+                ErrPacket::decode(&mut ctx)?;
             }
             0x00 => {
-                OkPacket::deserialize(&mut ctx)?;
+                OkPacket::decode(&mut ctx)?;
             }
             _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
         }
@@ -158,7 +158,7 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        OkPacket::deserialize(&mut DeContext::new(
+        OkPacket::decode(&mut DeContext::new(
             &mut self.context,
             self.stream.next_packet().await?,
         ))?;
