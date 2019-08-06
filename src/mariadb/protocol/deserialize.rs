@@ -1,4 +1,4 @@
-use crate::mariadb::{Framed, Decoder, ConnContext, Connection, ColumnDefPacket};
+use crate::mariadb::{ColumnDefPacket, ConnContext, Connection, Decoder, Framed};
 use bytes::Bytes;
 use failure::Error;
 
@@ -16,7 +16,13 @@ pub struct DeContext<'a> {
 
 impl<'a> DeContext<'a> {
     pub fn new(conn: &'a mut ConnContext, buf: Bytes) -> Self {
-        DeContext { ctx: conn, stream: None, decoder: Decoder::new(buf), columns: None , column_defs: None }
+        DeContext {
+            ctx: conn,
+            stream: None,
+            decoder: Decoder::new(buf),
+            columns: None,
+            column_defs: None,
+        }
     }
 
     pub fn with_stream(conn: &'a mut ConnContext, stream: &'a mut Framed) -> Self {
@@ -24,8 +30,8 @@ impl<'a> DeContext<'a> {
             ctx: conn,
             stream: Some(stream),
             decoder: Decoder::new(Bytes::new()),
-            columns: None ,
-            column_defs: None
+            columns: None,
+            column_defs: None,
         }
     }
 
@@ -36,7 +42,7 @@ impl<'a> DeContext<'a> {
             return Ok(());
         } else if self.decoder.buf.len() > 0 {
             // There is still data in the buffer
-            return Ok(())
+            return Ok(());
         }
 
         failure::bail!("Calling next_packet on DeContext with no stream provided")

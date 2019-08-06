@@ -1,8 +1,7 @@
 use bytes::Bytes;
 use failure::{err_msg, Error};
 
-use crate::mariadb::{DeContext, Deserialize, ServerStatusFlag,
-};
+use crate::mariadb::{DeContext, Deserialize, ServerStatusFlag};
 
 #[derive(Default, Debug)]
 pub struct OkPacket {
@@ -61,8 +60,12 @@ impl Deserialize for OkPacket {
 
 #[cfg(test)]
 mod test {
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use super::*;
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, Decoder},
+        ConnectOptions,
+    };
 
     #[test]
     fn it_decodes_ok_packet() -> Result<(), Error> {

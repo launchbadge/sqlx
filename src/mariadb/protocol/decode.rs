@@ -73,7 +73,9 @@ impl Decoder {
     // Length is the first 3 bytes of the packet in little endian format
     #[inline]
     pub fn decode_length(&mut self) -> Result<u32, Error> {
-        let length: u32 = (self.buf[self.index] as u32) + ((self.buf[self.index + 1] as u32) << 8) + ((self.buf[self.index + 2] as u32) << 16);
+        let length: u32 = (self.buf[self.index] as u32)
+            + ((self.buf[self.index + 1] as u32) << 8)
+            + ((self.buf[self.index + 2] as u32) << 16);
         self.index += 3;
 
         if self.buf.len() - self.index < length as usize {
@@ -96,7 +98,9 @@ impl Decoder {
     // to determine if the packet is read to decode without starting the decoding process.
     #[inline]
     pub fn peek_packet_header(&self) -> Result<PacketHeader, Error> {
-        let length: u32 = (self.buf[self.index] as u32) + ((self.buf[self.index + 1] as u32) << 8) + ((self.buf[self.index + 2] as u32) << 16);
+        let length: u32 = (self.buf[self.index] as u32)
+            + ((self.buf[self.index + 1] as u32) << 8)
+            + ((self.buf[self.index + 2] as u32) << 16);
         let seq_no = self.buf[self.index + 3];
 
         Ok(PacketHeader { length, seq_no })
@@ -260,15 +264,18 @@ impl Decoder {
     // Decode a string<eof> which is a string which is terminated byte the end of the packet.
     #[inline]
     pub fn decode_string_eof(&mut self, length: Option<usize>) -> Bytes {
-        let value = self.buf.slice(self.index, if let Some(len) = length {
-            if len >= self.index {
-                len
+        let value = self.buf.slice(
+            self.index,
+            if let Some(len) = length {
+                if len >= self.index {
+                    len
+                } else {
+                    self.buf.len()
+                }
             } else {
                 self.buf.len()
-            }
-        } else {
-            self.buf.len()
-        });
+            },
+        );
         self.index = self.buf.len();
         value
     }
@@ -305,15 +312,18 @@ impl Decoder {
     // Same as the string counter part, but copied to maintain consistency with the spec.
     #[inline]
     pub fn decode_byte_eof(&mut self, length: Option<usize>) -> Bytes {
-        let value = self.buf.slice(self.index, if let Some(len) = length {
-            if len >= self.index {
-                len
+        let value = self.buf.slice(
+            self.index,
+            if let Some(len) = length {
+                if len >= self.index {
+                    len
+                } else {
+                    self.buf.len()
+                }
             } else {
                 self.buf.len()
-            }
-        } else {
-            self.buf.len()
-        });
+            },
+        );
         self.index = self.buf.len();
         value
     }
@@ -405,15 +415,14 @@ impl Decoder {
         let value = self.buf.slice(self.index, self.index + 13);
         self.index += 13;
         value
-
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::__bytes_builder;
     use bytes::Bytes;
     use failure::Error;
-    use crate::__bytes_builder;
 
     use super::*;
 
@@ -442,7 +451,7 @@ mod tests {
 
     #[test]
     fn it_decodes_int_lenenc_0x_fc() {
-        let buf =__bytes_builder!(0xFCu8, 1u8, 1u8);
+        let buf = __bytes_builder!(0xFCu8, 1u8, 1u8);
         let mut decoder = Decoder::new(buf);
         let int = decoder.decode_int_lenenc_unsigned();
 

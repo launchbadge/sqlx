@@ -22,7 +22,7 @@ impl Message {
             Ok(v) => v,
             Err(_) => return Ok(None),
         };
-        
+
         Ok(Some(match decoder.peek_tag() {
             0xFF => Message::ErrPacket(ErrPacket::deserialize(ctx)?),
             0x00 | 0xFE => Message::OkPacket(OkPacket::deserialize(ctx)?),

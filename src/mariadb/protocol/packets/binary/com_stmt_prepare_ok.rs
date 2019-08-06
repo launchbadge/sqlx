@@ -30,7 +30,7 @@ impl crate::mariadb::Deserialize for ComStmtPrepareOk {
             stmt_id,
             columns,
             params,
-            warnings
+            warnings,
         })
     }
 }
@@ -38,7 +38,11 @@ impl crate::mariadb::Deserialize for ComStmtPrepareOk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, DeContext, Deserialize}};
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, DeContext, Deserialize},
+        ConnectOptions,
+    };
     use bytes::Bytes;
 
     #[test]
@@ -76,4 +80,3 @@ mod tests {
         Ok(())
     }
 }
-

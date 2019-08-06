@@ -1,5 +1,4 @@
-use crate::mariadb::{DeContext, Deserialize, Capabilities, ServerStatusFlag
-};
+use crate::mariadb::{Capabilities, DeContext, Deserialize, ServerStatusFlag};
 use bytes::Bytes;
 use failure::{err_msg, Error};
 
@@ -26,7 +25,9 @@ impl Deserialize for InitialHandshakePacket {
         let seq_no = decoder.decode_int_u8();
 
         if seq_no != 0 {
-            return Err(err_msg("Sequence Number of Initial Handshake Packet is not 0"));
+            return Err(err_msg(
+                "Sequence Number of Initial Handshake Packet is not 0",
+            ));
         }
 
         let protocol_version = decoder.decode_int_u8();
@@ -99,7 +100,11 @@ impl Deserialize for InitialHandshakePacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, Decoder},
+        ConnectOptions,
+    };
     use bytes::BytesMut;
 
     #[test]

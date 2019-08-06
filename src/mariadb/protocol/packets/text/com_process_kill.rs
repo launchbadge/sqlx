@@ -1,19 +1,19 @@
-use crate::mariadb::{Connection, Serialize};
+use crate::mariadb::{BufMut, ConnContext, Connection, Encode};
 use failure::Error;
 
 pub struct ComProcessKill {
     pub process_id: u32,
 }
 
-impl Serialize for ComProcessKill {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::ConnContext, encoder: &mut crate::mariadb::Encoder) -> Result<(), Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(0);
+impl Encode for ComProcessKill {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(0);
 
-        encoder.encode_int_u8(super::TextProtocol::ComProcessKill.into());
-        encoder.encode_int_u32(self.process_id);
+        buf.put_int_u8(super::TextProtocol::ComProcessKill.into());
+        buf.put_int_u32(self.process_id);
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }
@@ -22,18 +22,15 @@ impl Serialize for ComProcessKill {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::{ConnContext, Encoder};
 
     #[test]
     fn it_encodes_com_process_kill() -> Result<(), failure::Error> {
-        let mut encoder = Encoder::new(128);
+        let mut buf = Vec::with_capacity(1024);
         let mut ctx = ConnContext::new();
 
-        ComProcessKill {
-            process_id: 1,
-        }.serialize(&mut ctx, &mut encoder)?;
+        ComProcessKill { process_id: 1 }.encode(&mut buf, &mut ctx)?;
 
-        assert_eq!(&encoder.buf[..], b"\x05\0\0\x00\x0C\x01\0\0\0");
+        assert_eq!(&buf[..], b"\x05\0\0\x00\x0C\x01\0\0\0");
 
         Ok(())
     }

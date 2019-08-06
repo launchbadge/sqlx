@@ -17,10 +17,8 @@ pub use com_process_kill::ComProcessKill;
 pub use com_query::ComQuery;
 pub use com_quit::ComQuit;
 pub use com_reset_conn::ComResetConnection;
-pub use com_set_option::ComSetOption;
-pub use com_set_option::SetOptionOptions;
-pub use com_shutdown::ShutdownOptions;
-pub use com_shutdown::ComShutdown;
+pub use com_set_option::{ComSetOption, SetOptionOptions};
+pub use com_shutdown::{ComShutdown, ShutdownOptions};
 pub use com_sleep::ComSleep;
 pub use com_statistics::ComStatistics;
 

@@ -1,6 +1,4 @@
-use crate::mariadb::{
-    Decoder, DeContext, Deserialize, ErrorCode, ServerStatusFlag,
-};
+use crate::mariadb::{DeContext, Decoder, Deserialize, ErrorCode, ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -20,19 +18,29 @@ impl Deserialize for ResultRow {
         let seq_no = decoder.decode_int_u8();
 
         let row = if let Some(columns) = ctx.columns {
-            (0..columns).map(|_| decoder.decode_string_lenenc()).collect::<Vec<Bytes>>()
+            (0..columns)
+                .map(|_| decoder.decode_string_lenenc())
+                .collect::<Vec<Bytes>>()
         } else {
             Vec::new()
         };
 
-        Ok(ResultRow { length, seq_no, row })
+        Ok(ResultRow {
+            length,
+            seq_no,
+            row,
+        })
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, Decoder},
+        ConnectOptions,
+    };
     use bytes::Bytes;
 
     #[test]

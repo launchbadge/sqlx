@@ -1,8 +1,13 @@
 use super::Connection;
-use crate::mariadb::{ErrPacket, OkPacket, DeContext, Deserialize, HandshakeResponsePacket, InitialHandshakePacket, Message, Capabilities, ComStmtExec, StmtExecFlag};
+use crate::{
+    mariadb::{
+        Capabilities, ComStmtExec, DeContext, Deserialize, EofPacket, ErrPacket,
+        HandshakeResponsePacket, InitialHandshakePacket, Message, OkPacket, StmtExecFlag,
+    },
+    ConnectOptions,
+};
 use bytes::{BufMut, Bytes};
 use failure::{err_msg, Error};
-use crate::ConnectOptions;
 use std::ops::BitAnd;
 
 pub async fn establish<'a, 'b: 'a>(
@@ -31,10 +36,10 @@ pub async fn establish<'a, 'b: 'a>(
     match ctx.decoder.peek_tag() {
         0xFF => {
             return Err(ErrPacket::deserialize(&mut ctx)?.into());
-        },
+        }
         0x00 => {
             OkPacket::deserialize(&mut ctx)?;
-        },
+        }
         _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one is expected"),
     }
 
@@ -44,8 +49,8 @@ pub async fn establish<'a, 'b: 'a>(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::mariadb::{ComStmtFetch, ComStmtPrepareResp, FieldType, ResultSet};
     use failure::Error;
-    use crate::mariadb::{ComStmtPrepareResp, FieldType, ResultSet, ComStmtFetch};
 
     #[runtime::test]
     async fn it_can_connect() -> Result<(), Error> {
@@ -69,7 +74,8 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
         conn.ping().await?;
 
@@ -84,7 +90,8 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
         conn.select_db("test").await?;
 
@@ -99,7 +106,8 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
         println!("selecting db");
         conn.select_db("test").await?;
@@ -118,11 +126,13 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
         conn.select_db("test").await?;
 
-        conn.prepare("SELECT * FROM users WHERE username = ?").await?;
+        conn.prepare("SELECT * FROM users WHERE username = ?")
+            .await?;
 
         Ok(())
     }
@@ -135,22 +145,26 @@ mod test {
             user: Some("root"),
             database: None,
             password: None,
-        }).await?;
+        })
+        .await?;
 
         conn.select_db("test").await?;
 
-        let mut prepared = conn.prepare("PREPARE password_stmt FROM 'SELECT username FROM users WHERE password = ?';").await?;
+        let mut prepared = conn
+            .prepare("SELECT id FROM users WHERE username=?")
+            .await?;
 
         println!("{:?}", prepared);
 
-        if let Some(param_defs) = &mut prepared.param_defs {
-            param_defs[0].field_type = FieldType::MysqlTypeBlob;
-        }
+        //        if let Some(param_defs) = &mut prepared.param_defs {
+        //            param_defs[0].field_type = FieldType::MysqlTypeBlob;
+        //        }
 
         let exec = ComStmtExec {
             stmt_id: prepared.ok.stmt_id,
             flags: StmtExecFlag::NoCursor,
-            params: Some(vec![Some(Bytes::from_static(b"random"))]),
+            //            params: None,
+            params: Some(vec![Some(Bytes::from_static(b"daniel"))]),
             param_defs: prepared.param_defs,
         };
 
@@ -165,18 +179,18 @@ mod test {
             _ => println!("{:?}", ResultSet::deserialize(ctx).await?),
         }
 
-//        let fetch = ComStmtFetch {
-//            stmt_id: -1,
-//            rows: 10,
-//        };
-//
-//        conn.send(fetch).await?;
-//
-//        let buf = conn.stream.next_packet().await?;
-//
-//        println!("{:?}", buf);
+        //        let fetch = ComStmtFetch {
+        //            stmt_id: -1,
+        //            rows: 10,
+        //        };
+        //
+        //        conn.send(fetch).await?;
+        //
+        //        let buf = conn.stream.next_packet().await?;
+        //
+        //        println!("{:?}", buf);
 
-//        println!("{:?}", ResultSet::deserialize(&mut DeContext::new(&mut conn.context, &buf))?);
+        //        println!("{:?}", ResultSet::deserialize(&mut DeContext::new(&mut conn.context, &buf))?);
 
         Ok(())
     }

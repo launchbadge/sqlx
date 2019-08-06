@@ -1,4 +1,4 @@
-use crate::mariadb::{Connection, Serialize};
+use crate::mariadb::{BufMut, ConnContext, Connection, Encode};
 use bytes::Bytes;
 use failure::Error;
 
@@ -6,15 +6,15 @@ pub struct ComInitDb {
     pub schema_name: Bytes,
 }
 
-impl Serialize for ComInitDb {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::ConnContext, encoder: &mut crate::mariadb::Encoder) -> Result<(), Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(0);
+impl Encode for ComInitDb {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(0);
 
-        encoder.encode_int_u8(super::TextProtocol::ComInitDb.into());
-        encoder.encode_string_null(&self.schema_name);
+        buf.put_int_u8(super::TextProtocol::ComInitDb as u8);
+        buf.put_string_null(&self.schema_name);
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }
@@ -23,20 +23,19 @@ impl Serialize for ComInitDb {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::{ConnContext, Encoder};
 
     #[test]
     fn it_encodes_com_init_db() -> Result<(), failure::Error> {
-        let mut encoder = Encoder::new(128);
+        let mut buf = Vec::with_capacity(1024);
         let mut ctx = ConnContext::new();
 
         ComInitDb {
-          schema_name: Bytes::from_static(b"portal"),
-        }.serialize(&mut ctx, &mut encoder)?;
+            schema_name: Bytes::from_static(b"portal"),
+        }
+        .encode(&mut buf, &mut ctx)?;
 
-        assert_eq!(&encoder.buf[..], b"\x08\0\0\x00\x02portal\0");
+        assert_eq!(&buf[..], b"\x08\0\0\x00\x02portal\0");
 
         Ok(())
     }
 }
-

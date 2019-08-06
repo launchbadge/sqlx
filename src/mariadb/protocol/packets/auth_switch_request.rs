@@ -1,5 +1,4 @@
-use crate::mariadb::Connection;
-use crate::mariadb::Serialize;
+use crate::mariadb::{BufMut, ConnContext, Connection, Encode};
 use bytes::Bytes;
 use failure::Error;
 
@@ -9,11 +8,11 @@ pub struct AuthenticationSwitchRequestPacket {
     pub auth_plugin_data: Bytes,
 }
 
-impl Serialize for AuthenticationSwitchRequestPacket {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
-        encoder.encode_int_u8(0xFE);
-        encoder.encode_string_null(&self.auth_plugin_name);
-        encoder.encode_byte_eof(&self.auth_plugin_data);
+impl Encode for AuthenticationSwitchRequestPacket {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.put_int_u8(0xFE);
+        buf.put_string_null(&self.auth_plugin_name);
+        buf.put_byte_eof(&self.auth_plugin_data);
 
         Ok(())
     }

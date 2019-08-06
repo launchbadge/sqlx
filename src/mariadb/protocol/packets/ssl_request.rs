@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::{Capabilities, Connection, Serialize};
+use crate::mariadb::{BufMut, Capabilities, ConnContext, Connection, Encode};
 
 #[derive(Default, Debug)]
 pub struct SSLRequestPacket {
@@ -11,29 +11,29 @@ pub struct SSLRequestPacket {
     pub extended_capabilities: Option<Capabilities>,
 }
 
-impl Serialize for SSLRequestPacket {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(0);
+impl Encode for SSLRequestPacket {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(0);
 
-        encoder.encode_int_u32(self.capabilities.bits() as u32);
-        encoder.encode_int_u32(self.max_packet_size);
-        encoder.encode_int_u8(self.collation);
+        buf.put_int_u32(self.capabilities.bits() as u32);
+        buf.put_int_u32(self.max_packet_size);
+        buf.put_int_u8(self.collation);
 
         // Filler
-        encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
+        buf.put_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
         if !(ctx.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                encoder.encode_int_u32(capabilities.bits() as u32);
+                buf.put_int_u32(capabilities.bits() as u32);
             }
         } else {
-            encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
+            buf.put_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
         }
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }

@@ -54,7 +54,6 @@ impl Deserialize for ColumnDefPacket {
         // int<2> - unused -
         decoder.skip_bytes(2);
 
-
         Ok(ColumnDefPacket {
             catalog,
             schema,
@@ -75,7 +74,11 @@ impl Deserialize for ColumnDefPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, Decoder},
+        ConnectOptions,
+    };
     use bytes::Bytes;
 
     #[test]

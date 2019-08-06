@@ -1,4 +1,6 @@
-use crate::mariadb::{Framed, DeContext, Deserialize, ComStmtPrepareOk, ColumnDefPacket, Capabilities, EofPacket};
+use crate::mariadb::{
+    Capabilities, ColumnDefPacket, ComStmtPrepareOk, DeContext, Deserialize, EofPacket, Framed,
+};
 
 #[derive(Debug, Default)]
 pub struct ComStmtPrepareResp {
@@ -21,7 +23,11 @@ impl ComStmtPrepareResp {
 
             ctx.next_packet().await?;
 
-            if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+            if !ctx
+                .ctx
+                .capabilities
+                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+            {
                 EofPacket::deserialize(&mut ctx)?;
             }
 
@@ -40,7 +46,11 @@ impl ComStmtPrepareResp {
 
             ctx.next_packet().await?;
 
-            if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+            if !ctx
+                .ctx
+                .capabilities
+                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+            {
                 EofPacket::deserialize(&mut ctx)?;
             }
 
@@ -60,7 +70,11 @@ impl ComStmtPrepareResp {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, DeContext, Deserialize}};
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, DeContext, Deserialize},
+        ConnectOptions,
+    };
 
     #[runtime::test]
     async fn it_decodes_com_stmt_prepare_resp_eof() -> Result<(), failure::Error> {

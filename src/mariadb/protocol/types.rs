@@ -114,10 +114,10 @@ pub enum FieldType {
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
 #[TryFromPrimitiveType = "u8"]
 pub enum StmtExecFlag {
-	NoCursor = 0,
-	ReadOnly = 1,
-	CursorForUpdate = 2,
-	ScrollableCursor = 3,
+    NoCursor = 0,
+    ReadOnly = 1,
+    CursorForUpdate = 2,
+    ScrollableCursor = 3,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]

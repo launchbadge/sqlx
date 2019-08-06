@@ -1,5 +1,8 @@
-use crate::mariadb::{StmtExecFlag, ColumnDefPacket, FieldDetailFlag};
+use crate::mariadb::{
+    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, StmtExecFlag,
+};
 use bytes::Bytes;
+use failure::Error;
 
 #[derive(Debug)]
 pub struct ComStmtExec {
@@ -9,22 +12,22 @@ pub struct ComStmtExec {
     pub param_defs: Option<Vec<ColumnDefPacket>>,
 }
 
-impl crate::mariadb::Serialize for ComStmtExec {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::ConnContext, encoder: &mut crate::mariadb::Encoder) -> Result<(), failure::Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(0);
+impl Encode for ComStmtExec {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(0);
 
-        encoder.encode_int_u8(super::BinaryProtocol::ComStmtExec.into());
-        encoder.encode_int_i32(self.stmt_id);
-        encoder.encode_int_u8(self.flags as u8);
-        encoder.encode_int_u8(1);
+        buf.put_int_u8(super::BinaryProtocol::ComStmtExec.into());
+        buf.put_int_i32(self.stmt_id);
+        buf.put_int_u8(self.flags as u8);
+        buf.put_int_u32(1);
 
         match (&self.params, &self.param_defs) {
             (Some(params), Some(param_defs)) if params.len() > 0 => {
                 let null_bitmap_size = (params.len() + 7) / 8;
                 let mut shift_amount = 0u8;
                 let mut bitmap = vec![1u8];
-                let send_type = 1u8;
+                let send_type = 0u8;
 
                 // Generate NULL-bitmap from params
                 for param in params {
@@ -40,28 +43,27 @@ impl crate::mariadb::Serialize for ComStmtExec {
                     }
                 }
 
-                encoder.encode_byte_fix(&Bytes::from(bitmap), null_bitmap_size);
-                encoder.encode_int_u8(send_type);
+                buf.put_byte_fix(&Bytes::from(bitmap), null_bitmap_size);
+                buf.put_int_u8(send_type);
 
                 if send_type > 0 {
                     for param in param_defs {
-                        encoder.encode_int_u8(param.field_type as u8);
-                        encoder.encode_int_u8(0);
+                        //                        buf.put_int_u8(param.field_type as u8);
+                        buf.put_int_u8(0);
                     }
                 }
 
                 // Encode params
                 for index in 0..params.len() {
                     if let Some(bytes) = &params[index] {
-                        encoder.encode_param(&bytes, &param_defs[index].field_type);
+                        buf.put_byte_lenenc(&bytes);
                     }
                 }
-            },
-            _ => {},
-
+            }
+            _ => {}
         }
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }
@@ -70,11 +72,11 @@ impl crate::mariadb::Serialize for ComStmtExec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::{ConnContext, Encoder, Serialize, FieldType, FieldDetailFlag};
+    use crate::mariadb::{FieldDetailFlag, FieldType};
 
     #[test]
     fn it_encodes_com_stmt_close() -> Result<(), failure::Error> {
-        let mut encoder = Encoder::new(128);
+        let mut buf = Vec::with_capacity(1024);
         let mut ctx = ConnContext::new();
 
         ComStmtExec {
@@ -95,9 +97,9 @@ mod tests {
                 field_details: FieldDetailFlag::NOT_NULL,
                 decimals: 0,
             }]),
-        }.serialize(&mut ctx, &mut encoder)?;
+        }
+        .encode(&mut buf, &mut ctx)?;
 
         Ok(())
     }
 }
-

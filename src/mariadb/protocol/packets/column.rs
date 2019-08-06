@@ -21,7 +21,11 @@ impl Deserialize for ColumnPacket {
 
         let columns = decoder.decode_int_lenenc_unsigned();
 
-        Ok(ColumnPacket { length, seq_no, columns })
+        Ok(ColumnPacket {
+            length,
+            seq_no,
+            columns,
+        })
     }
 }
 
@@ -29,9 +33,11 @@ impl Deserialize for ColumnPacket {
 mod test {
     use bytes::Bytes;
 
-    use crate::ConnectOptions;
-    use crate::{__bytes_builder, mariadb::connection::ConnContext, mariadb::protocol::decode::Decoder};
     use super::*;
+    use crate::{
+        ConnectOptions, __bytes_builder,
+        mariadb::{connection::ConnContext, protocol::decode::Decoder},
+    };
 
     #[test]
     fn it_decodes_column_packet_0x_fb() -> Result<(), Error> {

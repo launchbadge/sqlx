@@ -1,6 +1,4 @@
-use crate::mariadb::{
-    Decoder, DeContext, Deserialize, ErrorCode, ServerStatusFlag,
-};
+use crate::mariadb::{DeContext, Decoder, Deserialize, ErrorCode, ServerStatusFlag};
 use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
@@ -29,14 +27,19 @@ impl Deserialize for EofPacket {
         let warning_count = decoder.decode_int_i16();
         let status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16());
 
-        Ok(EofPacket { length, seq_no, warning_count, status })
+        Ok(EofPacket {
+            length,
+            seq_no,
+            warning_count,
+            status,
+        })
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, ConnectOptions, mariadb::ConnContext};
+    use crate::{__bytes_builder, mariadb::ConnContext, ConnectOptions};
     use bytes::Bytes;
 
     #[test]

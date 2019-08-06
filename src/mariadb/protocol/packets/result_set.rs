@@ -1,7 +1,10 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::{Deserialize, ConnContext, Framed, Decoder, Message, Capabilities, DeContext, ColumnPacket, ColumnDefPacket, EofPacket, ErrPacket, OkPacket, ResultRow};
+use crate::mariadb::{
+    Capabilities, ColumnDefPacket, ColumnPacket, ConnContext, DeContext, Decoder, Deserialize,
+    EofPacket, ErrPacket, Framed, Message, OkPacket, ResultRow,
+};
 
 #[derive(Debug, Default)]
 pub struct ResultSet {
@@ -31,7 +34,11 @@ impl ResultSet {
 
         ctx.next_packet().await?;
 
-        let eof_packet = if !ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+        let eof_packet = if !ctx
+            .ctx
+            .capabilities
+            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+        {
             // If we get an eof packet we must update ctx to hold a new buffer of the next packet.
             let eof_packet = Some(EofPacket::deserialize(&mut ctx)?);
             println!("{:?}", eof_packet);
@@ -60,17 +67,21 @@ impl ResultSet {
                     Ok(v) => {
                         rows.push(v);
                         ctx.next_packet().await?;
-                    },
+                    }
                     Err(_) => {
                         ctx.decoder.index = index;
                         break;
-                    },
+                    }
                 }
             }
         }
 
         if ctx.decoder.peek_packet_header()?.length > 0 {
-            if  ctx.ctx.capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+            if ctx
+                .ctx
+                .capabilities
+                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+            {
                 OkPacket::deserialize(&mut ctx)?;
             } else {
                 EofPacket::deserialize(&mut ctx)?;
@@ -80,7 +91,7 @@ impl ResultSet {
         Ok(ResultSet {
             column_packet,
             columns,
-            rows
+            rows,
         })
     }
 }
@@ -89,8 +100,14 @@ impl ResultSet {
 mod test {
     use bytes::{BufMut, Bytes};
 
-    use crate::{__bytes_builder, mariadb::{Connection, EofPacket, ErrPacket, OkPacket, ResultRow, ServerStatusFlag, Capabilities, ConnContext}};
     use super::*;
+    use crate::{
+        __bytes_builder,
+        mariadb::{
+            Capabilities, ConnContext, Connection, EofPacket, ErrPacket, OkPacket, ResultRow,
+            ServerStatusFlag,
+        },
+    };
 
     #[runtime::test]
     async fn it_decodes_result_set_packet() -> Result<(), Error> {

@@ -1,13 +1,20 @@
+use crate::{
+    mariadb::{
+        protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
+        ComStmtPrepareResp, DeContext, Decoder, Deserialize, Encode, ErrPacket, Message, OkPacket,
+        PacketHeader, ResultSet, ServerStatusFlag,
+    },
+    ConnectOptions,
+};
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};
+use core::convert::TryFrom;
 use failure::Error;
 use futures::{
     io::{AsyncRead, AsyncWriteExt},
     prelude::*,
 };
 use runtime::net::TcpStream;
-use core::convert::TryFrom;
-use crate::{ConnectOptions, mariadb::{protocol::encode, PacketHeader, Decoder, DeContext, Deserialize, Encoder, ComInitDb, ComPing, ComQuery, ComQuit, OkPacket, Serialize, Message, Capabilities, ServerStatusFlag, ComStmtPrepare, ComStmtPrepareResp, ResultSet, ErrPacket}};
 
 mod establish;
 
@@ -15,7 +22,7 @@ pub struct Connection {
     pub stream: Framed,
 
     // Buffer used when serializing outgoing messages
-    pub encoder: Encoder,
+    pub wbuf: Vec<u8>,
 
     // Context for the connection
     // Explicitly declared to easily send to deserializers
@@ -48,7 +55,7 @@ impl ConnContext {
             seq_no: 2,
             last_seq_no: 0,
             capabilities: Capabilities::CLIENT_PROTOCOL_41,
-            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS
+            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS,
         }
     }
 
@@ -59,7 +66,7 @@ impl ConnContext {
             seq_no: 2,
             last_seq_no: 0,
             capabilities: Capabilities::CLIENT_PROTOCOL_41 | Capabilities::CLIENT_DEPRECATE_EOF,
-            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS
+            status: ServerStatusFlag::SERVER_STATUS_IN_TRANS,
         }
     }
 }
@@ -69,12 +76,12 @@ impl Connection {
         let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
         let mut conn: Connection = Self {
             stream,
-            encoder: Encoder::new(1024),
+            wbuf: Vec::with_capacity(1024),
             context: ConnContext {
                 connection_id: -1,
                 seq_no: 1,
                 last_seq_no: 0,
-                capabilities: Capabilities::CLIENT_PROTOCOL_41,
+                capabilities: Capabilities::CLIENT_MYSQL,
                 status: ServerStatusFlag::default(),
             },
         };
@@ -84,12 +91,15 @@ impl Connection {
         Ok(conn)
     }
 
-    pub async fn send<S>(&mut self, message: S) -> Result<(), Error> where S: Serialize {
-        self.encoder.clear();
+    pub async fn send<S>(&mut self, message: S) -> Result<(), Error>
+    where
+        S: Encode,
+    {
+        self.wbuf.clear();
 
-        message.serialize(&mut self.context, &mut self.encoder)?;
+        message.encode(&mut self.wbuf, &mut self.context)?;
 
-        self.stream.inner.write_all(&self.encoder.buf).await?;
+        self.stream.inner.write_all(&self.wbuf).await?;
         self.stream.inner.flush().await?;
 
         Ok(())
@@ -101,8 +111,14 @@ impl Connection {
         Ok(())
     }
 
-    pub async fn query<'a>(&'a mut self, sql_statement: &'a str) -> Result<Option<ResultSet>, Error> {
-        self.send(ComQuery { sql_statement: bytes::Bytes::from(sql_statement) }).await?;
+    pub async fn query<'a>(
+        &'a mut self,
+        sql_statement: &'a str,
+    ) -> Result<Option<ResultSet>, Error> {
+        self.send(ComQuery {
+            sql_statement: bytes::Bytes::from(sql_statement),
+        })
+        .await?;
 
         let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
         ctx.next_packet().await?;
@@ -112,27 +128,26 @@ impl Connection {
             0x00 => {
                 OkPacket::deserialize(&mut ctx)?;
                 Ok(None)
-            },
-            0xFB => unimplemented!(),
-            _ => {
-                Ok(Some(ResultSet::deserialize(ctx).await?))
             }
+            0xFB => unimplemented!(),
+            _ => Ok(Some(ResultSet::deserialize(ctx).await?)),
         }
     }
 
-
     pub async fn select_db<'a>(&'a mut self, db: &'a str) -> Result<(), Error> {
-        self.send(ComInitDb { schema_name: bytes::Bytes::from(db) }).await?;
-
+        self.send(ComInitDb {
+            schema_name: bytes::Bytes::from(db),
+        })
+        .await?;
 
         let mut ctx = DeContext::new(&mut self.context, self.stream.next_packet().await?);
         match ctx.decoder.peek_tag() {
             0xFF => {
                 ErrPacket::deserialize(&mut ctx)?;
-            },
+            }
             0x00 => {
                 OkPacket::deserialize(&mut ctx)?;
-            },
+            }
             _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
         }
 
@@ -143,7 +158,10 @@ impl Connection {
         self.send(ComPing()).await?;
 
         // Ping response must be an OkPacket
-        OkPacket::deserialize(&mut DeContext::new(&mut self.context, self.stream.next_packet().await?))?;
+        OkPacket::deserialize(&mut DeContext::new(
+            &mut self.context,
+            self.stream.next_packet().await?,
+        ))?;
 
         Ok(())
     }
@@ -151,7 +169,8 @@ impl Connection {
     pub async fn prepare(&mut self, query: &str) -> Result<ComStmtPrepareResp, Error> {
         self.send(ComStmtPrepare {
             statement: Bytes::from(query),
-        }).await?;
+        })
+        .await?;
 
         let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
         ctx.next_packet().await?;
@@ -192,17 +211,20 @@ impl Framed {
             } else if self.buf.len() > 4 {
                 match PacketHeader::try_from(&self.buf[0..]) {
                     Ok(v) => packet_headers.push(v),
-                    Err(_) => {},
+                    Err(_) => {}
                 }
             }
 
             if let Some(packet_header) = packet_headers.last() {
                 if packet_header.combined_length() > self.buf.len() {
-                    self.buf.reserve(packet_header.combined_length() - self.buf.len());
+                    self.buf
+                        .reserve(packet_header.combined_length() - self.buf.len());
 
                     unsafe {
                         self.buf.set_len(self.buf.capacity());
-                        self.inner.initializer().initialize(&mut self.buf[self.index..]);
+                        self.inner
+                            .initializer()
+                            .initialize(&mut self.buf[self.index..]);
                     }
                 }
             } else if self.buf.len() == self.index {
@@ -210,7 +232,9 @@ impl Framed {
 
                 unsafe {
                     self.buf.set_len(self.buf.capacity());
-                    self.inner.initializer().initialize(&mut self.buf[self.index..]);
+                    self.inner
+                        .initializer()
+                        .initialize(&mut self.buf[self.index..]);
                 }
             }
 

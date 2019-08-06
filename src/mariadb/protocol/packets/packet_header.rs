@@ -1,5 +1,4 @@
-use byteorder::LittleEndian;
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, LittleEndian};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PacketHeader {
@@ -28,7 +27,7 @@ impl core::convert::TryFrom<&[u8]> for PacketHeader {
                 length: LittleEndian::read_u24(&buffer),
                 seq_no: buffer[3],
             };
-            if packet.length == 0 && packet.seq_no == 0{
+            if packet.length == 0 && packet.seq_no == 0 {
                 failure::bail!("Length and seq_no cannot be zero");
             }
             Ok(packet)

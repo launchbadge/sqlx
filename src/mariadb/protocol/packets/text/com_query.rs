@@ -1,4 +1,4 @@
-use crate::mariadb::{Connection, Serialize};
+use crate::mariadb::{BufMut, ConnContext, Connection, Encode};
 use bytes::Bytes;
 use failure::Error;
 
@@ -6,15 +6,15 @@ pub struct ComQuery {
     pub sql_statement: Bytes,
 }
 
-impl Serialize for ComQuery {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::ConnContext, encoder: &mut crate::mariadb::Encoder) -> Result<(), Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(0);
+impl Encode for ComQuery {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(0);
 
-        encoder.encode_int_u8(super::TextProtocol::ComQuery.into());
-        encoder.encode_string_eof(&self.sql_statement);
+        buf.put_int_u8(super::TextProtocol::ComQuery as u8);
+        buf.put_string_eof(&self.sql_statement);
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }
@@ -23,20 +23,19 @@ impl Serialize for ComQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::{ConnContext, Encoder};
 
     #[test]
     fn it_encodes_com_query() -> Result<(), failure::Error> {
-        let mut encoder = Encoder::new(128);
+        let mut buf = Vec::with_capacity(1024);
         let mut ctx = ConnContext::new();
 
         ComQuery {
             sql_statement: Bytes::from_static(b"SELECT * FROM users"),
-        }.serialize(&mut ctx, &mut encoder)?;
+        }
+        .encode(&mut buf, &mut ctx)?;
 
-        assert_eq!(&encoder.buf[..], b"\x14\0\0\x00\x03SELECT * FROM users");
+        assert_eq!(&buf[..], b"\x14\0\0\x00\x03SELECT * FROM users");
 
         Ok(())
     }
 }
-

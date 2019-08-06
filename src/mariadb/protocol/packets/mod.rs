@@ -1,4 +1,5 @@
 pub mod auth_switch_request;
+pub mod binary;
 pub mod column;
 pub mod column_def;
 pub mod eof;
@@ -7,10 +8,9 @@ pub mod handshake_response;
 pub mod initial;
 pub mod ok;
 pub mod packet_header;
+pub mod result_row;
 pub mod result_set;
 pub mod ssl_request;
-pub mod result_row;
-pub mod binary;
 pub mod text;
 
 pub use auth_switch_request::AuthenticationSwitchRequestPacket;
@@ -22,28 +22,16 @@ pub use handshake_response::HandshakeResponsePacket;
 pub use initial::InitialHandshakePacket;
 pub use ok::OkPacket;
 pub use packet_header::PacketHeader;
-pub use result_set::ResultSet;
 pub use result_row::ResultRow;
+pub use result_set::ResultSet;
 pub use ssl_request::SSLRequestPacket;
 
-pub use text::ComDebug;
-pub use text::ComInitDb;
-pub use text::ComPing;
-pub use text::ComProcessKill;
-pub use text::ComQuery;
-pub use text::ComQuit;
-pub use text::ComResetConnection;
-pub use text::ComSetOption;
-pub use text::SetOptionOptions;
-pub use text::ShutdownOptions;
-pub use text::ComShutdown;
-pub use text::ComSleep;
-pub use text::ComStatistics;
+pub use text::{
+    ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,
+    ComSetOption, ComShutdown, ComSleep, ComStatistics, SetOptionOptions, ShutdownOptions,
+};
 
-pub use binary::ComStmtPrepare;
-pub use binary::ComStmtPrepareOk;
-pub use binary::ComStmtPrepareResp;
-pub use binary::ComStmtClose;
-pub use binary::ComStmtExec;
-pub use binary::ComStmtFetch;
-pub use binary::ComStmtReset;
+pub use binary::{
+    ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp,
+    ComStmtReset,
+};

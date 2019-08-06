@@ -1,4 +1,4 @@
-use crate::mariadb::{Serialize, Capabilities, Connection};
+use crate::mariadb::{BufMut, Capabilities, ConnContext, Connection, Encode};
 use bytes::Bytes;
 use failure::Error;
 
@@ -18,72 +18,71 @@ pub struct HandshakeResponsePacket {
     pub conn_attr: Option<Vec<(Bytes, Bytes)>>,
 }
 
-impl Serialize for HandshakeResponsePacket {
-    fn serialize<'a, 'b>(&self, ctx: &mut crate::mariadb::connection::ConnContext, encoder: &mut crate::mariadb::protocol::encode::Encoder) -> Result<(), Error> {
-        encoder.alloc_packet_header();
-        encoder.seq_no(1);
+impl Encode for HandshakeResponsePacket {
+    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
+        buf.alloc_packet_header();
+        buf.seq_no(1);
 
-        encoder.encode_int_u32(self.capabilities.bits() as u32);
-        encoder.encode_int_u32(self.max_packet_size);
-        encoder.encode_int_u8(self.collation);
+        buf.put_int_u32(self.capabilities.bits() as u32);
+        buf.put_int_u32(self.max_packet_size);
+        buf.put_int_u8(self.collation);
 
         // Filler
-        encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
+        buf.put_byte_fix(&Bytes::from_static(&[0u8; 19]), 19);
 
         if !(ctx.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
             && !(self.capabilities & Capabilities::CLIENT_MYSQL).is_empty()
         {
             if let Some(capabilities) = self.extended_capabilities {
-                encoder.encode_int_u32(capabilities.bits() as u32);
+                buf.put_int_u32(capabilities.bits() as u32);
             }
         } else {
-            encoder.encode_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
+            buf.put_byte_fix(&Bytes::from_static(&[0u8; 4]), 4);
         }
 
-        encoder.encode_string_null(&self.username);
+        buf.put_string_null(&self.username);
 
         if !(ctx.capabilities & Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA).is_empty() {
             if let Some(auth_data) = &self.auth_data {
-                encoder.encode_string_lenenc(&auth_data);
+                buf.put_string_lenenc(&auth_data);
             }
         } else if !(ctx.capabilities & Capabilities::SECURE_CONNECTION).is_empty() {
             if let Some(auth_response) = &self.auth_response {
-                encoder.encode_int_u8(self.auth_response_len.unwrap());
-                encoder
-                    .encode_string_fix(&auth_response, self.auth_response_len.unwrap() as usize);
+                buf.put_int_u8(self.auth_response_len.unwrap());
+                buf.put_string_fix(&auth_response, self.auth_response_len.unwrap() as usize);
             }
         } else {
-            encoder.encode_int_u8(0);
+            buf.put_int_u8(0);
         }
 
         if !(ctx.capabilities & Capabilities::CONNECT_WITH_DB).is_empty() {
             if let Some(database) = &self.database {
                 // string<NUL>
-                encoder.encode_string_null(&database);
+                buf.put_string_null(&database);
             }
         }
 
         if !(ctx.capabilities & Capabilities::PLUGIN_AUTH).is_empty() {
             if let Some(auth_plugin_name) = &self.auth_plugin_name {
                 // string<NUL>
-                encoder.encode_string_null(&auth_plugin_name);
+                buf.put_string_null(&auth_plugin_name);
             }
         }
 
         if !(ctx.capabilities & Capabilities::CONNECT_ATTRS).is_empty() {
             if let (Some(conn_attr_len), Some(conn_attr)) = (&self.conn_attr_len, &self.conn_attr) {
                 // int<lenenc>
-                encoder.encode_int_lenenc(Some(conn_attr_len));
+                buf.put_int_lenenc(Some(conn_attr_len));
 
                 // Loop
                 for (key, value) in conn_attr {
-                    encoder.encode_string_lenenc(&key);
-                    encoder.encode_string_lenenc(&value);
+                    buf.put_string_lenenc(&key);
+                    buf.put_string_lenenc(&value);
                 }
             }
         }
 
-        encoder.encode_length();
+        buf.put_length();
 
         Ok(())
     }

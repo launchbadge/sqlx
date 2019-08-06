@@ -3,8 +3,7 @@ use std::convert::TryFrom;
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::{DeContext, Deserialize, ErrorCode,
-};
+use crate::mariadb::{DeContext, Deserialize, ErrorCode};
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
@@ -89,8 +88,12 @@ impl std::fmt::Display for ErrPacket {
 mod test {
     use bytes::Bytes;
 
-    use crate::{__bytes_builder, ConnectOptions, mariadb::{ConnContext, Decoder}};
     use super::*;
+    use crate::{
+        __bytes_builder,
+        mariadb::{ConnContext, Decoder},
+        ConnectOptions,
+    };
 
     #[test]
     fn it_decodes_err_packet() -> Result<(), Error> {
