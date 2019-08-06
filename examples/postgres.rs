@@ -2,7 +2,7 @@
 
 use futures::{future, TryStreamExt};
 use sqlx::{postgres::Connection, ConnectOptions};
-use std::io;
+use std::{collections::HashMap, io};
 
 // TODO: Connection strings ala postgres@localhost/sqlx_dev
 
@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS users (
 
     println!(" :: select");
 
+    // Iterate through each row, one-by-one
     conn.prepare("SELECT id, name, password FROM users")
         .select()
         .try_for_each(|(id, name, password): (i64, String, Option<String>)| {
@@ -53,6 +54,16 @@ CREATE TABLE IF NOT EXISTS users (
             future::ok(())
         })
         .await?;
+
+    // Get a map of id -> name of users with a name of JOE
+    let map: HashMap<i64, String> = conn
+        .prepare("SELECT id, name FROM users WHERE name = $1")
+        .bind("Joe")
+        .select()
+        .try_collect()
+        .await?;
+
+    println!(" :: users\n{:#?}\n", map);
 
     conn.close().await?;
 
