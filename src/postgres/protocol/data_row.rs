@@ -1,4 +1,5 @@
 use super::Decode;
+use crate::row::RawRow;
 use bytes::Bytes;
 use std::{
     convert::TryInto,
@@ -46,19 +47,19 @@ impl Decode for DataRow {
     }
 }
 
-impl DataRow {
+impl RawRow for DataRow {
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.ranges.is_empty()
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.ranges.len()
     }
 
     #[inline]
-    pub fn get(&self, index: usize) -> Option<&[u8]> {
+    fn get(&self, index: usize) -> Option<&[u8]> {
         Some(&self.buf[self.ranges[index].clone()?])
     }
 }
@@ -81,6 +82,7 @@ impl Debug for DataRow {
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
+    use crate::row::RawRow;
     use bytes::Bytes;
     use std::io;
 

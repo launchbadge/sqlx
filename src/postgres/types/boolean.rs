@@ -1,25 +1,39 @@
-use crate::types::{FromSql, SqlType, ToSql, ToSqlAs};
+use super::TypeMetadata;
+use crate::{
+    deserialize::FromSql,
+    postgres::Postgres,
+    serialize::{IsNull, ToSql},
+    types::{AsSql, SqlType},
+};
 
 pub struct Bool;
 
-impl SqlType for Bool {
-    const OID: u32 = 16;
-}
-
-impl ToSql for bool {
-    type Type = Bool;
-}
-
-impl ToSqlAs<Bool> for bool {
-    #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) {
-        buf.push(self as u8);
+impl SqlType<Postgres> for Bool {
+    fn metadata() -> TypeMetadata {
+        TypeMetadata {
+            oid: 16,
+            array_oid: 1000,
+        }
     }
 }
 
-impl FromSql<Bool> for bool {
+impl AsSql<Postgres> for bool {
+    type Type = Bool;
+}
+
+impl ToSql<Postgres, Bool> for bool {
     #[inline]
-    fn from_sql(buf: &[u8]) -> Self {
-        buf[0] != 0
+    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+        buf.push(self as u8);
+
+        IsNull::No
+    }
+}
+
+impl FromSql<Postgres, Bool> for bool {
+    #[inline]
+    fn from_sql(buf: Option<&[u8]>) -> Self {
+        // TODO: Handle optionals
+        buf.unwrap()[0] != 0
     }
 }

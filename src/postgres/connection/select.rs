@@ -1,6 +1,9 @@
 use super::prepare::Prepare;
 use crate::{
-    postgres::protocol::{self, DataRow, Message},
+    postgres::{
+        protocol::{self, DataRow, Message},
+        Postgres,
+    },
     row::{FromRow, Row},
 };
 use futures::{stream, Stream, TryStreamExt};
@@ -12,14 +15,14 @@ impl<'a, 'b> Prepare<'a, 'b> {
         self,
     ) -> impl Stream<Item = Result<T, io::Error>> + 'a + Unpin
     where
-        T: FromRow<Record>,
+        T: FromRow<Postgres, Record>,
     {
         self.select_raw().map_ok(T::from_row)
     }
 
     // TODO: Better name?
     // TODO: Should this be public?
-    fn select_raw(self) -> impl Stream<Item = Result<Row, io::Error>> + 'a + Unpin {
+    fn select_raw(self) -> impl Stream<Item = Result<Row<Postgres>, io::Error>> + 'a + Unpin {
         // FIXME: Manually implement Stream on a new type to avoid the unfold adapter
         stream::unfold(self.finish(), |conn| {
             Box::pin(async {
@@ -43,7 +46,7 @@ impl<'a, 'b> Prepare<'a, 'b> {
                         }
 
                         Message::DataRow(row) => {
-                            break Some((Ok(Row(row)), conn));
+                            break Some((Ok(Row::<Postgres>(row)), conn));
                         }
 
                         Message::CommandComplete(_) => {}

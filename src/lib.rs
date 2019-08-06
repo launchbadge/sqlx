@@ -22,5 +22,8 @@ pub mod postgres;
 #[macro_use]
 pub mod macros;
 
+pub mod backend;
+pub mod deserialize;
 pub mod row;
+pub mod serialize;
 pub mod types;

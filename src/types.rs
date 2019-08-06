@@ -1,27 +1,33 @@
+use crate::backend::Backend;
+
 pub use crate::postgres::types::*;
 
-// TODO: Better name for ToSql/ToSqlAs. ToSqlAs is the _conversion_ trait.
-//       ToSql is type fallback for Rust/SQL (e.g., what is the probable SQL type for this Rust type)
+// TODO: Does [AsSql] need to be generic over back-end ?
 
-// TODO: Make generic over backend
-
-pub trait SqlType {
-    // FIXME: This is a postgres thing
-    const OID: u32;
+pub trait SqlType<B>
+where
+    B: Backend,
+{
+    // FIXME: This should be a const fn
+    fn metadata() -> B::TypeMetadata;
 }
 
-pub trait ToSql {
+/// Defines the canonical SQL that the implementing Rust type represents.
+/// This trait is used to map Rust types to SQL types when the explicit mapping is missing.
+pub trait AsSql<B>
+where
+    B: Backend,
+{
     /// SQL type that should be inferred from the implementing Rust type.
-    type Type: SqlType;
+    type Type: SqlType<B>;
 }
 
-pub trait ToSqlAs<T: SqlType>: ToSql {
-    fn to_sql(self, buf: &mut Vec<u8>);
-}
-
-pub trait FromSql<T: SqlType>: ToSql {
-    // TODO: Errors?
-    fn from_sql(buf: &[u8]) -> Self;
+impl<B, T> AsSql<B> for Option<T>
+where
+    B: Backend,
+    T: AsSql<B>,
+{
+    type Type = T::Type;
 }
 
 // Character types
@@ -30,33 +36,32 @@ pub trait FromSql<T: SqlType>: ToSql {
 
 pub struct Text;
 
-impl SqlType for Text {
-    // FIXME: This is postgres-specific
-    const OID: u32 = 25;
-}
+// impl SqlType for Text {
+//     const OID: u32 = 25;
+// }
 
 // Numeric types
 
 // i16
 pub struct SmallInt;
 
-impl SqlType for SmallInt {
-    const OID: u32 = 21;
-}
+// impl SqlType for SmallInt {
+//     const OID: u32 = 21;
+// }
 
 // i32
 pub struct Int;
 
-impl SqlType for Int {
-    const OID: u32 = 23;
-}
+// impl SqlType for Int {
+//     const OID: u32 = 23;
+// }
 
 // i64
 pub struct BigInt;
 
-impl SqlType for BigInt {
-    const OID: u32 = 20;
-}
+// impl SqlType for BigInt {
+//     const OID: u32 = 20;
+// }
 
 // decimal?
 // TODO pub struct Decimal;
@@ -64,13 +69,13 @@ impl SqlType for BigInt {
 // f32
 pub struct Real;
 
-impl SqlType for Real {
-    const OID: u32 = 700;
-}
+// impl SqlType for Real {
+//     const OID: u32 = 700;
+// }
 
 // f64
 pub struct Double;
 
-impl SqlType for Double {
-    const OID: u32 = 701;
-}
+// impl SqlType for Double {
+//     const OID: u32 = 701;
+// }

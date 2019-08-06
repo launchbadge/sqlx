@@ -1,7 +1,11 @@
 use super::Connection;
 use crate::{
-    postgres::protocol::{self, BindValues},
-    types::{SqlType, ToSql, ToSqlAs},
+    postgres::{
+        protocol::{self, BindValues},
+        Postgres,
+    },
+    serialize::ToSql,
+    types::{AsSql, SqlType},
 };
 
 pub struct Prepare<'a, 'b> {
@@ -23,16 +27,16 @@ pub fn prepare<'a, 'b>(connection: &'a mut Connection, query: &'b str) -> Prepar
 
 impl<'a, 'b> Prepare<'a, 'b> {
     #[inline]
-    pub fn bind<T: ToSql>(mut self, value: T) -> Self
+    pub fn bind<T: AsSql<Postgres>>(mut self, value: T) -> Self
     where
-        T: ToSqlAs<<T as ToSql>::Type>,
+        T: ToSql<Postgres, <T as AsSql<Postgres>>::Type>,
     {
         self.bind.add(value);
         self
     }
 
     #[inline]
-    pub fn bind_as<ST: SqlType, T: ToSqlAs<ST>>(mut self, value: T) -> Self {
+    pub fn bind_as<ST: SqlType<Postgres>, T: ToSql<Postgres, ST>>(mut self, value: T) -> Self {
         self.bind.add_as::<ST, T>(value);
         self
     }

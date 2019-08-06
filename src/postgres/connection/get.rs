@@ -1,6 +1,9 @@
 use super::prepare::Prepare;
 use crate::{
-    postgres::protocol::{self, DataRow, Message},
+    postgres::{
+        protocol::{self, DataRow, Message},
+        Postgres,
+    },
     row::{FromRow, Row},
     types::SqlType,
 };
@@ -12,19 +15,19 @@ impl<'a, 'b> Prepare<'a, 'b> {
     #[inline]
     pub async fn get<Record, T>(self) -> io::Result<T>
     where
-        T: FromRow<Record>,
+        T: FromRow<Postgres, Record>,
     {
         Ok(T::from_row(self.get_raw().await?.unwrap()))
     }
 
     // TODO: Better name?
     // TODO: Should this be public?
-    async fn get_raw(self) -> io::Result<Option<Row>> {
+    async fn get_raw(self) -> io::Result<Option<Row<Postgres>>> {
         let conn = self.finish();
 
         conn.flush().await?;
 
-        let mut row: Option<Row> = None;
+        let mut row: Option<Row<Postgres>> = None;
 
         while let Some(message) = conn.receive().await? {
             match message {
@@ -37,7 +40,7 @@ impl<'a, 'b> Prepare<'a, 'b> {
 
                 Message::DataRow(body) => {
                     // note: because we used `EXECUTE 1` this will only execute once
-                    row = Some(Row(body));
+                    row = Some(Row::<Postgres>(body));
                 }
 
                 Message::CommandComplete(_) => {}

@@ -1,5 +1,9 @@
 use super::{BufMut, Encode};
-use crate::types::{SqlType, ToSql, ToSqlAs};
+use crate::{
+    postgres::Postgres,
+    serialize::ToSql,
+    types::{AsSql, SqlType},
+};
 use byteorder::{BigEndian, ByteOrder};
 
 const TEXT: i16 = 0;
@@ -24,18 +28,18 @@ impl BindValues {
     }
 
     #[inline]
-    pub fn add<T: ToSql>(&mut self, value: T)
+    pub fn add<T: AsSql<Postgres>>(&mut self, value: T)
     where
-        T: ToSqlAs<<T as ToSql>::Type>,
+        T: ToSql<Postgres, <T as AsSql<Postgres>>::Type>,
     {
         self.add_as::<T::Type, T>(value);
     }
 
-    pub fn add_as<ST: SqlType, T: ToSqlAs<ST>>(&mut self, value: T) {
+    pub fn add_as<ST: SqlType<Postgres>, T: ToSql<Postgres, ST>>(&mut self, value: T) {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
 
-        self.types.push(ST::OID as i32);
+        self.types.push(ST::metadata().oid as i32);
 
         let pos = self.values.len();
         self.values.put_int_32(0); // skip over len
@@ -120,7 +124,7 @@ impl Encode for Bind<'_> {
 mod tests {
     use super::{Bind, BindValues, BufMut, Encode};
 
-    const BIND: &[u8] = b"B\0\0\0\x16\0\0\0\0\0\x02\0\0\0\x011\0\0\0\x012\0\0";
+    const BIND: &[u8] = b"B\0\0\0\x18\0\0\0\x01\0\x01\0\x02\0\0\0\x011\0\0\0\x012\0\0";
 
     #[test]
     fn it_encodes_bind_for_two() {

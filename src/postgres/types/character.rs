@@ -1,31 +1,51 @@
-use crate::types::{FromSql, Text, ToSql, ToSqlAs};
+use super::TypeMetadata;
+use crate::{
+    deserialize::FromSql,
+    postgres::Postgres,
+    serialize::{IsNull, ToSql},
+    types::{AsSql, SqlType, Text},
+};
 
-impl ToSql for &'_ str {
-    type Type = Text;
-}
-
-impl ToSqlAs<Text> for &'_ str {
-    #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self.as_bytes());
+impl SqlType<Postgres> for Text {
+    fn metadata() -> TypeMetadata {
+        TypeMetadata {
+            oid: 25,
+            array_oid: 1009,
+        }
     }
 }
 
-impl ToSql for String {
+impl AsSql<Postgres> for &'_ str {
     type Type = Text;
 }
 
-impl ToSqlAs<Text> for String {
+impl ToSql<Postgres, Text> for &'_ str {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) {
+    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
+
+        IsNull::No
     }
 }
 
-impl FromSql<Text> for String {
+impl AsSql<Postgres> for String {
+    type Type = Text;
+}
+
+impl ToSql<Postgres, Text> for String {
     #[inline]
-    fn from_sql(buf: &[u8]) -> Self {
+    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+        buf.extend_from_slice(self.as_bytes());
+
+        IsNull::No
+    }
+}
+
+impl FromSql<Postgres, Text> for String {
+    #[inline]
+    fn from_sql(buf: Option<&[u8]>) -> Self {
+        // TODO: Handle optionals
         // Using lossy here as it should be impossible to get non UTF8 data here
-        String::from_utf8_lossy(buf).into()
+        String::from_utf8_lossy(buf.unwrap()).into()
     }
 }
