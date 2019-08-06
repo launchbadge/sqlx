@@ -10,25 +10,6 @@ use std::io;
 async fn main() -> io::Result<()> {
     env_logger::init();
 
-    // Connect as postgres / postgres and DROP the sqlx__dev database
-    // if exists and then re-create it
-    let mut conn = Connection::establish(
-        ConnectOptions::new()
-            .host("127.0.0.1")
-            .port(5432)
-            .user("postgres")
-            .database("postgres"),
-    )
-    .await?;
-
-    println!(" :: create database sqlx__dev (if not exists)");
-
-    conn.prepare("CREATE DATABASE IF NOT EXISTS sqlx__dev")
-        .execute()
-        .await?;
-
-    conn.close().await?;
-
     let mut conn = Connection::establish(
         ConnectOptions::new()
             .host("127.0.0.1")
@@ -44,7 +25,8 @@ async fn main() -> io::Result<()> {
         r#"
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    password TEXT
 );
         "#,
     )
@@ -63,10 +45,10 @@ CREATE TABLE IF NOT EXISTS users (
 
     println!(" :: select");
 
-    conn.prepare("SELECT id, name FROM users")
+    conn.prepare("SELECT id, name, password FROM users")
         .select()
-        .try_for_each(|(id, name): (i64, String)| {
-            println!("select {} -> {}", id, name);
+        .try_for_each(|(id, name, password): (i64, String, Option<String>)| {
+            println!("select {} -> {} (password = {:?})", id, name, password);
 
             future::ok(())
         })
