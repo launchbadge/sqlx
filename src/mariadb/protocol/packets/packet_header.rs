@@ -1,7 +1,7 @@
 use byteorder::LittleEndian;
 use byteorder::ByteOrder;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct PacketHeader {
     pub length: u32,
     pub seq_no: u8,
@@ -24,10 +24,14 @@ impl core::convert::TryFrom<&[u8]> for PacketHeader {
         if buffer.len() < 4 {
             failure::bail!("Buffer length is too short")
         } else {
-            Ok(PacketHeader {
+            let packet = PacketHeader {
                 length: LittleEndian::read_u24(&buffer),
                 seq_no: buffer[3],
-            })
+            };
+            if packet.length == 0 && packet.seq_no == 0{
+                failure::bail!("Length and seq_no cannot be zero");
+            }
+            Ok(packet)
         }
     }
 }

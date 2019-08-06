@@ -101,8 +101,10 @@ mod test {
             password: None,
         }).await?;
 
+        println!("selecting db");
         conn.select_db("test").await?;
 
+        println!("querying");
         conn.query("SELECT * FROM users").await?;
 
         Ok(())
