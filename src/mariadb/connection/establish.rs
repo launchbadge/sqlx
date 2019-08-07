@@ -2,7 +2,7 @@ use super::Connection;
 use crate::{
     mariadb::{
         Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket,
-        HandshakeResponsePacket, InitialHandshakePacket, OkPacket, StmtExecFlag,
+        HandshakeResponsePacket, InitialHandshakePacket, OkPacket, StmtExecFlag, ProtocolType
     },
     ConnectOptions,
 };
@@ -109,10 +109,8 @@ mod test {
         })
         .await?;
 
-        println!("selecting db");
         conn.select_db("test").await?;
 
-        println!("querying");
         conn.query("SELECT * FROM users").await?;
 
         Ok(())
@@ -154,17 +152,10 @@ mod test {
             .prepare("SELECT id FROM users WHERE username=?")
             .await?;
 
-        println!("{:?}", prepared);
-
-        //        if let Some(param_defs) = &mut prepared.param_defs {
-        //            param_defs[0].field_type = FieldType::MysqlTypeBlob;
-        //        }
-
         let exec = ComStmtExec {
             stmt_id: prepared.ok.stmt_id,
             flags: StmtExecFlag::NoCursor,
-            //            params: None,
-            params: Some(vec![Some(Bytes::from_static(b"daniel"))]),
+            params: Some(vec![Some(Bytes::from_static(b"josh"))]),
             param_defs: prepared.param_defs,
         };
 
@@ -172,25 +163,20 @@ mod test {
 
         let mut ctx = DeContext::with_stream(&mut conn.context, &mut conn.stream);
         ctx.next_packet().await?;
+        ctx.columns = Some(prepared.ok.columns as u64);
+        ctx.column_defs = prepared.res_columns;
 
         match ctx.decoder.peek_tag() {
-            0xFF => println!("{:?}", ErrPacket::decode(&mut ctx)?),
-            0x00 => println!("{:?}", OkPacket::decode(&mut ctx)?),
-            _ => println!("{:?}", ResultSet::deserialize(ctx).await?),
+            0xFF => {
+                ErrPacket::decode(&mut ctx)?;
+            },
+            0x00 => {
+                OkPacket::decode(&mut ctx)?;
+            },
+            _ => {
+                ResultSet::deserialize(ctx, ProtocolType::Binary).await?;
+            },
         }
-
-        //        let fetch = ComStmtFetch {
-        //            stmt_id: -1,
-        //            rows: 10,
-        //        };
-        //
-        //        conn.send(fetch).await?;
-        //
-        //        let buf = conn.stream.next_packet().await?;
-        //
-        //        println!("{:?}", buf);
-
-        //        println!("{:?}", ResultSet::deserialize(&mut DeContext::new(&mut conn.context, &buf))?);
 
         Ok(())
     }

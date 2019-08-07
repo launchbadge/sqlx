@@ -14,6 +14,7 @@ pub use com_stmt_prepare::ComStmtPrepare;
 pub use com_stmt_prepare_ok::ComStmtPrepareOk;
 pub use com_stmt_prepare_resp::ComStmtPrepareResp;
 pub use com_stmt_reset::ComStmtReset;
+pub use result_row::ResultRow;
 
 pub enum BinaryProtocol {
     ComStmtPrepare = 0x16,

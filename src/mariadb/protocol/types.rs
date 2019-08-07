@@ -1,5 +1,10 @@
 use std::convert::TryFrom;
 
+pub enum ProtocolType {
+    Text,
+    Binary
+}
+
 bitflags! {
     pub struct Capabilities: u128 {
         const CLIENT_MYSQL = 1;

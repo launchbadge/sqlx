@@ -29,9 +29,10 @@ pub use ssl_request::SSLRequestPacket;
 pub use text::{
     ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,
     ComSetOption, ComShutdown, ComSleep, ComStatistics, SetOptionOptions, ShutdownOptions,
+    ResultRow as ResultRowText
 };
 
 pub use binary::{
     ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp,
-    ComStmtReset,
+    ComStmtReset, ResultRow as ResultRowBinary
 };

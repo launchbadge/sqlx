@@ -1,5 +1,5 @@
 use crate::mariadb::{
-    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, StmtExecFlag,
+    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, StmtExecFlag, FieldType
 };
 use bytes::Bytes;
 use failure::Error;
@@ -26,12 +26,12 @@ impl Encode for ComStmtExec {
             (Some(params), Some(param_defs)) if params.len() > 0 => {
                 let null_bitmap_size = (params.len() + 7) / 8;
                 let mut shift_amount = 0u8;
-                let mut bitmap = vec![1u8];
-                let send_type = 0u8;
+                let mut bitmap = vec![0u8];
+                let send_type = 1u8;
 
                 // Generate NULL-bitmap from params
                 for param in params {
-                    if param.is_some() {
+                    if param.is_none() {
                         let last_byte = bitmap.pop().unwrap();
                         bitmap.push(last_byte & (1 << shift_amount));
                     }
@@ -48,7 +48,7 @@ impl Encode for ComStmtExec {
 
                 if send_type > 0 {
                     for param in param_defs {
-                        //                        buf.put_int_u8(param.field_type as u8);
+                        buf.put_int_u8(param.field_type as u8);
                         buf.put_int_u8(0);
                     }
                 }

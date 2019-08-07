@@ -2,7 +2,7 @@ use crate::{
     mariadb::{
         protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
         ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
-        ResultSet, ServerStatusFlag,
+        ResultSet, ServerStatusFlag, ProtocolType
     },
     ConnectOptions,
 };
@@ -130,7 +130,7 @@ impl Connection {
                 Ok(None)
             }
             0xFB => unimplemented!(),
-            _ => Ok(Some(ResultSet::deserialize(ctx).await?)),
+            _ => Ok(Some(ResultSet::deserialize(ctx, ProtocolType::Text).await?)),
         }
     }
 
@@ -203,7 +203,6 @@ impl Framed {
             // After this operation we know that packet_headers.last() *SHOULD* always return valid data,
             // so the the use of packet_headers.last().unwrap() is allowed.
             // TODO: Stitch packets together by removing the length and seq_no from in-between packet definitions.
-            println!("{:?}", self.buf);
             if let Some(packet_header) = packet_headers.last() {
                 if packet_header.length as usize == encode::U24_MAX {
                     packet_headers.push(PacketHeader::try_from(&self.buf[self.index..])?);

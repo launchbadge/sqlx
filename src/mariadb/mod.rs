@@ -9,6 +9,6 @@ pub use protocol::{
     ComSetOption, ComShutdown, ComSleep, ComStatistics, ComStmtClose, ComStmtExec, ComStmtFetch,
     ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp, DeContext, Decode, Decoder, Encode,
     EofPacket, ErrPacket, ErrorCode, FieldDetailFlag, FieldType, HandshakeResponsePacket,
-    InitialHandshakePacket, OkPacket, PacketHeader, ResultRow, ResultSet, SSLRequestPacket,
-    ServerStatusFlag, SessionChangeType, SetOptionOptions, ShutdownOptions, StmtExecFlag,
+    InitialHandshakePacket, OkPacket, PacketHeader, ResultRowText, ResultRowBinary, ResultRow, ResultSet, SSLRequestPacket,
+    ServerStatusFlag, SessionChangeType, SetOptionOptions, ShutdownOptions, StmtExecFlag, ProtocolType
 };

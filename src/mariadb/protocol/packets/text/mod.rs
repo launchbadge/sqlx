@@ -9,6 +9,7 @@ pub mod com_set_option;
 pub mod com_shutdown;
 pub mod com_sleep;
 pub mod com_statistics;
+pub mod result_row;
 
 pub use com_debug::ComDebug;
 pub use com_init_db::ComInitDb;
@@ -21,6 +22,7 @@ pub use com_set_option::{ComSetOption, SetOptionOptions};
 pub use com_shutdown::{ComShutdown, ShutdownOptions};
 pub use com_sleep::ComSleep;
 pub use com_statistics::ComStatistics;
+pub use result_row::ResultRow;
 
 // This is an enum of text protocol packet tags.
 // Tags are the 5th byte of the packet (1st byte of packet body)

@@ -3,6 +3,8 @@ use bytes::Bytes;
 
 #[derive(Debug, Default)]
 pub struct ResultRow {
+    pub length: u32,
+    pub seq_no: u8,
     pub columns: Vec<Option<Bytes>>,
 }
 
@@ -24,11 +26,11 @@ impl crate::mariadb::Decode for ResultRow {
             ))
         }?;
 
-        let row = match (&ctx.columns, &ctx.column_defs) {
+        let columns = match (&ctx.columns, &ctx.column_defs) {
             (Some(columns), Some(column_defs)) => {
                 (0..*columns as usize)
                     .map(|index| {
-                        if (1 << (index % 8)) & bitmap[index / 8] as usize == 0 {
+                        if (1 << (index % 8)) & bitmap[index / 8] as usize == 1 {
                             None
                         } else {
                             match column_defs[index].field_type {
@@ -105,6 +107,10 @@ impl crate::mariadb::Decode for ResultRow {
             _ => Vec::new(),
         };
 
-        Ok(ResultRow::default())
+        Ok(ResultRow {
+            length,
+            seq_no,
+            columns
+        })
     }
 }

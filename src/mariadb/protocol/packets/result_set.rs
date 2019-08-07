@@ -3,7 +3,7 @@ use failure::Error;
 
 use crate::mariadb::{
     Capabilities, ColumnDefPacket, ColumnPacket, ConnContext, DeContext, Decode, Decoder,
-    EofPacket, ErrPacket, Framed, OkPacket, ResultRow,
+    EofPacket, ErrPacket, Framed, OkPacket, ResultRowText, ResultRowBinary, ProtocolType, ResultRow
 };
 
 #[derive(Debug, Default)]
@@ -14,10 +14,8 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, Error> {
+    pub async fn deserialize(mut ctx: DeContext<'_>, protocol: ProtocolType) -> Result<Self, Error> {
         let column_packet = ColumnPacket::decode(&mut ctx)?;
-
-        println!("{:?}", column_packet);
 
         let columns = if let Some(columns) = column_packet.columns {
             let mut column_defs = Vec::new();
@@ -30,8 +28,6 @@ impl ResultSet {
             Vec::new()
         };
 
-        println!("{:?}", columns);
-
         ctx.next_packet().await?;
 
         let eof_packet = if !ctx
@@ -41,7 +37,6 @@ impl ResultSet {
         {
             // If we get an eof packet we must update ctx to hold a new buffer of the next packet.
             let eof_packet = Some(EofPacket::decode(&mut ctx)?);
-            println!("{:?}", eof_packet);
             ctx.next_packet().await?;
             eof_packet
         } else {
@@ -59,19 +54,35 @@ impl ResultSet {
             };
 
             let tag = ctx.decoder.peek_tag();
-            if tag == &0xFE && packet_header.length <= 0xFFFFFF || packet_header.length == 0 {
+            if tag == &0xFE && packet_header.length <= 0xFFFFFF {
                 break;
             } else {
                 let index = ctx.decoder.index;
-                match ResultRow::decode(&mut ctx) {
-                    Ok(v) => {
-                        rows.push(v);
-                        ctx.next_packet().await?;
-                    }
-                    Err(_) => {
-                        ctx.decoder.index = index;
-                        break;
-                    }
+                 match protocol {
+                    ProtocolType::Text => {
+                        match ResultRowText::decode(&mut ctx) {
+                            Ok(row) => {
+                                rows.push(ResultRow::from(row));
+                                ctx.next_packet().await?;
+                            }
+                            Err(_) => {
+                                ctx.decoder.index = index;
+                                break;
+                            }
+                        }
+                    },
+                    ProtocolType::Binary => {
+                        match ResultRowBinary::decode(&mut ctx) {
+                            Ok(row) => {
+                                rows.push(ResultRow::from(row));
+                                ctx.next_packet().await?;
+                            }
+                            Err(_) => {
+                                ctx.decoder.index = index;
+                                break;
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -324,7 +335,7 @@ mod test {
         let mut context = ConnContext::new();
         let mut ctx = DeContext::new(&mut context, buf);
 
-        ResultSet::deserialize(ctx).await?;
+        ResultSet::deserialize(ctx, ProtocolType::Text).await?;
 
         Ok(())
     }

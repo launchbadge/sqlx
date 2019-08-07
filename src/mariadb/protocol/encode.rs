@@ -316,9 +316,7 @@ impl BufMut for Vec<u8> {
     // Same as the string counterpart copied to maintain consistency with the spec.
     #[inline]
     fn put_byte_fix(&mut self, bytes: &Bytes, size: usize) {
-        if size != bytes.len() {
-            panic!("Sizes do not match");
-        }
+        assert_eq!(size, bytes.len());
 
         self.extend_from_slice(bytes);
     }
