@@ -1,17 +1,19 @@
+use std::borrow::Cow;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ConnectOptions<'a> {
-    pub host: &'a str,
+    pub host: Cow<'a, str>,
     pub port: u16,
-    pub user: Option<&'a str>,
-    pub database: Option<&'a str>,
-    pub password: Option<&'a str>,
+    pub user: Option<Cow<'a, str>>,
+    pub database: Option<Cow<'a, str>>,
+    pub password: Option<Cow<'a, str>>,
 }
 
 impl<'a> Default for ConnectOptions<'a> {
     #[inline]
     fn default() -> Self {
         Self {
-            host: "localhost",
+            host: Cow::Borrowed("localhost"),
             port: 5432,
             user: None,
             database: None,
@@ -28,7 +30,7 @@ impl<'a> ConnectOptions<'a> {
 
     #[inline]
     pub fn host(mut self, host: &'a str) -> Self {
-        self.host = host;
+        self.host = Cow::Borrowed(host);
         self
     }
 
@@ -40,19 +42,19 @@ impl<'a> ConnectOptions<'a> {
 
     #[inline]
     pub fn user(mut self, user: &'a str) -> Self {
-        self.user = Some(user);
+        self.user = Some(Cow::Borrowed(user));
         self
     }
 
     #[inline]
     pub fn database(mut self, database: &'a str) -> Self {
-        self.database = Some(database);
+        self.database = Some(Cow::Borrowed(database));
         self
     }
 
     #[inline]
     pub fn password(mut self, password: &'a str) -> Self {
-        self.password = Some(password);
+        self.password = Some(Cow::Borrowed(password));
         self
     }
 }
