@@ -1,3 +1,9 @@
+[workspace]
+members = [
+    ".",
+    "examples/todo"
+]
+
 [package]
 name = "sqlx"
 version = "0.0.0"
@@ -22,5 +28,4 @@ memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }
 
 [dev-dependencies]
-env_logger = "0.6.2"
-runtime-tokio = { version = "=0.3.0-alpha.5" }
+runtime = { version = "=0.3.0-alpha.6", default-features = true }

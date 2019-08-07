@@ -1,0 +1,13 @@
+[package]
+name = "todo"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+sqlx = { path = "../.." }
+failure = "0.1.5"
+env_logger = "0.6.2"
+runtime = { version = "=0.3.0-alpha.6", default-features = false }
+runtime-tokio = { version = "=0.3.0-alpha.5" }
+futures-preview = "=0.3.0-alpha.17"
+structopt = "0.2.18"
