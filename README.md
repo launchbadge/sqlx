@@ -1,62 +1,16 @@
-# sqlx
-_Asynchronous and expressive database client in pure Rust_
+# SQLx
+ 
+ * **Asynchronous**. Handle thousands of database connections from a single thread.
+ 
+ * **Native**. SQLx is a pure Rust† toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern (as of Aug. 2019) ecosystem (the `runtime` crate) for asynchronous network services development.
+ 
+ * **Modular**. _TO BE WRITTEN_
+ 
+ * **Fast**. _TO BE WRITTEN_
+ 
+ * **Agnostic**. SQLx is agnostic over the database engine and can operate against a variety of database backends with the backend chosen **at compile-time** through generic constraints **or at runtime** with a slight performance loss (due to dynamic dispatch).
 
-This is an experiment being worked on in stages. The first stage
-will be a very low-level, generic database driver (hopefully) capable of basic execution of
-simple queries.
-
-## Usage
-
-What follows is _experimental_ usage (for thinking on API design) that is not currently implemented.
-
-```rust
-#![feature(async_await)]
-
-use sqlx::pg::Connection;
-
-#[runtime::main]
-async fn main() -> Result<(), failure::Error> {
-    // this will likely be something like eventually:
-    //  sqlx::Connection::<Pg>::establish(...)
-
-    let mut conn = Connection::establish(ConnectOptions::new().user("postgres")).await?;
-    // or: Connection::establish("postgres://postgres@localhost/").await?;
-    // or: ConnectOptions::new().user("postgres").establish().await?;
-
-    // Execute a "simple" query. Can consist of N statements separated by semicolons.
-    // No results are returned.
-
-    conn.execute("CREATE TABLE IF NOT EXISTS users ( id UUID PRIMARY KEY, name TEXT NOT NULL );")
-        .await?;
-
-    // prepare() -> Statement
-    //  - A `Statement` can be cached and re-bound later for improved performance
-    conn.prepare("SELECT id FROM users WHERE name ilike $1")
-        // bind() -> Cursor (named [Cursor] in mysql or sqlite but [Portal] in postgres)
-        .bind(&["bob"])
-        // execute() -> u64
-        //  - execute may be used instead of fetch to ignore all results and only
-        //    return the "affected" rows
-        // fetch() -> Stream<Item = Row>
-        .fetch()
-        .collect::<Vec<Row>>()
-        .await?;
-
-    // Close is not strictly needed but this makes sure any pending writes to the connection
-    // are flushed and gracefully closes the connection
-
-    conn.close().await?;
-
-    Ok(())
-}
-```
-
-## Notes
-
- * [`AsyncDrop`](https://internals.rust-lang.org/t/async-await-the-challenges-besides-syntax-cancellation/10287/13) - Many of the
-   envisoned APIs would greatly benefit from something like this. There are cases where an object _must_ be closed or it would
-   be a memory leak (in either the client or server). I intended to provide both an `async fn close()` and a sync Drop impl
-   that blocks the thread and shouts a warning.. but that is obviously not ideal.
+<sub><sup>† The SQLite driver (which does not yet exist) uses the libsqlite3 C library as SQLite is an embedded database (the only way we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
 
 ## License
 
