@@ -8,18 +8,16 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 struct Options {
     #[structopt(subcommand)]
-    cmd: Option<Command>
+    cmd: Option<Command>,
 }
 
 #[derive(StructOpt, Debug)]
 enum Command {
     #[structopt(name = "add")]
-    Add {
-        text: String,
-    },
+    Add { text: String },
 
     #[structopt(name = "done")]
-    MarkAsDone { id: i64 }
+    MarkAsDone { id: i64 },
 }
 
 #[runtime::main(runtime_tokio::Tokio)]
@@ -107,9 +105,9 @@ INSERT INTO tasks ( text )
 VALUES ( $1 )
         "#,
     )
-        .bind(text)
-        .execute()
-        .await?;
+    .bind(text)
+    .execute()
+    .await?;
 
     Ok(())
 }
@@ -123,9 +121,9 @@ SET done_at = now()
 WHERE id = $1
         "#,
     )
-        .bind(id)
-        .execute()
-        .await?;
+    .bind(id)
+    .execute()
+    .await?;
 
     Ok(())
 }
