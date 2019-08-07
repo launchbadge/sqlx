@@ -7,9 +7,12 @@ description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [dependencies]
-failure = "0.1.5"
+bitflags = "1.1.0"
 byteorder = "1.3.2"
 bytes = "0.4.12"
+enum-tryfrom = "0.2.1"
+enum-tryfrom-derive = "0.2.1"
+failure = "0.1.5"
 futures-preview = "=0.3.0-alpha.17"
 hex = "0.3.2"
 itoa = "0.4.4"
@@ -17,10 +20,7 @@ log = "0.4.8"
 md-5 = "0.8.0"
 memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }
-bitflags = "1.1.0"
-enum-tryfrom = "0.2.1"
-enum-tryfrom-derive = "0.2.1"
 
 [dev-dependencies]
-runtime-tokio = { version = "=0.3.0-alpha.5" }
 env_logger = "0.6.2"
+runtime-tokio = { version = "=0.3.0-alpha.5" }
