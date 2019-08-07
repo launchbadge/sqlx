@@ -12,6 +12,11 @@ license = "MIT OR Apache-2.0"
 description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
+[features]
+default = []
+postgres = []
+mariadb = []
+
 [dependencies]
 bitflags = "1.1.0"
 byteorder = "1.3.2"

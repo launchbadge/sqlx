@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-sqlx = { path = "../.." }
+sqlx = { path = "../..", features = [ "postgres" ] }
 failure = "0.1.5"
 env_logger = "0.6.2"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }

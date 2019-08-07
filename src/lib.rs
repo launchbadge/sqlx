@@ -15,15 +15,21 @@ extern crate enum_tryfrom_derive;
 mod options;
 pub use self::options::ConnectOptions;
 
-pub mod mariadb;
-pub mod postgres;
-
 // Helper macro for writing long complex tests
 #[macro_use]
 pub mod macros;
 
 pub mod backend;
 pub mod deserialize;
+
+#[macro_use]
 pub mod row;
+
 pub mod serialize;
 pub mod types;
+
+#[cfg(feature = "mariadb")]
+pub mod mariadb;
+
+#[cfg(feature = "postgres")]
+pub mod postgres;

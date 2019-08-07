@@ -1,7 +1,5 @@
 use crate::backend::Backend;
 
-pub use crate::postgres::types::*;
-
 // TODO: Does [AsSql] need to be generic over back-end ?
 
 pub trait SqlType<B>
