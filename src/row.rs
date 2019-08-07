@@ -1,9 +1,4 @@
-use crate::{
-    backend::Backend,
-    deserialize::FromSql,
-    postgres::{protocol::DataRow, Postgres},
-    types::SqlType,
-};
+use crate::{backend::Backend, deserialize::FromSql, postgres::Postgres, types::SqlType};
 
 pub trait RawRow {
     fn is_empty(&self) -> bool;

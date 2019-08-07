@@ -17,7 +17,7 @@ mod prepare;
 mod select;
 
 pub struct Connection {
-    pub(super) stream: TcpStream,
+    stream: TcpStream,
 
     // Do we think that there is data in the read buffer to be decoded
     stream_readable: bool,

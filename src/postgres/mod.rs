@@ -4,7 +4,7 @@ mod connection;
 
 pub use connection::Connection;
 
-pub(crate) mod protocol;
+mod protocol;
 
 pub mod types;
 
