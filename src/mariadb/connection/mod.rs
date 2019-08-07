@@ -197,6 +197,7 @@ impl Framed {
         let mut packet_headers: Vec<PacketHeader> = Vec::new();
 
         loop {
+            println!("BUF: {:?}: ", self.buf);
             // If we don't have a packet header or the last packet header had a length of
             // 0xFF_FF_FF (the max possible length); then we must continue receiving packets
             // because the entire message hasn't been received.

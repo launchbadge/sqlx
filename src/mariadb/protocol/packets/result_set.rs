@@ -121,7 +121,7 @@ mod test {
     };
 
     #[runtime::test]
-    async fn it_decodes_result_set_packet() -> Result<(), Error> {
+    async fn it_decodes_result_set_text_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
         let buf = __bytes_builder!(
@@ -338,5 +338,97 @@ mod test {
         ResultSet::deserialize(ctx, ProtocolType::Text).await?;
 
         Ok(())
+    }
+
+    #[runtime::test]
+    fn it_decodes_result_set_binary_packet() -> Result<(), Error> {
+        #[rustfmt::skip]
+        let buf = __bytes_builder!(
+        // ------------------- //
+        // Column Count packet //
+        // ------------------- //
+        // int<3> length
+        1u8, 0u8, 0u8,
+        // int<1> seq_no
+        1u8,
+        // int<lenenc> tag code or length
+        4u8,
+
+        // ------------------------ //
+        // Column Definition packet //
+        // ------------------------ //
+        // int<3> length
+        40u8, 0u8, 0u8,
+        // int<1> seq_no
+        5u8,
+        // string<lenenc> catalog (always 'def')
+        3u8, b"def",
+        // string<lenenc> schema
+        4u8, b"test",
+        // string<lenenc> table alias
+        5u8, b"users",
+        // string<lenenc> table
+        5u8, b"users",
+        // string<lenenc> column alias
+        2u8, b"id",
+        // string<lenenc> column
+        2u8, b"id",
+        // int<lenenc> length of fixed fields (=0xC)
+        0x0C_u8,
+        // int<2> character set number
+        8u8, 0u8,
+        // int<4> max. column size
+        0x80, 0u8, 0u8, 0u8,
+        // int<1> Field types
+        0xFD_u8,
+        // int<2> Field detail flag
+        3u8, 64u8,
+        // int<1> decimals
+        0u8,
+        // int<2> - unused -
+        0u8, 0u8,
+
+        // ---------- //
+        // EOF Packet //
+        // ---------- //
+        // int<3> length
+        5u8, 0u8, 0u8,
+        // int<1> seq_no
+        3u8,
+        // int<1> 0xfe : EOF header
+        0xFE_u8,
+        // int<2> warning count
+        0u8, 0u8,
+        // int<2> server status
+        34u8, 0u8,
+
+        // ----------------- //
+        // Result Row Packet //
+        // ----------------- //
+        // int<3> length
+        39u8, 0u8, 0u8,
+        // int<1> seq_no
+        4u8,
+        // byte<1> 0x00 header
+        0u8,
+        // byte<(number_of_columns + 9) / 8> NULL-Bitmap
+        0u8,
+        // byte<lenenc> encoded result
+        36u8, b"d83dd1c4-ada9-11e9-96bc-0242ac110003",
+
+        // ---------- //
+        // EOF Packet //
+        // ---------- //
+        // int<3> length
+        5u8, 0u8, 0u8,
+        // int<1> seq_no
+        5u8,
+        // int<1> 0xfe : EOF header
+        0xFE_u8,
+        // int<2> warning count
+        0u8, 0u8,
+        // int<2> server status
+        34u8, 0u8
+        );
     }
 }

@@ -6,7 +6,7 @@ use crate::{
     },
     options::ConnectOptions,
 };
-use bytes::{BufMut, Bytes};
+use bytes::Bytes;
 use failure::{err_msg, Error};
 use std::ops::BitAnd;
 
@@ -165,6 +165,9 @@ mod test {
         ctx.next_packet().await?;
         ctx.columns = Some(prepared.ok.columns as u64);
         ctx.column_defs = prepared.res_columns;
+
+        println!("{:?}", ctx.columns);
+        println!("{:?}", ctx.column_defs);
 
         match ctx.decoder.peek_tag() {
             0xFF => {
