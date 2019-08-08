@@ -41,7 +41,7 @@ pub struct Connection {
 
 impl Connection {
     pub async fn establish(options: ConnectOptions<'_>) -> io::Result<Self> {
-        let stream = TcpStream::connect((options.host, options.port)).await?;
+        let stream = TcpStream::connect((&*options.host, options.port)).await?;
         let mut conn = Self {
             wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(1024 * 8),

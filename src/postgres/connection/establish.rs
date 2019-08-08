@@ -3,19 +3,25 @@ use crate::{
     postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage},
     ConnectOptions,
 };
-use std::io;
+use std::{borrow::Cow, io};
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut Connection,
     options: ConnectOptions<'b>,
 ) -> io::Result<()> {
+    let user = &*options.user.expect("user is required");
+    let password = &*options.password.unwrap_or(Cow::Borrowed(""));
+
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
     let params = &[
         // FIXME: ConnectOptions user and database need to be required parameters and error
         //        before they get here
-        ("user", options.user.expect("user is required")),
-        ("database", options.database.expect("database is required")),
+        ("user", user),
+        (
+            "database",
+            &*options.database.expect("database is required"),
+        ),
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
         ("DateStyle", "ISO, MDY"),
@@ -44,9 +50,7 @@ pub async fn establish<'a, 'b: 'a>(
 
             Message::Authentication(Authentication::CleartextPassword) => {
                 // FIXME: Should error early (before send) if the user did not supply a password
-                conn.write(PasswordMessage::Cleartext(
-                    options.password.unwrap_or_default(),
-                ));
+                conn.write(PasswordMessage::Cleartext(password));
 
                 conn.flush().await?;
             }
@@ -54,8 +58,8 @@ pub async fn establish<'a, 'b: 'a>(
             Message::Authentication(Authentication::Md5Password { salt }) => {
                 // FIXME: Should error early (before send) if the user did not supply a password
                 conn.write(PasswordMessage::Md5 {
-                    password: options.password.unwrap_or_default(),
-                    user: options.user.unwrap_or_default(),
+                    password,
+                    user,
                     salt,
                 });
 

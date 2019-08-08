@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ConnectOptions<'a> {
     pub host: Cow<'a, str>,
     pub port: u16,
