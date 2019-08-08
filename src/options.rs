@@ -29,6 +29,17 @@ impl<'a> ConnectOptions<'a> {
     }
 
     #[inline]
+    pub fn into_owned(self) -> ConnectOptions<'static> {
+        ConnectOptions {
+            host: self.host.into_owned().into(),
+            port: self.port,
+            user: self.user.map(|s| s.into_owned().into()),
+            database: self.database.map(|s| s.into_owned().into()),
+            password: self.password.map(|s| s.into_owned().into()),
+        }
+    }
+
+    #[inline]
     pub fn host(mut self, host: &'a str) -> Self {
         self.host = Cow::Borrowed(host);
         self

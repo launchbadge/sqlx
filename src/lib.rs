@@ -33,3 +33,6 @@ pub mod mariadb;
 
 #[cfg(feature = "postgres")]
 pub mod postgres;
+
+// TODO: This module is not intended to be directly public
+pub mod pool;

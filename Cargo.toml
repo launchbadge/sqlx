@@ -1,7 +1,8 @@
 [workspace]
 members = [
     ".",
-    "examples/todo"
+    "examples/todo",
+    "examples/contacts"
 ]
 
 [package]
@@ -21,6 +22,7 @@ mariadb = []
 bitflags = "1.1.0"
 byteorder = "1.3.2"
 bytes = "0.4.12"
+crossbeam-queue = "0.1.2"
 enum-tryfrom = "0.2.1"
 enum-tryfrom-derive = "0.2.1"
 failure = "0.1.5"

@@ -53,8 +53,6 @@ impl Message {
 
         let src = src.split_to(len + 1).freeze().slice_from(5);
 
-        log::trace!("recv {:?}", src);
-
         let message = match token {
             b'N' | b'E' => Message::Response(Response::decode(src)?),
             b'S' => Message::ParameterStatus(ParameterStatus::decode(src)?),
@@ -73,8 +71,6 @@ impl Message {
             b't' => Message::ParameterDescription(ParameterDescription::decode(src)?),
             _ => unimplemented!("decode not implemented for token: {}", token as char),
         };
-
-        log::trace!("decode {:?}", message);
 
         Ok(Some(message))
     }
