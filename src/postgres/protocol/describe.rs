@@ -1,7 +1,5 @@
 use super::{BufMut, Encode};
 
-// TODO: Separate into two structs, DescribePortal and DescribeStatement (?)
-
 #[repr(u8)]
 pub enum DescribeKind {
     PreparedStatement,

@@ -1,7 +1,5 @@
 use super::{BufMut, Encode};
 
-// TODO: Separate into two structs, ClosePortal and CloseStatement (?)
-
 #[repr(u8)]
 pub enum CloseKind {
     PreparedStatement,
