@@ -12,6 +12,7 @@ use std::{
     time::Instant,
 };
 
+// TODO: Add a sqlx::Connection type so we don't leak the RawConnection
 // TODO: Reap old connections
 // TODO: Clean up (a lot) and document what's going on
 // TODO: sqlx::ConnectOptions needs to be removed and replaced with URIs everywhere

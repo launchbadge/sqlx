@@ -32,7 +32,7 @@ pub mod types;
 pub mod mariadb;
 
 #[cfg(feature = "postgres")]
-pub mod postgres;
+mod postgres;
 
 // TODO: This module is not intended to be directly public
 pub mod connection;
