@@ -45,6 +45,7 @@ where
     }
 }
 
+#[allow(unused)]
 macro_rules! impl_from_row_tuple {
     ($B:ident: $( ($idx:tt) -> $T:ident, $ST:ident );+;) => {
         impl<$($ST,)+ $($T,)+> crate::row::FromRow<$B, ($($ST,)+)> for ($($T,)+)
@@ -60,6 +61,7 @@ macro_rules! impl_from_row_tuple {
     };
 }
 
+#[allow(unused)]
 macro_rules! impl_from_row_tuples_for_backend {
     ($B:ident) => {
         impl_from_row_tuple!($B:

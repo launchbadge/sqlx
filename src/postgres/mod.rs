@@ -2,7 +2,7 @@ use crate::backend::Backend;
 
 mod connection;
 
-pub use connection::Connection;
+pub use connection::RawConnection;
 
 mod protocol;
 
@@ -11,6 +11,7 @@ pub mod types;
 pub struct Postgres;
 
 impl Backend for Postgres {
+    type RawConnection = RawConnection;
     type RawRow = protocol::DataRow;
     type TypeMetadata = types::TypeMetadata;
 }

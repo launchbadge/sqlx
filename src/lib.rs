@@ -35,4 +35,5 @@ pub mod mariadb;
 pub mod postgres;
 
 // TODO: This module is not intended to be directly public
+pub mod connection;
 pub mod pool;

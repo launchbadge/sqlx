@@ -1,4 +1,4 @@
-use super::Connection;
+use super::RawConnection;
 use crate::{
     postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage},
     ConnectOptions,
@@ -6,7 +6,7 @@ use crate::{
 use std::{borrow::Cow, io};
 
 pub async fn establish<'a, 'b: 'a>(
-    conn: &'a mut Connection,
+    conn: &'a mut RawConnection,
     options: ConnectOptions<'b>,
 ) -> io::Result<()> {
     let user = &*options.user.expect("user is required");

@@ -2,6 +2,7 @@ use super::protocol::{Encode, Message, Terminate};
 use crate::ConnectOptions;
 use bytes::{BufMut, BytesMut};
 use futures::{
+    future::BoxFuture,
     io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     ready,
     task::{Context, Poll},
@@ -16,7 +17,7 @@ mod get;
 mod prepare;
 mod select;
 
-pub struct Connection {
+pub struct RawConnection {
     stream: TcpStream,
 
     // Do we think that there is data in the read buffer to be decoded
@@ -39,7 +40,7 @@ pub struct Connection {
     secret_key: u32,
 }
 
-impl Connection {
+impl RawConnection {
     pub async fn establish(options: ConnectOptions<'_>) -> io::Result<Self> {
         let stream = TcpStream::connect((&*options.host, options.port)).await?;
         let mut conn = Self {
@@ -133,5 +134,12 @@ impl Connection {
         self.wbuf.clear();
 
         Ok(())
+    }
+}
+
+impl crate::connection::RawConnection for RawConnection {
+    #[inline]
+    fn establish(options: ConnectOptions<'_>) -> BoxFuture<io::Result<Self>> {
+        Box::pin(RawConnection::establish(options))
     }
 }

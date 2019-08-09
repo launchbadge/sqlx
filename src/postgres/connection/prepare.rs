@@ -1,4 +1,4 @@
-use super::Connection;
+use super::RawConnection;
 use crate::{
     postgres::{
         protocol::{self, BindValues},
@@ -10,12 +10,12 @@ use crate::{
 
 pub struct Prepare<'a, 'b> {
     query: &'b str,
-    pub(super) connection: &'a mut Connection,
+    pub(super) connection: &'a mut RawConnection,
     pub(super) bind: BindValues,
 }
 
 #[inline]
-pub fn prepare<'a, 'b>(connection: &'a mut Connection, query: &'b str) -> Prepare<'a, 'b> {
+pub fn prepare<'a, 'b>(connection: &'a mut RawConnection, query: &'b str) -> Prepare<'a, 'b> {
     // TODO: Use a hash map to cache the parse
     // TODO: Use named statements
     Prepare {
@@ -41,7 +41,7 @@ impl<'a, 'b> Prepare<'a, 'b> {
         self
     }
 
-    pub(super) fn finish(self) -> &'a mut Connection {
+    pub(super) fn finish(self) -> &'a mut RawConnection {
         self.connection.write(protocol::Parse {
             portal: "",
             query: self.query,

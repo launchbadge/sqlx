@@ -1,6 +1,5 @@
 #![feature(async_await)]
 
-use futures::future;
 use failure::Fallible;
 use fake::{
     faker::{
@@ -10,7 +9,8 @@ use fake::{
     },
     Dummy, Fake, Faker,
 };
-use sqlx::pool::Pool;
+use futures::future;
+use sqlx::{pool::Pool, postgres::Postgres};
 
 #[derive(Debug, Dummy)]
 struct Contact {
@@ -40,7 +40,7 @@ async fn main() -> Fallible<()> {
         .user("postgres")
         .database("sqlx__dev__contacts");
 
-    let pool = Pool::new(options);
+    let pool = Pool::<Postgres>::new(options);
 
     {
         let mut conn = pool.acquire().await?;
