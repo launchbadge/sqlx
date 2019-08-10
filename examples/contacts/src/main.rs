@@ -10,7 +10,7 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use futures::future;
-use sqlx::{pool::Pool, postgres::Postgres};
+use sqlx::{Pool, Postgres};
 
 #[derive(Debug, Dummy)]
 struct Contact {
@@ -34,13 +34,7 @@ struct Contact {
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
-    let options = sqlx::ConnectOptions::new()
-        .host("127.0.0.1")
-        .port(5432)
-        .user("postgres")
-        .database("sqlx__dev__contacts");
-
-    let pool = Pool::<Postgres>::new(options);
+    let pool = Pool::<Postgres>::new("postgres://postgres@localhost/sqlx__dev");
 
     {
         let mut conn = pool.acquire().await?;

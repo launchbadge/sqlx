@@ -110,7 +110,7 @@ impl crate::mariadb::Decode for ResultRow {
         Ok(ResultRow {
             length,
             seq_no,
-            columns
+            columns,
         })
     }
 }

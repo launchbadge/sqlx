@@ -2,9 +2,9 @@ use super::Connection;
 use crate::{
     mariadb::{
         Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket,
-        HandshakeResponsePacket, InitialHandshakePacket, OkPacket, StmtExecFlag, ProtocolType
+        HandshakeResponsePacket, InitialHandshakePacket, OkPacket, ProtocolType, StmtExecFlag,
     },
-    ConnectOptions,
+    options::ConnectOptions,
 };
 use bytes::{BufMut, Bytes};
 use failure::{err_msg, Error};
@@ -169,13 +169,13 @@ mod test {
         match ctx.decoder.peek_tag() {
             0xFF => {
                 ErrPacket::decode(&mut ctx)?;
-            },
+            }
             0x00 => {
                 OkPacket::decode(&mut ctx)?;
-            },
+            }
             _ => {
                 ResultSet::deserialize(ctx, ProtocolType::Binary).await?;
-            },
+            }
         }
 
         Ok(())

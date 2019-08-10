@@ -1,16 +1,12 @@
 use super::RawConnection;
-use crate::{
-    postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage},
-    ConnectOptions,
-};
+use crate::postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage};
 use std::{borrow::Cow, io};
+use url::Url;
 
-pub async fn establish<'a, 'b: 'a>(
-    conn: &'a mut RawConnection,
-    options: ConnectOptions<'b>,
-) -> io::Result<()> {
-    let user = &*options.user.expect("user is required");
-    let password = &*options.password.unwrap_or(Cow::Borrowed(""));
+pub async fn establish<'a, 'b: 'a>(conn: &'a mut RawConnection, url: &'b Url) -> io::Result<()> {
+    let user = url.username();
+    let password = url.password().unwrap_or("");
+    let database = url.path().trim_start_matches('/');
 
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
@@ -18,10 +14,7 @@ pub async fn establish<'a, 'b: 'a>(
         // FIXME: ConnectOptions user and database need to be required parameters and error
         //        before they get here
         ("user", user),
-        (
-            "database",
-            &*options.database.expect("database is required"),
-        ),
+        ("database", database),
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
         ("DateStyle", "ISO, MDY"),

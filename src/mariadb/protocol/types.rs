@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 pub enum ProtocolType {
     Text,
-    Binary
+    Binary,
 }
 
 bitflags! {

@@ -1,10 +1,10 @@
-use crate::mariadb::{ResultRowText, ResultRowBinary};
+use crate::mariadb::{ResultRowBinary, ResultRowText};
 
 #[derive(Debug)]
 pub struct ResultRow {
     pub length: u32,
     pub seq_no: u8,
-    pub columns: Vec<Option<bytes::Bytes>>
+    pub columns: Vec<Option<bytes::Bytes>>,
 }
 
 impl From<ResultRowText> for ResultRow {
@@ -16,7 +16,6 @@ impl From<ResultRowText> for ResultRow {
         }
     }
 }
-
 
 impl From<ResultRowBinary> for ResultRow {
     fn from(row: ResultRowBinary) -> Self {

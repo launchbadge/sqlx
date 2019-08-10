@@ -30,7 +30,7 @@ impl Decode for ErrPacket {
             panic!("Packet header is not 0xFF for ErrPacket");
         }
 
-        let error_code = ErrorCode::try_from(decoder.decode_int_i16())?;
+        let error_code = ErrorCode(decoder.decode_int_u16());
 
         let mut stage = None;
         let mut max_stage = None;
@@ -42,7 +42,7 @@ impl Decode for ErrPacket {
         let mut error_message = None;
 
         // Progress Reporting
-        if error_code as u16 == 0xFFFF {
+        if error_code.0 == 0xFFFF {
             stage = Some(decoder.decode_int_u8());
             max_stage = Some(decoder.decode_int_u8());
             progress = Some(decoder.decode_int_i24());

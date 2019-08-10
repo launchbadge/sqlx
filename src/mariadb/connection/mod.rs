@@ -2,9 +2,9 @@ use crate::{
     mariadb::{
         protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
         ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
-        ResultSet, ServerStatusFlag, ProtocolType
+        ProtocolType, ResultSet, ServerStatusFlag,
     },
-    ConnectOptions,
+    options::ConnectOptions,
 };
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{Bytes, BytesMut};

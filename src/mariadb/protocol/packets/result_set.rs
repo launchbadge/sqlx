@@ -3,7 +3,8 @@ use failure::Error;
 
 use crate::mariadb::{
     Capabilities, ColumnDefPacket, ColumnPacket, ConnContext, DeContext, Decode, Decoder,
-    EofPacket, ErrPacket, Framed, OkPacket, ResultRowText, ResultRowBinary, ProtocolType, ResultRow
+    EofPacket, ErrPacket, Framed, OkPacket, ProtocolType, ResultRow, ResultRowBinary,
+    ResultRowText,
 };
 
 #[derive(Debug, Default)]
@@ -14,7 +15,10 @@ pub struct ResultSet {
 }
 
 impl ResultSet {
-    pub async fn deserialize(mut ctx: DeContext<'_>, protocol: ProtocolType) -> Result<Self, Error> {
+    pub async fn deserialize(
+        mut ctx: DeContext<'_>,
+        protocol: ProtocolType,
+    ) -> Result<Self, Error> {
         let column_packet = ColumnPacket::decode(&mut ctx)?;
 
         let columns = if let Some(columns) = column_packet.columns {
@@ -58,29 +62,25 @@ impl ResultSet {
                 break;
             } else {
                 let index = ctx.decoder.index;
-                 match protocol {
-                    ProtocolType::Text => {
-                        match ResultRowText::decode(&mut ctx) {
-                            Ok(row) => {
-                                rows.push(ResultRow::from(row));
-                                ctx.next_packet().await?;
-                            }
-                            Err(_) => {
-                                ctx.decoder.index = index;
-                                break;
-                            }
+                match protocol {
+                    ProtocolType::Text => match ResultRowText::decode(&mut ctx) {
+                        Ok(row) => {
+                            rows.push(ResultRow::from(row));
+                            ctx.next_packet().await?;
+                        }
+                        Err(_) => {
+                            ctx.decoder.index = index;
+                            break;
                         }
                     },
-                    ProtocolType::Binary => {
-                        match ResultRowBinary::decode(&mut ctx) {
-                            Ok(row) => {
-                                rows.push(ResultRow::from(row));
-                                ctx.next_packet().await?;
-                            }
-                            Err(_) => {
-                                ctx.decoder.index = index;
-                                break;
-                            }
+                    ProtocolType::Binary => match ResultRowBinary::decode(&mut ctx) {
+                        Ok(row) => {
+                            rows.push(ResultRow::from(row));
+                            ctx.next_packet().await?;
+                        }
+                        Err(_) => {
+                            ctx.decoder.index = index;
+                            break;
                         }
                     },
                 }

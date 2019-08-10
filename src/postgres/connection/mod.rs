@@ -1,5 +1,4 @@
 use super::protocol::{Encode, Message, Terminate};
-use crate::ConnectOptions;
 use bytes::{BufMut, BytesMut};
 use futures::{
     future::BoxFuture,
@@ -10,6 +9,7 @@ use futures::{
 };
 use runtime::net::TcpStream;
 use std::{fmt::Debug, io, pin::Pin};
+use url::Url;
 
 mod establish;
 mod execute;
@@ -41,8 +41,11 @@ pub struct RawConnection {
 }
 
 impl RawConnection {
-    pub async fn establish(options: ConnectOptions<'_>) -> io::Result<Self> {
-        let stream = TcpStream::connect((&*options.host, options.port)).await?;
+    pub async fn establish(url: &Url) -> io::Result<Self> {
+        let host = url.host_str().unwrap_or("localhost");
+        let port = url.port().unwrap_or(5432);
+
+        let stream = TcpStream::connect((host, port)).await?;
         let mut conn = Self {
             wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(1024 * 8),
@@ -53,7 +56,7 @@ impl RawConnection {
             secret_key: 0,
         };
 
-        establish::establish(&mut conn, options).await?;
+        establish::establish(&mut conn, &url).await?;
 
         Ok(conn)
     }
@@ -139,7 +142,7 @@ impl RawConnection {
 
 impl crate::connection::RawConnection for RawConnection {
     #[inline]
-    fn establish(options: ConnectOptions<'_>) -> BoxFuture<io::Result<Self>> {
-        Box::pin(RawConnection::establish(options))
+    fn establish(url: &Url) -> BoxFuture<io::Result<Self>> {
+        Box::pin(RawConnection::establish(url))
     }
 }

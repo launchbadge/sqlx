@@ -1,5 +1,6 @@
 use crate::mariadb::{
-    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, StmtExecFlag, FieldType
+    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, FieldType,
+    StmtExecFlag,
 };
 use bytes::Bytes;
 use failure::Error;

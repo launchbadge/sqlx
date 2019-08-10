@@ -19,8 +19,8 @@ pub use packets::{
     ComProcessKill, ComQuery, ComQuit, ComResetConnection, ComSetOption, ComShutdown, ComSleep,
     ComStatistics, ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk,
     ComStmtPrepareResp, ComStmtReset, EofPacket, ErrPacket, HandshakeResponsePacket,
-    InitialHandshakePacket, OkPacket, PacketHeader, ResultRowText, ResultRowBinary, ResultSet, SSLRequestPacket,
-    SetOptionOptions, ShutdownOptions, ResultRow
+    InitialHandshakePacket, OkPacket, PacketHeader, ResultRow, ResultRowBinary, ResultRowText,
+    ResultSet, SSLRequestPacket, SetOptionOptions, ShutdownOptions,
 };
 
 pub use decode::{DeContext, Decode, Decoder};
@@ -30,5 +30,6 @@ pub use encode::{BufMut, Encode};
 pub use error_codes::ErrorCode;
 
 pub use types::{
-    ProtocolType, Capabilities, FieldDetailFlag, FieldType, ServerStatusFlag, SessionChangeType, StmtExecFlag,
+    Capabilities, FieldDetailFlag, FieldType, ProtocolType, ServerStatusFlag, SessionChangeType,
+    StmtExecFlag,
 };

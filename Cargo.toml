@@ -1,7 +1,7 @@
 [workspace]
 members = [
     ".",
-    "examples/todo",
+    "examples/todos",
     "examples/contacts"
 ]
 
@@ -31,6 +31,7 @@ hex = "0.3.2"
 itoa = "0.4.4"
 log = "0.4.8"
 md-5 = "0.8.0"
+url = "2.1.0"
 memchr = "2.2.1"
 runtime = { version = "=0.3.0-alpha.6", default-features = false }
 

@@ -28,11 +28,11 @@ pub use ssl_request::SSLRequestPacket;
 
 pub use text::{
     ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,
-    ComSetOption, ComShutdown, ComSleep, ComStatistics, SetOptionOptions, ShutdownOptions,
-    ResultRow as ResultRowText
+    ComSetOption, ComShutdown, ComSleep, ComStatistics, ResultRow as ResultRowText,
+    SetOptionOptions, ShutdownOptions,
 };
 
 pub use binary::{
     ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp,
-    ComStmtReset, ResultRow as ResultRowBinary
+    ComStmtReset, ResultRow as ResultRowBinary,
 };

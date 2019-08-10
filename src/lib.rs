@@ -1,4 +1,4 @@
-#![feature(non_exhaustive, async_await, async_closure)]
+#![feature(async_await)]
 #![cfg_attr(test, feature(test))]
 #![allow(clippy::needless_lifetimes)]
 // FIXME: Remove this once API has matured
@@ -12,12 +12,8 @@ extern crate bitflags;
 #[macro_use]
 extern crate enum_tryfrom_derive;
 
-mod options;
-pub use self::options::ConnectOptions;
-
-// Helper macro for writing long complex tests
 #[macro_use]
-pub mod macros;
+mod macros;
 
 pub mod backend;
 pub mod deserialize;
@@ -34,6 +30,12 @@ pub mod mariadb;
 #[cfg(feature = "postgres")]
 mod postgres;
 
-// TODO: This module is not intended to be directly public
+#[cfg(feature = "postgres")]
+pub use self::postgres::Postgres;
+
 pub mod connection;
 pub mod pool;
+
+pub use self::{connection::Connection, pool::Pool};
+
+mod options;

@@ -1,5 +1,5 @@
 use super::connection::RawConnection;
-use crate::{backend::Backend, ConnectOptions};
+use crate::{backend::Backend, Connection};
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures::{channel::oneshot, TryFutureExt};
 use std::{
@@ -11,17 +11,34 @@ use std::{
     },
     time::Instant,
 };
+use url::Url;
 
-// TODO: Add a sqlx::Connection type so we don't leak the RawConnection
 // TODO: Reap old connections
 // TODO: Clean up (a lot) and document what's going on
-// TODO: sqlx::ConnectOptions needs to be removed and replaced with URIs everywhere
 
 pub struct Pool<B>
 where
     B: Backend,
 {
     inner: Arc<InnerPool<B>>,
+}
+
+struct InnerPool<B>
+where
+    B: Backend,
+{
+    url: Url,
+    idle: ArrayQueue<Idle<B>>,
+    waiters: SegQueue<oneshot::Sender<Live<B>>>,
+    total: AtomicUsize,
+}
+
+pub struct PooledConnection<B>
+where
+    B: Backend,
+{
+    connection: Option<Live<B>>,
+    pool: Arc<InnerPool<B>>,
 }
 
 impl<B> Clone for Pool<B>
@@ -35,24 +52,15 @@ where
     }
 }
 
-struct InnerPool<B>
-where
-    B: Backend,
-{
-    options: ConnectOptions<'static>,
-    idle: ArrayQueue<Idle<B>>,
-    waiters: SegQueue<oneshot::Sender<Live<B>>>,
-    total: AtomicUsize,
-}
-
 impl<B> Pool<B>
 where
     B: Backend,
 {
-    pub fn new<'a>(options: ConnectOptions<'a>) -> Self {
+    pub fn new<'a>(url: &str) -> Self {
         Self {
             inner: Arc::new(InnerPool {
-                options: options.into_owned(),
+                // TODO: Handle errors nicely
+                url: Url::parse(url).unwrap(),
                 idle: ArrayQueue::new(10),
                 total: AtomicUsize::new(0),
                 waiters: SegQueue::new(),
@@ -60,10 +68,10 @@ where
         }
     }
 
-    pub async fn acquire(&self) -> io::Result<Connection<B>> {
+    pub async fn acquire(&self) -> io::Result<PooledConnection<B>> {
         self.inner
             .acquire()
-            .map_ok(|live| Connection::new(live, &self.inner))
+            .map_ok(|live| PooledConnection::new(live, &self.inner))
             .await
     }
 }
@@ -101,7 +109,9 @@ where
         self.total.store(total + 1, Ordering::SeqCst);
         log::debug!("acquire: no idle connections; establish new connection");
 
-        let connection = B::RawConnection::establish(self.options.clone()).await?;
+        let connection = B::RawConnection::establish(&self.url).await?;
+        let connection = Connection { inner: connection };
+
         let live = Live {
             connection,
             since: Instant::now(),
@@ -127,18 +137,7 @@ where
         });
     }
 }
-
-// TODO: Need a better name here than [pool::Connection] ?
-
-pub struct Connection<B>
-where
-    B: Backend,
-{
-    connection: Option<Live<B>>,
-    pool: Arc<InnerPool<B>>,
-}
-
-impl<B> Connection<B>
+impl<B> PooledConnection<B>
 where
     B: Backend,
 {
@@ -150,11 +149,11 @@ where
     }
 }
 
-impl<B> Deref for Connection<B>
+impl<B> Deref for PooledConnection<B>
 where
     B: Backend,
 {
-    type Target = B::RawConnection;
+    type Target = Connection<B>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -163,7 +162,7 @@ where
     }
 }
 
-impl<B> DerefMut for Connection<B>
+impl<B> DerefMut for PooledConnection<B>
 where
     B: Backend,
 {
@@ -174,7 +173,7 @@ where
     }
 }
 
-impl<B> Drop for Connection<B>
+impl<B> Drop for PooledConnection<B>
 where
     B: Backend,
 {
@@ -198,6 +197,6 @@ struct Live<B>
 where
     B: Backend,
 {
-    connection: B::RawConnection,
+    connection: Connection<B>,
     since: Instant,
 }
