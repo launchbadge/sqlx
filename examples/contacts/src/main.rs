@@ -10,7 +10,7 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use futures::future;
-use sqlx::{Pool, Postgres};
+use sqlx::{pg::Pg, Client, Connection, Query};
 use std::time::Instant;
 
 #[derive(Debug, Dummy)]
@@ -35,10 +35,10 @@ struct Contact {
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
-    let pool = Pool::<Postgres>::new("postgres://postgres@localhost/sqlx__dev");
+    let client = Client::<Pg>::new("postgres://postgres@localhost/sqlx__dev");
 
     {
-        let mut conn = pool.acquire().await?;
+        let mut conn = client.get().await?;
         conn.prepare(
             r#"
 CREATE TABLE IF NOT EXISTS contacts (
@@ -60,13 +60,13 @@ CREATE TABLE IF NOT EXISTS contacts (
 
     let mut handles = vec![];
     let start_at = Instant::now();
-    let rows = 50_000;
+    let rows = 10_000;
 
     for _ in 0..rows {
-        let pool = pool.clone();
+        let client = client.clone();
         let contact: Contact = Faker.fake();
         let handle: runtime::task::JoinHandle<Fallible<()>> = runtime::task::spawn(async move {
-            let mut conn = pool.acquire().await?;
+            let mut conn = client.get().await?;
             conn.prepare(
                 r#"
     INSERT INTO contacts (name, username, password, email, phone)

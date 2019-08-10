@@ -30,11 +30,11 @@ pub mod mariadb;
 #[cfg(feature = "postgres")]
 pub mod pg;
 
+mod client;
 mod connection;
+mod pool;
 mod query;
 
-pub mod pool;
-
-pub use self::{connection::Connection, pool::Pool, query::Query};
+pub use self::{client::Client, connection::Connection, query::Query};
 
 mod options;

@@ -16,10 +16,6 @@ use std::{fmt::Debug, io, pin::Pin};
 use url::Url;
 
 mod establish;
-// mod execute;
-// mod get;
-// mod prepare;
-// mod select;
 
 pub struct PgConnection {
     stream: TcpStream,

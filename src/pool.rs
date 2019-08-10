@@ -8,42 +8,41 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 use url::Url;
 
 // TODO: Reap old connections
 // TODO: Clean up (a lot) and document what's going on
 
-pub struct Pool<Conn>
-where
-    Conn: Connection,
-{
+pub struct PoolOptions {
+    pub max_size: usize,
+    pub min_idle: Option<usize>,
+    pub max_lifetime: Option<Duration>,
+    pub idle_timeout: Option<Duration>,
+    pub connection_timeout: Option<Duration>,
+}
+
+/// A database connection pool.
+pub struct Pool<Conn: Connection> {
     inner: Arc<InnerPool<Conn>>,
 }
 
-struct InnerPool<Conn>
-where
-    Conn: Connection,
-{
+struct InnerPool<Conn: Connection> {
     url: String,
     idle: ArrayQueue<Idle<Conn>>,
     waiters: SegQueue<oneshot::Sender<Live<Conn>>>,
+    // Total count of connections managed by this connection pool
     total: AtomicUsize,
+    options: PoolOptions,
 }
 
-pub struct PooledConnection<Conn>
-where
-    Conn: Connection,
-{
+pub struct PoolConnection<Conn: Connection> {
     connection: Option<Live<Conn>>,
     pool: Arc<InnerPool<Conn>>,
 }
 
-impl<Conn> Clone for Pool<Conn>
-where
-    Conn: Connection,
-{
+impl<Conn: Connection> Clone for Pool<Conn> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -51,33 +50,28 @@ where
     }
 }
 
-impl<Conn> Pool<Conn>
-where
-    Conn: Connection,
-{
-    pub fn new<'a>(url: &str) -> Self {
+impl<Conn: Connection> Pool<Conn> {
+    pub fn new<'a>(url: &str, options: PoolOptions) -> Self {
         Self {
             inner: Arc::new(InnerPool {
                 url: url.to_owned(),
-                idle: ArrayQueue::new(10),
+                idle: ArrayQueue::new(options.max_size),
                 total: AtomicUsize::new(0),
                 waiters: SegQueue::new(),
+                options,
             }),
         }
     }
 
-    pub async fn acquire(&self) -> io::Result<PooledConnection<Conn>> {
+    pub async fn acquire(&self) -> io::Result<PoolConnection<Conn>> {
         self.inner
             .acquire()
-            .map_ok(|live| PooledConnection::new(live, &self.inner))
+            .map_ok(|live| PoolConnection::new(live, &self.inner))
             .await
     }
 }
 
-impl<Conn> InnerPool<Conn>
-where
-    Conn: Connection,
-{
+impl<Conn: Connection> InnerPool<Conn> {
     async fn acquire(&self) -> io::Result<Live<Conn>> {
         if let Ok(idle) = self.idle.pop() {
             log::debug!("acquire: found idle connection");
@@ -87,7 +81,7 @@ where
 
         let total = self.total.load(Ordering::SeqCst);
 
-        if total >= 10 {
+        if total >= self.options.max_size {
             // Too many already, add a waiter and wait for
             // a free connection
             log::debug!("acquire: too many open connections; waiting for a free connection");
@@ -134,10 +128,8 @@ where
         });
     }
 }
-impl<Conn> PooledConnection<Conn>
-where
-    Conn: Connection,
-{
+
+impl<Conn: Connection> PoolConnection<Conn> {
     fn new(connection: Live<Conn>, pool: &Arc<InnerPool<Conn>>) -> Self {
         Self {
             connection: Some(connection),
@@ -146,10 +138,7 @@ where
     }
 }
 
-impl<Conn> Deref for PooledConnection<Conn>
-where
-    Conn: Connection,
-{
+impl<Conn: Connection> Deref for PoolConnection<Conn> {
     type Target = Conn;
 
     #[inline]
@@ -159,10 +148,7 @@ where
     }
 }
 
-impl<Conn> DerefMut for PooledConnection<Conn>
-where
-    Conn: Connection,
-{
+impl<Conn: Connection> DerefMut for PoolConnection<Conn> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         // PANIC: Will not panic unless accessed after drop
@@ -170,10 +156,7 @@ where
     }
 }
 
-impl<Conn> Drop for PooledConnection<Conn>
-where
-    Conn: Connection,
-{
+impl<Conn: Connection> Drop for PoolConnection<Conn> {
     fn drop(&mut self) {
         log::debug!("release: dropping connection; store back in queue");
         if let Some(connection) = self.connection.take() {
@@ -182,18 +165,12 @@ where
     }
 }
 
-struct Idle<Conn>
-where
-    Conn: Connection,
-{
+struct Idle<Conn: Connection> {
     connection: Live<Conn>,
     since: Instant,
 }
 
-struct Live<Conn>
-where
-    Conn: Connection,
-{
+struct Live<Conn: Connection> {
     connection: Conn,
     since: Instant,
 }

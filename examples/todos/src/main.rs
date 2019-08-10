@@ -2,11 +2,7 @@
 
 use failure::Fallible;
 use futures::{future, TryStreamExt};
-use sqlx::{
-    pg::PgConnection,
-    Connection,
-    Query,
-};
+use sqlx::{pg::PgConnection, Connection, Query};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
