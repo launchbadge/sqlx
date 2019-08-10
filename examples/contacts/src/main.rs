@@ -11,6 +11,7 @@ use fake::{
 };
 use futures::future;
 use sqlx::{Pool, Postgres};
+use std::time::Instant;
 
 #[derive(Debug, Dummy)]
 struct Contact {
@@ -53,11 +54,17 @@ CREATE TABLE IF NOT EXISTS contacts (
         )
         .execute()
         .await?;
+
+        conn.prepare("TRUNCATE contacts")
+            .execute()
+            .await?;
     }
 
     let mut handles = vec![];
+    let start_at = Instant::now();
+    let rows = 50_000;
 
-    for _ in 0..50_000 {
+    for _ in 0..rows {
         let pool = pool.clone();
         let contact: Contact = Faker.fake();
         let handle: runtime::task::JoinHandle<Fallible<()>> = runtime::task::spawn(async move {
@@ -83,6 +90,8 @@ CREATE TABLE IF NOT EXISTS contacts (
     }
 
     future::join_all(handles).await;
+
+    println!("insert {} rows in {:?}", rows, start_at.elapsed());
 
     Ok(())
 }
