@@ -1,25 +1,24 @@
-use super::TypeMetadata;
+use super::{Pg, PgTypeMetadata};
 use crate::{
     deserialize::FromSql,
-    postgres::Postgres,
     serialize::{IsNull, ToSql},
-    types::{AsSql, SqlType, Text},
+    types::{AsSqlType, HasSqlType, Text},
 };
 
-impl SqlType<Postgres> for Text {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<Text> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 25,
             array_oid: 1009,
         }
     }
 }
 
-impl AsSql<Postgres> for &'_ str {
-    type Type = Text;
+impl AsSqlType<Pg> for &'_ str {
+    type SqlType = Text;
 }
 
-impl ToSql<Postgres, Text> for &'_ str {
+impl ToSql<Text, Pg> for &'_ str {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
@@ -28,11 +27,11 @@ impl ToSql<Postgres, Text> for &'_ str {
     }
 }
 
-impl AsSql<Postgres> for String {
-    type Type = Text;
+impl AsSqlType<Pg> for String {
+    type SqlType = Text;
 }
 
-impl ToSql<Postgres, Text> for String {
+impl ToSql<Text, Pg> for String {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
@@ -41,7 +40,7 @@ impl ToSql<Postgres, Text> for String {
     }
 }
 
-impl FromSql<Postgres, Text> for String {
+impl FromSql<Text, Pg> for String {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals

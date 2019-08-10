@@ -28,14 +28,13 @@ pub mod types;
 pub mod mariadb;
 
 #[cfg(feature = "postgres")]
-mod postgres;
+pub mod pg;
 
-#[cfg(feature = "postgres")]
-pub use self::postgres::Postgres;
+mod connection;
+mod query;
 
-pub mod connection;
 pub mod pool;
 
-pub use self::{connection::Connection, pool::Pool};
+pub use self::{connection::Connection, pool::Pool, query::Query};
 
 mod options;

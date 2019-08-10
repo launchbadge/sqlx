@@ -1,7 +1,4 @@
-use crate::{
-    backend::Backend,
-    types::{AsSql, SqlType},
-};
+use crate::{backend::Backend, types::HasSqlType};
 
 /// Annotates the result of [ToSql] to differentiate between an empty value and a null value.
 pub enum IsNull {
@@ -15,22 +12,21 @@ pub enum IsNull {
 }
 
 /// Serializes a single value to be sent to the database.
-pub trait ToSql<B, ST>: AsSql<B>
-where
-    B: Backend,
-    ST: SqlType<B>,
-{
+pub trait ToSql<A, DB: Backend> {
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull;
 }
 
-impl<B, ST, T> ToSql<B, ST> for Option<T>
+impl<T, ST, DB> ToSql<ST, DB> for Option<T>
 where
-    B: Backend,
-    ST: SqlType<B>,
-    T: ToSql<B, ST>,
+    DB: Backend + HasSqlType<ST>,
+    T: ToSql<ST, DB>,
 {
     #[inline]
-    fn to_sql(self, _buf: &mut Vec<u8>) -> IsNull {
-        IsNull::Yes
+    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+        if let Some(self_) = self {
+            self_.to_sql(buf)
+        } else {
+            IsNull::Yes
+        }
     }
 }

@@ -1,4 +1,3 @@
-use super::connection::RawConnection;
 use crate::{backend::Backend, Connection};
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures::{channel::oneshot, TryFutureExt};
@@ -16,34 +15,34 @@ use url::Url;
 // TODO: Reap old connections
 // TODO: Clean up (a lot) and document what's going on
 
-pub struct Pool<B>
+pub struct Pool<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    inner: Arc<InnerPool<B>>,
+    inner: Arc<InnerPool<Conn>>,
 }
 
-struct InnerPool<B>
+struct InnerPool<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    url: Url,
-    idle: ArrayQueue<Idle<B>>,
-    waiters: SegQueue<oneshot::Sender<Live<B>>>,
+    url: String,
+    idle: ArrayQueue<Idle<Conn>>,
+    waiters: SegQueue<oneshot::Sender<Live<Conn>>>,
     total: AtomicUsize,
 }
 
-pub struct PooledConnection<B>
+pub struct PooledConnection<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    connection: Option<Live<B>>,
-    pool: Arc<InnerPool<B>>,
+    connection: Option<Live<Conn>>,
+    pool: Arc<InnerPool<Conn>>,
 }
 
-impl<B> Clone for Pool<B>
+impl<Conn> Clone for Pool<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
     fn clone(&self) -> Self {
         Self {
@@ -52,15 +51,14 @@ where
     }
 }
 
-impl<B> Pool<B>
+impl<Conn> Pool<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
     pub fn new<'a>(url: &str) -> Self {
         Self {
             inner: Arc::new(InnerPool {
-                // TODO: Handle errors nicely
-                url: Url::parse(url).unwrap(),
+                url: url.to_owned(),
                 idle: ArrayQueue::new(10),
                 total: AtomicUsize::new(0),
                 waiters: SegQueue::new(),
@@ -68,7 +66,7 @@ where
         }
     }
 
-    pub async fn acquire(&self) -> io::Result<PooledConnection<B>> {
+    pub async fn acquire(&self) -> io::Result<PooledConnection<Conn>> {
         self.inner
             .acquire()
             .map_ok(|live| PooledConnection::new(live, &self.inner))
@@ -76,11 +74,11 @@ where
     }
 }
 
-impl<B> InnerPool<B>
+impl<Conn> InnerPool<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    async fn acquire(&self) -> io::Result<Live<B>> {
+    async fn acquire(&self) -> io::Result<Live<Conn>> {
         if let Ok(idle) = self.idle.pop() {
             log::debug!("acquire: found idle connection");
 
@@ -109,8 +107,7 @@ where
         self.total.store(total + 1, Ordering::SeqCst);
         log::debug!("acquire: no idle connections; establish new connection");
 
-        let connection = B::RawConnection::establish(&self.url).await?;
-        let connection = Connection { inner: connection };
+        let connection = Conn::establish(&self.url).await?;
 
         let live = Live {
             connection,
@@ -120,7 +117,7 @@ where
         Ok(live)
     }
 
-    fn release(&self, mut connection: Live<B>) {
+    fn release(&self, mut connection: Live<Conn>) {
         while let Ok(waiter) = self.waiters.pop() {
             connection = match waiter.send(connection) {
                 Ok(()) => {
@@ -137,11 +134,11 @@ where
         });
     }
 }
-impl<B> PooledConnection<B>
+impl<Conn> PooledConnection<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    fn new(connection: Live<B>, pool: &Arc<InnerPool<B>>) -> Self {
+    fn new(connection: Live<Conn>, pool: &Arc<InnerPool<Conn>>) -> Self {
         Self {
             connection: Some(connection),
             pool: Arc::clone(pool),
@@ -149,11 +146,11 @@ where
     }
 }
 
-impl<B> Deref for PooledConnection<B>
+impl<Conn> Deref for PooledConnection<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    type Target = Connection<B>;
+    type Target = Conn;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -162,9 +159,9 @@ where
     }
 }
 
-impl<B> DerefMut for PooledConnection<B>
+impl<Conn> DerefMut for PooledConnection<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -173,9 +170,9 @@ where
     }
 }
 
-impl<B> Drop for PooledConnection<B>
+impl<Conn> Drop for PooledConnection<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
     fn drop(&mut self) {
         log::debug!("release: dropping connection; store back in queue");
@@ -185,18 +182,18 @@ where
     }
 }
 
-struct Idle<B>
+struct Idle<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    connection: Live<B>,
+    connection: Live<Conn>,
     since: Instant,
 }
 
-struct Live<B>
+struct Live<Conn>
 where
-    B: Backend,
+    Conn: Connection,
 {
-    connection: Connection<B>,
+    connection: Conn,
     since: Instant,
 }

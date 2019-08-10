@@ -55,9 +55,7 @@ CREATE TABLE IF NOT EXISTS contacts (
         .execute()
         .await?;
 
-        conn.prepare("TRUNCATE contacts")
-            .execute()
-            .await?;
+        conn.prepare("TRUNCATE contacts").execute().await?;
     }
 
     let mut handles = vec![];

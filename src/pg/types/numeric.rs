@@ -1,26 +1,25 @@
-use super::TypeMetadata;
+use super::{Pg, PgTypeMetadata};
 use crate::{
     deserialize::FromSql,
-    postgres::Postgres,
     serialize::{IsNull, ToSql},
-    types::{AsSql, BigInt, Double, Int, Real, SmallInt, SqlType},
+    types::{AsSqlType, BigInt, Double, HasSqlType, Int, Real, SmallInt},
 };
 use byteorder::{BigEndian, ByteOrder};
 
-impl SqlType<Postgres> for SmallInt {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<SmallInt> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 21,
             array_oid: 1005,
         }
     }
 }
 
-impl AsSql<Postgres> for i16 {
-    type Type = SmallInt;
+impl AsSqlType<Pg> for i16 {
+    type SqlType = SmallInt;
 }
 
-impl ToSql<Postgres, SmallInt> for i16 {
+impl ToSql<SmallInt, Pg> for i16 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
@@ -29,7 +28,7 @@ impl ToSql<Postgres, SmallInt> for i16 {
     }
 }
 
-impl FromSql<Postgres, SmallInt> for i16 {
+impl FromSql<SmallInt, Pg> for i16 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals
@@ -37,20 +36,20 @@ impl FromSql<Postgres, SmallInt> for i16 {
     }
 }
 
-impl SqlType<Postgres> for Int {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<Int> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 23,
             array_oid: 1007,
         }
     }
 }
 
-impl AsSql<Postgres> for i32 {
-    type Type = Int;
+impl AsSqlType<Pg> for i32 {
+    type SqlType = Int;
 }
 
-impl ToSql<Postgres, Int> for i32 {
+impl ToSql<Int, Pg> for i32 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
@@ -59,7 +58,7 @@ impl ToSql<Postgres, Int> for i32 {
     }
 }
 
-impl FromSql<Postgres, Int> for i32 {
+impl FromSql<Int, Pg> for i32 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals
@@ -67,20 +66,20 @@ impl FromSql<Postgres, Int> for i32 {
     }
 }
 
-impl SqlType<Postgres> for BigInt {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<BigInt> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 20,
             array_oid: 1016,
         }
     }
 }
 
-impl AsSql<Postgres> for i64 {
-    type Type = BigInt;
+impl AsSqlType<Pg> for i64 {
+    type SqlType = BigInt;
 }
 
-impl ToSql<Postgres, BigInt> for i64 {
+impl ToSql<BigInt, Pg> for i64 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
@@ -89,7 +88,7 @@ impl ToSql<Postgres, BigInt> for i64 {
     }
 }
 
-impl FromSql<Postgres, BigInt> for i64 {
+impl FromSql<BigInt, Pg> for i64 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals
@@ -97,54 +96,54 @@ impl FromSql<Postgres, BigInt> for i64 {
     }
 }
 
-impl SqlType<Postgres> for Real {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<Real> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 700,
             array_oid: 1021,
         }
     }
 }
 
-impl AsSql<Postgres> for f32 {
-    type Type = Real;
+impl AsSqlType<Pg> for f32 {
+    type SqlType = Real;
 }
 
-impl ToSql<Postgres, Real> for f32 {
+impl ToSql<Real, Pg> for f32 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         (self.to_bits() as i32).to_sql(buf)
     }
 }
 
-impl FromSql<Postgres, BigInt> for f32 {
+impl FromSql<BigInt, Pg> for f32 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         f32::from_bits(i32::from_sql(buf) as u32)
     }
 }
 
-impl SqlType<Postgres> for Double {
-    fn metadata() -> TypeMetadata {
-        TypeMetadata {
+impl HasSqlType<Double> for Pg {
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata {
             oid: 701,
             array_oid: 1022,
         }
     }
 }
 
-impl AsSql<Postgres> for f64 {
-    type Type = Double;
+impl AsSqlType<Pg> for f64 {
+    type SqlType = Double;
 }
 
-impl ToSql<Postgres, Double> for f64 {
+impl ToSql<Double, Pg> for f64 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         (self.to_bits() as i64).to_sql(buf)
     }
 }
 
-impl FromSql<Postgres, Double> for f64 {
+impl FromSql<Double, Pg> for f64 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         f64::from_bits(i64::from_sql(buf) as u64)

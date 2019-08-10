@@ -11,11 +11,17 @@ pub trait BufMut {
 
     fn put_int_16(&mut self, value: i16);
 
+    fn put_uint_16(&mut self, value: u16);
+
     fn put_int_32(&mut self, value: i32);
+
+    fn put_uint_32(&mut self, value: u32);
 
     fn put_array_int_16(&mut self, values: &[i16]);
 
     fn put_array_int_32(&mut self, values: &[i32]);
+
+    fn put_array_uint_32(&mut self, values: &[u32]);
 
     fn put_str(&mut self, value: &str);
 }
@@ -37,7 +43,17 @@ impl BufMut for Vec<u8> {
     }
 
     #[inline]
+    fn put_uint_16(&mut self, value: u16) {
+        self.extend_from_slice(&value.to_be_bytes());
+    }
+
+    #[inline]
     fn put_int_32(&mut self, value: i32) {
+        self.extend_from_slice(&value.to_be_bytes());
+    }
+
+    #[inline]
+    fn put_uint_32(&mut self, value: u32) {
         self.extend_from_slice(&value.to_be_bytes());
     }
 
@@ -64,6 +80,16 @@ impl BufMut for Vec<u8> {
 
         for value in values {
             self.put_int_32(*value);
+        }
+    }
+
+    #[inline]
+    fn put_array_uint_32(&mut self, values: &[u32]) {
+        // FIXME: What happens here when len(values) > i16
+        self.put_int_16(values.len() as i16);
+
+        for value in values {
+            self.put_uint_32(*value);
         }
     }
 }

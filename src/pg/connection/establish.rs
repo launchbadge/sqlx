@@ -1,9 +1,9 @@
-use super::RawConnection;
-use crate::postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage};
+use super::PgConnection;
+use crate::pg::protocol::{Authentication, Message, PasswordMessage, StartupMessage};
 use std::{borrow::Cow, io};
 use url::Url;
 
-pub async fn establish<'a, 'b: 'a>(conn: &'a mut RawConnection, url: &'b Url) -> io::Result<()> {
+pub async fn establish<'a, 'b: 'a>(conn: &'a mut PgConnection, url: &'b Url) -> io::Result<()> {
     let user = url.username();
     let password = url.password().unwrap_or("");
     let database = url.path().trim_start_matches('/');

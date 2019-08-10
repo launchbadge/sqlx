@@ -1,4 +1,8 @@
-use super::protocol::{Encode, Message, Terminate};
+use super::{
+    protocol::{Encode, Message, Terminate},
+    Pg, PgQuery,
+};
+use crate::connection::{Connection, ConnectionAssocQuery};
 use bytes::{BufMut, BytesMut};
 use futures::{
     future::BoxFuture,
@@ -12,12 +16,12 @@ use std::{fmt::Debug, io, pin::Pin};
 use url::Url;
 
 mod establish;
-mod execute;
-mod get;
-mod prepare;
-mod select;
+// mod execute;
+// mod get;
+// mod prepare;
+// mod select;
 
-pub struct RawConnection {
+pub struct PgConnection {
     stream: TcpStream,
 
     // Do we think that there is data in the read buffer to be decoded
@@ -27,7 +31,7 @@ pub struct RawConnection {
     stream_eof: bool,
 
     // Buffer used when sending outgoing messages
-    wbuf: Vec<u8>,
+    pub(super) wbuf: Vec<u8>,
 
     // Buffer used when reading incoming messages
     // TODO: Evaluate if we _really_ want to use BytesMut here
@@ -40,8 +44,11 @@ pub struct RawConnection {
     secret_key: u32,
 }
 
-impl RawConnection {
-    pub async fn establish(url: &Url) -> io::Result<Self> {
+impl PgConnection {
+    pub async fn establish(url: &str) -> io::Result<Self> {
+        // TODO: Handle errors
+        let url = Url::parse(url).unwrap();
+
         let host = url.host_str().unwrap_or("localhost");
         let port = url.port().unwrap_or(5432);
 
@@ -61,10 +68,6 @@ impl RawConnection {
         Ok(conn)
     }
 
-    pub fn prepare<'a, 'b>(&'a mut self, query: &'b str) -> prepare::Prepare<'a, 'b> {
-        prepare::prepare(self, query)
-    }
-
     pub async fn close(mut self) -> io::Result<()> {
         self.write(Terminate);
         self.flush().await?;
@@ -74,7 +77,7 @@ impl RawConnection {
     }
 
     // Wait and return the next message to be received from Postgres.
-    async fn receive(&mut self) -> io::Result<Option<Message>> {
+    pub(super) async fn receive(&mut self) -> io::Result<Option<Message>> {
         loop {
             if self.stream_eof {
                 // Reached end-of-file on a previous read call.
@@ -128,11 +131,11 @@ impl RawConnection {
         }
     }
 
-    fn write(&mut self, message: impl Encode) {
+    pub(super) fn write(&mut self, message: impl Encode) {
         message.encode(&mut self.wbuf);
     }
 
-    async fn flush(&mut self) -> io::Result<()> {
+    pub(super) async fn flush(&mut self) -> io::Result<()> {
         self.stream.write_all(&self.wbuf).await?;
         self.wbuf.clear();
 
@@ -140,9 +143,20 @@ impl RawConnection {
     }
 }
 
-impl crate::connection::RawConnection for RawConnection {
+impl<'c, 'q> ConnectionAssocQuery<'c, 'q> for PgConnection {
+    type Query = PgQuery<'c, 'q>;
+}
+
+impl Connection for PgConnection {
+    type Backend = Pg;
+
     #[inline]
-    fn establish(url: &Url) -> BoxFuture<io::Result<Self>> {
-        Box::pin(RawConnection::establish(url))
+    fn establish(url: &str) -> BoxFuture<io::Result<Self>> {
+        Box::pin(PgConnection::establish(url))
+    }
+
+    #[inline]
+    fn prepare<'c, 'q>(&'c mut self, query: &'q str) -> PgQuery<'c, 'q> {
+        PgQuery::new(self, query)
     }
 }

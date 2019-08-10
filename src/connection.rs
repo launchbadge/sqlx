@@ -1,57 +1,23 @@
-use crate::backend::Backend;
+pub(crate) use self::internal::ConnectionAssocQuery;
+use crate::{backend::Backend, Query};
 use futures::future::BoxFuture;
-use std::{
-    io,
-    ops::{Deref, DerefMut},
-};
-use url::Url;
+use std::io;
 
-// TODO: Re-implement and forward to Raw instead of using Deref
+mod internal {
+    pub trait ConnectionAssocQuery<'c, 'q> {
+        type Query: super::Query<'c, 'q>;
+    }
+}
 
-pub trait RawConnection {
-    fn establish(url: &Url) -> BoxFuture<io::Result<Self>>
+pub trait Connection: for<'c, 'q> ConnectionAssocQuery<'c, 'q> {
+    type Backend: Backend;
+
+    fn establish(url: &str) -> BoxFuture<io::Result<Self>>
     where
         Self: Sized;
-}
 
-pub struct Connection<B>
-where
-    B: Backend,
-{
-    pub(crate) inner: B::RawConnection,
-}
-
-impl<B> Connection<B>
-where
-    B: Backend,
-{
-    #[inline]
-    pub async fn establish(url: &str) -> io::Result<Self> {
-        // TODO: Handle url parse errors
-        let url = Url::parse(url).unwrap();
-
-        Ok(Self {
-            inner: B::RawConnection::establish(&url).await?,
-        })
-    }
-}
-
-impl<B> Deref for Connection<B>
-where
-    B: Backend,
-{
-    type Target = B::RawConnection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<B> DerefMut for Connection<B>
-where
-    B: Backend,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
+    fn prepare<'c, 'q>(
+        &'c mut self,
+        query: &'q str,
+    ) -> <Self as ConnectionAssocQuery<'c, 'q>>::Query;
 }

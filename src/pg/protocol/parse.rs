@@ -3,7 +3,7 @@ use super::{BufMut, Encode};
 pub struct Parse<'a> {
     pub portal: &'a str,
     pub query: &'a str,
-    pub param_types: &'a [i32],
+    pub param_types: &'a [u32],
 }
 
 impl Encode for Parse<'_> {
@@ -17,6 +17,6 @@ impl Encode for Parse<'_> {
         buf.put_str(self.portal);
         buf.put_str(self.query);
 
-        buf.put_array_int_32(&self.param_types);
+        buf.put_array_uint_32(&self.param_types);
     }
 }

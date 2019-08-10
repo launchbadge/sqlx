@@ -22,7 +22,7 @@ mod terminate;
 // TODO: mod ssl_request;
 
 pub use self::{
-    bind::{Bind, BindValues},
+    bind::Bind,
     cancel_request::CancelRequest,
     close::Close,
     copy_data::CopyData,

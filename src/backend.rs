@@ -1,10 +1,7 @@
-use crate::{connection::RawConnection, row::RawRow};
-
-pub trait Backend {
-    type RawConnection: RawConnection;
-
-    type RawRow: RawRow;
-
-    /// The type used to represent metadata associated with a SQL type.
-    type TypeMetadata;
-}
+/// A database backend.
+///
+/// This trait is used to both allow distinct implementations of traits (
+/// e.g., implementing `ToSql for Uuid` differently for MySQL and Postgres) and
+/// to query capabilities within a database backend (e.g., with a specific
+/// `Connection` can we `bind` a `i64`?).
+pub trait Backend {}

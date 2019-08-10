@@ -1,29 +1,33 @@
 use crate::backend::Backend;
 
-pub trait SqlType<B>
-where
-    B: Backend,
-{
-    // FIXME: This should be a const fn
-    fn metadata() -> B::TypeMetadata;
+/// Information about how a backend stores metadata about
+/// given SQL types.
+pub trait TypeMetadata {
+    /// The actual type used to represent metadata.
+    type TypeMetadata;
+}
+
+/// Indicates that a SQL type exists for a backend and defines
+/// useful metadata for the backend.
+pub trait HasSqlType<A>: TypeMetadata {
+    fn metadata() -> Self::TypeMetadata;
 }
 
 /// Defines the canonical SQL that the implementing Rust type represents.
 /// This trait is used to map Rust types to SQL types when the explicit mapping is missing.
-pub trait AsSql<B>
+pub trait AsSqlType<DB: Backend>
 where
-    B: Backend,
+    DB: HasSqlType<Self::SqlType>,
 {
-    /// SQL type that should be inferred from the implementing Rust type.
-    type Type: SqlType<B>;
+    type SqlType;
 }
 
-impl<B, T> AsSql<B> for Option<T>
+impl<T, DB> AsSqlType<DB> for Option<T>
 where
-    B: Backend,
-    T: AsSql<B>,
+    DB: Backend + HasSqlType<<T as AsSqlType<DB>>::SqlType>,
+    T: AsSqlType<DB>,
 {
-    type Type = T::Type;
+    type SqlType = T::SqlType;
 }
 
 // Character types

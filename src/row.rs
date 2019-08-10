@@ -1,46 +1,35 @@
-use crate::{backend::Backend, deserialize::FromSql, types::SqlType};
+use crate::{backend::Backend, deserialize::FromSql, types::HasSqlType};
 
-pub trait RawRow {
+pub trait Row {
+    type Backend: Backend;
+
     fn is_empty(&self) -> bool;
 
     fn len(&self) -> usize;
 
-    fn get(&self, index: usize) -> Option<&[u8]>;
-}
+    fn get_raw(&self, index: usize) -> Option<&[u8]>;
 
-pub struct Row<B>(pub(crate) B::RawRow)
-where
-    B: Backend;
-
-impl<B> Row<B>
-where
-    B: Backend,
-{
     #[inline]
-    pub fn get<ST, T>(&self, index: usize) -> T
+    fn get<ST, T>(&self, index: usize) -> T
     where
-        ST: SqlType<B>,
-        T: FromSql<B, ST>,
+        Self::Backend: HasSqlType<ST>,
+        T: FromSql<ST, Self::Backend>,
     {
-        T::from_sql(self.0.get(index))
+        T::from_sql(self.get_raw(index))
     }
 }
 
-pub trait FromRow<B, Record>
-where
-    B: Backend,
-{
-    fn from_row(row: Row<B>) -> Self;
+pub trait FromRow<A, DB: Backend> {
+    fn from_row<R: Row<Backend = DB>>(row: R) -> Self;
 }
 
-impl<B, ST, T> FromRow<B, ST> for T
+impl<T, ST, DB> FromRow<ST, DB> for T
 where
-    B: Backend,
-    ST: SqlType<B>,
-    T: FromSql<B, ST>,
+    DB: Backend + HasSqlType<ST>,
+    T: FromSql<ST, DB>,
 {
     #[inline]
-    fn from_row(row: Row<B>) -> Self {
+    fn from_row<R: Row<Backend = DB>>(row: R) -> Self {
         row.get::<ST, T>(0)
     }
 }
@@ -48,13 +37,13 @@ where
 #[allow(unused)]
 macro_rules! impl_from_row_tuple {
     ($B:ident: $( ($idx:tt) -> $T:ident, $ST:ident );+;) => {
-        impl<$($ST,)+ $($T,)+> crate::row::FromRow<$B, ($($ST,)+)> for ($($T,)+)
+        impl<$($ST,)+ $($T,)+> crate::row::FromRow<($($ST,)+), $B> for ($($T,)+)
         where
-            $($ST: crate::types::SqlType<$B>,)+
-            $($T: crate::deserialize::FromSql<$B, $ST>,)+
+            $($B: crate::types::HasSqlType<$ST>,)+
+            $($T: crate::deserialize::FromSql<$ST, $B>,)+
         {
             #[inline]
-            fn from_row(row: crate::row::Row<$B>) -> Self {
+            fn from_row<R: crate::row::Row<Backend = $B>>(row: R) -> Self {
                 ($(row.get::<$ST, $T>($idx),)+)
             }
         }
