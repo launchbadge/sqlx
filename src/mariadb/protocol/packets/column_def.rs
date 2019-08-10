@@ -3,7 +3,7 @@ use bytes::Bytes;
 use failure::Error;
 use std::convert::TryFrom;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 // ColumnDefPacket doesn't have a packet header because
 // it's nested inside a result set packet
 pub struct ColumnDefPacket {

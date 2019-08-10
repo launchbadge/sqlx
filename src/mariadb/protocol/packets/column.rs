@@ -19,7 +19,12 @@ impl Decode for ColumnPacket {
         let length = decoder.decode_length()?;
         let seq_no = decoder.decode_int_u8();
 
-        let columns = decoder.decode_int_lenenc_unsigned();
+        let mut columns = decoder.decode_int_lenenc_unsigned();
+
+        // Treat 0 columns as None; this should never be a thing though
+        if columns.is_some() && columns.unwrap() == 0 {
+            columns = None;
+        }
 
         Ok(ColumnPacket {
             length,

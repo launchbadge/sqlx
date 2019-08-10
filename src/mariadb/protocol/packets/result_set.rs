@@ -10,7 +10,7 @@ use crate::mariadb::{
 #[derive(Debug, Default)]
 pub struct ResultSet {
     pub column_packet: ColumnPacket,
-    pub columns: Vec<ColumnDefPacket>,
+    pub column_defs: Option<Vec<ColumnDefPacket>>,
     pub rows: Vec<ResultRow>,
 }
 
@@ -21,16 +21,22 @@ impl ResultSet {
     ) -> Result<Self, Error> {
         let column_packet = ColumnPacket::decode(&mut ctx)?;
 
-        let columns = if let Some(columns) = column_packet.columns {
+        ctx.columns = column_packet.columns;
+
+        let column_defs = if let Some(columns) = column_packet.columns {
             let mut column_defs = Vec::new();
             for _ in 0..columns {
                 ctx.next_packet().await?;
                 column_defs.push(ColumnDefPacket::decode(&mut ctx)?);
             }
-            column_defs
+            Some(column_defs)
         } else {
-            Vec::new()
+            None
         };
+
+        if column_defs.is_some() {
+            ctx.column_defs = column_defs.clone();
+        }
 
         ctx.next_packet().await?;
 
@@ -46,8 +52,6 @@ impl ResultSet {
         } else {
             None
         };
-
-        ctx.columns = column_packet.columns.clone();
 
         let mut rows = Vec::new();
 
@@ -101,7 +105,7 @@ impl ResultSet {
 
         Ok(ResultSet {
             column_packet,
-            columns,
+            column_defs,
             rows,
         })
     }
@@ -124,7 +128,7 @@ mod test {
     async fn it_decodes_result_set_text_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
-        let buf = __bytes_builder!(
+        let buf: Bytes = __bytes_builder!(
         // ------------------- //
         // Column Count packet //
         // ------------------- //
@@ -341,9 +345,10 @@ mod test {
     }
 
     #[runtime::test]
-    fn it_decodes_result_set_binary_packet() -> Result<(), Error> {
+    async fn it_decodes_result_set_binary_packet() -> Result<(), Error> {
+        // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
-        let buf = __bytes_builder!(
+        let buf: Bytes = __bytes_builder!(
         // ------------------- //
         // Column Count packet //
         // ------------------- //
@@ -352,7 +357,7 @@ mod test {
         // int<1> seq_no
         1u8,
         // int<lenenc> tag code or length
-        4u8,
+        1u8,
 
         // ------------------------ //
         // Column Definition packet //
@@ -378,7 +383,7 @@ mod test {
         // int<2> character set number
         8u8, 0u8,
         // int<4> max. column size
-        0x80, 0u8, 0u8, 0u8,
+        0x80u8, 0u8, 0u8, 0u8,
         // int<1> Field types
         0xFD_u8,
         // int<2> Field detail flag
@@ -414,7 +419,7 @@ mod test {
         // byte<(number_of_columns + 9) / 8> NULL-Bitmap
         0u8,
         // byte<lenenc> encoded result
-        36u8, b"d83dd1c4-ada9-11e9-96bc-0242ac110003",
+        36u8, b"044d3f34-af65-11e9-a2e5-0242ac110003",
 
         // ---------- //
         // EOF Packet //
@@ -430,5 +435,12 @@ mod test {
         // int<2> server status
         34u8, 0u8
         );
+
+        let mut context = ConnContext::new();
+        let mut ctx = DeContext::new(&mut context, buf);
+
+        ResultSet::deserialize(ctx, ProtocolType::Binary).await?;
+
+        Ok(())
     }
 }
