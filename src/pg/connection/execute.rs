@@ -1,41 +1,31 @@
-use super::prepare::Prepare;
-use crate::postgres::protocol::{self, Message};
+use super::PgRawConnection;
+use crate::pg::protocol::Message;
 use std::io;
 
-impl<'a, 'b> Prepare<'a, 'b> {
-    pub async fn execute(self) -> io::Result<u64> {
-        let conn = self.finish();
+pub async fn execute(conn: &mut PgRawConnection) -> io::Result<u64> {
+    conn.flush().await?;
 
-        conn.flush().await?;
+    let mut rows = 0;
 
-        let mut rows = 0;
+    while let Some(message) = conn.receive().await? {
+        match message {
+            Message::BindComplete | Message::ParseComplete | Message::DataRow(_) => {}
 
-        while let Some(message) = conn.receive().await? {
-            match message {
-                Message::BindComplete | Message::ParseComplete => {
-                    // Indicates successful completion of a phase
-                }
+            Message::CommandComplete(body) => {
+                rows = body.rows();
+            }
 
-                Message::DataRow(_) => {
-                    // This is EXECUTE so we are ignoring any potential results
-                }
+            Message::ReadyForQuery(_) => {
+                // Successful completion of the whole cycle
+                return Ok(rows);
+            }
 
-                Message::CommandComplete(body) => {
-                    rows = body.rows();
-                }
-
-                Message::ReadyForQuery(_) => {
-                    // Successful completion of the whole cycle
-                    return Ok(rows);
-                }
-
-                message => {
-                    unimplemented!("received {:?} unimplemented message", message);
-                }
+            message => {
+                unimplemented!("received {:?} unimplemented message", message);
             }
         }
-
-        // FIXME: This is an end-of-file error. How we should bubble this up here?
-        unreachable!()
     }
+
+    // FIXME: This is an end-of-file error. How we should bubble this up here?
+    unreachable!()
 }

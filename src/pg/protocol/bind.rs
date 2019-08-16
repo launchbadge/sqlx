@@ -50,32 +50,3 @@ impl Encode for Bind<'_> {
         BigEndian::write_i32(&mut buf[pos..], len as i32);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{Bind, BindCollector, BufMut, Encode};
-
-    const BIND: &[u8] = b"B\0\0\0\x18\0\0\0\x01\0\x01\0\x02\0\0\0\x011\0\0\0\x012\0\0";
-
-    #[test]
-    fn it_encodes_bind_for_two() {
-        let mut buf = Vec::new();
-
-        let mut builder = BindCollector::new();
-        builder.add("1");
-        builder.add("2");
-
-        let bind = Bind {
-            portal: "",
-            statement: "",
-            formats: builder.formats(),
-            values_len: builder.values_len(),
-            values: builder.values(),
-            result_formats: &[],
-        };
-
-        bind.encode(&mut buf);
-
-        assert_eq!(buf, BIND);
-    }
-}

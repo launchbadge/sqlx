@@ -1,7 +1,16 @@
-use crate::{backend::Backend, Connection};
+use crate::{
+    backend::Backend, connection::RawConnection, executor::Executor, query::Query, row::FromRow,
+    Connection,
+};
 use crossbeam_queue::{ArrayQueue, SegQueue};
-use futures::{channel::oneshot, TryFutureExt};
+use futures::{
+    channel::oneshot,
+    future::BoxFuture,
+    stream::{self, BoxStream, Stream, StreamExt},
+    TryFutureExt,
+};
 use std::{
+    future::Future,
     io,
     ops::{Deref, DerefMut},
     sync::{
@@ -12,9 +21,6 @@ use std::{
 };
 use url::Url;
 
-// TODO: Reap old connections
-// TODO: Clean up (a lot) and document what's going on
-
 pub struct PoolOptions {
     pub max_size: usize,
     pub min_idle: Option<usize>,
@@ -24,59 +30,59 @@ pub struct PoolOptions {
 }
 
 /// A database connection pool.
-pub struct Pool<Conn: Connection> {
-    inner: Arc<InnerPool<Conn>>,
+pub struct Pool<DB>(Arc<SharedPool<DB>>)
+where
+    DB: Backend;
+
+impl<DB> Clone for Pool<DB>
+where
+    DB: Backend,
+{
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
 }
 
-struct InnerPool<Conn: Connection> {
+impl<DB> Pool<DB>
+where
+    DB: Backend,
+{
+    // TODO: PoolBuilder
+    pub fn new<'a>(url: &str, max_size: usize) -> Self {
+        Self(Arc::new(SharedPool {
+            url: url.to_owned(),
+            idle: ArrayQueue::new(max_size),
+            total: AtomicUsize::new(0),
+            waiters: SegQueue::new(),
+            options: PoolOptions {
+                idle_timeout: None,
+                connection_timeout: None,
+                max_lifetime: None,
+                max_size,
+                min_idle: None,
+            },
+        }))
+    }
+}
+
+struct SharedPool<DB>
+where
+    DB: Backend,
+{
     url: String,
-    idle: ArrayQueue<Idle<Conn>>,
-    waiters: SegQueue<oneshot::Sender<Live<Conn>>>,
-    // Total count of connections managed by this connection pool
+    idle: ArrayQueue<Idle<DB>>,
+    waiters: SegQueue<oneshot::Sender<Live<DB>>>,
     total: AtomicUsize,
     options: PoolOptions,
 }
 
-pub struct PoolConnection<Conn: Connection> {
-    connection: Option<Live<Conn>>,
-    pool: Arc<InnerPool<Conn>>,
-}
-
-impl<Conn: Connection> Clone for Pool<Conn> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-        }
-    }
-}
-
-impl<Conn: Connection> Pool<Conn> {
-    pub fn new<'a>(url: &str, options: PoolOptions) -> Self {
-        Self {
-            inner: Arc::new(InnerPool {
-                url: url.to_owned(),
-                idle: ArrayQueue::new(options.max_size),
-                total: AtomicUsize::new(0),
-                waiters: SegQueue::new(),
-                options,
-            }),
-        }
-    }
-
-    pub async fn acquire(&self) -> io::Result<PoolConnection<Conn>> {
-        self.inner
-            .acquire()
-            .map_ok(|live| PoolConnection::new(live, &self.inner))
-            .await
-    }
-}
-
-impl<Conn: Connection> InnerPool<Conn> {
-    async fn acquire(&self) -> io::Result<Live<Conn>> {
+impl<DB> SharedPool<DB>
+where
+    DB: Backend,
+{
+    async fn acquire(&self) -> io::Result<Live<DB>> {
         if let Ok(idle) = self.idle.pop() {
-            log::debug!("acquire: found idle connection");
-
-            return Ok(idle.connection);
+            return Ok(idle.live);
         }
 
         let total = self.total.load(Ordering::SeqCst);
@@ -84,93 +90,159 @@ impl<Conn: Connection> InnerPool<Conn> {
         if total >= self.options.max_size {
             // Too many already, add a waiter and wait for
             // a free connection
-            log::debug!("acquire: too many open connections; waiting for a free connection");
-
             let (sender, reciever) = oneshot::channel();
 
             self.waiters.push(sender);
 
             // TODO: Handle errors here
-            let live = reciever.await.unwrap();
-
-            log::debug!("acquire: free connection now available");
-
-            return Ok(live);
+            return Ok(reciever.await.unwrap());
         }
 
         self.total.store(total + 1, Ordering::SeqCst);
-        log::debug!("acquire: no idle connections; establish new connection");
 
-        let connection = Conn::establish(&self.url).await?;
+        let raw = <DB as Backend>::RawConnection::establish(&self.url).await?;
 
         let live = Live {
-            connection,
+            raw,
             since: Instant::now(),
         };
 
         Ok(live)
     }
 
-    fn release(&self, mut connection: Live<Conn>) {
+    fn release(&self, mut live: Live<DB>) {
         while let Ok(waiter) = self.waiters.pop() {
-            connection = match waiter.send(connection) {
+            live = match waiter.send(live) {
                 Ok(()) => {
                     return;
                 }
 
-                Err(connection) => connection,
+                Err(live) => live,
             };
         }
 
         let _ = self.idle.push(Idle {
-            connection,
+            live,
             since: Instant::now(),
         });
     }
 }
 
-impl<Conn: Connection> PoolConnection<Conn> {
-    fn new(connection: Live<Conn>, pool: &Arc<InnerPool<Conn>>) -> Self {
+impl<DB> Executor for Pool<DB>
+where
+    DB: Backend,
+{
+    type Backend = DB;
+
+    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+    {
+        Box::pin(async move {
+            let live = self.0.acquire().await?;
+            let mut conn = PooledConnection::new(&self.0, live);
+
+            conn.execute(query).await
+        })
+    }
+
+    fn fetch<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+        T: FromRow<A, Self::Backend> + Send + Unpin,
+    {
+        Box::pin(async_stream::try_stream! {
+            let live = self.0.acquire().await?;
+            let mut conn = PooledConnection::new(&self.0, live);
+            let mut s = conn.fetch(query);
+
+            while let Some(row) = s.next().await.transpose()? {
+                yield T::from_row(row);
+            }
+        })
+    }
+
+    fn fetch_optional<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(
+        &'c self,
+        query: Q,
+    ) -> BoxFuture<'c, io::Result<Option<T>>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+        T: FromRow<A, Self::Backend>,
+    {
+        Box::pin(async move {
+            let live = self.0.acquire().await?;
+            let mut conn = PooledConnection::new(&self.0, live);
+            let row = conn.fetch_optional(query).await?;
+
+            Ok(row.map(T::from_row))
+        })
+    }
+}
+
+struct PooledConnection<'a, DB>
+where
+    DB: Backend,
+{
+    shared: &'a Arc<SharedPool<DB>>,
+    live: Option<Live<DB>>,
+}
+
+impl<'a, DB> PooledConnection<'a, DB>
+where
+    DB: Backend,
+{
+    fn new(shared: &'a Arc<SharedPool<DB>>, live: Live<DB>) -> Self {
         Self {
-            connection: Some(connection),
-            pool: Arc::clone(pool),
+            shared,
+            live: Some(live),
         }
     }
 }
 
-impl<Conn: Connection> Deref for PoolConnection<Conn> {
-    type Target = Conn;
+impl<DB> Deref for PooledConnection<'_, DB>
+where
+    DB: Backend,
+{
+    type Target = DB::RawConnection;
 
-    #[inline]
     fn deref(&self) -> &Self::Target {
-        // PANIC: Will not panic unless accessed after drop
-        &self.connection.as_ref().unwrap().connection
+        &self.live.as_ref().expect("connection use after drop").raw
     }
 }
 
-impl<Conn: Connection> DerefMut for PoolConnection<Conn> {
-    #[inline]
+impl<DB> DerefMut for PooledConnection<'_, DB>
+where
+    DB: Backend,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // PANIC: Will not panic unless accessed after drop
-        &mut self.connection.as_mut().unwrap().connection
+        &mut self.live.as_mut().expect("connection use after drop").raw
     }
 }
 
-impl<Conn: Connection> Drop for PoolConnection<Conn> {
+impl<DB> Drop for PooledConnection<'_, DB>
+where
+    DB: Backend,
+{
     fn drop(&mut self) {
-        log::debug!("release: dropping connection; store back in queue");
-        if let Some(connection) = self.connection.take() {
-            self.pool.release(connection);
+        if let Some(live) = self.live.take() {
+            self.shared.release(live);
         }
     }
 }
 
-struct Idle<Conn: Connection> {
-    connection: Live<Conn>,
+struct Idle<DB>
+where
+    DB: Backend,
+{
+    live: Live<DB>,
     since: Instant,
 }
 
-struct Live<Conn: Connection> {
-    connection: Conn,
+struct Live<DB>
+where
+    DB: Backend,
+{
+    raw: DB::RawConnection,
     since: Instant,
 }

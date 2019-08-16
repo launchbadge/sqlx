@@ -14,7 +14,7 @@ description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [features]
-default = []
+default = ["postgres"]
 postgres = []
 mariadb = []
 
@@ -23,6 +23,7 @@ bitflags = "1.1.0"
 byteorder = "1.3.2"
 bytes = "0.4.12"
 crossbeam-queue = "0.1.2"
+crossbeam-utils = "0.6.6"
 enum-tryfrom = "0.2.1"
 enum-tryfrom-derive = "0.2.1"
 failure = "0.1.5"
@@ -33,7 +34,9 @@ log = "0.4.8"
 md-5 = "0.8.0"
 url = "2.1.0"
 memchr = "2.2.1"
-runtime = { version = "=0.3.0-alpha.6", default-features = false }
+async-stream = "0.1.0"
+tokio = { version = "=0.2.0-alpha.1" }
 
-[dev-dependencies]
-runtime = { version = "=0.3.0-alpha.6", default-features = true }
+[profile.release]
+lto = true
+codegen-units = 1

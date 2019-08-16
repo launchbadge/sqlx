@@ -3,7 +3,7 @@ use crate::backend::Backend;
 pub struct Pg;
 
 impl Backend for Pg {
-    type Connection = super::PgConnection;
+    type RawConnection = super::PgRawConnection;
     type Row = super::PgRow;
 }
 

@@ -1,23 +1,34 @@
 use super::{
-    protocol::{Encode, Message, Terminate},
-    Pg, PgQuery,
+    protocol::{Authentication, Encode, Message, PasswordMessage, StartupMessage, Terminate},
+    Pg, PgQuery, PgRow,
 };
-use crate::connection::{Connection, ConnectionAssocQuery};
+use crate::{connection::RawConnection, query::Query, row::FromRow};
 use bytes::{BufMut, BytesMut};
 use futures::{
     future::BoxFuture,
-    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     ready,
+    stream::{self, BoxStream, Stream},
     task::{Context, Poll},
     Future,
 };
-use runtime::net::TcpStream;
-use std::{fmt::Debug, io, pin::Pin};
+use std::{
+    fmt::Debug,
+    io,
+    net::{IpAddr, Shutdown, SocketAddr},
+    pin::Pin,
+};
+use tokio::{
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    net::TcpStream,
+};
 use url::Url;
 
 mod establish;
+mod execute;
+mod fetch;
+mod fetch_optional;
 
-pub struct PgConnection {
+pub struct PgRawConnection {
     stream: TcpStream,
 
     // Do we think that there is data in the read buffer to be decoded
@@ -40,15 +51,19 @@ pub struct PgConnection {
     secret_key: u32,
 }
 
-impl PgConnection {
-    pub async fn establish(url: &str) -> io::Result<Self> {
+impl PgRawConnection {
+    async fn establish(url: &str) -> io::Result<Self> {
         // TODO: Handle errors
         let url = Url::parse(url).unwrap();
 
         let host = url.host_str().unwrap_or("localhost");
         let port = url.port().unwrap_or(5432);
 
-        let stream = TcpStream::connect((host, port)).await?;
+        // FIXME: handle errors
+        let host: IpAddr = host.parse().unwrap();
+        let addr: SocketAddr = (host, port).into();
+
+        let stream = TcpStream::connect(&addr).await?;
         let mut conn = Self {
             wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(1024 * 8),
@@ -64,16 +79,16 @@ impl PgConnection {
         Ok(conn)
     }
 
-    pub async fn close(mut self) -> io::Result<()> {
+    async fn finalize(&mut self) -> io::Result<()> {
         self.write(Terminate);
         self.flush().await?;
-        self.stream.close().await?;
+        self.stream.shutdown(Shutdown::Both)?;
 
         Ok(())
     }
 
     // Wait and return the next message to be received from Postgres.
-    pub(super) async fn receive(&mut self) -> io::Result<Option<Message>> {
+    async fn receive(&mut self) -> io::Result<Option<Message>> {
         loop {
             if self.stream_eof {
                 // Reached end-of-file on a previous read call.
@@ -131,7 +146,7 @@ impl PgConnection {
         message.encode(&mut self.wbuf);
     }
 
-    pub(super) async fn flush(&mut self) -> io::Result<()> {
+    async fn flush(&mut self) -> io::Result<()> {
         self.stream.write_all(&self.wbuf).await?;
         self.wbuf.clear();
 
@@ -139,20 +154,46 @@ impl PgConnection {
     }
 }
 
-impl<'c, 'q> ConnectionAssocQuery<'c, 'q> for PgConnection {
-    type Query = PgQuery<'c, 'q>;
-}
-
-impl Connection for PgConnection {
+impl RawConnection for PgRawConnection {
     type Backend = Pg;
 
     #[inline]
     fn establish(url: &str) -> BoxFuture<io::Result<Self>> {
-        Box::pin(PgConnection::establish(url))
+        Box::pin(PgRawConnection::establish(url))
     }
 
     #[inline]
-    fn prepare<'c, 'q>(&'c mut self, query: &'q str) -> PgQuery<'c, 'q> {
-        PgQuery::new(self, query)
+    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, io::Result<()>> {
+        Box::pin(self.finalize())
+    }
+
+    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+    {
+        query.finish(self);
+
+        Box::pin(execute::execute(self))
+    }
+
+    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, io::Result<PgRow>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+    {
+        query.finish(self);
+
+        Box::pin(fetch::fetch(self))
+    }
+
+    fn fetch_optional<'c, 'q, Q: 'q>(
+        &'c mut self,
+        query: Q,
+    ) -> BoxFuture<'c, io::Result<Option<PgRow>>>
+    where
+        Q: Query<'q, Backend = Self::Backend>,
+    {
+        query.finish(self);
+
+        Box::pin(fetch_optional::fetch_optional(self))
     }
 }

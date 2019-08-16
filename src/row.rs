@@ -1,6 +1,6 @@
 use crate::{backend::Backend, deserialize::FromSql, types::HasSqlType};
 
-pub trait Row {
+pub trait Row: Send {
     type Backend: Backend;
 
     fn is_empty(&self) -> bool;

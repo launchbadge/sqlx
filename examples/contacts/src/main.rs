@@ -1,4 +1,4 @@
-#![feature(async_await)]
+#![feature(async_await, try_blocks)]
 
 use failure::Fallible;
 use fake::{
@@ -9,9 +9,16 @@ use fake::{
     },
     Dummy, Fake, Faker,
 };
-use futures::future;
-use sqlx::{pg::Pg, Client, Connection, Query};
+use std::time::Duration;
+use futures::stream::TryStreamExt;
+use std::io;
+use sqlx::{
+    pg::{Pg, PgQuery},
+    Pool, Query, Connection,
+};
 use std::time::Instant;
+
+type PgPool = Pool<Pg>;
 
 #[derive(Debug, Dummy)]
 struct Contact {
@@ -31,16 +38,22 @@ struct Contact {
     phone: String,
 }
 
-#[runtime::main(runtime_tokio::Tokio)]
+#[tokio::main]
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
-    let client = Client::<Pg>::new("postgres://postgres@localhost/sqlx__dev");
+    let pool = PgPool::new("postgres://postgres@127.0.0.1/sqlx__dev", 1);
 
-    {
-        let mut conn = client.get().await?;
-        conn.prepare(
-            r#"
+    ensure_schema(&pool).await?;
+    insert(&pool, 500).await?;
+    select(&pool, 50_000).await?;
+
+    Ok(())
+}
+
+async fn ensure_schema(pool: &PgPool) -> io::Result<()> {
+    sqlx::query::<PgQuery>(
+        r#"
 CREATE TABLE IF NOT EXISTS contacts (
     id BIGSERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -50,27 +63,29 @@ CREATE TABLE IF NOT EXISTS contacts (
     email TEXT NOT NULL,
     phone TEXT NOT NULL
 )
-            "#,
-        )
-        .execute()
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query::<PgQuery>("TRUNCATE contacts")
+        .execute(&pool)
         .await?;
 
-        conn.prepare("TRUNCATE contacts").execute().await?;
-    }
+    Ok(())
+}
 
-    let mut handles = vec![];
+async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
     let start_at = Instant::now();
-    let rows = 10_000;
 
-    for _ in 0..rows {
-        let client = client.clone();
+    for _ in 0..count {
+        let pool = pool.clone();
         let contact: Contact = Faker.fake();
-        let handle: runtime::task::JoinHandle<Fallible<()>> = runtime::task::spawn(async move {
-            let mut conn = client.get().await?;
-            conn.prepare(
+
+        sqlx::query::<PgQuery>(
                 r#"
-    INSERT INTO contacts (name, username, password, email, phone)
-    VALUES ($1, $2, $3, $4, $5)
+INSERT INTO contacts (name, username, password, email, phone)
+VALUES ($1, $2, $3, $4, $5)
                 "#,
             )
             .bind(contact.name)
@@ -78,18 +93,38 @@ CREATE TABLE IF NOT EXISTS contacts (
             .bind(contact.password)
             .bind(contact.email)
             .bind(contact.phone)
-            .execute()
+            .execute(&pool)
             .await?;
-
-            Ok(())
-        });
-
-        handles.push(handle);
     }
 
-    future::join_all(handles).await;
+    let elapsed = start_at.elapsed();
+    let per = Duration::from_nanos((elapsed.as_nanos() / (count as u128)) as u64);
 
-    println!("insert {} rows in {:?}", rows, start_at.elapsed());
+    println!("insert {} rows in {:?} [ 1 in ~{:?} ]", count, elapsed, per);
+
+    Ok(())
+}
+
+async fn select(pool: &PgPool, iterations: usize) -> io::Result<()> {
+    let start_at = Instant::now();
+    let mut rows: usize = 0;
+
+    for _ in 0..iterations {
+        // TODO: Once we have FromRow derives we can replace this with Vec<Contact>
+        let contacts: Vec<(String, String, String, String, String)> = sqlx::query::<PgQuery>(
+                r#"
+SELECT name, username, password, email, phone 
+FROM contacts
+                "#,
+        ).fetch(&pool).try_collect().await?;
+
+        rows = contacts.len();
+    }
+
+    let elapsed = start_at.elapsed();
+    let per = Duration::from_nanos((elapsed.as_nanos() / (iterations as u128)) as u64);
+
+    println!("select {} rows in ~{:?} [ x{} in {:?} ]", rows, per, iterations, elapsed);
 
     Ok(())
 }

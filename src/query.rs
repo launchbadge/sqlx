@@ -1,5 +1,7 @@
 use crate::{
     backend::Backend,
+    executor::Executor,
+    pool::Pool,
     row::FromRow,
     serialize::ToSql,
     types::{AsSqlType, HasSqlType},
@@ -7,13 +9,14 @@ use crate::{
 use futures::{future::BoxFuture, stream::BoxStream};
 use std::io;
 
-pub trait Query<'c, 'q> {
+pub trait Query<'q>: Sized + Send + Sync {
     type Backend: Backend;
+
+    fn new(query: &'q str) -> Self;
 
     #[inline]
     fn bind<T>(self, value: T) -> Self
     where
-        Self: Sized,
         Self::Backend: HasSqlType<<T as AsSqlType<Self::Backend>>::SqlType>,
         T: AsSqlType<Self::Backend>
             + ToSql<<T as AsSqlType<Self::Backend>>::SqlType, Self::Backend>,
@@ -23,17 +26,48 @@ pub trait Query<'c, 'q> {
 
     fn bind_as<ST, T>(self, value: T) -> Self
     where
-        Self: Sized,
         Self::Backend: HasSqlType<ST>,
         T: ToSql<ST, Self::Backend>;
 
-    fn execute(self) -> BoxFuture<'c, io::Result<u64>>;
+    fn finish(self, conn: &mut <Self::Backend as Backend>::RawConnection);
 
-    fn fetch<A: 'c, T: 'c>(self) -> BoxStream<'c, io::Result<T>>
+    #[inline]
+    fn execute<'c, C>(self, executor: &'c C) -> BoxFuture<'c, io::Result<u64>>
     where
-        T: FromRow<A, Self::Backend>;
+        Self: 'c + 'q,
+        C: Executor<Backend = Self::Backend>,
+    {
+        executor.execute(self)
+    }
 
-    fn fetch_optional<A: 'c, T: 'c>(self) -> BoxFuture<'c, io::Result<Option<T>>>
+    #[inline]
+    fn fetch<'c, A: 'c, T: 'c, C>(self, executor: &'c C) -> BoxStream<'c, io::Result<T>>
     where
-        T: FromRow<A, Self::Backend>;
+        Self: 'c + 'q,
+        C: Executor<Backend = Self::Backend>,
+        T: FromRow<A, Self::Backend> + Send + Unpin,
+    {
+        executor.fetch(self)
+    }
+
+    #[inline]
+    fn fetch_optional<'c, A: 'c, T: 'c, C>(
+        self,
+        executor: &'c C,
+    ) -> BoxFuture<'c, io::Result<Option<T>>>
+    where
+        Self: 'c + 'q,
+        C: Executor<Backend = Self::Backend>,
+        T: FromRow<A, Self::Backend>,
+    {
+        executor.fetch_optional(self)
+    }
+}
+
+#[inline]
+pub fn query<'q, Q>(query: &'q str) -> Q
+where
+    Q: Query<'q>,
+{
+    Q::new(query)
 }

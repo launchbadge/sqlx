@@ -30,11 +30,16 @@ pub mod mariadb;
 #[cfg(feature = "postgres")]
 pub mod pg;
 
-mod client;
 mod connection;
+mod executor;
 mod pool;
 mod query;
 
-pub use self::{client::Client, connection::Connection, query::Query};
+pub use self::{
+    connection::Connection,
+    pool::Pool,
+    query::{query, Query},
+};
 
+// TODO: Remove after Mariadb transitions to URIs
 mod options;

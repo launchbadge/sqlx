@@ -1,4 +1,4 @@
-use crate::{connection::Connection, row::Row};
+use crate::{connection::RawConnection, row::Row};
 
 /// A database backend.
 ///
@@ -7,6 +7,6 @@ use crate::{connection::Connection, row::Row};
 /// to query capabilities within a database backend (e.g., with a specific
 /// `Connection` can we `bind` a `i64`?).
 pub trait Backend: Sized {
-    type Connection: Connection<Backend = Self>;
+    type RawConnection: RawConnection<Backend = Self>;
     type Row: Row<Backend = Self>;
 }

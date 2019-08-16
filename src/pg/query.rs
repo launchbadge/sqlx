@@ -1,6 +1,6 @@
 use super::{
     protocol::{self, BufMut, Message},
-    Pg, PgConnection, PgRow,
+    Pg, PgRawConnection, PgRow,
 };
 use crate::{
     query::Query,
@@ -16,8 +16,8 @@ use futures::{
 };
 use std::io;
 
-pub struct PgQuery<'c, 'q> {
-    conn: &'c mut PgConnection,
+pub struct PgQuery<'q> {
+    limit: i32,
     query: &'q str,
     // OIDs of the bind parameters
     types: Vec<u32>,
@@ -25,43 +25,19 @@ pub struct PgQuery<'c, 'q> {
     buf: Vec<u8>,
 }
 
-impl<'c, 'q> PgQuery<'c, 'q> {
-    pub(super) fn new(conn: &'c mut PgConnection, query: &'q str) -> Self {
+impl<'q> Query<'q> for PgQuery<'q> {
+    type Backend = Pg;
+
+    fn new(query: &'q str) -> Self {
         Self {
+            limit: 0,
             query,
-            conn,
-            types: Vec::new(),
-            buf: Vec::new(),
+            // Estimates for average number of bind parameters were
+            // chosen from sampling from internal projects
+            types: Vec::with_capacity(4),
+            buf: Vec::with_capacity(32),
         }
     }
-
-    fn finish(self, limit: i32) -> &'c mut PgConnection {
-        self.conn.write(protocol::Parse {
-            portal: "",
-            query: self.query,
-            param_types: &*self.types,
-        });
-
-        self.conn.write(protocol::Bind {
-            portal: "",
-            statement: "",
-            formats: &[1], // [BINARY]
-            // TODO: Early error if there is more than i16
-            values_len: self.types.len() as i16,
-            values: &*self.buf,
-            result_formats: &[1], // [BINARY]
-        });
-
-        self.conn.write(protocol::Execute { portal: "", limit });
-
-        self.conn.write(protocol::Sync);
-
-        self.conn
-    }
-}
-
-impl<'c, 'q> Query<'c, 'q> for PgQuery<'c, 'q> {
-    type Backend = Pg;
 
     fn bind_as<ST, T>(mut self, value: T) -> Self
     where
@@ -91,132 +67,29 @@ impl<'c, 'q> Query<'c, 'q> for PgQuery<'c, 'q> {
         self
     }
 
-    #[inline]
-    fn execute(self) -> BoxFuture<'c, io::Result<u64>> {
-        Box::pin(execute(self.finish(0)))
+    fn finish(self, conn: &mut PgRawConnection) {
+        conn.write(protocol::Parse {
+            portal: "",
+            query: self.query,
+            param_types: &*self.types,
+        });
+
+        conn.write(protocol::Bind {
+            portal: "",
+            statement: "",
+            formats: &[1], // [BINARY]
+            // TODO: Early error if there is more than i16
+            values_len: self.types.len() as i16,
+            values: &*self.buf,
+            result_formats: &[1], // [BINARY]
+        });
+
+        // TODO: Make limit be 1 for fetch_optional
+        conn.write(protocol::Execute {
+            portal: "",
+            limit: self.limit,
+        });
+
+        conn.write(protocol::Sync);
     }
-
-    #[inline]
-    fn fetch<A: 'c, T: 'c>(self) -> BoxStream<'c, io::Result<T>>
-    where
-        T: FromRow<A, Self::Backend>,
-    {
-        Box::pin(fetch(self.finish(0)))
-    }
-
-    #[inline]
-    fn fetch_optional<A: 'c, T: 'c>(self) -> BoxFuture<'c, io::Result<Option<T>>>
-    where
-        T: FromRow<A, Self::Backend>,
-    {
-        Box::pin(fetch_optional(self.finish(1)))
-    }
-}
-
-async fn execute(conn: &mut PgConnection) -> io::Result<u64> {
-    conn.flush().await?;
-
-    let mut rows = 0;
-
-    while let Some(message) = conn.receive().await? {
-        match message {
-            Message::BindComplete | Message::ParseComplete | Message::DataRow(_) => {}
-
-            Message::CommandComplete(body) => {
-                rows = body.rows();
-            }
-
-            Message::ReadyForQuery(_) => {
-                // Successful completion of the whole cycle
-                return Ok(rows);
-            }
-
-            message => {
-                unimplemented!("received {:?} unimplemented message", message);
-            }
-        }
-    }
-
-    // FIXME: This is an end-of-file error. How we should bubble this up here?
-    unreachable!()
-}
-
-async fn fetch_optional<'a, A: 'a, T: 'a>(conn: &'a mut PgConnection) -> io::Result<Option<T>>
-where
-    T: FromRow<A, Pg>,
-{
-    conn.flush().await?;
-
-    let mut row: Option<PgRow> = None;
-
-    while let Some(message) = conn.receive().await? {
-        match message {
-            Message::BindComplete
-            | Message::ParseComplete
-            | Message::PortalSuspended
-            | Message::CloseComplete
-            | Message::CommandComplete(_) => {}
-
-            Message::DataRow(body) => {
-                row = Some(PgRow(body));
-            }
-
-            Message::ReadyForQuery(_) => {
-                return Ok(row.map(T::from_row));
-            }
-
-            message => {
-                unimplemented!("received {:?} unimplemented message", message);
-            }
-        }
-    }
-
-    // FIXME: This is an end-of-file error. How we should bubble this up here?
-    unreachable!()
-}
-
-fn fetch<'a, A: 'a, T: 'a>(
-    conn: &'a mut PgConnection,
-) -> impl Stream<Item = Result<T, io::Error>> + 'a + Unpin
-where
-    T: FromRow<A, Pg>,
-{
-    // FIXME: Manually implement Stream on a new type to avoid the unfold adapter
-    stream::unfold(conn, |conn| {
-        Box::pin(async {
-            if !conn.wbuf.is_empty() {
-                if let Err(e) = conn.flush().await {
-                    return Some((Err(e), conn));
-                }
-            }
-
-            loop {
-                let message = match conn.receive().await {
-                    Ok(Some(message)) => message,
-                    // FIXME: This is an end-of-file error. How we should bubble this up here?
-                    Ok(None) => unreachable!(),
-                    Err(e) => return Some((Err(e), conn)),
-                };
-
-                match message {
-                    Message::BindComplete
-                    | Message::ParseComplete
-                    | Message::CommandComplete(_) => {}
-
-                    Message::DataRow(row) => {
-                        break Some((Ok(T::from_row(PgRow(row))), conn));
-                    }
-
-                    Message::ReadyForQuery(_) => {
-                        // Successful completion of the whole cycle
-                        break None;
-                    }
-
-                    message => {
-                        unimplemented!("received {:?} unimplemented message", message);
-                    }
-                }
-            }
-        })
-    })
 }

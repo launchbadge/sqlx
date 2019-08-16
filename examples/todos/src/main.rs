@@ -2,7 +2,10 @@
 
 use failure::Fallible;
 use futures::{future, TryStreamExt};
-use sqlx::{pg::PgConnection, Connection, Query};
+use sqlx::{
+    pg::{Pg, PgQuery},
+    Connection, Query,
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -20,13 +23,13 @@ enum Command {
     MarkAsDone { id: i64 },
 }
 
-#[runtime::main(runtime_tokio::Tokio)]
+#[tokio::main]
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
     let opt = Options::from_args();
 
-    let mut conn = PgConnection::establish("postgres://postgres@localhost/sqlx__dev").await?;
+    let mut conn = Connection::<Pg>::establish("postgres://postgres@127.0.0.1/sqlx__dev").await?;
 
     ensure_schema(&mut conn).await?;
 
@@ -47,11 +50,11 @@ async fn main() -> Fallible<()> {
     Ok(())
 }
 
-async fn ensure_schema(conn: &mut PgConnection) -> Fallible<()> {
-    conn.prepare("BEGIN").execute().await?;
+async fn ensure_schema(conn: &mut Connection<Pg>) -> Fallible<()> {
+    sqlx::query::<PgQuery>("BEGIN").execute(conn).await?;
 
     // language=sql
-    conn.prepare(
+    sqlx::query::<PgQuery>(
         r#"
 CREATE TABLE IF NOT EXISTS tasks (
     id BIGSERIAL PRIMARY KEY,
@@ -61,24 +64,24 @@ CREATE TABLE IF NOT EXISTS tasks (
 )
         "#,
     )
-    .execute()
+    .execute(conn)
     .await?;
 
-    conn.prepare("COMMIT").execute().await?;
+    sqlx::query::<PgQuery>("COMMIT").execute(conn).await?;
 
     Ok(())
 }
 
-async fn print_all_tasks(conn: &mut PgConnection) -> Fallible<()> {
+async fn print_all_tasks(conn: &mut Connection<Pg>) -> Fallible<()> {
     // language=sql
-    conn.prepare(
+    sqlx::query::<PgQuery>(
         r#"
 SELECT id, text
 FROM tasks
 WHERE done_at IS NULL
         "#,
     )
-    .fetch()
+    .fetch(conn)
     .try_for_each(|(id, text): (i64, String)| {
         // language=text
         println!("{:>5} | {}", id, text);
@@ -90,24 +93,24 @@ WHERE done_at IS NULL
     Ok(())
 }
 
-async fn add_task(conn: &mut PgConnection, text: &str) -> Fallible<()> {
+async fn add_task(conn: &mut Connection<Pg>, text: &str) -> Fallible<()> {
     // language=sql
-    conn.prepare(
+    sqlx::query::<PgQuery>(
         r#"
 INSERT INTO tasks ( text )
 VALUES ( $1 )
         "#,
     )
     .bind(text)
-    .execute()
+    .execute(conn)
     .await?;
 
     Ok(())
 }
 
-async fn mark_task_as_done(conn: &mut PgConnection, id: i64) -> Fallible<()> {
+async fn mark_task_as_done(conn: &mut Connection<Pg>, id: i64) -> Fallible<()> {
     // language=sql
-    conn.prepare(
+    sqlx::query::<PgQuery>(
         r#"
 UPDATE tasks
 SET done_at = now()
@@ -115,7 +118,7 @@ WHERE id = $1
         "#,
     )
     .bind(id)
-    .execute()
+    .execute(conn)
     .await?;
 
     Ok(())

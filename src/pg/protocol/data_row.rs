@@ -81,7 +81,6 @@ impl Debug for DataRow {
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
-    use crate::row::RawRow;
     use bytes::Bytes;
     use std::io;
 
