@@ -12,18 +12,24 @@ use sqlx::Query as _;
 const DATABASE_URL: &str = "postgres://postgres@127.0.0.1:5432/sqlx__dev";
 
 async fn sqlx_select(conn: &sqlx::Connection<sqlx::pg::Pg>) {
-    let _rows: Vec<String> = sqlx::query::<sqlx::pg::PgQuery>("SELECT name FROM contacts").fetch(conn).try_collect().await.unwrap();
+    let _rows: Vec<String> = sqlx::query::<sqlx::pg::PgQuery>("SELECT name FROM contacts")
+        .fetch(conn)
+        .try_collect()
+        .await
+        .unwrap();
 }
 
 fn rust_postgres_select(cl: &mut rust_postgres::Client) {
-    let _rows: Vec<String> = cl.query("SELECT name FROM contacts", &[]).unwrap().into_iter().map(|row| {
-        row.get(0)
-    }).collect();
+    let _rows: Vec<String> = cl
+        .query("SELECT name FROM contacts", &[])
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get(0))
+        .collect();
 }
 
 fn diesel_select(conn: &diesel::pg::PgConnection) {
-    use diesel::query_dsl::RunQueryDsl;
-    use diesel::QueryableByName;
+    use diesel::{query_dsl::RunQueryDsl, QueryableByName};
 
     #[derive(QueryableByName)]
     struct Contact {
@@ -32,14 +38,18 @@ fn diesel_select(conn: &diesel::pg::PgConnection) {
         name: String,
     }
 
-    let _rows: Vec<Contact> = diesel::sql_query("SELECT name FROM contacts").load(conn).unwrap();
+    let _rows: Vec<Contact> = diesel::sql_query("SELECT name FROM contacts")
+        .load(conn)
+        .unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sqlx select", |b| {
         let rt = Runtime::new().unwrap();
         let conn = rt.block_on(async {
-            sqlx::Connection::<sqlx::pg::Pg>::establish(DATABASE_URL).await.unwrap()
+            sqlx::Connection::<sqlx::pg::Pg>::establish(DATABASE_URL)
+                .await
+                .unwrap()
         });
 
         b.iter(|| {
