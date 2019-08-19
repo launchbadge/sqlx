@@ -7,7 +7,7 @@ edition = "2018"
 sqlx = { path = "../..", features = [ "postgres" ] }
 failure = "0.1.5"
 env_logger = "0.6.2"
-tokio = { version = "=0.2.0-alpha.1" }
-futures-preview = "=0.3.0-alpha.17"
+tokio = { version = "=0.2.0-alpha.2" }
+futures-preview = "=0.3.0-alpha.18"
 fake = { version = "2.0", features=[ "derive" ] }
 rand = "0.7.0"

@@ -76,7 +76,7 @@ where
         Ok(Self(Arc::new(shared)))
     }
 
-    async fn get(&self) -> ConnectionFairy<DB> {
+    async fn get(&self) -> ConnectionFairy<'_, DB> {
         let raw = self.0.acquire().await;
         let conn = ConnectionFairy::new(&self.0, raw);
 
