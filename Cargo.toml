@@ -40,6 +40,7 @@ tokio = { version = "=0.2.0-alpha.1" }
 [dev-dependencies]
 criterion = "0.2"
 rust_postgres = { version = "0.16.0-rc.2", package = "postgres" }
+diesel = { version = "1.4.2", features = [ "postgres" ] }
 
 [[bench]]
 name = "select"

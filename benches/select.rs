@@ -21,6 +21,20 @@ fn rust_postgres_select(cl: &mut rust_postgres::Client) {
     }).collect();
 }
 
+fn diesel_select(conn: &diesel::pg::PgConnection) {
+    use diesel::query_dsl::RunQueryDsl;
+    use diesel::QueryableByName;
+
+    #[derive(QueryableByName)]
+    struct Contact {
+        #[allow(unused)]
+        #[sql_type = "diesel::sql_types::Text"]
+        name: String,
+    }
+
+    let _rows: Vec<Contact> = diesel::sql_query("SELECT name FROM contacts").load(conn).unwrap();
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sqlx select", |b| {
         let rt = Runtime::new().unwrap();
@@ -38,6 +52,16 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             rust_postgres_select(&mut cl);
+        });
+    });
+
+    c.bench_function("diesel select", |b| {
+        use diesel::Connection;
+
+        let conn = diesel::pg::PgConnection::establish(DATABASE_URL).unwrap();
+
+        b.iter(|| {
+            diesel_select(&conn);
         });
     });
 }
