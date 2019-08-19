@@ -46,6 +46,10 @@ diesel = { version = "1.4.2", features = [ "postgres" ] }
 name = "select"
 harness = false
 
+[[bench]]
+name = "postgres_protocol_decode"
+harness = false
+
 [profile.release]
 lto = true
 codegen-units = 1

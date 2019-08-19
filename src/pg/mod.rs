@@ -1,6 +1,7 @@
 mod backend;
 mod connection;
-mod protocol;
+// FIXME: Should only be public for benchmarks
+pub mod protocol;
 mod query;
 mod row;
 pub mod types;
