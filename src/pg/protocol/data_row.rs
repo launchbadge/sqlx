@@ -5,76 +5,78 @@ use std::{
     fmt::{self, Debug},
     io,
     ops::Range,
+    pin::Pin,
+    ptr::NonNull,
 };
 
 pub struct DataRow {
-    ranges: Vec<Option<Range<usize>>>,
-    buf: Bytes,
+    #[used]
+    buffer: Pin<Bytes>,
+    values: Vec<Option<NonNull<[u8]>>>,
 }
+
+// SAFE: Raw pointers point to pinned memory inside the struct
+unsafe impl Send for DataRow {}
+unsafe impl Sync for DataRow {}
 
 impl Decode for DataRow {
     fn decode(src: Bytes) -> io::Result<Self> {
-        let len = u16::from_be_bytes(src.as_ref()[..2].try_into().unwrap());
+        let buffer = Pin::new(src);
+        let buf: &[u8] = &*buffer.as_ref();
 
-        let mut ranges = Vec::with_capacity(len as usize);
-        let mut rem = len;
+        // TODO: Handle unwrap
+        let len_b: [u8; 2] = buf[..2].try_into().unwrap();
+        let len = u16::from_be_bytes(len_b) as usize;
+
+        let mut values = Vec::with_capacity(len);
         let mut index = 2;
 
-        while rem > 0 {
+        while values.len() < len {
             // The length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
-            let value_len =
-                i32::from_be_bytes(src.as_ref()[index..(index + 4)].try_into().unwrap());
+            // TODO: Handle unwrap
+            let value_len_b: [u8; 4] = buf[index..(index + 4)].try_into().unwrap();
+            let value_len = i32::from_be_bytes(value_len_b);
             index += 4;
 
             if value_len == -1 {
-                ranges.push(None);
+                values.push(None);
             } else {
-                let value_beg = index;
-                let value_end = value_beg + (value_len as usize);
-
-                ranges.push(Some(value_beg..(value_end as usize)));
-
+                let value_len = value_len as usize;
+                let value = &buf[index..(index + value_len)];
                 index += value_len as usize;
-            }
 
-            rem -= 1;
+                values.push(Some(value.into()));
+            }
         }
 
-        Ok(Self { ranges, buf: src })
+        Ok(Self { values, buffer })
     }
 }
 
 impl DataRow {
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.ranges.is_empty()
+        self.values.is_empty()
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.ranges.len()
+        self.values.len()
     }
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&[u8]> {
-        Some(&self.buf[self.ranges[index].clone()?])
+        self.values[index]
+            .as_ref()
+            .map(|value| unsafe { value.as_ref() })
     }
 }
 
 impl Debug for DataRow {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DataRow")
-            .field(
-                "values",
-                &self
-                    .ranges
-                    .iter()
-                    .map(|range| Some(Bytes::from(&self.buf[range.clone()?])))
-                    .collect::<Vec<_>>(),
-            )
-            .finish()
+        unimplemented!();
     }
 }
 
