@@ -7,6 +7,7 @@ use bytes::BytesMut;
 use std::io;
 
 #[derive(Debug)]
+#[repr(u8)]
 pub enum Message {
     Authentication(Authentication),
     ParameterStatus(ParameterStatus),
@@ -15,7 +16,7 @@ pub enum Message {
     CommandComplete(CommandComplete),
     RowDescription(RowDescription),
     DataRow(DataRow),
-    Response(Response),
+    Response(Box<Response>),
     NotificationResponse(NotificationResponse),
     ParseComplete,
     BindComplete,
@@ -54,7 +55,7 @@ impl Message {
         let src = src.split_to(len + 1).freeze().slice_from(5);
 
         let message = match token {
-            b'N' | b'E' => Message::Response(Response::decode(src)?),
+            b'N' | b'E' => Message::Response(Box::new(Response::decode(src)?)),
             b'S' => Message::ParameterStatus(ParameterStatus::decode(src)?),
             b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
             b'R' => Message::Authentication(Authentication::decode(src)?),
