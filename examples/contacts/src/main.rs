@@ -10,6 +10,8 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use std::time::Duration;
+use futures::future;
+use futures::channel::oneshot::channel;
 use futures::stream::TryStreamExt;
 use std::io;
 use sqlx::{
@@ -42,11 +44,11 @@ struct Contact {
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
-    let pool = PgPool::new("postgres://postgres@127.0.0.1/sqlx__dev", 1);
+    let pool = PgPool::new("postgres://postgres@127.0.0.1/sqlx__dev", 85);
 
     ensure_schema(&pool).await?;
-    insert(&pool, 500).await?;
-    select(&pool, 50_000).await?;
+    insert(&pool, 50_000).await?;
+    // select(&pool, 50_000).await?;
 
     Ok(())
 }
@@ -77,30 +79,39 @@ CREATE TABLE IF NOT EXISTS contacts (
 
 async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
     let start_at = Instant::now();
+    let mut handles = vec![];
 
     for _ in 0..count {
         let pool = pool.clone();
         let contact: Contact = Faker.fake();
+        let (tx, rx) = channel::<()>();
 
-        sqlx::query::<PgQuery>(
-                r#"
-INSERT INTO contacts (name, username, password, email, phone)
-VALUES ($1, $2, $3, $4, $5)
-                "#,
-            )
-            .bind(contact.name)
-            .bind(contact.username)
-            .bind(contact.password)
-            .bind(contact.email)
-            .bind(contact.phone)
-            .execute(&pool)
-            .await?;
+        tokio::spawn(async move {
+            sqlx::query::<PgQuery>(
+                    r#"
+    INSERT INTO contacts (name, username, password, email, phone)
+    VALUES ($1, $2, $3, $4, $5)
+                    "#,
+                )
+                .bind(contact.name)
+                .bind(contact.username)
+                .bind(contact.password)
+                .bind(contact.email)
+                .bind(contact.phone)
+                .execute(&pool)
+                .await.unwrap();
+
+            tx.send(()).unwrap();
+        });
+
+        handles.push(rx);
     }
 
-    let elapsed = start_at.elapsed();
-    let per = Duration::from_nanos((elapsed.as_nanos() / (count as u128)) as u64);
+    future::join_all(handles).await;
 
-    println!("insert {} rows in {:?} [ 1 in ~{:?} ]", count, elapsed, per);
+    let elapsed = start_at.elapsed();
+
+    println!("insert {} rows in {:?}", count, elapsed);
 
     Ok(())
 }
