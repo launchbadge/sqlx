@@ -4,6 +4,7 @@ use crate::{
     serialize::{IsNull, ToSql},
     types::{AsSqlType, HasSqlType, Text},
 };
+use std::str;
 
 impl HasSqlType<Text> for Pg {
     fn metadata() -> PgTypeMetadata {
@@ -43,8 +44,15 @@ impl ToSql<Text, Pg> for String {
 impl FromSql<Text, Pg> for String {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
-        // TODO: Handle optionals
-        // Using lossy here as it should be impossible to get non UTF8 data here
-        String::from_utf8_lossy(buf.unwrap()).into()
+        // TODO: Handle nulls
+
+        let s = if cfg!(debug_assertions) {
+            str::from_utf8(buf.unwrap()).expect("postgres returned non UTF-8 data for TEXT")
+        } else {
+            // SAFE: Postgres is required to return UTF-8 data
+            unsafe { str::from_utf8_unchecked(buf.unwrap()) }
+        };
+
+        s.to_owned()
     }
 }
