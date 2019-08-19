@@ -9,16 +9,15 @@ use fake::{
     },
     Dummy, Fake, Faker,
 };
-use std::time::Duration;
-use futures::future;
-use futures::channel::oneshot::channel;
-use futures::stream::TryStreamExt;
-use std::io;
+use futures::{channel::oneshot::channel, future, stream::TryStreamExt};
 use sqlx::{
     pg::{Pg, PgQuery},
-    Pool, Query, Connection,
+    Connection, Pool, Query,
 };
-use std::time::Instant;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 type PgPool = Pool<Pg>;
 
@@ -88,18 +87,19 @@ async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
 
         tokio::spawn(async move {
             sqlx::query::<PgQuery>(
-                    r#"
+                r#"
     INSERT INTO contacts (name, username, password, email, phone)
     VALUES ($1, $2, $3, $4, $5)
                     "#,
-                )
-                .bind(contact.name)
-                .bind(contact.username)
-                .bind(contact.password)
-                .bind(contact.email)
-                .bind(contact.phone)
-                .execute(&pool)
-                .await.unwrap();
+            )
+            .bind(contact.name)
+            .bind(contact.username)
+            .bind(contact.password)
+            .bind(contact.email)
+            .bind(contact.phone)
+            .execute(&pool)
+            .await
+            .unwrap();
 
             tx.send(()).unwrap();
         });
@@ -123,11 +123,14 @@ async fn select(pool: &PgPool, iterations: usize) -> io::Result<()> {
     for _ in 0..iterations {
         // TODO: Once we have FromRow derives we can replace this with Vec<Contact>
         let contacts: Vec<(String, String, String, String, String)> = sqlx::query::<PgQuery>(
-                r#"
+            r#"
 SELECT name, username, password, email, phone 
 FROM contacts
                 "#,
-        ).fetch(&pool).try_collect().await?;
+        )
+        .fetch(&pool)
+        .try_collect()
+        .await?;
 
         rows = contacts.len();
     }
@@ -135,7 +138,10 @@ FROM contacts
     let elapsed = start_at.elapsed();
     let per = Duration::from_nanos((elapsed.as_nanos() / (iterations as u128)) as u64);
 
-    println!("select {} rows in ~{:?} [ x{} in {:?} ]", rows, per, iterations, elapsed);
+    println!(
+        "select {} rows in ~{:?} [ x{} in {:?} ]",
+        rows, per, iterations, elapsed
+    );
 
     Ok(())
 }

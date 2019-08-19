@@ -23,13 +23,16 @@ pub trait Executor: Send {
         T: FromRow<A, Self::Backend>;
 }
 
-impl<'e, E> Executor for &'e E where E: Executor + Send + Sync {
+impl<'e, E> Executor for &'e E
+where
+    E: Executor + Send + Sync,
+{
     type Backend = E::Backend;
 
     #[inline]
     fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, io::Result<u64>>
     where
-        Q: Query<'q, Backend = Self::Backend>
+        Q: Query<'q, Backend = Self::Backend>,
     {
         (*self).execute(query)
     }
@@ -37,7 +40,7 @@ impl<'e, E> Executor for &'e E where E: Executor + Send + Sync {
     fn fetch<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: Query<'q, Backend = Self::Backend>,
-        T: FromRow<A, Self::Backend> + Send + Unpin
+        T: FromRow<A, Self::Backend> + Send + Unpin,
     {
         (*self).fetch(query)
     }
@@ -48,7 +51,7 @@ impl<'e, E> Executor for &'e E where E: Executor + Send + Sync {
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: Query<'q, Backend = Self::Backend>,
-        T: FromRow<A, Self::Backend>
+        T: FromRow<A, Self::Backend>,
     {
         (*self).fetch_optional(query)
     }

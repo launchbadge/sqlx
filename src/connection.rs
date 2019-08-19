@@ -9,8 +9,10 @@ use futures::{
 use std::{
     io,
     ops::{Deref, DerefMut},
-    sync::Arc,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 pub trait RawConnection: Send {
@@ -73,7 +75,7 @@ where
 
         Ok(Self(Arc::new(shared)))
     }
-    
+
     async fn get(&self) -> ConnectionFairy<DB> {
         let raw = self.0.acquire().await;
         let conn = ConnectionFairy::new(&self.0, raw);
