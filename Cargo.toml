@@ -37,6 +37,14 @@ memchr = "2.2.1"
 async-stream = "0.1.0"
 tokio = { version = "=0.2.0-alpha.1" }
 
+[dev-dependencies]
+criterion = "0.2"
+rust_postgres = { version = "0.16.0-rc.2", package = "postgres" }
+
+[[bench]]
+name = "select"
+harness = false
+
 [profile.release]
 lto = true
 codegen-units = 1
