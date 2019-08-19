@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate criterion;
 
+#[macro_use]
+extern crate diesel;
+
 use criterion::Criterion;
 use futures::stream::TryStreamExt;
 use tokio::runtime::Runtime;
@@ -29,7 +32,7 @@ fn rust_postgres_select(cl: &mut rust_postgres::Client) {
 }
 
 fn diesel_select(conn: &diesel::pg::PgConnection) {
-    use diesel::{query_dsl::RunQueryDsl, QueryableByName};
+    use diesel::query_dsl::RunQueryDsl;
 
     #[derive(QueryableByName)]
     struct Contact {
@@ -41,6 +44,19 @@ fn diesel_select(conn: &diesel::pg::PgConnection) {
     let _rows: Vec<Contact> = diesel::sql_query("SELECT name FROM contacts")
         .load(conn)
         .unwrap();
+}
+
+fn diesel_dsl_select(conn: &diesel::pg::PgConnection) {
+    use diesel::prelude::*;
+
+    table! {
+        contacts {
+            id -> BigInt,
+            name -> Text,
+        }
+    }
+
+    let _rows: Vec<String> = contacts::table.select(contacts::name).load(conn).unwrap();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -72,6 +88,16 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         b.iter(|| {
             diesel_select(&conn);
+        });
+    });
+
+    c.bench_function("diesel dsl select", |b| {
+        use diesel::Connection;
+
+        let conn = diesel::pg::PgConnection::establish(DATABASE_URL).unwrap();
+
+        b.iter(|| {
+            diesel_dsl_select(&conn);
         });
     });
 }
