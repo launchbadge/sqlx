@@ -26,20 +26,6 @@ pub enum Message {
     ParameterDescription(Box<ParameterDescription>),
 }
 
-/*
-
-size:Authentication = 32
-size:ParameterStatus = 56
-size:BackendKeyData = 8
-size:CommandComplete = 8
-size:ReadyForQuery = 1
-size:DataRow = 48
-size:NotificationResponse = 64
-size:ParameterDescription = 24
-size:Message = 72
-
- */
-
 impl Message {
     // FIXME: `Message::decode` shares the name of the remaining message type `::decode` despite being very
     //        different
