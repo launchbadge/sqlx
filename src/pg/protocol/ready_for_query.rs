@@ -18,25 +18,28 @@ pub enum TransactionStatus {
 /// `ReadyForQuery` is sent whenever the backend is ready for a new query cycle.
 #[derive(Debug)]
 pub struct ReadyForQuery {
-    pub status: TransactionStatus,
+    status: TransactionStatus,
+}
+
+impl ReadyForQuery {
+    #[inline]
+    pub fn status(&self) -> TransactionStatus {
+        self.status
+    }
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(src: &[u8]) -> io::Result<Self> {
-        if src.len() != 1 {
-            return Err(io::ErrorKind::InvalidInput)?;
-        }
-
-        Ok(Self {
+    fn decode(src: &[u8]) -> Self {
+        Self {
             status: match src[0] {
                 // FIXME: Variant value are duplicated with declaration
                 b'I' => TransactionStatus::Idle,
                 b'T' => TransactionStatus::Transaction,
                 b'E' => TransactionStatus::Error,
 
-                _ => unreachable!(),
+                status => panic!("received {:?} for TransactionStatus", status),
             },
-        })
+        }
     }
 }
 
@@ -44,16 +47,13 @@ impl Decode for ReadyForQuery {
 mod tests {
     use super::{Decode, ReadyForQuery, TransactionStatus};
     use bytes::Bytes;
-    use std::io;
 
     const READY_FOR_QUERY: &[u8] = b"E";
 
     #[test]
-    fn it_decodes_ready_for_query() -> io::Result<()> {
-        let message = ReadyForQuery::decode(READY_FOR_QUERY)?;
+    fn it_decodes_ready_for_query() {
+        let message = ReadyForQuery::decode(READY_FOR_QUERY);
 
         assert_eq!(message.status, TransactionStatus::Error);
-
-        Ok(())
     }
 }

@@ -34,12 +34,36 @@ fn bench(c: &mut Criterion, name: &'static str, input: &'static [u8]) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    bench(c, "postgres - decode - Message - DataRow (x 1000)", MESSAGE_DATA_ROW);
-    bench(c, "postgres - decode - Message - ReadyForQuery (x 1000)", MESSAGE_READY_FOR_QUERY);
-    bench(c, "postgres - decode - Message - CommandComplete (x 1000)", MESSAGE_COMMAND_COMPLETE);
-    bench(c, "postgres - decode - Message - Response (x 1000)", MESSAGE_RESPONSE);
-    bench(c, "postgres - decode - Message - BackendKeyData (x 1000)", MESSAGE_BACKEND_KEY_DATA);
-    bench(c, "postgres - decode - Message - ParameterStatus (x 1000)", MESSAGE_PARAMETER_STATUS);
+    bench(
+        c,
+        "postgres - decode - Message - DataRow (x 1000)",
+        MESSAGE_DATA_ROW,
+    );
+    bench(
+        c,
+        "postgres - decode - Message - ReadyForQuery (x 1000)",
+        MESSAGE_READY_FOR_QUERY,
+    );
+    bench(
+        c,
+        "postgres - decode - Message - CommandComplete (x 1000)",
+        MESSAGE_COMMAND_COMPLETE,
+    );
+    bench(
+        c,
+        "postgres - decode - Message - Response (x 1000)",
+        MESSAGE_RESPONSE,
+    );
+    bench(
+        c,
+        "postgres - decode - Message - BackendKeyData (x 1000)",
+        MESSAGE_BACKEND_KEY_DATA,
+    );
+    bench(
+        c,
+        "postgres - decode - Message - ParameterStatus (x 1000)",
+        MESSAGE_PARAMETER_STATUS,
+    );
 }
 
 criterion_group!(benches, criterion_benchmark);

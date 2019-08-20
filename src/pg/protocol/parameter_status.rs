@@ -1,7 +1,5 @@
-use super::decode::{Decode, get_str};
-use std::pin::Pin;
-use std::ptr::NonNull;
-use std::{io, str};
+use super::decode::{get_str, Decode};
+use std::{io, pin::Pin, ptr::NonNull, str};
 
 // FIXME: Use &str functions for a custom Debug
 #[derive(Debug)]
@@ -31,33 +29,34 @@ impl ParameterStatus {
 }
 
 impl Decode for ParameterStatus {
-    fn decode(src: &[u8]) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> Self {
         let storage = Pin::new(Vec::from(src));
 
-        let name = get_str(&storage).unwrap();
-        let value = get_str(&storage[name.len() + 1..]).unwrap();
+        let name = get_str(&storage);
+        let value = get_str(&storage[name.len() + 1..]);
 
         let name = NonNull::from(name);
         let value = NonNull::from(value);
 
-        Ok(Self { storage, name, value })
+        Self {
+            storage,
+            name,
+            value,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Decode, ParameterStatus};
-    use std::io;
 
     const PARAM_STATUS: &[u8] = b"session_authorization\0postgres\0";
 
     #[test]
-    fn it_decodes_param_status() -> io::Result<()> {
-        let message = ParameterStatus::decode(PARAM_STATUS)?;
+    fn it_decodes_param_status() {
+        let message = ParameterStatus::decode(PARAM_STATUS);
 
         assert_eq!(message.name(), "session_authorization");
         assert_eq!(message.value(), "postgres");
-
-        Ok(())
     }
 }

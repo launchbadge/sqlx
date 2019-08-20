@@ -64,7 +64,7 @@ impl<'a> FieldDescription<'a> {
 pub struct RowDescription {
     // The number of fields in a row (can be zero).
     len: u16,
-    data: Vec<u8>,
+    data: Box<[u8]>,
 }
 
 impl RowDescription {
@@ -77,13 +77,13 @@ impl RowDescription {
 }
 
 impl Decode for RowDescription {
-    fn decode(src: &[u8]) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> Self {
         let len = BigEndian::read_u16(&src[..2]);
 
-        Ok(Self {
+        Self {
             len,
             data: src[2..].into(),
-        })
+        }
     }
 }
 
@@ -147,13 +147,12 @@ impl<'a> ExactSizeIterator for FieldDescriptions<'a> {}
 mod tests {
     use super::{Decode, RowDescription};
     use bytes::Bytes;
-    use std::io;
 
     const ROW_DESC: &[u8] = b"\0\x03?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0";
 
     #[test]
-    fn it_decodes_row_description() -> io::Result<()> {
-        let message = RowDescription::decode(ROW_DESC)?;
+    fn it_decodes_row_description() {
+        let message = RowDescription::decode(ROW_DESC);
         assert_eq!(message.fields().len(), 3);
 
         for field in message.fields() {
@@ -165,7 +164,5 @@ mod tests {
             assert_eq!(field.type_modifier(), -1);
             assert_eq!(field.format(), 0);
         }
-
-        Ok(())
     }
 }

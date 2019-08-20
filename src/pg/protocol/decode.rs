@@ -3,16 +3,15 @@ use memchr::memchr;
 use std::{io, str};
 
 pub trait Decode {
-    fn decode(src: &[u8]) -> io::Result<Self>
+    fn decode(src: &[u8]) -> Self
     where
         Self: Sized;
 }
 
 #[inline]
-pub(crate) fn get_str(src: &[u8]) -> io::Result<&str> {
-    let end = memchr(b'\0', &src).ok_or(io::ErrorKind::UnexpectedEof)?;
+pub(crate) fn get_str(src: &[u8]) -> &str {
+    let end = memchr(b'\0', &src).expect("expected null terminator in UTF-8 string");
     let buf = &src[..end];
-    let s = unsafe { str::from_utf8_unchecked(buf) };
 
-    Ok(s)
+    unsafe { str::from_utf8_unchecked(buf) }
 }

@@ -46,26 +46,26 @@ impl fmt::Debug for NotificationResponse {
 }
 
 impl Decode for NotificationResponse {
-    fn decode(src: &[u8]) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> Self {
         let pid = BigEndian::read_u32(&src);
 
         // offset from pid=4
         let storage = Pin::new(Vec::from(&src[4..]));
 
-        let channel_name = get_str(&storage)?;
+        let channel_name = get_str(&storage);
 
         // offset = channel_name.len() + \0
-        let message = get_str(&storage[(channel_name.len() + 1)..])?;
+        let message = get_str(&storage[(channel_name.len() + 1)..]);
 
         let channel_name = NonNull::from(channel_name);
         let message = NonNull::from(message);
 
-        Ok(Self {
+        Self {
             storage,
             pid,
             channel_name,
             message,
-        })
+        }
     }
 }
 
@@ -78,12 +78,11 @@ mod tests {
     const NOTIFICATION_RESPONSE: &[u8] = b"\x34\x20\x10\x02TEST-CHANNEL\0THIS IS A TEST\0";
 
     #[test]
-    fn it_decodes_notification_response() -> io::Result<()> {
-        let message = NotificationResponse::decode(NOTIFICATION_RESPONSE)?;
+    fn it_decodes_notification_response() {
+        let message = NotificationResponse::decode(NOTIFICATION_RESPONSE);
 
         assert_eq!(message.pid(), 0x34201002);
         assert_eq!(message.channel_name(), "TEST-CHANNEL");
         assert_eq!(message.message(), "THIS IS A TEST");
-        Ok(())
     }
 }

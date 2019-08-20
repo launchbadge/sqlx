@@ -9,22 +9,36 @@ use std::io;
 #[derive(Debug)]
 #[repr(u8)]
 pub enum Message {
-    Authentication(Authentication),
-    ParameterStatus(ParameterStatus),
+    Authentication(Box<Authentication>),
+    ParameterStatus(Box<ParameterStatus>),
     BackendKeyData(BackendKeyData),
     ReadyForQuery(ReadyForQuery),
     CommandComplete(CommandComplete),
-    RowDescription(RowDescription),
-    DataRow(DataRow),
+    RowDescription(Box<RowDescription>),
+    DataRow(Box<DataRow>),
     Response(Box<Response>),
-    NotificationResponse(NotificationResponse),
+    NotificationResponse(Box<NotificationResponse>),
     ParseComplete,
     BindComplete,
     CloseComplete,
     NoData,
     PortalSuspended,
-    ParameterDescription(ParameterDescription),
+    ParameterDescription(Box<ParameterDescription>),
 }
+
+/*
+
+size:Authentication = 32
+size:ParameterStatus = 56
+size:BackendKeyData = 8
+size:CommandComplete = 8
+size:ReadyForQuery = 1
+size:DataRow = 48
+size:NotificationResponse = 64
+size:ParameterDescription = 24
+size:Message = 72
+
+ */
 
 impl Message {
     // FIXME: `Message::decode` shares the name of the remaining message type `::decode` despite being very
@@ -38,8 +52,6 @@ impl Message {
             return Ok(None);
         }
 
-        log::trace!("[postgres] [decode] {:?}", bytes::Bytes::from(src.as_ref()));
-
         let token = src[0];
         if token == 0 {
             // FIXME: Handle end-of-stream
@@ -49,34 +61,39 @@ impl Message {
         // FIXME: What happens if len(u32) < len(usize) ?
         let len = BigEndian::read_u32(&src[1..5]) as usize;
 
-        if src.len() < (len + 1) {
+        if src.len() >= (len + 1) {
+            let window = &src[5..(len + 1)];
+
+            let message = match token {
+                b'N' | b'E' => Message::Response(Box::new(Response::decode(window))),
+                b'D' => Message::DataRow(Box::new(DataRow::decode(window))),
+                b'S' => Message::ParameterStatus(Box::new(ParameterStatus::decode(window))),
+                b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(window)),
+                b'R' => Message::Authentication(Box::new(Authentication::decode(window))),
+                b'K' => Message::BackendKeyData(BackendKeyData::decode(window)),
+                b'T' => Message::RowDescription(Box::new(RowDescription::decode(window))),
+                b'C' => Message::CommandComplete(CommandComplete::decode(window)),
+                b'A' => {
+                    Message::NotificationResponse(Box::new(NotificationResponse::decode(window)))
+                }
+                b'1' => Message::ParseComplete,
+                b'2' => Message::BindComplete,
+                b'3' => Message::CloseComplete,
+                b'n' => Message::NoData,
+                b's' => Message::PortalSuspended,
+                b't' => {
+                    Message::ParameterDescription(Box::new(ParameterDescription::decode(window)))
+                }
+
+                _ => unimplemented!("decode not implemented for token: {}", token as char),
+            };
+
+            src.advance(len + 1);
+
+            Ok(Some(message))
+        } else {
             // We don't have enough in the stream yet
-            return Ok(None);
+            Ok(None)
         }
-
-        let src_ = &src.as_ref()[5..(len + 1)];
-
-        let message = match token {
-            b'N' | b'E' => Message::Response(Box::new(Response::decode(src_)?)),
-            b'D' => Message::DataRow(DataRow::decode2(src_)),
-            b'S' => Message::ParameterStatus(ParameterStatus::decode(src_)?),
-            b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src_)?),
-            b'R' => Message::Authentication(Authentication::decode(src_)?),
-            b'K' => Message::BackendKeyData(BackendKeyData::decode2(src_)),
-            b'T' => Message::RowDescription(RowDescription::decode(src_)?),
-            b'C' => Message::CommandComplete(CommandComplete::decode2(src_)),
-            b'A' => Message::NotificationResponse(NotificationResponse::decode(src_)?),
-            b'1' => Message::ParseComplete,
-            b'2' => Message::BindComplete,
-            b'3' => Message::CloseComplete,
-            b'n' => Message::NoData,
-            b's' => Message::PortalSuspended,
-            b't' => Message::ParameterDescription(ParameterDescription::decode2(src_)),
-            _ => unimplemented!("decode not implemented for token: {}", token as char),
-        };
-
-        src.advance(len + 1);
-
-        Ok(Some(message))
     }
 }

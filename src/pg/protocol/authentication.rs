@@ -26,22 +26,22 @@ pub enum Authentication {
     Sspi,
 
     /// This message contains GSSAPI or SSPI data.
-    GssContinue { data: Vec<u8> },
+    GssContinue { data: Box<[u8]> },
 
     /// SASL authentication is required.
     // FIXME: authentication mechanisms
     Sasl,
 
     /// This message contains a SASL challenge.
-    SaslContinue { data: Vec<u8> },
+    SaslContinue { data: Box<[u8]> },
 
     /// SASL authentication has completed.
-    SaslFinal { data: Vec<u8> },
+    SaslFinal { data: Box<[u8]> },
 }
 
 impl Decode for Authentication {
-    fn decode(src: &[u8]) -> io::Result<Self> {
-        Ok(match src[0] {
+    fn decode(src: &[u8]) -> Self {
+        match src[0] {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,
             3 => Authentication::CleartextPassword,
@@ -58,6 +58,6 @@ impl Decode for Authentication {
             9 => Authentication::Sspi,
 
             token => unimplemented!("decode not implemented for token: {}", token),
-        })
+        }
     }
 }

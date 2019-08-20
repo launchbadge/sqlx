@@ -36,27 +36,34 @@ pub async fn establish<'a, 'b: 'a>(conn: &'a mut PgRawConnection, url: &'b Url) 
 
     while let Some(message) = conn.receive().await? {
         match message {
-            Message::Authentication(Authentication::Ok) => {
-                // Do nothing; server is just telling us that
-                // there is no password needed
-            }
+            Message::Authentication(auth) => {
+                match *auth {
+                    Authentication::Ok => {
+                        // Do nothing. No password is needed to continue.
+                    }
 
-            Message::Authentication(Authentication::CleartextPassword) => {
-                // FIXME: Should error early (before send) if the user did not supply a password
-                conn.write(PasswordMessage::Cleartext(password));
+                    Authentication::CleartextPassword => {
+                        // FIXME: Should error early (before send) if the user did not supply a password
+                        conn.write(PasswordMessage::Cleartext(password));
 
-                conn.flush().await?;
-            }
+                        conn.flush().await?;
+                    }
 
-            Message::Authentication(Authentication::Md5Password { salt }) => {
-                // FIXME: Should error early (before send) if the user did not supply a password
-                conn.write(PasswordMessage::Md5 {
-                    password,
-                    user,
-                    salt,
-                });
+                    Authentication::Md5Password { salt } => {
+                        // FIXME: Should error early (before send) if the user did not supply a password
+                        conn.write(PasswordMessage::Md5 {
+                            password,
+                            user,
+                            salt,
+                        });
 
-                conn.flush().await?;
+                        conn.flush().await?;
+                    }
+
+                    auth => {
+                        unimplemented!("received {:?} unimplemented authentication message", auth);
+                    }
+                }
             }
 
             Message::BackendKeyData(body) => {

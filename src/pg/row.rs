@@ -1,7 +1,7 @@
 use super::{protocol::DataRow, Pg};
 use crate::row::Row;
 
-pub struct PgRow(pub(crate) DataRow);
+pub struct PgRow(pub(crate) Box<DataRow>);
 
 impl Row for PgRow {
     type Backend = Pg;

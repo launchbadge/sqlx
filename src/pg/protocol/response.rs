@@ -77,7 +77,7 @@ impl FromStr for Severity {
 #[derive(Clone)]
 pub struct Response {
     #[used]
-    storage: Pin<Vec<u8>>,
+    storage: Pin<Box<[u8]>>,
     severity: Severity,
     code: NonNull<str>,
     message: NonNull<str>,
@@ -226,8 +226,8 @@ impl fmt::Debug for Response {
 }
 
 impl Decode for Response {
-    fn decode(src: &[u8]) -> io::Result<Self> {
-        let storage = Pin::new(Vec::from(src));
+    fn decode(src: &[u8]) -> Self {
+        let storage: Pin<Box<[u8]>> = Pin::new(src.into());
 
         let mut code = None::<&str>;
         let mut message = None::<&str>;
@@ -258,7 +258,7 @@ impl Decode for Response {
                 break;
             }
 
-            let field_value = get_str(&storage[idx..])?;
+            let field_value = get_str(&storage[idx..]);
             idx += field_value.len() + 1;
 
             match field_type {
@@ -267,7 +267,7 @@ impl Decode for Response {
                 }
 
                 b'V' => {
-                    severity_non_local = Some(field_value.parse()?);
+                    severity_non_local = Some(field_value.parse().unwrap());
                 }
 
                 b'C' => {
@@ -287,19 +287,11 @@ impl Decode for Response {
                 }
 
                 b'P' => {
-                    position = Some(
-                        field_value
-                            .parse()
-                            .map_err(|_| io::ErrorKind::InvalidData)?,
-                    );
+                    position = Some(field_value.parse().unwrap());
                 }
 
                 b'p' => {
-                    internal_position = Some(
-                        field_value
-                            .parse()
-                            .map_err(|_| io::ErrorKind::InvalidData)?,
-                    );
+                    internal_position = Some(field_value.parse().unwrap());
                 }
 
                 b'q' => {
@@ -335,11 +327,7 @@ impl Decode for Response {
                 }
 
                 b'L' => {
-                    line = Some(
-                        field_value
-                            .parse()
-                            .map_err(|_| io::ErrorKind::InvalidData)?,
-                    );
+                    line = Some(field_value.parse().unwrap());
                 }
 
                 b'R' => {
@@ -373,7 +361,7 @@ impl Decode for Response {
         let file = file.map(NonNull::from);
         let routine = routine.map(NonNull::from);
 
-        Ok(Self {
+        Self {
             storage,
             severity,
             code,
@@ -392,7 +380,7 @@ impl Decode for Response {
             line,
             position,
             internal_position,
-        })
+        }
     }
 }
 
@@ -400,25 +388,22 @@ impl Decode for Response {
 mod tests {
     use super::{Decode, Response, Severity};
     use bytes::Bytes;
-    use std::io;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
           skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
 
     #[test]
-    fn it_decodes_response() -> io::Result<()> {
-        let message = Response::decode(RESPONSE)?;
+    fn it_decodes_response() {
+        let message = Response::decode(RESPONSE);
 
         assert_eq!(message.severity(), Severity::Notice);
-        assert_eq!(
-            message.message(),
-            "extension \"uuid-ossp\" already exists, skipping"
-        );
         assert_eq!(message.code(), "42710");
         assert_eq!(message.file(), Some("extension.c"));
         assert_eq!(message.line(), Some(1656));
         assert_eq!(message.routine(), Some("CreateExtension"));
-
-        Ok(())
+        assert_eq!(
+            message.message(),
+            "extension \"uuid-ossp\" already exists, skipping"
+        );
     }
 }

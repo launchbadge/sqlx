@@ -11,21 +11,19 @@ use std::{
 
 pub struct DataRow {
     #[used]
-    buffer: Pin<Vec<u8>>,
-    values: Vec<Option<NonNull<[u8]>>>,
+    buffer: Pin<Box<[u8]>>,
+    values: Box<[Option<NonNull<[u8]>>]>,
 }
 
 // SAFE: Raw pointers point to pinned memory inside the struct
 unsafe impl Send for DataRow {}
 unsafe impl Sync for DataRow {}
 
-impl DataRow {
-    pub fn decode2(buf: &[u8]) -> Self {
-        let buffer = Pin::new(Vec::from(buf));
-        let buf: &[u8] = &*buffer;
+impl Decode for DataRow {
+    fn decode(buf: &[u8]) -> Self {
+        let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
 
-        // TODO: Handle unwrap
-        let len_b: [u8; 2] = buf[..2].try_into().unwrap();
+        let len_b: [u8; 2] = buffer[..2].try_into().unwrap();
         let len = u16::from_be_bytes(len_b) as usize;
 
         let mut values = Vec::with_capacity(len);
@@ -36,7 +34,7 @@ impl DataRow {
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
             // TODO: Handle unwrap
-            let value_len_b: [u8; 4] = buf[index..(index + 4)].try_into().unwrap();
+            let value_len_b: [u8; 4] = buffer[index..(index + 4)].try_into().unwrap();
             let value_len = i32::from_be_bytes(value_len_b);
             index += 4;
 
@@ -44,52 +42,19 @@ impl DataRow {
                 values.push(None);
             } else {
                 let value_len = value_len as usize;
-                let value = &buf[index..(index + value_len)];
+                let value = &buffer[index..(index + value_len)];
                 index += value_len as usize;
 
                 values.push(Some(value.into()));
             }
         }
 
-        Self { values, buffer }
+        Self {
+            values: values.into_boxed_slice(),
+            buffer,
+        }
     }
 }
-
-// impl Decode for DataRow {
-//     fn decode(src: Bytes) -> io::Result<Self> {
-//         let buffer = Pin::new(src);
-//         let buf: &[u8] = &*buffer.as_ref();
-
-//         // TODO: Handle unwrap
-//         let len_b: [u8; 2] = buf[..2].try_into().unwrap();
-//         let len = u16::from_be_bytes(len_b) as usize;
-
-//         let mut values = Vec::with_capacity(len);
-//         let mut index = 2;
-
-//         while values.len() < len {
-//             // The length of the column value, in bytes (this count does not include itself).
-//             // Can be zero. As a special case, -1 indicates a NULL column value.
-//             // No value bytes follow in the NULL case.
-//             // TODO: Handle unwrap
-//             let value_len_b: [u8; 4] = buf[index..(index + 4)].try_into().unwrap();
-//             let value_len = i32::from_be_bytes(value_len_b);
-//             index += 4;
-
-//             if value_len == -1 {
-//                 values.push(None);
-//             } else {
-//                 let value_len = value_len as usize;
-//                 let value = &buf[index..(index + value_len)];
-//                 index += value_len as usize;
-
-//                 values.push(Some(value.into()));
-//             }
-//         }
-
-//         Ok(Self { values, buffer })
-//     }
-// }
 
 impl DataRow {
     #[inline]
@@ -126,7 +91,7 @@ mod tests {
 
     #[test]
     fn it_decodes_data_row() {
-        let message = DataRow::decode2(DATA_ROW);
+        let message = DataRow::decode(DATA_ROW);
 
         assert_eq!(message.len(), 3);
 
