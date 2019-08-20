@@ -54,38 +54,28 @@ impl Message {
             return Ok(None);
         }
 
-        let mut old = false;
+        let src_ = &src.as_ref()[5..(len + 1)];
 
         let message = match token {
-            b'D' => Message::DataRow(DataRow::decode2(&src.as_ref()[5..(len + 1)])),
-
-            token => {
-                let src = src.split_to(len + 1).freeze().slice_from(5);
-                old = true;
-
-                match token {
-                    b'N' | b'E' => Message::Response(Box::new(Response::decode(src)?)),
-                    b'S' => Message::ParameterStatus(ParameterStatus::decode(src)?),
-                    b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src)?),
-                    b'R' => Message::Authentication(Authentication::decode(src)?),
-                    b'K' => Message::BackendKeyData(BackendKeyData::decode(src)?),
-                    b'T' => Message::RowDescription(RowDescription::decode(src)?),
-                    b'C' => Message::CommandComplete(CommandComplete::decode(src)?),
-                    b'A' => Message::NotificationResponse(NotificationResponse::decode(src)?),
-                    b'1' => Message::ParseComplete,
-                    b'2' => Message::BindComplete,
-                    b'3' => Message::CloseComplete,
-                    b'n' => Message::NoData,
-                    b's' => Message::PortalSuspended,
-                    b't' => Message::ParameterDescription(ParameterDescription::decode(src)?),
-                    _ => unimplemented!("decode not implemented for token: {}", token as char),
-                }
-            },
+            b'N' | b'E' => Message::Response(Box::new(Response::decode(src_)?)),
+            b'D' => Message::DataRow(DataRow::decode2(src_)),
+            b'S' => Message::ParameterStatus(ParameterStatus::decode(src_)?),
+            b'Z' => Message::ReadyForQuery(ReadyForQuery::decode(src_)?),
+            b'R' => Message::Authentication(Authentication::decode(src_)?),
+            b'K' => Message::BackendKeyData(BackendKeyData::decode2(src_)),
+            b'T' => Message::RowDescription(RowDescription::decode(src_)?),
+            b'C' => Message::CommandComplete(CommandComplete::decode2(src_)),
+            b'A' => Message::NotificationResponse(NotificationResponse::decode(src_)?),
+            b'1' => Message::ParseComplete,
+            b'2' => Message::BindComplete,
+            b'3' => Message::CloseComplete,
+            b'n' => Message::NoData,
+            b's' => Message::PortalSuspended,
+            b't' => Message::ParameterDescription(ParameterDescription::decode2(src_)),
+            _ => unimplemented!("decode not implemented for token: {}", token as char),
         };
 
-        if !old {
-            src.advance(len + 1);
-        }
+        src.advance(len + 1);
 
         Ok(Some(message))
     }

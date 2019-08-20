@@ -77,7 +77,7 @@ impl FromStr for Severity {
 #[derive(Clone)]
 pub struct Response {
     #[used]
-    storage: Pin<Bytes>,
+    storage: Pin<Vec<u8>>,
     severity: Severity,
     code: NonNull<str>,
     message: NonNull<str>,
@@ -226,8 +226,8 @@ impl fmt::Debug for Response {
 }
 
 impl Decode for Response {
-    fn decode(src: Bytes) -> io::Result<Self> {
-        let storage = Pin::new(src);
+    fn decode(src: &[u8]) -> io::Result<Self> {
+        let storage = Pin::new(Vec::from(src));
 
         let mut code = None::<&str>;
         let mut message = None::<&str>;
@@ -407,8 +407,7 @@ mod tests {
 
     #[test]
     fn it_decodes_response() -> io::Result<()> {
-        let src = Bytes::from_static(RESPONSE);
-        let message = Response::decode(src)?;
+        let message = Response::decode(RESPONSE)?;
 
         assert_eq!(message.severity(), Severity::Notice);
         assert_eq!(

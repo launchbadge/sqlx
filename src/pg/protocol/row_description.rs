@@ -64,25 +64,25 @@ impl<'a> FieldDescription<'a> {
 pub struct RowDescription {
     // The number of fields in a row (can be zero).
     len: u16,
-    data: Bytes,
+    data: Vec<u8>,
 }
 
 impl RowDescription {
     pub fn fields(&self) -> FieldDescriptions<'_> {
         FieldDescriptions {
             rem: self.len,
-            buf: &*self.data,
+            buf: &self.data,
         }
     }
 }
 
 impl Decode for RowDescription {
-    fn decode(src: Bytes) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         let len = BigEndian::read_u16(&src[..2]);
 
         Ok(Self {
             len,
-            data: src.slice_from(2),
+            data: src[2..].into(),
         })
     }
 }
@@ -153,8 +153,7 @@ mod tests {
 
     #[test]
     fn it_decodes_row_description() -> io::Result<()> {
-        let src = Bytes::from_static(ROW_DESC);
-        let message = RowDescription::decode(src)?;
+        let message = RowDescription::decode(ROW_DESC)?;
         assert_eq!(message.fields().len(), 3);
 
         for field in message.fields() {

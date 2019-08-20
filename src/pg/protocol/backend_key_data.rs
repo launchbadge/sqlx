@@ -23,15 +23,17 @@ impl BackendKeyData {
     }
 }
 
-impl Decode for BackendKeyData {
-    fn decode(src: Bytes) -> io::Result<Self> {
-        let process_id = u32::from_be_bytes(src.as_ref()[0..4].try_into().unwrap());
-        let secret_key = u32::from_be_bytes(src.as_ref()[4..8].try_into().unwrap());
+impl BackendKeyData {
+    pub fn decode2(src: &[u8]) -> Self {
+        // todo: error handling
+        assert_eq!(src.len(), 8);
+        let process_id = u32::from_be_bytes(src[0..4].try_into().unwrap());
+        let secret_key = u32::from_be_bytes(src[4..8].try_into().unwrap());
 
-        Ok(Self {
+        Self {
             process_id,
             secret_key,
-        })
+        }
     }
 }
 
@@ -45,8 +47,8 @@ mod tests {
 
     #[test]
     fn it_decodes_backend_key_data() -> io::Result<()> {
-        let src = Bytes::from_static(BACKEND_KEY_DATA);
-        let message = BackendKeyData::decode(src)?;
+        let src = BACKEND_KEY_DATA;
+        let message = BackendKeyData::decode2(src);
 
         assert_eq!(message.process_id(), 10182);
         assert_eq!(message.secret_key(), 2303903019);

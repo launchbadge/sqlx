@@ -12,7 +12,7 @@ pub async fn execute(conn: &mut PgRawConnection) -> io::Result<u64> {
             Message::BindComplete | Message::ParseComplete | Message::DataRow(_) => {}
 
             Message::CommandComplete(body) => {
-                rows = body.rows();
+                rows = body.rows;
             }
 
             Message::ReadyForQuery(_) => {

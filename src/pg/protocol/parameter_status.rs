@@ -5,8 +5,8 @@ use std::{io, str};
 // FIXME: Use &str functions for a custom Debug
 #[derive(Debug)]
 pub struct ParameterStatus {
-    name: Bytes,
-    value: Bytes,
+    name: Vec<u8>,
+    value: Vec<u8>,
 }
 
 impl ParameterStatus {
@@ -22,12 +22,12 @@ impl ParameterStatus {
 }
 
 impl Decode for ParameterStatus {
-    fn decode(src: Bytes) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         let name_end = memchr::memchr(0, &src).unwrap();
         let value_end = memchr::memchr(0, &src[(name_end + 1)..]).unwrap();
 
-        let name = src.slice_to(name_end);
-        let value = src.slice(name_end + 1, name_end + 1 + value_end);
+        let name = src[..name_end].into();
+        let value = src[(name_end + 1)..(name_end + 1 + value_end)].into();
 
         Ok(Self { name, value })
     }
@@ -43,8 +43,7 @@ mod tests {
 
     #[test]
     fn it_decodes_param_status() -> io::Result<()> {
-        let src = Bytes::from_static(PARAM_STATUS);
-        let message = ParameterStatus::decode(src)?;
+        let message = ParameterStatus::decode(PARAM_STATUS)?;
 
         assert_eq!(message.name(), "session_authorization");
         assert_eq!(message.value(), "postgres");

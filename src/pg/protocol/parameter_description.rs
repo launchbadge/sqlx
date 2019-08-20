@@ -11,8 +11,8 @@ pub struct ParameterDescription {
     ids: Vec<ObjectId>,
 }
 
-impl Decode for ParameterDescription {
-    fn decode(src: Bytes) -> io::Result<Self> {
+impl ParameterDescription {
+    pub fn decode2(src: &[u8]) -> Self {
         let count = BigEndian::read_u16(&*src) as usize;
 
         // todo: error handling
@@ -24,7 +24,7 @@ impl Decode for ParameterDescription {
             ids.push(BigEndian::read_u32(&src[offset..]));
         }
 
-        Ok(ParameterDescription { ids })
+        ParameterDescription { ids }
     }
 }
 
@@ -36,8 +36,8 @@ mod test {
 
     #[test]
     fn it_decodes_parameter_description() -> io::Result<()> {
-        let src = Bytes::from_static(b"\x00\x02\x00\x00\x00\x00\x00\x00\x05\x00");
-        let desc = ParameterDescription::decode(src)?;
+        let src = b"\x00\x02\x00\x00\x00\x00\x00\x00\x05\x00";
+        let desc = ParameterDescription::decode2(src);
 
         assert_eq!(desc.ids.len(), 2);
         assert_eq!(desc.ids[0], 0x0000_0000);
@@ -47,8 +47,8 @@ mod test {
 
     #[test]
     fn it_decodes_empty_parameter_description() -> io::Result<()> {
-        let src = Bytes::from_static(b"\x00\x00");
-        let desc = ParameterDescription::decode(src)?;
+        let src = b"\x00\x00";
+        let desc = ParameterDescription::decode2(src);
 
         assert_eq!(desc.ids.len(), 0);
         Ok(())
@@ -57,7 +57,7 @@ mod test {
     #[test]
     #[should_panic]
     fn parameter_description_wrong_length_fails() -> () {
-        let src = Bytes::from_static(b"\x00\x00\x00\x01\x02\x03");
-        ParameterDescription::decode(src).unwrap();
+        let src = b"\x00\x00\x00\x01\x02\x03";
+        ParameterDescription::decode2(src);
     }
 }
