@@ -39,26 +39,31 @@ fn criterion_benchmark(c: &mut Criterion) {
         "postgres - decode - Message - DataRow (x 1000)",
         MESSAGE_DATA_ROW,
     );
+
     bench(
         c,
         "postgres - decode - Message - ReadyForQuery (x 1000)",
         MESSAGE_READY_FOR_QUERY,
     );
+
     bench(
         c,
         "postgres - decode - Message - CommandComplete (x 1000)",
         MESSAGE_COMMAND_COMPLETE,
     );
+
     bench(
         c,
         "postgres - decode - Message - Response (x 1000)",
         MESSAGE_RESPONSE,
     );
+
     bench(
         c,
         "postgres - decode - Message - BackendKeyData (x 1000)",
         MESSAGE_BACKEND_KEY_DATA,
     );
+
     bench(
         c,
         "postgres - decode - Message - ParameterStatus (x 1000)",

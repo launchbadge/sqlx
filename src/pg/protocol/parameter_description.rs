@@ -20,7 +20,9 @@ impl Decode for ParameterDescription {
             ids.push(BigEndian::read_u32(&src[offset..]));
         }
 
-        ParameterDescription { ids: ids.into_boxed_slice() }
+        ParameterDescription {
+            ids: ids.into_boxed_slice(),
+        }
     }
 }
 
