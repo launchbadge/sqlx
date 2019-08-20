@@ -6,7 +6,7 @@ use std::{fmt, io, pin::Pin, ptr::NonNull};
 
 pub struct NotificationResponse {
     #[used]
-    storage: Pin<Bytes>,
+    storage: Pin<Vec<u8>>,
     pid: u32,
     channel_name: NonNull<str>,
     message: NonNull<str>,
@@ -46,15 +46,16 @@ impl fmt::Debug for NotificationResponse {
 }
 
 impl Decode for NotificationResponse {
-    fn decode(src: Bytes) -> io::Result<Self> {
-        let storage = Pin::new(src);
-        let pid = BigEndian::read_u32(&*storage);
+    fn decode(src: &[u8]) -> io::Result<Self> {
+        let pid = BigEndian::read_u32(&src);
 
         // offset from pid=4
-        let channel_name = get_str(&storage[4..])?;
+        let storage = Pin::new(Vec::from(&src[4..]));
 
-        // offset = pid + channel_name.len() + \0
-        let message = get_str(&storage[(4 + channel_name.len() + 1)..])?;
+        let channel_name = get_str(&storage)?;
+
+        // offset = channel_name.len() + \0
+        let message = get_str(&storage[(channel_name.len() + 1)..])?;
 
         let channel_name = NonNull::from(channel_name);
         let message = NonNull::from(message);
@@ -78,8 +79,7 @@ mod tests {
 
     #[test]
     fn it_decodes_notification_response() -> io::Result<()> {
-        let src = Bytes::from_static(NOTIFICATION_RESPONSE);
-        let message = NotificationResponse::decode(src)?;
+        let message = NotificationResponse::decode(NOTIFICATION_RESPONSE)?;
 
         assert_eq!(message.pid(), 0x34201002);
         assert_eq!(message.channel_name(), "TEST-CHANNEL");

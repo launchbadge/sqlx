@@ -26,21 +26,21 @@ pub enum Authentication {
     Sspi,
 
     /// This message contains GSSAPI or SSPI data.
-    GssContinue { data: Bytes },
+    GssContinue { data: Vec<u8> },
 
     /// SASL authentication is required.
     // FIXME: authentication mechanisms
     Sasl,
 
     /// This message contains a SASL challenge.
-    SaslContinue { data: Bytes },
+    SaslContinue { data: Vec<u8> },
 
     /// SASL authentication has completed.
-    SaslFinal { data: Bytes },
+    SaslFinal { data: Vec<u8> },
 }
 
 impl Decode for Authentication {
-    fn decode(src: Bytes) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         Ok(match src[0] {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,

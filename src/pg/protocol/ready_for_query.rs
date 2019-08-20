@@ -22,7 +22,7 @@ pub struct ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(src: Bytes) -> io::Result<Self> {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         if src.len() != 1 {
             return Err(io::ErrorKind::InvalidInput)?;
         }
@@ -50,8 +50,7 @@ mod tests {
 
     #[test]
     fn it_decodes_ready_for_query() -> io::Result<()> {
-        let src = Bytes::from_static(READY_FOR_QUERY);
-        let message = ReadyForQuery::decode(src)?;
+        let message = ReadyForQuery::decode(READY_FOR_QUERY)?;
 
         assert_eq!(message.status, TransactionStatus::Error);
 

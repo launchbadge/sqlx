@@ -3,7 +3,7 @@ use memchr::memchr;
 use std::{io, str};
 
 pub trait Decode {
-    fn decode(src: Bytes) -> io::Result<Self>
+    fn decode(src: &[u8]) -> io::Result<Self>
     where
         Self: Sized;
 }
