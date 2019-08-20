@@ -21,21 +21,21 @@ unsafe impl Sync for DataRow {}
 
 impl Decode for DataRow {
     fn decode(buf: &[u8]) -> Self {
-        let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
+        let len: [u8; 2] = buf[..2].try_into().unwrap();
+        let len = u16::from_be_bytes(len) as usize;
 
-        let len_b: [u8; 2] = buffer[..2].try_into().unwrap();
-        let len = u16::from_be_bytes(len_b) as usize;
+        let buffer: Pin<Box<[u8]>> = Pin::new(buf[2..].into());
 
         let mut values = Vec::with_capacity(len);
-        let mut index = 2;
+        let mut index = 0;
 
         while values.len() < len {
             // The length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
             // TODO: Handle unwrap
-            let value_len_b: [u8; 4] = buffer[index..(index + 4)].try_into().unwrap();
-            let value_len = i32::from_be_bytes(value_len_b);
+            let value_len: [u8; 4] = buffer[index..(index + 4)].try_into().unwrap();
+            let value_len = i32::from_be_bytes(value_len);
             index += 4;
 
             if value_len == -1 {
