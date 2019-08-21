@@ -1,6 +1,10 @@
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendAssocRawQuery};
 
 pub struct Pg;
+
+impl<'q> BackendAssocRawQuery<'q, Pg> for Pg {
+    type RawQuery = super::PgRawQuery<'q>;
+}
 
 impl Backend for Pg {
     type RawConnection = super::PgRawConnection;

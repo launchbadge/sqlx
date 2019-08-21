@@ -1,4 +1,4 @@
-use crate::{backend::Backend, executor::Executor, query::Query, row::FromRow};
+use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromRow};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures::{
@@ -30,21 +30,21 @@ pub trait RawConnection: Send {
 
     fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, io::Result<u64>>
     where
-        Q: Query<'q, Backend = Self::Backend>;
+        Q: RawQuery<'q, Backend = Self::Backend>;
 
     fn fetch<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
     ) -> BoxStream<'c, io::Result<<Self::Backend as Backend>::Row>>
     where
-        Q: Query<'q, Backend = Self::Backend>;
+        Q: RawQuery<'q, Backend = Self::Backend>;
 
     fn fetch_optional<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
     ) -> BoxFuture<'c, io::Result<Option<<Self::Backend as Backend>::Row>>>
     where
-        Q: Query<'q, Backend = Self::Backend>;
+        Q: RawQuery<'q, Backend = Self::Backend>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -92,7 +92,7 @@ where
 
     fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, io::Result<u64>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
     {
         Box::pin(async move {
             let mut conn = self.get().await;
@@ -102,7 +102,7 @@ where
 
     fn fetch<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromRow<A, Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
@@ -120,7 +120,7 @@ where
         query: Q,
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromRow<A, Self::Backend>,
     {
         Box::pin(async move {

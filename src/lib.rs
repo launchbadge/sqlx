@@ -38,7 +38,7 @@ mod query;
 pub use self::{
     connection::Connection,
     pool::Pool,
-    query::{query, Query},
+    query::{query, SqlQuery},
 };
 
 // TODO: Remove after Mariadb transitions to URIs

@@ -1,8 +1,8 @@
 use super::{
     protocol::{Authentication, Encode, Message, PasswordMessage, StartupMessage, Terminate},
-    Pg, PgQuery, PgRow,
+    Pg, PgRawQuery, PgRow,
 };
-use crate::{connection::RawConnection, query::Query, row::FromRow};
+use crate::{connection::RawConnection, query::RawQuery, row::FromRow};
 use bytes::{BufMut, BytesMut};
 use futures::{
     future::BoxFuture,
@@ -169,7 +169,7 @@ impl RawConnection for PgRawConnection {
 
     fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, io::Result<u64>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
     {
         query.finish(self);
 
@@ -178,7 +178,7 @@ impl RawConnection for PgRawConnection {
 
     fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, io::Result<PgRow>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
     {
         query.finish(self);
 
@@ -190,7 +190,7 @@ impl RawConnection for PgRawConnection {
         query: Q,
     ) -> BoxFuture<'c, io::Result<Option<PgRow>>>
     where
-        Q: Query<'q, Backend = Self::Backend>,
+        Q: RawQuery<'q, Backend = Self::Backend>,
     {
         query.finish(self);
 

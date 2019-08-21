@@ -2,10 +2,7 @@
 
 use failure::Fallible;
 use futures::{future, TryStreamExt};
-use sqlx::{
-    pg::{Pg, PgQuery},
-    Connection, Query,
-};
+use sqlx::{pg::Pg, Connection};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -51,10 +48,10 @@ async fn main() -> Fallible<()> {
 }
 
 async fn ensure_schema(conn: &mut Connection<Pg>) -> Fallible<()> {
-    sqlx::query::<PgQuery>("BEGIN").execute(conn).await?;
+    sqlx::query("BEGIN").execute(conn).await?;
 
     // language=sql
-    sqlx::query::<PgQuery>(
+    sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS tasks (
     id BIGSERIAL PRIMARY KEY,
@@ -67,14 +64,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     .execute(conn)
     .await?;
 
-    sqlx::query::<PgQuery>("COMMIT").execute(conn).await?;
+    sqlx::query("COMMIT").execute(conn).await?;
 
     Ok(())
 }
 
 async fn print_all_tasks(conn: &mut Connection<Pg>) -> Fallible<()> {
     // language=sql
-    sqlx::query::<PgQuery>(
+    sqlx::query(
         r#"
 SELECT id, text
 FROM tasks
@@ -95,7 +92,7 @@ WHERE done_at IS NULL
 
 async fn add_task(conn: &mut Connection<Pg>, text: &str) -> Fallible<()> {
     // language=sql
-    sqlx::query::<PgQuery>(
+    sqlx::query(
         r#"
 INSERT INTO tasks ( text )
 VALUES ( $1 )
@@ -110,7 +107,7 @@ VALUES ( $1 )
 
 async fn mark_task_as_done(conn: &mut Connection<Pg>, id: i64) -> Fallible<()> {
     // language=sql
-    sqlx::query::<PgQuery>(
+    sqlx::query(
         r#"
 UPDATE tasks
 SET done_at = now()

@@ -3,7 +3,7 @@ use super::{
     Pg, PgRawConnection, PgRow,
 };
 use crate::{
-    query::Query,
+    query::RawQuery,
     row::FromRow,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
@@ -16,7 +16,7 @@ use futures::{
 };
 use std::io;
 
-pub struct PgQuery<'q> {
+pub struct PgRawQuery<'q> {
     limit: i32,
     query: &'q str,
     // OIDs of the bind parameters
@@ -25,7 +25,7 @@ pub struct PgQuery<'q> {
     buf: Vec<u8>,
 }
 
-impl<'q> Query<'q> for PgQuery<'q> {
+impl<'q> RawQuery<'q> for PgRawQuery<'q> {
     type Backend = Pg;
 
     fn new(query: &'q str) -> Self {
