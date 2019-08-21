@@ -24,7 +24,10 @@ pub mod types;
 pub mod mariadb;
 
 #[cfg(feature = "postgres")]
-pub mod pg;
+pub mod postgres;
+
+#[cfg(feature = "postgres")]
+pub use self::postgres::Postgres;
 
 mod connection;
 mod executor;

@@ -1,11 +1,11 @@
-use super::{PgRawConnection, PgRow};
-use crate::pg::protocol::Message;
+use super::{PostgresRawConnection, PostgresRow};
+use crate::postgres::protocol::Message;
 use futures_core::stream::Stream;
 use std::io;
 
 pub fn fetch<'a>(
-    conn: &'a mut PgRawConnection,
-) -> impl Stream<Item = Result<PgRow, io::Error>> + 'a {
+    conn: &'a mut PostgresRawConnection,
+) -> impl Stream<Item = Result<PostgresRow, io::Error>> + 'a {
     async_stream::try_stream! {
         conn.flush().await?;
 
@@ -18,7 +18,7 @@ pub fn fetch<'a>(
                 | Message::CommandComplete(_) => {}
 
                 Message::DataRow(body) => {
-                    yield PgRow(body);
+                    yield PostgresRow(body);
                 }
 
                 Message::ReadyForQuery(_) => {

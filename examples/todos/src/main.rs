@@ -2,7 +2,7 @@
 
 use failure::Fallible;
 use futures::{future, TryStreamExt};
-use sqlx::{pg::Pg, Connection};
+use sqlx::{Postgres, Connection};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -26,7 +26,7 @@ async fn main() -> Fallible<()> {
 
     let opt = Options::from_args();
 
-    let mut conn = Connection::<Pg>::establish("postgres://postgres@127.0.0.1/sqlx__dev").await?;
+    let mut conn = Connection::<Postgres>::establish("postgres://postgres@127.0.0.1/sqlx__dev").await?;
 
     ensure_schema(&mut conn).await?;
 
@@ -47,7 +47,7 @@ async fn main() -> Fallible<()> {
     Ok(())
 }
 
-async fn ensure_schema(conn: &mut Connection<Pg>) -> Fallible<()> {
+async fn ensure_schema(conn: &mut Connection<Postgres>) -> Fallible<()> {
     sqlx::query("BEGIN").execute(conn).await?;
 
     // language=sql
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     Ok(())
 }
 
-async fn print_all_tasks(conn: &mut Connection<Pg>) -> Fallible<()> {
+async fn print_all_tasks(conn: &mut Connection<Postgres>) -> Fallible<()> {
     // language=sql
     sqlx::query(
         r#"
@@ -90,7 +90,7 @@ WHERE done_at IS NULL
     Ok(())
 }
 
-async fn add_task(conn: &mut Connection<Pg>, text: &str) -> Fallible<()> {
+async fn add_task(conn: &mut Connection<Postgres>, text: &str) -> Fallible<()> {
     // language=sql
     sqlx::query(
         r#"
@@ -105,7 +105,7 @@ VALUES ( $1 )
     Ok(())
 }
 
-async fn mark_task_as_done(conn: &mut Connection<Pg>, id: i64) -> Fallible<()> {
+async fn mark_task_as_done(conn: &mut Connection<Postgres>, id: i64) -> Fallible<()> {
     // language=sql
     sqlx::query(
         r#"

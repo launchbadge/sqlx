@@ -33,21 +33,21 @@ pub trait HasSqlType<A>: TypeMetadata {
 
 // Example of what that derive should generate
 
-// impl HasSqlType<Bool> for Pg {
+// impl HasSqlType<Bool> for Postgres {
 //     #[inline]
-//     fn metadata() -> PgTypeMetadata {
-//         <Pg as HasSqlType<bool>>::metadata()
+//     fn metadata() -> PostgresTypeMetadata {
+//         <Postgres as HasSqlType<bool>>::metadata()
 //     }
 // }
 
-// impl ToSql<Pg> for Bool {
+// impl ToSql<Postgres> for Bool {
 //     #[inline]
 //     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
 //         self.0.to_sql(buf)
 //     }
 // }
 
-// impl FromSql<Pg> for bool {
+// impl FromSql<Postgres> for bool {
 //     #[inline]
 //     fn from_sql(buf: Option<&[u8]>) -> Self {
 //         Self(bool::from_sql(buf))

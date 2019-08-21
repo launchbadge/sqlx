@@ -1,4 +1,4 @@
-use super::{Pg, PgTypeMetadata, PgTypeFormat};
+use super::{Postgres, PostgresTypeMetadata, PostgresTypeFormat};
 use crate::{
     deserialize::FromSql,
     serialize::{IsNull, ToSql},
@@ -6,25 +6,25 @@ use crate::{
 };
 use std::str;
 
-impl HasSqlType<&'_ str> for Pg {
+impl HasSqlType<&'_ str> for Postgres {
     #[inline]
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata {
-            format: PgTypeFormat::Binary,
+    fn metadata() -> PostgresTypeMetadata {
+        PostgresTypeMetadata {
+            format: PostgresTypeFormat::Binary,
             oid: 25,
             array_oid: 1009,
         }
     }
 }
 
-impl HasSqlType<String> for Pg {
+impl HasSqlType<String> for Postgres {
     #[inline]
-    fn metadata() -> PgTypeMetadata {
-        <Pg as HasSqlType<&str>>::metadata()
+    fn metadata() -> PostgresTypeMetadata {
+        <Postgres as HasSqlType<&str>>::metadata()
     }
 }
 
-impl ToSql<Pg> for &'_ str {
+impl ToSql<Postgres> for &'_ str {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
@@ -33,14 +33,14 @@ impl ToSql<Pg> for &'_ str {
     }
 }
 
-impl ToSql<Pg> for String {
+impl ToSql<Postgres> for String {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         self.as_str().to_sql(buf)
     }
 }
 
-impl FromSql<Pg> for String {
+impl FromSql<Postgres> for String {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle nulls

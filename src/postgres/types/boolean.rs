@@ -1,21 +1,21 @@
-use super::{Pg, PgTypeMetadata, PgTypeFormat};
+use super::{Postgres, PostgresTypeMetadata, PostgresTypeFormat};
 use crate::{
     deserialize::FromSql,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
 
-impl HasSqlType<bool> for Pg {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata {
-            format: PgTypeFormat::Binary,
+impl HasSqlType<bool> for Postgres {
+    fn metadata() -> PostgresTypeMetadata {
+        PostgresTypeMetadata {
+            format: PostgresTypeFormat::Binary,
             oid: 16,
             array_oid: 1000,
         }
     }
 }
 
-impl ToSql<Pg> for bool {
+impl ToSql<Postgres> for bool {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.push(self as u8);
@@ -24,7 +24,7 @@ impl ToSql<Pg> for bool {
     }
 }
 
-impl FromSql<Pg> for bool {
+impl FromSql<Postgres> for bool {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals

@@ -1,6 +1,6 @@
 use super::{
     protocol::{Encode, Message, Terminate},
-    Pg, PgRow,
+    Postgres, PostgresRow,
 };
 use crate::{connection::RawConnection, query::RawQuery};
 use bytes::{BufMut, BytesMut};
@@ -20,7 +20,7 @@ mod execute;
 mod fetch;
 mod fetch_optional;
 
-pub struct PgRawConnection {
+pub struct PostgresRawConnection {
     stream: TcpStream,
 
     // Do we think that there is data in the read buffer to be decoded
@@ -43,7 +43,7 @@ pub struct PgRawConnection {
     secret_key: u32,
 }
 
-impl PgRawConnection {
+impl PostgresRawConnection {
     async fn establish(url: &str) -> io::Result<Self> {
         // TODO: Handle errors
         let url = Url::parse(url).unwrap();
@@ -146,12 +146,12 @@ impl PgRawConnection {
     }
 }
 
-impl RawConnection for PgRawConnection {
-    type Backend = Pg;
+impl RawConnection for PostgresRawConnection {
+    type Backend = Postgres;
 
     #[inline]
     fn establish(url: &str) -> BoxFuture<io::Result<Self>> {
-        Box::pin(PgRawConnection::establish(url))
+        Box::pin(PostgresRawConnection::establish(url))
     }
 
     #[inline]
@@ -168,7 +168,7 @@ impl RawConnection for PgRawConnection {
         Box::pin(execute::execute(self))
     }
 
-    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, io::Result<PgRow>>
+    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, io::Result<PostgresRow>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {
@@ -180,7 +180,7 @@ impl RawConnection for PgRawConnection {
     fn fetch_optional<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
-    ) -> BoxFuture<'c, io::Result<Option<PgRow>>>
+    ) -> BoxFuture<'c, io::Result<Option<PostgresRow>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {

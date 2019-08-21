@@ -1,8 +1,8 @@
-use super::PgRawConnection;
-use crate::pg::protocol::Message;
+use super::PostgresRawConnection;
+use crate::postgres::protocol::Message;
 use std::io;
 
-pub async fn execute(conn: &mut PgRawConnection) -> io::Result<u64> {
+pub async fn execute(conn: &mut PostgresRawConnection) -> io::Result<u64> {
     conn.flush().await?;
 
     let mut rows = 0;

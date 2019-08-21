@@ -10,13 +10,13 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use futures::{channel::oneshot::channel, future, stream::TryStreamExt};
-use sqlx::{pg::Pg, Pool};
+use sqlx::{Postgres, Pool};
 use std::{
     io,
     time::{Duration, Instant},
 };
 
-type PgPool = Pool<Pg>;
+type PostgresPool = Pool<Postgres>;
 
 #[derive(Debug, Dummy)]
 struct Contact {
@@ -40,7 +40,7 @@ struct Contact {
 async fn main() -> Fallible<()> {
     env_logger::try_init()?;
 
-    let pool = PgPool::new("postgres://postgres@127.0.0.1/sqlx__dev", 85);
+    let pool = PostgresPool::new("postgres://postgres@127.0.0.1/sqlx__dev", 85);
 
     ensure_schema(&pool).await?;
     insert(&pool, 50_000).await?;
@@ -49,7 +49,7 @@ async fn main() -> Fallible<()> {
     Ok(())
 }
 
-async fn ensure_schema(pool: &PgPool) -> io::Result<()> {
+async fn ensure_schema(pool: &PostgresPool) -> io::Result<()> {
     sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS contacts (
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     Ok(())
 }
 
-async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
+async fn insert(pool: &PostgresPool, count: usize) -> io::Result<()> {
     let start_at = Instant::now();
     let mut handles = vec![];
 
@@ -111,7 +111,7 @@ async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
     Ok(())
 }
 
-async fn select(pool: &PgPool, iterations: usize) -> io::Result<()> {
+async fn select(pool: &PostgresPool, iterations: usize) -> io::Result<()> {
     let start_at = Instant::now();
     let mut rows: usize = 0;
 

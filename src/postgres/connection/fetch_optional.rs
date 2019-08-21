@@ -1,11 +1,11 @@
-use super::{PgRawConnection, PgRow};
-use crate::pg::protocol::Message;
+use super::{PostgresRawConnection, PostgresRow};
+use crate::postgres::protocol::Message;
 use std::io;
 
-pub async fn fetch_optional<'a>(conn: &'a mut PgRawConnection) -> io::Result<Option<PgRow>> {
+pub async fn fetch_optional<'a>(conn: &'a mut PostgresRawConnection) -> io::Result<Option<PostgresRow>> {
     conn.flush().await?;
 
-    let mut row: Option<PgRow> = None;
+    let mut row: Option<PostgresRow> = None;
 
     while let Some(message) = conn.receive().await? {
         match message {
@@ -16,7 +16,7 @@ pub async fn fetch_optional<'a>(conn: &'a mut PgRawConnection) -> io::Result<Opt
             | Message::CommandComplete(_) => {}
 
             Message::DataRow(body) => {
-                row = Some(PgRow(body));
+                row = Some(PostgresRow(body));
             }
 
             Message::ReadyForQuery(_) => {

@@ -1,10 +1,10 @@
-use super::{protocol::DataRow, Pg};
+use super::{protocol::DataRow, Postgres};
 use crate::row::Row;
 
-pub struct PgRow(pub(crate) Box<DataRow>);
+pub struct PostgresRow(pub(crate) Box<DataRow>);
 
-impl Row for PgRow {
-    type Backend = Pg;
+impl Row for PostgresRow {
+    type Backend = Postgres;
 
     #[inline]
     fn is_empty(&self) -> bool {

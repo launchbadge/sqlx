@@ -1,6 +1,6 @@
 use super::{
     protocol::{self, BufMut},
-    Pg, PgRawConnection,
+    Postgres, PostgresRawConnection,
 };
 use crate::{
     query::RawQuery,
@@ -9,7 +9,7 @@ use crate::{
 };
 use byteorder::{BigEndian, ByteOrder};
 
-pub struct PgRawQuery<'q> {
+pub struct PostgresRawQuery<'q> {
     limit: i32,
     query: &'q str,
     // OIDs of the bind parameters
@@ -18,8 +18,8 @@ pub struct PgRawQuery<'q> {
     buf: Vec<u8>,
 }
 
-impl<'q> RawQuery<'q> for PgRawQuery<'q> {
-    type Backend = Pg;
+impl<'q> RawQuery<'q> for PostgresRawQuery<'q> {
+    type Backend = Postgres;
 
     fn new(query: &'q str) -> Self {
         Self {
@@ -41,7 +41,7 @@ impl<'q> RawQuery<'q> for PgRawQuery<'q> {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
 
-        self.types.push(<Pg as HasSqlType<T>>::metadata().oid);
+        self.types.push(<Postgres as HasSqlType<T>>::metadata().oid);
 
         let pos = self.buf.len();
         self.buf.put_int_32(0);
@@ -60,7 +60,7 @@ impl<'q> RawQuery<'q> for PgRawQuery<'q> {
         self
     }
 
-    fn finish(self, conn: &mut PgRawConnection) {
+    fn finish(self, conn: &mut PostgresRawConnection) {
         conn.write(protocol::Parse {
             portal: "",
             query: self.query,

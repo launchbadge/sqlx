@@ -27,14 +27,14 @@
 //! | `IpAddr`                          | INET                                 |
 //!
 
-use super::Pg;
+use super::Postgres;
 use crate::types::TypeMetadata;
 
 mod boolean;
 mod character;
 mod numeric;
 
-pub enum PgTypeFormat {
+pub enum PostgresTypeFormat {
     Text = 0,
     Binary = 1,
 }
@@ -44,12 +44,12 @@ pub enum PgTypeFormat {
 ///
 /// While the BINARY format is preferred in most cases, there are scenarios 
 /// where only the TEXT format may be available for a type.
-pub struct PgTypeMetadata {
-    pub format: PgTypeFormat,
+pub struct PostgresTypeMetadata {
+    pub format: PostgresTypeFormat,
     pub oid: u32,
     pub array_oid: u32,
 }
 
-impl TypeMetadata for Pg {
-    type TypeMetadata = PgTypeMetadata;
+impl TypeMetadata for Postgres {
+    type TypeMetadata = PostgresTypeMetadata;
 }

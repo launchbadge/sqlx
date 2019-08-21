@@ -6,4 +6,4 @@ mod query;
 mod row;
 pub mod types;
 
-pub use self::{backend::Pg, connection::PgRawConnection, query::PgRawQuery, row::PgRow};
+pub use self::{backend::Postgres, connection::PostgresRawConnection, query::PostgresRawQuery, row::PostgresRow};
