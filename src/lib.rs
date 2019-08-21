@@ -5,8 +5,8 @@
 // #[macro_use]
 // extern crate bitflags;
 
-// #[macro_use]
-// extern crate enum_tryfrom_derive;
+#[macro_use]
+extern crate bitflags;
 
 #[cfg(test)]
 extern crate test;

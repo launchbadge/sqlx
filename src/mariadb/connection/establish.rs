@@ -9,10 +9,11 @@ use crate::{
 use bytes::Bytes;
 use failure::{err_msg, Error};
 use std::ops::BitAnd;
+use url::Url;
 
-pub async fn establish<'a, 'b: 'a>(
-    conn: &'a mut Connection,
-    options: ConnectOptions<'b>,
+pub async fn establish(
+    conn: &mut Connection,
+    url: Url
 ) -> Result<(), Error> {
     let buf = conn.stream.next_packet().await?;
     let mut de_ctx = DeContext::new(&mut conn.context, buf);
@@ -25,7 +26,7 @@ pub async fn establish<'a, 'b: 'a>(
         capabilities: de_ctx.ctx.capabilities,
         max_packet_size: 1024,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),
-        username: options.user.unwrap_or(""),
+        username: url.username(),
         ..Default::default()
     };
 
@@ -54,13 +55,7 @@ mod test {
 
     #[runtime::test]
     async fn it_can_connect() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
 
         Ok(())
@@ -68,13 +63,8 @@ mod test {
 
     #[runtime::test]
     async fn it_can_ping() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+
         .await?;
 
         conn.ping().await?;
@@ -84,13 +74,7 @@ mod test {
 
     #[runtime::test]
     async fn it_can_select_db() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -100,13 +84,7 @@ mod test {
 
     #[runtime::test]
     async fn it_can_query() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -118,13 +96,7 @@ mod test {
 
     #[runtime::test]
     async fn it_can_prepare() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -137,13 +109,7 @@ mod test {
 
     #[runtime::test]
     async fn it_can_execute_prepared() -> Result<(), Error> {
-        let mut conn = Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("root"),
-            database: None,
-            password: None,
-        })
+        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -186,13 +152,7 @@ mod test {
 
     #[runtime::test]
     async fn it_does_not_connect() -> Result<(), Error> {
-        match Connection::establish(ConnectOptions {
-            host: "127.0.0.1",
-            port: 3306,
-            user: Some("roote"),
-            database: None,
-            password: None,
-        })
+        match Connection::establish(&"mariadb//roote@localhost:3306")
         .await
         {
             Ok(_) => Err(err_msg("Bad username still worked?")),

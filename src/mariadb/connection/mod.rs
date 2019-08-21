@@ -11,10 +11,16 @@ use bytes::{Bytes, BytesMut};
 use core::convert::TryFrom;
 use failure::Error;
 use futures::{
-    io::{AsyncRead, AsyncWriteExt},
+    io::{AsyncRead},
     prelude::*,
 };
-use runtime::net::TcpStream;
+use tokio::{
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    net::TcpStream,
+};
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use url::Url;
+use bytes::BufMut;
 
 mod establish;
 
@@ -72,8 +78,17 @@ impl ConnContext {
 }
 
 impl Connection {
-    pub async fn establish(options: ConnectOptions<'static>) -> Result<Self, Error> {
-        let stream: Framed = Framed::new(TcpStream::connect((options.host, options.port)).await?);
+    pub async fn establish(url: &str) -> Result<Self, Error> {
+        // TODO: Handle errors
+        let url = Url::parse(url).unwrap();
+
+        let host = url.host_str().unwrap_or("localhost");
+        let port = url.port().unwrap_or(3306);
+
+        // FIXME: handle errors
+        let host: IpAddr = host.parse().unwrap();
+        let addr: SocketAddr = (host, port).into();
+        let stream: Framed = Framed::new(TcpStream::connect(&addr).await?);
         let mut conn: Connection = Self {
             stream,
             wbuf: Vec::with_capacity(1024),
@@ -86,7 +101,7 @@ impl Connection {
             },
         };
 
-        establish::establish(&mut conn, options).await?;
+        establish::establish(&mut conn, url).await?;
 
         Ok(conn)
     }
@@ -100,7 +115,6 @@ impl Connection {
         message.encode(&mut self.wbuf, &mut self.context)?;
 
         self.stream.inner.write_all(&self.wbuf).await?;
-        self.stream.inner.flush().await?;
 
         Ok(())
     }
@@ -193,6 +207,14 @@ impl Framed {
         }
     }
 
+    unsafe fn reserve(&mut self, size: usize) {
+        self.buf.reserve(size);
+
+        unsafe { self.buf.set_len(self.buf.capacity()); }
+
+        unsafe { self.buf.advance_mut(size) }
+    }
+
     pub async fn next_packet(&mut self) -> Result<Bytes, Error> {
         let mut packet_headers: Vec<PacketHeader> = Vec::new();
 
@@ -217,25 +239,10 @@ impl Framed {
 
             if let Some(packet_header) = packet_headers.last() {
                 if packet_header.combined_length() > self.buf.len() {
-                    self.buf
-                        .reserve(packet_header.combined_length() - self.buf.len());
-
-                    unsafe {
-                        self.buf.set_len(self.buf.capacity());
-                        self.inner
-                            .initializer()
-                            .initialize(&mut self.buf[self.index..]);
-                    }
+                    unsafe { self.reserve(packet_header.combined_length() - self.buf.len()); }
                 }
             } else if self.buf.len() == self.index {
-                self.buf.reserve(32);
-
-                unsafe {
-                    self.buf.set_len(self.buf.capacity());
-                    self.inner
-                        .initializer()
-                        .initialize(&mut self.buf[self.index..]);
-                }
+                unsafe { self.reserve(32); }
             }
 
             // If we have a packet_header and the amount of currently read bytes (len) is less than
