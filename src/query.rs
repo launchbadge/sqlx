@@ -22,33 +22,29 @@ pub trait RawQuery<'q>: Sized + Send + Sync {
     fn finish(self, conn: &mut <Self::Backend as Backend>::RawConnection);
 }
 
-pub struct SqlQuery<'q, E>
+pub struct SqlQuery<'q, DB>
 where
-    E: Executor,
+    DB: Backend,
 {
-    inner:
-        <<E as Executor>::Backend as BackendAssocRawQuery<'q, <E as Executor>::Backend>>::RawQuery,
+    inner: <DB as BackendAssocRawQuery<'q, DB>>::RawQuery,
 }
 
-impl<'q, E> SqlQuery<'q, E>
+impl<'q, DB> SqlQuery<'q, DB>
 where
-    E: Executor,
+    DB: Backend,
 {
     #[inline]
     pub fn new(query: &'q str) -> Self {
         Self {
-            inner: <<E as Executor>::Backend as BackendAssocRawQuery<
-                'q,
-                <E as Executor>::Backend,
-            >>::RawQuery::new(query),
+            inner: <DB as BackendAssocRawQuery<'q, DB>>::RawQuery::new(query),
         }
     }
 
     #[inline]
     pub fn bind<T>(self, value: T) -> Self
     where
-        E::Backend: HasSqlType<<T as AsSqlType<E::Backend>>::SqlType>,
-        T: AsSqlType<E::Backend> + ToSql<<T as AsSqlType<E::Backend>>::SqlType, E::Backend>,
+        DB: HasSqlType<<T as AsSqlType<DB>>::SqlType>,
+        T: AsSqlType<DB> + ToSql<<T as AsSqlType<DB>>::SqlType, DB>,
     {
         self.bind_as::<T::SqlType, T>(value)
     }
@@ -56,8 +52,8 @@ where
     #[inline]
     pub fn bind_as<ST, T>(mut self, value: T) -> Self
     where
-        E::Backend: HasSqlType<ST>,
-        T: ToSql<ST, E::Backend>,
+        DB: HasSqlType<ST>,
+        T: ToSql<ST, DB>,
     {
         self.inner = self.inner.bind_as::<ST, T>(value);
         self
@@ -66,34 +62,42 @@ where
     // TODO: These methods should go on a [Execute] trait (so more execut-able things can be defined)
 
     #[inline]
-    pub fn execute(self, executor: &'q E) -> BoxFuture<'q, io::Result<u64>> {
+    pub fn execute<E>(self, executor: &'q E) -> BoxFuture<'q, io::Result<u64>>
+    where
+        E: Executor<Backend = DB>,
+        <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
+    {
         executor.execute(self.inner)
     }
 
     #[inline]
-    pub fn fetch<A: 'q, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
+    pub fn fetch<E, A: 'q, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
     where
-        T: FromRow<A, E::Backend> + Send + Unpin,
+        E: Executor<Backend = DB>,
+        T: FromRow<A, DB> + Send + Unpin,
+        <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch(self.inner)
     }
 
     #[inline]
-    pub fn fetch_optional<A: 'q, T: 'q>(
+    pub fn fetch_optional<E, A: 'q, T: 'q>(
         self,
         executor: &'q E,
     ) -> BoxFuture<'q, io::Result<Option<T>>>
     where
-        T: FromRow<A, E::Backend>,
+        E: Executor<Backend = DB>,
+        T: FromRow<A, DB>,
+        <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch_optional(self.inner)
     }
 }
 
 #[inline]
-pub fn query<'q, E>(query: &'q str) -> SqlQuery<'q, E>
+pub fn query<'q, DB>(query: &'q str) -> SqlQuery<'q, DB>
 where
-    E: Executor,
+    DB: Backend,
 {
     SqlQuery::new(query)
 }
