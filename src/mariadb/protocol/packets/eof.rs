@@ -39,7 +39,7 @@ impl Decode for EofPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::ConnContext, ConnectOptions};
+    use crate::{__bytes_builder, mariadb::ConnContext};
     use bytes::Bytes;
 
     #[test]

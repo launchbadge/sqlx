@@ -91,8 +91,7 @@ mod test {
     use super::*;
     use crate::{
         __bytes_builder,
-        mariadb::{ConnContext, Decoder},
-        ConnectOptions,
+        mariadb::{ConnContext, Decoder}
     };
 
     #[test]

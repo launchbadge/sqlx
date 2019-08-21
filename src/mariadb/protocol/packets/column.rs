@@ -40,7 +40,7 @@ mod test {
 
     use super::*;
     use crate::{
-        ConnectOptions, __bytes_builder,
+        __bytes_builder,
         mariadb::{connection::ConnContext, protocol::decode::Decoder},
     };
 

@@ -64,7 +64,6 @@ mod test {
     use crate::{
         __bytes_builder,
         mariadb::{ConnContext, Decoder},
-        ConnectOptions,
     };
 
     #[test]

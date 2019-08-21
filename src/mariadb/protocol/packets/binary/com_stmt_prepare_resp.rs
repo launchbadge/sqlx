@@ -73,10 +73,9 @@ mod test {
     use crate::{
         __bytes_builder,
         mariadb::{ConnContext, DeContext, Decode},
-        ConnectOptions,
     };
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_decodes_com_stmt_prepare_resp_eof() -> Result<(), failure::Error> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
@@ -182,7 +181,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_decodes_com_stmt_prepare_resp() -> Result<(), failure::Error> {
         #[rustfmt::skip]
             let buf = __bytes_builder!(

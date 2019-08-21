@@ -41,7 +41,6 @@ mod tests {
     use crate::{
         __bytes_builder,
         mariadb::{ConnContext, DeContext, Decode},
-        ConnectOptions,
     };
     use bytes::Bytes;
 

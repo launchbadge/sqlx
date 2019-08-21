@@ -82,7 +82,7 @@ mod tests {
 
         ComStmtExec {
             stmt_id: 1,
-            flags: StmtExecFlag::NoCursor,
+            flags: StmtExecFlag::NO_CURSOR,
             params: Some(vec![Some(Bytes::from_static(b"\x06daniel"))]),
             param_defs: Some(vec![ColumnDefPacket {
                 catalog: Bytes::from_static(b"def"),

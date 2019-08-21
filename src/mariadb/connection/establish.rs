@@ -53,7 +53,7 @@ mod test {
     use crate::mariadb::{ComStmtFetch, ComStmtPrepareResp, FieldType, ResultSet};
     use failure::Error;
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_connect() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
@@ -61,7 +61,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_ping() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
 
@@ -72,7 +72,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_select_db() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
@@ -82,7 +82,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_query() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
@@ -94,7 +94,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_prepare() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
@@ -107,7 +107,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_can_execute_prepared() -> Result<(), Error> {
         let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
         .await?;
@@ -120,7 +120,7 @@ mod test {
 
         let exec = ComStmtExec {
             stmt_id: prepared.ok.stmt_id,
-            flags: StmtExecFlag::NoCursor,
+            flags: StmtExecFlag::NO_CURSOR,
             params: Some(vec![Some(Bytes::from_static(b"josh"))]),
             param_defs: prepared.param_defs,
         };
@@ -150,7 +150,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_does_not_connect() -> Result<(), Error> {
         match Connection::establish(&"mariadb//roote@localhost:3306")
         .await

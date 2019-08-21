@@ -124,7 +124,7 @@ mod test {
         },
     };
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_decodes_result_set_text_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]
@@ -344,7 +344,7 @@ mod test {
         Ok(())
     }
 
-    #[runtime::test]
+    #[tokio::test]
     async fn it_decodes_result_set_binary_packet() -> Result<(), Error> {
         // TODO: Use byte string as input for test; this is a valid return from a mariadb.
         #[rustfmt::skip]

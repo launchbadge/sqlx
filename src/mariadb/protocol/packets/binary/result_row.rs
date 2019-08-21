@@ -99,7 +99,7 @@ impl crate::mariadb::Decode for ResultRow {
                                 FieldType::MYSQL_TYPE_JSON => Some(decoder.decode_byte_lenenc()),
                                 FieldType::MYSQL_TYPE_ENUM => Some(decoder.decode_byte_lenenc()),
                                 FieldType::MYSQL_TYPE_SET => Some(decoder.decode_byte_lenenc()),
-                                _ => panic!("Unrecognized FieldType received from MaraiDB"),
+                                _ => panic!("Unrecognized FieldType received from MariaDB"),
                             }
                         }
                     })
