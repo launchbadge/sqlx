@@ -46,7 +46,7 @@ impl Decode for ColumnDefPacket {
         // int<4> max. column size
         let max_columns = decoder.decode_int_i32();
         // int<1> Field types
-        let field_type = FieldType::try_from(decoder.decode_int_u8())?;
+        let field_type = FieldType(decoder.decode_int_u8());
         // int<2> Field detail flag
         let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_u16());
         // int<1> decimals

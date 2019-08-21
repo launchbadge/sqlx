@@ -35,70 +35,71 @@ impl crate::mariadb::Decode for ResultRow {
                         } else {
                             match column_defs[index].field_type {
                                 // Ordered by https://mariadb.com/kb/en/library/resultset-row/#binary-resultset-row
-                                FieldType::MysqlTypeDouble => Some(decoder.decode_binary_double()),
-                                FieldType::MysqlTypeLonglong => {
+                                FieldType::MYSQL_TYPE_DOUBLE => Some(decoder.decode_binary_double()),
+                                FieldType::MYSQL_TYPE_LONGLONG => {
                                     Some(decoder.decode_binary_bigint())
                                 }
 
                                 // Is this MYSQL_TYPE_INTEGER?
-                                FieldType::MysqlTypeLong => Some(decoder.decode_binary_int()),
+                                FieldType::MYSQL_TYPE_LONG => Some(decoder.decode_binary_int()),
 
                                 // Is this MYSQL_TYPE_MEDIUMINTEGER?
-                                FieldType::MysqlTypeInt24 => {
+                                FieldType::MYSQL_TYPE_INT24 => {
                                     Some(decoder.decode_binary_mediumint())
                                 }
 
-                                FieldType::MysqlTypeFloat => Some(decoder.decode_binary_float()),
+                                FieldType::MYSQL_TYPE_FLOAT => Some(decoder.decode_binary_float()),
 
                                 // Is this MYSQL_TYPE_SMALLINT?
-                                FieldType::MysqlTypeShort => Some(decoder.decode_binary_smallint()),
+                                FieldType::MYSQL_TYPE_SHORT => Some(decoder.decode_binary_smallint()),
 
-                                FieldType::MysqlTypeYear => Some(decoder.decode_binary_year()),
-                                FieldType::MysqlTypeTiny => Some(decoder.decode_binary_tinyint()),
-                                FieldType::MysqlTypeDate => Some(decoder.decode_binary_date()),
-                                FieldType::MysqlTypeTimestamp => {
+                                FieldType::MYSQL_TYPE_YEAR => Some(decoder.decode_binary_year()),
+                                FieldType::MYSQL_TYPE_TINY => Some(decoder.decode_binary_tinyint()),
+                                FieldType::MYSQL_TYPE_DATE => Some(decoder.decode_binary_date()),
+                                FieldType::MYSQL_TYPE_TIMESTAMP => {
                                     Some(decoder.decode_binary_timestamp())
                                 }
-                                FieldType::MysqlTypeDatetime => {
+                                FieldType::MYSQL_TYPE_DATETIME => {
                                     Some(decoder.decode_binary_datetime())
                                 }
-                                FieldType::MysqlTypeTime => Some(decoder.decode_binary_time()),
-                                FieldType::MysqlTypeNewdecimal => {
+                                FieldType::MYSQL_TYPE_TIME => Some(decoder.decode_binary_time()),
+                                FieldType::MYSQL_TYPE_NEWDECIMAL => {
                                     Some(decoder.decode_binary_decimal())
                                 }
 
                                 // This group of types are all encoded as byte<lenenc>
-                                FieldType::MysqlTypeTinyBlob => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeMediumBlob => {
+                                FieldType::MYSQL_TYPE_TINY_BLOB => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_MEDIUM_BLOB => {
                                     Some(decoder.decode_byte_lenenc())
                                 }
-                                FieldType::MysqlTypeLongBlob => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeBlob => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeVarchar => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeVarString => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeString => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeGeometry => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_LONG_BLOB => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_BLOB => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_VARCHAR => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_VAR_STRING => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_STRING => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_GEOMETRY => Some(decoder.decode_byte_lenenc()),
 
                                 // The following did not have defined binary encoding, so I guessed.
                                 // Perhaps you cannot get these types back from the server if you're using
                                 // prepared statements? In that case we should error out here instead of
                                 // proceeding to decode.
-                                FieldType::MysqlTypeDecimal => {
+                                FieldType::MYSQL_TYPE_DECIMAL => {
                                     Some(decoder.decode_binary_decimal())
                                 }
-                                FieldType::MysqlTypeNull => panic!("Cannot decode MysqlTypeNull"),
-                                FieldType::MysqlTypeNewdate => Some(decoder.decode_binary_date()),
-                                FieldType::MysqlTypeBit => Some(decoder.decode_byte_fix(1)),
-                                FieldType::MysqlTypeTimestamp2 => {
+                                FieldType::MYSQL_TYPE_NULL => panic!("Cannot decode MysqlTypeNull"),
+                                FieldType::MYSQL_TYPE_NEWDATE => Some(decoder.decode_binary_date()),
+                                FieldType::MYSQL_TYPE_BIT => Some(decoder.decode_byte_fix(1)),
+                                FieldType::MYSQL_TYPE_TIMESTAMP2 => {
                                     Some(decoder.decode_binary_timestamp())
                                 }
-                                FieldType::MysqlTypeDatetime2 => {
+                                FieldType::MYSQL_TYPE_DATETIME2 => {
                                     Some(decoder.decode_binary_datetime())
                                 }
-                                FieldType::MysqlTypeTime2 => Some(decoder.decode_binary_time()),
-                                FieldType::MysqlTypeJson => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeEnum => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MysqlTypeSet => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_TIME2 => Some(decoder.decode_binary_time()),
+                                FieldType::MYSQL_TYPE_JSON => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_ENUM => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_SET => Some(decoder.decode_byte_lenenc()),
+                                _ => panic!("Unrecognized FieldType received from MaraiDB"),
                             }
                         }
                     })

@@ -111,7 +111,7 @@ pub trait BufMut {
     fn put_byte_eof(&mut self, bytes: &Bytes);
 
     #[inline]
-    fn put_param(&mut self, bytes: &Bytes, ty: &FieldType);
+    fn put_param(&mut self, bytes: &Bytes, ty: FieldType);
 }
 
 impl BufMut for Vec<u8> {
@@ -328,39 +328,40 @@ impl BufMut for Vec<u8> {
     }
 
     #[inline]
-    fn put_param(&mut self, bytes: &Bytes, ty: &FieldType) {
+    fn put_param(&mut self, bytes: &Bytes, ty: FieldType) {
         match ty {
-            FieldType::MysqlTypeDecimal => self.put_string_lenenc(bytes),
-            FieldType::MysqlTypeTiny => self.put_int_1(bytes),
-            FieldType::MysqlTypeShort => self.put_int_2(bytes),
-            FieldType::MysqlTypeLong => self.put_int_4(bytes),
-            FieldType::MysqlTypeFloat => self.put_int_4(bytes),
-            FieldType::MysqlTypeDouble => self.put_int_8(bytes),
-            FieldType::MysqlTypeNull => panic!("Type cannot be FieldType::MysqlTypeNull"),
-            FieldType::MysqlTypeTimestamp => unimplemented!(),
-            FieldType::MysqlTypeLonglong => self.put_int_8(bytes),
-            FieldType::MysqlTypeInt24 => self.put_int_4(bytes),
-            FieldType::MysqlTypeDate => unimplemented!(),
-            FieldType::MysqlTypeTime => unimplemented!(),
-            FieldType::MysqlTypeDatetime => unimplemented!(),
-            FieldType::MysqlTypeYear => self.put_int_4(bytes),
-            FieldType::MysqlTypeNewdate => unimplemented!(),
-            FieldType::MysqlTypeVarchar => self.put_string_lenenc(bytes),
-            FieldType::MysqlTypeBit => self.put_string_lenenc(bytes),
-            FieldType::MysqlTypeTimestamp2 => unimplemented!(),
-            FieldType::MysqlTypeDatetime2 => unimplemented!(),
-            FieldType::MysqlTypeTime2 => unimplemented!(),
-            FieldType::MysqlTypeJson => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeNewdecimal => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeEnum => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeSet => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeTinyBlob => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeMediumBlob => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeLongBlob => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeBlob => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeVarString => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeString => self.put_byte_lenenc(bytes),
-            FieldType::MysqlTypeGeometry => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_DECIMAL => self.put_string_lenenc(bytes),
+            FieldType::MYSQL_TYPE_TINY => self.put_int_1(bytes),
+            FieldType::MYSQL_TYPE_SHORT => self.put_int_2(bytes),
+            FieldType::MYSQL_TYPE_LONG => self.put_int_4(bytes),
+            FieldType::MYSQL_TYPE_FLOAT => self.put_int_4(bytes),
+            FieldType::MYSQL_TYPE_DOUBLE => self.put_int_8(bytes),
+            FieldType::MYSQL_TYPE_NULL => panic!("Type cannot be FieldType::MysqlTypeNull"),
+            FieldType::MYSQL_TYPE_TIMESTAMP => unimplemented!(),
+            FieldType::MYSQL_TYPE_LONGLONG => self.put_int_8(bytes),
+            FieldType::MYSQL_TYPE_INT24 => self.put_int_4(bytes),
+            FieldType::MYSQL_TYPE_DATE => unimplemented!(),
+            FieldType::MYSQL_TYPE_TIME => unimplemented!(),
+            FieldType::MYSQL_TYPE_DATETIME => unimplemented!(),
+            FieldType::MYSQL_TYPE_YEAR => self.put_int_4(bytes),
+            FieldType::MYSQL_TYPE_NEWDATE => unimplemented!(),
+            FieldType::MYSQL_TYPE_VARCHAR => self.put_string_lenenc(bytes),
+            FieldType::MYSQL_TYPE_BIT => self.put_string_lenenc(bytes),
+            FieldType::MYSQL_TYPE_TIMESTAMP2 => unimplemented!(),
+            FieldType::MYSQL_TYPE_DATETIME2 => unimplemented!(),
+            FieldType::MYSQL_TYPE_TIME2 => unimplemented!(),
+            FieldType::MYSQL_TYPE_JSON => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_NEWDECIMAL => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_ENUM => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_SET => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_TINY_BLOB => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_MEDIUM_BLOB => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_LONG_BLOB => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_BLOB => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_VAR_STRING => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_STRING => self.put_byte_lenenc(bytes),
+            FieldType::MYSQL_TYPE_GEOMETRY => self.put_byte_lenenc(bytes),
+            _ => panic!("Unrecognized field type"),
         }
     }
 }

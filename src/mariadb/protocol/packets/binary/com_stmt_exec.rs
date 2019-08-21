@@ -20,7 +20,7 @@ impl Encode for ComStmtExec {
 
         buf.put_int_u8(super::BinaryProtocol::ComStmtExec.into());
         buf.put_int_i32(self.stmt_id);
-        buf.put_int_u8(self.flags as u8);
+        buf.put_int_u8(self.flags.0);
         buf.put_int_u32(1);
 
         match (&self.params, &self.param_defs) {
@@ -49,7 +49,7 @@ impl Encode for ComStmtExec {
 
                 if send_type > 0 {
                     for param in param_defs {
-                        buf.put_int_u8(param.field_type as u8);
+                        buf.put_int_u8(param.field_type.0);
                         buf.put_int_u8(0);
                     }
                 }
@@ -94,7 +94,7 @@ mod tests {
                 length_of_fixed_fields: Some(0x0Cu64),
                 char_set: 1,
                 max_columns: 1,
-                field_type: FieldType::MysqlTypeString,
+                field_type: FieldType::MYSQL_TYPE_STRING,
                 field_details: FieldDetailFlag::NOT_NULL,
                 decimals: 0,
             }]),

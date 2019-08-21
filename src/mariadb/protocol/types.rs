@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 pub enum ProtocolType {
     Text,
     Binary,
@@ -80,55 +78,56 @@ pub enum SessionChangeType {
     SessionTrackTransactionState = 5,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
-#[TryFromPrimitiveType = "u8"]
-pub enum FieldType {
-    MysqlTypeDecimal = 0,
-    MysqlTypeTiny = 1,
-    MysqlTypeShort = 2,
-    MysqlTypeLong = 3,
-    MysqlTypeFloat = 4,
-    MysqlTypeDouble = 5,
-    MysqlTypeNull = 6,
-    MysqlTypeTimestamp = 7,
-    MysqlTypeLonglong = 8,
-    MysqlTypeInt24 = 9,
-    MysqlTypeDate = 10,
-    MysqlTypeTime = 11,
-    MysqlTypeDatetime = 12,
-    MysqlTypeYear = 13,
-    MysqlTypeNewdate = 14,
-    MysqlTypeVarchar = 15,
-    MysqlTypeBit = 16,
-    MysqlTypeTimestamp2 = 17,
-    MysqlTypeDatetime2 = 18,
-    MysqlTypeTime2 = 19,
-    MysqlTypeJson = 245,
-    MysqlTypeNewdecimal = 246,
-    MysqlTypeEnum = 247,
-    MysqlTypeSet = 248,
-    MysqlTypeTinyBlob = 249,
-    MysqlTypeMediumBlob = 250,
-    MysqlTypeLongBlob = 251,
-    MysqlTypeBlob = 252,
-    MysqlTypeVarString = 253,
-    MysqlTypeString = 254,
-    MysqlTypeGeometry = 255,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FieldType(pub u8);
+impl FieldType {
+    pub const MYSQL_TYPE_DECIMAL: FieldType = FieldType(0);
+    pub const MYSQL_TYPE_TINY: FieldType = FieldType(1);
+    pub const MYSQL_TYPE_SHORT: FieldType = FieldType(2);
+    pub const MYSQL_TYPE_LONG: FieldType = FieldType(3);
+    pub const MYSQL_TYPE_FLOAT: FieldType = FieldType(4);
+    pub const MYSQL_TYPE_DOUBLE: FieldType = FieldType(5);
+    pub const MYSQL_TYPE_NULL: FieldType = FieldType(6);
+    pub const MYSQL_TYPE_TIMESTAMP: FieldType = FieldType(7);
+    pub const MYSQL_TYPE_LONGLONG: FieldType = FieldType(8);
+    pub const MYSQL_TYPE_INT24: FieldType = FieldType(9);
+    pub const MYSQL_TYPE_DATE: FieldType = FieldType(10);
+    pub const MYSQL_TYPE_TIME: FieldType = FieldType(11);
+    pub const MYSQL_TYPE_DATETIME: FieldType = FieldType(12);
+    pub const MYSQL_TYPE_YEAR: FieldType = FieldType(13);
+    pub const MYSQL_TYPE_NEWDATE: FieldType = FieldType(14);
+    pub const MYSQL_TYPE_VARCHAR: FieldType = FieldType(15);
+    pub const MYSQL_TYPE_BIT: FieldType = FieldType(16);
+    pub const MYSQL_TYPE_TIMESTAMP2: FieldType = FieldType(17);
+    pub const MYSQL_TYPE_DATETIME2: FieldType = FieldType(18);
+    pub const MYSQL_TYPE_TIME2: FieldType = FieldType(19);
+    pub const MYSQL_TYPE_JSON: FieldType = FieldType(245);
+    pub const MYSQL_TYPE_NEWDECIMAL: FieldType = FieldType(246);
+    pub const MYSQL_TYPE_ENUM: FieldType = FieldType(247);
+    pub const MYSQL_TYPE_SET: FieldType = FieldType(248);
+    pub const MYSQL_TYPE_TINY_BLOB: FieldType = FieldType(249);
+    pub const MYSQL_TYPE_MEDIUM_BLOB: FieldType = FieldType(250);
+    pub const MYSQL_TYPE_LONG_BLOB: FieldType = FieldType(251);
+    pub const MYSQL_TYPE_BLOB: FieldType = FieldType(252);
+    pub const MYSQL_TYPE_VAR_STRING: FieldType = FieldType(253);
+    pub const MYSQL_TYPE_STRING: FieldType = FieldType(254);
+    pub const MYSQL_TYPE_GEOMETRY: FieldType = FieldType(255);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
-#[TryFromPrimitiveType = "u8"]
-pub enum StmtExecFlag {
-    NoCursor = 0,
-    ReadOnly = 1,
-    CursorForUpdate = 2,
-    ScrollableCursor = 3,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StmtExecFlag(pub u8);
+impl StmtExecFlag {
+    pub const NO_CURSOR: StmtExecFlag = StmtExecFlag(0);
+    pub const READ_ONLY: StmtExecFlag = StmtExecFlag(1);
+    pub const CURSOR_FOR_UPDATE: StmtExecFlag = StmtExecFlag(2);
+    pub const SCROLLABLE_CURSOR: StmtExecFlag = StmtExecFlag(3);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive)]
-#[TryFromPrimitiveType = "u8"]
-pub enum ParamFlag {
-    Unsigned = 128,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ParamFlag(pub u8);
+impl ParamFlag {
+    pub const NONE: ParamFlag = ParamFlag(0);
+    pub const UNSIGNED: ParamFlag = ParamFlag(128);
 }
 
 impl Default for Capabilities {
@@ -151,19 +150,19 @@ impl Default for FieldDetailFlag {
 
 impl Default for FieldType {
     fn default() -> Self {
-        FieldType::MysqlTypeDecimal
+        FieldType::MYSQL_TYPE_DECIMAL
     }
 }
 
 impl Default for StmtExecFlag {
     fn default() -> Self {
-        StmtExecFlag::NoCursor
+        StmtExecFlag::NO_CURSOR
     }
 }
 
 impl Default for ParamFlag {
     fn default() -> Self {
-        ParamFlag::Unsigned
+        ParamFlag::UNSIGNED
     }
 }
 
