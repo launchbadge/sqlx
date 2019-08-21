@@ -81,6 +81,7 @@ where
     }
 }
 
+/// Construct a full SQL query using raw SQL.
 #[inline]
 pub fn query<'q, DB>(query: &'q str) -> SqlQuery<'q, DB>
 where

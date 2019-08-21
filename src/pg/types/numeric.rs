@@ -1,4 +1,4 @@
-use super::{Pg, PgTypeMetadata};
+use super::{Pg, PgTypeMetadata, PgTypeFormat};
 use crate::{
     deserialize::FromSql,
     serialize::{IsNull, ToSql},
@@ -10,6 +10,7 @@ impl HasSqlType<i16> for Pg {
     #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
+            format: PgTypeFormat::Binary,
             oid: 21,
             array_oid: 1005,
         }
@@ -36,6 +37,7 @@ impl HasSqlType<i32> for Pg {
     #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
+            format: PgTypeFormat::Binary,
             oid: 23,
             array_oid: 1007,
         }
@@ -62,6 +64,7 @@ impl HasSqlType<i64> for Pg {
     #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
+            format: PgTypeFormat::Binary,
             oid: 20,
             array_oid: 1016,
         }
@@ -88,6 +91,7 @@ impl HasSqlType<f32> for Pg {
     #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
+            format: PgTypeFormat::Binary,
             oid: 700,
             array_oid: 1021,
         }
@@ -112,6 +116,7 @@ impl HasSqlType<f64> for Pg {
     #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
+            format: PgTypeFormat::Binary,
             oid: 701,
             array_oid: 1022,
         }
