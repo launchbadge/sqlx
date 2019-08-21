@@ -13,45 +13,43 @@ pub trait HasSqlType<A>: TypeMetadata {
     fn metadata() -> Self::TypeMetadata;
 }
 
-/// Defines the canonical SQL that the implementing Rust type represents.
-/// This trait is used to map Rust types to SQL types when the explicit mapping is missing.
-pub trait AsSqlType<DB: Backend>
-where
-    DB: HasSqlType<Self::SqlType>,
-{
-    type SqlType;
-}
+// TODO: #[derive(SqlType)]
+// pub struct Text<'a>(Cow<'a, str>);
 
-impl<T, DB> AsSqlType<DB> for Option<T>
-where
-    DB: Backend + HasSqlType<<T as AsSqlType<DB>>::SqlType>,
-    T: AsSqlType<DB>,
-{
-    type SqlType = T::SqlType;
-}
+// TODO: #[derive(SqlType)]
+// pub struct SmallInt(i16);
 
-// Character types
-// All character types (VARCHAR, CHAR, TEXT, etc.) are represented equivalently in binary and all fold
-// to this `Text` type.
+// TODO: #[derive(SqlType)]
+// pub struct Int(i32);
 
-pub struct Text;
+// TODO: #[derive(SqlType)]
+// pub struct BigInt(i64);
 
-// Numeric types
+// TODO: #[derive(SqlType)]
+// pub struct Real(f32);
 
-// i16
-pub struct SmallInt;
+// TODO: #[derive(SqlType)]
+// pub struct Double(f64);
 
-// i32
-pub struct Int;
+// Example of what that derive should generate
 
-// i64
-pub struct BigInt;
+// impl HasSqlType<Bool> for Pg {
+//     #[inline]
+//     fn metadata() -> PgTypeMetadata {
+//         <Pg as HasSqlType<bool>>::metadata()
+//     }
+// }
 
-// decimal?
-// TODO pub struct Decimal;
+// impl ToSql<Pg> for Bool {
+//     #[inline]
+//     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+//         self.0.to_sql(buf)
+//     }
+// }
 
-// f32
-pub struct Real;
-
-// f64
-pub struct Double;
+// impl FromSql<Pg> for bool {
+//     #[inline]
+//     fn from_sql(buf: Option<&[u8]>) -> Self {
+//         Self(bool::from_sql(buf))
+//     }
+// }

@@ -10,41 +10,41 @@ pub trait Row: Send {
     fn get_raw(&self, index: usize) -> Option<&[u8]>;
 
     #[inline]
-    fn get<ST, T>(&self, index: usize) -> T
+    fn get<T>(&self, index: usize) -> T
     where
-        Self::Backend: HasSqlType<ST>,
-        T: FromSql<ST, Self::Backend>,
+        Self::Backend: HasSqlType<T>,
+        T: FromSql<Self::Backend>,
     {
         T::from_sql(self.get_raw(index))
     }
 }
 
-pub trait FromRow<A, DB: Backend> {
+pub trait FromRow<DB: Backend> {
     fn from_row<R: Row<Backend = DB>>(row: R) -> Self;
 }
 
-impl<T, ST, DB> FromRow<ST, DB> for T
+impl<T, DB> FromRow<DB> for T
 where
-    DB: Backend + HasSqlType<ST>,
-    T: FromSql<ST, DB>,
+    DB: Backend + HasSqlType<T>,
+    T: FromSql<DB>,
 {
     #[inline]
     fn from_row<R: Row<Backend = DB>>(row: R) -> Self {
-        row.get::<ST, T>(0)
+        row.get::<T>(0)
     }
 }
 
 #[allow(unused)]
 macro_rules! impl_from_row_tuple {
-    ($B:ident: $( ($idx:tt) -> $T:ident, $ST:ident );+;) => {
-        impl<$($ST,)+ $($T,)+> crate::row::FromRow<($($ST,)+), $B> for ($($T,)+)
+    ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
+        impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
         where
-            $($B: crate::types::HasSqlType<$ST>,)+
-            $($T: crate::deserialize::FromSql<$ST, $B>,)+
+            $($B: crate::types::HasSqlType<$T>,)+
+            $($T: crate::deserialize::FromSql<$B>,)+
         {
             #[inline]
             fn from_row<R: crate::row::Row<Backend = $B>>(row: R) -> Self {
-                ($(row.get::<$ST, $T>($idx),)+)
+                ($(row.get($idx),)+)
             }
         }
     };
@@ -54,75 +54,75 @@ macro_rules! impl_from_row_tuple {
 macro_rules! impl_from_row_tuples_for_backend {
     ($B:ident) => {
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
+            (0) -> T1;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
+            (0) -> T1;
+            (1) -> T2;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
-            (4) -> ST5, T5;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
-            (4) -> ST5, T5;
-            (5) -> ST6, T6;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
-            (4) -> ST5, T5;
-            (5) -> ST6, T6;
-            (6) -> ST7, T7;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
-            (4) -> ST5, T5;
-            (5) -> ST6, T6;
-            (6) -> ST7, T7;
-            (7) -> ST8, T8;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
+            (7) -> T8;
         );
 
         impl_from_row_tuple!($B:
-            (0) -> ST1, T1;
-            (1) -> ST2, T2;
-            (2) -> ST3, T3;
-            (3) -> ST4, T4;
-            (4) -> ST5, T5;
-            (5) -> ST6, T6;
-            (6) -> ST7, T7;
-            (7) -> ST8, T8;
-            (8) -> ST9, T9;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
+            (7) -> T8;
+            (8) -> T9;
         );
     }
 }

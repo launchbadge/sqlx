@@ -32,16 +32,16 @@ impl<'q> RawQuery<'q> for PgRawQuery<'q> {
         }
     }
 
-    fn bind_as<ST, T>(mut self, value: T) -> Self
+    fn bind<T>(mut self, value: T) -> Self
     where
         Self: Sized,
-        Self::Backend: HasSqlType<ST>,
-        T: ToSql<ST, Self::Backend>,
+        Self::Backend: HasSqlType<T>,
+        T: ToSql<Self::Backend>,
     {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
 
-        self.types.push(<Pg as HasSqlType<ST>>::metadata().oid);
+        self.types.push(<Pg as HasSqlType<T>>::metadata().oid);
 
         let pos = self.buf.len();
         self.buf.put_int_32(0);

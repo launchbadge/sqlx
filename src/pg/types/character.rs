@@ -2,11 +2,12 @@ use super::{Pg, PgTypeMetadata};
 use crate::{
     deserialize::FromSql,
     serialize::{IsNull, ToSql},
-    types::{AsSqlType, HasSqlType, Text},
+    types::HasSqlType,
 };
 use std::str;
 
-impl HasSqlType<Text> for Pg {
+impl HasSqlType<&'_ str> for Pg {
+    #[inline]
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata {
             oid: 25,
@@ -15,11 +16,14 @@ impl HasSqlType<Text> for Pg {
     }
 }
 
-impl AsSqlType<Pg> for &'_ str {
-    type SqlType = Text;
+impl HasSqlType<String> for Pg {
+    #[inline]
+    fn metadata() -> PgTypeMetadata {
+        <Pg as HasSqlType<&str>>::metadata()
+    }
 }
 
-impl ToSql<Text, Pg> for &'_ str {
+impl ToSql<Pg> for &'_ str {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
@@ -28,20 +32,14 @@ impl ToSql<Text, Pg> for &'_ str {
     }
 }
 
-impl AsSqlType<Pg> for String {
-    type SqlType = Text;
-}
-
-impl ToSql<Text, Pg> for String {
+impl ToSql<Pg> for String {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        buf.extend_from_slice(self.as_bytes());
-
-        IsNull::No
+        self.as_str().to_sql(buf)
     }
 }
 
-impl FromSql<Text, Pg> for String {
+impl FromSql<Pg> for String {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
         // TODO: Handle nulls

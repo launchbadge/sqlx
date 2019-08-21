@@ -3,7 +3,7 @@ use crate::{
     executor::Executor,
     row::FromRow,
     serialize::ToSql,
-    types::{AsSqlType, HasSqlType},
+    types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::io;
@@ -13,10 +13,10 @@ pub trait RawQuery<'q>: Sized + Send + Sync {
 
     fn new(query: &'q str) -> Self;
 
-    fn bind_as<ST, T>(self, value: T) -> Self
+    fn bind<T>(self, value: T) -> Self
     where
-        Self::Backend: HasSqlType<ST>,
-        T: ToSql<ST, Self::Backend>;
+        Self::Backend: HasSqlType<T>,
+        T: ToSql<Self::Backend>;
 
     fn finish(self, conn: &mut <Self::Backend as Backend>::RawConnection);
 }
@@ -40,21 +40,12 @@ where
     }
 
     #[inline]
-    pub fn bind<T>(self, value: T) -> Self
+    pub fn bind<T>(mut self, value: T) -> Self
     where
-        DB: HasSqlType<<T as AsSqlType<DB>>::SqlType>,
-        T: AsSqlType<DB> + ToSql<<T as AsSqlType<DB>>::SqlType, DB>,
+        DB: HasSqlType<T>,
+        T: ToSql<DB>,
     {
-        self.bind_as::<T::SqlType, T>(value)
-    }
-
-    #[inline]
-    pub fn bind_as<ST, T>(mut self, value: T) -> Self
-    where
-        DB: HasSqlType<ST>,
-        T: ToSql<ST, DB>,
-    {
-        self.inner = self.inner.bind_as::<ST, T>(value);
+        self.inner = self.inner.bind(value);
         self
     }
 
@@ -70,23 +61,20 @@ where
     }
 
     #[inline]
-    pub fn fetch<E, A: 'q, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
+    pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
     where
         E: Executor<Backend = DB>,
-        T: FromRow<A, DB> + Send + Unpin,
+        T: FromRow<DB> + Send + Unpin,
         <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch(self.inner)
     }
 
     #[inline]
-    pub fn fetch_optional<E, A: 'q, T: 'q>(
-        self,
-        executor: &'q E,
-    ) -> BoxFuture<'q, io::Result<Option<T>>>
+    pub fn fetch_optional<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, io::Result<Option<T>>>
     where
         E: Executor<Backend = DB>,
-        T: FromRow<A, DB>,
+        T: FromRow<DB>,
         <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch_optional(self.inner)

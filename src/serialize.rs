@@ -12,14 +12,14 @@ pub enum IsNull {
 }
 
 /// Serializes a single value to be sent to the database.
-pub trait ToSql<A, DB: Backend> {
+pub trait ToSql<DB: Backend> {
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull;
 }
 
-impl<T, ST, DB> ToSql<ST, DB> for Option<T>
+impl<T, DB> ToSql<DB> for Option<T>
 where
-    DB: Backend + HasSqlType<ST>,
-    T: ToSql<ST, DB>,
+    DB: Backend + HasSqlType<T>,
+    T: ToSql<DB>,
 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {

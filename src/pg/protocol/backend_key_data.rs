@@ -24,8 +24,10 @@ impl BackendKeyData {
 
 impl Decode for BackendKeyData {
     fn decode(src: &[u8]) -> Self {
-        let process_id = u32::from_be_bytes(src[..4].try_into().unwrap());
-        let secret_key = u32::from_be_bytes(src[4..].try_into().unwrap());
+        debug_assert_eq!(src.len(), 8);
+
+        let process_id = u32::from_be_bytes(src[0..4].try_into().unwrap());
+        let secret_key = u32::from_be_bytes(src[4..8].try_into().unwrap());
 
         Self {
             process_id,

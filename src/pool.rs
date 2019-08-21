@@ -140,10 +140,10 @@ where
         })
     }
 
-    fn fetch<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
+    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<A, Self::Backend> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let live = self.0.acquire().await?;
@@ -156,13 +156,13 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q, A: 'c, T: 'c, Q: 'q + 'c>(
+    fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
         &'c self,
         query: Q,
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<A, Self::Backend>,
+        T: FromRow<Self::Backend>,
     {
         Box::pin(async move {
             let live = self.0.acquire().await?;

@@ -1,16 +1,15 @@
 use crate::{backend::Backend, types::HasSqlType};
 
 // TODO: Allow from_sql to return an error (that can be unified)
-// TODO: Consider using a RawValue wrapper type inUead of exposing raw bytes (as different back-ends may want to expose different data here.. maybe?)
 
-pub trait FromSql<A, DB: Backend> {
+pub trait FromSql<DB: Backend> {
     fn from_sql(raw: Option<&[u8]>) -> Self;
 }
 
-impl<T, ST, DB> FromSql<ST, DB> for Option<T>
+impl<T, DB> FromSql<DB> for Option<T>
 where
-    DB: Backend + HasSqlType<ST>,
-    T: FromSql<ST, DB>,
+    DB: Backend + HasSqlType<T>,
+    T: FromSql<DB>,
 {
     #[inline]
     fn from_sql(raw: Option<&[u8]>) -> Self {
