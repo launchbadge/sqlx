@@ -4,7 +4,6 @@ use crate::{
         Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket,
         HandshakeResponsePacket, InitialHandshakePacket, OkPacket, ProtocolType, StmtExecFlag,
     },
-    options::ConnectOptions,
 };
 use bytes::Bytes;
 use failure::{err_msg, Error};
@@ -55,7 +54,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_connect() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         Ok(())
@@ -63,7 +62,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_ping() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
 
         .await?;
 
@@ -74,7 +73,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_select_db() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -84,7 +83,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_query() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -96,7 +95,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_prepare() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -109,7 +108,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_execute_prepared() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@localhost:3306")
+        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -152,7 +151,7 @@ mod test {
 
     #[tokio::test]
     async fn it_does_not_connect() -> Result<(), Error> {
-        match Connection::establish(&"mariadb//roote@localhost:3306")
+        match Connection::establish(&"mariadb//roote@127.0.0.1:3306")
         .await
         {
             Ok(_) => Err(err_msg("Bad username still worked?")),

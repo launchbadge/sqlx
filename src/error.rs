@@ -11,7 +11,9 @@ pub enum Error {
     /// Some reasons for this to be caused:
     ///
     ///  - [io::ErrorKind::ConnectionRefused] - Database backend is most likely behind a firewall.
+    ///
     ///  - [io::ErrorKind::ConnectionReset] - Database backend dropped the client connection (perhaps from an administrator action).
+    ///
     ///  - [io::ErrorKind::InvalidData] - Unexpected or invalid data was encountered. This would indicate that we received data that we were not
     ///         expecting or it was in a format we did not understand. This generally means either there is a programming error in a SQLx driver or
     ///         something with the connection or the database backend itself is corrupted. Additional details are provided along with the

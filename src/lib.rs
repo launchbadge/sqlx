@@ -2,11 +2,8 @@
 #![allow(clippy::needless_lifetimes)]
 #![allow(unused)]
 
-// #[macro_use]
-// extern crate bitflags;
-
-#[macro_use]
-extern crate bitflags;
+ #[macro_use]
+ extern crate bitflags;
 
 #[cfg(test)]
 extern crate test;
@@ -34,6 +31,8 @@ pub mod postgres;
 
 #[cfg(feature = "postgres")]
 pub use self::postgres::Postgres;
+
+pub mod error;
 
 mod connection;
 pub mod error;
