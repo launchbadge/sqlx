@@ -11,7 +11,7 @@ impl Encode for StartupMessage<'_> {
         buf.put_int_32(0); // skip over len
 
         // protocol version number (3.0)
-        buf.put_int_32(196608);
+        buf.put_int_32(196_608);
 
         for (name, value) in self.params {
             buf.put_str(name);

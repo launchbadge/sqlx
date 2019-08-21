@@ -1,20 +1,13 @@
 use super::{
-    protocol::{self, BufMut, Message},
-    Pg, PgRawConnection, PgRow,
+    protocol::{self, BufMut},
+    Pg, PgRawConnection,
 };
 use crate::{
     query::RawQuery,
-    row::FromRow,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder};
-use futures::{
-    future::BoxFuture,
-    stream::{self, BoxStream},
-    Stream,
-};
-use std::io;
 
 pub struct PgRawQuery<'q> {
     limit: i32,

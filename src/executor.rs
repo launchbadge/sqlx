@@ -1,5 +1,5 @@
 use crate::{backend::Backend, query::RawQuery, row::FromRow};
-use futures::{future::BoxFuture, stream::BoxStream};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::io;
 
 pub trait Executor: Send {

@@ -1,6 +1,4 @@
 use super::Decode;
-use bytes::Bytes;
-use std::io;
 
 #[derive(Debug)]
 pub enum Authentication {

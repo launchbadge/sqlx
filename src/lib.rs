@@ -1,16 +1,12 @@
 #![feature(async_await)]
-#![cfg_attr(test, feature(test))]
 #![allow(clippy::needless_lifetimes)]
-// FIXME: Remove this once API has matured
-#![allow(dead_code, unused_imports, unused_variables)]
+#![allow(unused)]
 
-#[cfg(test)]
-extern crate test;
+// #[macro_use]
+// extern crate bitflags;
 
-#[macro_use]
-extern crate bitflags;
-#[macro_use]
-extern crate enum_tryfrom_derive;
+// #[macro_use]
+// extern crate enum_tryfrom_derive;
 
 #[macro_use]
 mod macros;
@@ -41,5 +37,4 @@ pub use self::{
     query::{query, SqlQuery},
 };
 
-// TODO: Remove after Mariadb transitions to URIs
-mod options;
+// mod options;

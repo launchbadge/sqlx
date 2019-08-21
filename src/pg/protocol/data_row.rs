@@ -1,10 +1,7 @@
 use super::Decode;
-use bytes::Bytes;
 use std::{
     convert::TryInto,
     fmt::{self, Debug},
-    io,
-    ops::Range,
     pin::Pin,
     ptr::NonNull,
 };
@@ -84,7 +81,6 @@ impl Debug for DataRow {
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
-    use bytes::Bytes;
     use std::io;
 
     const DATA_ROW: &[u8] = b"\0\x03\0\0\0\x011\0\0\0\x012\0\0\0\x013";

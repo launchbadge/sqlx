@@ -1,12 +1,11 @@
 use crate::{
     backend::{Backend, BackendAssocRawQuery},
     executor::Executor,
-    pool::Pool,
     row::FromRow,
     serialize::ToSql,
     types::{AsSqlType, HasSqlType},
 };
-use futures::{future::BoxFuture, stream::BoxStream};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::io;
 
 pub trait RawQuery<'q>: Sized + Send + Sync {

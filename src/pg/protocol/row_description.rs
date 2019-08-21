@@ -1,9 +1,7 @@
 use super::Decode;
 use byteorder::{BigEndian, ByteOrder};
-use bytes::Bytes;
 use memchr::memchr;
 use std::{
-    io,
     mem::size_of_val,
     num::{NonZeroI16, NonZeroU32},
     str,
@@ -146,7 +144,6 @@ impl<'a> ExactSizeIterator for FieldDescriptions<'a> {}
 #[cfg(test)]
 mod tests {
     use super::{Decode, RowDescription};
-    use bytes::Bytes;
 
     const ROW_DESC: &[u8] = b"\0\x03?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0?column?\0\0\0\0\0\0\0\0\0\0\x17\0\x04\xff\xff\xff\xff\0\0";
 

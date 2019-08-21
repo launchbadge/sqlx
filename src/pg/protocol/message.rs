@@ -41,14 +41,14 @@ impl Message {
         let token = src[0];
         if token == 0 {
             // FIXME: Handle end-of-stream
-            return Err(io::ErrorKind::InvalidData)?;
+            return Err(io::ErrorKind::InvalidData.into());
         }
 
         // FIXME: What happens if len(u32) < len(usize) ?
         let len = BigEndian::read_u32(&src[1..5]) as usize;
 
         if src.len() >= (len + 1) {
-            let window = &src[5..(len + 1)];
+            let window = &src[5..=len];
 
             let message = match token {
                 b'N' | b'E' => Message::Response(Box::new(Response::decode(window))),

@@ -1,6 +1,4 @@
 use super::Decode;
-use bytes::Bytes;
-use std::io;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -46,7 +44,6 @@ impl Decode for ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{Decode, ReadyForQuery, TransactionStatus};
-    use bytes::Bytes;
 
     const READY_FOR_QUERY: &[u8] = b"E";
 

@@ -1,24 +1,16 @@
 use super::{
-    protocol::{Authentication, Encode, Message, PasswordMessage, StartupMessage, Terminate},
-    Pg, PgRawQuery, PgRow,
+    protocol::{Encode, Message, Terminate},
+    Pg, PgRow,
 };
-use crate::{connection::RawConnection, query::RawQuery, row::FromRow};
+use crate::{connection::RawConnection, query::RawQuery};
 use bytes::{BufMut, BytesMut};
-use futures::{
-    future::BoxFuture,
-    ready,
-    stream::{self, BoxStream, Stream},
-    task::{Context, Poll},
-    Future,
-};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
-    fmt::Debug,
     io,
     net::{IpAddr, Shutdown, SocketAddr},
-    pin::Pin,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 use url::Url;

@@ -19,23 +19,25 @@ postgres = []
 mariadb = []
 
 [dependencies]
-bitflags = "1.1.0"
-byteorder = "1.3.2"
+# bitflags = "1.1.0"
+byteorder = { version = "1.3.2", default-features = false }
 bytes = "0.4.12"
 crossbeam-queue = "0.1.2"
-crossbeam-utils = "0.6.6"
-enum-tryfrom = "0.2.1"
-enum-tryfrom-derive = "0.2.1"
-failure = "0.1.5"
-futures-preview = "=0.3.0-alpha.18"
-hex = "0.3.2"
-itoa = "0.4.4"
+crossbeam-utils = { version = "0.6.6", default-features = false }
+# enum-tryfrom = "0.2.1"
+# enum-tryfrom-derive = "0.2.1"
+# failure = "0.1.5"
+futures-util-preview = "=0.3.0-alpha.18"
+futures-channel-preview = "=0.3.0-alpha.18"
+futures-core-preview = "=0.3.0-alpha.18"
+hex = { version = "0.3.2", default-features = false }
+# itoa = "0.4.4"
 log = "0.4.8"
 md-5 = "0.8.0"
 url = "2.1.0"
 memchr = "2.2.1"
 async-stream = "0.1.0"
-tokio = { version = "=0.2.0-alpha.2" }
+tokio = { version = "=0.2.0-alpha.2", default-features = false, features = [ "tcp" ] }
 
 [dev-dependencies]
 criterion = "0.2"

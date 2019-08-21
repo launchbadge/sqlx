@@ -1,5 +1,5 @@
 use super::decode::{get_str, Decode};
-use std::{io, pin::Pin, ptr::NonNull, str};
+use std::{pin::Pin, ptr::NonNull, str};
 
 // FIXME: Use &str functions for a custom Debug
 #[derive(Debug)]

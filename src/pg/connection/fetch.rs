@@ -1,6 +1,6 @@
 use super::{PgRawConnection, PgRow};
 use crate::pg::protocol::Message;
-use futures::stream::Stream;
+use futures_core::stream::Stream;
 use std::io;
 
 pub fn fetch<'a>(

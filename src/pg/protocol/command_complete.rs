@@ -1,7 +1,6 @@
 use super::Decode;
-use bytes::Bytes;
 use memchr::memrchr;
-use std::{io, str};
+use std::str;
 
 #[derive(Debug)]
 pub struct CommandComplete {
@@ -26,7 +25,6 @@ impl Decode for CommandComplete {
 #[cfg(test)]
 mod tests {
     use super::{CommandComplete, Decode};
-    use bytes::Bytes;
 
     const COMMAND_COMPLETE_INSERT: &[u8] = b"INSERT 0 1\0";
     const COMMAND_COMPLETE_UPDATE: &[u8] = b"UPDATE 512\0";

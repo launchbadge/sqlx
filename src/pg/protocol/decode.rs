@@ -1,6 +1,5 @@
-use bytes::Bytes;
 use memchr::memchr;
-use std::{io, str};
+use std::str;
 
 pub trait Decode {
     fn decode(src: &[u8]) -> Self

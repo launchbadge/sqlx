@@ -1,5 +1,4 @@
 use super::{decode::get_str, Decode};
-use bytes::Bytes;
 use std::{
     fmt, io,
     pin::Pin,
@@ -68,7 +67,7 @@ impl FromStr for Severity {
             "LOG" => Severity::Log,
 
             _ => {
-                return Err(io::ErrorKind::InvalidData)?;
+                return Err(io::ErrorKind::InvalidData.into());
             }
         })
     }
@@ -387,7 +386,6 @@ impl Decode for Response {
 #[cfg(test)]
 mod tests {
     use super::{Decode, Response, Severity};
-    use bytes::Bytes;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
           skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";

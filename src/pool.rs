@@ -1,16 +1,11 @@
 use crate::{
     backend::Backend, connection::RawConnection, executor::Executor, query::RawQuery, row::FromRow,
-    Connection,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
-use futures::{
-    channel::oneshot,
-    future::BoxFuture,
-    stream::{self, BoxStream, Stream, StreamExt},
-    TryFutureExt,
-};
+use futures_channel::oneshot;
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::stream::StreamExt;
 use std::{
-    future::Future,
     io,
     ops::{Deref, DerefMut},
     sync::{
@@ -19,7 +14,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use url::Url;
 
 pub struct PoolOptions {
     pub max_size: usize,
@@ -48,7 +42,7 @@ where
     DB: Backend,
 {
     // TODO: PoolBuilder
-    pub fn new<'a>(url: &str, max_size: usize) -> Self {
+    pub fn new(url: &str, max_size: usize) -> Self {
         Self(Arc::new(SharedPool {
             url: url.to_owned(),
             idle: ArrayQueue::new(max_size),

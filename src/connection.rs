@@ -1,11 +1,9 @@
 use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromRow};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
-use futures::{
-    channel::oneshot::{channel, Sender},
-    future::BoxFuture,
-    stream::{BoxStream, StreamExt},
-};
+use futures_channel::oneshot::{channel, Sender};
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::stream::StreamExt;
 use std::{
     io,
     ops::{Deref, DerefMut},
@@ -77,10 +75,7 @@ where
     }
 
     async fn get(&self) -> ConnectionFairy<'_, DB> {
-        let raw = self.0.acquire().await;
-        let conn = ConnectionFairy::new(&self.0, raw);
-
-        conn
+        ConnectionFairy::new(&self.0, self.0.acquire().await)
     }
 }
 

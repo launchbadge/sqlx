@@ -1,6 +1,5 @@
 use super::Decode;
 use byteorder::{BigEndian, ByteOrder};
-use bytes::Bytes;
 use std::mem::size_of;
 
 type ObjectId = u32;
@@ -29,7 +28,6 @@ impl Decode for ParameterDescription {
 #[cfg(test)]
 mod test {
     use super::{Decode, ParameterDescription};
-    use bytes::Bytes;
     use std::io;
 
     #[test]

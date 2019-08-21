@@ -1,8 +1,6 @@
 use super::{decode::get_str, Decode};
 use byteorder::{BigEndian, ByteOrder};
-use bytes::Bytes;
-
-use std::{fmt, io, pin::Pin, ptr::NonNull};
+use std::{fmt, pin::Pin, ptr::NonNull};
 
 pub struct NotificationResponse {
     #[used]
@@ -72,7 +70,6 @@ impl Decode for NotificationResponse {
 #[cfg(test)]
 mod tests {
     use super::{Decode, NotificationResponse};
-    use bytes::Bytes;
     use std::io;
 
     const NOTIFICATION_RESPONSE: &[u8] = b"\x34\x20\x10\x02TEST-CHANNEL\0THIS IS A TEST\0";
