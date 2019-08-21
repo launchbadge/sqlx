@@ -10,10 +10,7 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use futures::{channel::oneshot::channel, future, stream::TryStreamExt};
-use sqlx::{
-    pg::{Pg, PgQuery},
-    Connection, Pool, Query,
-};
+use sqlx::{pg::Pg, Pool};
 use std::{
     io,
     time::{Duration, Instant},
@@ -47,13 +44,13 @@ async fn main() -> Fallible<()> {
 
     ensure_schema(&pool).await?;
     insert(&pool, 50_000).await?;
-    // select(&pool, 50_000).await?;
+    select(&pool, 1_000).await?;
 
     Ok(())
 }
 
 async fn ensure_schema(pool: &PgPool) -> io::Result<()> {
-    sqlx::query::<PgQuery>(
+    sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS contacts (
     id BIGSERIAL PRIMARY KEY,
@@ -69,9 +66,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     .execute(&pool)
     .await?;
 
-    sqlx::query::<PgQuery>("TRUNCATE contacts")
-        .execute(&pool)
-        .await?;
+    sqlx::query("TRUNCATE contacts").execute(&pool).await?;
 
     Ok(())
 }
@@ -86,7 +81,7 @@ async fn insert(pool: &PgPool, count: usize) -> io::Result<()> {
         let (tx, rx) = channel::<()>();
 
         tokio::spawn(async move {
-            sqlx::query::<PgQuery>(
+            sqlx::query(
                 r#"
     INSERT INTO contacts (name, username, password, email, phone)
     VALUES ($1, $2, $3, $4, $5)
@@ -122,7 +117,7 @@ async fn select(pool: &PgPool, iterations: usize) -> io::Result<()> {
 
     for _ in 0..iterations {
         // TODO: Once we have FromRow derives we can replace this with Vec<Contact>
-        let contacts: Vec<(String, String, String, String, String)> = sqlx::query::<PgQuery>(
+        let contacts: Vec<(String, String, String, String, String)> = sqlx::query(
             r#"
 SELECT name, username, password, email, phone 
 FROM contacts
