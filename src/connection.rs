@@ -1,4 +1,4 @@
-use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromRow};
+use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromSqlRow};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures_channel::oneshot::{channel, Sender};
@@ -98,7 +98,7 @@ where
     fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut conn = self.get().await;
@@ -116,7 +116,7 @@ where
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend>,
+        T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
             let mut conn = self.get().await;

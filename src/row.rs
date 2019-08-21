@@ -19,11 +19,11 @@ pub trait Row: Send {
     }
 }
 
-pub trait FromRow<DB: Backend> {
+pub trait FromSqlRow<DB: Backend> {
     fn from_row<R: Row<Backend = DB>>(row: R) -> Self;
 }
 
-impl<T, DB> FromRow<DB> for T
+impl<T, DB> FromSqlRow<DB> for T
 where
     DB: Backend + HasSqlType<T>,
     T: FromSql<DB>,
@@ -35,9 +35,9 @@ where
 }
 
 #[allow(unused)]
-macro_rules! impl_from_row_tuple {
+macro_rules! impl_from_sql_row_tuple {
     ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
-        impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
+        impl<$($T,)+> crate::row::FromSqlRow<$B> for ($($T,)+)
         where
             $($B: crate::types::HasSqlType<$T>,)+
             $($T: crate::deserialize::FromSql<$B>,)+
@@ -51,31 +51,31 @@ macro_rules! impl_from_row_tuple {
 }
 
 #[allow(unused)]
-macro_rules! impl_from_row_tuples_for_backend {
+macro_rules! impl_from_sql_row_tuples_for_backend {
     ($B:ident) => {
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
             (3) -> T4;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -83,7 +83,7 @@ macro_rules! impl_from_row_tuples_for_backend {
             (4) -> T5;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -92,7 +92,7 @@ macro_rules! impl_from_row_tuples_for_backend {
             (5) -> T6;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -102,7 +102,7 @@ macro_rules! impl_from_row_tuples_for_backend {
             (6) -> T7;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -113,7 +113,7 @@ macro_rules! impl_from_row_tuples_for_backend {
             (7) -> T8;
         );
 
-        impl_from_row_tuple!($B:
+        impl_from_sql_row_tuple!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;

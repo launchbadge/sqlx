@@ -1,5 +1,5 @@
 use crate::{
-    backend::Backend, connection::RawConnection, executor::Executor, query::RawQuery, row::FromRow,
+    backend::Backend, connection::RawConnection, executor::Executor, query::RawQuery, row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;
@@ -143,7 +143,7 @@ where
     fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let live = self.0.acquire().await?;
@@ -162,7 +162,7 @@ where
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend>,
+        T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
             let live = self.0.acquire().await?;

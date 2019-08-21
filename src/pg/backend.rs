@@ -11,5 +11,5 @@ impl Backend for Pg {
     type Row = super::PgRow;
 }
 
-// Generates tuple FromRow impls for this backend
-impl_from_row_tuples_for_backend!(Pg);
+// Generates tuple FromSqlRow impls for this backend
+impl_from_sql_row_tuples_for_backend!(Pg);

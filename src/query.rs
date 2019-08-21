@@ -1,7 +1,7 @@
 use crate::{
     backend::{Backend, BackendAssocRawQuery},
     executor::Executor,
-    row::FromRow,
+    row::FromSqlRow,
     serialize::ToSql,
     types::HasSqlType,
 };
@@ -64,7 +64,7 @@ where
     pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
     where
         E: Executor<Backend = DB>,
-        T: FromRow<DB> + Send + Unpin,
+        T: FromSqlRow<DB> + Send + Unpin,
         <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch(self.inner)
@@ -74,7 +74,7 @@ where
     pub fn fetch_optional<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, io::Result<Option<T>>>
     where
         E: Executor<Backend = DB>,
-        T: FromRow<DB>,
+        T: FromSqlRow<DB>,
         <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
     {
         executor.fetch_optional(self.inner)

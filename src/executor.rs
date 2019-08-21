@@ -1,4 +1,4 @@
-use crate::{backend::Backend, query::RawQuery, row::FromRow};
+use crate::{backend::Backend, query::RawQuery, row::FromSqlRow};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::io;
 
@@ -12,7 +12,7 @@ pub trait Executor: Send {
     fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend> + Send + Unpin;
+        T: FromSqlRow<Self::Backend> + Send + Unpin;
 
     fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
         &'c self,
@@ -20,7 +20,7 @@ pub trait Executor: Send {
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend>;
+        T: FromSqlRow<Self::Backend>;
 }
 
 impl<'e, E> Executor for &'e E
@@ -40,7 +40,7 @@ where
     fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         (*self).fetch(query)
     }
@@ -51,7 +51,7 @@ where
     ) -> BoxFuture<'c, io::Result<Option<T>>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
-        T: FromRow<Self::Backend>,
+        T: FromSqlRow<Self::Backend>,
     {
         (*self).fetch_optional(query)
     }
