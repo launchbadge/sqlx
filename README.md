@@ -6,7 +6,7 @@ The SQL Toolkit for Rust. Fast, Safe, and Asynchronous.
  
  * **Fast**. _TO BE WRITTEN_
  
- * **Native**. SQLx is a pure Rust<sub>†<sub> toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern (as of Aug. 2019) ecosystem (the `runtime` crate) for asynchronous network services development.
+ * **Native**. SQLx is a pure Rust<sub>†</sub> toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern (as of Aug. 2019) ecosystem (the `runtime` crate) for asynchronous network services development.
  
  * **Agnostic**. SQLx is agnostic over the database engine and can operate against a variety of database backends with the backend chosen **at compile-time** through generic constraints **or at runtime** with a slight performance loss (due to dynamic dispatch).
 
