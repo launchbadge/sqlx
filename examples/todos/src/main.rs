@@ -49,9 +49,8 @@ async fn main() -> Fallible<()> {
 }
 
 async fn ensure_schema(conn: &mut Connection<Postgres>) -> Fallible<()> {
-    sqlx::query("BEGIN").execute(conn).await?;
+    conn.execute("BEGIN", ()).await?;
 
-    // language=sql
     sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS tasks (
@@ -65,21 +64,19 @@ CREATE TABLE IF NOT EXISTS tasks (
     .execute(conn)
     .await?;
 
-    sqlx::query("COMMIT").execute(conn).await?;
+    conn.execute("COMMIT", ()).await?;
 
     Ok(())
 }
 
 async fn print_all_tasks(conn: &mut Connection<Postgres>) -> Fallible<()> {
-    // language=sql
-    sqlx::query(
+    conn.fetch(
         r#"
 SELECT id, text
 FROM tasks
 WHERE done_at IS NULL
         "#,
     )
-    .fetch(conn)
     .try_for_each(|(id, text): (i64, String)| {
         // language=text
         println!("{:>5} | {}", id, text);
@@ -92,16 +89,7 @@ WHERE done_at IS NULL
 }
 
 async fn add_task(conn: &mut Connection<Postgres>, text: &str) -> Fallible<()> {
-    // language=sql
-    sqlx::query(
-        r#"
-INSERT INTO tasks ( text )
-VALUES ( $1 )
-        "#,
-    )
-    .bind(text)
-    .execute(conn)
-    .await?;
+    conn.execute("INSERT INTO tasks ( text ) VALUES ( $1 )", (text,)).await?;
 
     Ok(())
 }

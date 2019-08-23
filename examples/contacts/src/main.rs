@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     .execute(&pool)
     .await?;
 
-    sqlx::query("TRUNCATE contacts").execute(&pool).await?;
+    pool.execute("TRUNCATE contacts", ()).await?;
 
     Ok(())
 }
@@ -78,18 +78,19 @@ async fn insert(pool: &PostgresPool, count: usize) -> Result<(), sqlx::Error> {
         let (tx, rx) = channel::<()>();
 
         tokio::spawn(async move {
-            sqlx::query(
+            pool.execute(
                 r#"
     INSERT INTO contacts (name, username, password, email, phone)
     VALUES ($1, $2, $3, $4, $5)
-                    "#,
+                "#, 
+                (
+                    contact.name,
+                    contact.username,
+                    contact.password,
+                    contact.email,
+                    contact.phone,
+                )
             )
-            .bind(contact.name)
-            .bind(contact.username)
-            .bind(contact.password)
-            .bind(contact.email)
-            .bind(contact.phone)
-            .execute(&pool)
             .await
             .unwrap();
 
@@ -114,13 +115,12 @@ async fn select(pool: &PostgresPool, iterations: usize) -> Result<(), sqlx::Erro
 
     for _ in 0..iterations {
         // TODO: Once we have FromRow derives we can replace this with Vec<Contact>
-        let contacts: Vec<(String, String, String, String, String)> = sqlx::query(
+        let contacts: Vec<(String, String, String, String, String)> = pool.fetch(
             r#"
 SELECT name, username, password, email, phone 
 FROM contacts
-                "#,
+                "#, (),
         )
-        .fetch(&pool)
         .try_collect()
         .await?;
 

@@ -18,6 +18,77 @@ pub trait QueryParameters: Send {
         T: ToSql<Self::Backend>;
 }
 
+pub trait IntoQueryParameters<DB> where DB: Backend {
+    fn into(self) -> DB::QueryParameters;
+}
+
+#[allow(unused)]
+macro_rules! impl_into_query_parameters {
+
+    ($( ($idx:tt) -> $T:ident );+;) => {
+        impl<$($T,)+ DB> IntoQueryParameters<DB> for ($($T,)+) 
+        where 
+            DB: Backend, 
+            $(DB: crate::types::HasSqlType<$T>,)+
+            $($T: crate::serialize::ToSql<DB>,)+
+        {
+            fn into(self) -> DB::QueryParameters {
+                let mut params = DB::QueryParameters::new();
+                $(params.bind(self.$idx);)+
+                params
+            }
+        }
+    };
+}
+
+impl<DB> IntoQueryParameters<DB> for () 
+where 
+    DB: Backend, 
+{
+    fn into(self) -> DB::QueryParameters {
+        DB::QueryParameters::new()
+    }
+}
+
+impl_into_query_parameters!(
+    (0) -> T1;
+);
+
+impl_into_query_parameters!(
+    (0) -> T1;
+    (1) -> T2;
+);
+
+impl_into_query_parameters!(
+    (0) -> T1;
+    (1) -> T2;
+    (2) -> T3;
+);
+
+impl_into_query_parameters!(
+    (0) -> T1;
+    (1) -> T2;
+    (2) -> T3;
+    (3) -> T4;
+);
+
+impl_into_query_parameters!(
+    (0) -> T1;
+    (1) -> T2;
+    (2) -> T3;
+    (3) -> T4;
+    (4) -> T5;
+);
+
+impl_into_query_parameters!(
+    (0) -> T1;
+    (1) -> T2;
+    (2) -> T3;
+    (3) -> T4;
+    (4) -> T5;
+    (5) -> T6;
+);
+
 pub struct SqlQuery<'q, DB>
 where
     DB: Backend,

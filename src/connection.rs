@@ -1,5 +1,5 @@
 use crate::{
-    backend::Backend, error::Error, executor::Executor, query::QueryParameters, row::FromSqlRow,
+    backend::Backend, error::Error, executor::Executor, query::{QueryParameters, IntoQueryParameters}, row::FromSqlRow,
 };
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
@@ -78,6 +78,40 @@ where
 
     async fn get(&self) -> ConnectionFairy<'_, DB> {
         ConnectionFairy::new(&self.0, self.0.acquire().await)
+    }
+
+    #[inline]
+    pub async fn execute<A>(&self, query: &str, params: A) -> Result<u64, Error>
+    where
+        A: IntoQueryParameters<DB>,
+    {
+        Executor::execute(self, query, params.into()).await
+    }
+
+    #[inline]
+    pub fn fetch<'c, 'q: 'c, A: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: A,
+    ) -> BoxStream<'c, Result<T, Error>>
+    where
+        A: IntoQueryParameters<DB> + Send,
+        T: FromSqlRow<DB> + Send + Unpin,
+    {
+        Executor::fetch(self, query, params.into())
+    }
+
+    #[inline]
+    pub async fn fetch_optional<'c, 'q: 'c, A: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: A,
+    ) -> Result<Option<T>, Error>
+    where
+        A: IntoQueryParameters<DB> + Send,
+        T: FromSqlRow<DB>,
+    {
+        Executor::fetch_optional(self, query, params.into()).await
     }
 }
 
