@@ -1,4 +1,4 @@
-use super::Connection;
+use super::MariaDbRawConnection;
 use crate::{
     mariadb::{
         Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket,
@@ -11,7 +11,7 @@ use std::ops::BitAnd;
 use url::Url;
 
 pub async fn establish(
-    conn: &mut Connection,
+    conn: &mut MariaDbRawConnection,
     url: Url
 ) -> Result<(), Error> {
     let buf = conn.stream.next_packet().await?;
@@ -54,7 +54,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_connect() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         Ok(())
@@ -62,7 +62,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_ping() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
 
         .await?;
 
@@ -73,7 +73,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_select_db() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -83,7 +83,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_query() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -95,7 +95,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_prepare() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -108,7 +108,7 @@ mod test {
 
     #[tokio::test]
     async fn it_can_execute_prepared() -> Result<(), Error> {
-        let mut conn = Connection::establish(&"mariadb://root@127.0.0.1:3306")
+        let mut conn = MariaDbRawConnection::establish(&"mariadb://root@127.0.0.1:3306")
         .await?;
 
         conn.select_db("test").await?;
@@ -151,7 +151,7 @@ mod test {
 
     #[tokio::test]
     async fn it_does_not_connect() -> Result<(), Error> {
-        match Connection::establish(&"mariadb//roote@127.0.0.1:3306")
+        match MariaDbRawConnection::establish(&"mariadb//roote@127.0.0.1:3306")
         .await
         {
             Ok(_) => Err(err_msg("Bad username still worked?")),

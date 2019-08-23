@@ -1,4 +1,4 @@
-use crate::mariadb::{BufMut, Capabilities, ConnContext, Connection, Encode};
+use crate::mariadb::{BufMut, Capabilities, ConnContext, MariaDbRawConnection, Encode};
 use bytes::Bytes;
 use failure::Error;
 

@@ -1,5 +1,5 @@
 use crate::mariadb::{
-    BufMut, ColumnDefPacket, ConnContext, Connection, Encode, FieldDetailFlag, FieldType,
+    BufMut, ColumnDefPacket, ConnContext, MariaDbRawConnection, Encode, FieldDetailFlag, FieldType,
     StmtExecFlag,
 };
 use bytes::Bytes;

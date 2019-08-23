@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use failure::Error;
 
-use crate::mariadb::{BufMut, Capabilities, ConnContext, Connection, Encode};
+use crate::mariadb::{BufMut, Capabilities, ConnContext, MariaDbRawConnection, Encode};
 
 #[derive(Default, Debug)]
 pub struct SSLRequestPacket {
