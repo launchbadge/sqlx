@@ -33,11 +33,12 @@ mod connection;
 mod executor;
 mod pool;
 mod query;
+pub mod error;
 
 pub use self::{
+    error::Error,
     connection::Connection,
     pool::Pool,
     query::{query, SqlQuery},
 };
 
-// mod options;

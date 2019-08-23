@@ -1,11 +1,12 @@
 use super::{PostgresRawConnection, PostgresRow};
 use crate::postgres::protocol::Message;
 use futures_core::stream::Stream;
+use crate::error::Error;
 use std::io;
 
 pub fn fetch<'a>(
     conn: &'a mut PostgresRawConnection,
-) -> impl Stream<Item = Result<PostgresRow, io::Error>> + 'a {
+) -> impl Stream<Item = Result<PostgresRow, Error>> + 'a {
     async_stream::try_stream! {
         conn.flush().await?;
 

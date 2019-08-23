@@ -2,6 +2,7 @@ use super::{
     protocol::{Encode, Message, Terminate},
     Postgres, PostgresRow,
 };
+use crate::error::Error;
 use crate::{connection::RawConnection, query::RawQuery};
 use bytes::{BufMut, BytesMut};
 use futures_core::{future::BoxFuture, stream::BoxStream};
@@ -44,7 +45,7 @@ pub struct PostgresRawConnection {
 }
 
 impl PostgresRawConnection {
-    async fn establish(url: &str) -> io::Result<Self> {
+    async fn establish(url: &str) -> Result<Self, Error> {
         // TODO: Handle errors
         let url = Url::parse(url).unwrap();
 
@@ -55,7 +56,8 @@ impl PostgresRawConnection {
         let host: IpAddr = host.parse().unwrap();
         let addr: SocketAddr = (host, port).into();
 
-        let stream = TcpStream::connect(&addr).await?;
+        let stream = TcpStream::connect(&addr).await.map_err(Error::Io)?;
+
         let mut conn = Self {
             wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(1024 * 8),
@@ -71,16 +73,16 @@ impl PostgresRawConnection {
         Ok(conn)
     }
 
-    async fn finalize(&mut self) -> io::Result<()> {
+    async fn finalize(&mut self) -> Result<(), Error> {
         self.write(Terminate);
         self.flush().await?;
-        self.stream.shutdown(Shutdown::Both)?;
+        self.stream.shutdown(Shutdown::Both).map_err(Error::Io)?;
 
         Ok(())
     }
 
     // Wait and return the next message to be received from Postgres.
-    async fn receive(&mut self) -> io::Result<Option<Message>> {
+    async fn receive(&mut self) -> Result<Option<Message>, Error> {
         loop {
             if self.stream_eof {
                 // Reached end-of-file on a previous read call.
@@ -89,7 +91,7 @@ impl PostgresRawConnection {
 
             if self.stream_readable {
                 loop {
-                    match Message::decode(&mut self.rbuf)? {
+                    match Message::decode(&mut self.rbuf) {
                         Some(Message::ParameterStatus(_body)) => {
                             // TODO: not sure what to do with these yet
                         }
@@ -120,7 +122,7 @@ impl PostgresRawConnection {
             //       Postgres is a self-describing format and the TCP frames encode
             //       length headers. We will never attempt to decode more than we
             //       received.
-            let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await?;
+            let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await.map_err(Error::Io)?;
 
             // SAFE: After we read in N bytes, we can tell the buffer that it actually
             //       has that many bytes MORE for the decode routines to look at
@@ -138,8 +140,8 @@ impl PostgresRawConnection {
         message.encode(&mut self.wbuf);
     }
 
-    async fn flush(&mut self) -> io::Result<()> {
-        self.stream.write_all(&self.wbuf).await?;
+    async fn flush(&mut self) -> Result<(), Error> {
+        self.stream.write_all(&self.wbuf).await.map_err(Error::Io)?;
         self.wbuf.clear();
 
         Ok(())
@@ -150,16 +152,16 @@ impl RawConnection for PostgresRawConnection {
     type Backend = Postgres;
 
     #[inline]
-    fn establish(url: &str) -> BoxFuture<io::Result<Self>> {
+    fn establish(url: &str) -> BoxFuture<Result<Self, Error>> {
         Box::pin(PostgresRawConnection::establish(url))
     }
 
     #[inline]
-    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, io::Result<()>> {
+    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>> {
         Box::pin(self.finalize())
     }
 
-    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {
@@ -168,7 +170,7 @@ impl RawConnection for PostgresRawConnection {
         Box::pin(execute::execute(self))
     }
 
-    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, io::Result<PostgresRow>>
+    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, Result<PostgresRow, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {
@@ -180,7 +182,7 @@ impl RawConnection for PostgresRawConnection {
     fn fetch_optional<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
-    ) -> BoxFuture<'c, io::Result<Option<PostgresRow>>>
+    ) -> BoxFuture<'c, Result<Option<PostgresRow>, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {

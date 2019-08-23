@@ -1,4 +1,4 @@
-use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromSqlRow};
+use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromSqlRow, error::Error};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures_channel::oneshot::{channel, Sender};
@@ -17,30 +17,30 @@ pub trait RawConnection: Send {
     type Backend: Backend;
 
     /// Establish a new connection to the database server.
-    fn establish(url: &str) -> BoxFuture<io::Result<Self>>
+    fn establish(url: &str) -> BoxFuture<Result<Self, Error>>
     where
         Self: Sized;
 
     /// Release resources for this database connection immediately.
     /// This method is not required to be called. A database server will eventually notice
     /// and clean up not fully closed connections.
-    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, io::Result<()>>;
+    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
 
-    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>;
 
     fn fetch<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
-    ) -> BoxStream<'c, io::Result<<Self::Backend as Backend>::Row>>
+    ) -> BoxStream<'c, Result<<Self::Backend as Backend>::Row, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>;
 
     fn fetch_optional<'c, 'q, Q: 'q>(
         &'c mut self,
         query: Q,
-    ) -> BoxFuture<'c, io::Result<Option<<Self::Backend as Backend>::Row>>>
+    ) -> BoxFuture<'c, Result<Option<<Self::Backend as Backend>::Row>, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>;
 }
@@ -63,7 +63,7 @@ impl<DB> Connection<DB>
 where
     DB: Backend,
 {
-    pub async fn establish(url: &str) -> io::Result<Self> {
+    pub async fn establish(url: &str) -> Result<Self, Error> {
         let raw = <DB as Backend>::RawConnection::establish(url).await?;
         let shared = SharedConnection {
             raw: AtomicCell::new(Some(Box::new(raw))),
@@ -85,7 +85,7 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {
@@ -95,7 +95,7 @@ where
         })
     }
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
+    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
@@ -113,7 +113,7 @@ where
     fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
         &'c self,
         query: Q,
-    ) -> BoxFuture<'c, io::Result<Option<T>>>
+    ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>,

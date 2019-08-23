@@ -29,19 +29,19 @@ pub enum Message {
 impl Message {
     // FIXME: `Message::decode` shares the name of the remaining message type `::decode` despite being very
     //        different
-    pub fn decode(src: &mut BytesMut) -> io::Result<Option<Self>>
+    pub fn decode(src: &mut BytesMut) -> Option<Self>
     where
         Self: Sized,
     {
         if src.len() < 5 {
             // No message is less than 5 bytes
-            return Ok(None);
+            return None;
         }
 
         let token = src[0];
         if token == 0 {
             // FIXME: Handle end-of-stream
-            return Err(io::ErrorKind::InvalidData.into());
+            panic!("unexpectede end-of-stream");
         }
 
         // FIXME: What happens if len(u32) < len(usize) ?
@@ -76,10 +76,10 @@ impl Message {
 
             src.advance(len + 1);
 
-            Ok(Some(message))
+            Some(message)
         } else {
             // We don't have enough in the stream yet
-            Ok(None)
+            None
         }
     }
 }

@@ -12,7 +12,6 @@ use fake::{
 use futures::{channel::oneshot::channel, future, stream::TryStreamExt};
 use sqlx::{Postgres, Pool};
 use std::{
-    io,
     time::{Duration, Instant},
 };
 
@@ -49,7 +48,7 @@ async fn main() -> Fallible<()> {
     Ok(())
 }
 
-async fn ensure_schema(pool: &PostgresPool) -> io::Result<()> {
+async fn ensure_schema(pool: &PostgresPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
 CREATE TABLE IF NOT EXISTS contacts (
@@ -71,7 +70,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     Ok(())
 }
 
-async fn insert(pool: &PostgresPool, count: usize) -> io::Result<()> {
+async fn insert(pool: &PostgresPool, count: usize) -> Result<(), sqlx::Error> {
     let start_at = Instant::now();
     let mut handles = vec![];
 
@@ -111,7 +110,7 @@ async fn insert(pool: &PostgresPool, count: usize) -> io::Result<()> {
     Ok(())
 }
 
-async fn select(pool: &PostgresPool, iterations: usize) -> io::Result<()> {
+async fn select(pool: &PostgresPool, iterations: usize) -> Result<(), sqlx::Error> {
     let start_at = Instant::now();
     let mut rows: usize = 0;
 

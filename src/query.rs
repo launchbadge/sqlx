@@ -3,6 +3,7 @@ use crate::{
     executor::Executor,
     row::FromSqlRow,
     serialize::ToSql,
+    error::Error,
     types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
@@ -52,7 +53,7 @@ where
     // TODO: These methods should go on a [Execute] trait (so more execut-able things can be defined)
 
     #[inline]
-    pub fn execute<E>(self, executor: &'q E) -> BoxFuture<'q, io::Result<u64>>
+    pub fn execute<E>(self, executor: &'q E) -> BoxFuture<'q, Result<u64, Error>>
     where
         E: Executor<Backend = DB>,
         <DB as BackendAssocRawQuery<'q, DB>>::RawQuery: 'q,
@@ -61,7 +62,7 @@ where
     }
 
     #[inline]
-    pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, io::Result<T>>
+    pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
         T: FromSqlRow<DB> + Send + Unpin,
@@ -71,7 +72,7 @@ where
     }
 
     #[inline]
-    pub fn fetch_optional<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, io::Result<Option<T>>>
+    pub fn fetch_optional<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<Option<T>, Error>>
     where
         E: Executor<Backend = DB>,
         T: FromSqlRow<DB>,

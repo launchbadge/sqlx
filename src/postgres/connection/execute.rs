@@ -1,8 +1,9 @@
 use super::PostgresRawConnection;
 use crate::postgres::protocol::Message;
+use crate::error::Error;
 use std::io;
 
-pub async fn execute(conn: &mut PostgresRawConnection) -> io::Result<u64> {
+pub async fn execute(conn: &mut PostgresRawConnection) -> Result<u64, Error> {
     conn.flush().await?;
 
     let mut rows = 0;

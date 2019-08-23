@@ -1,4 +1,5 @@
 use crate::{
+    error::Error,
     backend::Backend, connection::RawConnection, executor::Executor, query::RawQuery, row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
@@ -74,7 +75,7 @@ impl<DB> SharedPool<DB>
 where
     DB: Backend,
 {
-    async fn acquire(&self) -> io::Result<Live<DB>> {
+    async fn acquire(&self) -> Result<Live<DB>, Error> {
         if let Ok(idle) = self.idle.pop() {
             return Ok(idle.live);
         }
@@ -128,7 +129,7 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, io::Result<u64>>
+    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
     {
@@ -140,7 +141,7 @@ where
         })
     }
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, io::Result<T>>
+    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
@@ -159,7 +160,7 @@ where
     fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
         &'c self,
         query: Q,
-    ) -> BoxFuture<'c, io::Result<Option<T>>>
+    ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
         Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>,

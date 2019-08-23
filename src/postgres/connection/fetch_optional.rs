@@ -1,8 +1,9 @@
 use super::{PostgresRawConnection, PostgresRow};
 use crate::postgres::protocol::Message;
+use crate::error::Error;
 use std::io;
 
-pub async fn fetch_optional<'a>(conn: &'a mut PostgresRawConnection) -> io::Result<Option<PostgresRow>> {
+pub async fn fetch_optional<'a>(conn: &'a mut PostgresRawConnection) -> Result<Option<PostgresRow>, Error> {
     conn.flush().await?;
 
     let mut row: Option<PostgresRow> = None;
