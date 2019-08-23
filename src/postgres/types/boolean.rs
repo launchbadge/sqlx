@@ -1,4 +1,4 @@
-use super::{Postgres, PostgresTypeMetadata, PostgresTypeFormat};
+use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
     deserialize::FromSql,
     serialize::{IsNull, ToSql},

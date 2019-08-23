@@ -1,9 +1,8 @@
 use super::{
-    protocol::{Encode, Message, Terminate},
-    Postgres, PostgresRow,
+    protocol::{self, Encode, Message, Terminate},
+    Postgres, PostgresQueryParameters, PostgresRow,
 };
-use crate::error::Error;
-use crate::{connection::RawConnection, query::RawQuery};
+use crate::{connection::RawConnection, error::Error, query::QueryParameters};
 use bytes::{BufMut, BytesMut};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
@@ -122,7 +121,11 @@ impl PostgresRawConnection {
             //       Postgres is a self-describing format and the TCP frames encode
             //       length headers. We will never attempt to decode more than we
             //       received.
-            let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await.map_err(Error::Io)?;
+            let n = self
+                .stream
+                .read(unsafe { self.rbuf.bytes_mut() })
+                .await
+                .map_err(Error::Io)?;
 
             // SAFE: After we read in N bytes, we can tell the buffer that it actually
             //       has that many bytes MORE for the decode routines to look at
@@ -161,33 +164,59 @@ impl RawConnection for PostgresRawConnection {
         Box::pin(self.finalize())
     }
 
-    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
-        query.finish(self);
+    fn execute<'c>(
+        &'c mut self,
+        query: &str,
+        params: PostgresQueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>> {
+        finish(self, query, params, 0);
 
         Box::pin(execute::execute(self))
     }
 
-    fn fetch<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxStream<'c, Result<PostgresRow, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
-        query.finish(self);
+    fn fetch<'c>(
+        &'c mut self,
+        query: &str,
+        params: PostgresQueryParameters,
+    ) -> BoxStream<'c, Result<PostgresRow, Error>> {
+        finish(self, query, params, 0);
 
         Box::pin(fetch::fetch(self))
     }
 
-    fn fetch_optional<'c, 'q, Q: 'q>(
+    fn fetch_optional<'c>(
         &'c mut self,
-        query: Q,
-    ) -> BoxFuture<'c, Result<Option<PostgresRow>, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
-        query.finish(self);
+        query: &str,
+        params: PostgresQueryParameters,
+    ) -> BoxFuture<'c, Result<Option<PostgresRow>, Error>> {
+        finish(self, query, params, 1);
 
         Box::pin(fetch_optional::fetch_optional(self))
     }
+}
+
+fn finish(conn: &mut PostgresRawConnection, query: &str, params: PostgresQueryParameters, limit: i32) {
+    conn.write(protocol::Parse {
+        portal: "",
+        query,
+        param_types: &*params.types,
+    });
+
+    conn.write(protocol::Bind {
+        portal: "",
+        statement: "",
+        formats: &[1], // [BINARY]
+        // TODO: Early error if there is more than i16
+        values_len: params.types.len() as i16,
+        values: &*params.buf,
+        result_formats: &[1], // [BINARY]
+    });
+
+    // TODO: Make limit be 1 for fetch_optional
+    conn.write(protocol::Execute {
+        portal: "",
+        limit,
+    });
+
+    conn.write(protocol::Sync);
 }

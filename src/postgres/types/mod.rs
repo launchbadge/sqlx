@@ -1,6 +1,6 @@
 //! PostgreSQL types.
 //!
-//! The following types are supported by this crate, 
+//! The following types are supported by this crate,
 //! along with the corresponding Postgres types:
 //!
 //! ### Standard
@@ -39,10 +39,10 @@ pub enum PostgresTypeFormat {
     Binary = 1,
 }
 
-/// Provides the OIDs for a SQL type and the expected format to be used for 
+/// Provides the OIDs for a SQL type and the expected format to be used for
 /// transmission between Rust and PostgreSQL.
 ///
-/// While the BINARY format is preferred in most cases, there are scenarios 
+/// While the BINARY format is preferred in most cases, there are scenarios
 /// where only the TEXT format may be available for a type.
 pub struct PostgresTypeMetadata {
     pub format: PostgresTypeFormat,

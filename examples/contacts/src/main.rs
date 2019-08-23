@@ -10,10 +10,8 @@ use fake::{
     Dummy, Fake, Faker,
 };
 use futures::{channel::oneshot::channel, future, stream::TryStreamExt};
-use sqlx::{Postgres, Pool};
-use std::{
-    time::{Duration, Instant},
-};
+use sqlx::{Pool, Postgres};
+use std::time::{Duration, Instant};
 
 type PostgresPool = Pool<Postgres>;
 

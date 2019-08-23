@@ -5,7 +5,7 @@ extern crate criterion;
 
 use bytes::BytesMut;
 use criterion::{BatchSize, Criterion};
-use sqlx::pg::protocol::Message;
+use sqlx::postgres::protocol::Message;
 
 const MESSAGE_DATA_ROW: &[u8] = b"D\0\0\0\x19\0\x02\0\0\0\x08\0\0\0\0\0\0\0\x05\0\0\0\x03whaD\0\0\0\xd6\0\x02\0\0\0\x08\0\0\0\0\0\0\0\x07\0\0\0\xc0Spicy jalapeno bacon ipsum dolor amet doner venison ground round burgdoggen salami fatback jerky sirloin t-bone beef. Ribeye chuck tenderloin pastrami short loin capicola beef tri-tip venison.";
 const MESSAGE_COMMAND_COMPLETE: &[u8] = b"C\0\0\0\rSELECT 4\0";
@@ -25,7 +25,7 @@ fn bench(c: &mut Criterion, name: &'static str, input: &'static [u8]) {
         b.iter_batched(
             || buf.clone(),
             |mut buf| {
-                while let Some(_body) = Message::decode(&mut buf).unwrap() {}
+                while let Some(_body) = Message::decode(&mut buf) {}
                 assert!(buf.is_empty());
             },
             BatchSize::LargeInput,

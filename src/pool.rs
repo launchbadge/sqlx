@@ -1,6 +1,6 @@
 use crate::{
-    error::Error,
-    backend::Backend, connection::RawConnection, executor::Executor, query::RawQuery, row::FromSqlRow,
+    backend::Backend, connection::RawConnection, error::Error, executor::Executor,
+    query::QueryParameters, row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;
@@ -129,27 +129,31 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
+    fn execute<'c, 'q: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>> {
         Box::pin(async move {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
 
-            conn.execute(query).await
+            conn.execute(query, params).await
         })
     }
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
+    fn fetch<'c, 'q: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxStream<'c, Result<T, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
-            let mut s = conn.fetch(query);
+            let mut s = conn.fetch(query, params);
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -157,18 +161,18 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
+    fn fetch_optional<'c, 'q: 'c, T: 'c>(
         &'c self,
-        query: Q,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
-            let row = conn.fetch_optional(query).await?;
+            let row = conn.fetch_optional(query, params).await?;
 
             Ok(row.map(T::from_row))
         })

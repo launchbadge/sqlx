@@ -3,28 +3,24 @@ use super::{
     Postgres, PostgresRawConnection,
 };
 use crate::{
-    query::RawQuery,
+    query::QueryParameters,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder};
 
-pub struct PostgresRawQuery<'q> {
-    limit: i32,
-    query: &'q str,
+pub struct PostgresQueryParameters {
     // OIDs of the bind parameters
-    types: Vec<u32>,
+    pub(super) types: Vec<u32>,
     // Write buffer for serializing bind values
-    buf: Vec<u8>,
+    pub(super) buf: Vec<u8>,
 }
 
-impl<'q> RawQuery<'q> for PostgresRawQuery<'q> {
+impl QueryParameters for PostgresQueryParameters {
     type Backend = Postgres;
 
-    fn new(query: &'q str) -> Self {
+    fn new() -> Self {
         Self {
-            limit: 0,
-            query,
             // Estimates for average number of bind parameters were
             // chosen from sampling from internal projects
             types: Vec::with_capacity(4),
@@ -32,7 +28,7 @@ impl<'q> RawQuery<'q> for PostgresRawQuery<'q> {
         }
     }
 
-    fn bind<T>(mut self, value: T) -> Self
+    fn bind<T>(&mut self, value: T)
     where
         Self: Sized,
         Self::Backend: HasSqlType<T>,
@@ -56,33 +52,5 @@ impl<'q> RawQuery<'q> for PostgresRawQuery<'q> {
 
         // Write-back the len to the beginning of this frame (not including the len of len)
         BigEndian::write_i32(&mut self.buf[pos..], len as i32);
-
-        self
-    }
-
-    fn finish(self, conn: &mut PostgresRawConnection) {
-        conn.write(protocol::Parse {
-            portal: "",
-            query: self.query,
-            param_types: &*self.types,
-        });
-
-        conn.write(protocol::Bind {
-            portal: "",
-            statement: "",
-            formats: &[1], // [BINARY]
-            // TODO: Early error if there is more than i16
-            values_len: self.types.len() as i16,
-            values: &*self.buf,
-            result_formats: &[1], // [BINARY]
-        });
-
-        // TODO: Make limit be 1 for fetch_optional
-        conn.write(protocol::Execute {
-            portal: "",
-            limit: self.limit,
-        });
-
-        conn.write(protocol::Sync);
     }
 }

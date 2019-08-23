@@ -1,7 +1,6 @@
 use super::{PostgresRawConnection, PostgresRow};
-use crate::postgres::protocol::Message;
+use crate::{error::Error, postgres::protocol::Message};
 use futures_core::stream::Stream;
-use crate::error::Error;
 use std::io;
 
 pub fn fetch<'a>(

@@ -1,6 +1,5 @@
 use super::PostgresRawConnection;
-use crate::postgres::protocol::Message;
-use crate::error::Error;
+use crate::{error::Error, postgres::protocol::Message};
 use std::io;
 
 pub async fn execute(conn: &mut PostgresRawConnection) -> Result<u64, Error> {

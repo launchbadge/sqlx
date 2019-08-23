@@ -1,10 +1,15 @@
 use super::PostgresRawConnection;
-use crate::postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage};
+use crate::{
+    error::Error,
+    postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage},
+};
 use std::io;
-use crate::error::Error;
 use url::Url;
 
-pub async fn establish<'a, 'b: 'a>(conn: &'a mut PostgresRawConnection, url: &'b Url) -> Result<(), Error> {
+pub async fn establish<'a, 'b: 'a>(
+    conn: &'a mut PostgresRawConnection,
+    url: &'b Url,
+) -> Result<(), Error> {
     let user = url.username();
     let password = url.password().unwrap_or("");
     let database = url.path().trim_start_matches('/');

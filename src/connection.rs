@@ -1,4 +1,6 @@
-use crate::{backend::Backend, executor::Executor, query::RawQuery, row::FromSqlRow, error::Error};
+use crate::{
+    backend::Backend, error::Error, executor::Executor, query::QueryParameters, row::FromSqlRow,
+};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures_channel::oneshot::{channel, Sender};
@@ -26,23 +28,23 @@ pub trait RawConnection: Send {
     /// and clean up not fully closed connections.
     fn finalize<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
 
-    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>;
-
-    fn fetch<'c, 'q, Q: 'q>(
+    fn execute<'c>(
         &'c mut self,
-        query: Q,
-    ) -> BoxStream<'c, Result<<Self::Backend as Backend>::Row, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>;
+        query: &str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>>;
 
-    fn fetch_optional<'c, 'q, Q: 'q>(
+    fn fetch<'c>(
         &'c mut self,
-        query: Q,
-    ) -> BoxFuture<'c, Result<Option<<Self::Backend as Backend>::Row>, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>;
+        query: &str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxStream<'c, Result<<Self::Backend as Backend>::Row, Error>>;
+
+    fn fetch_optional<'c>(
+        &'c mut self,
+        query: &str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<Option<<Self::Backend as Backend>::Row>, Error>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -85,24 +87,28 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
+    fn execute<'c, 'q: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>> {
         Box::pin(async move {
             let mut conn = self.get().await;
-            conn.execute(query).await
+            conn.execute(query, params).await
         })
     }
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
+    fn fetch<'c, 'q: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxStream<'c, Result<T, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut conn = self.get().await;
-            let mut s = conn.fetch(query);
+            let mut s = conn.fetch(query, params);
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -110,17 +116,17 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
+    fn fetch_optional<'c, 'q: 'c, T: 'c>(
         &'c self,
-        query: Q,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
             let mut conn = self.get().await;
-            let row = conn.fetch_optional(query).await?;
+            let row = conn.fetch_optional(query, params).await?;
 
             Ok(row.map(T::from_row))
         })

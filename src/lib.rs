@@ -30,15 +30,14 @@ pub mod postgres;
 pub use self::postgres::Postgres;
 
 mod connection;
+pub mod error;
 mod executor;
 mod pool;
 mod query;
-pub mod error;
 
 pub use self::{
-    error::Error,
     connection::Connection,
+    error::Error,
     pool::Pool,
     query::{query, SqlQuery},
 };
-

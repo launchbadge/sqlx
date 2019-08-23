@@ -1,12 +1,9 @@
-use crate::backend::{Backend, BackendAssocRawQuery};
+use crate::backend::Backend;
 
 pub struct Postgres;
 
-impl<'q> BackendAssocRawQuery<'q, Postgres> for Postgres {
-    type RawQuery = super::PostgresRawQuery<'q>;
-}
-
 impl Backend for Postgres {
+    type QueryParameters = super::PostgresQueryParameters;
     type RawConnection = super::PostgresRawConnection;
     type Row = super::PostgresRow;
 }

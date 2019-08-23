@@ -2,7 +2,7 @@
 
 use failure::Fallible;
 use futures::{future, TryStreamExt};
-use sqlx::{Postgres, Connection};
+use sqlx::{Connection, Postgres};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -26,7 +26,8 @@ async fn main() -> Fallible<()> {
 
     let opt = Options::from_args();
 
-    let mut conn = Connection::<Postgres>::establish("postgres://postgres@127.0.0.1/sqlx__dev").await?;
+    let mut conn =
+        Connection::<Postgres>::establish("postgres://postgres@127.0.0.1/sqlx__dev").await?;
 
     ensure_schema(&mut conn).await?;
 

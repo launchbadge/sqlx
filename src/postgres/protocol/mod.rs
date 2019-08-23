@@ -1,4 +1,4 @@
-//! Low level PostgreSQL protocol. Defines the encoding and decoding of the messages communicated 
+//! Low level PostgreSQL protocol. Defines the encoding and decoding of the messages communicated
 //! to and from the database server.
 
 mod bind;

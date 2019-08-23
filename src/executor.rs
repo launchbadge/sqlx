@@ -1,25 +1,30 @@
-use crate::{backend::Backend, query::RawQuery, row::FromSqlRow, error::Error};
+use crate::{backend::Backend, error::Error, query::QueryParameters, row::FromSqlRow};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::io;
 
 pub trait Executor: Send {
     type Backend: Backend;
 
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>;
+    fn execute<'c, 'q: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>>;
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
+    fn fetch<'c, 'q: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxStream<'c, Result<T, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin;
 
-    fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
+    fn fetch_optional<'c, 'q: 'c, T: 'c>(
         &'c self,
-        query: Q,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>;
 }
 
@@ -30,29 +35,33 @@ where
     type Backend = E::Backend;
 
     #[inline]
-    fn execute<'c, 'q, Q: 'q + 'c>(&'c self, query: Q) -> BoxFuture<'c, Result<u64, Error>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
-        (*self).execute(query)
+    fn execute<'c, 'q: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'c, Result<u64, Error>> {
+        (*self).execute(query, params)
     }
 
-    fn fetch<'c, 'q, T: 'c, Q: 'q + 'c>(&'c self, query: Q) -> BoxStream<'c, Result<T, Error>>
+    fn fetch<'c, 'q: 'c, T: 'c>(
+        &'c self,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxStream<'c, Result<T, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
-        (*self).fetch(query)
+        (*self).fetch(query, params)
     }
 
-    fn fetch_optional<'c, 'q, T: 'c, Q: 'q + 'c>(
+    fn fetch_optional<'c, 'q: 'c, T: 'c>(
         &'c self,
-        query: Q,
+        query: &'q str,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        Q: RawQuery<'q, Backend = Self::Backend>,
         T: FromSqlRow<Self::Backend>,
     {
-        (*self).fetch_optional(query)
+        (*self).fetch_optional(query, params)
     }
 }
