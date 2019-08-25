@@ -40,6 +40,13 @@ impl Display for Error {
     }
 }
 
+impl From<io::Error> for Error {
+    #[inline]
+    fn from(err: io::Error) -> Self {
+        Error::Io(err)
+    }
+}
+
 // TODO: Define a RawError type for the database backend for forwarding error information
 
 /// An error that was returned by the database backend.

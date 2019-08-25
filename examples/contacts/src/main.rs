@@ -82,14 +82,14 @@ async fn insert(pool: &PostgresPool, count: usize) -> Result<(), sqlx::Error> {
                 r#"
     INSERT INTO contacts (name, username, password, email, phone)
     VALUES ($1, $2, $3, $4, $5)
-                "#, 
+                "#,
                 (
                     contact.name,
                     contact.username,
                     contact.password,
                     contact.email,
                     contact.phone,
-                )
+                ),
             )
             .await
             .unwrap();
@@ -115,14 +115,16 @@ async fn select(pool: &PostgresPool, iterations: usize) -> Result<(), sqlx::Erro
 
     for _ in 0..iterations {
         // TODO: Once we have FromRow derives we can replace this with Vec<Contact>
-        let contacts: Vec<(String, String, String, String, String)> = pool.fetch(
-            r#"
+        let contacts: Vec<(String, String, String, String, String)> = pool
+            .fetch(
+                r#"
 SELECT name, username, password, email, phone 
 FROM contacts
-                "#, (),
-        )
-        .try_collect()
-        .await?;
+                "#,
+                (),
+            )
+            .try_collect()
+            .await?;
 
         rows = contacts.len();
     }

@@ -59,9 +59,16 @@ mod response;
 mod row_description;
 
 pub use self::{
-    authentication::Authentication, backend_key_data::BackendKeyData,
-    command_complete::CommandComplete, data_row::DataRow, decode::Decode, message::Message,
-    notification_response::NotificationResponse, parameter_description::ParameterDescription,
-    parameter_status::ParameterStatus, ready_for_query::ReadyForQuery, response::Response,
+    authentication::Authentication,
+    backend_key_data::BackendKeyData,
+    command_complete::CommandComplete,
+    data_row::DataRow,
+    decode::{Buf, Decode},
+    message::Message,
+    notification_response::NotificationResponse,
+    parameter_description::ParameterDescription,
+    parameter_status::ParameterStatus,
+    ready_for_query::ReadyForQuery,
+    response::Response,
     row_description::RowDescription,
 };

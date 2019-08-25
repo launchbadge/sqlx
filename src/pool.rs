@@ -1,6 +1,10 @@
 use crate::{
-    backend::Backend, connection::RawConnection, error::Error, executor::Executor,
-    query::{QueryParameters, IntoQueryParameters}, row::FromSqlRow,
+    backend::Backend,
+    connection::RawConnection,
+    error::Error,
+    executor::Executor,
+    query::{IntoQueryParameters, QueryParameters},
+    row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;

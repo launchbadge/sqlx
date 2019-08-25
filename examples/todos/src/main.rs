@@ -76,6 +76,7 @@ SELECT id, text
 FROM tasks
 WHERE done_at IS NULL
         "#,
+        (),
     )
     .try_for_each(|(id, text): (i64, String)| {
         // language=text
@@ -89,7 +90,8 @@ WHERE done_at IS NULL
 }
 
 async fn add_task(conn: &mut Connection<Postgres>, text: &str) -> Fallible<()> {
-    conn.execute("INSERT INTO tasks ( text ) VALUES ( $1 )", (text,)).await?;
+    conn.execute("INSERT INTO tasks ( text ) VALUES ( $1 )", (text,))
+        .await?;
 
     Ok(())
 }

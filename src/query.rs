@@ -18,7 +18,10 @@ pub trait QueryParameters: Send {
         T: ToSql<Self::Backend>;
 }
 
-pub trait IntoQueryParameters<DB> where DB: Backend {
+pub trait IntoQueryParameters<DB>
+where
+    DB: Backend,
+{
     fn into(self) -> DB::QueryParameters;
 }
 
@@ -26,9 +29,9 @@ pub trait IntoQueryParameters<DB> where DB: Backend {
 macro_rules! impl_into_query_parameters {
 
     ($( ($idx:tt) -> $T:ident );+;) => {
-        impl<$($T,)+ DB> IntoQueryParameters<DB> for ($($T,)+) 
-        where 
-            DB: Backend, 
+        impl<$($T,)+ DB> IntoQueryParameters<DB> for ($($T,)+)
+        where
+            DB: Backend,
             $(DB: crate::types::HasSqlType<$T>,)+
             $($T: crate::serialize::ToSql<DB>,)+
         {
@@ -41,9 +44,9 @@ macro_rules! impl_into_query_parameters {
     };
 }
 
-impl<DB> IntoQueryParameters<DB> for () 
-where 
-    DB: Backend, 
+impl<DB> IntoQueryParameters<DB> for ()
+where
+    DB: Backend,
 {
     fn into(self) -> DB::QueryParameters {
         DB::QueryParameters::new()

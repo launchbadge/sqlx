@@ -1,5 +1,9 @@
 use crate::{
-    backend::Backend, error::Error, executor::Executor, query::{QueryParameters, IntoQueryParameters}, row::FromSqlRow,
+    backend::Backend,
+    error::Error,
+    executor::Executor,
+    query::{IntoQueryParameters, QueryParameters},
+    row::FromSqlRow,
 };
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;

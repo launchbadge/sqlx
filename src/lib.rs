@@ -11,6 +11,9 @@
 #[macro_use]
 mod macros;
 
+#[macro_use]
+mod io;
+
 pub mod backend;
 pub mod deserialize;
 

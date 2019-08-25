@@ -1,9 +1,10 @@
 use super::{
-    protocol::{self, Encode, Message, Terminate},
+    protocol::{self, Decode, Encode, Message, Terminate},
     Postgres, PostgresQueryParameters, PostgresRow,
 };
-use crate::{connection::RawConnection, error::Error, query::QueryParameters};
-use bytes::{BufMut, BytesMut};
+use crate::{connection::RawConnection, error::Error, io::BufStream, query::QueryParameters};
+// use bytes::{BufMut, BytesMut};
+use super::protocol::Buf;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
     io,
@@ -21,20 +22,7 @@ mod fetch;
 mod fetch_optional;
 
 pub struct PostgresRawConnection {
-    stream: TcpStream,
-
-    // Do we think that there is data in the read buffer to be decoded
-    stream_readable: bool,
-
-    // Have we reached end-of-file (been disconnected)
-    stream_eof: bool,
-
-    // Buffer used when sending outgoing messages
-    pub(super) wbuf: Vec<u8>,
-
-    // Buffer used when reading incoming messages
-    // TODO: Evaluate if we _really_ want to use BytesMut here
-    rbuf: BytesMut,
+    stream: BufStream<TcpStream>,
 
     // Process ID of the Backend
     process_id: u32,
@@ -58,11 +46,7 @@ impl PostgresRawConnection {
         let stream = TcpStream::connect(&addr).await.map_err(Error::Io)?;
 
         let mut conn = Self {
-            wbuf: Vec::with_capacity(1024),
-            rbuf: BytesMut::with_capacity(1024 * 8),
-            stream,
-            stream_readable: false,
-            stream_eof: false,
+            stream: BufStream::new(stream),
             process_id: 0,
             secret_key: 0,
         };
@@ -74,8 +58,8 @@ impl PostgresRawConnection {
 
     async fn finalize(&mut self) -> Result<(), Error> {
         self.write(Terminate);
-        self.flush().await?;
-        self.stream.shutdown(Shutdown::Both).map_err(Error::Io)?;
+        self.stream.flush().await?;
+        self.stream.close().await?;
 
         Ok(())
     }
@@ -83,69 +67,64 @@ impl PostgresRawConnection {
     // Wait and return the next message to be received from Postgres.
     async fn receive(&mut self) -> Result<Option<Message>, Error> {
         loop {
-            if self.stream_eof {
-                // Reached end-of-file on a previous read call.
-                return Ok(None);
-            }
+            // Read the message header (id + len)
+            let mut header = ret_if_none!(self.stream.peek(5).await?);
+            let id = header.get_int_1()?;
+            let len = (header.get_int_4()? - 4) as usize;
 
-            if self.stream_readable {
-                loop {
-                    match Message::decode(&mut self.rbuf) {
-                        Some(Message::ParameterStatus(_body)) => {
-                            // TODO: not sure what to do with these yet
-                        }
+            // Read the message body
+            self.stream.consume(5);
+            let body = ret_if_none!(self.stream.peek(len).await?);
 
-                        Some(Message::Response(_body)) => {
-                            // TODO: Transform Errors+ into an error type and return
-                            // TODO: Log all others
-                        }
+            let message = match id {
+                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body))),
+                b'D' => Message::DataRow(Box::new(protocol::DataRow::decode(body))),
+                b'S' => Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body))),
+                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)),
+                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body))),
+                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)),
+                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body))),
+                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)),
+                b'A' => Message::NotificationResponse(Box::new(
+                    protocol::NotificationResponse::decode(body),
+                )),
+                b'1' => Message::ParseComplete,
+                b'2' => Message::BindComplete,
+                b'3' => Message::CloseComplete,
+                b'n' => Message::NoData,
+                b's' => Message::PortalSuspended,
+                b't' => Message::ParameterDescription(Box::new(
+                    protocol::ParameterDescription::decode(body),
+                )),
 
-                        Some(message) => {
-                            return Ok(Some(message));
-                        }
+                _ => unimplemented!("unknown message id: {}", id as char),
+            };
 
-                        None => {
-                            // Not enough data in the read buffer to parse a message
-                            self.stream_readable = true;
-                            break;
-                        }
-                    }
+            self.stream.consume(len);
+
+            match message {
+                Message::ParameterStatus(_body) => {
+                    // TODO: not sure what to do with these yet
+                }
+
+                Message::Response(_body) => {
+                    // TODO: Transform Errors+ into an error type and return
+                    // TODO: Log all others
+                }
+
+                message => {
+                    return Ok(Some(message));
                 }
             }
-
-            // Ensure there is at least 32-bytes of space available
-            // in the read buffer so we can safely detect end-of-file
-            self.rbuf.reserve(32);
-
-            // SAFE: Read data in directly to buffer without zero-initializing the data.
-            //       Postgres is a self-describing format and the TCP frames encode
-            //       length headers. We will never attempt to decode more than we
-            //       received.
-            let n = self
-                .stream
-                .read(unsafe { self.rbuf.bytes_mut() })
-                .await
-                .map_err(Error::Io)?;
-
-            // SAFE: After we read in N bytes, we can tell the buffer that it actually
-            //       has that many bytes MORE for the decode routines to look at
-            unsafe { self.rbuf.advance_mut(n) }
-
-            if n == 0 {
-                self.stream_eof = true;
-            }
-
-            self.stream_readable = true;
         }
     }
 
     pub(super) fn write(&mut self, message: impl Encode) {
-        message.encode(&mut self.wbuf);
+        message.encode(self.stream.buffer_mut());
     }
 
     async fn flush(&mut self) -> Result<(), Error> {
-        self.stream.write_all(&self.wbuf).await.map_err(Error::Io)?;
-        self.wbuf.clear();
+        self.stream.flush().await?;
 
         Ok(())
     }
@@ -195,7 +174,12 @@ impl RawConnection for PostgresRawConnection {
     }
 }
 
-fn finish(conn: &mut PostgresRawConnection, query: &str, params: PostgresQueryParameters, limit: i32) {
+fn finish(
+    conn: &mut PostgresRawConnection,
+    query: &str,
+    params: PostgresQueryParameters,
+    limit: i32,
+) {
     conn.write(protocol::Parse {
         portal: "",
         query,
@@ -213,10 +197,7 @@ fn finish(conn: &mut PostgresRawConnection, query: &str, params: PostgresQueryPa
     });
 
     // TODO: Make limit be 1 for fetch_optional
-    conn.write(protocol::Execute {
-        portal: "",
-        limit,
-    });
+    conn.write(protocol::Execute { portal: "", limit });
 
     conn.write(protocol::Sync);
 }
