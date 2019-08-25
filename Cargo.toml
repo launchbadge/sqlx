@@ -39,13 +39,6 @@ memchr = "2.2.1"
 async-stream = "0.1.0"
 tokio = { version = "=0.2.0-alpha.2", default-features = false, features = [ "tcp" ] }
 
-[dev-dependencies]
-criterion = "0.2"
-
-[[bench]]
-name = "postgres_protocol_decode"
-harness = false
-
 [profile.release]
 lto = true
 codegen-units = 1
