@@ -225,7 +225,7 @@ impl fmt::Debug for Response {
 }
 
 impl Decode for Response {
-    fn decode(src: &[u8]) -> Self {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         let storage: Pin<Box<[u8]>> = Pin::new(src.into());
 
         let mut code = None::<&str>;
@@ -266,7 +266,7 @@ impl Decode for Response {
                 }
 
                 b'V' => {
-                    severity_non_local = Some(field_value.parse().unwrap());
+                    severity_non_local = Some(field_value.parse()?);
                 }
 
                 b'C' => {
@@ -286,11 +286,19 @@ impl Decode for Response {
                 }
 
                 b'P' => {
-                    position = Some(field_value.parse().unwrap());
+                    position = Some(
+                        field_value
+                            .parse()
+                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                    );
                 }
 
                 b'p' => {
-                    internal_position = Some(field_value.parse().unwrap());
+                    internal_position = Some(
+                        field_value
+                            .parse()
+                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                    );
                 }
 
                 b'q' => {
@@ -326,7 +334,11 @@ impl Decode for Response {
                 }
 
                 b'L' => {
-                    line = Some(field_value.parse().unwrap());
+                    line = Some(
+                        field_value
+                            .parse()
+                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                    );
                 }
 
                 b'R' => {
@@ -360,7 +372,7 @@ impl Decode for Response {
         let file = file.map(NonNull::from);
         let routine = routine.map(NonNull::from);
 
-        Self {
+        Ok(Self {
             storage,
             severity,
             code,
@@ -379,7 +391,7 @@ impl Decode for Response {
             line,
             position,
             internal_position,
-        }
+        })
     }
 }
 
@@ -392,7 +404,7 @@ mod tests {
 
     #[test]
     fn it_decodes_response() {
-        let message = Response::decode(RESPONSE);
+        let message = Response::decode(RESPONSE).unwrap();
 
         assert_eq!(message.severity(), Severity::Notice);
         assert_eq!(message.code(), "42710");

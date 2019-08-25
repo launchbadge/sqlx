@@ -1,6 +1,6 @@
-use super::Decode;
+use super::{Buf, Decode};
 use byteorder::{BigEndian, ByteOrder};
-use std::mem::size_of;
+use std::{io, mem::size_of};
 
 type ObjectId = u32;
 
@@ -10,18 +10,17 @@ pub struct ParameterDescription {
 }
 
 impl Decode for ParameterDescription {
-    fn decode(src: &[u8]) -> Self {
-        let count = BigEndian::read_u16(&*src) as usize;
+    fn decode(mut src: &[u8]) -> io::Result<Self> {
+        let count = src.get_u16()?;
+        let mut ids = Vec::with_capacity(count as usize);
 
-        let mut ids = Vec::with_capacity(count);
         for i in 0..count {
-            let offset = i * size_of::<u32>() + size_of::<u16>();
-            ids.push(BigEndian::read_u32(&src[offset..]));
+            ids.push(src.get_u32()?);
         }
 
-        ParameterDescription {
+        Ok(ParameterDescription {
             ids: ids.into_boxed_slice(),
-        }
+        })
     }
 }
 
@@ -33,7 +32,7 @@ mod test {
     #[test]
     fn it_decodes_parameter_description() {
         let src = b"\x00\x02\x00\x00\x00\x00\x00\x00\x05\x00";
-        let desc = ParameterDescription::decode(src);
+        let desc = ParameterDescription::decode(src).unwrap();
 
         assert_eq!(desc.ids.len(), 2);
         assert_eq!(desc.ids[0], 0x0000_0000);
@@ -43,7 +42,7 @@ mod test {
     #[test]
     fn it_decodes_empty_parameter_description() {
         let src = b"\x00\x00";
-        let desc = ParameterDescription::decode(src);
+        let desc = ParameterDescription::decode(src).unwrap();
 
         assert_eq!(desc.ids.len(), 0);
     }

@@ -1,6 +1,6 @@
-use super::{decode::get_str, Decode};
+use super::{Buf, Decode};
 use byteorder::{BigEndian, ByteOrder};
-use std::{fmt, pin::Pin, ptr::NonNull};
+use std::{fmt, io, pin::Pin, ptr::NonNull};
 
 pub struct NotificationResponse {
     #[used]
@@ -44,26 +44,22 @@ impl fmt::Debug for NotificationResponse {
 }
 
 impl Decode for NotificationResponse {
-    fn decode(src: &[u8]) -> Self {
-        let pid = BigEndian::read_u32(&src);
+    fn decode(mut src: &[u8]) -> io::Result<Self> {
+        let pid = src.get_u32()?;
 
         // offset from pid=4
-        let storage = Pin::new(Vec::from(&src[4..]));
+        let storage = Pin::new(src.into());
+        let mut src: &[u8] = &*storage;
 
-        let channel_name = get_str(&storage);
+        let channel_name = src.get_str_null()?.into();
+        let message = src.get_str_null()?.into();
 
-        // offset = channel_name.len() + \0
-        let message = get_str(&storage[(channel_name.len() + 1)..]);
-
-        let channel_name = NonNull::from(channel_name);
-        let message = NonNull::from(message);
-
-        Self {
+        Ok(Self {
             storage,
             pid,
             channel_name,
             message,
-        }
+        })
     }
 }
 
@@ -76,7 +72,7 @@ mod tests {
 
     #[test]
     fn it_decodes_notification_response() {
-        let message = NotificationResponse::decode(NOTIFICATION_RESPONSE);
+        let message = NotificationResponse::decode(NOTIFICATION_RESPONSE).unwrap();
 
         assert_eq!(message.pid(), 0x34201002);
         assert_eq!(message.channel_name(), "TEST-CHANNEL");

@@ -1,6 +1,6 @@
 use super::{
     Authentication, BackendKeyData, CommandComplete, DataRow, Decode, NotificationResponse,
-    ParameterDescription, ParameterStatus, ReadyForQuery, Response, RowDescription,
+    ParameterDescription, ParameterStatus, ReadyForQuery, Response,
 };
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
@@ -14,7 +14,6 @@ pub enum Message {
     BackendKeyData(BackendKeyData),
     ReadyForQuery(ReadyForQuery),
     CommandComplete(CommandComplete),
-    RowDescription(Box<RowDescription>),
     DataRow(Box<DataRow>),
     Response(Box<Response>),
     NotificationResponse(Box<NotificationResponse>),

@@ -1,7 +1,8 @@
-use super::Decode;
+use super::{Decode, Buf};
 use std::{
     convert::TryInto,
     fmt::{self, Debug},
+    io,
     pin::Pin,
     ptr::NonNull,
 };
@@ -17,39 +18,30 @@ unsafe impl Send for DataRow {}
 unsafe impl Sync for DataRow {}
 
 impl Decode for DataRow {
-    fn decode(buf: &[u8]) -> Self {
-        let len: [u8; 2] = buf[..2].try_into().unwrap();
-        let len = u16::from_be_bytes(len) as usize;
-
-        let buffer: Pin<Box<[u8]>> = Pin::new(buf[2..].into());
-
+    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+        let len = buf.get_u16()? as usize;
+        let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
+        let mut buf = &*buffer;
         let mut values = Vec::with_capacity(len);
-        let mut index = 0;
 
         while values.len() < len {
             // The length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
-            // TODO: Handle unwrap
-            let value_len: [u8; 4] = buffer[index..(index + 4)].try_into().unwrap();
-            let value_len = i32::from_be_bytes(value_len);
-            index += 4;
+            let value_len = buf.get_i32()?;
 
             if value_len == -1 {
                 values.push(None);
             } else {
-                let value_len = value_len as usize;
-                let value = &buffer[index..(index + value_len)];
-                index += value_len as usize;
-
-                values.push(Some(value.into()));
+                values.push(Some(buf[..(value_len as usize)].into()));
+                buf.advance(value_len as usize);
             }
         }
 
-        Self {
+        Ok(Self {
             values: values.into_boxed_slice(),
             buffer,
-        }
+        })
     }
 }
 
@@ -87,12 +79,17 @@ mod tests {
 
     #[test]
     fn it_decodes_data_row() {
-        let message = DataRow::decode(DATA_ROW);
+        let message = DataRow::decode(DATA_ROW).unwrap();
 
         assert_eq!(message.len(), 3);
 
         assert_eq!(message.get(0), Some(&b"1"[..]));
         assert_eq!(message.get(1), Some(&b"2"[..]));
         assert_eq!(message.get(2), Some(&b"3"[..]));
+    }
+
+    #[bench]
+    fn bench_decode_data_row(b: &mut test::Bencher) {
+        b.iter(|| DataRow::decode(DATA_ROW).unwrap());
     }
 }

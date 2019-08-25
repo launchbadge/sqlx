@@ -1,4 +1,4 @@
-#![feature(async_await)]
+#![cfg_attr(test, feature(test))]
 #![allow(clippy::needless_lifetimes)]
 #![allow(unused)]
 
@@ -7,6 +7,9 @@
 
 // #[macro_use]
 // extern crate enum_tryfrom_derive;
+
+#[cfg(test)]
+extern crate test;
 
 #[macro_use]
 mod macros;

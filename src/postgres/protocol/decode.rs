@@ -2,7 +2,7 @@ use memchr::memchr;
 use std::{convert::TryInto, io, str};
 
 pub trait Decode {
-    fn decode(src: &[u8]) -> Self
+    fn decode(src: &[u8]) -> io::Result<Self>
     where
         Self: Sized;
 }
@@ -18,22 +18,22 @@ pub(crate) fn get_str(src: &[u8]) -> &str {
 pub trait Buf {
     fn advance(&mut self, cnt: usize);
 
-    // An n-bit integer in network byte order
-    fn get_int_1(&mut self) -> io::Result<u8>;
-    fn get_int_4(&mut self) -> io::Result<u32>;
+    // An n-bit integer in network byte order (IntN)
+    fn get_u8(&mut self) -> io::Result<u8>;
+    fn get_u16(&mut self) -> io::Result<u16>;
+    fn get_i32(&mut self) -> io::Result<i32>;
+    fn get_u32(&mut self) -> io::Result<u32>;
 
     // A null-terminated string
-    fn get_str(&mut self) -> io::Result<&str>;
+    fn get_str_null(&mut self) -> io::Result<&str>;
 }
 
 impl<'a> Buf for &'a [u8] {
-    #[inline]
     fn advance(&mut self, cnt: usize) {
         *self = &self[cnt..];
     }
 
-    #[inline]
-    fn get_int_1(&mut self) -> io::Result<u8> {
+    fn get_u8(&mut self) -> io::Result<u8> {
         let val = self[0];
 
         self.advance(1);
@@ -41,9 +41,28 @@ impl<'a> Buf for &'a [u8] {
         Ok(val)
     }
 
-    #[inline]
-    fn get_int_4(&mut self) -> io::Result<u32> {
-        let val: [u8; 4] = (*self)
+    fn get_u16(&mut self) -> io::Result<u16> {
+        let val: [u8; 2] = (&self[..2])
+            .try_into()
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+
+        self.advance(2);
+
+        Ok(u16::from_be_bytes(val))
+    }
+
+    fn get_i32(&mut self) -> io::Result<i32> {
+        let val: [u8; 4] = (&self[..4])
+            .try_into()
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+
+        self.advance(4);
+
+        Ok(i32::from_be_bytes(val))
+    }
+
+    fn get_u32(&mut self) -> io::Result<u32> {
+        let val: [u8; 4] = (&self[..4])
             .try_into()
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
 
@@ -52,12 +71,16 @@ impl<'a> Buf for &'a [u8] {
         Ok(u32::from_be_bytes(val))
     }
 
-    fn get_str(&mut self) -> io::Result<&str> {
+    fn get_str_null(&mut self) -> io::Result<&str> {
         let end = memchr(b'\0', &*self).ok_or(io::ErrorKind::InvalidData)?;
         let buf = &self[..end];
 
-        self.advance(end);
+        self.advance(end + 1);
 
-        str::from_utf8(buf).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        if cfg!(debug_asserts) {
+            str::from_utf8(buf).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        } else {
+            Ok(unsafe { str::from_utf8_unchecked(buf) })
+        }
     }
 }

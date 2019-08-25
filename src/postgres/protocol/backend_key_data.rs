@@ -1,5 +1,5 @@
-use super::Decode;
-use std::convert::TryInto;
+use super::{Buf, Decode};
+use std::io;
 
 #[derive(Debug)]
 pub struct BackendKeyData {
@@ -23,16 +23,16 @@ impl BackendKeyData {
 }
 
 impl Decode for BackendKeyData {
-    fn decode(src: &[u8]) -> Self {
+    fn decode(mut src: &[u8]) -> io::Result<Self> {
         debug_assert_eq!(src.len(), 8);
 
-        let process_id = u32::from_be_bytes(src[0..4].try_into().unwrap());
-        let secret_key = u32::from_be_bytes(src[4..8].try_into().unwrap());
+        let process_id = src.get_u32()?;
+        let secret_key = src.get_u32()?;
 
-        Self {
+        Ok(Self {
             process_id,
             secret_key,
-        }
+        })
     }
 }
 
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn it_decodes_backend_key_data() {
-        let message = BackendKeyData::decode(BACKEND_KEY_DATA);
+        let message = BackendKeyData::decode(BACKEND_KEY_DATA).unwrap();
 
         assert_eq!(message.process_id(), 10182);
         assert_eq!(message.secret_key(), 2303903019);

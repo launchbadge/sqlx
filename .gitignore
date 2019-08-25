@@ -1,6 +1,11 @@
-.idea/
+# Built artifacts
 target/
+
+# Lockfile
 Cargo.lock
 
+# Project and editor files
+.vscode/
+.idea/
 *.vim
 *.vi

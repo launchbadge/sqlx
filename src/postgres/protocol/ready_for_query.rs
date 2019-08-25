@@ -1,4 +1,5 @@
 use super::Decode;
+use std::io;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -27,17 +28,25 @@ impl ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(src: &[u8]) -> Self {
-        Self {
+    fn decode(src: &[u8]) -> io::Result<Self> {
+        Ok(Self {
             status: match src[0] {
                 // FIXME: Variant value are duplicated with declaration
                 b'I' => TransactionStatus::Idle,
                 b'T' => TransactionStatus::Transaction,
                 b'E' => TransactionStatus::Error,
 
-                status => panic!("received {:?} for TransactionStatus", status),
+                status => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "received {:?} for TransactionStatus in ReadyForQuery",
+                            status
+                        ),
+                    ));
+                }
             },
-        }
+        })
     }
 }
 
@@ -49,7 +58,7 @@ mod tests {
 
     #[test]
     fn it_decodes_ready_for_query() {
-        let message = ReadyForQuery::decode(READY_FOR_QUERY);
+        let message = ReadyForQuery::decode(READY_FOR_QUERY).unwrap();
 
         assert_eq!(message.status, TransactionStatus::Error);
     }

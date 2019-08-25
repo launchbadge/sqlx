@@ -1,4 +1,5 @@
 use super::Decode;
+use std::io;
 
 #[derive(Debug)]
 pub enum Authentication {
@@ -38,8 +39,8 @@ pub enum Authentication {
 }
 
 impl Decode for Authentication {
-    fn decode(src: &[u8]) -> Self {
-        match src[0] {
+    fn decode(src: &[u8]) -> io::Result<Self> {
+        Ok(match src[0] {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,
             3 => Authentication::CleartextPassword,
@@ -56,6 +57,6 @@ impl Decode for Authentication {
             9 => Authentication::Sspi,
 
             token => unimplemented!("decode not implemented for token: {}", token),
-        }
+        })
     }
 }

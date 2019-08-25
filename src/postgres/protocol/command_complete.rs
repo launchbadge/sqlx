@@ -1,6 +1,6 @@
 use super::Decode;
 use memchr::memrchr;
-use std::str;
+use std::{io, str};
 
 #[derive(Debug)]
 pub struct CommandComplete {
@@ -8,17 +8,21 @@ pub struct CommandComplete {
 }
 
 impl Decode for CommandComplete {
-    fn decode(src: &[u8]) -> Self {
+    fn decode(src: &[u8]) -> io::Result<Self> {
         // Attempt to parse the last word in the command tag as an integer
         // If it can't be parased, the tag is probably "CREATE TABLE" or something
         // and we should return 0 rows
 
-        let rows_start = memrchr(b' ', src).unwrap_or(0);
-        let rows = unsafe { str::from_utf8_unchecked(&src[(rows_start + 1)..(src.len() - 1)]) };
+        // TODO: Use [atoi] or similar to parse an integer directly from the bytes
 
-        Self {
+        let rows_start = memrchr(b' ', src).unwrap_or(0);
+        let mut buf = &src[(rows_start + 1)..(src.len() - 1)];
+
+        let rows = unsafe { str::from_utf8_unchecked(buf) };
+
+        Ok(Self {
             rows: rows.parse().unwrap_or(0),
-        }
+        })
     }
 }
 
@@ -33,28 +37,28 @@ mod tests {
 
     #[test]
     fn it_decodes_command_complete_for_insert() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_INSERT);
+        let message = CommandComplete::decode(COMMAND_COMPLETE_INSERT).unwrap();
 
         assert_eq!(message.rows, 1);
     }
 
     #[test]
     fn it_decodes_command_complete_for_update() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_UPDATE);
+        let message = CommandComplete::decode(COMMAND_COMPLETE_UPDATE).unwrap();
 
         assert_eq!(message.rows, 512);
     }
 
     #[test]
     fn it_decodes_command_complete_for_begin() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_BEGIN);
+        let message = CommandComplete::decode(COMMAND_COMPLETE_BEGIN).unwrap();
 
         assert_eq!(message.rows, 0);
     }
 
     #[test]
     fn it_decodes_command_complete_for_create_table() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_CREATE_TABLE);
+        let message = CommandComplete::decode(COMMAND_COMPLETE_CREATE_TABLE).unwrap();
 
         assert_eq!(message.rows, 0);
     }

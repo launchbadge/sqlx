@@ -56,7 +56,6 @@ mod parameter_description;
 mod parameter_status;
 mod ready_for_query;
 mod response;
-mod row_description;
 
 pub use self::{
     authentication::Authentication,
@@ -70,5 +69,4 @@ pub use self::{
     parameter_status::ParameterStatus,
     ready_for_query::ReadyForQuery,
     response::Response,
-    row_description::RowDescription,
 };

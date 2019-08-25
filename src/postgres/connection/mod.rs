@@ -69,24 +69,25 @@ impl PostgresRawConnection {
         loop {
             // Read the message header (id + len)
             let mut header = ret_if_none!(self.stream.peek(5).await?);
-            let id = header.get_int_1()?;
-            let len = (header.get_int_4()? - 4) as usize;
+            let id = header.get_u8()?;
+            let len = (header.get_u32()? - 4) as usize;
 
             // Read the message body
             self.stream.consume(5);
             let body = ret_if_none!(self.stream.peek(len).await?);
 
             let message = match id {
-                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body))),
-                b'D' => Message::DataRow(Box::new(protocol::DataRow::decode(body))),
-                b'S' => Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body))),
-                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)),
-                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body))),
-                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)),
-                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body))),
-                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)),
+                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
+                b'D' => Message::DataRow(Box::new(protocol::DataRow::decode(body)?)),
+                b'S' => {
+                    Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?))
+                }
+                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)?),
+                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body)?)),
+                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)?),
+                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)?),
                 b'A' => Message::NotificationResponse(Box::new(
-                    protocol::NotificationResponse::decode(body),
+                    protocol::NotificationResponse::decode(body)?,
                 )),
                 b'1' => Message::ParseComplete,
                 b'2' => Message::BindComplete,
@@ -94,7 +95,7 @@ impl PostgresRawConnection {
                 b'n' => Message::NoData,
                 b's' => Message::PortalSuspended,
                 b't' => Message::ParameterDescription(Box::new(
-                    protocol::ParameterDescription::decode(body),
+                    protocol::ParameterDescription::decode(body)?,
                 )),
 
                 _ => unimplemented!("unknown message id: {}", id as char),
