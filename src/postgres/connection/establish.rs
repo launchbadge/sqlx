@@ -38,7 +38,7 @@ pub async fn establish<'a, 'b: 'a>(
     let message = StartupMessage { params };
 
     conn.write(message);
-    conn.flush().await?;
+    conn.stream.flush().await?;
 
     while let Some(message) = conn.receive().await? {
         match message {
@@ -52,7 +52,7 @@ pub async fn establish<'a, 'b: 'a>(
                         // FIXME: Should error early (before send) if the user did not supply a password
                         conn.write(PasswordMessage::Cleartext(password));
 
-                        conn.flush().await?;
+                        conn.stream.flush().await?;
                     }
 
                     Authentication::Md5Password { salt } => {
@@ -63,7 +63,7 @@ pub async fn establish<'a, 'b: 'a>(
                             salt,
                         });
 
-                        conn.flush().await?;
+                        conn.stream.flush().await?;
                     }
 
                     auth => {

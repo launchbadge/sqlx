@@ -3,7 +3,7 @@ use crate::{error::Error, postgres::protocol::Message};
 use std::io;
 
 pub async fn execute(conn: &mut PostgresRawConnection) -> Result<u64, Error> {
-    conn.flush().await?;
+    conn.stream.flush().await?;
 
     let mut rows = 0;
 

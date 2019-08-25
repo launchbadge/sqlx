@@ -5,7 +5,7 @@ use std::io;
 pub async fn fetch_optional<'a>(
     conn: &'a mut PostgresRawConnection,
 ) -> Result<Option<PostgresRow>, Error> {
-    conn.flush().await?;
+    conn.stream.flush().await?;
 
     let mut row: Option<PostgresRow> = None;
 

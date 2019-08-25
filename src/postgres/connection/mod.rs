@@ -123,12 +123,6 @@ impl PostgresRawConnection {
     pub(super) fn write(&mut self, message: impl Encode) {
         message.encode(self.stream.buffer_mut());
     }
-
-    async fn flush(&mut self) -> Result<(), Error> {
-        self.stream.flush().await?;
-
-        Ok(())
-    }
 }
 
 impl RawConnection for PostgresRawConnection {
