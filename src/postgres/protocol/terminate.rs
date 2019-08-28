@@ -1,11 +1,13 @@
-use super::{BufMut, Encode};
+use super::{Encode};
+use crate::io::BufMut;
+use byteorder::NetworkEndian;
 
 pub struct Terminate;
 
 impl Encode for Terminate {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_byte(b'X');
-        buf.put_int_32(4);
+        buf.push(b'X');
+        buf.put_i32::<NetworkEndian>(4);
     }
 }

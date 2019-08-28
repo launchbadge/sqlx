@@ -1,15 +1,17 @@
-use super::{BufMut, Encode};
+use super::{Encode};
+use crate::io::BufMut;
+use byteorder::NetworkEndian;
 
 pub struct Query<'a>(pub &'a str);
 
 impl Encode for Query<'_> {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_byte(b'Q');
+        buf.push(b'Q');
 
         // len + query + nul
-        buf.put_int_32((4 + self.0.len() + 1) as i32);
+        buf.put_i32::<NetworkEndian>((4 + self.0.len() + 1) as i32);
 
-        buf.put_str(self.0);
+        buf.put_str_nul(self.0);
     }
 }
 

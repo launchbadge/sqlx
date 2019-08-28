@@ -1,13 +1,15 @@
 use super::{
-    protocol::{self, BufMut},
+    protocol,
     Postgres, PostgresRawConnection,
 };
 use crate::{
+    io::BufMut,
     query::QueryParameters,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder};
+use byteorder::NetworkEndian;
 
 pub struct PostgresQueryParameters {
     // OIDs of the bind parameters
@@ -40,7 +42,7 @@ impl QueryParameters for PostgresQueryParameters {
         self.types.push(<Postgres as HasSqlType<T>>::metadata().oid);
 
         let pos = self.buf.len();
-        self.buf.put_int_32(0);
+        self.buf.put_i32::<NetworkEndian>(0);
 
         let len = if let IsNull::No = value.to_sql(&mut self.buf) {
             (self.buf.len() - pos - 4) as i32

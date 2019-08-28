@@ -28,10 +28,9 @@ impl ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(src: &[u8]) -> io::Result<Self> {
+    fn decode(buf: &[u8]) -> io::Result<Self> {
         Ok(Self {
-            status: match src[0] {
-                // FIXME: Variant value are duplicated with declaration
+            status: match buf[0] {
                 b'I' => TransactionStatus::Idle,
                 b'T' => TransactionStatus::Transaction,
                 b'E' => TransactionStatus::Error,

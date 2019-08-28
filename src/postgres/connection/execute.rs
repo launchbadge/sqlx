@@ -12,7 +12,7 @@ pub async fn execute(conn: &mut PostgresRawConnection) -> Result<u64, Error> {
             Message::BindComplete | Message::ParseComplete | Message::DataRow(_) => {}
 
             Message::CommandComplete(body) => {
-                rows = body.rows;
+                rows = body.affected_rows();
             }
 
             Message::ReadyForQuery(_) => {

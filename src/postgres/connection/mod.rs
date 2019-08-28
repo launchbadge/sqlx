@@ -4,7 +4,8 @@ use super::{
 };
 use crate::{connection::RawConnection, error::Error, io::BufStream, query::QueryParameters};
 // use bytes::{BufMut, BytesMut};
-use super::protocol::Buf;
+use crate::io::Buf;
+use byteorder::NetworkEndian;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
     io,
@@ -69,16 +70,19 @@ impl PostgresRawConnection {
         loop {
             // Read the message header (id + len)
             let mut header = ret_if_none!(self.stream.peek(5).await?);
+            log::trace!("recv:header {:?}", bytes::Bytes::from(&*header));
+
             let id = header.get_u8()?;
-            let len = (header.get_u32()? - 4) as usize;
+            let len = (header.get_u32::<NetworkEndian>()? - 4) as usize;
 
             // Read the message body
             self.stream.consume(5);
             let body = ret_if_none!(self.stream.peek(len).await?);
+            log::trace!("recv {:?}", bytes::Bytes::from(&*body));
 
             let message = match id {
                 b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
-                b'D' => Message::DataRow(Box::new(protocol::DataRow::decode(body)?)),
+                b'D' => Message::DataRow(protocol::DataRow::decode(body)?),
                 b'S' => {
                     Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?))
                 }
@@ -121,7 +125,14 @@ impl PostgresRawConnection {
     }
 
     pub(super) fn write(&mut self, message: impl Encode) {
+        let pos = self.stream.buffer_mut().len();
+
         message.encode(self.stream.buffer_mut());
+
+        log::trace!(
+            "send {:?}",
+            bytes::Bytes::from(&self.stream.buffer_mut()[pos..])
+        );
     }
 }
 

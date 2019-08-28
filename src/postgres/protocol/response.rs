@@ -1,4 +1,5 @@
-use super::{decode::get_str, Decode};
+use super::Decode;
+use crate::io::Buf;
 use std::{
     fmt, io,
     pin::Pin,
@@ -73,10 +74,9 @@ impl FromStr for Severity {
     }
 }
 
-#[derive(Clone)]
 pub struct Response {
     #[used]
-    storage: Pin<Box<[u8]>>,
+    buffer: Pin<Box<[u8]>>,
     severity: Severity,
     code: NonNull<str>,
     message: NonNull<str>,
@@ -225,44 +225,41 @@ impl fmt::Debug for Response {
 }
 
 impl Decode for Response {
-    fn decode(src: &[u8]) -> io::Result<Self> {
-        let storage: Pin<Box<[u8]>> = Pin::new(src.into());
+    fn decode(buf: &[u8]) -> io::Result<Self> {
+        let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
+        let mut buf: &[u8] = &*buffer;
 
-        let mut code = None::<&str>;
-        let mut message = None::<&str>;
-        let mut severity = None::<&str>;
+        let mut code = None::<NonNull<str>>;
+        let mut message = None::<NonNull<str>>;
+        let mut severity = None::<NonNull<str>>;
         let mut severity_non_local = None::<Severity>;
-        let mut detail = None::<&str>;
-        let mut hint = None::<&str>;
+        let mut detail = None::<NonNull<str>>;
+        let mut hint = None::<NonNull<str>>;
         let mut position = None::<usize>;
         let mut internal_position = None::<usize>;
-        let mut internal_query = None::<&str>;
-        let mut where_ = None::<&str>;
-        let mut schema = None::<&str>;
-        let mut table = None::<&str>;
-        let mut column = None::<&str>;
-        let mut data_type = None::<&str>;
-        let mut constraint = None::<&str>;
-        let mut file = None::<&str>;
+        let mut internal_query = None::<NonNull<str>>;
+        let mut where_ = None::<NonNull<str>>;
+        let mut schema = None::<NonNull<str>>;
+        let mut table = None::<NonNull<str>>;
+        let mut column = None::<NonNull<str>>;
+        let mut data_type = None::<NonNull<str>>;
+        let mut constraint = None::<NonNull<str>>;
+        let mut file = None::<NonNull<str>>;
         let mut line = None::<usize>;
-        let mut routine = None::<&str>;
-
-        let mut idx = 0;
+        let mut routine = None::<NonNull<str>>;
 
         loop {
-            let field_type = storage[idx];
-            idx += 1;
+            let field_type = buf.get_u8()?;
 
             if field_type == 0 {
                 break;
             }
 
-            let field_value = get_str(&storage[idx..]);
-            idx += field_value.len() + 1;
+            let field_value = buf.get_str_nul()?;
 
             match field_type {
                 b'S' => {
-                    severity = Some(field_value);
+                    severity = Some(field_value.into());
                 }
 
                 b'V' => {
@@ -270,19 +267,19 @@ impl Decode for Response {
                 }
 
                 b'C' => {
-                    code = Some(field_value);
+                    code = Some(field_value.into());
                 }
 
                 b'M' => {
-                    message = Some(field_value);
+                    message = Some(field_value.into());
                 }
 
                 b'D' => {
-                    detail = Some(field_value);
+                    detail = Some(field_value.into());
                 }
 
                 b'H' => {
-                    hint = Some(field_value);
+                    hint = Some(field_value.into());
                 }
 
                 b'P' => {
@@ -302,35 +299,35 @@ impl Decode for Response {
                 }
 
                 b'q' => {
-                    internal_query = Some(field_value);
+                    internal_query = Some(field_value.into());
                 }
 
                 b'w' => {
-                    where_ = Some(field_value);
+                    where_ = Some(field_value.into());
                 }
 
                 b's' => {
-                    schema = Some(field_value);
+                    schema = Some(field_value.into());
                 }
 
                 b't' => {
-                    table = Some(field_value);
+                    table = Some(field_value.into());
                 }
 
                 b'c' => {
-                    column = Some(field_value);
+                    column = Some(field_value.into());
                 }
 
                 b'd' => {
-                    data_type = Some(field_value);
+                    data_type = Some(field_value.into());
                 }
 
                 b'n' => {
-                    constraint = Some(field_value);
+                    constraint = Some(field_value.into());
                 }
 
                 b'F' => {
-                    file = Some(field_value);
+                    file = Some(field_value.into());
                 }
 
                 b'L' => {
@@ -342,38 +339,43 @@ impl Decode for Response {
                 }
 
                 b'R' => {
-                    routine = Some(field_value);
+                    routine = Some(field_value.into());
                 }
 
                 _ => {
-                    unimplemented!(
-                        "response message field {:?} not implemented",
-                        field_type as char
-                    );
+                    // TODO: Should we return these somehow, like in a map?
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("received unknown field in Response: {}", field_type),
+                    ));
                 }
             }
         }
 
         let severity = severity_non_local
-            .or_else(move || severity?.parse().ok())
-            .expect("`severity` required by protocol");
+            .or_else(move || unsafe { severity?.as_ref() }.parse().ok())
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "did not receieve field `severity` for Response",
+                )
+            })?;
 
-        let code = NonNull::from(code.expect("`code` required by protocol"));
-        let message = NonNull::from(message.expect("`message` required by protocol"));
-        let detail = detail.map(NonNull::from);
-        let hint = hint.map(NonNull::from);
-        let internal_query = internal_query.map(NonNull::from);
-        let where_ = where_.map(NonNull::from);
-        let schema = schema.map(NonNull::from);
-        let table = table.map(NonNull::from);
-        let column = column.map(NonNull::from);
-        let data_type = data_type.map(NonNull::from);
-        let constraint = constraint.map(NonNull::from);
-        let file = file.map(NonNull::from);
-        let routine = routine.map(NonNull::from);
+        let code = code.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "did not receieve field `code` for Response",
+            )
+        })?;
+        let message = message.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "did not receieve field `message` for Response",
+            )
+        })?;
 
         Ok(Self {
-            storage,
+            buffer,
             severity,
             code,
             message,

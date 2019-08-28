@@ -1,10 +1,11 @@
-use super::{Buf, Decode};
-use byteorder::{BigEndian, ByteOrder};
+use super::Decode;
+use crate::io::Buf;
+use byteorder::NetworkEndian;
 use std::{fmt, io, pin::Pin, ptr::NonNull};
 
 pub struct NotificationResponse {
     #[used]
-    storage: Pin<Vec<u8>>,
+    buffer: Pin<Vec<u8>>,
     pid: u32,
     channel_name: NonNull<str>,
     message: NonNull<str>,
@@ -44,18 +45,17 @@ impl fmt::Debug for NotificationResponse {
 }
 
 impl Decode for NotificationResponse {
-    fn decode(mut src: &[u8]) -> io::Result<Self> {
-        let pid = src.get_u32()?;
+    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+        let pid = buf.get_u32::<NetworkEndian>()?;
 
-        // offset from pid=4
-        let storage = Pin::new(src.into());
-        let mut src: &[u8] = &*storage;
+        let buffer = Pin::new(buf.into());
+        let mut buf: &[u8] = &*buffer;
 
-        let channel_name = src.get_str_null()?.into();
-        let message = src.get_str_null()?.into();
+        let channel_name = buf.get_str_nul()?.into();
+        let message = buf.get_str_nul()?.into();
 
         Ok(Self {
-            storage,
+            buffer,
             pid,
             channel_name,
             message,
@@ -77,5 +77,11 @@ mod tests {
         assert_eq!(message.pid(), 0x34201002);
         assert_eq!(message.channel_name(), "TEST-CHANNEL");
         assert_eq!(message.message(), "THIS IS A TEST");
+
+        assert_eq!(
+            format!("{:?}", message),
+            "NotificationResponse { pid: 874516482, channel_name: \"TEST-CHANNEL\", message: \
+             \"THIS IS A TEST\" }"
+        );
     }
 }

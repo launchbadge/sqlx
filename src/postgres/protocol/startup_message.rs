@@ -1,5 +1,7 @@
-use super::{BufMut, Encode};
+use super::{Encode};
+use crate::io::BufMut;
 use byteorder::{BigEndian, ByteOrder};
+use byteorder::NetworkEndian;
 
 pub struct StartupMessage<'a> {
     pub params: &'a [(&'a str, &'a str)],
@@ -8,17 +10,17 @@ pub struct StartupMessage<'a> {
 impl Encode for StartupMessage<'_> {
     fn encode(&self, buf: &mut Vec<u8>) {
         let pos = buf.len();
-        buf.put_int_32(0); // skip over len
+        buf.put_i32::<NetworkEndian>(0); // skip over len
 
         // protocol version number (3.0)
-        buf.put_int_32(196_608);
+        buf.put_i32::<NetworkEndian>(196_608);
 
         for (name, value) in self.params {
-            buf.put_str(name);
-            buf.put_str(value);
+            buf.put_str_nul(name);
+            buf.put_str_nul(value);
         }
 
-        buf.put_byte(0);
+        buf.push(0);
 
         // Write-back the len to the beginning of this frame
         let len = buf.len() - pos;

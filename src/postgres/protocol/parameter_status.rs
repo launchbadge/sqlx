@@ -1,11 +1,16 @@
-use super::decode::{Buf, Decode};
-use std::{io, pin::Pin, ptr::NonNull, str};
+use super::decode::Decode;
+use crate::io::Buf;
+use std::{
+    fmt::{self, Debug},
+    io,
+    pin::Pin,
+    ptr::NonNull,
+    str,
+};
 
-// FIXME: Use &str functions for a custom Debug
-#[derive(Debug)]
 pub struct ParameterStatus {
     #[used]
-    storage: Pin<Box<[u8]>>,
+    buffer: Pin<Box<[u8]>>,
     name: NonNull<str>,
     value: NonNull<str>,
 }
@@ -29,18 +34,27 @@ impl ParameterStatus {
 }
 
 impl Decode for ParameterStatus {
-    fn decode(src: &[u8]) -> io::Result<Self> {
-        let storage = Pin::new(src.into());
-        let mut src: &[u8] = &*storage;
+    fn decode(buf: &[u8]) -> io::Result<Self> {
+        let buffer = Pin::new(buf.into());
+        let mut buf: &[u8] = &*buffer;
 
-        let name = NonNull::from(src.get_str_null()?);
-        let value = NonNull::from(src.get_str_null()?);
+        let name = buf.get_str_nul()?.into();
+        let value = buf.get_str_nul()?.into();
 
         Ok(Self {
-            storage,
+            buffer,
             name,
             value,
         })
+    }
+}
+
+impl fmt::Debug for ParameterStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ParameterStatus")
+            .field("name", &self.name())
+            .field("value", &self.value())
+            .finish()
     }
 }
 
@@ -56,10 +70,10 @@ mod tests {
 
         assert_eq!(message.name(), "session_authorization");
         assert_eq!(message.value(), "postgres");
-    }
 
-    #[bench]
-    fn bench_decode_param_status(b: &mut test::Bencher) {
-        b.iter(|| ParameterStatus::decode(PARAM_STATUS).unwrap());
+        assert_eq!(
+            format!("{:?}", message),
+            "ParameterStatus { name: \"session_authorization\", value: \"postgres\" }"
+        );
     }
 }

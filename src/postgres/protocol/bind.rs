@@ -1,5 +1,6 @@
-use super::{BufMut, Encode};
-use byteorder::{BigEndian, ByteOrder};
+use super::{Encode};
+use crate::io::BufMut;
+use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
 pub struct Bind<'a> {
     /// The name of the destination portal (an empty string selects the unnamed portal).
@@ -29,24 +30,32 @@ pub struct Bind<'a> {
 
 impl Encode for Bind<'_> {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_byte(b'B');
+        buf.push(b'B');
 
         let pos = buf.len();
-        buf.put_int_32(0); // skip over len
+        buf.put_i32::<NetworkEndian>(0); // skip over len
 
-        buf.put_str(self.portal);
-        buf.put_str(self.statement);
+        buf.put_str_nul(self.portal);
+        buf.put_str_nul(self.statement);
 
-        buf.put_array_int_16(&self.formats);
+        buf.put_i16::<NetworkEndian>(self.formats.len() as i16);
 
-        buf.put_int_16(self.values_len);
+        for &format in self.formats {
+            buf.put_i16::<NetworkEndian>(format);
+        }
 
-        buf.put(self.values);
+        buf.put_i16::<NetworkEndian>(self.values_len);
 
-        buf.put_array_int_16(&self.result_formats);
+        buf.extend_from_slice(self.values);
+
+        buf.put_i16::<NetworkEndian>(self.result_formats.len() as i16);
+
+        for &format in self.result_formats {
+            buf.put_i16::<NetworkEndian>(format);
+        }
 
         // Write-back the len to the beginning of this frame
         let len = buf.len() - pos;
-        BigEndian::write_i32(&mut buf[pos..], len as i32);
+        NetworkEndian::write_i32(&mut buf[pos..], len as i32);
     }
 }

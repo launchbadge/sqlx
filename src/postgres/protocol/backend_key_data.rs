@@ -1,4 +1,6 @@
-use super::{Buf, Decode};
+use super::Decode;
+use crate::io::Buf;
+use byteorder::NetworkEndian;
 use std::io;
 
 #[derive(Debug)]
@@ -23,11 +25,9 @@ impl BackendKeyData {
 }
 
 impl Decode for BackendKeyData {
-    fn decode(mut src: &[u8]) -> io::Result<Self> {
-        debug_assert_eq!(src.len(), 8);
-
-        let process_id = src.get_u32()?;
-        let secret_key = src.get_u32()?;
+    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+        let process_id = buf.get_u32::<NetworkEndian>()?;
+        let secret_key = buf.get_u32::<NetworkEndian>()?;
 
         Ok(Self {
             process_id,
@@ -39,7 +39,6 @@ impl Decode for BackendKeyData {
 #[cfg(test)]
 mod tests {
     use super::{BackendKeyData, Decode};
-    use bytes::Bytes;
 
     const BACKEND_KEY_DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
 

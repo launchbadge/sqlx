@@ -32,7 +32,7 @@ pub use self::{
     copy_done::CopyDone,
     copy_fail::CopyFail,
     describe::Describe,
-    encode::{BufMut, Encode},
+    encode::Encode,
     execute::Execute,
     flush::Flush,
     parse::Parse,
@@ -43,30 +43,24 @@ pub use self::{
     terminate::Terminate,
 };
 
-// TODO: Audit backend protocol
-
 mod authentication;
 mod backend_key_data;
 mod command_complete;
 mod data_row;
 mod decode;
-mod message;
 mod notification_response;
 mod parameter_description;
 mod parameter_status;
 mod ready_for_query;
 mod response;
 
+// TODO: Audit backend protocol
+
+mod message;
+
 pub use self::{
-    authentication::Authentication,
-    backend_key_data::BackendKeyData,
-    command_complete::CommandComplete,
-    data_row::DataRow,
-    decode::{Buf, Decode},
-    message::Message,
-    notification_response::NotificationResponse,
-    parameter_description::ParameterDescription,
-    parameter_status::ParameterStatus,
-    ready_for_query::ReadyForQuery,
-    response::Response,
+    authentication::Authentication, backend_key_data::BackendKeyData,
+    command_complete::CommandComplete, data_row::DataRow, decode::Decode, message::Message,
+    notification_response::NotificationResponse, parameter_description::ParameterDescription,
+    parameter_status::ParameterStatus, ready_for_query::ReadyForQuery, response::Response,
 };

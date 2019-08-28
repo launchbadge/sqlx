@@ -14,7 +14,7 @@ pub enum Message {
     BackendKeyData(BackendKeyData),
     ReadyForQuery(ReadyForQuery),
     CommandComplete(CommandComplete),
-    DataRow(Box<DataRow>),
+    DataRow(DataRow),
     Response(Box<Response>),
     NotificationResponse(Box<NotificationResponse>),
     ParseComplete,

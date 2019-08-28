@@ -1,6 +1,7 @@
-use super::{Buf, Decode};
+use super::Decode;
+use crate::io::{Buf, ByteStr};
+use byteorder::NetworkEndian;
 use std::{
-    convert::TryInto,
     fmt::{self, Debug},
     io,
     pin::Pin,
@@ -19,16 +20,16 @@ unsafe impl Sync for DataRow {}
 
 impl Decode for DataRow {
     fn decode(mut buf: &[u8]) -> io::Result<Self> {
-        let len = buf.get_u16()? as usize;
+        let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
         let mut buf = &*buffer;
-        let mut values = Vec::with_capacity(len);
+        let mut values = Vec::with_capacity(cnt);
 
-        while values.len() < len {
+        while values.len() < cnt {
             // The length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
-            let value_len = buf.get_i32()?;
+            let value_len = buf.get_i32::<NetworkEndian>()?;
 
             if value_len == -1 {
                 values.push(None);
@@ -65,8 +66,16 @@ impl DataRow {
 }
 
 impl Debug for DataRow {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!();
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DataRow(")?;
+
+        f.debug_list()
+            .entries((0..self.len()).map(|i| self.get(i).map(ByteStr)))
+            .finish()?;
+
+        write!(f, ")")?;
+
+        Ok(())
     }
 }
 
@@ -79,17 +88,17 @@ mod tests {
 
     #[test]
     fn it_decodes_data_row() {
-        let message = DataRow::decode(DATA_ROW).unwrap();
+        let m = DataRow::decode(DATA_ROW).unwrap();
 
-        assert_eq!(message.len(), 3);
+        assert_eq!(m.len(), 3);
 
-        assert_eq!(message.get(0), Some(&b"1"[..]));
-        assert_eq!(message.get(1), Some(&b"2"[..]));
-        assert_eq!(message.get(2), Some(&b"3"[..]));
-    }
+        assert_eq!(m.get(0), Some(&b"1"[..]));
+        assert_eq!(m.get(1), Some(&b"2"[..]));
+        assert_eq!(m.get(2), Some(&b"3"[..]));
 
-    #[bench]
-    fn bench_decode_data_row(b: &mut test::Bencher) {
-        b.iter(|| DataRow::decode(DATA_ROW).unwrap());
+        assert_eq!(
+            format!("{:?}", m),
+            "DataRow([Some(b\"1\"), Some(b\"2\"), Some(b\"3\")])"
+        );
     }
 }

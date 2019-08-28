@@ -1,4 +1,6 @@
-use super::{BufMut, Encode};
+use super::{Encode};
+use crate::io::BufMut;
+use byteorder::NetworkEndian;
 
 /// Sent instead of [`StartupMessage`] with a new connection to cancel a running query on an existing
 /// connection.
@@ -14,9 +16,9 @@ pub struct CancelRequest {
 
 impl Encode for CancelRequest {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_int_32(16); // message length
-        buf.put_int_32(8087_7102); // constant for cancel request
-        buf.put_int_32(self.process_id);
-        buf.put_int_32(self.secret_key);
+        buf.put_i32::<NetworkEndian>(16); // message length
+        buf.put_i32::<NetworkEndian>(8087_7102); // constant for cancel request
+        buf.put_i32::<NetworkEndian>(self.process_id);
+        buf.put_i32::<NetworkEndian>(self.secret_key);
     }
 }
