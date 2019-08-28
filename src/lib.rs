@@ -2,9 +2,6 @@
 #![allow(clippy::needless_lifetimes)]
 #![allow(unused)]
 
- #[macro_use]
- extern crate bitflags;
-
 #[cfg(test)]
 extern crate test;
 
@@ -20,8 +17,20 @@ pub mod deserialize;
 #[macro_use]
 pub mod row;
 
+mod connection;
+pub mod error;
+mod executor;
+mod pool;
+mod query;
 pub mod serialize;
 pub mod types;
+
+pub use self::{
+    connection::Connection,
+    error::Error,
+    pool::Pool,
+    query::{query, SqlQuery},
+};
 
 #[cfg(feature = "mariadb")]
 pub mod mariadb;
@@ -31,18 +40,3 @@ pub mod postgres;
 
 #[cfg(feature = "postgres")]
 pub use self::postgres::Postgres;
-
-pub mod error;
-
-mod connection;
-pub mod error;
-mod executor;
-mod pool;
-mod query;
-
-pub use self::{
-    connection::Connection,
-    error::Error,
-    pool::Pool,
-    query::{query, SqlQuery},
-};

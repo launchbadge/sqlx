@@ -1,8 +1,9 @@
-use crate::mariadb::{FieldType, MariaDbRawConnection};
-use crate::mariadb::protocol::types::ParamFlag;
-use crate::query::RawQuery;
-use crate::types::HasSqlType;
-use crate::serialize::{ToSql, IsNull};
+use crate::{
+    mariadb::{protocol::types::ParamFlag, FieldType, MariaDbRawConnection},
+    query::RawQuery,
+    serialize::{IsNull, ToSql},
+    types::HasSqlType,
+};
 
 pub struct MariaDbRawQuery<'q> {
     query: &'q str,
@@ -27,21 +28,22 @@ impl<'q> RawQueryQuery<'q> for MariaDbRawQuery<'q> {
         }
     }
 
-
     fn bind<T>(mut self, value: T) -> Self
     where
         Self: Sized,
         Self::Backend: HasSqlType<T>,
         T: ToSql<Self::Backend>,
     {
-        self.types.push(<MariaDb as HasSqlType<T>>::metadata().field_type.0);
-        self.flags.push(<MariaDb as HasSqlType<T>>::metadata().param_flag.0);
+        self.types
+            .push(<MariaDb as HasSqlType<T>>::metadata().field_type.0);
+        self.flags
+            .push(<MariaDb as HasSqlType<T>>::metadata().param_flag.0);
 
         match value.to_sql(&mut self.buf) {
             IsNull::Yes => {
                 self.null_bitmap[self.index / 8] =
                     self.null_bitmap[self.index / 8] & (1 << self.index % 8);
-            },
+            }
             IsNull::No => {}
         }
 

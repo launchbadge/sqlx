@@ -1,4 +1,4 @@
-use crate::mariadb::{BufMut, ConnContext, MariaDbRawConnection, Encode};
+use crate::mariadb::{BufMut, ConnContext, Encode, MariaDbRawConnection};
 use failure::Error;
 
 pub struct ComProcessKill {

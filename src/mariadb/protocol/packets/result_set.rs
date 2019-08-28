@@ -119,8 +119,8 @@ mod test {
     use crate::{
         __bytes_builder,
         mariadb::{
-            Capabilities, ConnContext, MariaDbRawConnection, EofPacket, ErrPacket, OkPacket, ResultRow,
-            ServerStatusFlag,
+            Capabilities, ConnContext, EofPacket, ErrPacket, MariaDbRawConnection, OkPacket,
+            ResultRow, ServerStatusFlag,
         },
     };
 

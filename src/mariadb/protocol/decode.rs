@@ -1,4 +1,4 @@
-use crate::mariadb::{ColumnDefPacket, ConnContext, MariaDbRawConnection, Framed, PacketHeader};
+use crate::mariadb::{ColumnDefPacket, ConnContext, Framed, MariaDbRawConnection, PacketHeader};
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Bytes;
 use failure::{err_msg, Error};

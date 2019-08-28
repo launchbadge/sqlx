@@ -1,41 +1,35 @@
-[workspace]
-members = [
-    ".",
-    "examples/todos",
-    "examples/contacts"
-]
-
 [package]
 name = "sqlx"
-version = "0.0.0"
-authors = ["Ryan Leckey <leckey.ryan@gmail.com>"]
+version = "0.1.1-pre"
+authors = [
+    "Ryan Leckey <leckey.ryan@gmail.com>"
+]
 license = "MIT OR Apache-2.0"
 description = "Asynchronous and expressive database client in pure Rust."
 edition = "2018"
 
 [features]
-default = ["postgres"]
+default = []
 postgres = []
 mariadb = []
 
 [dependencies]
- bitflags = "1.1.0"
+async-stream = "0.1.0"
+bitflags = "1.1.0"
 byteorder = { version = "1.3.2", default-features = false }
 bytes = "0.4.12"
 crossbeam-queue = "0.1.2"
 crossbeam-utils = { version = "0.6.6", default-features = false }
 failure = "0.1.5"
-futures-util-preview = "=0.3.0-alpha.18"
 futures-channel-preview = "=0.3.0-alpha.18"
 futures-core-preview = "=0.3.0-alpha.18"
+futures-util-preview = "=0.3.0-alpha.18"
 hex = { version = "0.3.2", default-features = false }
-# itoa = "0.4.4"
 log = "0.4.8"
 md-5 = "0.8.0"
-url = "2.1.0"
 memchr = "2.2.1"
-async-stream = "0.1.0"
 tokio = { version = "=0.2.0-alpha.2", default-features = false, features = [ "tcp" ] }
+url = "2.1.0"
 
 [profile.release]
 lto = true

@@ -1,4 +1,4 @@
-use super::{Decode, Buf};
+use super::{Buf, Decode};
 use std::{
     convert::TryInto,
     fmt::{self, Debug},

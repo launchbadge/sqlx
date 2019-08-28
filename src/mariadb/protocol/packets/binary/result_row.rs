@@ -35,7 +35,9 @@ impl crate::mariadb::Decode for ResultRow {
                         } else {
                             match column_defs[index].field_type {
                                 // Ordered by https://mariadb.com/kb/en/library/resultset-row/#binary-resultset-row
-                                FieldType::MYSQL_TYPE_DOUBLE => Some(decoder.decode_binary_double()),
+                                FieldType::MYSQL_TYPE_DOUBLE => {
+                                    Some(decoder.decode_binary_double())
+                                }
                                 FieldType::MYSQL_TYPE_LONGLONG => {
                                     Some(decoder.decode_binary_bigint())
                                 }
@@ -51,7 +53,9 @@ impl crate::mariadb::Decode for ResultRow {
                                 FieldType::MYSQL_TYPE_FLOAT => Some(decoder.decode_binary_float()),
 
                                 // Is this MYSQL_TYPE_SMALLINT?
-                                FieldType::MYSQL_TYPE_SHORT => Some(decoder.decode_binary_smallint()),
+                                FieldType::MYSQL_TYPE_SHORT => {
+                                    Some(decoder.decode_binary_smallint())
+                                }
 
                                 FieldType::MYSQL_TYPE_YEAR => Some(decoder.decode_binary_year()),
                                 FieldType::MYSQL_TYPE_TINY => Some(decoder.decode_binary_tinyint()),
@@ -68,16 +72,24 @@ impl crate::mariadb::Decode for ResultRow {
                                 }
 
                                 // This group of types are all encoded as byte<lenenc>
-                                FieldType::MYSQL_TYPE_TINY_BLOB => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_TINY_BLOB => {
+                                    Some(decoder.decode_byte_lenenc())
+                                }
                                 FieldType::MYSQL_TYPE_MEDIUM_BLOB => {
                                     Some(decoder.decode_byte_lenenc())
                                 }
-                                FieldType::MYSQL_TYPE_LONG_BLOB => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_LONG_BLOB => {
+                                    Some(decoder.decode_byte_lenenc())
+                                }
                                 FieldType::MYSQL_TYPE_BLOB => Some(decoder.decode_byte_lenenc()),
                                 FieldType::MYSQL_TYPE_VARCHAR => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MYSQL_TYPE_VAR_STRING => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_VAR_STRING => {
+                                    Some(decoder.decode_byte_lenenc())
+                                }
                                 FieldType::MYSQL_TYPE_STRING => Some(decoder.decode_byte_lenenc()),
-                                FieldType::MYSQL_TYPE_GEOMETRY => Some(decoder.decode_byte_lenenc()),
+                                FieldType::MYSQL_TYPE_GEOMETRY => {
+                                    Some(decoder.decode_byte_lenenc())
+                                }
 
                                 // The following did not have defined binary encoding, so I guessed.
                                 // Perhaps you cannot get these types back from the server if you're using

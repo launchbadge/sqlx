@@ -1,11 +1,11 @@
+pub mod backend;
 pub mod connection;
 pub mod protocol;
-pub mod types;
-pub mod backend;
 pub mod query;
+pub mod types;
 
 // Re-export all the things
-pub use connection::{ConnContext, MariaDbRawConnection, Framed};
+pub use connection::{ConnContext, Framed, MariaDbRawConnection};
 pub use protocol::{
     AuthenticationSwitchRequestPacket, BufMut, Capabilities, ColumnDefPacket, ColumnPacket,
     ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,

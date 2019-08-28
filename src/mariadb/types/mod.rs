@@ -1,7 +1,8 @@
 use super::MariaDB;
-use crate::types::TypeMetadata;
-use crate::mariadb::FieldType;
-use crate::mariadb::protocol::types::ParamFlag;
+use crate::{
+    mariadb::{protocol::types::ParamFlag, FieldType},
+    types::TypeMetadata,
+};
 
 mod boolean;
 

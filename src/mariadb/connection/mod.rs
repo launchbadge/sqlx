@@ -1,25 +1,24 @@
 use crate::{
+    connection::RawConnection,
+    error::ErrorKind,
     mariadb::{
         protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
         ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
         ProtocolType, ResultSet, ServerStatusFlag,
     },
+    query::RawQuery,
 };
 use byteorder::{ByteOrder, LittleEndian};
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use core::convert::TryFrom;
 use failure::Error;
+use futures_core::future::BoxFuture;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::{
     io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpStream,
 };
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use url::Url;
-use bytes::BufMut;
-use crate::error::ErrorKind;
-use crate::connection::RawConnection;
-use futures_core::future::BoxFuture;
-use crate::query::RawQuery;
 
 mod establish;
 mod execute;
@@ -31,7 +30,7 @@ pub struct MariaDbRawConnection {
     pub wbuf: Vec<u8>,
 
     pub rbuf: BytesMut,
-    pub  read_index: usize,
+    pub read_index: usize,
 
     // Context for the connection
     // Explicitly declared to easily send to deserializers
@@ -112,15 +111,15 @@ impl MariaDbRawConnection {
         Ok(conn)
     }
 
-//    pub async fn send<S>(&mut self, message: S) -> Result<(), Error>
-//    where
-//        S: Encode,
-//    {
-//        self.wbuf.clear();
-//        message.encode(&mut self.wbuf, &mut self.context)?;
-//        self.stream.inner.write_all(&self.wbuf).await?;
-//        Ok(())
-//    }
+    //    pub async fn send<S>(&mut self, message: S) -> Result<(), Error>
+    //    where
+    //        S: Encode,
+    //    {
+    //        self.wbuf.clear();
+    //        message.encode(&mut self.wbuf, &mut self.context)?;
+    //        self.stream.inner.write_all(&self.wbuf).await?;
+    //        Ok(())
+    //    }
 
     pub fn write(&mut self, message: impl Encode) {
         message.encode(&mut self.wbuf);
@@ -229,12 +228,19 @@ impl MariaDbRawConnection {
 
             if let Some(packet_header) = packet_headers.last() {
                 if packet_header.combined_length() > self.rbuf.len() {
-                    unsafe { self.rbuf.reserve(packet_header.combined_length() - self.rbuf.len()); }
+                    unsafe {
+                        self.rbuf
+                            .reserve(packet_header.combined_length() - self.rbuf.len());
+                    }
                 }
             } else if self.rbuf.len() == self.read_index {
-                unsafe { self.rbuf.reserve(32); }
+                unsafe {
+                    self.rbuf.reserve(32);
+                }
             }
-            unsafe { self.rbuf.set_len(self.rbuf.capacity()); }
+            unsafe {
+                self.rbuf.set_len(self.rbuf.capacity());
+            }
 
             // If we have a packet_header and the amount of currently read bytes (len) is less than
             // the specified length inside packet_header, then we can continue reading to self.rbuf.
