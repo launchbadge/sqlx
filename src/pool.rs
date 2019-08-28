@@ -62,40 +62,6 @@ where
             },
         }))
     }
-
-    #[inline]
-    pub async fn execute<A>(&self, query: &str, params: A) -> Result<u64, Error>
-    where
-        A: IntoQueryParameters<DB>,
-    {
-        Executor::execute(self, query, params.into()).await
-    }
-
-    #[inline]
-    pub fn fetch<'c, 'q: 'c, A: 'c, T: 'c>(
-        &'c self,
-        query: &'q str,
-        params: A,
-    ) -> BoxStream<'c, Result<T, Error>>
-    where
-        A: IntoQueryParameters<DB> + Send,
-        T: FromSqlRow<DB> + Send + Unpin,
-    {
-        Executor::fetch(self, query, params.into())
-    }
-
-    #[inline]
-    pub async fn fetch_optional<'c, 'q: 'c, A: 'c, T: 'c>(
-        &'c self,
-        query: &'q str,
-        params: A,
-    ) -> Result<Option<T>, Error>
-    where
-        A: IntoQueryParameters<DB> + Send,
-        T: FromSqlRow<DB>,
-    {
-        Executor::fetch_optional(self, query, params.into()).await
-    }
 }
 
 struct SharedPool<DB>
@@ -167,31 +133,35 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q: 'c>(
+    fn execute<'c, 'q: 'c, A: 'c>(
         &'c self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'c, Result<u64, Error>> {
+        params: A,
+    ) -> BoxFuture<'c, Result<u64, Error>>
+    where
+        A: IntoQueryParameters<Self::Backend> + Send,
+    {
         Box::pin(async move {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
 
-            conn.execute(query, params).await
+            conn.execute(query, params.into()).await
         })
     }
 
-    fn fetch<'c, 'q: 'c, T: 'c>(
+    fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
         &'c self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
+        params: A,
     ) -> BoxStream<'c, Result<T, Error>>
     where
+        A: IntoQueryParameters<Self::Backend> + Send,
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
-            let mut s = conn.fetch(query, params);
+            let mut s = conn.fetch(query, params.into());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -199,18 +169,19 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q: 'c, T: 'c>(
+    fn fetch_optional<'c, 'q: 'c, T: 'c, A: 'c>(
         &'c self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
+        params: A,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
+        A: IntoQueryParameters<Self::Backend> + Send,
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
             let live = self.0.acquire().await?;
             let mut conn = PooledConnection::new(&self.0, live);
-            let row = conn.fetch_optional(query, params).await?;
+            let row = conn.fetch_optional(query, params.into()).await?;
 
             Ok(row.map(T::from_row))
         })

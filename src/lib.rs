@@ -21,15 +21,20 @@ mod connection;
 pub mod error;
 mod executor;
 mod pool;
-mod query;
+
+#[macro_use]
+pub mod query;
+
 pub mod serialize;
+mod sql;
 pub mod types;
 
 pub use self::{
     connection::Connection,
     error::Error,
+    executor::Executor,
     pool::Pool,
-    query::{query, SqlQuery},
+    sql::{query, SqlQuery},
 };
 
 #[cfg(feature = "mariadb")]

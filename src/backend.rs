@@ -2,12 +2,15 @@ use crate::{connection::RawConnection, query::QueryParameters, row::Row};
 
 /// A database backend.
 ///
-/// This trait is used to both allow distinct implementations of traits (
-/// e.g., implementing `ToSql for Uuid` differently for MySQL and Postgres) and
-/// to query capabilities within a database backend (e.g., with a specific
-/// `Connection` can we `bind` a `i64`?).
+/// This trait represents the concept of a backend (e.g. "MySQL" vs "SQLite").
 pub trait Backend: Sized {
+    /// The concrete `QueryParameters` implementation for this backend.
     type QueryParameters: QueryParameters<Backend = Self>;
+
+    /// The concrete `RawConnection` implementation for this backend.
     type RawConnection: RawConnection<Backend = Self>;
+
+    /// The concrete `Row` implementation for this backend. This type is returned
+    /// from methods in the `RawConnection`.
     type Row: Row<Backend = Self>;
 }

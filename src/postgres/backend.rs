@@ -8,5 +8,6 @@ impl Backend for Postgres {
     type Row = super::PostgresRow;
 }
 
-// Generates tuple FromSqlRow impls for this backend
+// Generates tuple impls for this backend
 impl_from_sql_row_tuples_for_backend!(Postgres);
+impl_into_query_parameters_for_backend!(Postgres);
