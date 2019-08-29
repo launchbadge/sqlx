@@ -1,56 +1,41 @@
+use super::MariaDb;
 use crate::{
-    mariadb::{protocol::types::ParamFlag, FieldType, MariaDbRawConnection},
-    query::RawQuery,
+    query::QueryParameters,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
 
-pub struct MariaDbRawQuery<'q> {
-    query: &'q str,
-    types: Vec<u8>,
-    null_bitmap: Vec<u8>,
-    flags: Vec<u8>,
-    buf: Vec<u8>,
-    index: u64,
+pub struct MariaDbQueryParameters {
+    param_types: Vec<(u8, u8)>,
+    params: Vec<u8>,
+    null: Vec<u8>,
 }
 
-impl<'q> RawQueryQuery<'q> for MariaDbRawQuery<'q> {
+impl QueryParameters for MariaDbQueryParameters {
     type Backend = MariaDb;
 
-    fn new(query: &'q str) -> Self {
+    fn new() -> Self {
         Self {
-            query,
-            types: Vec::with_capacity(4),
-            null_bitmap: vec![0, 0, 0, 0],
-            flags: Vec::with_capacity(4),
-            buf: Vec::with_capacity(32),
-            index: 0,
+            param_types: Vec::with_capacity(4),
+            params: Vec::with_capacity(32),
+            null: 0,
         }
     }
 
-    fn bind<T>(mut self, value: T) -> Self
+    fn bind<T>(&mut self, value: T)
     where
         Self: Sized,
         Self::Backend: HasSqlType<T>,
         T: ToSql<Self::Backend>,
     {
-        self.types
-            .push(<MariaDb as HasSqlType<T>>::metadata().field_type.0);
-        self.flags
-            .push(<MariaDb as HasSqlType<T>>::metadata().param_flag.0);
+        let metadata = <MariaDb as HasSqlType<T>>::metadata();
+        let index = self.param_types.len();
 
-        match value.to_sql(&mut self.buf) {
-            IsNull::Yes => {
-                self.null_bitmap[self.index / 8] =
-                    self.null_bitmap[self.index / 8] & (1 << self.index % 8);
-            }
-            IsNull::No => {}
+        self.param_types
+            .push((metadata.field_type, metadata.param_flag));
+
+        if let IsNull::Yes = value.to_sql(&mut self.params) {
+            self.null[index / 8] = self.null[index / 8] & (1 << index % 8);
         }
-
-        self
-    }
-
-    fn finish(self, conn: &mut MariaDbRawConnection) {
-        conn.prepare(self.query);
     }
 }

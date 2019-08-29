@@ -1,5 +1,5 @@
 use super::MariaDbRawConnection;
-use crate::mariadb::{
+use crate::mariadb::protocol::{
     Capabilities, ComStmtExec, DeContext, Decode, EofPacket, ErrPacket, HandshakeResponsePacket,
     InitialHandshakePacket, OkPacket, ProtocolType, StmtExecFlag,
 };

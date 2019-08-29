@@ -1,5 +1,6 @@
 use crate::backend::Backend;
 
+#[derive(Debug)]
 pub struct Postgres;
 
 impl Backend for Postgres {
@@ -8,6 +9,5 @@ impl Backend for Postgres {
     type Row = super::PostgresRow;
 }
 
-// Generates tuple impls for this backend
 impl_from_sql_row_tuples_for_backend!(Postgres);
 impl_into_query_parameters_for_backend!(Postgres);

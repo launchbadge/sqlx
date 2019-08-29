@@ -1,18 +1,11 @@
-use super::MariaDB;
-use crate::{
-    mariadb::{protocol::types::ParamFlag, FieldType},
-    types::TypeMetadata,
-};
+use crate::types::TypeMetadata;
+use super::protocol::FieldType;
+use super::protocol::ParamFlag;
+use super::backend::MariaDb;
 
 mod boolean;
 
-pub enum MariaDbTypeFormat {
-    Text = 0,
-    Binary = 1,
-}
-
 pub struct MariaDbTypeMetadata {
-    pub format: MariaDbTypeFormat,
     pub field_type: FieldType,
     pub param_flag: ParamFlag,
 }

@@ -1,12 +1,10 @@
 use crate::{
-    connection::RawConnection,
     error::ErrorKind,
     mariadb::{
-        protocol::encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
+        protocol::{encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
         ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
-        ProtocolType, ResultSet, ServerStatusFlag,
+        ProtocolType, ResultSet, ServerStatusFlag},
     },
-    query::RawQuery,
 };
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -276,24 +274,24 @@ impl MariaDbRawConnection {
     }
 }
 
-impl RawConnection for MariaDbRawConnection {
-    type Backend = MariaDb;
+// impl RawConnection for MariaDbRawConnection {
+//     type Backend = MariaDb;
 
-    #[inline]
-    fn establish(url: &str) -> BoxFuture<std::io::Result<Self>> {
-        Box::pin(MariaDbRawConnection::establish(url))
-    }
+//     #[inline]
+//     fn establish(url: &str) -> BoxFuture<std::io::Result<Self>> {
+//         Box::pin(MariaDbRawConnection::establish(url))
+//     }
 
-    #[inline]
-    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, std::io::Result<()>> {
-        Box::pin(self.finalize())
-    }
+//     #[inline]
+//     fn finalize<'c>(&'c mut self) -> BoxFuture<'c, std::io::Result<()>> {
+//         Box::pin(self.finalize())
+//     }
 
-    fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, std::io::Result<()>>
-    where
-        Q: RawQuery<'q, Backend = Self::Backend>,
-    {
-        query.finish(self);
-        Box::pin(execute::execute(self))
-    }
-}
+//     fn execute<'c, 'q, Q: 'q>(&'c mut self, query: Q) -> BoxFuture<'c, std::io::Result<()>>
+//     where
+//         Q: RawQuery<'q, Backend = Self::Backend>,
+//     {
+//         query.finish(self);
+//         Box::pin(execute::execute(self))
+//     }
+// }

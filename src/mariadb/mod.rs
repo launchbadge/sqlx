@@ -1,20 +1,13 @@
-pub mod backend;
-pub mod connection;
-pub mod protocol;
-pub mod query;
-pub mod types;
+// mod backend;
+// mod connection;
+mod protocol;
+// mod query;
+// pub mod types;
 
-// Re-export all the things
-pub use connection::{ConnContext, Framed, MariaDbRawConnection};
-pub use protocol::{
-    AuthenticationSwitchRequestPacket, BufMut, Capabilities, ColumnDefPacket, ColumnPacket,
-    ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComResetConnection,
-    ComSetOption, ComShutdown, ComSleep, ComStatistics, ComStmtClose, ComStmtExec, ComStmtFetch,
-    ComStmtPrepare, ComStmtPrepareOk, ComStmtPrepareResp, DeContext, Decode, Decoder, Encode,
-    EofPacket, ErrPacket, ErrorCode, FieldDetailFlag, FieldType, HandshakeResponsePacket,
-    InitialHandshakePacket, OkPacket, PacketHeader, ProtocolType, ResultRow, ResultRowBinary,
-    ResultRowText, ResultSet, SSLRequestPacket, ServerStatusFlag, SessionChangeType,
-    SetOptionOptions, ShutdownOptions, StmtExecFlag,
-};
+// pub use self::{
+//     backend::MariaDb, connection::MariaDbRawConnection, query::MariaDbQueryParameters,
+//     row::MariaDbRow,
+// };
 
-pub use backend::MariaDB;
+// 1) Get protocol compiling using io::Buf / io::BufMut
+// 2) Switch MariaDbRawConnection to use io::BufStream

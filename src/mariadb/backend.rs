@@ -1,14 +1,13 @@
-use crate::backend::{Backend, BackendAssocRawQuery};
+use crate::backend::Backend;
 
-pub struct MariaDB;
+#[derive(Debug)]
+pub struct MariaDb;
 
-impl<'q> BackendAssocRawQuery<'q, MariaDB> for MariaDB {
-    type RawQuery = super::MariaDbRawQuery<'q>;
-}
-
-impl Backend for MariaDB {
+impl Backend for MariaDb {
+    type QueryParameters = super::MariaDbQueryParameters;
     type RawConnection = super::MariaDbRawConnection;
     type Row = super::MariaDbRow;
 }
 
-impl_from_sql_row_tuples_for_backend!(MariaDb);
+// TODO: impl_from_sql_row_tuples_for_backend!(MariaDb);
+// TODO: impl_into_query_parameters_for_backend!(MariaDb);
