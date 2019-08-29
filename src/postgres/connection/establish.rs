@@ -2,9 +2,9 @@ use super::PostgresRawConnection;
 use crate::{
     error::Error,
     postgres::protocol::{Authentication, Message, PasswordMessage, StartupMessage},
+    url::Url,
 };
 use std::io;
-use url::Url;
 
 pub async fn establish<'a, 'b: 'a>(
     conn: &'a mut PostgresRawConnection,
@@ -12,7 +12,7 @@ pub async fn establish<'a, 'b: 'a>(
 ) -> Result<(), Error> {
     let user = url.username();
     let password = url.password().unwrap_or("");
-    let database = url.path().trim_start_matches('/');
+    let database = url.database();
 
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html

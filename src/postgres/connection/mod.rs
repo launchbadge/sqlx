@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{connection::RawConnection, error::Error, io::BufStream, query::QueryParameters};
 // use bytes::{BufMut, BytesMut};
-use crate::io::Buf;
+use crate::{io::Buf, url::Url};
 use byteorder::NetworkEndian;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
@@ -15,7 +15,6 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
-use url::Url;
 
 mod establish;
 mod execute;
@@ -34,17 +33,10 @@ pub struct PostgresRawConnection {
 
 impl PostgresRawConnection {
     async fn establish(url: &str) -> Result<Self, Error> {
-        // TODO: Handle errors
-        let url = Url::parse(url).unwrap();
-
-        let host = url.host_str().unwrap_or("localhost");
-        let port = url.port().unwrap_or(5432);
-
-        // FIXME: handle errors
-        let host: IpAddr = host.parse().unwrap();
-        let addr: SocketAddr = (host, port).into();
-
-        let stream = TcpStream::connect(&addr).await.map_err(Error::Io)?;
+        let url = Url::parse(url);
+        let stream = TcpStream::connect(&url.address(5432))
+            .await
+            .map_err(Error::Io)?;
 
         let mut conn = Self {
             stream: BufStream::new(stream),

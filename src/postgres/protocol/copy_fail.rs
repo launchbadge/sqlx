@@ -1,4 +1,4 @@
-use super::{Encode};
+use super::Encode;
 use crate::io::BufMut;
 use byteorder::NetworkEndian;
 

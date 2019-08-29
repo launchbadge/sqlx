@@ -1,7 +1,6 @@
-use super::{Encode};
+use super::Encode;
 use crate::io::BufMut;
-use byteorder::{BigEndian, ByteOrder};
-use byteorder::NetworkEndian;
+use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
 pub struct StartupMessage<'a> {
     pub params: &'a [(&'a str, &'a str)],

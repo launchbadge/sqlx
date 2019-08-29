@@ -8,11 +8,11 @@ pub trait BufMut {
     fn put_u8(&mut self, val: u8);
 
     fn put_u16<T: ByteOrder>(&mut self, val: u16);
-    
+
     fn put_i16<T: ByteOrder>(&mut self, val: i16);
 
     fn put_u24<T: ByteOrder>(&mut self, val: u32);
-    
+
     fn put_i32<T: ByteOrder>(&mut self, val: i32);
 
     fn put_u32<T: ByteOrder>(&mut self, val: u32);

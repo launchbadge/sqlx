@@ -1,15 +1,11 @@
-use super::{
-    protocol,
-    Postgres, PostgresRawConnection,
-};
+use super::{protocol, Postgres, PostgresRawConnection};
 use crate::{
     io::BufMut,
     query::QueryParameters,
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
-use byteorder::{BigEndian, ByteOrder};
-use byteorder::NetworkEndian;
+use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
 pub struct PostgresQueryParameters {
     // OIDs of the bind parameters

@@ -13,6 +13,7 @@ mod io;
 
 pub mod backend;
 pub mod deserialize;
+mod url;
 
 #[macro_use]
 pub mod row;

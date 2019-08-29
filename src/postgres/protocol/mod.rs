@@ -25,22 +25,10 @@ mod terminate;
 // TODO: mod ssl_request;
 
 pub use self::{
-    bind::Bind,
-    cancel_request::CancelRequest,
-    close::Close,
-    copy_data::CopyData,
-    copy_done::CopyDone,
-    copy_fail::CopyFail,
-    describe::Describe,
-    encode::Encode,
-    execute::Execute,
-    flush::Flush,
-    parse::Parse,
-    password_message::PasswordMessage,
-    query::Query,
-    startup_message::StartupMessage,
-    sync::Sync,
-    terminate::Terminate,
+    bind::Bind, cancel_request::CancelRequest, close::Close, copy_data::CopyData,
+    copy_done::CopyDone, copy_fail::CopyFail, describe::Describe, encode::Encode, execute::Execute,
+    flush::Flush, parse::Parse, password_message::PasswordMessage, query::Query,
+    startup_message::StartupMessage, sync::Sync, terminate::Terminate,
 };
 
 mod authentication;

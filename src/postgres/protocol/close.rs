@@ -1,4 +1,4 @@
-use super::{Encode};
+use super::Encode;
 use crate::io::BufMut;
 use byteorder::NetworkEndian;
 
@@ -19,15 +19,15 @@ pub struct Close<'a> {
 impl Encode for Close<'_> {
     fn encode(&self, buf: &mut Vec<u8>) {
         buf.push(b'C');
-        
+
         // len + kind + nul + len(string)
         buf.put_i32::<NetworkEndian>((4 + 1 + 1 + self.name.len()) as i32);
-        
+
         buf.push(match self.kind {
             CloseKind::PreparedStatement => b'S',
             CloseKind::Portal => b'P',
         });
-        
+
         buf.put_str_nul(self.name);
     }
 }
