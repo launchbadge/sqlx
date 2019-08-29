@@ -1,7 +1,3 @@
-use std::convert::TryFrom;
-
-// FIXME: Remove Default
-
 #[derive(Default, Debug)]
 pub struct ErrorCode(pub(crate) u16);
 

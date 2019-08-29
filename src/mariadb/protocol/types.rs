@@ -3,7 +3,7 @@ pub enum ProtocolType {
     Binary,
 }
 
-bitflags! {
+bitflags::bitflags! {
     pub struct Capabilities: u128 {
         const CLIENT_MYSQL = 1;
         const FOUND_ROWS = 1 << 1;
@@ -30,7 +30,7 @@ bitflags! {
     }
 }
 
-bitflags! {
+bitflags::bitflags! {
     pub struct FieldDetailFlag: u16 {
         const NOT_NULL = 1;
         const PRIMARY_KEY = 2;
@@ -50,7 +50,7 @@ bitflags! {
     }
 }
 
-bitflags! {
+bitflags::bitflags! {
     pub struct ServerStatusFlag: u16 {
         const SERVER_STATUS_IN_TRANS = 1;
         const SERVER_STATUS_AUTOCOMMIT = 2;
@@ -129,6 +129,8 @@ impl ParamFlag {
     pub const NONE: ParamFlag = ParamFlag(0);
     pub const UNSIGNED: ParamFlag = ParamFlag(128);
 }
+
+// TODO: Remove these Default impls
 
 impl Default for Capabilities {
     fn default() -> Self {
