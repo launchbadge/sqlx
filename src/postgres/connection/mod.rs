@@ -34,9 +34,7 @@ pub struct PostgresRawConnection {
 impl PostgresRawConnection {
     async fn establish(url: &str) -> Result<Self, Error> {
         let url = Url::parse(url);
-        let stream = TcpStream::connect(&url.address(5432))
-            .await
-            .map_err(Error::Io)?;
+        let stream = TcpStream::connect(&url.address(5432)).await?;
 
         let mut conn = Self {
             stream: BufStream::new(stream),

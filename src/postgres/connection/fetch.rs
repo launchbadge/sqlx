@@ -7,7 +7,7 @@ pub fn fetch<'a>(
     conn: &'a mut PostgresRawConnection,
 ) -> impl Stream<Item = Result<PostgresRow, Error>> + 'a {
     async_stream::try_stream! {
-        conn.stream.flush().await.map_err(Error::Io)?;
+        conn.stream.flush().await.map_err(Error::from)?;
 
         while let Some(message) = conn.receive().await? {
             match message {
