@@ -57,7 +57,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_fetches_tuples() {
+    async fn it_fetches_tuples_from_a_system_table() {
         let conn = Connection::<Postgres>::establish(DATABASE_URL)
             .await
             .unwrap();
