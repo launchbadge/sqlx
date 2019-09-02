@@ -33,6 +33,7 @@ url = "2.1.0"
 
 [dev-dependencies]
 matches = "0.1.8"
+tokio = { version = "=0.2.0-alpha.2", default-features = false, features = [ "rt-full" ] }
 
 [profile.release]
 lto = true

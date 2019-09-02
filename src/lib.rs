@@ -32,7 +32,7 @@ pub mod types;
 
 pub use self::{
     connection::Connection,
-    error::Error,
+    error::{Error, Result},
     executor::Executor,
     pool::Pool,
     sql::{query, SqlQuery},

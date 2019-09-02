@@ -1,8 +1,10 @@
 use std::{
     error::Error as StdError,
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     io,
 };
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -22,7 +24,7 @@ pub enum Error {
     Io(io::Error),
 
     /// An error was returned by the database backend.
-    Database(DbError),
+    Database(Box<dyn DbError + Send + Sync>),
 
     /// No rows were returned by a query expected to return at least one row.
     NotFound,
@@ -49,21 +51,19 @@ impl From<io::Error> for Error {
     }
 }
 
-// TODO: Define a RawError type for the database backend for forwarding error information
-
-/// An error that was returned by the database backend.
-#[derive(Debug)]
-pub struct DbError {
-    message: String,
+impl<T> From<T> for Error
+where
+    T: 'static + DbError,
+{
+    #[inline]
+    fn from(err: T) -> Self {
+        Error::Database(Box::new(err))
+    }
 }
 
-impl DbError {
-    pub(crate) fn new(message: String) -> Self {
-        Self { message }
-    }
+/// An error that was returned by the database backend.
+pub trait DbError: Debug + Send + Sync {
+    fn message(&self) -> &str;
 
-    /// The primary human-readable error message.
-    pub fn message(&self) -> &str {
-        &self.message
-    }
+    // TODO: Expose more error properties
 }

@@ -3,9 +3,9 @@ use std::net::{IpAddr, SocketAddr};
 pub struct Url(url::Url);
 
 impl Url {
-    pub fn parse(url: &str) -> Self {
+    pub fn parse(url: &str) -> crate::Result<Self> {
         // TODO: Handle parse errors
-        Url(url::Url::parse(url).unwrap())
+        Ok(Url(url::Url::parse(url).unwrap()))
     }
 
     pub fn host(&self) -> &str {
@@ -16,7 +16,7 @@ impl Url {
         self.0.port().unwrap_or(default)
     }
 
-    pub fn address(&self, default_port: u16) -> SocketAddr {
+    pub fn resolve(&self, default_port: u16) -> SocketAddr {
         // TODO: DNS
         let host: IpAddr = self.host().parse().unwrap();
         let port = self.port(default_port);
