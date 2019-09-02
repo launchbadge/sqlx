@@ -41,7 +41,7 @@ impl BufMut for Vec<u8> {
     }
 
     fn put_i16<T: ByteOrder>(&mut self, val: i16) {
-        let mut buf = [0; 4];
+        let mut buf = [0; 2];
         T::write_i16(&mut buf, val);
         self.extend_from_slice(&buf);
     }
