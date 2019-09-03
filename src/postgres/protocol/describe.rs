@@ -31,7 +31,7 @@ impl Encode for Describe<'_> {
 
 #[cfg(test)]
 mod test {
-    use super::{BufMut, Describe, DescribeKind, Encode};
+    use super::{Describe, DescribeKind, Encode};
 
     #[test]
     fn it_encodes_describe_portal() {

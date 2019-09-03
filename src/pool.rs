@@ -1,17 +1,12 @@
 use crate::{
-    backend::Backend,
-    connection::RawConnection,
-    error::Error,
-    executor::Executor,
-    query::{IntoQueryParameters, QueryParameters},
-    row::FromSqlRow,
+    backend::Backend, connection::RawConnection, error::Error, executor::Executor,
+    query::IntoQueryParameters, row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
 use std::{
-    io,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -244,6 +239,8 @@ where
     DB: Backend,
 {
     live: Live<DB>,
+    // TODO: Implement idle connection timeouts
+    #[allow(unused)]
     since: Instant,
 }
 
@@ -252,5 +249,7 @@ where
     DB: Backend,
 {
     raw: DB::RawConnection,
+    // TODO: Implement live connection timeouts
+    #[allow(unused)]
     since: Instant,
 }

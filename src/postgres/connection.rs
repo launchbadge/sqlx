@@ -4,22 +4,13 @@ use super::{
 };
 use crate::{
     connection::RawConnection,
-    error::Error,
     io::{Buf, BufStream},
-    query::QueryParameters,
     url::Url,
 };
 use byteorder::NetworkEndian;
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use std::{
-    io,
-    net::{IpAddr, Shutdown, SocketAddr},
-    sync::atomic::{AtomicU64, Ordering},
-};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use std::io;
+use tokio::net::TcpStream;
 
 pub struct PostgresRawConnection {
     stream: BufStream<TcpStream>,

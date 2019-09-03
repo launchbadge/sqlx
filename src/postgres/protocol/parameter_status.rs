@@ -49,7 +49,7 @@ impl Decode for ParameterStatus {
     }
 }
 
-impl fmt::Debug for ParameterStatus {
+impl Debug for ParameterStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ParameterStatus")
             .field("name", &self.name())

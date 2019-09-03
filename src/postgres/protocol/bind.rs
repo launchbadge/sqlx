@@ -1,6 +1,6 @@
 use super::Encode;
 use crate::io::BufMut;
-use byteorder::{BigEndian, ByteOrder, NetworkEndian};
+use byteorder::{ByteOrder, NetworkEndian};
 
 pub struct Bind<'a> {
     /// The name of the destination portal (an empty string selects the unnamed portal).

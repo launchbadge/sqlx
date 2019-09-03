@@ -11,7 +11,6 @@ use futures_channel::oneshot::{channel, Sender};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{stream::StreamExt, TryFutureExt};
 use std::{
-    io,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -38,10 +37,10 @@ pub trait RawConnection: Send {
     /// and clean up not fully closed connections.
     ///
     /// It is safe to close an already closed connection.
-    fn close<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
+    fn close(&mut self) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Verifies a connection to the database is still alive.
-    fn ping<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>> {
+    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(
             self.execute(
                 "SELECT 1",

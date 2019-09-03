@@ -1,11 +1,5 @@
-use crate::{
-    backend::Backend,
-    error::Error,
-    query::{IntoQueryParameters, QueryParameters},
-    row::FromSqlRow,
-};
+use crate::{backend::Backend, error::Error, query::IntoQueryParameters, row::FromSqlRow};
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use std::io;
 
 pub trait Executor: Send {
     type Backend: Backend;

@@ -29,7 +29,7 @@ impl Encode for StartupMessage<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BufMut, Encode, StartupMessage};
+    use super::{Encode, StartupMessage};
 
     const STARTUP_MESSAGE: &[u8] = b"\0\0\0)\0\x03\0\0user\0postgres\0database\0postgres\0\0";
 

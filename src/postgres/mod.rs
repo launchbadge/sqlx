@@ -28,7 +28,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_pings() {
-        let mut conn = Connection::<Postgres>::establish(DATABASE_URL)
+        let conn = Connection::<Postgres>::establish(DATABASE_URL)
             .await
             .unwrap();
 

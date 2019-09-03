@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
 use memchr::memchr;
-use std::{convert::TryInto, io, mem::size_of, str};
+use std::{io, str};
 
 pub trait Buf {
     fn advance(&mut self, cnt: usize);
@@ -91,11 +91,11 @@ impl<'a> Buf for &'a [u8] {
 
     fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<u64> {
         Ok(match self.get_u8()? {
-            0xFC => self.get_u16::<T>()? as u64,
-            0xFD => self.get_u24::<T>()? as u64,
-            0xFE => self.get_u64::<T>()? as u64,
+            0xFC => u64::from(self.get_u16::<T>()?),
+            0xFD => u64::from(self.get_u24::<T>()?),
+            0xFE => self.get_u64::<T>()?,
             // ? 0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
-            value => value as u64,
+            value => u64::from(value),
         })
     }
 

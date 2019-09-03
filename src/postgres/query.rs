@@ -1,4 +1,4 @@
-use super::{protocol, Postgres, PostgresRawConnection};
+use super::Postgres;
 use crate::{
     io::BufMut,
     query::QueryParameters,

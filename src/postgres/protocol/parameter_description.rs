@@ -13,7 +13,7 @@ impl Decode for ParameterDescription {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut ids = Vec::with_capacity(cnt);
 
-        for i in 0..cnt {
+        for _ in 0..cnt {
             ids.push(buf.get_u32::<NetworkEndian>()?);
         }
 
@@ -26,7 +26,6 @@ impl Decode for ParameterDescription {
 #[cfg(test)]
 mod test {
     use super::{Decode, ParameterDescription};
-    use std::io;
 
     #[test]
     fn it_decodes_parameter_description() {

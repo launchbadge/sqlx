@@ -1,10 +1,7 @@
 use super::{
-    Authentication, BackendKeyData, CommandComplete, DataRow, Decode, NotificationResponse,
+    Authentication, BackendKeyData, CommandComplete, DataRow, NotificationResponse,
     ParameterDescription, ParameterStatus, ReadyForQuery, Response,
 };
-use byteorder::{BigEndian, ByteOrder};
-use bytes::BytesMut;
-use std::io;
 
 #[derive(Debug)]
 #[repr(u8)]

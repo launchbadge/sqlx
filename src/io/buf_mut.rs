@@ -1,6 +1,5 @@
 use byteorder::ByteOrder;
-use memchr::memchr;
-use std::{io, mem::size_of, str, u16, u32, u8};
+use std::{str, u16, u32, u8};
 
 pub trait BufMut {
     fn advance(&mut self, cnt: usize);
@@ -82,11 +81,11 @@ impl BufMut for Vec<u8> {
             // Integer value is encoded in the next 8 bytes (9 bytes total)
             self.push(0xFE);
             self.put_u64::<T>(value);
-        } else if value > u16::MAX as _ {
+        } else if value > u64::from(u16::MAX) {
             // Integer value is encoded in the next 3 bytes (4 bytes total)
             self.push(0xFD);
             self.put_u24::<T>(value as u32);
-        } else if value > u8::MAX as _ {
+        } else if value > u64::from(u8::MAX) {
             // Integer value is encoded in the next 2 bytes (3 bytes total)
             self.push(0xFC);
             self.put_u16::<T>(value as u16);

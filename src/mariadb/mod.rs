@@ -1,3 +1,6 @@
+// TODO: Remove after acitve development
+#![allow(ununsed)]
+
 // mod backend;
 // mod connection;
 mod protocol;

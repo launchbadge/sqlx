@@ -3,7 +3,6 @@ use crate::{
     serialize::ToSql, types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use std::io;
 
 pub struct SqlQuery<'q, DB>
 where
@@ -72,7 +71,7 @@ where
 
 /// Construct a full SQL query using raw SQL.
 #[inline]
-pub fn query<'q, DB>(query: &'q str) -> SqlQuery<'q, DB>
+pub fn query<DB>(query: &str) -> SqlQuery<'_, DB>
 where
     DB: Backend,
 {

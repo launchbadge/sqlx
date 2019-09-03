@@ -34,7 +34,7 @@ impl Encode for Close<'_> {
 
 #[cfg(test)]
 mod test {
-    use super::{BufMut, Close, CloseKind, Encode};
+    use super::{Close, CloseKind, Encode};
 
     #[test]
     fn it_encodes_close_portal() {

@@ -1,18 +1,14 @@
-#![cfg_attr(test, feature(test))]
-#![allow(clippy::needless_lifetimes)]
-#![allow(unused)]
-
-#[cfg(test)]
-extern crate test;
-
 #[macro_use]
 mod macros;
 
+#[cfg(any(feature = "postgres", feature = "mariadb"))]
 #[macro_use]
 mod io;
 
 mod backend;
 pub mod deserialize;
+
+#[cfg(any(feature = "postgres", feature = "mariadb"))]
 mod url;
 
 #[macro_use]

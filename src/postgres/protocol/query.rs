@@ -17,7 +17,7 @@ impl Encode for Query<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BufMut, Encode, Query};
+    use super::{Encode, Query};
 
     const QUERY_SELECT_1: &[u8] = b"Q\0\0\0\rSELECT 1\0";
 

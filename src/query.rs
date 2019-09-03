@@ -1,9 +1,4 @@
-use crate::{
-    backend::Backend, error::Error, executor::Executor, row::FromSqlRow, serialize::ToSql,
-    types::HasSqlType,
-};
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use std::io;
+use crate::{backend::Backend, serialize::ToSql, types::HasSqlType};
 
 pub trait QueryParameters: Send {
     type Backend: Backend;

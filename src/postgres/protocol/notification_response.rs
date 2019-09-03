@@ -66,7 +66,6 @@ impl Decode for NotificationResponse {
 #[cfg(test)]
 mod tests {
     use super::{Decode, NotificationResponse};
-    use std::io;
 
     const NOTIFICATION_RESPONSE: &[u8] = b"\x34\x20\x10\x02TEST-CHANNEL\0THIS IS A TEST\0";
 

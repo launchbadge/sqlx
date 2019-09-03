@@ -82,7 +82,6 @@ impl Debug for DataRow {
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
-    use std::io;
 
     const DATA_ROW: &[u8] = b"\0\x03\0\0\0\x011\0\0\0\x012\0\0\0\x013";
 

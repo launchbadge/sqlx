@@ -23,7 +23,7 @@ where
         Self {
             stream,
             stream_eof: false,
-            wbuf: Vec::with_capacity(1 * 1024),
+            wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(8 * 1024),
         }
     }
@@ -39,7 +39,7 @@ where
 
     #[inline]
     pub async fn flush(&mut self) -> io::Result<()> {
-        if self.wbuf.len() > 0 {
+        if !self.wbuf.is_empty() {
             self.stream.write_all(&self.wbuf).await?;
             self.wbuf.clear();
         }

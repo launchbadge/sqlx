@@ -1,5 +1,3 @@
-use crate::backend::Backend;
-
 /// Information about how a backend stores metadata about
 /// given SQL types.
 pub trait TypeMetadata {
