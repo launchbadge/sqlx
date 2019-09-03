@@ -64,7 +64,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_fetches_tuples_from_a_system_table() {
+    async fn it_fetches_tuples_from_system_roles() {
         let conn = Connection::<Postgres>::establish(DATABASE_URL)
             .await
             .unwrap();
@@ -77,5 +77,53 @@ mod tests {
 
         // Sanity check to be sure we did indeed fetch tuples
         assert!(roles.binary_search(&("postgres".to_string(), true)).is_ok());
+    }
+
+    #[tokio::test]
+    async fn it_fetches_nothing_for_no_rows_from_system_roles() {
+        let conn = Connection::<Postgres>::establish(DATABASE_URL)
+            .await
+            .unwrap();
+
+        let res: Option<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
+            .fetch_optional(&conn)
+            .await
+            .unwrap();
+
+        assert!(res.is_none());
+
+        let res: crate::Result<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
+            .fetch_one(&conn)
+            .await;
+
+        matches::assert_matches!(res, Err(crate::Error::NotFound));
+    }
+
+    #[tokio::test]
+    async fn it_errors_on_fetching_more_than_one_row_from_system_roles() {
+        let conn = Connection::<Postgres>::establish(DATABASE_URL)
+            .await
+            .unwrap();
+
+        let res: crate::Result<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles")
+            .fetch_one(&conn)
+            .await;
+
+        matches::assert_matches!(res, Err(crate::Error::FoundMoreThanOne));
+    }
+
+    #[tokio::test]
+    async fn it_fetches_one_row_from_system_roles() {
+        let conn = Connection::<Postgres>::establish(DATABASE_URL)
+            .await
+            .unwrap();
+
+        let res: (String, bool) = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'postgres'")
+            .fetch_one(&conn)
+            .await
+            .unwrap();
+
+        assert_eq!(res.0, "postgres");
+        assert!(res.1);
     }
 }

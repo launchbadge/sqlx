@@ -29,7 +29,7 @@ pub trait Executor: Send {
     ) -> BoxFuture<'c, Result<Vec<T>, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send + Unpin
+        T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(self.fetch(query, params).try_collect())
     }
@@ -50,12 +50,10 @@ pub trait Executor: Send {
     ) -> BoxFuture<'c, Result<T, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send
+        T: FromSqlRow<Self::Backend> + Send,
     {
         let fut = self.fetch_optional(query, params);
-        Box::pin(async move {
-            fut.await?.ok_or(Error::NotFound)
-        })
+        Box::pin(async move { fut.await?.ok_or(Error::NotFound) })
     }
 }
 

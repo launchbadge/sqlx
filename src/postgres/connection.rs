@@ -229,13 +229,7 @@ impl PostgresRawConnection {
     async fn step(&mut self) -> crate::Result<Option<Step>> {
         while let Some(message) = self.receive().await? {
             match message {
-                Message::BindComplete
-                | Message::ParseComplete
-                | Message::CloseComplete => {}
-
-                Message::PortalSuspended => {
-                    return Ok(Some(Step::MoreRowsAvailable));
-                }
+                Message::BindComplete | Message::ParseComplete | Message::PortalSuspended | Message::CloseComplete => {}
 
                 Message::CommandComplete(body) => {
                     return Ok(Some(Step::Command(body.affected_rows())));
@@ -267,7 +261,6 @@ impl PostgresRawConnection {
 enum Step {
     Command(u64),
     Row(PostgresRow),
-    MoreRowsAvailable,
 }
 
 impl RawConnection for PostgresRawConnection {
@@ -324,27 +317,18 @@ impl RawConnection for PostgresRawConnection {
         query: &str,
         params: PostgresQueryParameters,
     ) -> BoxFuture<'c, crate::Result<Option<PostgresRow>>> {
-        self.execute(query, params, 1);
+        self.execute(query, params, 2);
 
         Box::pin(async move {
             let mut row: Option<PostgresRow> = None;
 
             while let Some(step) = self.step().await? {
-                match step {
-                    Step::Row(r) => {
-                        // This should only ever execute once because we used the
-                        // protocol-level limit
-                        debug_assert!(row.is_none());
-                        row = Some(r);
-                    }
-
-                    Step::MoreRowsAvailable => {
-                        // Command execution finished but there was more than
-                        // one row available
+                if let Step::Row(r) = step {
+                    if row.is_some() {
                         return Err(crate::Error::FoundMoreThanOne);
                     }
 
-                    _ => {}
+                    row = Some(r);
                 }
             }
 
