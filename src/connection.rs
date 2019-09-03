@@ -37,7 +37,9 @@ pub trait RawConnection: Send {
     ///
     /// This method is not required to be called. A database server will eventually notice
     /// and clean up not fully closed connections.
-    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
+    /// 
+    /// It is safe to close an already closed connection.
+    fn close<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
 
     /// Verifies a connection to the database is still alive.
     fn ping<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>> {
@@ -92,13 +94,25 @@ where
         Ok(Self(Arc::new(shared)))
     }
 
-    async fn get(&self) -> ConnectionFairy<'_, DB> {
+    #[inline]
+    async fn acquire(&self) -> ConnectionFairy<'_, DB> {
         ConnectionFairy::new(&self.0, self.0.acquire().await)
     }
 
+    /// Release resources for this database connection immediately.
+    ///
+    /// This method is not required to be called. A database server will eventually notice
+    /// and clean up not fully closed connections.
+    /// 
+    /// It is safe to close an already closed connection.
+    pub async fn close(&self) -> crate::Result<()> {
+        let mut conn = self.acquire().await;
+        conn.close().await
+    }
+
     /// Verifies a connection to the database is still alive.
-    pub async fn ping(&mut self) -> crate::Result<()> {
-        let mut conn = self.get().await;
+    pub async fn ping(&self) -> crate::Result<()> {
+        let mut conn = self.acquire().await;
         conn.ping().await
     }
 }
@@ -118,7 +132,7 @@ where
         A: IntoQueryParameters<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let mut conn = self.get().await;
+            let mut conn = self.acquire().await;
             conn.execute(query, params.into()).await
         })
     }
@@ -133,7 +147,7 @@ where
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut conn = self.get().await;
+            let mut conn = self.acquire().await;
             let mut s = conn.fetch(query, params.into());
 
             while let Some(row) = s.next().await.transpose()? {
@@ -152,7 +166,7 @@ where
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
-            let mut conn = self.get().await;
+            let mut conn = self.acquire().await;
             let row = conn.fetch_optional(query, params.into()).await?;
 
             Ok(row.map(T::from_row))

@@ -134,7 +134,7 @@ impl PostgresRawConnection {
         Ok(conn)
     }
 
-    async fn finalize(&mut self) -> crate::Result<()> {
+    async fn close(&mut self) -> crate::Result<()> {
         self.write(Terminate);
         self.stream.flush().await?;
         self.stream.close().await?;
@@ -307,8 +307,8 @@ impl RawConnection for PostgresRawConnection {
     }
 
     #[inline]
-    fn finalize<'c>(&'c mut self) -> BoxFuture<'c, crate::Result<()>> {
-        Box::pin(self.finalize())
+    fn close<'c>(&'c mut self) -> BoxFuture<'c, crate::Result<()>> {
+        Box::pin(self.close())
     }
 
     fn execute<'c>(
