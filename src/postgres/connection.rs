@@ -40,7 +40,8 @@ pub struct PostgresRawConnection {
 impl PostgresRawConnection {
     async fn establish(url: &str) -> crate::Result<Self> {
         let url = Url::parse(url)?;
-        let stream = TcpStream::connect(&url.resolve(5432)).await?;
+        let addr = url.resolve(5432);
+        let stream = TcpStream::connect(&addr).await?;
 
         let mut conn = Self {
             stream: BufStream::new(stream),
