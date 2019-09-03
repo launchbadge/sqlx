@@ -8,6 +8,7 @@ use crate::{
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures_channel::oneshot::{channel, Sender};
+use futures_util::TryFutureExt;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
 use std::{
@@ -37,6 +38,11 @@ pub trait RawConnection: Send {
     /// This method is not required to be called. A database server will eventually notice
     /// and clean up not fully closed connections.
     fn finalize<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>>;
+
+    /// Verifies a connection to the database is still alive.
+    fn ping<'c>(&'c mut self) -> BoxFuture<'c, Result<(), Error>> {
+        Box::pin(self.execute("SELECT 1", <Self::Backend as Backend>::QueryParameters::new()).map_ok(|_| ()))
+    }
 
     fn execute<'c>(
         &'c mut self,
@@ -88,6 +94,12 @@ where
 
     async fn get(&self) -> ConnectionFairy<'_, DB> {
         ConnectionFairy::new(&self.0, self.0.acquire().await)
+    }
+
+    /// Verifies a connection to the database is still alive.
+    pub async fn ping(&mut self) -> crate::Result<()> {
+        let mut conn = self.get().await;
+        conn.ping().await
     }
 }
 

@@ -13,24 +13,31 @@ pub use self::{
 
 #[cfg(test)]
 mod tests {
-    use super::{Postgres, PostgresRawConnection};
-    use crate::connection::{Connection, RawConnection};
+    use super::Postgres;
+    use crate::connection::Connection;
     use futures_util::TryStreamExt;
 
     const DATABASE_URL: &str = "postgres://postgres@127.0.0.1:5432/";
 
     #[tokio::test]
     async fn it_connects() {
-        let mut conn = PostgresRawConnection::establish(DATABASE_URL)
+        let _conn = Connection::<Postgres>::establish(DATABASE_URL)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn it_pings() {
+        let mut conn = Connection::<Postgres>::establish(DATABASE_URL)
             .await
             .unwrap();
 
-        conn.finalize().await.unwrap();
+        conn.ping().await.unwrap();
     }
 
     #[tokio::test]
     async fn it_fails_on_connect_with_an_unknown_user() {
-        let res = PostgresRawConnection::establish("postgres://not_a_user@127.0.0.1:5432/").await;
+        let res = Connection::<Postgres>::establish("postgres://not_a_user@127.0.0.1:5432/").await;
 
         match res {
             Err(crate::Error::Database(err)) => {
@@ -44,7 +51,7 @@ mod tests {
     #[tokio::test]
     async fn it_fails_on_connect_with_an_unknown_database() {
         let res =
-            PostgresRawConnection::establish("postgres://postgres@127.0.0.1:5432/fdggsdfgsdaf")
+            Connection::<Postgres>::establish("postgres://postgres@127.0.0.1:5432/fdggsdfgsdaf")
                 .await;
 
         match res {
