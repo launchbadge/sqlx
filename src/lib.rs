@@ -11,12 +11,12 @@ mod macros;
 #[macro_use]
 mod io;
 
-pub mod backend;
+mod backend;
 pub mod deserialize;
 mod url;
 
 #[macro_use]
-pub mod row;
+mod row;
 
 mod connection;
 pub mod error;
@@ -32,11 +32,16 @@ pub mod types;
 
 #[doc(inline)]
 pub use self::{
+    backend::Backend,
     connection::Connection,
+    deserialize::FromSql,
     error::{Error, Result},
     executor::Executor,
     pool::Pool,
+    row::{FromSqlRow, Row},
+    serialize::ToSql,
     sql::{query, SqlQuery},
+    types::HasSqlType,
 };
 
 #[cfg(feature = "mariadb")]

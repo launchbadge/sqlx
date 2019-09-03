@@ -44,7 +44,7 @@ impl StdError for Error {
         match self {
             Error::Io(error) => Some(error),
 
-            _ => None
+            _ => None,
         }
     }
 }
@@ -62,9 +62,7 @@ impl Display for Error {
                 f.write_str("found more than one row when we expected exactly one")
             }
 
-            Error::__Nonexhaustive => {
-                unreachable!()
-            }
+            Error::__Nonexhaustive => unreachable!(),
         }
     }
 }
