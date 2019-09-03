@@ -29,12 +29,6 @@ pub struct PostgresRawConnection {
 
     // Backend-unique key to use to send a cancel query message to the server
     secret_key: u32,
-
-    // Statement ID counter
-    next_statement_id: AtomicU64,
-
-    // Portal ID counter
-    next_portal_id: AtomicU64,
 }
 
 impl PostgresRawConnection {
@@ -47,8 +41,6 @@ impl PostgresRawConnection {
             stream: BufStream::new(stream),
             process_id: 0,
             secret_key: 0,
-            next_statement_id: AtomicU64::new(0),
-            next_portal_id: AtomicU64::new(0),
         };
 
         let user = url.username();
@@ -221,7 +213,7 @@ impl PostgresRawConnection {
 
     fn execute(&mut self, query: &str, params: PostgresQueryParameters, limit: i32) {
         self.write(protocol::Parse {
-            portal: "",
+            statement: "",
             query,
             param_types: &*params.types,
         });
@@ -275,22 +267,6 @@ impl PostgresRawConnection {
 
         // Connection was (unexpectedly) closed
         Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
-    }
-
-    // TODO: Remove usage of fmt!
-    fn next_portal_id(&self) -> String {
-        format!(
-            "__sqlx_portal_{}",
-            self.next_portal_id.fetch_add(1, Ordering::AcqRel)
-        )
-    }
-
-    // TODO: Remove usage of fmt!
-    fn next_statement_id(&self) -> String {
-        format!(
-            "__sqlx_statement_{}",
-            self.next_statement_id.fetch_add(1, Ordering::AcqRel)
-        )
     }
 }
 
