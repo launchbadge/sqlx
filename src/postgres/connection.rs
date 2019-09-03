@@ -231,8 +231,11 @@ impl PostgresRawConnection {
             match message {
                 Message::BindComplete
                 | Message::ParseComplete
-                | Message::PortalSuspended
                 | Message::CloseComplete => {}
+
+                Message::PortalSuspended => {
+                    return Ok(Some(Step::MoreRowsAvailable));
+                }
 
                 Message::CommandComplete(body) => {
                     return Ok(Some(Step::Command(body.affected_rows())));
@@ -264,6 +267,7 @@ impl PostgresRawConnection {
 enum Step {
     Command(u64),
     Row(PostgresRow),
+    MoreRowsAvailable,
 }
 
 impl RawConnection for PostgresRawConnection {
@@ -326,11 +330,21 @@ impl RawConnection for PostgresRawConnection {
             let mut row: Option<PostgresRow> = None;
 
             while let Some(step) = self.step().await? {
-                if let Step::Row(r) = step {
-                    // This should only ever execute once because we used the
-                    // protocol-level limit
-                    debug_assert!(row.is_none());
-                    row = Some(r);
+                match step {
+                    Step::Row(r) => {
+                        // This should only ever execute once because we used the
+                        // protocol-level limit
+                        debug_assert!(row.is_none());
+                        row = Some(r);
+                    }
+
+                    Step::MoreRowsAvailable => {
+                        // Command execution finished but there was more than
+                        // one row available
+                        return Err(crate::Error::FoundMoreThanOne);
+                    }
+
+                    _ => {}
                 }
             }
 

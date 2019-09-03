@@ -56,6 +56,16 @@ where
     }
 
     #[inline]
+    pub fn fetch_all<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<Vec<T>, Error>>
+    where
+        E: Executor<Backend = DB>,
+        T: FromSqlRow<DB> + Send + Unpin,
+        DB::QueryParameters: 'q,
+    {
+        executor.fetch_all(self.query, self.params)
+    }
+
+    #[inline]
     pub fn fetch_optional<E, T: 'q>(
         self,
         executor: &'q E,
@@ -66,6 +76,16 @@ where
         DB::QueryParameters: 'q,
     {
         executor.fetch_optional(self.query, self.params)
+    }
+
+    #[inline]
+    pub fn fetch_one<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<T, Error>>
+    where
+        E: Executor<Backend = DB>,
+        T: FromSqlRow<DB> + Send + Unpin,
+        DB::QueryParameters: 'q,
+    {
+        executor.fetch_one(self.query, self.params)
     }
 }
 
