@@ -30,6 +30,7 @@ pub mod serialize;
 mod sql;
 pub mod types;
 
+#[doc(inline)]
 pub use self::{
     connection::Connection,
     error::{Error, Result},

@@ -1,10 +1,10 @@
 use super::protocol::Response;
-use crate::error::DbError;
+use crate::error::DatabaseError;
 
 #[derive(Debug)]
-pub struct PostgresError(pub(super) Box<Response>);
+pub struct PostgresDatabaseError(pub(super) Box<Response>);
 
-impl DbError for PostgresError {
+impl DatabaseError for PostgresDatabaseError {
     fn message(&self) -> &str {
         self.0.message()
     }

@@ -1,6 +1,6 @@
 use super::{
     protocol::{self, Decode, Encode, Message, Terminate},
-    Postgres, PostgresError, PostgresQueryParameters, PostgresRow,
+    Postgres, PostgresDatabaseError, PostgresQueryParameters, PostgresRow,
 };
 use crate::{
     connection::RawConnection,
@@ -200,7 +200,7 @@ impl PostgresRawConnection {
                 Message::Response(body) => {
                     if body.severity().is_error() {
                         // This is an error, stop the world and bubble as an error
-                        return Err(PostgresError(body).into());
+                        return Err(PostgresDatabaseError(body).into());
                     } else {
                         // This is a _warning_
                         // TODO: Do we *want* to do anything with these

@@ -4,8 +4,10 @@ use std::{
     io,
 };
 
+/// A convenient Result instantiation appropriate for SQLx.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
 pub enum Error {
     /// Error communicating with the database backend.
@@ -24,23 +26,46 @@ pub enum Error {
     Io(io::Error),
 
     /// An error was returned by the database backend.
-    Database(Box<dyn DbError + Send + Sync>),
+    Database(Box<dyn DatabaseError + Send + Sync>),
 
     /// No rows were returned by a query expected to return at least one row.
     NotFound,
+
+    /// More than one row was returned by a query expected to return exactly one row.
+    FoundMoreThanOne,
 
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
     #[doc(hidden)]
     __Nonexhaustive,
 }
 
-// TODO: Forward causes where present
-impl StdError for Error {}
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Error::Io(error) => Some(error),
 
-// TODO: Don't just forward to debug
+            _ => None
+        }
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Error::Io(error) => write!(f, "{}", error),
+
+            Error::Database(error) => f.write_str(error.message()),
+
+            Error::NotFound => f.write_str("found no rows when we expected at least one"),
+
+            Error::FoundMoreThanOne => {
+                f.write_str("found more than one row when we expected exactly one")
+            }
+
+            Error::__Nonexhaustive => {
+                unreachable!()
+            }
+        }
     }
 }
 
@@ -53,7 +78,7 @@ impl From<io::Error> for Error {
 
 impl<T> From<T> for Error
 where
-    T: 'static + DbError,
+    T: 'static + DatabaseError,
 {
     #[inline]
     fn from(err: T) -> Self {
@@ -62,7 +87,7 @@ where
 }
 
 /// An error that was returned by the database backend.
-pub trait DbError: Debug + Send + Sync {
+pub trait DatabaseError: Debug + Send + Sync {
     fn message(&self) -> &str;
 
     // TODO: Expose more error properties

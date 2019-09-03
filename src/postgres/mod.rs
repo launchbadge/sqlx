@@ -7,7 +7,7 @@ mod row;
 pub mod types;
 
 pub use self::{
-    backend::Postgres, connection::PostgresRawConnection, error::PostgresError,
+    backend::Postgres, connection::PostgresRawConnection, error::PostgresDatabaseError,
     query::PostgresQueryParameters, row::PostgresRow,
 };
 
