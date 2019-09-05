@@ -9,7 +9,6 @@
 
 // TODO: Handle when capability is set, but field is None
 
-pub mod decode;
 pub mod encode;
 pub mod error_codes;
 pub mod packets;
@@ -25,11 +24,7 @@ pub mod types;
 //     ResultSet, SSLRequestPacket, SetOptionOptions, ShutdownOptions,
 // };
 
-pub use packets::{
-    ColumnDefPacket, ColumnPacket
-};
-
-pub use decode::Decode;
+pub use packets::{ColumnCountPacket, ColumnDefinitionPacket};
 
 pub use encode::Encode;
 
@@ -37,5 +32,5 @@ pub use error_codes::ErrorCode;
 
 pub use types::{
     Capabilities, FieldDetailFlag, FieldType, ProtocolType, ServerStatusFlag, SessionChangeType,
-    StmtExecFlag
+    StmtExecFlag,
 };

@@ -170,9 +170,8 @@ impl Default for ParamFlag {
 
 #[cfg(test)]
 mod test {
-    use crate::__bytes_builder;
     use super::Capabilities;
-    use crate::io::Buf;
+    use crate::{__bytes_builder, io::Buf};
     use byteorder::LittleEndian;
 
     #[test]

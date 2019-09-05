@@ -1,7 +1,8 @@
-use crate::mariadb::{Encode};
+use crate::{
+    io::BufMut,
+    mariadb::{io::BufMutExt, Encode},
+};
 use byteorder::LittleEndian;
-use crate::mariadb::io::BufMutExt;
-use crate::io::BufMut;
 
 #[derive(Debug)]
 pub struct ComStmtClose {

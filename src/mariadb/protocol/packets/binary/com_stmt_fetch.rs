@@ -1,5 +1,4 @@
-use crate::mariadb::{Encode};
-use crate::io::BufMut;
+use crate::{io::BufMut, mariadb::Encode};
 use byteorder::LittleEndian;
 
 #[derive(Debug)]
@@ -21,7 +20,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_stmt_fetch(){
+    fn it_encodes_com_stmt_fetch() {
         let mut buf = Vec::with_capacity(1024);
 
         ComStmtFetch {

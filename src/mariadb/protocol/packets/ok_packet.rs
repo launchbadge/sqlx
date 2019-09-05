@@ -1,59 +1,64 @@
-use bytes::Bytes;
-use failure::{err_msg, Error};
+use crate::{
+    io::Buf,
+    mariadb::{
+        io::BufExt,
+        protocol::{Capabilities, ServerStatusFlag},
+    },
+};
+use byteorder::LittleEndian;
+use std::io;
 
-use crate::mariadb::{DeContext, Decode, ServerStatusFlag};
-
-#[derive(Default, Debug)]
+// https://mariadb.com/kb/en/library/ok_packet/
+#[derive(Debug)]
 pub struct OkPacket {
-    pub length: u32,
-    pub seq_no: u8,
-    pub affected_rows: Option<u64>,
-    pub last_insert_id: Option<i64>,
+    pub affected_rows: u64,
+    pub last_insert_id: u64,
     pub server_status: ServerStatusFlag,
-    pub warning_count: i16,
-    pub info: Bytes,
-    pub session_state_info: Option<Bytes>,
-    pub value: Option<Bytes>,
+    pub warning_count: u16,
+    pub info: Box<str>,
+    pub session_state_info: Option<Box<[u8]>>,
+    pub value_of_variable: Option<Box<str>>,
 }
 
-impl Decode for OkPacket {
-    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
-        let decoder = &mut ctx.decoder;
-
-        // Packet header
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_u8();
-
-        // Used later for the byte_eof decoding
-        let index = decoder.index;
-
-        // Packet body
-        let packet_header = decoder.decode_int_u8();
-        if packet_header != 0 && packet_header != 0xFE {
-            return Err(err_msg("Packet header is not 0 or 0xFE for OkPacket"));
+impl OkPacket {
+    fn decode(mut buf: &[u8], capabilities: Capabilities) -> io::Result<Self> {
+        let header = buf.get_u8()?;
+        if header != 0 && header != 0xFE {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("expected 0x00 or 0xFE; received 0x{:X}", header),
+            ));
         }
 
-        let affected_rows = decoder.decode_int_lenenc_unsigned();
-        let last_insert_id = decoder.decode_int_lenenc_signed();
-        let server_status = ServerStatusFlag::from_bits_truncate(decoder.decode_int_u16().into());
-        let warning_count = decoder.decode_int_i16();
+        let affected_rows = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);
+        let last_insert_id = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);
+        let server_status = ServerStatusFlag::from_bits_truncate(buf.get_u16::<LittleEndian>()?);
+        let warning_count = buf.get_u16::<LittleEndian>()?;
 
-        // Assuming CLIENT_SESSION_TRACK is unsupported
-        let session_state_info = None;
-        let value = None;
+        let info;
+        let mut session_state_info = None;
+        let mut value_of_variable = None;
 
-        let info = decoder.decode_byte_eof(Some(index + length as usize));
+        if capabilities.contains(Capabilities::CLIENT_SESSION_TRACK) {
+            info = buf
+                .get_str_lenenc::<LittleEndian>()?
+                .unwrap_or_default()
+                .to_owned()
+                .into();
+            session_state_info = buf.get_byte_lenenc::<LittleEndian>()?.map(Into::into);
+            value_of_variable = buf.get_str_lenenc::<LittleEndian>()?.map(Into::into);
+        } else {
+            info = buf.get_str_eof()?.to_owned().into();
+        }
 
-        Ok(OkPacket {
-            length,
-            seq_no,
+        Ok(Self {
             affected_rows,
             last_insert_id,
             server_status,
             warning_count,
             info,
             session_state_info,
-            value,
+            value_of_variable,
         })
     }
 }

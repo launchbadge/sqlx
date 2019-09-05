@@ -1,5 +1,4 @@
-use crate::mariadb::{Encode};
-use crate::io::BufMut;
+use crate::{io::BufMut, mariadb::Encode};
 
 pub struct ComPing();
 

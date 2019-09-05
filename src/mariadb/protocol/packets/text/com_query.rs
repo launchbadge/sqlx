@@ -1,5 +1,7 @@
-use crate::mariadb::{BufMutExt, Encode};
-use crate::io::BufMut;
+use crate::{
+    io::BufMut,
+    mariadb::{BufMutExt, Encode},
+};
 
 pub struct ComQuery<'a> {
     pub sql_statement: &'a str,

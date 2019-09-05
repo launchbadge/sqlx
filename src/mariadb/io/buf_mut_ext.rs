@@ -1,20 +1,22 @@
-use byteorder::ByteOrder;
 use crate::io::BufMut;
-use std::{u8, u16, u32, u64};
+use byteorder::ByteOrder;
+use std::{u16, u32, u64, u8};
 
 pub trait BufMutExt {
-    fn put_u64_lenenc<T: ByteOrder>(&mut self, val: Option<u64>);
+    fn put_uint_lenenc<T: ByteOrder, U: Into<Option<u64>>>(&mut self, val: U);
 
     fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str);
 
     fn put_str(&mut self, val: &str);
 
-    fn put_byte_lenenc<T: ByteOrder>(&mut self, val: &[u8]);
+    fn put_bytes(&mut self, val: &[u8]);
+
+    fn put_bytes_lenenc<T: ByteOrder>(&mut self, val: &[u8]);
 }
 
 impl BufMutExt for Vec<u8> {
-    fn put_u64_lenenc<T: ByteOrder>(&mut self, value: Option<u64>) {
-        if let Some(value) = value {
+    fn put_uint_lenenc<T: ByteOrder, U: Into<Option<u64>>>(&mut self, value: U) {
+        if let Some(value) = value.into() {
             // https://mariadb.com/kb/en/library/protocol-data-types/#length-encoded-integers
             if value > 0xFF_FF_FF {
                 // Integer value is encoded in the next 8 bytes (9 bytes total)
@@ -47,17 +49,25 @@ impl BufMutExt for Vec<u8> {
         }
     }
 
+    #[inline]
     fn put_str(&mut self, val: &str) {
-        self.extend_from_slice(val.as_bytes());
+        self.put_bytes(val.as_bytes());
     }
 
+    #[inline]
     fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str) {
-        self.put_u64_lenenc::<T>(Some(val.len() as u64));
+        self.put_uint_lenenc::<T, _>(val.len() as u64);
         self.extend_from_slice(val.as_bytes());
     }
 
-    fn put_byte_lenenc<T: ByteOrder>(&mut self, val: &[u8]) {
-        self.put_u64_lenenc::<T>(Some(val.len() as u64));
+    #[inline]
+    fn put_bytes(&mut self, val: &[u8]) {
+        self.extend_from_slice(val);
+    }
+
+    #[inline]
+    fn put_bytes_lenenc<T: ByteOrder>(&mut self, val: &[u8]) {
+        self.put_uint_lenenc::<T, _>(val.len() as u64);
         self.extend_from_slice(val);
     }
 }

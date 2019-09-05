@@ -1,14 +1,13 @@
-use crate::mariadb::{Encode};
-use crate::io::BufMut;
+use crate::{io::BufMut, mariadb::Encode};
 
 pub struct ComInitDb<'a> {
     pub schema_name: &'a str,
 }
 
 impl<'a> Encode for ComInitDb<'a> {
-    fn encode(&self, buf: &mut Vec<u8>){
+    fn encode(&self, buf: &mut Vec<u8>) {
         buf.put_u8(super::TextProtocol::ComInitDb as u8);
-        buf.put_str_null(self.schema_name);
+        buf.put_str_nul(self.schema_name);
     }
 }
 

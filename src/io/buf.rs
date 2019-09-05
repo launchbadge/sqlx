@@ -19,7 +19,7 @@ pub trait Buf {
 
     fn get_str(&mut self, len: usize) -> io::Result<&str>;
 
-    fn get_str_null(&mut self) -> io::Result<&str>;
+    fn get_str_nul(&mut self) -> io::Result<&str>;
 }
 
 impl<'a> Buf for &'a [u8] {
@@ -82,7 +82,7 @@ impl<'a> Buf for &'a [u8] {
         }
     }
 
-    fn get_str_null(&mut self) -> io::Result<&str> {
+    fn get_str_nul(&mut self) -> io::Result<&str> {
         let len = memchr(b'\0', &*self).ok_or(io::ErrorKind::InvalidData)?;
         let s = &self.get_str(len + 1)?[..len];
 

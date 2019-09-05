@@ -18,7 +18,7 @@ pub trait BufMut {
 
     fn put_u64<T: ByteOrder>(&mut self, val: u64);
 
-    fn put_str_null(&mut self, val: &str);
+    fn put_str_nul(&mut self, val: &str);
 }
 
 impl BufMut for Vec<u8> {
@@ -66,7 +66,7 @@ impl BufMut for Vec<u8> {
         self.extend_from_slice(&buf);
     }
 
-    fn put_str_null(&mut self, val: &str) {
+    fn put_str_nul(&mut self, val: &str) {
         self.extend_from_slice(val.as_bytes());
         self.push(0);
     }

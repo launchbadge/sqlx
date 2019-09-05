@@ -7,8 +7,6 @@ use crate::mariadb::{DeContext, Decode, ErrorCode};
 
 #[derive(Default, Debug)]
 pub struct ErrPacket {
-    pub length: u32,
-    pub seq_no: u8,
     pub error_code: ErrorCode,
     pub stage: Option<u8>,
     pub max_stage: Option<u8>,

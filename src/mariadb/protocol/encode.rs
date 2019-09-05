@@ -1,5 +1,7 @@
+use super::Capabilities;
+
 pub trait Encode {
-    fn encode(&self, buf: &mut Vec<u8>);
+    fn encode(&self, buf: &mut Vec<u8>, capabilities: Capabilities);
 }
 
 pub const U24_MAX: usize = 0xFF_FF_FF;
@@ -45,8 +47,8 @@ pub const U24_MAX: usize = 0xFF_FF_FF;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::BufMutExt;
-    use crate::io::BufMut;
+    use crate::{io::BufMut, mariadb::io::BufMutExt};
+    use byteorder::LittleEndian;
 
     // [X] it_encodes_int_lenenc_u64
     // [X] it_encodes_int_lenenc_u32
@@ -69,7 +71,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_none() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0u64));
 
         assert_eq!(&buf[..], b"\xFB");
     }
@@ -77,7 +79,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u8() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFA as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFA as u64));
 
         assert_eq!(&buf[..], b"\xFA");
     }
@@ -85,7 +87,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u16() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(std::u16::MAX as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(std::u16::MAX as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFF\xFF");
     }
@@ -93,7 +95,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u24() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(U24_MAX as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(U24_MAX as u64));
 
         assert_eq!(&buf[..], b"\xFD\xFF\xFF\xFF");
     }
@@ -101,7 +103,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_u64() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(std::u64::MAX));
+        buf.put_uint_lenenc::<LittleEndian>(Some(std::u64::MAX));
 
         assert_eq!(&buf[..], b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
@@ -109,7 +111,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_fb() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFB as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFB as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFB\x00");
     }
@@ -117,7 +119,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_fc() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFC as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFC as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFC\x00");
     }
@@ -125,7 +127,7 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_fd() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFD as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFD as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFD\x00");
     }
@@ -133,14 +135,14 @@ mod tests {
     #[test]
     fn it_encodes_int_lenenc_fe() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFE as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFE as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFE\x00");
     }
 
     fn it_encodes_int_lenenc_ff() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64_lenenc(Some(0xFF as u64));
+        buf.put_uint_lenenc::<LittleEndian>(Some(0xFF as u64));
 
         assert_eq!(&buf[..], b"\xFC\xFF\x00");
     }
@@ -148,7 +150,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u64() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u64(std::u64::MAX);
+        buf.put_u64::<LittleEndian>(std::u64::MAX);
 
         assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF");
     }
@@ -156,7 +158,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u32() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u32(std::u32::MAX);
+        buf.put_u32::<LittleEndian>(std::u32::MAX);
 
         assert_eq!(&buf[..], b"\xFF\xFF\xFF\xFF");
     }
@@ -164,7 +166,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u24() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u24(U24_MAX as u32);
+        buf.put_u24::<LittleEndian>(U24_MAX as u32);
 
         assert_eq!(&buf[..], b"\xFF\xFF\xFF");
     }
@@ -172,7 +174,7 @@ mod tests {
     #[test]
     fn it_encodes_int_u16() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_u16(std::u16::MAX);
+        buf.put_u16::<LittleEndian>(std::u16::MAX);
 
         assert_eq!(&buf[..], b"\xFF\xFF");
     }
@@ -188,7 +190,7 @@ mod tests {
     #[test]
     fn it_encodes_string_lenenc() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_str_lenenc("random_string");
+        buf.put_str_lenenc::<LittleEndian>("random_string");
 
         assert_eq!(&buf[..], b"\x0Drandom_string");
     }
@@ -204,7 +206,7 @@ mod tests {
     #[test]
     fn it_encodes_string_null() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_str_null("random_string");
+        buf.put_str_nul("random_string");
 
         assert_eq!(&buf[..], b"random_string\0");
     }
@@ -212,7 +214,7 @@ mod tests {
     #[test]
     fn it_encodes_byte_lenenc() {
         let mut buf = Vec::with_capacity(1024);
-        buf.put_byte_lenenc(b"random_string");
+        buf.put_byte_lenenc::<LittleEndian>(b"random_string");
 
         assert_eq!(&buf[..], b"\x0Drandom_string");
     }

@@ -1,19 +1,22 @@
-use crate::mariadb::{BufExt, Decode, FieldDetailFlag, FieldType, Capabilities};
-use crate::io::Buf;
-use std::io;
+use crate::{
+    io::Buf,
+    mariadb::{
+        io::BufExt,
+        protocol::{FieldDetailFlag, FieldType},
+    },
+};
 use byteorder::LittleEndian;
+use std::io;
 
-#[derive(Debug, Default, Clone)]
-// ColumnDefPacket doesn't have a packet header because
+#[derive(Debug)]
+// ColumnDefinitionPacket doesn't have a packet header because
 // it's nested inside a result set packet
-pub struct ColumnDefPacket<'a> {
-    pub catalog: &'a str,
-    pub schema: &'a str,
-    pub table_alias: &'a str,
-    pub table: &'a str,
-    pub column_alias: &'a str,
-    pub column: &'a str,
-    pub length_of_fixed_fields: Option<u64>,
+pub struct ColumnDefinitionPacket {
+    pub schema: Option<String>,
+    pub table_alias: Option<String>,
+    pub table: Option<String>,
+    pub column_alias: Option<String>,
+    pub column: Option<String>,
     pub char_set: u16,
     pub max_columns: i32,
     pub field_type: FieldType,
@@ -21,22 +24,27 @@ pub struct ColumnDefPacket<'a> {
     pub decimals: u8,
 }
 
-impl<'a> Decode<'a> for ColumnDefPacket<'a> {
-    fn decode(buf: &'a [u8], _: Capabilities) -> io::Result<Self> {
+impl ColumnDefinitionPacket {
+    fn decode(mut buf: &[u8]) -> io::Result<Self> {
         // string<lenenc> catalog (always 'def')
-        let catalog: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let _catalog = buf.get_str_lenenc::<LittleEndian>()?;
+        // TODO: Assert that this is always DEF
+
         // string<lenenc> schema
-        let schema: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let schema = buf.get_str_lenenc::<LittleEndian>()?.map(ToOwned::to_owned);
         // string<lenenc> table alias
-        let table_alias: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let table_alias = buf.get_str_lenenc::<LittleEndian>()?.map(ToOwned::to_owned);
         // string<lenenc> table
-        let table: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let table = buf.get_str_lenenc::<LittleEndian>()?.map(ToOwned::to_owned);
         // string<lenenc> column alias
-        let column_alias: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let column_alias = buf.get_str_lenenc::<LittleEndian>()?.map(ToOwned::to_owned);
         // string<lenenc> column
-        let column: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
+        let column = buf.get_str_lenenc::<LittleEndian>()?.map(ToOwned::to_owned);
+
         // int<lenenc> length of fixed fields (=0xC)
-        let length_of_fixed_fields = buf.get_uint_lenenc::<LittleEndian>()?;
+        let _length_of_fixed_fields = buf.get_uint_lenenc::<LittleEndian>()?;
+        // TODO: Assert that this is always 0xC
+
         // int<2> character set number
         let char_set = buf.get_u16::<LittleEndian>()?;
         // int<4> max. column size
@@ -50,14 +58,12 @@ impl<'a> Decode<'a> for ColumnDefPacket<'a> {
         // int<2> - unused -
         buf.advance(2);
 
-        Ok(ColumnDefPacket {
-            catalog,
+        Ok(Self {
             schema,
             table_alias,
             table,
             column_alias,
             column,
-            length_of_fixed_fields,
             char_set,
             max_columns,
             field_type,
@@ -70,8 +76,7 @@ impl<'a> Decode<'a> for ColumnDefPacket<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        __bytes_builder};
+    use crate::__bytes_builder;
 
     #[test]
     fn it_decodes_column_def_packet() -> io::Result<()> {
@@ -109,14 +114,13 @@ mod test {
             0u8, 0u8
         );
 
-        let message = ColumnDefPacket::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
+        let message = ColumnDefinitionPacket::decode(&buf)?;
 
-        assert_eq!(&message.catalog[..], b"a");
-        assert_eq!(&message.schema[..], b"b");
-        assert_eq!(&message.table_alias[..], b"c");
-        assert_eq!(&message.table[..], b"d");
-        assert_eq!(&message.column_alias[..], b"e");
-        assert_eq!(&message.column[..], b"f");
+        assert_eq!(message.schema, Some(b"b"));
+        assert_eq!(message.table_alias, Some(b"c"));
+        assert_eq!(message.table, Some(b"d"));
+        assert_eq!(message.column_alias, Some(b"e"));
+        assert_eq!(message.column, Some(b"f"));
 
         Ok(())
     }
