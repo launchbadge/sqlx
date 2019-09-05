@@ -1,34 +1,3 @@
-pub enum ProtocolType {
-    Text,
-    Binary,
-}
-
-bitflags::bitflags! {
-    pub struct Capabilities: u128 {
-        const CLIENT_MYSQL = 1;
-        const FOUND_ROWS = 1 << 1;
-        const CONNECT_WITH_DB = 1 << 3;
-        const COMPRESS = 1 << 5;
-        const LOCAL_FILES = 1 << 7;
-        const IGNORE_SPACE = 1 << 8;
-        const CLIENT_PROTOCOL_41 = 1 << 9;
-        const CLIENT_INTERACTIVE = 1 << 10;
-        const SSL = 1 << 11;
-        const TRANSACTIONS = 1 << 12;
-        const SECURE_CONNECTION = 1 << 13;
-        const MULTI_STATEMENTS = 1 << 16;
-        const MULTI_RESULTS = 1 << 17;
-        const PS_MULTI_RESULTS = 1 << 18;
-        const PLUGIN_AUTH = 1 << 19;
-        const CONNECT_ATTRS = 1 << 20;
-        const PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 21;
-        const CLIENT_SESSION_TRACK = 1 << 23;
-        const CLIENT_DEPRECATE_EOF = 1 << 24;
-        const MARIA_DB_CLIENT_PROGRESS = 1 << 32;
-        const MARIA_DB_CLIENT_COM_MULTI = 1 << 33;
-        const MARIA_CLIENT_STMT_BULK_OPERATIONS = 1 << 34;
-    }
-}
 
 bitflags::bitflags! {
     pub struct FieldDetailFlag: u16 {
@@ -79,106 +48,10 @@ pub enum SessionChangeType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FieldType(pub u8);
-impl FieldType {
-    pub const MYSQL_TYPE_BIT: FieldType = FieldType(16);
-    pub const MYSQL_TYPE_BLOB: FieldType = FieldType(252);
-    pub const MYSQL_TYPE_DATE: FieldType = FieldType(10);
-    pub const MYSQL_TYPE_DATETIME: FieldType = FieldType(12);
-    pub const MYSQL_TYPE_DATETIME2: FieldType = FieldType(18);
-    pub const MYSQL_TYPE_DECIMAL: FieldType = FieldType(0);
-    pub const MYSQL_TYPE_DOUBLE: FieldType = FieldType(5);
-    pub const MYSQL_TYPE_ENUM: FieldType = FieldType(247);
-    pub const MYSQL_TYPE_FLOAT: FieldType = FieldType(4);
-    pub const MYSQL_TYPE_GEOMETRY: FieldType = FieldType(255);
-    pub const MYSQL_TYPE_INT24: FieldType = FieldType(9);
-    pub const MYSQL_TYPE_JSON: FieldType = FieldType(245);
-    pub const MYSQL_TYPE_LONG: FieldType = FieldType(3);
-    pub const MYSQL_TYPE_LONGLONG: FieldType = FieldType(8);
-    pub const MYSQL_TYPE_LONG_BLOB: FieldType = FieldType(251);
-    pub const MYSQL_TYPE_MEDIUM_BLOB: FieldType = FieldType(250);
-    pub const MYSQL_TYPE_NEWDATE: FieldType = FieldType(14);
-    pub const MYSQL_TYPE_NEWDECIMAL: FieldType = FieldType(246);
-    pub const MYSQL_TYPE_NULL: FieldType = FieldType(6);
-    pub const MYSQL_TYPE_SET: FieldType = FieldType(248);
-    pub const MYSQL_TYPE_SHORT: FieldType = FieldType(2);
-    pub const MYSQL_TYPE_STRING: FieldType = FieldType(254);
-    pub const MYSQL_TYPE_TIME: FieldType = FieldType(11);
-    pub const MYSQL_TYPE_TIME2: FieldType = FieldType(19);
-    pub const MYSQL_TYPE_TIMESTAMP: FieldType = FieldType(7);
-    pub const MYSQL_TYPE_TIMESTAMP2: FieldType = FieldType(17);
-    pub const MYSQL_TYPE_TINY: FieldType = FieldType(1);
-    pub const MYSQL_TYPE_TINY_BLOB: FieldType = FieldType(249);
-    pub const MYSQL_TYPE_VARCHAR: FieldType = FieldType(15);
-    pub const MYSQL_TYPE_VAR_STRING: FieldType = FieldType(253);
-    pub const MYSQL_TYPE_YEAR: FieldType = FieldType(13);
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StmtExecFlag(pub u8);
 impl StmtExecFlag {
     pub const CURSOR_FOR_UPDATE: StmtExecFlag = StmtExecFlag(2);
     pub const NO_CURSOR: StmtExecFlag = StmtExecFlag(0);
     pub const READ_ONLY: StmtExecFlag = StmtExecFlag(1);
     pub const SCROLLABLE_CURSOR: StmtExecFlag = StmtExecFlag(3);
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ParamFlag(pub u8);
-impl ParamFlag {
-    pub const NONE: ParamFlag = ParamFlag(0);
-    pub const UNSIGNED: ParamFlag = ParamFlag(128);
-}
-
-// TODO: Remove these Default impls
-
-impl Default for Capabilities {
-    fn default() -> Self {
-        Capabilities::CLIENT_PROTOCOL_41
-    }
-}
-
-impl Default for ServerStatusFlag {
-    fn default() -> Self {
-        ServerStatusFlag::SERVER_STATUS_IN_TRANS
-    }
-}
-
-impl Default for FieldDetailFlag {
-    fn default() -> Self {
-        FieldDetailFlag::NOT_NULL
-    }
-}
-
-impl Default for FieldType {
-    fn default() -> Self {
-        FieldType::MYSQL_TYPE_DECIMAL
-    }
-}
-
-impl Default for StmtExecFlag {
-    fn default() -> Self {
-        StmtExecFlag::NO_CURSOR
-    }
-}
-
-impl Default for ParamFlag {
-    fn default() -> Self {
-        ParamFlag::UNSIGNED
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::Capabilities;
-    use crate::{__bytes_builder, io::Buf};
-    use byteorder::LittleEndian;
-
-    #[test]
-    fn it_decodes_capabilities() -> std::io::Result<()> {
-        let buf = &__bytes_builder!(b"\xfe\xf7")[..];
-        Capabilities::from_bits_truncate(buf.get_u16::<LittleEndian>()? as u128);
-
-        Ok(())
-    }
 }

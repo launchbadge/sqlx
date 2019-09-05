@@ -1,36 +1,22 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 // Packets: https://mariadb.com/kb/en/library/0-packet
 
-// TODO: Handle lengths which are greater than 3 bytes
-// Either break the packet into several smaller ones, or
-// return error
+mod capabilities;
+mod connect;
+mod encode;
+mod error_code;
+mod field;
+mod server_status;
+mod response;
 
-// TODO: Handle different Capabilities for server and client
-
-// TODO: Handle when capability is set, but field is None
-
-pub mod encode;
-pub mod error_codes;
-pub mod packets;
-pub mod types;
-
-// Re-export all the things
-// pub use packets::{
-//     AuthenticationSwitchRequestPacket, ColumnDefPacket, ColumnPacket, ComDebug, ComInitDb, ComPing,
-//     ComProcessKill, ComQuery, ComQuit, ComResetConnection, ComSetOption, ComShutdown, ComSleep,
-//     ComStatistics, ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk,
-//     ComStmtPrepareResp, ComStmtReset, EofPacket, ErrPacket, HandshakeResponsePacket,
-//     InitialHandshakePacket, OkPacket, PacketHeader, ResultRow, ResultRowBinary, ResultRowText,
-//     ResultSet, SSLRequestPacket, SetOptionOptions, ShutdownOptions,
-// };
-
-pub use packets::{ColumnCountPacket, ColumnDefinitionPacket};
-
-pub use encode::Encode;
-
-pub use error_codes::ErrorCode;
-
-pub use types::{
-    Capabilities, FieldDetailFlag, FieldType, ProtocolType, ServerStatusFlag, SessionChangeType,
-    StmtExecFlag,
+pub use capabilities::Capabilities;
+pub use connect::{
+    AuthenticationSwitchRequest, HandshakeResponsePacket, InitialHandshakePacket, SslRequest,
 };
+pub use response::{
+    OkPacket, EofPacket, ErrPacket, ResultRow,
+};
+pub use encode::Encode;
+pub use error_code::ErrorCode;
+pub use field::{FieldType, ParameterFlag};
+pub use server_status::ServerStatusFlag;

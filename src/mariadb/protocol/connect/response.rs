@@ -7,7 +7,7 @@ use crate::{
 };
 use byteorder::LittleEndian;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct HandshakeResponsePacket<'a> {
     pub capabilities: Capabilities,
     pub max_packet_size: u32,

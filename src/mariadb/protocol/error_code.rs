@@ -1,6 +1,9 @@
 #[derive(Default, Debug)]
 pub struct ErrorCode(pub(crate) u16);
 
+// TODO: It would be nice to figure out a clean way to go from 1152 to "ER_ABORTING_CONNECTION (1152)" in Debug.
+
+// Values from https://mariadb.com/kb/en/library/mariadb-error-codes/
 impl ErrorCode {
     const ER_ABORTING_CONNECTION: ErrorCode = ErrorCode(1152);
     const ER_ACCESS_DENIED_CHANGE_USER_ERROR: ErrorCode = ErrorCode(1873);

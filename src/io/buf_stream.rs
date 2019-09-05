@@ -89,7 +89,9 @@ where
     }
 }
 
+// TODO: Find a nicer way to do this
 // Return `Ok(None)` immediately from a function if the wrapped value is `None`
+#[allow(unused)]
 macro_rules! ret_if_none {
     ($val:expr) => {
         match $val {
