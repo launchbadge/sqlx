@@ -42,3 +42,24 @@ bitflags::bitflags! {
         const UNSIGNED = 128;
     }
 }
+
+// https://mariadb.com/kb/en/library/resultset/#field-detail-flag
+bitflags::bitflags! {
+    pub struct FieldDetailFlag: u16 {
+        const NOT_NULL = 1;
+        const PRIMARY_KEY = 2;
+        const UNIQUE_KEY = 4;
+        const MULTIPLE_KEY = 8;
+        const BLOB = 16;
+        const UNSIGNED = 32;
+        const ZEROFILL_FLAG = 64;
+        const BINARY_COLLATION = 128;
+        const ENUM = 256;
+        const AUTO_INCREMENT = 512;
+        const TIMESTAMP = 1024;
+        const SET = 2048;
+        const NO_DEFAULT_VALUE_FLAG = 4096;
+        const ON_UPDATE_NOW_FLAG = 8192;
+        const NUM_FLAG = 32768;
+    }
+}

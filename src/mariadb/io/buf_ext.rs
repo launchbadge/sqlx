@@ -3,6 +3,7 @@ use byteorder::ByteOrder;
 use std::io;
 
 pub trait BufExt {
+    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64>;
     fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<u64>>;
     fn get_str_eof(&mut self) -> io::Result<&str>;
     fn get_str_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&str>>;
@@ -10,6 +11,13 @@ pub trait BufExt {
 }
 
 impl<'a> BufExt for &'a [u8] {
+    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64> {
+        let val = T::read_uint(*self, n);
+        self.advance(n);
+
+        Ok(val)
+    }
+
     fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<u64>> {
         Ok(match self.get_u8()? {
             0xFB => None,

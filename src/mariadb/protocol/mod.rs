@@ -6,17 +6,17 @@ mod connect;
 mod encode;
 mod error_code;
 mod field;
-mod server_status;
 mod response;
+mod server_status;
 
 pub use capabilities::Capabilities;
 pub use connect::{
     AuthenticationSwitchRequest, HandshakeResponsePacket, InitialHandshakePacket, SslRequest,
 };
-pub use response::{
-    OkPacket, EofPacket, ErrPacket, ResultRow,
-};
 pub use encode::Encode;
 pub use error_code::ErrorCode;
-pub use field::{FieldType, ParameterFlag};
+pub use field::{FieldDetailFlag, FieldType, ParameterFlag};
+pub use response::{
+    ColumnCountPacket, ColumnDefinitionPacket, EofPacket, ErrPacket, OkPacket, ResultRow,
+};
 pub use server_status::ServerStatusFlag;
