@@ -229,7 +229,10 @@ impl PostgresRawConnection {
     async fn step(&mut self) -> crate::Result<Option<Step>> {
         while let Some(message) = self.receive().await? {
             match message {
-                Message::BindComplete | Message::ParseComplete | Message::PortalSuspended | Message::CloseComplete => {}
+                Message::BindComplete
+                | Message::ParseComplete
+                | Message::PortalSuspended
+                | Message::CloseComplete => {}
 
                 Message::CommandComplete(body) => {
                     return Ok(Some(Step::Command(body.affected_rows())));

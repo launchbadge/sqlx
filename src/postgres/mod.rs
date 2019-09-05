@@ -85,16 +85,18 @@ mod tests {
             .await
             .unwrap();
 
-        let res: Option<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
-            .fetch_optional(&conn)
-            .await
-            .unwrap();
+        let res: Option<(String, bool)> =
+            crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
+                .fetch_optional(&conn)
+                .await
+                .unwrap();
 
         assert!(res.is_none());
 
-        let res: crate::Result<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
-            .fetch_one(&conn)
-            .await;
+        let res: crate::Result<(String, bool)> =
+            crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'not-a-user'")
+                .fetch_one(&conn)
+                .await;
 
         matches::assert_matches!(res, Err(crate::Error::NotFound));
     }
@@ -105,9 +107,10 @@ mod tests {
             .await
             .unwrap();
 
-        let res: crate::Result<(String, bool)> = crate::query("SELECT rolname, rolsuper FROM pg_roles")
-            .fetch_one(&conn)
-            .await;
+        let res: crate::Result<(String, bool)> =
+            crate::query("SELECT rolname, rolsuper FROM pg_roles")
+                .fetch_one(&conn)
+                .await;
 
         matches::assert_matches!(res, Err(crate::Error::FoundMoreThanOne));
     }
@@ -118,10 +121,11 @@ mod tests {
             .await
             .unwrap();
 
-        let res: (String, bool) = crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'postgres'")
-            .fetch_one(&conn)
-            .await
-            .unwrap();
+        let res: (String, bool) =
+            crate::query("SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'postgres'")
+                .fetch_one(&conn)
+                .await
+                .unwrap();
 
         assert_eq!(res.0, "postgres");
         assert!(res.1);

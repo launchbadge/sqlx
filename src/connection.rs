@@ -2,6 +2,7 @@ use crate::{
     backend::Backend,
     error::Error,
     executor::Executor,
+    pool::{Live, SharedPool},
     query::{IntoQueryParameters, QueryParameters},
     row::FromSqlRow,
 };
@@ -11,11 +12,11 @@ use futures_channel::oneshot::{channel, Sender};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{stream::StreamExt, TryFutureExt};
 use std::{
-    ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc,
     },
+    time::Instant,
 };
 
 /// A connection to the database.
@@ -87,37 +88,34 @@ impl<DB> Connection<DB>
 where
     DB: Backend,
 {
-    pub async fn establish(url: &str) -> Result<Self, Error> {
-        let raw = <DB as Backend>::RawConnection::establish(url).await?;
+    pub(crate) fn new(live: Live<DB>, pool: Option<Arc<SharedPool<DB>>>) -> Self {
         let shared = SharedConnection {
-            raw: AtomicCell::new(Some(Box::new(raw))),
-            waiting: AtomicBool::new(false),
+            live: AtomicCell::new(Some(live)),
+            num_waiters: AtomicUsize::new(0),
             waiters: SegQueue::new(),
+            pool,
         };
 
-        Ok(Self(Arc::new(shared)))
+        Self(Arc::new(shared))
     }
 
-    #[inline]
-    async fn acquire(&self) -> ConnectionFairy<'_, DB> {
-        ConnectionFairy::new(&self.0, self.0.acquire().await)
-    }
+    pub async fn establish(url: &str) -> crate::Result<Self> {
+        let raw = <DB as Backend>::RawConnection::establish(url).await?;
+        let live = Live {
+            raw,
+            since: Instant::now(),
+        };
 
-    /// Release resources for this database connection immediately.
-    ///
-    /// This method is not required to be called. A database server will eventually notice
-    /// and clean up not fully closed connections.
-    ///
-    /// It is safe to close an already closed connection.
-    pub async fn close(&self) -> crate::Result<()> {
-        let mut conn = self.acquire().await;
-        conn.close().await
+        Ok(Self::new(live, None))
     }
 
     /// Verifies a connection to the database is still alive.
     pub async fn ping(&self) -> crate::Result<()> {
-        let mut conn = self.acquire().await;
-        conn.ping().await
+        let mut live = self.0.acquire().await;
+        live.raw.ping().await?;
+        self.0.release(live);
+
+        Ok(())
     }
 }
 
@@ -136,8 +134,11 @@ where
         A: IntoQueryParameters<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let mut conn = self.acquire().await;
-            conn.execute(query, params.into()).await
+            let mut live = self.0.acquire().await;
+            let result = live.raw.execute(query, params.into()).await;
+            self.0.release(live);
+
+            result
         })
     }
 
@@ -151,12 +152,15 @@ where
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut conn = self.acquire().await;
-            let mut s = conn.fetch(query, params.into());
+            let mut live = self.0.acquire().await;
+            let mut s = live.raw.fetch(query, params.into());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
             }
+
+            drop(s);
+            self.0.release(live);
         })
     }
 
@@ -170,8 +174,9 @@ where
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
-            let mut conn = self.acquire().await;
-            let row = conn.fetch_optional(query, params.into()).await?;
+            let mut live = self.0.acquire().await;
+            let row = live.raw.fetch_optional(query, params.into()).await?;
+            self.0.release(live);
 
             Ok(row.map(T::from_row))
         })
@@ -182,100 +187,62 @@ struct SharedConnection<DB>
 where
     DB: Backend,
 {
-    raw: AtomicCell<Option<Box<DB::RawConnection>>>,
-    waiting: AtomicBool,
-    waiters: SegQueue<Sender<Box<DB::RawConnection>>>,
+    live: AtomicCell<Option<Live<DB>>>,
+    pool: Option<Arc<SharedPool<DB>>>,
+    num_waiters: AtomicUsize,
+    waiters: SegQueue<Sender<Live<DB>>>,
 }
 
 impl<DB> SharedConnection<DB>
 where
     DB: Backend,
 {
-    async fn acquire(&self) -> Box<DB::RawConnection> {
-        if let Some(raw) = self.raw.swap(None) {
+    async fn acquire(&self) -> Live<DB> {
+        if let Some(live) = self.live.swap(None) {
             // Fast path, this connection is not currently in use.
             // We can directly return the inner connection.
-            return raw;
+            return live;
         }
 
         let (sender, receiver) = channel();
 
         self.waiters.push(sender);
-        self.waiting.store(true, Ordering::Release);
+        self.num_waiters.fetch_add(1, Ordering::AcqRel);
 
-        // TODO: Handle this error
-        receiver.await.unwrap()
+        // Waiters are not dropped unless the pool is dropped
+        // which would drop this future
+        receiver
+            .await
+            .expect("waiter dropped without dropping connection")
     }
 
-    fn release(&self, mut raw: Box<DB::RawConnection>) {
-        // If we have any waiters, iterate until we find a non-dropped waiter
-        if self.waiting.load(Ordering::Acquire) {
+    fn release(&self, mut live: Live<DB>) {
+        if self.num_waiters.load(Ordering::Acquire) > 0 {
             while let Ok(waiter) = self.waiters.pop() {
-                raw = match waiter.send(raw) {
-                    Err(raw) => raw,
-                    Ok(_) => {
+                self.num_waiters.fetch_sub(1, Ordering::AcqRel);
+
+                live = match waiter.send(live) {
+                    Ok(()) => {
                         return;
                     }
+
+                    Err(live) => live,
                 };
             }
         }
 
-        // Otherwise, just re-store the connection until
-        // we are needed again
-        self.raw.store(Some(raw));
+        self.live.store(Some(live));
     }
 }
 
-struct ConnectionFairy<'a, DB>
-where
-    DB: Backend,
-{
-    shared: &'a Arc<SharedConnection<DB>>,
-    raw: Option<Box<DB::RawConnection>>,
-}
-
-impl<'a, DB> ConnectionFairy<'a, DB>
-where
-    DB: Backend,
-{
-    #[inline]
-    fn new(shared: &'a Arc<SharedConnection<DB>>, raw: Box<DB::RawConnection>) -> Self {
-        Self {
-            shared,
-            raw: Some(raw),
-        }
-    }
-}
-
-impl<DB> Deref for ConnectionFairy<'_, DB>
-where
-    DB: Backend,
-{
-    type Target = DB::RawConnection;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.raw.as_ref().expect("connection use after drop")
-    }
-}
-
-impl<DB> DerefMut for ConnectionFairy<'_, DB>
-where
-    DB: Backend,
-{
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.raw.as_mut().expect("connection use after drop")
-    }
-}
-
-impl<DB> Drop for ConnectionFairy<'_, DB>
+impl<DB> Drop for SharedConnection<DB>
 where
     DB: Backend,
 {
     fn drop(&mut self) {
-        if let Some(raw) = self.raw.take() {
-            self.shared.release(raw);
+        if let Some(pool) = &self.pool {
+            // This error should not be able to happen
+            pool.release(self.live.take().expect("drop while checked out"));
         }
     }
 }
