@@ -1,58 +1,54 @@
-use crate::mariadb::{DeContext, Decode, FieldDetailFlag, FieldType};
-use bytes::Bytes;
-use failure::Error;
-use std::convert::TryFrom;
+use crate::mariadb::{BufExt, Decode, FieldDetailFlag, FieldType, Capabilities};
+use crate::io::Buf;
+use std::io;
+use byteorder::LittleEndian;
 
 #[derive(Debug, Default, Clone)]
 // ColumnDefPacket doesn't have a packet header because
 // it's nested inside a result set packet
-pub struct ColumnDefPacket {
-    pub catalog: Bytes,
-    pub schema: Bytes,
-    pub table_alias: Bytes,
-    pub table: Bytes,
-    pub column_alias: Bytes,
-    pub column: Bytes,
+pub struct ColumnDefPacket<'a> {
+    pub catalog: &'a str,
+    pub schema: &'a str,
+    pub table_alias: &'a str,
+    pub table: &'a str,
+    pub column_alias: &'a str,
+    pub column: &'a str,
     pub length_of_fixed_fields: Option<u64>,
-    pub char_set: i16,
+    pub char_set: u16,
     pub max_columns: i32,
     pub field_type: FieldType,
     pub field_details: FieldDetailFlag,
     pub decimals: u8,
 }
 
-impl Decode for ColumnDefPacket {
-    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
-        let decoder = &mut ctx.decoder;
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_u8();
-
+impl<'a> Decode<'a> for ColumnDefPacket<'a> {
+    fn decode(buf: &'a [u8], _: Capabilities) -> io::Result<Self> {
         // string<lenenc> catalog (always 'def')
-        let catalog = decoder.decode_string_lenenc();
+        let catalog: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // string<lenenc> schema
-        let schema = decoder.decode_string_lenenc();
+        let schema: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // string<lenenc> table alias
-        let table_alias = decoder.decode_string_lenenc();
+        let table_alias: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // string<lenenc> table
-        let table = decoder.decode_string_lenenc();
+        let table: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // string<lenenc> column alias
-        let column_alias = decoder.decode_string_lenenc();
+        let column_alias: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // string<lenenc> column
-        let column = decoder.decode_string_lenenc();
+        let column: &'a str = buf.get_str_lenenc::<LittleEndian>()?;
         // int<lenenc> length of fixed fields (=0xC)
-        let length_of_fixed_fields = decoder.decode_int_lenenc_unsigned();
+        let length_of_fixed_fields = buf.get_uint_lenenc::<LittleEndian>()?;
         // int<2> character set number
-        let char_set = decoder.decode_int_i16();
+        let char_set = buf.get_u16::<LittleEndian>()?;
         // int<4> max. column size
-        let max_columns = decoder.decode_int_i32();
+        let max_columns = buf.get_i32::<LittleEndian>()?;
         // int<1> Field types
-        let field_type = FieldType(decoder.decode_int_u8());
+        let field_type = FieldType(buf.get_u8()?);
         // int<2> Field detail flag
-        let field_details = FieldDetailFlag::from_bits_truncate(decoder.decode_int_u16());
+        let field_details = FieldDetailFlag::from_bits_truncate(buf.get_u16::<LittleEndian>()?);
         // int<1> decimals
-        let decimals = decoder.decode_int_u8();
+        let decimals = buf.get_u8()?;
         // int<2> - unused -
-        decoder.skip_bytes(2);
+        buf.advance(2);
 
         Ok(ColumnDefPacket {
             catalog,
@@ -75,13 +71,10 @@ impl Decode for ColumnDefPacket {
 mod test {
     use super::*;
     use crate::{
-        __bytes_builder,
-        mariadb::{ConnContext, Decoder},
-    };
-    use bytes::Bytes;
+        __bytes_builder};
 
     #[test]
-    fn it_decodes_column_def_packet() -> Result<(), Error> {
+    fn it_decodes_column_def_packet() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // length
@@ -116,10 +109,7 @@ mod test {
             0u8, 0u8
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ColumnDefPacket::decode(&mut ctx)?;
+        let message = ColumnDefPacket::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         assert_eq!(&message.catalog[..], b"a");
         assert_eq!(&message.schema[..], b"b");

@@ -1,33 +1,27 @@
-use crate::mariadb::{DeContext, Decode, Decoder, ErrorCode, ServerStatusFlag};
-use bytes::Bytes;
-use failure::Error;
-use std::convert::TryFrom;
+use crate::mariadb::{BufExt, Decode, Capabilities};
+use std::io;
+use byteorder::LittleEndian;
+use std::pin::Pin;
 
 #[derive(Default, Debug)]
-pub struct ResultRow {
-    pub length: u32,
-    pub seq_no: u8,
-    pub columns: Vec<Option<Bytes>>,
+pub struct ResultRow<'a> {
+    pub columns: Vec<&'a [u8]>,
 }
 
-impl Decode for ResultRow {
-    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
-        let decoder = &mut ctx.decoder;
+impl<'a> Decode<'a> for ResultRow<'a> {
+    fn decode(buf: &'a [u8], _: Capabilities) -> io::Result<Self> {
+        let buffer = Pin::new(buf.into());
+        let mut buf: &[u8] = &*buffer;
 
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_u8();
-
-        let columns = if let Some(columns) = ctx.columns {
-            (0..columns)
-                .map(|_| Some(decoder.decode_string_lenenc()))
-                .collect::<Vec<Option<Bytes>>>()
-        } else {
-            Vec::new()
-        };
+        // FIXME: Where to put number of columns to decode?
+        let columns = Vec::new();
+         if let Some(num_columns) = Some(0) {
+            for _ in 0..num_columns {
+                columns.push(buf.get_byte_lenenc::<LittleEndian>()?);
+            }
+        }
 
         Ok(ResultRow {
-            length,
-            seq_no,
             columns,
         })
     }
@@ -38,12 +32,10 @@ mod test {
     use super::*;
     use crate::{
         __bytes_builder,
-        mariadb::{ConnContext, Decoder},
     };
-    use bytes::Bytes;
 
     #[test]
-    fn it_decodes_result_row_packet() -> Result<(), Error> {
+    fn it_decodes_result_row_packet() -> io::Result<()> {
         #[rustfmt::skip]
             let buf = __bytes_builder!(
             // int<3> length
@@ -54,12 +46,7 @@ mod test {
             1u8, b"s"
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        ctx.columns = Some(1);
-
-        let _message = ResultRow::decode(&mut ctx)?;
+        let _message = ResultRow::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         Ok(())
     }

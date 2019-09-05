@@ -18,16 +18,7 @@ pub trait BufMut {
 
     fn put_u64<T: ByteOrder>(&mut self, val: u64);
 
-    // TODO: Move to mariadb::io::BufMutExt
-    fn put_u64_lenenc<T: ByteOrder>(&mut self, val: u64);
-
-    fn put_str_nul(&mut self, val: &str);
-
-    // TODO: Move to mariadb::io::BufMutExt
-    fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str);
-
-    // TODO: Move to mariadb::io::BufMutExt
-    fn put_str_eof(&mut self, val: &str);
+    fn put_str_null(&mut self, val: &str);
 }
 
 impl BufMut for Vec<u8> {
@@ -75,47 +66,8 @@ impl BufMut for Vec<u8> {
         self.extend_from_slice(&buf);
     }
 
-    fn put_u64_lenenc<T: ByteOrder>(&mut self, value: u64) {
-        // https://mariadb.com/kb/en/library/protocol-data-types/#length-encoded-integers
-        if value > 0xFF_FF_FF {
-            // Integer value is encoded in the next 8 bytes (9 bytes total)
-            self.push(0xFE);
-            self.put_u64::<T>(value);
-        } else if value > u64::from(u16::MAX) {
-            // Integer value is encoded in the next 3 bytes (4 bytes total)
-            self.push(0xFD);
-            self.put_u24::<T>(value as u32);
-        } else if value > u64::from(u8::MAX) {
-            // Integer value is encoded in the next 2 bytes (3 bytes total)
-            self.push(0xFC);
-            self.put_u16::<T>(value as u16);
-        } else {
-            match value {
-                // If the value is of size u8 and one of the key bytes used in length encoding
-                // we must put that single byte as a u16
-                0xFB | 0xFC | 0xFD | 0xFE | 0xFF => {
-                    self.push(0xFC);
-                    self.put_u16::<T>(value as u16);
-                }
-
-                _ => {
-                    self.push(value as u8);
-                }
-            }
-        }
-    }
-
-    fn put_str_eof(&mut self, val: &str) {
-        self.extend_from_slice(val.as_bytes());
-    }
-
-    fn put_str_nul(&mut self, val: &str) {
+    fn put_str_null(&mut self, val: &str) {
         self.extend_from_slice(val.as_bytes());
         self.push(0);
-    }
-
-    fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str) {
-        self.put_u64_lenenc::<T>(val.len() as u64);
-        self.extend_from_slice(val.as_bytes());
     }
 }

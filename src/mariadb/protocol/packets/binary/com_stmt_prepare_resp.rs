@@ -1,6 +1,8 @@
 use crate::mariadb::{
-    Capabilities, ColumnDefPacket, ComStmtPrepareOk, DeContext, Decode, EofPacket, Framed,
+    Capabilities, ColumnDefPacket, ComStmtPrepareOk, Decode, EofPacket, Framed,
 };
+use crate::io::BufStream;
+use tokio::net::TcpStream;
 
 #[derive(Debug, Default)]
 pub struct ComStmtPrepareResp {
@@ -10,15 +12,15 @@ pub struct ComStmtPrepareResp {
 }
 
 impl ComStmtPrepareResp {
-    pub async fn deserialize<'a>(mut ctx: DeContext<'a>) -> Result<Self, failure::Error> {
-        let ok = ComStmtPrepareOk::decode(&mut ctx)?;
+    pub async fn deserialize(stream: &BufStream<TcpStream>, capabilities: Capabilities) -> io::Result<Self> {
+        let ok = ComStmtPrepareOk::decode(buf, capabilities)?;
 
         let param_defs = if ok.params > 0 {
             let mut param_defs = Vec::new();
 
             for _ in 0..ok.params {
                 ctx.next_packet().await?;
-                param_defs.push(ColumnDefPacket::decode(&mut ctx)?);
+                param_defs.push(ColumnDefPacket::decode(&buf, capabilities)?);
             }
 
             ctx.next_packet().await?;
@@ -28,7 +30,7 @@ impl ComStmtPrepareResp {
                 .capabilities
                 .contains(Capabilities::CLIENT_DEPRECATE_EOF)
             {
-                EofPacket::decode(&mut ctx)?;
+                EofPacket::decode(buf, capabilities)?;
             }
 
             Some(param_defs)
@@ -41,16 +43,12 @@ impl ComStmtPrepareResp {
 
             for _ in 0..ok.columns {
                 ctx.next_packet().await?;
-                res_columns.push(ColumnDefPacket::decode(&mut ctx)?);
+                res_columns.push(ColumnDefPacket::decode(buf, capabilities)?);
             }
 
             ctx.next_packet().await?;
 
-            if !ctx
-                .ctx
-                .capabilities
-                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-            {
+            if !capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
                 EofPacket::decode(&mut ctx)?;
             }
 
@@ -72,11 +70,10 @@ mod test {
     use super::*;
     use crate::{
         __bytes_builder,
-        mariadb::{ConnContext, DeContext, Decode},
     };
 
     #[tokio::test]
-    async fn it_decodes_com_stmt_prepare_resp_eof() -> Result<(), failure::Error> {
+    async fn it_decodes_com_stmt_prepare_resp_eof() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // ---------------------------- //
@@ -173,16 +170,13 @@ mod test {
         0u8, 0u8
         );
 
-        let mut context = ConnContext::with_eof();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ComStmtPrepareResp::deserialize(ctx).await?;
+        let message = ComStmtPrepareResp::deserialize(&mut buf, Capabilities::CLIENT_PROTOCOL_41).await?;
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn it_decodes_com_stmt_prepare_resp() -> Result<(), failure::Error> {
+    async fn it_decodes_com_stmt_prepare_resp() -> io::Result<()> {
         #[rustfmt::skip]
             let buf = __bytes_builder!(
         // ---------------------------- //
@@ -307,10 +301,7 @@ mod test {
         34u8, 0u8
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ComStmtPrepareResp::deserialize(ctx).await?;
+        let message = ComStmtPrepareResp::deserialize(&buf, Capabilities::CLIENT_PROTOCOL_41).await?;
 
         Ok(())
     }

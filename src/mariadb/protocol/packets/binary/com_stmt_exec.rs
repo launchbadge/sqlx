@@ -1,9 +1,10 @@
 use crate::mariadb::{
-    BufMut, ColumnDefPacket, ConnContext, Encode, FieldDetailFlag, FieldType, MariaDbRawConnection,
-    StmtExecFlag,
+    BufMutExt, ColumnDefPacket, ConnContext, Encode, FieldDetailFlag, FieldType, MariaDbRawConnection,
+    StmtExecFlag, Capabilities
 };
 use bytes::Bytes;
-use failure::Error;
+use crate::io::BufMut;
+use byteorder::LittleEndian;
 
 #[derive(Debug)]
 pub struct ComStmtExec {
@@ -14,14 +15,11 @@ pub struct ComStmtExec {
 }
 
 impl Encode for ComStmtExec {
-    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
-        buf.alloc_packet_header();
-        buf.seq_no(0);
-
-        buf.put_int_u8(super::BinaryProtocol::ComStmtExec.into());
-        buf.put_int_i32(self.stmt_id);
-        buf.put_int_u8(self.flags.0);
-        buf.put_int_u32(1);
+    fn encode(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
+        buf.put_u8(super::BinaryProtocol::ComStmtExec.into());
+        buf.put_i32::<LittleEndian>(self.stmt_id);
+        buf.put_u8::<LittleEndian>(self.flags.0);
+        buf.put_u32::<LittleEndian>(1);
 
         match (&self.params, &self.param_defs) {
             (Some(params), Some(param_defs)) if params.len() > 0 => {
@@ -34,23 +32,23 @@ impl Encode for ComStmtExec {
                 for param in params {
                     if param.is_none() {
                         let last_byte = bitmap.pop().unwrap();
-                        bitmap.push(last_byte & (1 << shift_amount));
+                        bitmap.put_u8(last_byte & (1 << shift_amount));
                     }
 
                     shift_amount = (shift_amount + 1) % 8;
 
                     if shift_amount % 8 == 0 {
-                        bitmap.push(0u8);
+                        bitmap.put_u8(0u8);
                     }
                 }
 
                 buf.put_byte_fix(&Bytes::from(bitmap), null_bitmap_size);
-                buf.put_int_u8(send_type);
+                buf.put_u8(send_type);
 
                 if send_type > 0 {
                     for param in param_defs {
-                        buf.put_int_u8(param.field_type.0);
-                        buf.put_int_u8(0);
+                        buf.put_u8(param.field_type.0);
+                        buf.put_u8(0);
                     }
                 }
 
@@ -76,7 +74,7 @@ mod tests {
     use crate::mariadb::{FieldDetailFlag, FieldType};
 
     #[test]
-    fn it_encodes_com_stmt_close() -> Result<(), failure::Error> {
+    fn it_encodes_com_stmt_close() {
         let mut buf = Vec::with_capacity(1024);
         let mut ctx = ConnContext::new();
 

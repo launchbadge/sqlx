@@ -9,5 +9,5 @@ impl Backend for MariaDb {
     type Row = super::MariaDbRow;
 }
 
-// TODO: impl_from_sql_row_tuples_for_backend!(MariaDb);
-// TODO: impl_into_query_parameters_for_backend!(MariaDb);
+impl_from_sql_row_tuples_for_backend!(MariaDb);
+impl_into_query_parameters_for_backend!(MariaDb);

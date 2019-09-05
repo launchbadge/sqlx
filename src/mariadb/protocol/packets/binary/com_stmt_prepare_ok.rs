@@ -1,30 +1,29 @@
-use std::convert::TryFrom;
+use byteorder::LittleEndian;
+use std::io;
+use crate::mariadb::Capabilities;
+use crate::io::Buf;
 
 #[derive(Debug, Default)]
 pub struct ComStmtPrepareOk {
     pub stmt_id: i32,
-    pub columns: i16,
-    pub params: i16,
-    pub warnings: i16,
+    pub columns: u16,
+    pub params: u16,
+    pub warnings: u16,
 }
 
-impl crate::mariadb::Decode for ComStmtPrepareOk {
-    fn decode(ctx: &mut crate::mariadb::DeContext) -> Result<Self, failure::Error> {
-        let decoder = &mut ctx.decoder;
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_u8();
+impl crate::mariadb::Decode<'_> for ComStmtPrepareOk {
+    fn decode(buf: &[u8], _: Capabilities) -> io::Result<Self> {
+        let header = buf.get_u8();
 
-        let header = decoder.decode_int_u8();
+        let stmt_id = buf.get_i32::<LittleEndian>()?;
 
-        let stmt_id = decoder.decode_int_i32();
-
-        let columns = decoder.decode_int_i16();
-        let params = decoder.decode_int_i16();
+        let columns = buf.get_u16::<LittleEndian>()?;
+        let params = buf.get_u16::<LittleEndian>()?;
 
         // Skip 1 unused byte;
-        decoder.skip_bytes(1);
+        buf.advance(1);
 
-        let warnings = decoder.decode_int_i16();
+        let warnings = buf.get_u16::<LittleEndian>()?;
 
         Ok(ComStmtPrepareOk {
             stmt_id,
@@ -38,16 +37,12 @@ impl crate::mariadb::Decode for ComStmtPrepareOk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        __bytes_builder,
-        mariadb::{ConnContext, DeContext, Decode},
-    };
-    use bytes::Bytes;
+    use crate::{__bytes_builder};
 
     #[test]
-    fn it_decodes_com_stmt_prepare_ok() -> Result<(), failure::Error> {
+    fn it_decodes_com_stmt_prepare_ok() -> io::Result<()> {
         #[rustfmt::skip]
-        let buf = __bytes_builder!(
+        let buf = &__bytes_builder!(
         // int<3> length
         0u8, 0u8, 0u8,
         // int<1> seq_no
@@ -64,12 +59,9 @@ mod tests {
         0u8,
         // int<2> number of warnings
         0u8, 0u8
-        );
+        )[..];
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ComStmtPrepareOk::decode(&mut ctx)?;
+        let message = ComStmtPrepareOk::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         assert_eq!(message.stmt_id, 1);
         assert_eq!(message.columns, 10);

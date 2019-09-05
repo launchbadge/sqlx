@@ -17,21 +17,9 @@ pub trait Buf {
 
     fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64>;
 
-    // TODO?: Move to mariadb::io::BufExt
-    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64>;
-
-    // TODO?: Move to mariadb::io::BufExt
-    fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<u64>;
-
     fn get_str(&mut self, len: usize) -> io::Result<&str>;
 
-    // TODO?: Move to mariadb::io::BufExt
-    fn get_str_eof(&mut self) -> io::Result<&str>;
-
-    fn get_str_nul(&mut self) -> io::Result<&str>;
-
-    // TODO?: Move to mariadb::io::BufExt
-    fn get_str_lenenc<T: ByteOrder>(&mut self) -> io::Result<&str>;
+    fn get_str_null(&mut self) -> io::Result<&str>;
 }
 
 impl<'a> Buf for &'a [u8] {
@@ -82,23 +70,6 @@ impl<'a> Buf for &'a [u8] {
         Ok(val)
     }
 
-    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64> {
-        let val = T::read_uint(*self, n);
-        self.advance(n);
-
-        Ok(val)
-    }
-
-    fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<u64> {
-        Ok(match self.get_u8()? {
-            0xFC => u64::from(self.get_u16::<T>()?),
-            0xFD => u64::from(self.get_u24::<T>()?),
-            0xFE => self.get_u64::<T>()?,
-            // ? 0xFF => panic!("int<lenenc> unprocessable first byte 0xFF"),
-            value => u64::from(value),
-        })
-    }
-
     fn get_str(&mut self, len: usize) -> io::Result<&str> {
         let buf = &self[..len];
 
@@ -111,20 +82,9 @@ impl<'a> Buf for &'a [u8] {
         }
     }
 
-    fn get_str_eof(&mut self) -> io::Result<&str> {
-        self.get_str(self.len())
-    }
-
-    fn get_str_nul(&mut self) -> io::Result<&str> {
+    fn get_str_null(&mut self) -> io::Result<&str> {
         let len = memchr(b'\0', &*self).ok_or(io::ErrorKind::InvalidData)?;
         let s = &self.get_str(len + 1)?[..len];
-
-        Ok(s)
-    }
-
-    fn get_str_lenenc<T: ByteOrder>(&mut self) -> io::Result<&str> {
-        let len = self.get_uint_lenenc::<T>()?;
-        let s = self.get_str(len as usize)?;
 
         Ok(s)
     }

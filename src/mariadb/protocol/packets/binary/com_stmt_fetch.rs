@@ -1,5 +1,6 @@
-use crate::mariadb::{BufMut, ConnContext, Encode, MariaDbRawConnection};
-use failure::Error;
+use crate::mariadb::{Encode};
+use crate::io::BufMut;
+use byteorder::LittleEndian;
 
 #[derive(Debug)]
 pub struct ComStmtFetch {
@@ -8,17 +9,10 @@ pub struct ComStmtFetch {
 }
 
 impl Encode for ComStmtFetch {
-    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
-        buf.alloc_packet_header();
-        buf.seq_no(0);
-
-        buf.put_int_u8(super::BinaryProtocol::ComStmtFetch as u8);
-        buf.put_int_i32(self.stmt_id);
-        buf.put_int_u32(self.rows);
-
-        buf.put_length();
-
-        Ok(())
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_u8(super::BinaryProtocol::ComStmtFetch as u8);
+        buf.put_i32::<LittleEndian>(self.stmt_id);
+        buf.put_u32::<LittleEndian>(self.rows);
     }
 }
 
@@ -27,18 +21,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_stmt_fetch() -> Result<(), failure::Error> {
+    fn it_encodes_com_stmt_fetch(){
         let mut buf = Vec::with_capacity(1024);
-        let mut ctx = ConnContext::new();
 
         ComStmtFetch {
             stmt_id: 1,
             rows: 10,
         }
-        .encode(&mut buf, &mut ctx)?;
+        .encode(&mut buf);
 
         assert_eq!(&buf[..], b"\x09\0\0\x00\x1C\x01\0\0\0\x0A\0\0\0");
-
-        Ok(())
     }
 }

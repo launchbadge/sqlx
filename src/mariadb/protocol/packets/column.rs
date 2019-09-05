@@ -1,25 +1,18 @@
-use failure::Error;
-
-use crate::mariadb::{DeContext, Decode};
+use crate::mariadb::{BufExt, Decode, Capabilities};
+use std::io;
+use byteorder::LittleEndian;
 
 // The column packet is the first packet of a result set.
 // Inside of it it contains the number of columns in the result set
 // encoded as an int<lenenc>.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ColumnPacket {
-    pub length: u32,
-    pub seq_no: u8,
-    pub columns: Option<u64>,
+    pub columns: Option<u64>
 }
 
-impl Decode for ColumnPacket {
-    fn decode(ctx: &mut DeContext) -> Result<Self, Error> {
-        let decoder = &mut ctx.decoder;
-
-        let length = decoder.decode_length()?;
-        let seq_no = decoder.decode_int_u8();
-
-        let mut columns = decoder.decode_int_lenenc_unsigned();
+impl Decode<'_> for ColumnPacket {
+    fn decode(buf: &[u8], _: Capabilities) -> io::Result<Self> {
+        let mut columns = buf.get_uint_lenenc::<LittleEndian>()?;
 
         // Treat 0 columns as None; this should never be a thing though
         if columns.is_some() && columns.unwrap() == 0 {
@@ -27,8 +20,6 @@ impl Decode for ColumnPacket {
         }
 
         Ok(ColumnPacket {
-            length,
-            seq_no,
             columns,
         })
     }
@@ -36,16 +27,12 @@ impl Decode for ColumnPacket {
 
 #[cfg(test)]
 mod test {
-    use bytes::Bytes;
-
     use super::*;
     use crate::{
-        __bytes_builder,
-        mariadb::{connection::ConnContext, protocol::decode::Decoder},
-    };
+        __bytes_builder};
 
     #[test]
-    fn it_decodes_column_packet_0x_fb() -> Result<(), Error> {
+    fn it_decodes_column_packet_0x_fb() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -56,10 +43,7 @@ mod test {
         0xFB_u8
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ColumnPacket::decode(&mut ctx)?;
+        let message = ColumnPacket::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         assert_eq!(message.columns, None);
 
@@ -67,7 +51,7 @@ mod test {
     }
 
     #[test]
-    fn it_decodes_column_packet_0x_fd() -> Result<(), Error> {
+    fn it_decodes_column_packet_0x_fd() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -80,10 +64,7 @@ mod test {
         0x01_u8, 0x01_u8, 0x01_u8
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ColumnPacket::decode(&mut ctx)?;
+        let message = ColumnPacket::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         assert_eq!(message.columns, Some(0x010101));
 
@@ -91,7 +72,7 @@ mod test {
     }
 
     #[test]
-    fn it_fails_to_decode_column_packet_0x_fc() -> Result<(), Error> {
+    fn it_fails_to_decode_column_packet_0x_fc() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
         // int<3> length
@@ -104,10 +85,7 @@ mod test {
         0x01_u8, 0x01_u8
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
-
-        let message = ColumnPacket::decode(&mut ctx)?;
+        let message = ColumnPacket::decode(&buf, Capabilities::CLIENT_PROTOCOL_41)?;
 
         assert_ne!(message.columns, Some(0x0100));
 

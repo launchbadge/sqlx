@@ -1,31 +1,24 @@
-use crate::mariadb::{BufMut, ConnContext, Encode, MariaDbRawConnection};
-use failure::Error;
+use crate::mariadb::{Encode};
+use crate::io::BufMut;
 
 pub struct ComDebug();
 
 impl Encode for ComDebug {
-    fn encode(&self, buf: &mut Vec<u8>, ctx: &mut ConnContext) -> Result<(), Error> {
-        buf.alloc_packet_header();
-        buf.seq_no(0);
-
-        buf.put_int_u8(super::TextProtocol::ComDebug as u8);
-
-        buf.put_length();
-
-        Ok(())
+    fn encode(&self, buf: &mut Vec<u8>) {
+        buf.put_u8(super::TextProtocol::ComDebug as u8);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io;
 
     #[test]
-    fn it_encodes_com_debug() -> Result<(), failure::Error> {
+    fn it_encodes_com_debug() -> io::Result<()> {
         let mut buf = Vec::with_capacity(1024);
-        let mut ctx = ConnContext::new();
 
-        ComDebug().encode(&mut buf, &mut ctx)?;
+        ComDebug().encode(&mut buf);
 
         assert_eq!(&buf[..], b"\x01\0\0\x00\x0D");
 

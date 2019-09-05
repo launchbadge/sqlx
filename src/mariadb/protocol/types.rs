@@ -170,13 +170,16 @@ impl Default for ParamFlag {
 
 #[cfg(test)]
 mod test {
-    use super::super::{decode::Decoder, types::Capabilities};
-    use bytes::Bytes;
+    use crate::__bytes_builder;
+    use super::Capabilities;
+    use crate::io::Buf;
+    use byteorder::LittleEndian;
 
     #[test]
-    fn it_decodes_capabilities() {
-        let buf = Bytes::from(b"\xfe\xf7".to_vec());
-        let mut decoder = Decoder::new(buf);
-        Capabilities::from_bits_truncate(decoder.decode_int_u16().into());
+    fn it_decodes_capabilities() -> std::io::Result<()> {
+        let buf = &__bytes_builder!(b"\xfe\xf7")[..];
+        Capabilities::from_bits_truncate(buf.get_u16::<LittleEndian>()? as u128);
+
+        Ok(())
     }
 }
