@@ -1,14 +1,15 @@
 use crate::{
     io::BufMut,
-    mariadb::{BufMutExt, Encode},
+    mariadb::{io::{BufMutExt}, protocol::{Encode, Capabilities}},
 };
 
+/// Sends the server an SQL statement to be executed immediately.
 pub struct ComQuery<'a> {
     pub sql_statement: &'a str,
 }
 
 impl<'a> Encode for ComQuery<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
         buf.put_u8(super::TextProtocol::ComQuery as u8);
         buf.put_str(&self.sql_statement);
     }
@@ -17,19 +18,16 @@ impl<'a> Encode for ComQuery<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io;
 
     #[test]
-    fn it_encodes_com_query() -> io::Result<()> {
-        let mut buf = Vec::with_capacity(1024);
+    fn it_encodes_com_query()  {
+        let mut buf = Vec::new();
 
         ComQuery {
             sql_statement: "SELECT * FROM users",
         }
-        .encode(&mut buf);
+        .encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x14\0\0\x00\x03SELECT * FROM users");
-
-        Ok(())
+        assert_eq!(&buf, b"\x03SELECT * FROM users");
     }
 }

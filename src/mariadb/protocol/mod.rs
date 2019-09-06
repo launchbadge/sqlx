@@ -7,6 +7,7 @@ mod encode;
 mod error_code;
 mod field;
 mod response;
+mod text;
 mod server_status;
 
 pub use capabilities::Capabilities;
@@ -20,3 +21,7 @@ pub use response::{
     ColumnCountPacket, ColumnDefinitionPacket, EofPacket, ErrPacket, OkPacket, ResultRow,
 };
 pub use server_status::ServerStatusFlag;
+pub use text::{
+    ComDebug, ComInitDb,
+    ComPing, ComProcessKill, ComQuery, ComQuit,
+};
