@@ -74,13 +74,9 @@ mod test {
     use crate::__bytes_builder;
 
     #[test]
-    fn it_decodes_err_packet() -> Result<(), Error> {
+    fn it_decodes_err_packet() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            1u8, 0u8, 0u8,
-            // int<1> seq_no
-            1u8,
             // int<1> 0xfe : EOF header
             0xFF_u8,
             // int<2> error code

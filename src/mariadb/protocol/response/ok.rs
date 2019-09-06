@@ -66,19 +66,12 @@ impl OkPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        __bytes_builder,
-        mariadb::{ConnContext, Decoder},
-    };
+    use crate::__bytes_builder;
 
     #[test]
-    fn it_decodes_ok_packet() -> Result<(), Error> {
+    fn it_decodes_ok_packet() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            0u8, 0u8, 0u8,
-            // // int<1> seq_no
-            1u8,
             // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)
             0u8,
             // int<lenenc> affected rows
@@ -101,16 +94,17 @@ mod test {
             // }
         );
 
-        let mut context = ConnContext::new();
-        let mut ctx = DeContext::new(&mut context, buf);
+        let message = OkPacket::decode(&buf, Capabilities::empty())?;
 
-        let message = OkPacket::decode(&mut ctx)?;
-
-        assert_eq!(message.affected_rows, None);
-        assert_eq!(message.last_insert_id, None);
-        assert!(!(message.server_status & ServerStatusFlag::SERVER_STATUS_IN_TRANS).is_empty());
+        assert_eq!(message.affected_rows, 0);
+        assert_eq!(message.last_insert_id, 0);
+        assert!(
+            message
+                .server_status
+                .contains(ServerStatusFlag::SERVER_STATUS_IN_TRANS)
+        );
         assert_eq!(message.warning_count, 0);
-        assert_eq!(message.info, b"info".to_vec());
+        assert_eq!(message.info, "info".into());
 
         Ok(())
     }

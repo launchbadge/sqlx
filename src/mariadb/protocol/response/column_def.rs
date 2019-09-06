@@ -82,10 +82,6 @@ mod test {
     fn it_decodes_column_def_packet() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // length
-            1u8, 0u8, 0u8,
-            // seq_no
-            0u8,
             // string<lenenc> catalog (always 'def')
             1u8, b'a',
             // string<lenenc> schema
@@ -116,11 +112,11 @@ mod test {
 
         let message = ColumnDefinitionPacket::decode(&buf)?;
 
-        assert_eq!(message.schema, Some(b"b"));
-        assert_eq!(message.table_alias, Some(b"c"));
-        assert_eq!(message.table, Some(b"d"));
-        assert_eq!(message.column_alias, Some(b"e"));
-        assert_eq!(message.column, Some(b"f"));
+        assert_eq!(message.schema, Some("b".into()));
+        assert_eq!(message.table_alias, Some("c".into()));
+        assert_eq!(message.table, Some("d".into()));
+        assert_eq!(message.column_alias, Some("e".into()));
+        assert_eq!(message.column, Some("f".into()));
 
         Ok(())
     }

@@ -37,17 +37,13 @@ impl EofPacket {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{__bytes_builder, mariadb::ConnContext};
-    use bytes::Bytes;
+    use crate::__bytes_builder;
+    use std::io;
 
     #[test]
-    fn it_decodes_eof_packet() -> Result<(), Error> {
+    fn it_decodes_eof_packet() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            1u8, 0u8, 0u8,
-            // int<1> seq_no
-            1u8,
             // int<1> 0xfe : EOF header
             0xFE_u8,
             // int<2> warning count

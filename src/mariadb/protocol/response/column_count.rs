@@ -28,10 +28,6 @@ mod test {
     fn it_decodes_column_packet_0x_fb() -> io::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
-            // int<3> length
-            0u8, 0u8, 0u8,
-            // int<1> seq_no
-            0u8,
             // int<lenenc> tag code: Some(3 bytes)
             0xFD_u8,
             // value: 3 bytes
@@ -40,7 +36,7 @@ mod test {
 
         let message = ColumnCountPacket::decode(&buf)?;
 
-        assert_eq!(message.columns, Some(0x010101));
+        assert_eq!(message.columns, 0x010101);
 
         Ok(())
     }
