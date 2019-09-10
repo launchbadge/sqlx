@@ -1,5 +1,8 @@
-use crate::{io::BufMut, mariadb::protocol::{Encode, Capabilities}};
 use super::TextProtocol;
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{Capabilities, Encode},
+};
 use byteorder::LittleEndian;
 
 /// Forces the server to terminate a specified connection.

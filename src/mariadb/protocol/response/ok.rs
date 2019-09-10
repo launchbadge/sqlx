@@ -45,7 +45,7 @@ impl OkPacket {
                 .unwrap_or_default()
                 .to_owned()
                 .into();
-            session_state_info = buf.get_byte_lenenc::<LittleEndian>()?.map(Into::into);
+            session_state_info = buf.get_bytes_lenenc::<LittleEndian>()?.map(Into::into);
             value_of_variable = buf.get_str_lenenc::<LittleEndian>()?.map(Into::into);
         } else {
             info = buf.get_str_eof()?.to_owned().into();

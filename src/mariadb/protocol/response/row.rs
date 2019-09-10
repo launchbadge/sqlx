@@ -29,7 +29,9 @@ impl ResultRow {
         debug_assert_eq!(header, 0);
 
         // NULL-Bitmap : byte<(number_of_columns + 9) / 8>
-        let null = buf.get_uint::<LittleEndian>((columns.len() + 9) / 8)?;
+        let null_len = (columns.len() + 9) / 8;
+        let null = &buf[..];
+        buf.advance(null_len);
 
         let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
         let mut buf = &*buffer;
@@ -37,20 +39,23 @@ impl ResultRow {
         let mut values = Vec::with_capacity(columns.len());
 
         for column_idx in 0..columns.len() {
-            if (null & (1 << column_idx)) != 0 {
+            if null[column_idx / 8] & (1 << (column_idx % 8)) != 0 {
                 values.push(None);
             } else {
                 match columns[column_idx].field_type {
                     FieldType::MYSQL_TYPE_LONG => {
-                        values.push(Some(buf[..(4 as usize)].into()));
-                        buf.advance(4);
+                        values.push(Some(buf.get_bytes(4)?.into()));
                     }
 
-                    FieldType::MYSQL_TYPE_VAR_STRING => {
-                        let len = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or_default();
-
-                        values.push(Some(buf[..(len as usize)].into()));
-                        buf.advance(len as usize);
+                    FieldType::MYSQL_TYPE_TINY_BLOB
+                    | FieldType::MYSQL_TYPE_MEDIUM_BLOB
+                    | FieldType::MYSQL_TYPE_LONG_BLOB
+                    | FieldType::MYSQL_TYPE_BLOB
+                    | FieldType::MYSQL_TYPE_GEOMETRY
+                    | FieldType::MYSQL_TYPE_STRING
+                    | FieldType::MYSQL_TYPE_VARCHAR
+                    | FieldType::MYSQL_TYPE_VAR_STRING => {
+                        values.push(buf.get_bytes_lenenc::<LittleEndian>()?.map(Into::into));
                     }
 
                     type_ => {

@@ -1,5 +1,8 @@
-use crate::{io::BufMut, mariadb::protocol::{Capabilities, Encode}};
 use super::TextProtocol;
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{Capabilities, Encode},
+};
 
 #[derive(Debug)]
 pub struct ComDebug;

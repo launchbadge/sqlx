@@ -7,7 +7,8 @@ pub trait BufExt {
     fn get_uint_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<u64>>;
     fn get_str_eof(&mut self) -> io::Result<&str>;
     fn get_str_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&str>>;
-    fn get_byte_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&[u8]>>;
+    fn get_bytes(&mut self, n: usize) -> io::Result<&[u8]>;
+    fn get_bytes_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&[u8]>>;
 }
 
 impl<'a> BufExt for &'a [u8] {
@@ -39,9 +40,16 @@ impl<'a> BufExt for &'a [u8] {
             .transpose()
     }
 
-    fn get_byte_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&[u8]>> {
-        Ok(self
-            .get_uint_lenenc::<T>()?
-            .map(|len| &self[..len as usize]))
+    fn get_bytes(&mut self, n: usize) -> io::Result<&[u8]> {
+        let buf = &self[..n];
+        self.advance(n);
+
+        Ok(buf)
+    }
+
+    fn get_bytes_lenenc<T: ByteOrder>(&mut self) -> io::Result<Option<&[u8]>> {
+        self.get_uint_lenenc::<T>()?
+            .map(move |len| self.get_bytes(len as usize))
+            .transpose()
     }
 }

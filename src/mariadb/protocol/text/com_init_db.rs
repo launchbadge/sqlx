@@ -1,5 +1,8 @@
-use crate::{io::BufMut, mariadb::protocol::{Encode, Capabilities}};
 use super::TextProtocol;
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{Capabilities, Encode},
+};
 
 pub struct ComInitDb<'a> {
     pub schema_name: &'a str,

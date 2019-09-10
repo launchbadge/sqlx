@@ -1,6 +1,9 @@
 use crate::{
     io::BufMut,
-    mariadb::{io::{BufMutExt}, protocol::{Encode, Capabilities}},
+    mariadb::{
+        io::BufMutExt,
+        protocol::{Capabilities, Encode},
+    },
 };
 
 /// Sends the server an SQL statement to be executed immediately.
@@ -20,7 +23,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_query()  {
+    fn it_encodes_com_query() {
         let mut buf = Vec::new();
 
         ComQuery {

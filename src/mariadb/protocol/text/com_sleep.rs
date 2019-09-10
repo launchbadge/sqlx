@@ -1,10 +1,14 @@
-use crate::{io::BufMut, mariadb::Encode};
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{text::TextProtocol, Capabilities, Encode},
+};
 
-pub struct ComSleep();
+pub struct ComSleep;
 
 impl Encode for ComSleep {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_u8(super::TextProtocol::ComSleep as u8);
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_SLEEP : int<1>
+        buf.put_u8(TextProtocol::ComSleep as u8);
     }
 }
 
@@ -13,13 +17,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_sleep() -> std::io::Result<()> {
-        let mut buf = Vec::with_capacity(1024);
+    fn it_encodes_com_sleep() {
+        let mut buf = Vec::new();
 
-        ComSleep().encode(&mut buf);
+        ComSleep.encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x01\0\0\x00\x00");
-
-        Ok(())
+        assert_eq!(&buf[..], b"\x00");
     }
 }

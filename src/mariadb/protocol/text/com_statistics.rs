@@ -1,10 +1,15 @@
-use crate::{io::BufMut, mariadb::Encode};
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{text::TextProtocol, Capabilities, Encode},
+};
 
-pub struct ComStatistics();
+#[derive(Debug)]
+pub struct ComStatistics;
 
 impl Encode for ComStatistics {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_u8(super::TextProtocol::ComStatistics.into());
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_STATISTICS : int<1>
+        buf.put_u8(TextProtocol::ComStatistics as u8);
     }
 }
 
@@ -13,13 +18,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_statistics() -> std::io::Result<()> {
-        let mut buf = Vec::with_capacity(1024);
+    fn it_encodes_com_statistics() {
+        let mut buf = Vec::new();
 
-        ComStatistics().encode(&mut buf);
+        ComStatistics.encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x01\0\0\x00\x09");
-
-        Ok(())
+        assert_eq!(&buf[..], b"\x09");
     }
 }

@@ -1,27 +1,29 @@
-use crate::{io::BufMut, mariadb::Encode};
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{text::TextProtocol, Capabilities, Encode},
+};
 use byteorder::LittleEndian;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Copy, Clone)]
+#[repr(u16)]
 pub enum SetOptionOptions {
     MySqlOptionMultiStatementsOn = 0x00,
     MySqlOptionMultiStatementsOff = 0x01,
 }
 
+/// Enables or disables server option.
+#[derive(Debug)]
 pub struct ComSetOption {
     pub option: SetOptionOptions,
 }
 
 impl Encode for ComSetOption {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_u8(super::TextProtocol::ComSetOption as u8);
-        buf.put_u16::<LittleEndian>(self.option.into());
-    }
-}
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_SET_OPTION : int<1>
+        buf.put_u8(TextProtocol::ComSetOption as u8);
 
-// Helper method to easily transform into u16
-impl Into<u16> for SetOptionOptions {
-    fn into(self) -> u16 {
-        self as u16
+        // option : int<2>
+        buf.put_u16::<LittleEndian>(self.option as u16);
     }
 }
 
@@ -30,16 +32,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_set_option() -> std::io::Result<()> {
-        let mut buf = Vec::with_capacity(1024);
+    fn it_encodes_com_set_option() {
+        let mut buf = Vec::new();
 
         ComSetOption {
             option: SetOptionOptions::MySqlOptionMultiStatementsOff,
         }
-        .encode(&mut buf);
+        .encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x03\0\0\x00\x1B\x01\0");
-
-        Ok(())
+        assert_eq!(&buf[..], b"\x1B\x01\0");
     }
 }
