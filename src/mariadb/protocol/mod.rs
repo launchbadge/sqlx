@@ -1,6 +1,7 @@
 // Reference: https://mariadb.com/kb/en/library/connection
 // Packets: https://mariadb.com/kb/en/library/0-packet
 
+mod binary;
 mod capabilities;
 mod connect;
 mod encode;
@@ -10,6 +11,7 @@ mod response;
 mod server_status;
 mod text;
 
+pub use binary::ComStmtClose;
 pub use capabilities::Capabilities;
 pub use connect::{
     AuthenticationSwitchRequest, HandshakeResponsePacket, InitialHandshakePacket, SslRequest,

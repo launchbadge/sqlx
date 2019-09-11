@@ -1,15 +1,12 @@
+use super::protocol::{FieldType, ParameterFlag};
 use crate::types::TypeMetadata;
-use super::protocol::FieldType;
-use super::protocol::ParamFlag;
-use super::backend::MariaDb;
 
-mod boolean;
-
+#[derive(Debug)]
 pub struct MariaDbTypeMetadata {
     pub field_type: FieldType,
-    pub param_flag: ParamFlag,
+    pub param_flag: ParameterFlag,
 }
 
-impl TypeMetadata for MariaDb {
-    type TypeMetadata = MariaDbTypeMetadata;
-}
+//impl TypeMetadata for MariaDb {
+//    type TypeMetadata = MariaDbTypeMetadata;
+//}

@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub struct MariaDbQueryParameters {
-    param_types: Vec<(u8, u8)>,
+    param_types: Vec<MariaDbTypeMetadata>,
     params: Vec<u8>,
     null: Vec<u8>,
 }
@@ -18,7 +18,7 @@ impl QueryParameters for MariaDbQueryParameters {
         Self {
             param_types: Vec::with_capacity(4),
             params: Vec::with_capacity(32),
-            null: 0,
+            null: vec![0],
         }
     }
 
@@ -31,8 +31,7 @@ impl QueryParameters for MariaDbQueryParameters {
         let metadata = <MariaDb as HasSqlType<T>>::metadata();
         let index = self.param_types.len();
 
-        self.param_types
-            .push((metadata.field_type, metadata.param_flag));
+        self.param_types.push(metadata);
 
         if let IsNull::Yes = value.to_sql(&mut self.params) {
             self.null[index / 8] = self.null[index / 8] & (1 << index % 8);

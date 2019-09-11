@@ -1,6 +1,9 @@
 use crate::{
     io::BufMut,
-    mariadb::{BufMutExt, Encode},
+    mariadb::{
+        io::BufMutExt,
+        protocol::{Capabilities, Encode},
+    },
 };
 
 #[derive(Debug)]
@@ -8,9 +11,12 @@ pub struct ComStmtPrepare<'a> {
     pub statement: &'a str,
 }
 
-impl<'a> Encode for ComStmtPrepare<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Encode for ComStmtPrepare<'_> {
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_STMT_PREPARE : int<1>
         buf.put_u8(super::BinaryProtocol::ComStmtPrepare as u8);
+
+        // SQL Statement : string<EOF>
         buf.put_str(&self.statement);
     }
 }
@@ -20,19 +26,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_encodes_com_stmt_prepare() -> std::io::Result<()> {
-        let mut buf = Vec::with_capacity(1024);
+    fn it_encodes_com_stmt_prepare() {
+        let mut buf = Vec::new();
 
         ComStmtPrepare {
             statement: "SELECT * FROM users WHERE username = ?",
         }
-        .encode(&mut buf);
+        .encode(&mut buf, Capabilities::empty());
 
         assert_eq!(
             &buf[..],
             "\x27\0\0\x00\x16SELECT * FROM users WHERE username = ?"
         );
-
-        Ok(())
     }
 }

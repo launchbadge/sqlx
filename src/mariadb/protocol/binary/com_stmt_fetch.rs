@@ -1,16 +1,26 @@
-use crate::{io::BufMut, mariadb::Encode};
+use crate::{
+    io::BufMut,
+    mariadb::protocol::{binary::BinaryProtocol, Capabilities, Encode},
+};
 use byteorder::LittleEndian;
 
+// https://mariadb.com/kb/en/library/com_stmt_fetch/
+/// Fetch rows from a prepared statement.
 #[derive(Debug)]
 pub struct ComStmtFetch {
-    pub stmt_id: i32,
+    pub statement_id: u32,
     pub rows: u32,
 }
 
 impl Encode for ComStmtFetch {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        buf.put_u8(super::BinaryProtocol::ComStmtFetch as u8);
-        buf.put_i32::<LittleEndian>(self.stmt_id);
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_STMT_FETCH : int<1>
+        buf.put_u8(BinaryProtocol::ComStmtFetch as u8);
+
+        // statement id : int<4>
+        buf.put_u32::<LittleEndian>(self.statement_id);
+
+        // number of rows to fetch : int<4>
         buf.put_u32::<LittleEndian>(self.rows);
     }
 }
@@ -21,13 +31,13 @@ mod tests {
 
     #[test]
     fn it_encodes_com_stmt_fetch() {
-        let mut buf = Vec::with_capacity(1024);
+        let mut buf = Vec::new();
 
         ComStmtFetch {
-            stmt_id: 1,
+            statement_id: 1,
             rows: 10,
         }
-        .encode(&mut buf);
+        .encode(&mut buf, Capabilities::empty());
 
         assert_eq!(&buf[..], b"\x09\0\0\x00\x1C\x01\0\0\0\x0A\0\0\0");
     }

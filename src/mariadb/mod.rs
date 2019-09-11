@@ -6,7 +6,7 @@
 mod io;
 mod protocol;
 // mod query;
-// pub mod types;
+pub mod types;
 
 //pub use self::{
 // backend::MariaDb,

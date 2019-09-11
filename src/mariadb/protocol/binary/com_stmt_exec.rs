@@ -1,104 +1,89 @@
-use crate::mariadb::{
-    BufMutExt, ColumnDefPacket, ConnContext, Encode, FieldDetailFlag, FieldType, MariaDbRawConnection,
-    StmtExecFlag, Capabilities
+use crate::{
+    io::BufMut,
+    mariadb::{
+        io::BufMutExt,
+        protocol::{binary::BinaryProtocol, Capabilities, Encode},
+        types::MariaDbTypeMetadata,
+    },
 };
-use bytes::Bytes;
-use crate::io::BufMut;
 use byteorder::LittleEndian;
 
-#[derive(Debug)]
-pub struct ComStmtExec {
-    pub stmt_id: i32,
-    pub flags: StmtExecFlag,
-    pub params: Option<Vec<Option<Bytes>>>,
-    pub param_defs: Option<Vec<ColumnDefPacket>>,
+bitflags::bitflags! {
+    // https://mariadb.com/kb/en/library/com_stmt_execute/#flag
+    pub struct StmtExecFlag: u8 {
+        const NO_CURSOR = 0;
+        const READ_ONLY = 1;
+        const CURSOR_FOR_UPDATE = 2;
+        const SCROLLABLE_CURSOR = 4;
+    }
 }
 
-impl Encode for ComStmtExec {
-    fn encode(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
-        buf.put_u8(super::BinaryProtocol::ComStmtExec.into());
-        buf.put_i32::<LittleEndian>(self.stmt_id);
-        buf.put_u8::<LittleEndian>(self.flags.0);
+// https://mariadb.com/kb/en/library/com_stmt_execute
+/// Executes a previously prepared statement.
+#[derive(Debug)]
+pub struct ComStmtExec<'a> {
+    pub statement_id: u32,
+    pub flags: StmtExecFlag,
+    pub params: &'a [u8],
+    pub null: &'a [u8],
+    pub param_types: &'a [MariaDbTypeMetadata],
+}
+
+impl Encode for ComStmtExec<'_> {
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
+        // COM_STMT_EXECUTE : int<1>
+        buf.put_u8(BinaryProtocol::ComStmtExec as u8);
+
+        // statement id : int<4>
+        buf.put_u32::<LittleEndian>(self.statement_id);
+
+        // flags : int<1>
+        buf.put_u8(self.flags.bits());
+
+        // Iteration count (always 1) : int<4>
         buf.put_u32::<LittleEndian>(1);
 
-        match (&self.params, &self.param_defs) {
-            (Some(params), Some(param_defs)) if params.len() > 0 => {
-                let null_bitmap_size = (params.len() + 7) / 8;
-                let mut shift_amount = 0u8;
-                let mut bitmap = vec![0u8];
-                let send_type = 1u8;
+        // if (param_count > 0)
+        if self.param_types.len() > 0 {
+            // null bitmap : byte<(param_count + 7)/8>
+            buf.put_bytes(self.null);
 
-                // Generate NULL-bitmap from params
-                for param in params {
-                    if param.is_none() {
-                        let last_byte = bitmap.pop().unwrap();
-                        bitmap.put_u8(last_byte & (1 << shift_amount));
-                    }
+            // send type to server (0 / 1) : byte<1>
+            buf.put_u8(1);
 
-                    shift_amount = (shift_amount + 1) % 8;
+            // for each parameter :
+            for param_type in self.param_types {
+                // field type : byte<1>
+                buf.put_u8(param_type.field_type.0);
 
-                    if shift_amount % 8 == 0 {
-                        bitmap.put_u8(0u8);
-                    }
-                }
-
-                buf.put_byte_fix(&Bytes::from(bitmap), null_bitmap_size);
-                buf.put_u8(send_type);
-
-                if send_type > 0 {
-                    for param in param_defs {
-                        buf.put_u8(param.field_type.0);
-                        buf.put_u8(0);
-                    }
-                }
-
-                // Encode params
-                for index in 0..params.len() {
-                    if let Some(bytes) = &params[index] {
-                        buf.put_byte_lenenc(&bytes);
-                    }
-                }
+                // parameter flag : byte<1>
+                buf.put_u8(param_type.param_flag.bits());
             }
-            _ => {}
+
+            // for each parameter (i.e param_count times)
+            // byte<n> binary parameter value
+            buf.put_bytes(self.params);
         }
-
-        buf.put_length();
-
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mariadb::{FieldDetailFlag, FieldType};
 
     #[test]
-    fn it_encodes_com_stmt_close() {
-        let mut buf = Vec::with_capacity(1024);
-        let mut ctx = ConnContext::new();
+    fn it_encodes_com_stmt_exec() {
+        let mut buf = Vec::new();
 
         ComStmtExec {
-            stmt_id: 1,
+            statement_id: 1,
             flags: StmtExecFlag::NO_CURSOR,
-            params: Some(vec![Some(Bytes::from_static(b"\x06daniel"))]),
-            param_defs: Some(vec![ColumnDefPacket {
-                catalog: Bytes::from_static(b"def"),
-                schema: Bytes::from_static(b"test"),
-                table_alias: Bytes::from_static(b"users"),
-                table: Bytes::from_static(b"users"),
-                column_alias: Bytes::from_static(b"username"),
-                column: Bytes::from_static(b"username"),
-                length_of_fixed_fields: Some(0x0Cu64),
-                char_set: 1,
-                max_columns: 1,
-                field_type: FieldType::MYSQL_TYPE_STRING,
-                field_details: FieldDetailFlag::NOT_NULL,
-                decimals: 0,
-            }]),
+            null: &vec![],
+            params: &vec![],
+            param_types: &vec![],
         }
-        .encode(&mut buf, &mut ctx)?;
+        .encode(&mut buf, Capabilities::empty());
 
-        Ok(())
+        // TODO: Add a regression test
     }
 }
