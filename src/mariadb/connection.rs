@@ -185,7 +185,10 @@ impl MariaDbRawConnection {
                 let err = ErrPacket::decode(packet)?;
 
                 // TODO: Bubble as Error::Database
-                panic!("received db err = {:?}", err);
+                //                panic!("received db err = {:?}", err);
+                return Err(
+                    io::Error::new(io::ErrorKind::InvalidInput, format!("{:?}", err)).into(),
+                );
             }
 
             _ => ComStmtPrepareOk::decode(packet)?,
@@ -349,7 +352,7 @@ impl RawConnection for MariaDbRawConnection {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Error;
+    use crate::{query::QueryParameters, Error, Pool};
 
     #[tokio::test]
     async fn it_can_connect() -> Result<()> {
@@ -363,5 +366,46 @@ mod test {
             Ok(_) => panic!("Somehow connected to database with incorrect username"),
             Err(_) => Ok(()),
         }
+    }
+
+    #[tokio::test]
+    async fn it_can_ping() -> Result<()> {
+        let mut conn =
+            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
+        conn.ping().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_can_prepare() -> Result<()> {
+        let mut conn =
+            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
+        conn.prepare("SELECT id from users").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_fails_to_prepare_with_bad_column() -> Result<()> {
+        let mut conn =
+            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
+        match conn.prepare("SELECT if from users").await {
+            Ok(_) => panic!("Somehow successfully prepared statement selecting invalid column"),
+            Err(_) => Ok(()),
+        }
+    }
+
+    #[tokio::test]
+    async fn it_can_execute_prepared_statement() -> Result<()> {
+        let mut conn =
+            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
+        let id = conn.prepare("SELECT id from users").await?;
+        conn.execute(id, MariaDbQueryParameters::new()).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_can_create_mariadb_pool() -> Result<()> {
+        let pool: Pool<MariaDb> = Pool::new("mariadb://root@127.0.0.1:3306/test").await?;
+        Ok(())
     }
 }
