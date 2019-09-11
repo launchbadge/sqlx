@@ -43,8 +43,13 @@ pub use self::{
 #[cfg(feature = "mariadb")]
 pub mod mariadb;
 
+#[cfg(feature = "mariadb")]
+#[doc(inline)]
+pub use mariadb::MariaDb;
+
 #[cfg(feature = "postgres")]
 pub mod postgres;
 
 #[cfg(feature = "postgres")]
+#[doc(inline)]
 pub use self::postgres::Postgres;

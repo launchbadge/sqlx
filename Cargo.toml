@@ -24,7 +24,6 @@ crossbeam-utils = { version = "0.6.6", default-features = false }
 futures-channel-preview = "0.3.0-alpha.18"
 futures-core-preview = "0.3.0-alpha.18"
 futures-util-preview = "0.3.0-alpha.18"
-hex = { version = "0.3.2", default-features = false }
 log = "0.4.8"
 md-5 = "0.8.0"
 memchr = "2.2.1"

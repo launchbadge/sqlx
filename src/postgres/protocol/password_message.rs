@@ -34,12 +34,12 @@ impl Encode for PasswordMessage<'_> {
                 hasher.input(password);
                 hasher.input(user);
 
-                let credentials = hex::encode(hasher.result_reset());
+                let credentials = format!("{:x}", hasher.result_reset());
 
                 hasher.input(credentials);
                 hasher.input(salt);
 
-                let salted = hex::encode(hasher.result());
+                let salted = format!("{:x}", hasher.result());
 
                 // len + "md5" + (salted)
                 buf.put_u32::<NetworkEndian>((4 + 3 + salted.len() + 1) as u32);
