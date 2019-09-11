@@ -6,11 +6,12 @@ use crate::{
     query::{IntoQueryParameters, QueryParameters},
     row::FromSqlRow,
 };
+use async_trait::async_trait;
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use futures_channel::oneshot::{channel, Sender};
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{stream::StreamExt, TryFutureExt};
+use futures_util::stream::StreamExt;
 use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -23,12 +24,13 @@ use std::{
 ///
 /// This trait is not intended to be used directly. Instead [sqlx::Connection] or [sqlx::Pool] should be used instead, which provide
 /// concurrent access and typed retrieval of results.
+#[async_trait]
 pub trait RawConnection: Send {
-    /// The database backend this type connects to.
+    // The database backend this type connects to.
     type Backend: Backend;
 
     /// Establish a new connection.bak to the database server.
-    fn establish(url: &str) -> BoxFuture<Result<Self, Error>>
+    async fn establish(url: &str) -> crate::Result<Self>
     where
         Self: Sized;
 
@@ -38,36 +40,37 @@ pub trait RawConnection: Send {
     /// and clean up not fully closed connections.
     ///
     /// It is safe to close an already closed connection.bak.
-    fn close(&mut self) -> BoxFuture<'_, Result<(), Error>>;
+    async fn close(mut self) -> crate::Result<()>;
 
     /// Verifies a connection.bak to the database is still alive.
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(
-            self.execute(
+    async fn ping(&mut self) -> crate::Result<()> {
+        let _ = self
+            .execute(
                 "SELECT 1",
-                <Self::Backend as Backend>::QueryParameters::new(),
+                <<Self::Backend as Backend>::QueryParameters>::new(),
             )
-            .map_ok(|_| ()),
-        )
+            .await?;
+
+        Ok(())
     }
 
-    fn execute<'c>(
-        &'c mut self,
+    async fn execute(
+        &mut self,
         query: &str,
         params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'c, Result<u64, Error>>;
+    ) -> crate::Result<u64>;
 
-    fn fetch<'c>(
-        &'c mut self,
+    fn fetch(
+        &mut self,
         query: &str,
         params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxStream<'c, Result<<Self::Backend as Backend>::Row, Error>>;
+    ) -> BoxStream<'_, crate::Result<<Self::Backend as Backend>::Row>>;
 
-    fn fetch_optional<'c>(
-        &'c mut self,
+    async fn fetch_optional(
+        &mut self,
         query: &str,
         params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'c, Result<Option<<Self::Backend as Backend>::Row>, Error>>;
+    ) -> crate::Result<Option<<Self::Backend as Backend>::Row>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)

@@ -3,12 +3,13 @@ mod connection;
 mod error;
 mod protocol;
 mod query;
+mod raw;
 mod row;
 pub mod types;
 
 pub use self::{
-    backend::Postgres, connection::PostgresRawConnection, error::PostgresDatabaseError,
-    query::PostgresQueryParameters, row::PostgresRow,
+    backend::Postgres, error::PostgresDatabaseError, query::PostgresQueryParameters,
+    raw::PostgresRawConnection, row::PostgresRow,
 };
 
 #[cfg(test)]

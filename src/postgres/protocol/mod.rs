@@ -1,6 +1,10 @@
 //! Low level PostgreSQL protocol. Defines the encoding and decoding of the messages communicated
 //! to and from the database server.
 
+// Many protocol types are implemented but unused (currently). The hope is to eventually
+// work them all into the (raw) connection type.
+#![allow(unused)]
+
 mod bind;
 mod cancel_request;
 mod close;
