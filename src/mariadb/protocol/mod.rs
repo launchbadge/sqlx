@@ -11,7 +11,9 @@ mod response;
 mod server_status;
 mod text;
 
-pub use binary::ComStmtClose;
+pub use binary::{
+    ComStmtClose, ComStmtExec, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtReset,
+};
 pub use capabilities::Capabilities;
 pub use connect::{
     AuthenticationSwitchRequest, HandshakeResponsePacket, InitialHandshakePacket, SslRequest,
