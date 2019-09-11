@@ -1,6 +1,6 @@
 # SQLx
 
-The SQL Toolkit for Rust. Fast, Safe, and Asynchronous. 
+The Rust SQL Toolkit.
  
  * **Asynchronous**. Handle thousands of database connections from a single thread.
  
@@ -10,7 +10,7 @@ The SQL Toolkit for Rust. Fast, Safe, and Asynchronous.
  
  * **Agnostic**. SQLx is agnostic over the database engine and can operate against a variety of database backends with the backend chosen **at compile-time** through generic constraints **or at runtime** with a slight performance loss (due to dynamic dispatch).
 
-<sub><sup>† The SQLite driver (which does not yet exist) uses the libsqlite3 C library as SQLite is an embedded database (the only way we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
+<sub><sup>† The SQLite driver (which does not yet exist) will use the libsqlite3 C library as SQLite is an embedded database (the only way we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
 
 ## License
 
