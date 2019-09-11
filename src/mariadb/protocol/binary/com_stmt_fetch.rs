@@ -39,6 +39,6 @@ mod tests {
         }
         .encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x09\0\0\x00\x1C\x01\0\0\0\x0A\0\0\0");
+        assert_eq!(&buf[..], b"\x1C\x01\0\0\0\x0A\0\0\0");
     }
 }

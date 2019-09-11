@@ -29,6 +29,6 @@ mod tests {
 
         ComStmtReset { statement_id: 1 }.encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(&buf[..], b"\x05\0\0\x00\x1A\x01\0\0\0");
+        assert_eq!(&buf[..], b"\x1A\x01\0\0\0");
     }
 }

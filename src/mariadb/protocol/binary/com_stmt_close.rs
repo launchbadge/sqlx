@@ -31,7 +31,7 @@ mod tests {
     fn it_encodes_com_stmt_close() {
         let mut buf = Vec::new();
 
-        ComStmtClose { statement_id: 1 }.encode(&mut buf);
+        ComStmtClose { statement_id: 1 }.encode(&mut buf, Capabilities::empty());
 
         assert_eq!(&buf[..], b"\x19\x01\0\0\0");
     }

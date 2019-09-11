@@ -34,9 +34,6 @@ mod tests {
         }
         .encode(&mut buf, Capabilities::empty());
 
-        assert_eq!(
-            &buf[..],
-            "\x27\0\0\x00\x16SELECT * FROM users WHERE username = ?"
-        );
+        assert_eq!(&buf[..], &b"\x16SELECT * FROM users WHERE username = ?"[..]);
     }
 }
