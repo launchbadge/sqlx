@@ -1,9 +1,9 @@
 use crate::{
     error::ErrorKind,
-    mariadb::{
-        protocol::{encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
+    mariadb::protocol::{
+        encode, Capabilities, ComInitDb, ComPing, ComQuery, ComQuit, ComStmtPrepare,
         ComStmtPrepareResp, DeContext, Decode, Decoder, Encode, ErrPacket, OkPacket, PacketHeader,
-        ProtocolType, ResultSet, ServerStatusFlag},
+        ProtocolType, ResultSet, ServerStatusFlag,
     },
 };
 use byteorder::{ByteOrder, LittleEndian};
@@ -30,7 +30,7 @@ pub struct MariaDbRawConnection {
     pub rbuf: BytesMut,
     pub read_index: usize,
 
-    // Context for the connection
+    // Context for the connection.bak
     // Explicitly declared to easily send to deserializers
     pub context: ConnContext,
 }
@@ -136,49 +136,6 @@ impl MariaDbRawConnection {
         Ok(())
     }
 
-    pub async fn query<'a>(
-        &'a mut self,
-        sql_statement: &'a str,
-    ) -> Result<Option<ResultSet>, Error> {
-        self.write(ComQuery {
-            sql_statement: bytes::Bytes::from(sql_statement),
-        })
-        .await?;
-
-        let mut ctx = DeContext::with_stream(&mut self.context, &mut self.stream);
-        ctx.next_packet().await?;
-
-        match ctx.decoder.peek_tag() {
-            0xFF => Err(ErrPacket::decode(&mut ctx)?.into()),
-            0x00 => {
-                OkPacket::decode(&mut ctx)?;
-                Ok(None)
-            }
-            0xFB => unimplemented!(),
-            _ => Ok(Some(ResultSet::deserialize(ctx, ProtocolType::Text).await?)),
-        }
-    }
-
-    pub async fn select_db<'a>(&'a mut self, db: &'a str) -> Result<(), Error> {
-        self.write(ComInitDb {
-            schema_name: bytes::Bytes::from(db),
-        })
-        .await?;
-
-        let mut ctx = DeContext::new(&mut self.context, self.stream.next_packet().await?);
-        match ctx.decoder.peek_tag() {
-            0xFF => {
-                ErrPacket::decode(&mut ctx)?;
-            }
-            0x00 => {
-                OkPacket::decode(&mut ctx)?;
-            }
-            _ => failure::bail!("Did not receive an ErrPacket nor OkPacket when one was expected"),
-        }
-
-        Ok(())
-    }
-
     pub async fn ping(&mut self) -> Result<(), Error> {
         self.write(ComPing()).await?;
 
@@ -187,6 +144,19 @@ impl MariaDbRawConnection {
             &mut self.context,
             self.stream.next_packet().await?,
         ))?;
+
+        Ok(())
+    }
+
+    pub async fn ping(&mut self) -> Result<(), Error> {
+        // Send the ping command and wait for (and drop) an OK packet
+        // SEND ================
+        self.last_seq_no = None;
+        self.write(ComPing);
+        self.stream.flush().await?;
+        // =====================
+
+        let _ = decode_ok_or_err(self.receive().await?)?;
 
         Ok(())
     }

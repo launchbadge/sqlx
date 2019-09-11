@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 // mod backend;
-// mod connection;
+mod connection;
 mod io;
 mod protocol;
 // mod query;
@@ -10,7 +10,7 @@ pub mod types;
 
 //pub use self::{
 // backend::MariaDb,
-// connection::MariaDbRawConnection,
+// connection.bak::MariaDbRawConnection,
 // query::MariaDbQueryParameters,
 // row::MariaDbRow,
 //};

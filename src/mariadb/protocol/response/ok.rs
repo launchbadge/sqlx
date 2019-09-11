@@ -21,7 +21,7 @@ pub struct OkPacket {
 }
 
 impl OkPacket {
-    fn decode(mut buf: &[u8], capabilities: Capabilities) -> io::Result<Self> {
+    pub fn decode(mut buf: &[u8], capabilities: Capabilities) -> io::Result<Self> {
         let header = buf.get_u8()?;
         if header != 0 && header != 0xFE {
             return Err(io::Error::new(

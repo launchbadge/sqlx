@@ -5,7 +5,7 @@ use crate::{
 };
 use byteorder::LittleEndian;
 
-/// Forces the server to terminate a specified connection.
+/// Forces the server to terminate a specified connection.bak.
 pub struct ComProcessKill {
     pub process_id: u32,
 }

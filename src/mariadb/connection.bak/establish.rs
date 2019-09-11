@@ -16,7 +16,7 @@ pub async fn establish(conn: &mut MariaDbRawConnection, url: Url) -> Result<(), 
     de_ctx.ctx.capabilities = de_ctx.ctx.capabilities.bitand(initial.capabilities);
 
     let handshake: HandshakeResponsePacket = HandshakeResponsePacket {
-        // Minimum client capabilities required to establish connection
+        // Minimum client capabilities required to establish connection.bak
         capabilities: de_ctx.ctx.capabilities,
         max_packet_size: 1024,
         extended_capabilities: Some(Capabilities::from_bits_truncate(0)),

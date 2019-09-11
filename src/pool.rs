@@ -28,36 +28,36 @@ impl<DB> Pool<DB>
 where
     DB: Backend,
 {
-    /// Creates a connection pool with the default configuration.
+    /// Creates a connection.bak pool with the default configuration.
     pub async fn new(url: &str) -> crate::Result<Self> {
         Ok(Pool(Arc::new(
             SharedPool::new(url, Options::default()).await?,
         )))
     }
 
-    /// Returns a [Builder] to configure a new connection pool.
+    /// Returns a [Builder] to configure a new connection.bak pool.
     pub fn builder() -> Builder<DB> {
         Builder::new()
     }
 
-    /// Retrieves a connection from the pool.
+    /// Retrieves a connection.bak from the pool.
     ///
-    /// Waits for at most the configured connection timeout before returning an error.
+    /// Waits for at most the configured connection.bak timeout before returning an error.
     pub async fn acquire(&self) -> crate::Result<Connection<DB>> {
         let live = self.0.acquire().await?;
         Ok(Connection::new(live, Some(Arc::clone(&self.0))))
     }
 
-    /// Attempts to retrieve a connection from the pool if there is one available.
+    /// Attempts to retrieve a connection.bak from the pool if there is one available.
     ///
     /// Returns `None` if there are no idle connections available in the pool.
-    /// This method will not block waiting to establish a new connection.
+    /// This method will not block waiting to establish a new connection.bak.
     pub fn try_acquire(&self) -> Option<Connection<DB>> {
         let live = self.0.try_acquire()?;
         Some(Connection::new(live, Some(Arc::clone(&self.0))))
     }
 
-    /// Ends the use of a connection pool. Prevents any new connections
+    /// Ends the use of a connection.bak pool. Prevents any new connections
     /// and will close all active connections when they are returned to the pool.
     ///
     /// Does not resolve until all connections are closed.
@@ -80,23 +80,23 @@ where
         self.0.options.max_size
     }
 
-    /// Returns the configured mimimum idle connection count.
+    /// Returns the configured mimimum idle connection.bak count.
     pub fn min_idle(&self) -> Option<u32> {
         self.0.options.min_idle
     }
 
-    /// Returns the configured maximum connection lifetime.
+    /// Returns the configured maximum connection.bak lifetime.
     pub fn max_lifetime(&self) -> Option<Duration> {
         self.0.options.max_lifetime
     }
 
-    /// Returns the configured idle connection timeout.
+    /// Returns the configured idle connection.bak timeout.
     pub fn idle_timeout(&self) -> Option<Duration> {
         self.0.options.idle_timeout
     }
 }
 
-/// Returns a new [Pool] tied to the same shared connection pool.
+/// Returns a new [Pool] tied to the same shared connection.bak pool.
 impl<DB> Clone for Pool<DB>
 where
     DB: Backend,
@@ -235,7 +235,7 @@ where
             }
 
             if self.size.compare_and_swap(size, size + 1, Ordering::AcqRel) == size {
-                // Open a new connection and return directly
+                // Open a new connection.bak and return directly
 
                 let raw = <DB as Backend>::RawConnection::establish(&self.url).await?;
                 let live = Live {

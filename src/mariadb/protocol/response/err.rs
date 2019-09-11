@@ -22,7 +22,7 @@ pub enum ErrPacket {
 }
 
 impl ErrPacket {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub fn decode(mut buf: &[u8]) -> io::Result<Self> {
         let header = buf.get_u8()?;
         debug_assert_eq!(header, 0xFF);
 
