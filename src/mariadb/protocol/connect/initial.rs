@@ -21,7 +21,7 @@ pub struct InitialHandshakePacket {
 }
 
 impl InitialHandshakePacket {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
         let protocol_version = buf.get_u8()?;
         let server_version = buf.get_str_nul()?.to_owned();
         let connection_id = buf.get_u32::<LittleEndian>()?;

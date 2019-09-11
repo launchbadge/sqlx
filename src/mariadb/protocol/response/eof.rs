@@ -15,7 +15,7 @@ pub struct EofPacket {
 }
 
 impl EofPacket {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
         let header = buf.get_u8()?;
         if header != 0xFE {
             return Err(io::Error::new(

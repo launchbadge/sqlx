@@ -4,6 +4,7 @@ use crate::{
     serialize::{IsNull, ToSql},
     types::HasSqlType,
 };
+use crate::mariadb::types::MariaDbTypeMetadata;
 
 pub struct MariaDbQueryParameters {
     param_types: Vec<MariaDbTypeMetadata>,

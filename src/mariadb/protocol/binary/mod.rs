@@ -6,7 +6,7 @@ pub mod com_stmt_prepare_ok;
 pub mod com_stmt_reset;
 
 pub use com_stmt_close::ComStmtClose;
-pub use com_stmt_exec::ComStmtExec;
+pub use com_stmt_exec::{ComStmtExecute, StmtExecFlag};
 pub use com_stmt_fetch::ComStmtFetch;
 pub use com_stmt_prepare::ComStmtPrepare;
 pub use com_stmt_prepare_ok::ComStmtPrepareOk;

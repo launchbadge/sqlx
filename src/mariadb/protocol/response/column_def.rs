@@ -25,7 +25,7 @@ pub struct ColumnDefinitionPacket {
 }
 
 impl ColumnDefinitionPacket {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
         // string<lenenc> catalog (always 'def')
         let _catalog = buf.get_str_lenenc::<LittleEndian>()?;
         // TODO: Assert that this is always DEF

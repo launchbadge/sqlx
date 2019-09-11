@@ -5,7 +5,7 @@ use std::io;
 // https://mariadb.com/kb/en/library/com_stmt_prepare/#com_stmt_prepare_ok
 #[derive(Debug)]
 pub struct ComStmtPrepareOk {
-    pub statement_id: i32,
+    pub statement_id: u32,
 
     /// Number of columns in the returned result set (or 0 if statement does not return result set).
     pub columns: u16,
@@ -18,7 +18,7 @@ pub struct ComStmtPrepareOk {
 }
 
 impl ComStmtPrepareOk {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
         let header = buf.get_u8()?;
 
         if header != 0x00 {
@@ -28,7 +28,7 @@ impl ComStmtPrepareOk {
             ));
         }
 
-        let statement_id = buf.get_i32::<LittleEndian>()?;
+        let statement_id = buf.get_u32::<LittleEndian>()?;
         let columns = buf.get_u16::<LittleEndian>()?;
         let params = buf.get_u16::<LittleEndian>()?;
 

@@ -12,7 +12,7 @@ pub struct ColumnCountPacket {
 }
 
 impl ColumnCountPacket {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
         let columns = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);
 
         Ok(Self { columns })

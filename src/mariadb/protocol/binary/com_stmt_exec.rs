@@ -21,7 +21,7 @@ bitflags::bitflags! {
 // https://mariadb.com/kb/en/library/com_stmt_execute
 /// Executes a previously prepared statement.
 #[derive(Debug)]
-pub struct ComStmtExec<'a> {
+pub struct ComStmtExecute<'a> {
     pub statement_id: u32,
     pub flags: StmtExecFlag,
     pub params: &'a [u8],
@@ -29,7 +29,7 @@ pub struct ComStmtExec<'a> {
     pub param_types: &'a [MariaDbTypeMetadata],
 }
 
-impl Encode for ComStmtExec<'_> {
+impl Encode for ComStmtExecute<'_> {
     fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
         // COM_STMT_EXECUTE : int<1>
         buf.put_u8(BinaryProtocol::ComStmtExec as u8);
@@ -75,7 +75,7 @@ mod tests {
     fn it_encodes_com_stmt_exec() {
         let mut buf = Vec::new();
 
-        ComStmtExec {
+        ComStmtExecute {
             statement_id: 1,
             flags: StmtExecFlag::NO_CURSOR,
             null: &vec![],
