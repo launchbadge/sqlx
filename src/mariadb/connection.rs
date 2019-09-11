@@ -13,6 +13,7 @@ use crate::{
     },
     Backend, Error, Result,
 };
+use async_trait::async_trait;
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::{
@@ -56,7 +57,7 @@ impl MariaDbRawConnection {
         Ok(conn)
     }
 
-    pub async fn close(&mut self) -> Result<()> {
+    pub async fn close(mut self) -> Result<()> {
         // Send the quit command
 
         self.start_sequence();
@@ -297,55 +298,50 @@ enum ExecResult {
     Rows(Vec<ColumnDefinitionPacket>),
 }
 
+#[async_trait]
 impl RawConnection for MariaDbRawConnection {
     type Backend = MariaDb;
 
-    fn establish(url: &str) -> BoxFuture<Result<Self>>
+    async fn establish(url: &str) -> crate::Result<Self>
     where
         Self: Sized,
     {
-        Box::pin(MariaDbRawConnection::establish(url))
+        MariaDbRawConnection::establish(url).await
     }
 
-    fn close(&mut self) -> BoxFuture<'_, Result<()>> {
-        Box::pin(self.close())
+    async fn close(mut self) -> crate::Result<()> {
+        self.close().await
     }
 
-    fn ping(&mut self) -> BoxFuture<'_, Result<()>> {
-        Box::pin(self.ping())
+    async fn ping(&mut self) -> crate::Result<()> {
+        self.ping().await
     }
 
-    fn execute<'c>(
-        &'c mut self,
-        query: &str,
-        params: MariaDbQueryParameters,
-    ) -> BoxFuture<'c, Result<u64>> {
+    async fn execute(&mut self, query: &str, params: MariaDbQueryParameters) -> crate::Result<u64> {
         // Write prepare statement to buffer
         self.start_sequence();
         self.write(ComStmtPrepare { statement: query });
 
-        Box::pin(async move {
-            let statement_id = self.exec_prepare().await?;
+        let statement_id = self.exec_prepare().await?;
 
-            let affected = self.execute(statement_id, params).await?;
+        let affected = self.execute(statement_id, params).await?;
 
-            Ok(affected)
-        })
+        Ok(affected)
     }
 
-    fn fetch<'c>(
-        &'c mut self,
+    fn fetch(
+        &mut self,
         query: &str,
         params: MariaDbQueryParameters,
-    ) -> BoxStream<'c, Result<MariaDbRow>> {
+    ) -> BoxStream<'_, Result<MariaDbRow>> {
         unimplemented!();
     }
 
-    fn fetch_optional<'c>(
-        &'c mut self,
+    async fn fetch_optional(
+        &mut self,
         query: &str,
         params: MariaDbQueryParameters,
-    ) -> BoxFuture<'c, Result<Option<<Self::Backend as Backend>::Row>>> {
+    ) -> crate::Result<Option<<Self::Backend as Backend>::Row>> {
         unimplemented!();
     }
 }
