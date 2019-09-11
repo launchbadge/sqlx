@@ -101,14 +101,14 @@ impl HasSqlType<f32> for Postgres {
 impl ToSql<Postgres> for f32 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        (self.to_bits() as i32).to_sql(buf)
+        <i32 as ToSql<Postgres>>::to_sql(self.to_bits() as i32, buf)
     }
 }
 
 impl FromSql<Postgres> for f32 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
-        f32::from_bits(i32::from_sql(buf) as u32)
+        f32::from_bits(<i32 as FromSql<Postgres>>::from_sql(buf) as u32)
     }
 }
 
@@ -126,13 +126,13 @@ impl HasSqlType<f64> for Postgres {
 impl ToSql<Postgres> for f64 {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        (self.to_bits() as i64).to_sql(buf)
+        <i64 as ToSql<Postgres>>::to_sql(self.to_bits() as i64, buf)
     }
 }
 
 impl FromSql<Postgres> for f64 {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
-        f64::from_bits(i64::from_sql(buf) as u64)
+        f64::from_bits(<i64 as FromSql<Postgres>>::from_sql(buf) as u64)
     }
 }

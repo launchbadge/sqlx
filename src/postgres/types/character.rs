@@ -36,7 +36,7 @@ impl ToSql<Postgres> for &'_ str {
 impl ToSql<Postgres> for String {
     #[inline]
     fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        self.as_str().to_sql(buf)
+        <&str as ToSql<Postgres>>::to_sql(self.as_str(), buf)
     }
 }
 
