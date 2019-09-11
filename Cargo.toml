@@ -14,7 +14,7 @@ postgres = []
 mariadb = []
 
 [dependencies]
-async-stream = "0.1.0"
+async-stream = "0.1.1"
 async-trait = "0.1.11"
 bitflags = "1.1.0"
 byteorder = { version = "1.3.2", default-features = false }
@@ -37,6 +37,3 @@ tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "rt-
 [profile.release]
 lto = true
 codegen-units = 1
-
-[patch.crates-io]
-async-stream = { git = "https://github.com/tokio-rs/async-stream" }
