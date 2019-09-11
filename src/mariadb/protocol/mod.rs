@@ -1,3 +1,7 @@
+// Many protocol types are implemented but unused (currently). The hope is to eventually
+// work them all into the (raw) connection type.
+#![allow(unused)]
+
 // Reference: https://mariadb.com/kb/en/library/connection
 // Packets: https://mariadb.com/kb/en/library/0-packet
 
