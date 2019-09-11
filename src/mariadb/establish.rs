@@ -1,7 +1,11 @@
-use crate::Result;
+use crate::{
+    mariadb::{
+        connection::MariaDbRawConnection,
+        protocol::{Capabilities, Encode, HandshakeResponsePacket, InitialHandshakePacket},
+    },
+    Result,
+};
 use url::Url;
-use crate::mariadb::protocol::{HandshakeResponsePacket, InitialHandshakePacket, Encode, Capabilities};
-use crate::mariadb::connection::MariaDbRawConnection;
 
 pub(crate) async fn establish(conn: &mut MariaDbRawConnection, url: &Url) -> Result<()> {
     let initial = InitialHandshakePacket::decode(conn.receive().await?)?;
@@ -24,7 +28,7 @@ pub(crate) async fn establish(conn: &mut MariaDbRawConnection, url: &Url) -> Res
         database: &url.path()[1..],
         auth_data: None,
         auth_plugin_name: None,
-        connection_attrs: &[]
+        connection_attrs: &[],
     };
 
     // The AND between our supported capabilities and the servers' is

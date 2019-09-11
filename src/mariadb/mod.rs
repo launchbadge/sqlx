@@ -1,19 +1,17 @@
 // TODO: Remove after acitve development
 #![allow(unused)]
 
-mod row;
 mod backend;
 mod connection;
 mod establish;
 mod io;
 mod protocol;
 mod query;
+mod row;
 pub mod types;
 
 pub use self::{
-    backend::MariaDb,
-    connection::MariaDbRawConnection,
-    query::MariaDbQueryParameters,
+    backend::MariaDb, connection::MariaDbRawConnection, query::MariaDbQueryParameters,
     row::MariaDbRow,
 };
 

@@ -12,7 +12,8 @@ mod server_status;
 mod text;
 
 pub use binary::{
-    ComStmtClose, ComStmtExecute, StmtExecFlag, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtReset,
+    ComStmtClose, ComStmtExecute, ComStmtFetch, ComStmtPrepare, ComStmtPrepareOk, ComStmtReset,
+    StmtExecFlag,
 };
 pub use capabilities::Capabilities;
 pub use connect::{

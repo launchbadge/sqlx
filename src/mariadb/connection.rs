@@ -1,17 +1,27 @@
-use byteorder::{ByteOrder, LittleEndian};
-use std::io;
-use tokio::net::TcpStream;
-use crate::mariadb::protocol::{OkPacket, ErrPacket, Capabilities, ComPing, ColumnCountPacket, ColumnDefinitionPacket, EofPacket, ComStmtExecute, StmtExecFlag, ResultRow, ComQuit, ComStmtPrepare, ComStmtPrepareOk};
-use url::Url;
-use std::net::{IpAddr, SocketAddr};
-use std::future::Future;
-use crate::error::DatabaseError;
-use crate::{connection::RawConnection, io::{Buf, BufMut, BufStream}, mariadb::protocol::Encode, Error, Backend};
 use super::establish;
-use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
-use crate::mariadb::{MariaDb, MariaDbRow, MariaDbQueryParameters};
-use crate::Result;
+use crate::{
+    connection::RawConnection,
+    error::DatabaseError,
+    io::{Buf, BufMut, BufStream},
+    mariadb::{
+        protocol::{
+            Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComPing, ComQuit,
+            ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
+            OkPacket, ResultRow, StmtExecFlag,
+        },
+        MariaDb, MariaDbQueryParameters, MariaDbRow,
+    },
+    Backend, Error, Result,
+};
+use byteorder::{ByteOrder, LittleEndian};
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use std::{
+    future::Future,
+    io,
+    net::{IpAddr, SocketAddr},
+};
+use tokio::net::TcpStream;
+use url::Url;
 
 pub struct MariaDbRawConnection {
     pub(crate) stream: BufStream<TcpStream>,
@@ -142,25 +152,22 @@ impl MariaDbRawConnection {
                 let err = ErrPacket::decode(buf)?;
 
                 // TODO: Bubble as Error::Database
-//                panic!("received db err = {:?}", err);
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    format!("{:?}",
-                        err
-                    ),
-                )
-                    .into());
+                //                panic!("received db err = {:?}", err);
+                return Err(
+                    io::Error::new(io::ErrorKind::InvalidInput, format!("{:?}", err)).into(),
+                );
             }
 
             id => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!(
-                        "unexpected packet identifier 0x{:X?} when expecting 0xFE (OK) or 0xFF (ERR)",
+                        "unexpected packet identifier 0x{:X?} when expecting 0xFE (OK) or 0xFF \
+                         (ERR)",
                         id
                     ),
                 )
-                    .into());
+                .into());
             }
         })
     }
@@ -190,8 +197,8 @@ impl MariaDbRawConnection {
 
         if ok.columns > 0
             && !self
-            .capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+                .capabilities
+                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
         {
             // TODO: Should we do something with the warning indicators here?
             let _eof = EofPacket::decode(self.receive().await?)?;
@@ -219,7 +226,7 @@ impl MariaDbRawConnection {
             params: &[],
             null: &[],
             flags: StmtExecFlag::NO_CURSOR,
-            param_types: &[]
+            param_types: &[],
         });
         self.stream.flush().await?;
         // =====================
@@ -227,8 +234,7 @@ impl MariaDbRawConnection {
         // Row Counter, used later
         let mut rows = 0u64;
         let capabilities = self.capabilities;
-        let has_eof = capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF);
+        let has_eof = capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF);
 
         let packet = self.receive().await?;
         if packet[0] == 0x00 {
@@ -295,8 +301,9 @@ impl RawConnection for MariaDbRawConnection {
     type Backend = MariaDb;
 
     fn establish(url: &str) -> BoxFuture<Result<Self>>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         Box::pin(MariaDbRawConnection::establish(url))
     }
 
@@ -315,9 +322,7 @@ impl RawConnection for MariaDbRawConnection {
     ) -> BoxFuture<'c, Result<u64>> {
         // Write prepare statement to buffer
         self.start_sequence();
-        self.write(ComStmtPrepare {
-            statement: query
-        });
+        self.write(ComStmtPrepare { statement: query });
 
         Box::pin(async move {
             let statement_id = self.exec_prepare().await?;
@@ -360,7 +365,7 @@ mod test {
     async fn it_fails_to_connect_with_bad_username() -> Result<()> {
         match MariaDbRawConnection::establish("mariadb://roote@127.0.0.1:3306/test").await {
             Ok(_) => panic!("Somehow connected to database with incorrect username"),
-            Err(_) => Ok(())
+            Err(_) => Ok(()),
         }
     }
 }

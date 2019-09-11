@@ -1,6 +1,5 @@
 use super::protocol::{FieldType, ParameterFlag};
-use crate::types::TypeMetadata;
-use crate::mariadb::MariaDb;
+use crate::{mariadb::MariaDb, types::TypeMetadata};
 
 #[derive(Debug)]
 pub struct MariaDbTypeMetadata {
