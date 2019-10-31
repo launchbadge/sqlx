@@ -19,6 +19,9 @@ pub mod error;
 mod executor;
 mod pool;
 
+#[doc(hidden)]
+pub mod checked_sql;
+
 #[macro_use]
 pub mod query;
 
