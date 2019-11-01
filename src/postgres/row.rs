@@ -1,6 +1,7 @@
 use super::{protocol::DataRow, Postgres};
 use crate::row::Row;
 
+#[derive(Debug)]
 pub struct PostgresRow(pub(crate) DataRow);
 
 impl Row for PostgresRow {

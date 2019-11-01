@@ -204,7 +204,9 @@ impl PostgresRawConnection {
                     return Ok(Some(Step::ParamDesc(desc)));
                 },
 
-                Message::
+                Message::RowDescription(desc) => {
+                    return Ok(Some(Step::RowDesc(desc)));
+                },
 
                 message => {
                     return Err(io::Error::new(
@@ -296,6 +298,7 @@ impl PostgresRawConnection {
     }
 }
 
+#[derive(Debug)]
 pub(super) enum Step {
     Command(u64),
     Row(PostgresRow),

@@ -1,3 +1,5 @@
+#![feature(proc_macro_hygiene)]
+
 fn main() {
-    sqlx::sql!("SELECT * from accounts");
+    sqlx_macros::sql!("SELECT * from accounts");
 }

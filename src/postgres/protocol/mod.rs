@@ -65,10 +65,10 @@ fn read_string(buf: &mut &[u8]) -> io::Result<String> {
     let str_len = memchr::memchr(0u8, buf)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "unterminated string"))?;
 
-    let string = str::from_utf8(&*buf[..str_len])
+    let string = str::from_utf8(&buf[..str_len])
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    *buf = &*buf[str_len + 1..];
+    *buf = &buf[str_len + 1..];
 
     Ok(string.to_owned())
 }

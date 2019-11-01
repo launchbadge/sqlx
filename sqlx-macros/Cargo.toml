@@ -1,0 +1,19 @@
+[package]
+name = "sqlx-macros"
+version = "0.1.0"
+authors = ["Austin Bonander <austin.bonander@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+futures-preview = "0.3.0-alpha.18"
+hex = "0.4.0"
+proc-macro2 = "1.0.6"
+sqlx = { path = "../", features = ["postgres"] }
+syn = "1.0"
+quote = "1.0"
+sha2 = "0.8.0"
+tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "tcp" ] }
+

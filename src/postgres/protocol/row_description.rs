@@ -26,15 +26,15 @@ impl Decode for RowDescription {
         let mut fields = Vec::with_capacity(cnt);
 
         for _ in 0..cnt {
-            fields.push(RowField {
+            fields.push(dbg!(RowField {
                 name: super::read_string(&mut buf)?,
                 table_id: buf.get_u32::<NetworkEndian>()?,
                 attr_num: buf.get_i16::<NetworkEndian>()?,
                 type_id: buf.get_u32::<NetworkEndian>()?,
-                type_size: buf.get_16::<NetworkEndian>()?,
+                type_size: buf.get_i16::<NetworkEndian>()?,
                 type_mod: buf.get_i32::<NetworkEndian>()?,
                 format_code: buf.get_i16::<NetworkEndian>()?,
-            });
+            }));
         }
 
         Ok(Self {

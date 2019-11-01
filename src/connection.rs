@@ -75,7 +75,7 @@ pub trait RawConnection: Send {
 
     async fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
         // TODO: implement for other backends
-        Err("connection does not support prepare() operation".into())
+        unimplemented!()
     }
 }
 
@@ -130,7 +130,7 @@ where
     /// Prepares a statement.
     pub async fn prepare(&self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
         let mut live = self.0.acquire().await;
-        let ret = live.raw.prepare(name, body)?;
+        let ret = live.raw.prepare(name, body).await?;
         self.0.release(live);
         Ok(ret)
     }

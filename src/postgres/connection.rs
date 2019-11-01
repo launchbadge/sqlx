@@ -1,8 +1,10 @@
 use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRow};
 use crate::{connection::RawConnection, postgres::raw::Step, url::Url, Error};
+use crate::query::QueryParameters;
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
 use crate::prepared::{PreparedStatement, Field};
+use crate::postgres::error::ProtocolError;
 
 #[async_trait]
 impl RawConnection for PostgresRawConnection {
@@ -94,21 +96,26 @@ impl RawConnection for PostgresRawConnection {
         Ok(row)
     }
 
-    fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
-        self.parse(name, body, &[]);
+    async fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
+        self.parse(name, body, &PostgresQueryParameters::new());
         self.describe(name);
+        self.sync().await?;
 
         let param_desc= loop {
-           if let Step::ParamDesc(desc) = self.step().await?
-               .ok_or("did not receive ParameterDescription")?
+            let step = self.step().await?
+                .ok_or(ProtocolError("did not receive ParameterDescription"));
+
+           if let Step::ParamDesc(desc) = dbg!(step)?
            {
                break desc;
            }
         };
 
         let row_desc = loop {
-            if let Step::RowDesc(desc) = self.step().await?
-                .ok_or("did not receive RowDescription")?
+            let step = self.step().await?
+                .ok_or(ProtocolError("did not receive RowDescription"));
+
+            if let Step::RowDesc(desc) = dbg!(step)?
             {
                 break desc;
             }
