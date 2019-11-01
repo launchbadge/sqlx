@@ -1,7 +1,8 @@
 use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRow};
-use crate::{connection::RawConnection, postgres::raw::Step, url::Url};
+use crate::{connection::RawConnection, postgres::raw::Step, url::Url, Error};
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
+use crate::prepared::{PreparedStatement, Field};
 
 #[async_trait]
 impl RawConnection for PostgresRawConnection {
@@ -91,6 +92,39 @@ impl RawConnection for PostgresRawConnection {
         }
 
         Ok(row)
+    }
+
+    fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
+        self.parse(name, body, &[]);
+        self.describe(name);
+
+        let param_desc= loop {
+           if let Step::ParamDesc(desc) = self.step().await?
+               .ok_or("did not receive ParameterDescription")?
+           {
+               break desc;
+           }
+        };
+
+        let row_desc = loop {
+            if let Step::RowDesc(desc) = self.step().await?
+                .ok_or("did not receive RowDescription")?
+            {
+                break desc;
+            }
+        };
+
+        Ok(PreparedStatement {
+            name: name.into(),
+            param_types: param_desc.ids,
+            fields: row_desc.fields.into_vec().into_iter()
+                .map(|field| Field {
+                    name: field.name,
+                    table_id: field.table_id,
+                    type_id: field.type_id
+                })
+                .collect(),
+        })
     }
 }
 

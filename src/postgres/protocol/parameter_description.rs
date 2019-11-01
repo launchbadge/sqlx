@@ -5,7 +5,7 @@ use std::io;
 
 #[derive(Debug)]
 pub struct ParameterDescription {
-    ids: Box<[u32]>,
+    pub ids: Box<[u32]>,
 }
 
 impl Decode for ParameterDescription {

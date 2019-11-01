@@ -29,6 +29,8 @@ pub mod serialize;
 mod sql;
 pub mod types;
 
+mod prepared;
+
 #[doc(inline)]
 pub use self::{
     backend::Backend,
