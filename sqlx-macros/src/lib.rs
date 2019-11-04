@@ -4,9 +4,10 @@ use proc_macro::TokenStream;
 
 use proc_macro2::Span;
 
-use quote::quote;
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use syn::{parse_macro_input, Expr, ExprLit, Lit, LitStr, Token};
+use syn::{parse_macro_input, Expr, ExprLit, Lit, LitStr, Token, Type};
+use syn::spanned::Spanned;
 use syn::punctuated::Punctuated;
 use syn::parse::{self, Parse, ParseStream};
 
@@ -19,6 +20,8 @@ use std::error::Error as _;
 
 type Error = Box<dyn std::error::Error>;
 type Result<T> = std::result::Result<T, Error>;
+
+mod postgres;
 
 struct MacroInput {
     sql: String,
@@ -54,7 +57,10 @@ pub fn sql(input: TokenStream) -> TokenStream {
     eprintln!("expanding macro");
 
     match Runtime::new().map_err(Error::from).and_then(|runtime| runtime.block_on(process_sql(input))) {
-        Ok(ts) => ts,
+        Ok(ts) => {
+            eprintln!("emitting output: {}", ts);
+            ts
+        },
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
                 return parse_err.to_compile_error().into();
@@ -86,5 +92,51 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
         ).into());
     }
 
-    Ok(quote! { compile_error!("implementation not finished yet") }.into())
+    let param_types = prepared.param_types.iter().zip(&*input.args).map(|(type_, expr)| {
+        get_type_override(expr)
+            .or_else(|| postgres::map_param_type_oid(*type_))
+            .ok_or_else(|| format!("unknown type OID: {}", type_).into())
+    })
+        .collect::<Result<Vec<_>>>()?;
+
+    let output_types = prepared.fields.iter().map(|field| {
+        postgres::map_output_type_oid(field.type_id)
+    })
+        .collect::<Result<Vec<_>>>()?;
+
+    let params = input.args.iter();
+
+    let params_ty_cons = input.args.iter().enumerate().map(|(i, expr)| {
+        quote_spanned!( expr.span() => { use sqlx::TyConsExt as _; (sqlx::TyCons::new(&params.#i)).ty_cons() })
+    });
+
+    let query = &input.sql;
+
+    Ok(
+        quote! {{
+            use sqlx::TyConsExt as _;
+
+            let params = (#(#params),*,);
+
+            if false {
+                let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
+            }
+
+            sqlx::CompiledSql::<_, (#(#output_types),*), sqlx::Postgres> {
+                query: #query,
+                params,
+                output: ::core::marker::PhantomData,
+                backend: ::core::marker::PhantomData,
+            }
+        }}
+        .into()
+    )
+}
+
+fn get_type_override(expr: &Expr) -> Option<proc_macro2::TokenStream> {
+    match expr {
+        Expr::Cast(cast) => Some(cast.ty.to_token_stream()),
+        Expr::Type(ascription) => Some(ascription.ty.to_token_stream()),
+        _ => None,
+    }
 }

@@ -6,7 +6,7 @@ use crate::{
 };
 use std::str;
 
-impl HasSqlType<&'_ str> for Postgres {
+impl HasSqlType<str> for Postgres {
     #[inline]
     fn metadata() -> PostgresTypeMetadata {
         PostgresTypeMetadata {
@@ -20,13 +20,13 @@ impl HasSqlType<&'_ str> for Postgres {
 impl HasSqlType<String> for Postgres {
     #[inline]
     fn metadata() -> PostgresTypeMetadata {
-        <Postgres as HasSqlType<&str>>::metadata()
+        <Postgres as HasSqlType<str>>::metadata()
     }
 }
 
-impl ToSql<Postgres> for &'_ str {
+impl ToSql<Postgres> for str {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
 
         IsNull::No
@@ -35,8 +35,8 @@ impl ToSql<Postgres> for &'_ str {
 
 impl ToSql<Postgres> for String {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        <&str as ToSql<Postgres>>::to_sql(self.as_str(), buf)
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+        <str as ToSql<Postgres>>::to_sql(self.as_str(), buf)
     }
 }
 

@@ -52,9 +52,9 @@ mod test {
         let buf = b"\x00\x02\x00\x00\x00\x00\x00\x00\x05\x00";
         let desc = RowDescription::decode(buf).unwrap();
 
-        assert_eq!(desc.ids.len(), 2);
-        assert_eq!(desc.ids[0], 0x0000_0000);
-        assert_eq!(desc.ids[1], 0x0000_0500);
+        assert_eq!(desc.fields.len(), 2);
+        assert_eq!(desc.fields[0].type_id, 0x0000_0000);
+        assert_eq!(desc.fields[1].type_id, 0x0000_0500);
     }
 
     #[test]
@@ -62,6 +62,6 @@ mod test {
         let buf = b"\x00\x00";
         let desc = RowDescription::decode(buf).unwrap();
 
-        assert_eq!(desc.ids.len(), 0);
+        assert_eq!(desc.fields.len(), 0);
     }
 }

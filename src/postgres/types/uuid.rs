@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
     deserialize::FromSql,
@@ -5,32 +7,29 @@ use crate::{
     types::HasSqlType,
 };
 
-impl HasSqlType<bool> for Postgres {
+impl HasSqlType<Uuid> for Postgres {
     fn metadata() -> PostgresTypeMetadata {
         PostgresTypeMetadata {
             format: PostgresTypeFormat::Binary,
-            oid: 16,
-            array_oid: 1000,
+            oid: 2950,
+            array_oid: 2951,
         }
     }
 }
 
-impl ToSql<Postgres> for bool {
+impl ToSql<Postgres> for Uuid {
     #[inline]
     fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.push(*self as u8);
+        buf.extend_from_slice(self.as_bytes());
 
         IsNull::No
     }
 }
 
-impl FromSql<Postgres> for bool {
+impl FromSql<Postgres> for Uuid {
     #[inline]
     fn from_sql(buf: Option<&[u8]>) -> Self {
-        // TODO: Handle optionals
-        buf.unwrap()[0] != 0
+        // TODO: Handle optionals, error
+        Uuid::from_slice(buf.unwrap()).unwrap()
     }
 }
-
-// TODO: #[derive(SqlType)]
-// pub struct Bool(pub bool);

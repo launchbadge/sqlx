@@ -19,9 +19,6 @@ pub mod error;
 mod executor;
 mod pool;
 
-#[doc(hidden)]
-pub mod checked_sql;
-
 #[macro_use]
 pub mod query;
 
@@ -31,13 +28,17 @@ pub mod types;
 
 mod prepared;
 
+mod compiled;
+
 #[doc(inline)]
 pub use self::{
     backend::Backend,
     connection::Connection,
+    compiled::CompiledSql,
     deserialize::FromSql,
     error::{Error, Result},
     executor::Executor,
+    prepared::{PreparedStatement, Field},
     pool::Pool,
     row::{FromSqlRow, Row},
     serialize::ToSql,
@@ -58,3 +59,53 @@ pub mod postgres;
 #[cfg(feature = "postgres")]
 #[doc(inline)]
 pub use self::postgres::Postgres;
+
+#[cfg(feature = "uuid")]
+pub use uuid::Uuid;
+
+use std::marker::PhantomData;
+
+pub type Param<T> = PhantomData<T>;
+
+pub struct TyCons<T>(PhantomData<T>);
+
+impl<T> TyCons<T> {
+    pub fn new(t: &T) -> TyCons<T> {
+        TyCons(PhantomData)
+    }
+}
+
+pub trait TyConsExt: Sized {
+    type Cons;
+    fn ty_cons(self) -> Self::Cons {
+        panic!("should not be run, only for type resolution")
+    }
+}
+
+impl<T> TyCons<Option<&'_ T>> {
+    fn ty_cons(self) -> T {
+        panic!("should not be run, only for type resolution")
+    }
+}
+
+impl<T> TyConsExt for TyCons<&'_ T> {
+    type Cons = T;
+}
+
+impl<T> TyConsExt for TyCons<Option<T>> {
+    type Cons = T;
+}
+
+impl<T> TyConsExt for &'_ TyCons<T> {
+    type Cons = T;
+}
+
+#[test]
+fn test_tycons_ext() {
+    if false {
+        let _: u64 = TyCons::new(&Some(5u64)).ty_cons();
+        let _: u64 = TyCons::new(&Some(&5u64)).ty_cons();
+        let _: u64 = TyCons::new(&&5u64).ty_cons();
+        let _: u64 = TyCons::new(&5u64).ty_cons();
+    }
+}

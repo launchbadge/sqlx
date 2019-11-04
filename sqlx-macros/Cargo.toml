@@ -17,3 +17,6 @@ quote = "1.0"
 sha2 = "0.8.0"
 tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "tcp" ] }
 
+[features]
+postgres = ["sqlx/postgres"]
+uuid = ["sqlx/uuid"]

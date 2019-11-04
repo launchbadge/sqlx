@@ -25,14 +25,18 @@
 //! | `&[u8]`/`Vec<u8>`                 | BYTEA                                |
 //! | `HashMap<String, Option<String>>` | HSTORE                               |
 //! | `IpAddr`                          | INET                                 |
-//!
+//! | `Uuid` (`uuid` feature)           | UUID                                 |
 
 use super::Postgres;
 use crate::types::TypeMetadata;
+use crate::HasSqlType;
 
 mod boolean;
 mod character;
 mod numeric;
+
+#[cfg(feature = "uuid")]
+mod uuid;
 
 pub enum PostgresTypeFormat {
     Text = 0,
