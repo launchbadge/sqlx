@@ -65,8 +65,11 @@ pub use uuid::Uuid;
 
 use std::marker::PhantomData;
 
-pub type Param<T> = PhantomData<T>;
+// These types allow the `sqlx_macros::sql!()` macro to polymorphically compare a
+// given parameter's type to an expected parameter type even if the former
+// is behind a reference or in `Option`
 
+#[doc(hidden)]
 pub struct TyCons<T>(PhantomData<T>);
 
 impl<T> TyCons<T> {
@@ -75,6 +78,7 @@ impl<T> TyCons<T> {
     }
 }
 
+#[doc(hidden)]
 pub trait TyConsExt: Sized {
     type Cons;
     fn ty_cons(self) -> Self::Cons {
