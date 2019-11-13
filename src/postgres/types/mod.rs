@@ -28,9 +28,12 @@
 //! | `Uuid` (`uuid` feature)           | UUID                                 |
 
 use super::Postgres;
-use crate::types::TypeMetadata;
-use crate::HasSqlType;
+use crate::{
+    types::{HasTypeMetadata, TypeMetadata},
+    HasSqlType,
+};
 
+mod binary;
 mod boolean;
 mod character;
 mod numeric;
@@ -54,6 +57,59 @@ pub struct PostgresTypeMetadata {
     pub array_oid: u32,
 }
 
-impl TypeMetadata for Postgres {
+impl HasTypeMetadata for Postgres {
+    type TypeId = u32;
     type TypeMetadata = PostgresTypeMetadata;
+
+    fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
+        Some(match id {
+            16 => "bool",
+            1000 => "&[bool]",
+            25 => "&str",
+            1009 => "&[&str]",
+            21 => "i16",
+            1005 => "&[i16]",
+            23 => "i32",
+            1007 => "&[i32]",
+            20 => "i64",
+            1016 => "&[i64]",
+            700 => "f32",
+            1021 => "&[f32]",
+            701 => "f64",
+            1022 => "&[f64]",
+            2950 => "sqlx::Uuid",
+            2951 => "&[sqlx::Uuid]",
+            _ => return None,
+        })
+    }
+
+    fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
+        Some(match id {
+            16 => "bool",
+            1000 => "Vec<bool>",
+            25 => "String",
+            1009 => "Vec<String>",
+            21 => "i16",
+            1005 => "Vec<i16>",
+            23 => "i32",
+            1007 => "Vec<i32>",
+            20 => "i64",
+            1016 => "Vec<i64>",
+            700 => "f32",
+            1021 => "Vec<f32>",
+            701 => "f64",
+            1022 => "Vec<f64>",
+            2950 => "sqlx::Uuid",
+            2951 => "Vec<sqlx::Uuid>",
+            _ => return None,
+        })
+    }
+}
+
+impl TypeMetadata for PostgresTypeMetadata {
+    type TypeId = u32;
+
+    fn type_id(&self) -> &u32 {
+        &self.oid
+    }
 }

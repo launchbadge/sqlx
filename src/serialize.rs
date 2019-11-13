@@ -46,9 +46,9 @@ where
 }
 
 impl<T: ?Sized, DB> ToSql<DB> for &'_ T
-    where
-        DB: Backend + HasSqlType<T>,
-        T: ToSql<DB>,
+where
+    DB: Backend + HasSqlType<T>,
+    T: ToSql<DB>,
 {
     #[inline]
     fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {

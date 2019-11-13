@@ -11,11 +11,13 @@ use crate::{
         },
         MariaDb, MariaDbQueryParameters, MariaDbRow,
     },
-    Backend, Error, Result,
+    prepared::{Column, PreparedStatement},
+    Backend, Error, PreparedStatement, Result,
 };
 use async_trait::async_trait;
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::stream::{self, StreamExt};
 use std::{
     future::Future,
     io,
@@ -173,51 +175,33 @@ impl MariaDbRawConnection {
         })
     }
 
-    // This should not be used by the user. It's mean for `RawConnection` impl
-    // This assumes the buffer has been set and all it needs is a flush
-    async fn exec_prepare(&mut self) -> Result<u32> {
-        self.stream.flush().await?;
-
-        // COM_STMT_PREPARE returns COM_STMT_PREPARE_OK (0x00) or ERR (0xFF)
-        let mut packet = self.receive().await?;
-        let ok = match packet[0] {
-            0xFF => {
-                let err = ErrPacket::decode(packet)?;
-
-                // TODO: Bubble as Error::Database
-                //                panic!("received db err = {:?}", err);
-                return Err(
-                    io::Error::new(io::ErrorKind::InvalidInput, format!("{:?}", err)).into(),
-                );
-            }
-
-            _ => ComStmtPrepareOk::decode(packet)?,
-        };
-
-        // Skip decoding Column Definition packets for the result from a prepare statement
-        for _ in 0..ok.columns {
-            let _ = self.receive().await?;
-        }
-
-        if ok.columns > 0
-            && !self
-                .capabilities
-                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+    async fn check_eof(&mut self) -> Result<()> {
+        if !self
+            .capabilities
+            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
         {
-            // TODO: Should we do something with the warning indicators here?
-            let _eof = EofPacket::decode(self.receive().await?)?;
+            let _ = EofPacket::decode(self.receive().await?)?;
         }
 
-        Ok(ok.statement_id)
+        Ok(())
     }
 
-    async fn prepare<'c>(&'c mut self, statement: &'c str) -> Result<u32> {
+    async fn send_prepare<'c>(&'c mut self, statement: &'c str) -> Result<ComStmtPrepareOk> {
         self.stream.flush().await?;
 
         self.start_sequence();
         self.write(ComStmtPrepare { statement });
 
-        self.exec_prepare().await
+        self.stream.flush().await?;
+
+        // COM_STMT_PREPARE returns COM_STMT_PREPARE_OK (0x00) or ERR (0xFF)
+        let packet = self.receive().await?;
+
+        if packet[0] == 0xFF {
+            return Err(ErrPacket::decode(packet)?.into());
+        }
+
+        ComStmtPrepareOk::decode(packet).map_err(Into::into)
     }
 
     async fn execute(&mut self, statement_id: u32, params: MariaDbQueryParameters) -> Result<u64> {
@@ -323,11 +307,9 @@ impl RawConnection for MariaDbRawConnection {
     async fn execute(&mut self, query: &str, params: MariaDbQueryParameters) -> crate::Result<u64> {
         // Write prepare statement to buffer
         self.start_sequence();
-        self.write(ComStmtPrepare { statement: query });
+        let prepare_ok = self.send_prepare(query).await?;
 
-        let statement_id = self.exec_prepare().await?;
-
-        let affected = self.execute(statement_id, params).await?;
+        let affected = self.execute(prepare_ok.statement_id, params).await?;
 
         Ok(affected)
     }
@@ -346,6 +328,56 @@ impl RawConnection for MariaDbRawConnection {
         params: MariaDbQueryParameters,
     ) -> crate::Result<Option<<Self::Backend as Backend>::Row>> {
         unimplemented!();
+    }
+
+    async fn prepare(&mut self, query: &str) -> crate::Result<u32> {
+        let prepare_ok = self.send_prepare(query).await?;
+
+        for _ in 0..prepare_ok.params {
+            let _ = self.receive().await?;
+        }
+
+        self.check_eof().await?;
+
+        for _ in 0..prepare_ok.columns {
+            let _ = self.receive().await?;
+        }
+
+        self.check_eof().await?;
+
+        Ok(prepare_ok.statement_id)
+    }
+
+    async fn prepare_describe(&mut self, query: &str) -> crate::Result<PreparedStatement<MariaDb>> {
+        let prepare_ok = self.send_prepare(query).await?;
+
+        let mut param_types = Vec::with_capacity(prepare_ok.params as usize);
+
+        for _ in 0..prepare_ok.params {
+            let param = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            param_types.push(param.field_type.0);
+        }
+
+        self.check_eof().await?;
+
+        let mut columns = Vec::with_capacity(prepare_ok.columns as usize);
+
+        for _ in 0..prepare_ok.columns {
+            let column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            columns.push(Column {
+                name: column.column_alias.or(column.column),
+                table_id: column.table_alias.or(column.table),
+                type_id: column.field_type.0,
+            })
+        }
+
+        self.check_eof().await?;
+
+        Ok(PreparedStatement {
+            identifier: prepare_ok.statement_id,
+            param_types,
+            columns,
+        })
     }
 }
 

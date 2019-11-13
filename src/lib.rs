@@ -33,18 +33,20 @@ mod compiled;
 #[doc(inline)]
 pub use self::{
     backend::Backend,
-    connection::Connection,
     compiled::CompiledSql,
+    connection::Connection,
     deserialize::FromSql,
     error::{Error, Result},
     executor::Executor,
-    prepared::{PreparedStatement, Field},
     pool::Pool,
     row::{FromSqlRow, Row},
     serialize::ToSql,
     sql::{query, SqlQuery},
     types::HasSqlType,
 };
+
+#[doc(hidden)]
+pub use types::HasTypeMetadata;
 
 #[cfg(feature = "mariadb")]
 pub mod mariadb;

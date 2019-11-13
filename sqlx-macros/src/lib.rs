@@ -6,47 +6,52 @@ use proc_macro2::Span;
 
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use syn::{parse_macro_input, Expr, ExprLit, Lit, LitStr, Token, Type};
-use syn::spanned::Spanned;
-use syn::punctuated::Punctuated;
-use syn::parse::{self, Parse, ParseStream};
+use syn::{
+    parse::{self, Parse, ParseStream},
+    parse_macro_input,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Expr, ExprLit, Lit, LitStr, Token, Type,
+};
 
-use sha2::{Sha256, Digest};
-use sqlx::Postgres;
+use sqlx::{HasTypeMetadata, Postgres};
 
 use tokio::runtime::Runtime;
 
-use std::error::Error as _;
+use std::{error::Error as _, fmt::Display, str::FromStr};
+use url::Url;
 
 type Error = Box<dyn std::error::Error>;
 type Result<T> = std::result::Result<T, Error>;
 
-mod postgres;
-
 struct MacroInput {
     sql: String,
     sql_span: Span,
-    args: Vec<Expr>
+    args: Vec<Expr>,
 }
 
 impl Parse for MacroInput {
     fn parse(input: ParseStream) -> parse::Result<Self> {
-        let mut args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?
-            .into_iter();
+        let mut args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter();
 
         let sql = match args.next() {
-            Some(Expr::Lit(ExprLit { lit: Lit::Str(sql), .. })) => sql,
-            Some(other_expr) => return Err(parse::Error::new_spanned(other_expr, "expected string literal")),
+            Some(Expr::Lit(ExprLit {
+                lit: Lit::Str(sql), ..
+            })) => sql,
+            Some(other_expr) => {
+                return Err(parse::Error::new_spanned(
+                    other_expr,
+                    "expected string literal",
+                ));
+            }
             None => return Err(input.error("expected SQL string literal")),
         };
 
-        Ok(
-            MacroInput {
-                sql: sql.value(),
-                sql_span: sql.span(),
-                args: args.collect(),
-            }
-        )
+        Ok(MacroInput {
+            sql: sql.value(),
+            sql_span: sql.span(),
+            args: args.collect(),
+        })
     }
 }
 
@@ -56,52 +61,109 @@ pub fn sql(input: TokenStream) -> TokenStream {
 
     eprintln!("expanding macro");
 
-    match Runtime::new().map_err(Error::from).and_then(|runtime| runtime.block_on(process_sql(input))) {
+    match Runtime::new()
+        .map_err(Error::from)
+        .and_then(|runtime| runtime.block_on(process_sql(input)))
+    {
         Ok(ts) => {
             eprintln!("emitting output: {}", ts);
             ts
-        },
+        }
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
                 return parse_err.to_compile_error().into();
             }
 
             let msg = e.to_string();
-            quote! ( compile_error!(#msg) ).into()
+            quote!(compile_error!(#msg)).into()
         }
     }
 }
 
 async fn process_sql(input: MacroInput) -> Result<TokenStream> {
-    let hash = dbg!(hex::encode(&Sha256::digest(input.sql.as_bytes())));
+    let db_url = Url::parse(&dotenv::var("DB_URL")?)?;
 
-    let conn = sqlx::Connection::<Postgres>::establish("postgresql://postgres@127.0.0.1/sqlx_test")
-        .await
-        .map_err(|e| format!("failed to connect to database: {}", e))?;
+    match db_url.scheme() {
+        #[cfg(feature = "postgres")]
+        "postgresql" => {
+            process_sql_with(
+                input,
+                sqlx::Connection::<sqlx::Postgres>::establish(db_url.as_str())
+                    .await
+                    .map_err(|e| format!("failed to connect to database: {}", e))?,
+            )
+            .await
+        }
+        #[cfg(feature = "mysql")]
+        "mysql" => {
+            process_sql_with(
+                input,
+                sqlx::Connection::<sqlx::MariaDb>::establish(
+                    "postgresql://postgres@127.0.0.1/sqlx_test",
+                )
+                .await
+                .map_err(|e| format!("failed to connect to database: {}", e))?,
+            )
+            .await
+        }
+        scheme => Err(format!("unexpected scheme {:?} in DB_URL {}", scheme, db_url).into()),
+    }
+}
 
+async fn process_sql_with<DB: sqlx::Backend>(
+    input: MacroInput,
+    conn: sqlx::Connection<DB>,
+) -> Result<TokenStream>
+where
+    <DB as HasTypeMetadata>::TypeId: Display,
+{
     eprintln!("connection established");
 
-    let prepared = conn.prepare(&hash, &input.sql)
+    let prepared = conn
+        .prepare(&input.sql)
         .await
         .map_err(|e| parse::Error::new(input.sql_span, e))?;
 
     if input.args.len() != prepared.param_types.len() {
         return Err(parse::Error::new(
             Span::call_site(),
-            format!("expected {} parameters, got {}", prepared.param_types.len(), input.args.len())
-        ).into());
+            format!(
+                "expected {} parameters, got {}",
+                prepared.param_types.len(),
+                input.args.len()
+            ),
+        )
+        .into());
     }
 
-    let param_types = prepared.param_types.iter().zip(&*input.args).map(|(type_, expr)| {
-        get_type_override(expr)
-            .or_else(|| postgres::map_param_type_oid(*type_))
-            .ok_or_else(|| format!("unknown type OID: {}", type_).into())
-    })
+    let param_types = prepared
+        .param_types
+        .iter()
+        .zip(&*input.args)
+        .map(|(type_, expr)| {
+            get_type_override(expr)
+                .or_else(|| {
+                    Some(
+                        <DB as sqlx::HasTypeMetadata>::param_type_for_id(type_)?
+                            .parse::<proc_macro2::TokenStream>()
+                            .unwrap(),
+                    )
+                })
+                .ok_or_else(|| format!("unknown type ID: {}", type_).into())
+        })
         .collect::<Result<Vec<_>>>()?;
 
-    let output_types = prepared.fields.iter().map(|field| {
-        postgres::map_output_type_oid(field.type_id)
-    })
+    let output_types = prepared
+        .columns
+        .iter()
+        .map(|column| {
+            Ok(
+                <DB as sqlx::HasTypeMetadata>::return_type_for_id(&column.type_id)
+                    .ok_or_else(|| format!("unknown type ID: {}", &column.type_id))?
+                    .parse::<proc_macro2::TokenStream>()
+                    .unwrap(),
+            )
+        })
         .collect::<Result<Vec<_>>>()?;
 
     let params = input.args.iter();
@@ -112,25 +174,23 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
 
     let query = &input.sql;
 
-    Ok(
-        quote! {{
-            use sqlx::TyConsExt as _;
+    Ok(quote! {{
+        use sqlx::TyConsExt as _;
 
-            let params = (#(#params),*,);
+        let params = (#(#params),*,);
 
-            if false {
-                let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
-            }
+        if false {
+            let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
+        }
 
-            sqlx::CompiledSql::<_, (#(#output_types),*), sqlx::Postgres> {
-                query: #query,
-                params,
-                output: ::core::marker::PhantomData,
-                backend: ::core::marker::PhantomData,
-            }
-        }}
-        .into()
-    )
+        sqlx::CompiledSql::<_, (#(#output_types),*), sqlx::Postgres> {
+            query: #query,
+            params,
+            output: ::core::marker::PhantomData,
+            backend: ::core::marker::PhantomData,
+        }
+    }}
+    .into())
 }
 
 fn get_type_override(expr: &Expr) -> Option<proc_macro2::TokenStream> {

@@ -1,10 +1,40 @@
+use std::fmt;
+
 #[derive(Default, Debug)]
 pub struct ErrorCode(pub(crate) u16);
 
-// TODO: It would be nice to figure out a clean way to go from 1152 to "ER_ABORTING_CONNECTION (1152)" in Debug.
+use crate::error::DatabaseError;
+use bitflags::_core::fmt::{Error, Formatter};
+
+macro_rules! error_code_impl {
+    ($(const $name:ident: ErrorCode = ErrorCode($code:expr));*;) => {
+        impl ErrorCode {
+            $(const $name: ErrorCode = ErrorCode($code);)*
+
+            pub fn code_name(&self) -> &'static str {
+                match self.0 {
+                    $($code => $name,)*
+                    _ => "<unknown error>"
+                }
+            }
+        }
+    }
+}
+
+impl fmt::Debug for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ErrorCode({} [()])",)
+    }
+}
+
+impl fmt::Display for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({})", self.code_name(), self.0)
+    }
+}
 
 // Values from https://mariadb.com/kb/en/library/mariadb-error-codes/
-impl ErrorCode {
+error_code_impl! {
     const ER_ABORTING_CONNECTION: ErrorCode = ErrorCode(1152);
     const ER_ACCESS_DENIED_CHANGE_USER_ERROR: ErrorCode = ErrorCode(1873);
     const ER_ACCESS_DENIED_ERROR: ErrorCode = ErrorCode(1045);

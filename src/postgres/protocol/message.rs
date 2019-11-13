@@ -21,5 +21,5 @@ pub enum Message {
     NoData,
     PortalSuspended,
     ParameterDescription(Box<ParameterDescription>),
-    RowDescription(Box<RowDescription>)
+    RowDescription(Box<RowDescription>),
 }

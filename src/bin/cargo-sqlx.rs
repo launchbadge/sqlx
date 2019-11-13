@@ -1,5 +1,8 @@
-use std::{env, str};
-use std::io::{self, Write, Read};
+use std::{
+    env,
+    io::{self, Read, Write},
+    str,
+};
 
 use std::process::{Command, Stdio};
 
@@ -11,13 +14,17 @@ fn get_expanded_target() -> crate::Result<Vec<u8>> {
 
     let mut args = env::args_os().skip(2);
 
-    let cargo_args = args.by_ref().take_while(|arg| arg != "--").collect::<Vec<_>>();
+    let cargo_args = args
+        .by_ref()
+        .take_while(|arg| arg != "--")
+        .collect::<Vec<_>>();
 
     let rustc_args = args.collect::<Vec<_>>();
 
     let mut command = Command::new(cargo_path);
 
-    command.arg("rustc")
+    command
+        .arg("rustc")
         .args(cargo_args)
         .arg("--")
         .arg("-Z")
@@ -61,7 +68,7 @@ fn find_next_sql_string(input: &str) -> Result<Option<(&str, &str)>> {
         let start = idx + STRING_START.len();
 
         while let Some(end) = input[start..].find(STRING_END) {
-            if &input[start + end - 1 .. start + end] != "\\" {
+            if &input[start + end - 1..start + end] != "\\" {
                 return Ok(Some(input[start..].split_at(end)));
             }
         }

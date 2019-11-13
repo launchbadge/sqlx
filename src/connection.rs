@@ -3,6 +3,7 @@ use crate::{
     error::Error,
     executor::Executor,
     pool::{Live, SharedPool},
+    prepared::PreparedStatement,
     query::{IntoQueryParameters, QueryParameters},
     row::FromSqlRow,
 };
@@ -19,7 +20,6 @@ use std::{
     },
     time::Instant,
 };
-use crate::prepared::PreparedStatement;
 
 /// A connection.bak to the database.
 ///
@@ -73,10 +73,15 @@ pub trait RawConnection: Send {
         params: <Self::Backend as Backend>::QueryParameters,
     ) -> crate::Result<Option<<Self::Backend as Backend>::Row>>;
 
-    async fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
-        // TODO: implement for other backends
-        unimplemented!()
-    }
+    async fn prepare(
+        &mut self,
+        query: &str,
+    ) -> crate::Result<<Self::Backend as Backend>::StatementIdent>;
+
+    async fn prepare_describe(
+        &mut self,
+        query: &str,
+    ) -> crate::Result<PreparedStatement<Self::Backend>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -128,9 +133,12 @@ where
     }
 
     /// Prepares a statement.
-    pub async fn prepare(&self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
+    ///
+    /// UNSTABLE: for use by sqlx-macros only
+    #[doc(hidden)]
+    pub async fn prepare(&self, body: &str) -> crate::Result<PreparedStatement<DB>> {
         let mut live = self.0.acquire().await;
-        let ret = live.raw.prepare(name, body).await?;
+        let ret = live.raw.prepare_describe(body).await?;
         self.0.release(live);
         Ok(ret)
     }

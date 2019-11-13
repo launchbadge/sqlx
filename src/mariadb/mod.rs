@@ -1,5 +1,6 @@
 mod backend;
 mod connection;
+mod error;
 mod establish;
 mod io;
 mod protocol;

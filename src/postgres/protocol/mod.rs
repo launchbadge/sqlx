@@ -31,10 +31,22 @@ mod terminate;
 // TODO: mod ssl_request;
 
 pub use self::{
-    bind::Bind, cancel_request::CancelRequest, close::Close, copy_data::CopyData,
-    copy_done::CopyDone, copy_fail::CopyFail, describe::Describe, describe::DescribeKind, encode::Encode, execute::Execute,
-    flush::Flush, parse::Parse, password_message::PasswordMessage, query::Query,
-    startup_message::StartupMessage, sync::Sync, terminate::Terminate,
+    bind::Bind,
+    cancel_request::CancelRequest,
+    close::Close,
+    copy_data::CopyData,
+    copy_done::CopyDone,
+    copy_fail::CopyFail,
+    describe::{Describe, DescribeKind},
+    encode::Encode,
+    execute::Execute,
+    flush::Flush,
+    parse::Parse,
+    password_message::PasswordMessage,
+    query::Query,
+    startup_message::StartupMessage,
+    sync::Sync,
+    terminate::Terminate,
 };
 
 mod authentication;
@@ -54,10 +66,17 @@ mod row_description;
 mod message;
 
 pub use self::{
-    authentication::Authentication, backend_key_data::BackendKeyData,
-    command_complete::CommandComplete, data_row::DataRow, decode::Decode, message::Message,
-    notification_response::NotificationResponse, parameter_description::ParameterDescription,
-    parameter_status::ParameterStatus, ready_for_query::ReadyForQuery, response::Response,
+    authentication::Authentication,
+    backend_key_data::BackendKeyData,
+    command_complete::CommandComplete,
+    data_row::DataRow,
+    decode::Decode,
+    message::Message,
+    notification_response::NotificationResponse,
+    parameter_description::ParameterDescription,
+    parameter_status::ParameterStatus,
+    ready_for_query::ReadyForQuery,
+    response::Response,
     row_description::{RowDescription, RowField},
 };
 

@@ -1,9 +1,6 @@
+use crate::{query::IntoQueryParameters, Backend, Executor, FromSqlRow};
+use futures_core::{future::BoxFuture, stream::BoxStream, Stream};
 use std::marker::PhantomData;
-use crate::query::IntoQueryParameters;
-use crate::{Backend, FromSqlRow, Executor};
-use futures_core::Stream;
-use futures_core::stream::BoxStream;
-use futures_core::future::BoxFuture;
 
 pub struct CompiledSql<P, O, DB> {
     #[doc(hidden)]
@@ -12,30 +9,44 @@ pub struct CompiledSql<P, O, DB> {
     pub params: P,
     #[doc(hidden)]
     pub output: PhantomData<O>,
-    pub backend: PhantomData<DB>
+    pub backend: PhantomData<DB>,
 }
 
-impl<DB, P, O> CompiledSql<P, O, DB> where DB: Backend, P: IntoQueryParameters<DB> + Send, O: FromSqlRow<DB> + Send + Unpin {
+impl<DB, P, O> CompiledSql<P, O, DB>
+where
+    DB: Backend,
+    P: IntoQueryParameters<DB> + Send,
+    O: FromSqlRow<DB> + Send + Unpin,
+{
     #[inline]
     pub fn execute<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<u64>>
-        where
-            E: Executor<Backend = DB>, DB: 'e, P: 'e, O: 'e
+    where
+        E: Executor<Backend = DB>,
+        DB: 'e,
+        P: 'e,
+        O: 'e,
     {
         executor.execute(self.query, self.params)
     }
 
     #[inline]
     pub fn fetch<'e, E: 'e>(self, executor: &'e E) -> BoxStream<'e, crate::Result<O>>
-        where
-            E: Executor<Backend = DB>, DB: 'e, P: 'e, O: 'e
+    where
+        E: Executor<Backend = DB>,
+        DB: 'e,
+        P: 'e,
+        O: 'e,
     {
         executor.fetch(self.query, self.params)
     }
 
     #[inline]
     pub fn fetch_all<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<Vec<O>>>
-        where
-            E: Executor<Backend = DB>, DB: 'e, P: 'e, O: 'e
+    where
+        E: Executor<Backend = DB>,
+        DB: 'e,
+        P: 'e,
+        O: 'e,
     {
         executor.fetch_all(self.query, self.params)
     }
@@ -45,16 +56,22 @@ impl<DB, P, O> CompiledSql<P, O, DB> where DB: Backend, P: IntoQueryParameters<D
         self,
         executor: &'e E,
     ) -> BoxFuture<'e, crate::Result<Option<O>>>
-        where
-            E: Executor<Backend = DB>, DB: 'e, P: 'e, O: 'e
+    where
+        E: Executor<Backend = DB>,
+        DB: 'e,
+        P: 'e,
+        O: 'e,
     {
         executor.fetch_optional(self.query, self.params)
     }
 
     #[inline]
     pub fn fetch_one<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<O>>
-        where
-            E: Executor<Backend = DB>, DB: 'e, P: 'e, O: 'e
+    where
+        E: Executor<Backend = DB>,
+        DB: 'e,
+        P: 'e,
+        O: 'e,
     {
         executor.fetch_one(self.query, self.params)
     }

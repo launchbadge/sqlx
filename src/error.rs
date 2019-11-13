@@ -54,7 +54,7 @@ impl Display for Error {
         match self {
             Error::Io(error) => write!(f, "{}", error),
 
-            Error::Database(error) => f.write_str(error.message()),
+            Error::Database(error) => Display::fmt(error, f),
 
             Error::NotFound => f.write_str("found no rows when we expected at least one"),
 
@@ -85,8 +85,6 @@ where
 }
 
 /// An error that was returned by the database backend.
-pub trait DatabaseError: Debug + Send + Sync {
+pub trait DatabaseError: Display + Debug + Send + Sync {
     fn message(&self) -> &str;
-
-    // TODO: Expose more error properties
 }

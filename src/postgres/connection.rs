@@ -1,10 +1,19 @@
 use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRow};
-use crate::{connection::RawConnection, postgres::raw::Step, url::Url, Error};
-use crate::query::QueryParameters;
+use crate::{
+    connection::RawConnection,
+    postgres::{error::ProtocolError, raw::Step},
+    prepared::{Column, PreparedStatement},
+    query::QueryParameters,
+    url::Url,
+    Error,
+};
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
-use crate::prepared::{PreparedStatement, Field};
-use crate::postgres::error::ProtocolError;
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::postgres::{protocol::Message, PostgresDatabaseError};
+use std::hash::Hasher;
 
 #[async_trait]
 impl RawConnection for PostgresRawConnection {
@@ -96,43 +105,78 @@ impl RawConnection for PostgresRawConnection {
         Ok(row)
     }
 
-    async fn prepare(&mut self, name: &str, body: &str) -> crate::Result<PreparedStatement> {
-        self.parse(name, body, &PostgresQueryParameters::new());
-        self.describe(name);
+    async fn prepare(&mut self, body: &str) -> crate::Result<String> {
+        let name = gen_statement_name(body);
+        self.parse(&name, body, &PostgresQueryParameters::new());
+
+        match self.receive().await? {
+            Some(Message::Response(response)) => Err(PostgresDatabaseError(response).into()),
+            Some(Message::ParseComplete) => Ok(name),
+            Some(message) => {
+                Err(ProtocolError(format!("unexpected message: {:?}", message)).into())
+            }
+            None => Err(ProtocolError("expected ParseComplete or ErrorResponse").into()),
+        }
+    }
+
+    async fn prepare_describe(&mut self, body: &str) -> crate::Result<PreparedStatement<Postgres>> {
+        let name = gen_statement_name(body);
+        self.parse(&name, body, &PostgresQueryParameters::new());
+        self.describe(&name);
         self.sync().await?;
 
-        let param_desc= loop {
-            let step = self.step().await?
+        let param_desc = loop {
+            let step = self
+                .step()
+                .await?
                 .ok_or(ProtocolError("did not receive ParameterDescription"));
 
-           if let Step::ParamDesc(desc) = dbg!(step)?
-           {
-               break desc;
-           }
+            if let Step::ParamDesc(desc) = step? {
+                break desc;
+            }
         };
 
         let row_desc = loop {
-            let step = self.step().await?
+            let step = self
+                .step()
+                .await?
                 .ok_or(ProtocolError("did not receive RowDescription"));
 
-            if let Step::RowDesc(desc) = dbg!(step)?
-            {
+            if let Step::RowDesc(desc) = step? {
                 break desc;
             }
         };
 
         Ok(PreparedStatement {
-            name: name.into(),
-            param_types: param_desc.ids,
-            fields: row_desc.fields.into_vec().into_iter()
-                .map(|field| Field {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_id: field.type_id
+            identifier: name.into(),
+            param_types: param_desc.ids.into_vec(),
+            columns: row_desc
+                .fields
+                .into_vec()
+                .into_iter()
+                .map(|field| Column {
+                    name: Some(field.name),
+                    table_id: Some(field.table_id),
+                    type_id: field.type_id,
                 })
                 .collect(),
         })
     }
+}
+
+static STATEMENT_COUNT: AtomicU64 = AtomicU64::new(0);
+
+fn gen_statement_name(query: &str) -> String {
+    // hasher with no external dependencies
+    use std::collections::hash_map::DefaultHasher;
+
+    let mut hasher = DefaultHasher::new();
+    // including a global counter should help prevent collision
+    // with queries with the same content
+    hasher.write_u64(STATEMENT_COUNT.fetch_add(1, Ordering::SeqCst));
+    hasher.write(query.as_bytes());
+
+    format!("sqlx_stmt_{:x}", hasher.finish())
 }
 
 #[cfg(test)]
