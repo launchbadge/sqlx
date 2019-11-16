@@ -4,6 +4,7 @@ use crate::{
     types::{HasTypeMetadata, TypeMetadata},
 };
 
+pub mod binary;
 pub mod boolean;
 pub mod character;
 pub mod numeric;
