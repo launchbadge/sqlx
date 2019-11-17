@@ -1,7 +1,11 @@
-use crate::{HasSqlType, MariaDb, ToSql, FromSql};
-use crate::mariadb::types::MariaDbTypeMetadata;
-use crate::mariadb::protocol::{ParameterFlag, FieldType};
-use crate::serialize::IsNull;
+use crate::{
+    mariadb::{
+        protocol::{FieldType, ParameterFlag},
+        types::MariaDbTypeMetadata,
+    },
+    serialize::IsNull,
+    FromSql, HasSqlType, MariaDb, ToSql,
+};
 
 impl HasSqlType<[u8]> for MariaDb {
     fn metadata() -> Self::Metadata {

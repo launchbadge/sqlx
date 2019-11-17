@@ -1,11 +1,6 @@
-use crate::{query::QueryParameters, Backend, Error, Executor, FromSqlRow, HasSqlType, ToSql};
+use crate::Backend;
 
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use std::marker::PhantomData;
-
-use crate::types::{HasTypeMetadata, TypeMetadata};
-
-use std::fmt::{self, Debug};
+use crate::types::HasTypeMetadata;
 
 /// A prepared statement.
 pub struct PreparedStatement<DB: Backend> {

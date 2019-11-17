@@ -1,7 +1,6 @@
 use crate::{
     postgres::types::{PostgresTypeFormat, PostgresTypeMetadata},
     serialize::IsNull,
-    types::TypeMetadata,
     FromSql, HasSqlType, Postgres, ToSql,
 };
 

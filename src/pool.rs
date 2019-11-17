@@ -106,6 +106,7 @@ where
     }
 }
 
+#[derive(Default)]
 pub struct Builder<DB>
 where
     DB: Backend,

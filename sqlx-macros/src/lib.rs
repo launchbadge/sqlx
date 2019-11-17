@@ -4,21 +4,21 @@ use proc_macro::TokenStream;
 
 use proc_macro2::Span;
 
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 
 use syn::{
     parse::{self, Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, ExprLit, Lit, LitStr, Token, Type,
+    Expr, ExprLit, Lit, Token,
 };
 
-use sqlx::{HasTypeMetadata, Postgres};
+use sqlx::HasTypeMetadata;
 
 use tokio::runtime::Runtime;
 
-use std::{error::Error as _, fmt::Display, str::FromStr};
+use std::fmt::Display;
 use url::Url;
 
 type Error = Box<dyn std::error::Error>;

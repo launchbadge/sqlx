@@ -5,7 +5,6 @@ use crate::{
     prepared::{Column, PreparedStatement},
     query::QueryParameters,
     url::Url,
-    Error,
 };
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
@@ -148,7 +147,7 @@ impl RawConnection for PostgresRawConnection {
         };
 
         Ok(PreparedStatement {
-            identifier: name.into(),
+            identifier: name,
             param_types: param_desc.ids.into_vec(),
             columns: row_desc
                 .fields

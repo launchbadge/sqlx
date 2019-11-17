@@ -16,8 +16,8 @@ pub struct MariaDbTypeMetadata {
 }
 
 impl HasTypeMetadata for MariaDb {
-    type TypeMetadata = MariaDbTypeMetadata;
     type TypeId = u8;
+    type TypeMetadata = MariaDbTypeMetadata;
 
     fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
         Some(match FieldType(*id) {
@@ -29,7 +29,7 @@ impl HasTypeMetadata for MariaDb {
             FieldType::MYSQL_TYPE_FLOAT => "f32",
             FieldType::MYSQL_TYPE_DOUBLE => "f64",
             FieldType::MYSQL_TYPE_BLOB => "&[u8]",
-            _ => return None
+            _ => return None,
         })
     }
 
@@ -43,7 +43,7 @@ impl HasTypeMetadata for MariaDb {
             FieldType::MYSQL_TYPE_FLOAT => "f32",
             FieldType::MYSQL_TYPE_DOUBLE => "f64",
             FieldType::MYSQL_TYPE_BLOB => "Vec<u8>",
-            _ => return None
+            _ => return None,
         })
     }
 }

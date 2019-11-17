@@ -1,5 +1,5 @@
 use crate::{query::IntoQueryParameters, Backend, Executor, FromSqlRow};
-use futures_core::{future::BoxFuture, stream::BoxStream, Stream};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::marker::PhantomData;
 
 pub struct CompiledSql<P, O, DB> {

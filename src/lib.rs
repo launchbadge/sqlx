@@ -75,7 +75,7 @@ use std::marker::PhantomData;
 pub struct TyCons<T>(PhantomData<T>);
 
 impl<T> TyCons<T> {
-    pub fn new(t: &T) -> TyCons<T> {
+    pub fn new(_t: &T) -> TyCons<T> {
         TyCons(PhantomData)
     }
 }
@@ -89,7 +89,7 @@ pub trait TyConsExt: Sized {
 }
 
 impl<T> TyCons<Option<&'_ T>> {
-    fn ty_cons(self) -> T {
+    pub fn ty_cons(self) -> T {
         panic!("should not be run, only for type resolution")
     }
 }

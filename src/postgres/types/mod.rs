@@ -28,10 +28,7 @@
 //! | `Uuid` (`uuid` feature)           | UUID                                 |
 
 use super::Postgres;
-use crate::{
-    types::{HasTypeMetadata, TypeMetadata},
-    HasSqlType,
-};
+use crate::types::{HasTypeMetadata, TypeMetadata};
 
 mod binary;
 mod boolean;

@@ -1,10 +1,6 @@
 use super::protocol::Response;
 use crate::error::DatabaseError;
-use bitflags::_core::fmt::{Error, Formatter};
-use std::{
-    borrow::Cow,
-    fmt::{self, Debug, Display},
-};
+use std::fmt::{self, Debug, Display};
 
 #[derive(Debug)]
 pub struct PostgresDatabaseError(pub(super) Box<Response>);
