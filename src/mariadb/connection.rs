@@ -11,7 +11,7 @@ use crate::{
         },
         MariaDb, MariaDbQueryParameters, MariaDbRow,
     },
-    prepared::{Column, PreparedStatement},
+    describe::{Column, Describe},
     Backend, Error, PreparedStatement, Result,
 };
 use async_trait::async_trait;
@@ -330,25 +330,7 @@ impl RawConnection for MariaDbRawConnection {
         unimplemented!();
     }
 
-    async fn prepare(&mut self, query: &str) -> crate::Result<u32> {
-        let prepare_ok = self.send_prepare(query).await?;
-
-        for _ in 0..prepare_ok.params {
-            let _ = self.receive().await?;
-        }
-
-        self.check_eof().await?;
-
-        for _ in 0..prepare_ok.columns {
-            let _ = self.receive().await?;
-        }
-
-        self.check_eof().await?;
-
-        Ok(prepare_ok.statement_id)
-    }
-
-    async fn prepare_describe(&mut self, query: &str) -> crate::Result<PreparedStatement<MariaDb>> {
+    async fn describe(&mut self, query: &str) -> crate::Result<Describe<MariaDb>> {
         let prepare_ok = self.send_prepare(query).await?;
 
         let mut param_types = Vec::with_capacity(prepare_ok.params as usize);
@@ -373,8 +355,7 @@ impl RawConnection for MariaDbRawConnection {
 
         self.check_eof().await?;
 
-        Ok(PreparedStatement {
-            identifier: prepare_ok.statement_id,
+        Ok(Describe {
             param_types,
             columns,
         })

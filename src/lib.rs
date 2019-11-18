@@ -26,7 +26,7 @@ pub mod serialize;
 mod sql;
 pub mod types;
 
-mod prepared;
+mod describe;
 
 mod compiled;
 

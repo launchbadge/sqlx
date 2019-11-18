@@ -2,7 +2,7 @@ use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRo
 use crate::{
     connection::RawConnection,
     postgres::{error::ProtocolError, raw::Step},
-    prepared::{Column, PreparedStatement},
+    describe::{Column, Describe},
     query::QueryParameters,
     url::Url,
 };
@@ -104,24 +104,9 @@ impl RawConnection for PostgresRawConnection {
         Ok(row)
     }
 
-    async fn prepare(&mut self, body: &str) -> crate::Result<String> {
-        let name = gen_statement_name(body);
-        self.parse(&name, body, &PostgresQueryParameters::new());
-
-        match self.receive().await? {
-            Some(Message::Response(response)) => Err(PostgresDatabaseError(response).into()),
-            Some(Message::ParseComplete) => Ok(name),
-            Some(message) => {
-                Err(ProtocolError(format!("unexpected message: {:?}", message)).into())
-            }
-            None => Err(ProtocolError("expected ParseComplete or ErrorResponse").into()),
-        }
-    }
-
-    async fn prepare_describe(&mut self, body: &str) -> crate::Result<PreparedStatement<Postgres>> {
-        let name = gen_statement_name(body);
-        self.parse(&name, body, &PostgresQueryParameters::new());
-        self.describe(&name);
+    async fn describe(&mut self, body: &str) -> crate::Result<Describe<Postgres>> {
+        self.parse("", body, &PostgresQueryParameters::new());
+        self.describe("");
         self.sync().await?;
 
         let param_desc = loop {
@@ -146,8 +131,7 @@ impl RawConnection for PostgresRawConnection {
             }
         };
 
-        Ok(PreparedStatement {
-            identifier: name,
+        Ok(Describe {
             param_types: param_desc.ids.into_vec(),
             columns: row_desc
                 .fields

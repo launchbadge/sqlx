@@ -3,7 +3,7 @@ use crate::{
     error::Error,
     executor::Executor,
     pool::{Live, SharedPool},
-    prepared::PreparedStatement,
+    describe::Describe,
     query::{IntoQueryParameters, QueryParameters},
     row::FromSqlRow,
 };
@@ -78,10 +78,10 @@ pub trait RawConnection: Send {
         query: &str,
     ) -> crate::Result<<Self::Backend as Backend>::StatementIdent>;
 
-    async fn prepare_describe(
+    async fn describe(
         &mut self,
         query: &str,
-    ) -> crate::Result<PreparedStatement<Self::Backend>>;
+    ) -> crate::Result<Describe<Self::Backend>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -136,7 +136,7 @@ where
     ///
     /// UNSTABLE: for use by sqlx-macros only
     #[doc(hidden)]
-    pub async fn prepare(&self, body: &str) -> crate::Result<PreparedStatement<DB>> {
+    pub async fn describe(&self, body: &str) -> crate::Result<Describe<DB>> {
         let mut live = self.0.acquire().await;
         let ret = live.raw.prepare_describe(body).await?;
         self.0.release(live);

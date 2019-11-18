@@ -2,10 +2,9 @@ use crate::Backend;
 
 use crate::types::HasTypeMetadata;
 
-/// A prepared statement.
-pub struct PreparedStatement<DB: Backend> {
+/// The result of running prepare + describe for the given backend.
+pub struct Describe<DB: Backend> {
     ///
-    pub identifier: <DB as Backend>::StatementIdent,
     /// The expected type IDs of bind parameters.
     pub param_types: Vec<<DB as HasTypeMetadata>::TypeId>,
     ///

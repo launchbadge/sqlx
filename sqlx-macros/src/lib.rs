@@ -120,7 +120,7 @@ where
     eprintln!("connection established");
 
     let prepared = conn
-        .prepare(&input.sql)
+        .describe(&input.sql)
         .await
         .map_err(|e| parse::Error::new(input.sql_span, e))?;
 
