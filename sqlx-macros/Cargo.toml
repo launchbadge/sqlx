@@ -11,10 +11,10 @@ proc-macro = true
 dotenv = "0.15.0"
 futures-preview = "0.3.0-alpha.18"
 proc-macro2 = "1.0.6"
-sqlx = { path = "../", features = ["postgres"] }
+sqlx = { path = "../" }
 syn = "1.0"
 quote = "1.0"
-tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "tcp" ] }
+tokio = { version = "0.2.0-alpha.4" }
 url = "2.1.0"
 
 [features]
