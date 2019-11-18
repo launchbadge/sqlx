@@ -18,3 +18,10 @@ macro_rules! __bytes_builder (
         bytes.freeze()
     }}
 );
+
+#[cfg(any(feature = "postgres"))]
+macro_rules! invalid_data(
+    ($($args:tt)*) => {
+        $crate::error::InvalidData { args: format_args!($($args)*) }
+    }
+);

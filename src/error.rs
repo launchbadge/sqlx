@@ -74,6 +74,16 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<InvalidData<'_>> for Error {
+    #[inline]
+    fn from(err: InvalidData) -> Self {
+        Error::Io(io::Error::new(
+            io::ErrorKind::InvalidData,
+            err.args.to_string(),
+        ))
+    }
+}
+
 impl<T> From<T> for Error
 where
     T: 'static + DatabaseError,
@@ -87,4 +97,10 @@ where
 /// An error that was returned by the database backend.
 pub trait DatabaseError: Display + Debug + Send + Sync {
     fn message(&self) -> &str;
+}
+
+/// Used by the `invalid_data!()` macro for a lazily evaluated conversion to `io::Error`
+/// so we can use the macro with `.ok_or()` without Clippy complaining.
+pub(crate) struct InvalidData<'a> {
+    pub args: fmt::Arguments<'a>,
 }

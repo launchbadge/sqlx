@@ -1,6 +1,7 @@
 use super::establish;
 use crate::{
     connection::RawConnection,
+    describe::{Describe, ResultField},
     error::DatabaseError,
     io::{Buf, BufMut, BufStream},
     mariadb::{
@@ -11,8 +12,7 @@ use crate::{
         },
         MariaDb, MariaDbQueryParameters, MariaDbRow,
     },
-    describe::{Column, Describe},
-    Backend, Error, PreparedStatement, Result,
+    Backend, Error, Result,
 };
 use async_trait::async_trait;
 use byteorder::{ByteOrder, LittleEndian};
@@ -198,7 +198,7 @@ impl MariaDbRawConnection {
         let packet = self.receive().await?;
 
         if packet[0] == 0xFF {
-            return Err(ErrPacket::decode(packet)?.into());
+            return ErrPacket::decode(packet)?.expect_error();
         }
 
         ComStmtPrepareOk::decode(packet).map_err(Into::into)
@@ -346,7 +346,7 @@ impl RawConnection for MariaDbRawConnection {
 
         for _ in 0..prepare_ok.columns {
             let column = ColumnDefinitionPacket::decode(self.receive().await?)?;
-            columns.push(Column {
+            columns.push(ResultField {
                 name: column.column_alias.or(column.column),
                 table_id: column.table_alias.or(column.table),
                 type_id: column.field_type.0,
@@ -357,7 +357,7 @@ impl RawConnection for MariaDbRawConnection {
 
         Ok(Describe {
             param_types,
-            columns,
+            result_fields: columns,
         })
     }
 }
@@ -390,29 +390,10 @@ mod test {
     }
 
     #[tokio::test]
-    async fn it_can_prepare() -> Result<()> {
+    async fn it_can_describe() -> Result<()> {
         let mut conn =
             MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        conn.prepare("SELECT id from users").await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn it_fails_to_prepare_with_bad_column() -> Result<()> {
-        let mut conn =
-            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        match conn.prepare("SELECT if from users").await {
-            Ok(_) => panic!("Somehow successfully prepared statement selecting invalid column"),
-            Err(_) => Ok(()),
-        }
-    }
-
-    #[tokio::test]
-    async fn it_can_execute_prepared_statement() -> Result<()> {
-        let mut conn =
-            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        let id = conn.prepare("SELECT id from users").await?;
-        conn.execute(id, MariaDbQueryParameters::new()).await?;
+        conn.describe("SELECT id from users").await?;
         Ok(())
     }
 

@@ -14,8 +14,12 @@ impl DatabaseError for Error {
     }
 }
 
-impl fmt::Display for ErrorCode {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MariaDB returned an error: {}",)
+        write!(
+            f,
+            "MariaDB returned an error: {}; {}",
+            self.code, self.message
+        )
     }
 }

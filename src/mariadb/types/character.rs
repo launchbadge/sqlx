@@ -7,7 +7,7 @@ use crate::{
 };
 use std::str;
 
-impl HasSqlType<&'_ str> for MariaDb {
+impl HasSqlType<str> for MariaDb {
     #[inline]
     fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
@@ -25,9 +25,9 @@ impl HasSqlType<String> for MariaDb {
     }
 }
 
-impl ToSql<MariaDb> for &'_ str {
+impl ToSql<MariaDb> for str {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
 
         IsNull::No
@@ -36,8 +36,8 @@ impl ToSql<MariaDb> for &'_ str {
 
 impl ToSql<MariaDb> for String {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        <&str as ToSql<MariaDb>>::to_sql(self.as_str(), buf)
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+        <str as ToSql<MariaDb>>::to_sql(self.as_str(), buf)
     }
 }
 

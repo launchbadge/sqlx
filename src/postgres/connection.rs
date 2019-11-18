@@ -1,8 +1,8 @@
 use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRow};
 use crate::{
     connection::RawConnection,
-    postgres::{error::ProtocolError, raw::Step},
-    describe::{Column, Describe},
+    describe::{Describe, ResultField},
+    postgres::raw::Step,
     query::QueryParameters,
     url::Url,
 };
@@ -113,7 +113,7 @@ impl RawConnection for PostgresRawConnection {
             let step = self
                 .step()
                 .await?
-                .ok_or(ProtocolError("did not receive ParameterDescription"));
+                .ok_or(invalid_data!("did not receive ParameterDescription"));
 
             if let Step::ParamDesc(desc) = step? {
                 break desc;
@@ -124,7 +124,7 @@ impl RawConnection for PostgresRawConnection {
             let step = self
                 .step()
                 .await?
-                .ok_or(ProtocolError("did not receive RowDescription"));
+                .ok_or(invalid_data!("did not receive RowDescription"));
 
             if let Step::RowDesc(desc) = step? {
                 break desc;
@@ -133,11 +133,11 @@ impl RawConnection for PostgresRawConnection {
 
         Ok(Describe {
             param_types: param_desc.ids.into_vec(),
-            columns: row_desc
+            result_fields: row_desc
                 .fields
                 .into_vec()
                 .into_iter()
-                .map(|field| Column {
+                .map(|field| ResultField {
                     name: Some(field.name),
                     table_id: Some(field.table_id),
                     type_id: field.type_id,
@@ -145,21 +145,6 @@ impl RawConnection for PostgresRawConnection {
                 .collect(),
         })
     }
-}
-
-static STATEMENT_COUNT: AtomicU64 = AtomicU64::new(0);
-
-fn gen_statement_name(query: &str) -> String {
-    // hasher with no external dependencies
-    use std::collections::hash_map::DefaultHasher;
-
-    let mut hasher = DefaultHasher::new();
-    // including a global counter should help prevent collision
-    // with queries with the same content
-    hasher.write_u64(STATEMENT_COUNT.fetch_add(1, Ordering::SeqCst));
-    hasher.write(query.as_bytes());
-
-    format!("sqlx_stmt_{:x}", hasher.finish())
 }
 
 #[cfg(test)]

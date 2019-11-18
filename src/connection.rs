@@ -1,9 +1,9 @@
 use crate::{
     backend::Backend,
+    describe::Describe,
     error::Error,
     executor::Executor,
     pool::{Live, SharedPool},
-    describe::Describe,
     query::{IntoQueryParameters, QueryParameters},
     row::FromSqlRow,
 };
@@ -73,15 +73,7 @@ pub trait RawConnection: Send {
         params: <Self::Backend as Backend>::QueryParameters,
     ) -> crate::Result<Option<<Self::Backend as Backend>::Row>>;
 
-    async fn prepare(
-        &mut self,
-        query: &str,
-    ) -> crate::Result<<Self::Backend as Backend>::StatementIdent>;
-
-    async fn describe(
-        &mut self,
-        query: &str,
-    ) -> crate::Result<Describe<Self::Backend>>;
+    async fn describe(&mut self, query: &str) -> crate::Result<Describe<Self::Backend>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -132,13 +124,13 @@ where
         Ok(())
     }
 
-    /// Prepares a statement.
+    /// Analyze the SQL statement and report the inferred bind parameter types and returned
+    /// columns.
     ///
-    /// UNSTABLE: for use by sqlx-macros only
-    #[doc(hidden)]
-    pub async fn describe(&self, body: &str) -> crate::Result<Describe<DB>> {
+    /// Mainly intended for use by sqlx-macros.
+    pub async fn describe(&self, statement: &str) -> crate::Result<Describe<DB>> {
         let mut live = self.0.acquire().await;
-        let ret = live.raw.prepare_describe(body).await?;
+        let ret = live.raw.describe(statement).await?;
         self.0.release(live);
         Ok(ret)
     }

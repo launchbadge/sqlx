@@ -8,7 +8,7 @@ use crate::{
 };
 
 impl HasSqlType<[u8]> for MariaDb {
-    fn metadata() -> Self::Metadata {
+    fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
             field_type: FieldType::MYSQL_TYPE_BLOB,
             param_flag: ParameterFlag::empty(),
@@ -17,7 +17,7 @@ impl HasSqlType<[u8]> for MariaDb {
 }
 
 impl HasSqlType<Vec<u8>> for MariaDb {
-    fn metadata() -> Self::Metadata {
+    fn metadata() -> MariaDbTypeMetadata {
         <Self as HasSqlType<[u8]>>::metadata()
     }
 }

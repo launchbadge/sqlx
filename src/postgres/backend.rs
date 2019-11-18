@@ -7,7 +7,6 @@ impl Backend for Postgres {
     type QueryParameters = super::PostgresQueryParameters;
     type RawConnection = super::PostgresRawConnection;
     type Row = super::PostgresRow;
-    type StatementIdent = String;
     type TableIdent = u32;
 }
 

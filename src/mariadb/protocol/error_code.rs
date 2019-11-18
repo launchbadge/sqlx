@@ -4,7 +4,6 @@ use std::fmt;
 pub struct ErrorCode(pub(crate) u16);
 
 use crate::error::DatabaseError;
-use bitflags::_core::fmt::{Error, Formatter};
 
 macro_rules! error_code_impl {
     ($(const $name:ident: ErrorCode = ErrorCode($code:expr));*;) => {
@@ -13,17 +12,11 @@ macro_rules! error_code_impl {
 
             pub fn code_name(&self) -> &'static str {
                 match self.0 {
-                    $($code => $name,)*
+                    $($code => stringify!($name),)*
                     _ => "<unknown error>"
                 }
             }
         }
-    }
-}
-
-impl fmt::Debug for ErrorCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ErrorCode({} [()])",)
     }
 }
 

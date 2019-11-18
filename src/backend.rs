@@ -14,10 +14,6 @@ pub trait Backend: HasTypeMetadata + Sized {
     /// from methods in the `RawConnection`.
     type Row: Row<Backend = Self>;
 
-    /// The identifier for prepared statements; in Postgres this is a string
-    /// and in MariaDB/MySQL this is an integer.
-    type StatementIdent;
-
     /// The identifier for tables; in Postgres this is an `oid` while
     /// in MariaDB/MySQL this is the qualified name of the table.
     type TableIdent;

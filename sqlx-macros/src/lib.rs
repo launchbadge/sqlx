@@ -81,7 +81,7 @@ pub fn sql(input: TokenStream) -> TokenStream {
 }
 
 async fn process_sql(input: MacroInput) -> Result<TokenStream> {
-    let db_url = Url::parse(&dotenv::var("DB_URL")?)?;
+    let db_url = Url::parse(&dotenv::var("DATABASE_URL")?)?;
 
     match db_url.scheme() {
         #[cfg(feature = "postgres")]
@@ -154,7 +154,7 @@ where
         .collect::<Result<Vec<_>>>()?;
 
     let output_types = prepared
-        .columns
+        .result_fields
         .iter()
         .map(|column| {
             Ok(

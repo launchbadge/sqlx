@@ -1,6 +1,9 @@
 #[macro_use]
 mod macros;
 
+#[macro_use]
+pub mod error;
+
 #[cfg(any(feature = "postgres", feature = "mariadb"))]
 #[macro_use]
 mod io;
@@ -15,7 +18,6 @@ mod url;
 mod row;
 
 mod connection;
-pub mod error;
 mod executor;
 mod pool;
 
