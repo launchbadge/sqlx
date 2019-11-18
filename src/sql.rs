@@ -16,15 +16,13 @@ impl<'q, DB> SqlQuery<'q, DB>
 where
     DB: Backend,
 {
-    #[inline]
-    pub fn new(query: &'q str) -> Self {
-        Self {
-            query,
-            params: DB::QueryParameters::new(),
-        }
-    }
-
-    #[inline]
+    /// Bind a value for use with this SQL query.
+    /// 
+    /// # Safety
+    /// 
+    /// This function should be used with care, as SQLx cannot validate
+    /// that the value is of the right type nor can it validate that you have
+    /// passed the correct number of parameters.
     pub fn bind<T>(mut self, value: T) -> Self
     where
         DB: HasSqlType<T>,
@@ -34,9 +32,6 @@ where
         self
     }
 
-    // TODO: These methods should go on a [Execute] trait (so more execut-able things can be defined)
-
-    #[inline]
     pub fn execute<E>(self, executor: &'q E) -> BoxFuture<'q, Result<u64, Error>>
     where
         E: Executor<Backend = DB>,
@@ -45,7 +40,6 @@ where
         executor.execute(self.query, self.params)
     }
 
-    #[inline]
     pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
@@ -55,7 +49,6 @@ where
         executor.fetch(self.query, self.params)
     }
 
-    #[inline]
     pub fn fetch_all<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<Vec<T>, Error>>
     where
         E: Executor<Backend = DB>,
@@ -65,7 +58,6 @@ where
         executor.fetch_all(self.query, self.params)
     }
 
-    #[inline]
     pub fn fetch_optional<E, T: 'q>(
         self,
         executor: &'q E,
@@ -78,7 +70,6 @@ where
         executor.fetch_optional(self.query, self.params)
     }
 
-    #[inline]
     pub fn fetch_one<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
@@ -95,5 +86,8 @@ pub fn query<DB>(query: &str) -> SqlQuery<'_, DB>
 where
     DB: Backend,
 {
-    SqlQuery::new(query)
+    SqlQuery {
+        query,
+        params: DB::QueryParameters::new(),
+    }
 }

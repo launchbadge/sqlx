@@ -1,3 +1,4 @@
+//! Types and traits related to serializing values from the database.
 use crate::{backend::Backend, types::HasSqlType};
 
 // TODO: Allow from_sql to return an error (that can be unified)
@@ -11,7 +12,6 @@ where
     DB: Backend + HasSqlType<T>,
     T: FromSql<DB>,
 {
-    #[inline]
     fn from_sql(raw: Option<&[u8]>) -> Self {
         Some(T::from_sql(Some(raw?)))
     }
