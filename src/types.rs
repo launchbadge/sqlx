@@ -1,28 +1,24 @@
+#[cfg(feature = "uuid")]
+pub use uuid::Uuid;
+
 /// Information about how a backend stores metadata about
 /// given SQL types.
 pub trait HasTypeMetadata {
     /// The actual type used to represent metadata.
-    type TypeMetadata: TypeMetadata<TypeId = Self::TypeId>;
+    type TypeMetadata: TypeMetadata<Self::TypeId>;
 
-    /// The Rust type of the type ID for the backend.
+    /// The Rust type of type identifiers in `DESCRIBE` responses for the SQL backend.
     type TypeId: Eq;
-
-    /// UNSTABLE: for internal use only
-    #[doc(hidden)]
-    fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
-
-    /// UNSTABLE: for internal use only
-    #[doc(hidden)]
-    fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
 }
 
-pub trait TypeMetadata {
-    type TypeId: Eq;
-
-    fn type_id(&self) -> &Self::TypeId;
-    fn type_id_eq(&self, id: &Self::TypeId) -> bool {
-        self.type_id() == id
-    }
+pub trait TypeMetadata<TypeId: Eq> {
+    /// Return `true` if the given type ID is contained in this metadata.
+    ///
+    /// What this means depends on the backend:
+    ///
+    /// * For Postgres, this should return true if the type ID or array type ID matches.
+    /// * For MySQL (and likely all other backends) this should just compare the type IDs.
+    fn type_id_eq(&self, other: &TypeId) -> bool;
 }
 
 /// Indicates that a SQL type exists for a backend and defines

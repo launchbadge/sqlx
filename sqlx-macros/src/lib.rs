@@ -24,6 +24,10 @@ use url::Url;
 type Error = Box<dyn std::error::Error>;
 type Result<T> = std::result::Result<T, Error>;
 
+mod backend;
+
+use backend::BackendExt;
+
 struct MacroInput {
     sql: String,
     sql_span: Span,
@@ -110,7 +114,7 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
     }
 }
 
-async fn process_sql_with<DB: sqlx::Backend>(
+async fn process_sql_with<DB: BackendExt>(
     input: MacroInput,
     conn: sqlx::Connection<DB>,
 ) -> Result<TokenStream>
@@ -144,7 +148,7 @@ where
             get_type_override(expr)
                 .or_else(|| {
                     Some(
-                        <DB as sqlx::HasTypeMetadata>::param_type_for_id(type_)?
+                        <DB as BackendExt>::param_type_for_id(type_)?
                             .parse::<proc_macro2::TokenStream>()
                             .unwrap(),
                     )
@@ -157,12 +161,10 @@ where
         .result_fields
         .iter()
         .map(|column| {
-            Ok(
-                <DB as sqlx::HasTypeMetadata>::return_type_for_id(&column.type_id)
-                    .ok_or_else(|| format!("unknown type ID: {}", &column.type_id))?
-                    .parse::<proc_macro2::TokenStream>()
-                    .unwrap(),
-            )
+            Ok(<DB as BackendExt>::return_type_for_id(&column.type_id)
+                .ok_or_else(|| format!("unknown type ID: {}", &column.type_id))?
+                .parse::<proc_macro2::TokenStream>()
+                .unwrap())
         })
         .collect::<Result<Vec<_>>>()?;
 

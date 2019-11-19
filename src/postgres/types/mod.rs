@@ -57,56 +57,10 @@ pub struct PostgresTypeMetadata {
 impl HasTypeMetadata for Postgres {
     type TypeId = u32;
     type TypeMetadata = PostgresTypeMetadata;
-
-    fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
-        Some(match id {
-            16 => "bool",
-            1000 => "&[bool]",
-            25 => "&str",
-            1009 => "&[&str]",
-            21 => "i16",
-            1005 => "&[i16]",
-            23 => "i32",
-            1007 => "&[i32]",
-            20 => "i64",
-            1016 => "&[i64]",
-            700 => "f32",
-            1021 => "&[f32]",
-            701 => "f64",
-            1022 => "&[f64]",
-            2950 => "sqlx::Uuid",
-            2951 => "&[sqlx::Uuid]",
-            _ => return None,
-        })
-    }
-
-    fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
-        Some(match id {
-            16 => "bool",
-            1000 => "Vec<bool>",
-            25 => "String",
-            1009 => "Vec<String>",
-            21 => "i16",
-            1005 => "Vec<i16>",
-            23 => "i32",
-            1007 => "Vec<i32>",
-            20 => "i64",
-            1016 => "Vec<i64>",
-            700 => "f32",
-            1021 => "Vec<f32>",
-            701 => "f64",
-            1022 => "Vec<f64>",
-            2950 => "sqlx::Uuid",
-            2951 => "Vec<sqlx::Uuid>",
-            _ => return None,
-        })
-    }
 }
 
-impl TypeMetadata for PostgresTypeMetadata {
-    type TypeId = u32;
-
-    fn type_id(&self) -> &u32 {
-        &self.oid
+impl TypeMetadata<u32> for PostgresTypeMetadata {
+    fn type_id_eq(&self, other: &u32) -> bool {
+        &self.oid == other || &self.array_oid == other
     }
 }

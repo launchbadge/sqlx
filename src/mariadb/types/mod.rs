@@ -16,42 +16,12 @@ pub struct MariaDbTypeMetadata {
 }
 
 impl HasTypeMetadata for MariaDb {
-    type TypeId = u8;
     type TypeMetadata = MariaDbTypeMetadata;
-
-    fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
-        Some(match FieldType(*id) {
-            FieldType::MYSQL_TYPE_TINY => "i8",
-            FieldType::MYSQL_TYPE_SHORT => "i16",
-            FieldType::MYSQL_TYPE_LONG => "i32",
-            FieldType::MYSQL_TYPE_LONGLONG => "i64",
-            FieldType::MYSQL_TYPE_VAR_STRING => "&str",
-            FieldType::MYSQL_TYPE_FLOAT => "f32",
-            FieldType::MYSQL_TYPE_DOUBLE => "f64",
-            FieldType::MYSQL_TYPE_BLOB => "&[u8]",
-            _ => return None,
-        })
-    }
-
-    fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
-        Some(match FieldType(*id) {
-            FieldType::MYSQL_TYPE_TINY => "i8",
-            FieldType::MYSQL_TYPE_SHORT => "i16",
-            FieldType::MYSQL_TYPE_LONG => "i32",
-            FieldType::MYSQL_TYPE_LONGLONG => "i64",
-            FieldType::MYSQL_TYPE_VAR_STRING => "String",
-            FieldType::MYSQL_TYPE_FLOAT => "f32",
-            FieldType::MYSQL_TYPE_DOUBLE => "f64",
-            FieldType::MYSQL_TYPE_BLOB => "Vec<u8>",
-            _ => return None,
-        })
-    }
+    type TypeId = u8;
 }
 
-impl TypeMetadata for MariaDbTypeMetadata {
-    type TypeId = u8;
-
-    fn type_id(&self) -> &Self::TypeId {
-        &self.field_type.0
+impl TypeMetadata<u8> for MariaDbTypeMetadata {
+    fn type_id_eq(&self, other: &u8) -> bool {
+        &self.field_type.0 == other
     }
 }

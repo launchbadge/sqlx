@@ -64,9 +64,6 @@ pub mod postgres;
 #[doc(inline)]
 pub use self::postgres::Postgres;
 
-#[cfg(feature = "uuid")]
-pub use uuid::Uuid;
-
 use std::marker::PhantomData;
 
 // These types allow the `sqlx_macros::sql!()` macro to polymorphically compare a
