@@ -14,6 +14,7 @@ macro_rules! impl_backend_ext {
 
                 match () {
                     $(
+                        // `if` statements cannot have attributes but these can
                         $(#[$meta])?
                         _ if <$backend as sqlx::types::HasSqlType<$ty>>::metadata().type_id_eq(id) => Some(borrowed_ty!($ty $(, $borrowed)?)),
                     )*
