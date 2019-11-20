@@ -1,12 +1,12 @@
 [package]
 name = "sqlx"
 version = "0.1.1-pre"
-authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>"
-]
 license = "MIT OR Apache-2.0"
 description = "The Rust SQL Toolkit."
 edition = "2018"
+authors = [
+    "Ryan Leckey <leckey.ryan@gmail.com>"
+]
 
 [features]
 default = []
