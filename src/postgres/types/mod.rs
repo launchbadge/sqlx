@@ -25,14 +25,18 @@
 //! | `&[u8]`/`Vec<u8>`                 | BYTEA                                |
 //! | `HashMap<String, Option<String>>` | HSTORE                               |
 //! | `IpAddr`                          | INET                                 |
-//!
+//! | `Uuid` (`uuid` feature)           | UUID                                 |
 
 use super::Postgres;
-use crate::types::TypeMetadata;
+use crate::types::{HasTypeMetadata, TypeMetadata};
 
+mod binary;
 mod boolean;
 mod character;
 mod numeric;
+
+#[cfg(feature = "uuid")]
+mod uuid;
 
 pub enum PostgresTypeFormat {
     Text = 0,
@@ -50,6 +54,13 @@ pub struct PostgresTypeMetadata {
     pub array_oid: u32,
 }
 
-impl TypeMetadata for Postgres {
+impl HasTypeMetadata for Postgres {
+    type TypeId = u32;
     type TypeMetadata = PostgresTypeMetadata;
+}
+
+impl TypeMetadata<u32> for PostgresTypeMetadata {
+    fn type_id_eq(&self, other: &u32) -> bool {
+        &self.oid == other || &self.array_oid == other
+    }
 }

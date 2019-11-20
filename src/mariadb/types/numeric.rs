@@ -20,7 +20,7 @@ impl HasSqlType<i16> for MariaDb {
 
 impl ToSql<MariaDb> for i16 {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
 
         IsNull::No
@@ -47,7 +47,7 @@ impl HasSqlType<i32> for MariaDb {
 
 impl ToSql<MariaDb> for i32 {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
 
         IsNull::No
@@ -74,7 +74,7 @@ impl HasSqlType<i64> for MariaDb {
 
 impl ToSql<MariaDb> for i64 {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(&self.to_be_bytes());
 
         IsNull::No
@@ -101,8 +101,8 @@ impl HasSqlType<f32> for MariaDb {
 
 impl ToSql<MariaDb> for f32 {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        <i32 as ToSql<MariaDb>>::to_sql((self.to_bits() as i32), buf)
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+        <i32 as ToSql<MariaDb>>::to_sql(&(self.to_bits() as i32), buf)
     }
 }
 
@@ -126,8 +126,8 @@ impl HasSqlType<f64> for MariaDb {
 
 impl ToSql<MariaDb> for f64 {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        <i64 as ToSql<MariaDb>>::to_sql((self.to_bits() as i64), buf)
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+        <i64 as ToSql<MariaDb>>::to_sql(&(self.to_bits() as i64), buf)
     }
 }
 

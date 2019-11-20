@@ -18,8 +18,8 @@ impl HasSqlType<bool> for MariaDb {
 
 impl ToSql<MariaDb> for bool {
     #[inline]
-    fn to_sql(self, buf: &mut Vec<u8>) -> IsNull {
-        buf.push(self as u8);
+    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.push(*self as u8);
 
         IsNull::No
     }

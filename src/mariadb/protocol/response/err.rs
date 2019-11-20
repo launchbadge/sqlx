@@ -1,6 +1,6 @@
 use crate::{
     io::Buf,
-    mariadb::{io::BufExt, protocol::ErrorCode},
+    mariadb::{error::Error, io::BufExt, protocol::ErrorCode},
 };
 use byteorder::LittleEndian;
 use std::io;
@@ -64,6 +64,15 @@ impl ErrPacket {
                 sql_state,
                 message,
             })
+        }
+    }
+
+    pub fn expect_error<T>(self) -> crate::Result<T> {
+        match self {
+            ErrPacket::Progress { .. } => {
+                Err(invalid_data!("expected ErrPacket::Err, got {:?}", self).into())
+            }
+            ErrPacket::Error { code, message, .. } => Err(Error { code, message }.into()),
         }
     }
 }

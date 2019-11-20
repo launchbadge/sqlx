@@ -1,6 +1,10 @@
 use super::protocol::{FieldType, ParameterFlag};
-use crate::{mariadb::MariaDb, types::TypeMetadata};
+use crate::{
+    mariadb::MariaDb,
+    types::{HasTypeMetadata, TypeMetadata},
+};
 
+pub mod binary;
 pub mod boolean;
 pub mod character;
 pub mod numeric;
@@ -11,6 +15,13 @@ pub struct MariaDbTypeMetadata {
     pub param_flag: ParameterFlag,
 }
 
-impl TypeMetadata for MariaDb {
+impl HasTypeMetadata for MariaDb {
     type TypeMetadata = MariaDbTypeMetadata;
+    type TypeId = u8;
+}
+
+impl TypeMetadata<u8> for MariaDbTypeMetadata {
+    fn type_id_eq(&self, other: &u8) -> bool {
+        &self.field_type.0 == other
+    }
 }

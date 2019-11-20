@@ -9,6 +9,8 @@ pub trait Buf {
 
     fn get_u16<T: ByteOrder>(&mut self) -> io::Result<u16>;
 
+    fn get_i16<T: ByteOrder>(&mut self) -> io::Result<i16>;
+
     fn get_u24<T: ByteOrder>(&mut self) -> io::Result<u32>;
 
     fn get_i32<T: ByteOrder>(&mut self) -> io::Result<i32>;
@@ -37,6 +39,13 @@ impl<'a> Buf for &'a [u8] {
 
     fn get_u16<T: ByteOrder>(&mut self) -> io::Result<u16> {
         let val = T::read_u16(*self);
+        self.advance(2);
+
+        Ok(val)
+    }
+
+    fn get_i16<T: ByteOrder>(&mut self) -> io::Result<i16> {
+        let val = T::read_i16(*self);
         self.advance(2);
 
         Ok(val)

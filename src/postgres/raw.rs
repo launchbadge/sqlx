@@ -148,6 +148,14 @@ impl PostgresRawConnection {
         .encode(self.stream.buffer_mut());
     }
 
+    pub(super) fn describe(&mut self, statement: &str) {
+        protocol::Describe {
+            kind: protocol::DescribeKind::PreparedStatement,
+            name: statement,
+        }
+        .encode(self.stream.buffer_mut())
+    }
+
     pub(super) fn bind(&mut self, portal: &str, statement: &str, params: &PostgresQueryParameters) {
         protocol::Bind {
             portal,
@@ -191,6 +199,14 @@ impl PostgresRawConnection {
 
                 Message::ReadyForQuery(_) => {
                     return Ok(None);
+                }
+
+                Message::ParameterDescription(desc) => {
+                    return Ok(Some(Step::ParamDesc(desc)));
+                }
+
+                Message::RowDescription(desc) => {
+                    return Ok(Some(Step::RowDesc(desc)));
                 }
 
                 message => {
@@ -245,6 +261,7 @@ impl PostgresRawConnection {
                 b't' => Message::ParameterDescription(Box::new(
                     protocol::ParameterDescription::decode(body)?,
                 )),
+                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
 
                 id => {
                     return Err(io::Error::new(
@@ -280,7 +297,10 @@ impl PostgresRawConnection {
     }
 }
 
+#[derive(Debug)]
 pub(super) enum Step {
     Command(u64),
     Row(PostgresRow),
+    ParamDesc(Box<protocol::ParameterDescription>),
+    RowDesc(Box<protocol::RowDescription>),
 }

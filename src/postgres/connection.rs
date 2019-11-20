@@ -1,7 +1,18 @@
 use super::{Postgres, PostgresQueryParameters, PostgresRawConnection, PostgresRow};
-use crate::{connection::RawConnection, postgres::raw::Step, url::Url};
+use crate::{
+    connection::RawConnection,
+    describe::{Describe, ResultField},
+    postgres::raw::Step,
+    query::QueryParameters,
+    url::Url,
+};
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::postgres::{protocol::Message, PostgresDatabaseError};
+use std::hash::Hasher;
 
 #[async_trait]
 impl RawConnection for PostgresRawConnection {
@@ -91,6 +102,48 @@ impl RawConnection for PostgresRawConnection {
         }
 
         Ok(row)
+    }
+
+    async fn describe(&mut self, body: &str) -> crate::Result<Describe<Postgres>> {
+        self.parse("", body, &PostgresQueryParameters::new());
+        self.describe("");
+        self.sync().await?;
+
+        let param_desc = loop {
+            let step = self
+                .step()
+                .await?
+                .ok_or(invalid_data!("did not receive ParameterDescription"));
+
+            if let Step::ParamDesc(desc) = step? {
+                break desc;
+            }
+        };
+
+        let row_desc = loop {
+            let step = self
+                .step()
+                .await?
+                .ok_or(invalid_data!("did not receive RowDescription"));
+
+            if let Step::RowDesc(desc) = step? {
+                break desc;
+            }
+        };
+
+        Ok(Describe {
+            param_types: param_desc.ids.into_vec(),
+            result_fields: row_desc
+                .fields
+                .into_vec()
+                .into_iter()
+                .map(|field| ResultField {
+                    name: Some(field.name),
+                    table_id: Some(field.table_id),
+                    type_id: field.type_id,
+                })
+                .collect(),
+        })
     }
 }
 

@@ -9,11 +9,11 @@ pub enum DescribeKind {
 }
 
 pub struct Describe<'a> {
-    kind: DescribeKind,
+    pub kind: DescribeKind,
 
     /// The name of the prepared statement or portal to describe (an empty string selects the
     /// unnamed prepared statement or portal).
-    name: &'a str,
+    pub name: &'a str,
 }
 
 impl Encode for Describe<'_> {

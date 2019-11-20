@@ -1,5 +1,6 @@
 use crate::{
     backend::Backend,
+    describe::Describe,
     error::Error,
     executor::Executor,
     pool::{Live, SharedPool},
@@ -71,6 +72,8 @@ pub trait RawConnection: Send {
         query: &str,
         params: <Self::Backend as Backend>::QueryParameters,
     ) -> crate::Result<Option<<Self::Backend as Backend>::Row>>;
+
+    async fn describe(&mut self, query: &str) -> crate::Result<Describe<Self::Backend>>;
 }
 
 pub struct Connection<DB>(Arc<SharedConnection<DB>>)
@@ -119,6 +122,17 @@ where
         self.0.release(live);
 
         Ok(())
+    }
+
+    /// Analyze the SQL statement and report the inferred bind parameter types and returned
+    /// columns.
+    ///
+    /// Mainly intended for use by sqlx-macros.
+    pub async fn describe(&self, statement: &str) -> crate::Result<Describe<DB>> {
+        let mut live = self.0.acquire().await;
+        let ret = live.raw.describe(statement).await?;
+        self.0.release(live);
+        Ok(ret)
     }
 }
 
