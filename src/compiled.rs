@@ -19,7 +19,7 @@ where
     O: FromSqlRow<DB> + Send + Unpin,
 {
     #[inline]
-    pub fn execute<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<u64>>
+    pub fn execute<'e, E: 'e>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Executor<Backend = DB>,
         DB: 'e,
@@ -30,7 +30,7 @@ where
     }
 
     #[inline]
-    pub fn fetch<'e, E: 'e>(self, executor: &'e E) -> BoxStream<'e, crate::Result<O>>
+    pub fn fetch<'e, E: 'e>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<O>>
     where
         E: Executor<Backend = DB>,
         DB: 'e,
@@ -41,7 +41,7 @@ where
     }
 
     #[inline]
-    pub fn fetch_all<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<Vec<O>>>
+    pub fn fetch_all<'e, E: 'e>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<Vec<O>>>
     where
         E: Executor<Backend = DB>,
         DB: 'e,
@@ -54,7 +54,7 @@ where
     #[inline]
     pub fn fetch_optional<'e, E: 'e>(
         self,
-        executor: &'e E,
+        executor: &'e mut E,
     ) -> BoxFuture<'e, crate::Result<Option<O>>>
     where
         E: Executor<Backend = DB>,
@@ -66,7 +66,7 @@ where
     }
 
     #[inline]
-    pub fn fetch_one<'e, E: 'e>(self, executor: &'e E) -> BoxFuture<'e, crate::Result<O>>
+    pub fn fetch_one<'e, E: 'e>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<O>>
     where
         E: Executor<Backend = DB>,
         DB: 'e,

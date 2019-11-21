@@ -26,7 +26,7 @@ use std::{
 /// This trait is not intended to be used directly. Instead [sqlx::Connection] or [sqlx::Pool] should be used instead, which provide
 /// concurrent access and typed retrieval of results.
 #[async_trait]
-pub trait RawConnection: Send {
+pub trait RawConnection: Send + Sync {
     // The database backend this type connects to.
     type Backend: Backend;
 
@@ -76,18 +76,12 @@ pub trait RawConnection: Send {
     async fn describe(&mut self, query: &str) -> crate::Result<Describe<Self::Backend>>;
 }
 
-pub struct Connection<DB>(Arc<SharedConnection<DB>>)
-where
-    DB: Backend;
-
-impl<DB> Clone for Connection<DB>
+pub struct Connection<DB>
 where
     DB: Backend,
 {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
-    }
+    live: Option<Live<DB>>,
+    pool: Option<Arc<SharedPool<DB>>>,
 }
 
 impl<DB> Connection<DB>
@@ -95,14 +89,10 @@ where
     DB: Backend,
 {
     pub(crate) fn new(live: Live<DB>, pool: Option<Arc<SharedPool<DB>>>) -> Self {
-        let shared = SharedConnection {
-            live: AtomicCell::new(Some(live)),
-            num_waiters: AtomicUsize::new(0),
-            waiters: SegQueue::new(),
+        Self {
+            live: Some(live),
             pool,
-        };
-
-        Self(Arc::new(shared))
+        }
     }
 
     pub async fn establish(url: &str) -> crate::Result<Self> {
@@ -116,23 +106,21 @@ where
     }
 
     /// Verifies a connection to the database is still alive.
-    pub async fn ping(&self) -> crate::Result<()> {
-        let mut live = self.0.acquire().await;
-        live.raw.ping().await?;
-        self.0.release(live);
-
-        Ok(())
+    pub async fn ping(&mut self) -> crate::Result<()> {
+        self.live.as_mut().expect("released").raw.ping().await
     }
 
     /// Analyze the SQL statement and report the inferred bind parameter types and returned
     /// columns.
     ///
     /// Mainly intended for use by sqlx-macros.
-    pub async fn describe(&self, statement: &str) -> crate::Result<Describe<DB>> {
-        let mut live = self.0.acquire().await;
-        let ret = live.raw.describe(statement).await?;
-        self.0.release(live);
-        Ok(ret)
+    pub async fn describe(&mut self, statement: &str) -> crate::Result<Describe<DB>> {
+        self.live
+            .as_mut()
+            .expect("released")
+            .raw
+            .describe(statement)
+            .await
     }
 }
 
@@ -143,7 +131,7 @@ where
     type Backend = DB;
 
     fn execute<'c, 'q: 'c, A: 'c>(
-        &'c self,
+        &'c mut self,
         query: &'q str,
         params: A,
     ) -> BoxFuture<'c, Result<u64, Error>>
@@ -151,16 +139,17 @@ where
         A: IntoQueryParameters<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let mut live = self.0.acquire().await;
-            let result = live.raw.execute(query, params.into()).await;
-            self.0.release(live);
-
-            result
+            self.live
+                .as_mut()
+                .expect("released")
+                .raw
+                .execute(query, params.into())
+                .await
         })
     }
 
     fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
-        &'c self,
+        &'c mut self,
         query: &'q str,
         params: A,
     ) -> BoxStream<'c, Result<T, Error>>
@@ -169,20 +158,16 @@ where
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut live = self.0.acquire().await;
-            let mut s = live.raw.fetch(query, params.into());
+            let mut s = self.live.as_mut().expect("released").raw.fetch(query, params.into());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
             }
-
-            drop(s);
-            self.0.release(live);
         })
     }
 
     fn fetch_optional<'c, 'q: 'c, T: 'c, A: 'c>(
-        &'c self,
+        &'c mut self,
         query: &'q str,
         params: A,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
@@ -191,75 +176,28 @@ where
         T: FromSqlRow<Self::Backend>,
     {
         Box::pin(async move {
-            let mut live = self.0.acquire().await;
-            let row = live.raw.fetch_optional(query, params.into()).await?;
-            self.0.release(live);
+            let row = self
+                .live
+                .as_mut()
+                .expect("released")
+                .raw
+                .fetch_optional(query, params.into())
+                .await?;
 
             Ok(row.map(T::from_row))
         })
     }
 }
 
-struct SharedConnection<DB>
-where
-    DB: Backend,
-{
-    live: AtomicCell<Option<Live<DB>>>,
-    pool: Option<Arc<SharedPool<DB>>>,
-    num_waiters: AtomicUsize,
-    waiters: SegQueue<Sender<Live<DB>>>,
-}
-
-impl<DB> SharedConnection<DB>
-where
-    DB: Backend,
-{
-    async fn acquire(&self) -> Live<DB> {
-        if let Some(live) = self.live.swap(None) {
-            // Fast path, this connection is not currently in use.
-            // We can directly return the inner connection.
-            return live;
-        }
-
-        let (sender, receiver) = channel();
-
-        self.waiters.push(sender);
-        self.num_waiters.fetch_add(1, Ordering::AcqRel);
-
-        // Waiters are not dropped unless the pool is dropped
-        // which would drop this future
-        receiver
-            .await
-            .expect("waiter dropped without dropping connection")
-    }
-
-    fn release(&self, mut live: Live<DB>) {
-        if self.num_waiters.load(Ordering::Acquire) > 0 {
-            while let Ok(waiter) = self.waiters.pop() {
-                self.num_waiters.fetch_sub(1, Ordering::AcqRel);
-
-                live = match waiter.send(live) {
-                    Ok(()) => {
-                        return;
-                    }
-
-                    Err(live) => live,
-                };
-            }
-        }
-
-        self.live.store(Some(live));
-    }
-}
-
-impl<DB> Drop for SharedConnection<DB>
+impl<DB> Drop for Connection<DB>
 where
     DB: Backend,
 {
     fn drop(&mut self) {
         if let Some(pool) = &self.pool {
-            // This error should not be able to happen
-            pool.release(self.live.take().expect("drop while checked out"));
+            if let Some(live) = self.live.take() {
+                pool.release(live);
+            }
         }
     }
 }

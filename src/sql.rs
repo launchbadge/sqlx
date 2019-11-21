@@ -32,7 +32,7 @@ where
         self
     }
 
-    pub fn execute<E>(self, executor: &'q E) -> BoxFuture<'q, Result<u64, Error>>
+    pub fn execute<E>(self, executor: &'q mut E) -> BoxFuture<'q, Result<u64, Error>>
     where
         E: Executor<Backend = DB>,
         DB::QueryParameters: 'q,
@@ -40,7 +40,7 @@ where
         executor.execute(self.query, self.params)
     }
 
-    pub fn fetch<E, T: 'q>(self, executor: &'q E) -> BoxStream<'q, Result<T, Error>>
+    pub fn fetch<E, T: 'q>(self, executor: &'q mut E) -> BoxStream<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
         T: FromSqlRow<DB> + Send + Unpin,
@@ -49,7 +49,7 @@ where
         executor.fetch(self.query, self.params)
     }
 
-    pub fn fetch_all<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<Vec<T>, Error>>
+    pub fn fetch_all<E, T: 'q>(self, executor: &'q mut E) -> BoxFuture<'q, Result<Vec<T>, Error>>
     where
         E: Executor<Backend = DB>,
         T: FromSqlRow<DB> + Send + Unpin,
@@ -60,7 +60,7 @@ where
 
     pub fn fetch_optional<E, T: 'q>(
         self,
-        executor: &'q E,
+        executor: &'q mut E,
     ) -> BoxFuture<'q, Result<Option<T>, Error>>
     where
         E: Executor<Backend = DB>,
@@ -70,7 +70,7 @@ where
         executor.fetch_optional(self.query, self.params)
     }
 
-    pub fn fetch_one<E, T: 'q>(self, executor: &'q E) -> BoxFuture<'q, Result<T, Error>>
+    pub fn fetch_one<E, T: 'q>(self, executor: &'q mut E) -> BoxFuture<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
         T: FromSqlRow<DB> + Send + Unpin,
