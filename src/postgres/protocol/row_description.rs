@@ -47,9 +47,32 @@ mod test {
     use super::{Decode, RowDescription};
 
     #[test]
-    fn it_decodes_parameter_description() {
-        let buf = b"\x00\x02\x00\x00\x00\x00\x00\x00\x05\x00";
-        let desc = RowDescription::decode(buf).unwrap();
+    fn it_decodes_row_description() {
+        #[rustfmt::skip]
+        let buf = __bytes_builder! {
+            // Number of Parameters
+            0_u8, 2_u8,
+
+            // 1
+            b"user_id\0", // name
+            0_u8, 0_u8, 0_u8, 0_u8, // table_id
+            0_u8, 0_u8, // attr_num
+            0_u8, 0_u8, 0_u8, 0_u8, // type_id
+            0_u8, 0_u8, // type_size
+            0_u8, 0_u8, 0_u8, 0_u8, // type_mod
+            0_u8, 0_u8, // format_code
+
+            // 2
+            b"number_of_pages\0", // name
+            0_u8, 0_u8, 0_u8, 0_u8, // table_id
+            0_u8, 0_u8, // attr_num
+            0_u8, 0_u8, 5_u8, 0_u8, // type_id
+            0_u8, 0_u8, // type_size
+            0_u8, 0_u8, 0_u8, 0_u8, // type_mod
+            0_u8, 0_u8 // format_code
+        };
+
+        let desc = RowDescription::decode(&buf).unwrap();
 
         assert_eq!(desc.fields.len(), 2);
         assert_eq!(desc.fields[0].type_id, 0x0000_0000);
@@ -57,7 +80,7 @@ mod test {
     }
 
     #[test]
-    fn it_decodes_empty_parameter_description() {
+    fn it_decodes_empty_row_description() {
         let buf = b"\x00\x00";
         let desc = RowDescription::decode(buf).unwrap();
 
