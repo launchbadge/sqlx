@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 
 use proc_macro2::Span;
 
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, format_ident, ToTokens};
 
 use syn::{
     parse::{self, Parse, ParseStream},
@@ -16,7 +16,7 @@ use syn::{
 
 use sqlx::HasTypeMetadata;
 
-use tokio::runtime::Runtime;
+use async_std::task;
 
 use std::fmt::Display;
 use url::Url;
@@ -65,10 +65,7 @@ pub fn sql(input: TokenStream) -> TokenStream {
 
     eprintln!("expanding macro");
 
-    match Runtime::new()
-        .map_err(Error::from)
-        .and_then(|runtime| runtime.block_on(process_sql(input)))
-    {
+    match task::block_on(process_sql(input)) {
         Ok(ts) => {
             eprintln!("emitting output: {}", ts);
             ts
@@ -98,13 +95,11 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
             )
             .await
         }
-        #[cfg(feature = "mysql")]
+        #[cfg(feature = "mariadb")]
         "mysql" => {
             process_sql_with(
                 input,
-                sqlx::Connection::<sqlx::MariaDb>::establish(
-                    "postgresql://postgres@127.0.0.1/sqlx_test",
-                )
+                sqlx::Connection::<sqlx::MariaDb>::establish(db_url.as_str())
                 .await
                 .map_err(|e| format!("failed to connect to database: {}", e))?,
             )
@@ -153,7 +148,7 @@ where
                             .unwrap(),
                     )
                 })
-                .ok_or_else(|| format!("unknown type ID: {}", type_).into())
+                .ok_or_else(|| format!("unknown type param ID: {}", type_).into())
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -162,7 +157,7 @@ where
         .iter()
         .map(|column| {
             Ok(<DB as BackendExt>::return_type_for_id(&column.type_id)
-                .ok_or_else(|| format!("unknown type ID: {}", &column.type_id))?
+                .ok_or_else(|| format!("unknown field type ID: {}", &column.type_id))?
                 .parse::<proc_macro2::TokenStream>()
                 .unwrap())
         })
@@ -171,10 +166,13 @@ where
     let params = input.args.iter();
 
     let params_ty_cons = input.args.iter().enumerate().map(|(i, expr)| {
+        // required or `quote!()` emits it as `Nusize`
+        let i = syn::Index::from(i);
         quote_spanned!( expr.span() => { use sqlx::TyConsExt as _; (sqlx::TyCons::new(&params.#i)).ty_cons() })
     });
 
     let query = &input.sql;
+    let backend_path = syn::parse_str::<syn::Path>(DB::BACKEND_PATH).unwrap();
 
     Ok(quote! {{
         use sqlx::TyConsExt as _;
@@ -185,7 +183,7 @@ where
             let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
         }
 
-        sqlx::CompiledSql::<_, (#(#output_types),*), sqlx::Postgres> {
+        sqlx::CompiledSql::<_, (#(#output_types),*), #backend_path> {
             query: #query,
             params,
             output: ::core::marker::PhantomData,

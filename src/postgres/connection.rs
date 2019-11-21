@@ -159,7 +159,7 @@ mod tests {
             .unwrap()
     }
 
-    #[tokio::test]
+    #[async_std::test]
     #[ignore]
     async fn it_establishes() -> crate::Result<()> {
         let mut conn = PostgresRawConnection::establish(&database_url()).await?;
@@ -173,7 +173,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     #[ignore]
     async fn it_executes() -> crate::Result<()> {
         let mut conn = PostgresRawConnection::establish(&database_url()).await?;

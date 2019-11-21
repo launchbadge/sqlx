@@ -1,14 +1,18 @@
 use sqlx::Backend;
 
 pub trait BackendExt: Backend {
+    const BACKEND_PATH: &'static str;
+
     fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
 
     fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
 }
 
 macro_rules! impl_backend_ext {
-    ($backend:ty { $($(#[$meta:meta])? $ty:ty $(| $borrowed:ty)?),* }) => {
+    ($backend:path { $($(#[$meta:meta])? $ty:ty $(| $borrowed:ty)?),* }) => {
         impl $crate::backend::BackendExt for $backend {
+            const BACKEND_PATH: &'static str = stringify!($backend);
+
             fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
                 use sqlx::types::TypeMetadata;
 

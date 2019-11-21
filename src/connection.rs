@@ -143,7 +143,7 @@ where
                 .as_mut()
                 .expect("released")
                 .raw
-                .execute(query, params.into())
+                .execute(query, params.into_params())
                 .await
         })
     }
@@ -158,7 +158,7 @@ where
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut s = self.live.as_mut().expect("released").raw.fetch(query, params.into());
+            let mut s = self.live.as_mut().expect("released").raw.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -181,7 +181,7 @@ where
                 .as_mut()
                 .expect("released")
                 .raw
-                .fetch_optional(query, params.into())
+                .fetch_optional(query, params.into_params())
                 .await?;
 
             Ok(row.map(T::from_row))
