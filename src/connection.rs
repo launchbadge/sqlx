@@ -152,7 +152,7 @@ where
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await;
-            let result = live.raw.execute(query, params.into()).await;
+            let result = live.raw.execute(query, params.into_params()).await;
             self.0.release(live);
 
             result
@@ -170,7 +170,7 @@ where
     {
         Box::pin(async_stream::try_stream! {
             let mut live = self.0.acquire().await;
-            let mut s = live.raw.fetch(query, params.into());
+            let mut s = live.raw.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -192,7 +192,7 @@ where
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await;
-            let row = live.raw.fetch_optional(query, params.into()).await?;
+            let row = live.raw.fetch_optional(query, params.into_params()).await?;
             self.0.release(live);
 
             Ok(row.map(T::from_row))

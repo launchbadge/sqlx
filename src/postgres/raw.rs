@@ -7,7 +7,7 @@ use crate::{
 };
 use byteorder::NetworkEndian;
 use std::{io, net::SocketAddr};
-use tokio::net::TcpStream;
+use async_std::net::TcpStream;
 
 pub struct PostgresRawConnection {
     stream: BufStream<TcpStream>,

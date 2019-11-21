@@ -1,6 +1,7 @@
 use bytes::{BufMut, BytesMut};
 use std::io;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+use async_std::io::prelude::*;
 
 pub struct BufStream<S> {
     stream: S,
@@ -17,7 +18,7 @@ pub struct BufStream<S> {
 
 impl<S> BufStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: Read + Write + Unpin,
 {
     pub fn new(stream: S) -> Self {
         Self {
@@ -29,7 +30,9 @@ where
     }
 
     pub async fn close(&mut self) -> io::Result<()> {
-        self.stream.shutdown().await
+        use futures_util::io::AsyncWriteExt;
+
+        self.stream.close().await
     }
 
     #[inline]

@@ -17,7 +17,7 @@ pub trait IntoQueryParameters<DB>
 where
     DB: Backend,
 {
-    fn into(self) -> DB::QueryParameters;
+    fn into_params(self) -> DB::QueryParameters;
 }
 
 #[allow(unused)]
@@ -28,7 +28,7 @@ macro_rules! impl_into_query_parameters {
             $($B: crate::types::HasSqlType<$T>,)+
             $($T: crate::serialize::ToSql<$B>,)+
         {
-            fn into(self) -> <$B as crate::backend::Backend>::QueryParameters {
+            fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
                 let mut params = <<$B as crate::backend::Backend>::QueryParameters
                     as crate::query::QueryParameters>::new();
 
@@ -45,7 +45,7 @@ where
     DB: Backend,
 {
     #[inline]
-    fn into(self) -> DB::QueryParameters {
+    fn into_params(self) -> DB::QueryParameters {
         self
     }
 }
@@ -56,7 +56,7 @@ macro_rules! impl_into_query_parameters_for_backend {
         impl crate::query::IntoQueryParameters<$B> for ()
         {
             #[inline]
-            fn into(self) -> <$B as crate::backend::Backend>::QueryParameters {
+            fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
                 <<$B as crate::backend::Backend>::QueryParameters
                     as crate::query::QueryParameters>::new()
             }

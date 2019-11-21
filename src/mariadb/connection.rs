@@ -23,7 +23,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
 };
-use tokio::net::TcpStream;
+use async_std::net::TcpStream;
 use url::Url;
 
 pub struct MariaDbRawConnection {
@@ -367,13 +367,13 @@ mod test {
     use super::*;
     use crate::{query::QueryParameters, Error, Pool};
 
-    #[tokio::test]
+    #[async_std::test]
     async fn it_can_connect() -> Result<()> {
         MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn it_fails_to_connect_with_bad_username() -> Result<()> {
         match MariaDbRawConnection::establish("mariadb://roote@127.0.0.1:3306/test").await {
             Ok(_) => panic!("Somehow connected to database with incorrect username"),
@@ -381,7 +381,7 @@ mod test {
         }
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn it_can_ping() -> Result<()> {
         let mut conn =
             MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
@@ -389,15 +389,18 @@ mod test {
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn it_can_describe() -> Result<()> {
         let mut conn =
-            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        conn.describe("SELECT id from users").await?;
+            MariaDbRawConnection::establish("mysql://sqlx_user@127.0.0.1:3306/sqlx_test").await?;
+        let describe = conn.describe("SELECT id from accounts where id = ?").await?;
+
+        dbg!(describe);
+
         Ok(())
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn it_can_create_mariadb_pool() -> Result<()> {
         let pool: Pool<MariaDb> = Pool::new("mariadb://root@127.0.0.1:3306/test").await?;
         Ok(())
