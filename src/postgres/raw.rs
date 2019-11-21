@@ -5,6 +5,7 @@ use crate::{
         PostgresDatabaseError, PostgresQueryParameters, PostgresRow,
     },
 };
+use std::net::Shutdown;
 use byteorder::NetworkEndian;
 use std::{io, net::SocketAddr};
 use async_std::net::TcpStream;
@@ -134,7 +135,7 @@ impl PostgresRawConnection {
         protocol::Terminate.encode(self.stream.buffer_mut());
 
         self.stream.flush().await?;
-        self.stream.close().await?;
+        self.stream.stream.shutdown(Shutdown::Both)?;
 
         Ok(())
     }

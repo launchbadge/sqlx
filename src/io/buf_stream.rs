@@ -1,10 +1,10 @@
 use bytes::{BufMut, BytesMut};
 use std::io;
-
-use async_std::io::prelude::*;
+use async_std::io::{Read, Write, prelude::{ReadExt, WriteExt}};
+use async_std::future::poll_fn;
 
 pub struct BufStream<S> {
-    stream: S,
+    pub(crate) stream: S,
 
     // Have we reached end-of-file (been disconnected)
     stream_eof: bool,
@@ -27,12 +27,6 @@ where
             wbuf: Vec::with_capacity(1024),
             rbuf: BytesMut::with_capacity(8 * 1024),
         }
-    }
-
-    pub async fn close(&mut self) -> io::Result<()> {
-        use futures_util::io::AsyncWriteExt;
-
-        self.stream.close().await
     }
 
     #[inline]

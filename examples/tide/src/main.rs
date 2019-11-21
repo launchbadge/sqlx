@@ -1,9 +1,9 @@
 use sqlx::{Pool, Postgres};
 use std::env;
 use tide::error::ResultExt;
+use tide::http::StatusCode;
 use tide::response;
 use tide::EndpointResult;
-use tide::http::StatusCode;
 use tide::{App, Context};
 
 // #[async_std::main]
