@@ -36,6 +36,7 @@ uuid = { version = "0.8.1", optional = true }
 matches = "0.1.8"
 tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "rt-full" ] }
 sqlx-macros = { path = "sqlx-macros/" }
+criterion = "0.3"
 
 [profile.release]
 lto = true
@@ -44,3 +45,8 @@ codegen-units = 1
 [[test]]
 name = "sql-macro-test"
 required-features = ["uuid"]
+
+[[bench]]
+name = "postgres_protocol"
+required-features = ["postgres", "unstable"]
+harness = false
