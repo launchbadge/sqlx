@@ -21,7 +21,7 @@ use std::{
     time::Instant,
 };
 
-/// A connection.bak to the database.
+/// A connection to the database.
 ///
 /// This trait is not intended to be used directly. Instead [sqlx::Connection] or [sqlx::Pool] should be used instead, which provide
 /// concurrent access and typed retrieval of results.
@@ -30,20 +30,20 @@ pub trait RawConnection: Send {
     // The database backend this type connects to.
     type Backend: Backend;
 
-    /// Establish a new connection.bak to the database server.
+    /// Establish a new connection to the database server.
     async fn establish(url: &str) -> crate::Result<Self>
     where
         Self: Sized;
 
-    /// Release resources for this database connection.bak immediately.
+    /// Release resources for this database connection immediately.
     ///
     /// This method is not required to be called. A database server will eventually notice
     /// and clean up not fully closed connections.
     ///
-    /// It is safe to close an already closed connection.bak.
+    /// It is safe to close an already closed connection.
     async fn close(mut self) -> crate::Result<()>;
 
-    /// Verifies a connection.bak to the database is still alive.
+    /// Verifies a connection to the database is still alive.
     async fn ping(&mut self) -> crate::Result<()> {
         let _ = self
             .execute(
@@ -115,7 +115,7 @@ where
         Ok(Self::new(live, None))
     }
 
-    /// Verifies a connection.bak to the database is still alive.
+    /// Verifies a connection to the database is still alive.
     pub async fn ping(&self) -> crate::Result<()> {
         let mut live = self.0.acquire().await;
         live.raw.ping().await?;
@@ -216,8 +216,8 @@ where
 {
     async fn acquire(&self) -> Live<DB> {
         if let Some(live) = self.live.swap(None) {
-            // Fast path, this connection.bak is not currently in use.
-            // We can directly return the inner connection.bak.
+            // Fast path, this connection is not currently in use.
+            // We can directly return the inner connection.
             return live;
         }
 
@@ -230,7 +230,7 @@ where
         // which would drop this future
         receiver
             .await
-            .expect("waiter dropped without dropping connection.bak")
+            .expect("waiter dropped without dropping connection")
     }
 
     fn release(&self, mut live: Live<DB>) {

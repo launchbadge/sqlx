@@ -2,8 +2,8 @@ use super::Encode;
 use crate::io::BufMut;
 use byteorder::NetworkEndian;
 
-/// Sent instead of [`StartupMessage`] with a new connection.bak to cancel a running query on an existing
-/// connection.bak.
+/// Sent instead of [`StartupMessage`] with a new connection to cancel a running query on an existing
+/// connection.
 ///
 /// https://www.postgresql.org/docs/devel/protocol-flow.html#id-1.10.5.7.9
 pub struct CancelRequest {

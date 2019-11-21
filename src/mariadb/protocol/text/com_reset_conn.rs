@@ -4,7 +4,7 @@ use crate::{
     mariadb::protocol::{Capabilities, Encode},
 };
 
-/// Resets a connection.bak without re-authentication.
+/// Resets a connection without re-authentication.
 #[derive(Debug)]
 pub struct ComResetConnection;
 

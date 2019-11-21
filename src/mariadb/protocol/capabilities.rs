@@ -41,7 +41,7 @@ bitflags::bitflags! {
         // Client supports plugin authentication
         const PLUGIN_AUTH = 1 << 19;
 
-        // Client send connection.bak attributes
+        // Client send connection attributes
         const CONNECT_ATTRS = 1 << 20;
 
         // Enable authentication response packet to be larger than 255 bytes

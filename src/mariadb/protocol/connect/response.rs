@@ -74,7 +74,7 @@ impl<'a> Encode for HandshakeResponsePacket<'a> {
 
         // if (capabilities & CLIENT_CONNECT_ATTRS)
         if capabilities.contains(Capabilities::CONNECT_ATTRS) {
-            // size of connection.bak attributes : int<lenenc>
+            // size of connection attributes : int<lenenc>
             buf.put_uint_lenenc::<LittleEndian, _>(self.connection_attrs.len() as u64);
 
             for (key, value) in self.connection_attrs {

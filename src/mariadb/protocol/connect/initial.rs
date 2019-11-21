@@ -119,7 +119,7 @@ mod test {
             10u8,
             //string<NUL> server version (MariaDB server version is by default prefixed by "5.5.5-")
             b"5.5.5-10.4.6-MariaDB-1:10.4.6+maria~bionic\0",
-            //int<4> connection.bak id
+            //int<4> connection id
             13u8, 0u8, 0u8, 0u8,
             //string<8> scramble 1st part (authentication seed)
             b"?~~|vZAu",
