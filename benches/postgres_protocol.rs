@@ -1,6 +1,6 @@
-use sqlx::postgres::protocol::{Bind, DataRow, RowDescription};
-use sqlx::postgres::protocol::{Encode, Decode};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use sqlx::postgres::protocol::{Bind, DataRow, RowDescription};
+use sqlx::postgres::protocol::{Decode, Encode};
 
 fn bench(c: &mut Criterion) {
     c.bench_function("decode_data_row", |b| {
@@ -26,7 +26,8 @@ fn bench(c: &mut Criterion) {
                 values_len: 2,
                 values: &[(-1_i8) as _, 0, 0, 0, 1, 0, 0, 0, 25],
                 result_formats: &[1],
-            }).encode(&mut buf);
+            })
+            .encode(&mut buf);
 
             buf.clear();
         });

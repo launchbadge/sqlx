@@ -98,11 +98,9 @@ mod test {
 
         assert_eq!(message.affected_rows, 0);
         assert_eq!(message.last_insert_id, 0);
-        assert!(
-            message
-                .server_status
-                .contains(ServerStatusFlag::SERVER_STATUS_IN_TRANS)
-        );
+        assert!(message
+            .server_status
+            .contains(ServerStatusFlag::SERVER_STATUS_IN_TRANS));
         assert_eq!(message.warning_count, 0);
         assert_eq!(message.info, "info".into());
 

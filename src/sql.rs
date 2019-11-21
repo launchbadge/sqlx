@@ -17,9 +17,9 @@ where
     DB: Backend,
 {
     /// Bind a value for use with this SQL query.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This function should be used with care, as SQLx cannot validate
     /// that the value is of the right type nor can it validate that you have
     /// passed the correct number of parameters.
