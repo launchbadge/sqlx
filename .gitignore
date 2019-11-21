@@ -9,3 +9,6 @@ Cargo.lock
 .idea/
 *.vim
 *.vi
+
+# Environment
+.env

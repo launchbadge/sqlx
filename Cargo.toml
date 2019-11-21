@@ -1,3 +1,10 @@
+[workspace]
+members = [
+    ".",
+    "sqlx-macros",
+    "examples/tide"
+]
+
 [package]
 name = "sqlx"
 version = "0.1.1-pre"

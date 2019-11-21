@@ -1,0 +1,15 @@
+[package]
+name = "sqlx-example-tide"
+version = "0.1.0"
+edition = "2018"
+workspace = "../.."
+
+[dependencies]
+anyhow = "1.0.22"
+dotenv = "0.15.0"
+# async-std = "1.1.0"
+# tide = { git = "https://github.com/http-rs/tide", rev = "eb57bcb2ba07a77c91ad3952ca0a0143b03009bc" }
+tide = "0.3.0"
+tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "rt-full" ] }
+sqlx = { path = "../..", features = [ "postgres" ] }
+serde = { version = "1", features = [ "derive"] }
