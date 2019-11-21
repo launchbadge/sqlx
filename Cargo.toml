@@ -10,6 +10,7 @@ authors = [
 
 [features]
 default = []
+unstable = []
 postgres = []
 mariadb = []
 
