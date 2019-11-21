@@ -1,4 +1,4 @@
-//! Types and traits related to serializing values from the database.
+//! Types and traits related to deserializing values from the database.
 use crate::{backend::Backend, types::HasSqlType};
 
 // TODO: Allow from_sql to return an error (that can be unified)
