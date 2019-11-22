@@ -1,4 +1,4 @@
-use crate::{query::IntoQueryParameters, Backend, Executor, FromSqlRow};
+use crate::{query::IntoQueryParameters, Backend, Executor, FromRow};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use std::marker::PhantomData;
 
@@ -16,7 +16,7 @@ impl<DB, P, O> CompiledSql<P, O, DB>
 where
     DB: Backend,
     P: IntoQueryParameters<DB> + Send,
-    O: FromSqlRow<DB> + Send + Unpin,
+    O: FromRow<DB> + Send + Unpin,
 {
     #[inline]
     pub fn execute<'e, E: 'e>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<u64>>

@@ -1,17 +1,10 @@
-use crate::{
-    mariadb::{protocol::ResultRow, MariaDb},
-    row::Row,
-};
+use crate::mariadb::{protocol::ResultRow, MariaDb};
+use crate::row::RawRow;
 
 pub struct MariaDbRow(pub(super) ResultRow);
 
-impl Row for MariaDbRow {
+impl RawRow for MariaDbRow {
     type Backend = MariaDb;
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.0.values.is_empty()
-    }
 
     #[inline]
     fn len(&self) -> usize {

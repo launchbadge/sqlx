@@ -1,58 +1,73 @@
 use crate::{backend::Backend, decode::Decode, types::HasSqlType};
 
-pub trait Row: Send {
+pub trait RawRow: Send {
     type Backend: Backend;
-
-    fn is_empty(&self) -> bool;
 
     fn len(&self) -> usize;
 
     fn get_raw(&self, index: usize) -> Option<&[u8]>;
+}
 
-    #[inline]
-    fn get<T>(&self, index: usize) -> T
+pub struct Row<DB>(pub(crate) DB::Row)
+where
+    DB: Backend;
+
+impl<DB> Row<DB>
+where
+    DB: Backend,
+{
+    pub fn get<T>(&self, index: usize) -> T
     where
-        Self::Backend: HasSqlType<T>,
-        T: Decode<Self::Backend>,
+        DB: HasSqlType<T>,
+        T: Decode<DB>,
     {
-        T::decode(self.get_raw(index))
+        T::decode(self.0.get_raw(index))
     }
 }
 
-pub trait FromSqlRow<DB: Backend> {
-    fn from_row<R: Row<Backend = DB>>(row: R) -> Self;
+pub trait FromRow<DB: Backend> {
+    fn from_row(row: DB::Row) -> Self;
 }
 
-impl<T, DB> FromSqlRow<DB> for T
+impl<T, DB> FromRow<DB> for T
 where
     DB: Backend + HasSqlType<T>,
     T: Decode<DB>,
 {
     #[inline]
-    fn from_row<R: Row<Backend = DB>>(row: R) -> Self {
-        row.get::<T>(0)
+    fn from_row(row: DB::Row) -> Self {
+        T::decode(row.get_raw(0))
     }
 }
 
 #[allow(unused)]
 macro_rules! impl_from_sql_row_tuple {
     ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
-        impl<$($T,)+> crate::row::FromSqlRow<$B> for ($($T,)+)
+        impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
         where
             $($B: crate::types::HasSqlType<$T>,)+
             $($T: crate::decode::Decode<$B>,)+
         {
             #[inline]
-            fn from_row<R: crate::row::Row<Backend = $B>>(row: R) -> Self {
-                ($(row.get($idx),)+)
+            fn from_row(row: <$B as crate::Backend>::Row) -> Self {
+                use crate::row::RawRow;
+
+                ($($T::decode(row.get_raw($idx)),)+)
             }
         }
     };
 }
 
 #[allow(unused)]
-macro_rules! impl_from_sql_row_tuples_for_backend {
+macro_rules! impl_from_row_for_backend {
     ($B:ident) => {
+        impl crate::row::FromRow<$B> for crate::row::Row<$B> where $B: crate::Backend {
+            #[inline]
+            fn from_row(row: <$B as crate::Backend>::Row) -> Self {
+                Self(row)
+            }
+        }
+
         impl_from_sql_row_tuple!($B:
             (0) -> T1;
         );

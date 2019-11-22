@@ -1,6 +1,6 @@
 use crate::{
     backend::Backend, encode::Encode, error::Error, executor::Executor, query::QueryParameters,
-    row::FromSqlRow, types::HasSqlType,
+    row::FromRow, types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 
@@ -43,7 +43,7 @@ where
     pub fn fetch<E, T: 'q>(self, executor: &'q mut E) -> BoxStream<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
-        T: FromSqlRow<DB> + Send + Unpin,
+        T: FromRow<DB> + Send + Unpin,
         DB::QueryParameters: 'q,
     {
         executor.fetch(self.query, self.params)
@@ -52,7 +52,7 @@ where
     pub fn fetch_all<E, T: 'q>(self, executor: &'q mut E) -> BoxFuture<'q, Result<Vec<T>, Error>>
     where
         E: Executor<Backend = DB>,
-        T: FromSqlRow<DB> + Send + Unpin,
+        T: FromRow<DB> + Send + Unpin,
         DB::QueryParameters: 'q,
     {
         executor.fetch_all(self.query, self.params)
@@ -64,7 +64,7 @@ where
     ) -> BoxFuture<'q, Result<Option<T>, Error>>
     where
         E: Executor<Backend = DB>,
-        T: FromSqlRow<DB> + Send,
+        T: FromRow<DB> + Send,
         DB::QueryParameters: 'q,
     {
         executor.fetch_optional(self.query, self.params)
@@ -73,7 +73,7 @@ where
     pub fn fetch_one<E, T: 'q>(self, executor: &'q mut E) -> BoxFuture<'q, Result<T, Error>>
     where
         E: Executor<Backend = DB>,
-        T: FromSqlRow<DB> + Send + Unpin,
+        T: FromRow<DB> + Send + Unpin,
         DB::QueryParameters: 'q,
     {
         executor.fetch_one(self.query, self.params)

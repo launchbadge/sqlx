@@ -84,5 +84,5 @@ impl Backend for MariaDb {
     }
 }
 
-impl_from_sql_row_tuples_for_backend!(MariaDb);
+impl_from_row_for_backend!(MariaDb);
 impl_into_query_parameters_for_backend!(MariaDb);

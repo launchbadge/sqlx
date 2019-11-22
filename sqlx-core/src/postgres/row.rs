@@ -1,16 +1,11 @@
 use super::{protocol::DataRow, Postgres};
-use crate::row::Row;
+use crate::row::RawRow;
 
 #[derive(Debug)]
 pub struct PostgresRow(pub(crate) DataRow);
 
-impl Row for PostgresRow {
+impl RawRow for PostgresRow {
     type Backend = Postgres;
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
 
     #[inline]
     fn len(&self) -> usize {

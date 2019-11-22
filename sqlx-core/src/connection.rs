@@ -5,7 +5,7 @@ use crate::{
     executor::Executor,
     pool::{Live, SharedPool},
     query::IntoQueryParameters,
-    row::FromSqlRow,
+    row::FromRow,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
@@ -70,7 +70,7 @@ where
     ) -> BoxStream<'c, Result<T, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut s = self.live.fetch(query, params.into_params());
@@ -88,7 +88,7 @@ where
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend>,
+        T: FromRow<Self::Backend>,
     {
         Box::pin(async move {
             let row = self

@@ -1,6 +1,6 @@
 use crate::{
     backend::Backend, connection::Connection, error::Error, executor::Executor,
-    query::IntoQueryParameters, row::FromSqlRow,
+    query::IntoQueryParameters, row::FromRow,
 };
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
@@ -258,7 +258,7 @@ where
     ) -> BoxStream<'c, Result<T, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut self_ = &*self;
@@ -279,7 +279,7 @@ where
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
             <&Pool<DB> as Executor>::fetch_optional(&mut &*self, query, params).await
@@ -315,7 +315,7 @@ where
     ) -> BoxStream<'c, Result<T, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut live = self.0.acquire().await?;
@@ -334,7 +334,7 @@ where
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
         A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromSqlRow<Self::Backend> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await?;

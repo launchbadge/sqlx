@@ -1,4 +1,4 @@
-use sqlx::{Pool, Postgres};
+use sqlx::{Row, Pool, Postgres};
 use std::env;
 use tide::error::ResultExt;
 use tide::http::StatusCode;
@@ -18,6 +18,8 @@ async fn main() -> anyhow::Result<()> {
     let mut app = App::with_state(pool);
 
     app.at("/v1/user").get(get_all_users).post(create_user);
+
+    app.at("/v1/user/latest").get(get_newest_user);
 
     app.serve(("localhost", 8080))?;
 
@@ -49,6 +51,25 @@ async fn get_all_users(cx: Context<Pool<Postgres>>) -> EndpointResult {
         .server_err()?;
 
     Ok(response::json(users))
+}
+
+async fn get_newest_user(cx: Context<Pool<Postgres>>) -> EndpointResult {
+    let mut pool = cx.state();
+
+    // This is an example of getting back a dyn row that we ...
+    let row: Row<Postgres> = sqlx::query(
+        r#"
+SELECT id
+FROM users
+ORDER BY created_at DESC
+LIMIT 1
+        "#)
+        .fetch_one(&mut pool)
+        .await
+        .server_err()?;
+
+    // ... can later ask its values by index
+    Ok(response::json(vec![row.get::<i32>(0)]))
 }
 
 #[derive(serde::Deserialize)]

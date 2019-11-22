@@ -1,5 +1,5 @@
 use crate::describe::Describe;
-use crate::{query::QueryParameters, row::Row, types::HasTypeMetadata};
+use crate::{query::QueryParameters, row::RawRow, types::HasTypeMetadata};
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
 
@@ -17,7 +17,7 @@ pub trait Backend: HasTypeMetadata + Send + Sync + Sized {
     type QueryParameters: QueryParameters<Backend = Self>;
 
     /// The concrete `Row` implementation for this backend.
-    type Row: Row<Backend = Self>;
+    type Row: RawRow<Backend = Self>;
 
     /// The identifier for tables; in Postgres this is an `oid` while
     /// in MariaDB/MySQL this is the qualified name of the table.

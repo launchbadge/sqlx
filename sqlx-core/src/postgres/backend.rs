@@ -146,5 +146,5 @@ impl Backend for Postgres {
     }
 }
 
-impl_from_sql_row_tuples_for_backend!(Postgres);
+impl_from_row_for_backend!(Postgres);
 impl_into_query_parameters_for_backend!(Postgres);

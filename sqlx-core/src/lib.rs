@@ -42,7 +42,7 @@ pub use self::{
     error::{Error, Result},
     executor::Executor,
     pool::Pool,
-    row::{FromSqlRow, Row},
+    row::{FromRow, Row},
     sql::{query, SqlQuery},
     types::HasSqlType,
 };
