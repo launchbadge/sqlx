@@ -11,11 +11,11 @@ proc-macro = true
 async-std = "1.1.0"
 dotenv = "0.15.0"
 futures = "0.3.1"
+proc-macro-hack = "0.5"
 proc-macro2 = "1.0.6"
-sqlx = { path = "../" }
+sqlx = { version = "0.1.1-pre", path = "../sqlx-core", package = "sqlx-core" }
 syn = "1.0.8"
 quote = "1.0.2"
-tokio = { version = "0.2.0-alpha.4" }
 url = "2.1.0"
 
 [features]
