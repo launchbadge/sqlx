@@ -65,13 +65,8 @@ impl Parse for MacroInput {
 pub fn query(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as MacroInput);
 
-    eprintln!("expanding macro");
-
     match task::block_on(process_sql(input)) {
-        Ok(ts) => {
-            eprintln!("emitting output: {}", ts);
-            ts
-        }
+        Ok(ts) => ts,
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
                 return parse_err.to_compile_error().into();
@@ -118,8 +113,6 @@ async fn process_sql_with<DB: BackendExt>(
 where
     <DB as HasTypeMetadata>::TypeId: Display,
 {
-    eprintln!("connection established");
-
     let prepared = conn
         .describe(&input.sql)
         .await
@@ -165,8 +158,6 @@ where
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let params = input.args.iter();
-
     let params_ty_cons = input.args.iter().enumerate().map(|(i, expr)| {
         // required or `quote!()` emits it as `Nusize`
         let i = syn::Index::from(i);
@@ -176,18 +167,30 @@ where
     let query = &input.sql;
     let backend_path = syn::parse_str::<syn::Path>(DB::BACKEND_PATH).unwrap();
 
-    Ok(quote! {{
-        use sqlx::TyConsExt as _;
-
-        let params = (#(#params),*,);
-
-        if false {
-            let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
+    let params = if input.args.is_empty() {
+        quote! {
+            let params = ();
         }
+    } else {
+        let params = input.args.iter();
 
-        sqlx::CompiledSql::<_, (#(#output_types),*), #backend_path> {
+        quote! {
+            let params = (#(#params),*,);
+
+            if false {
+                use sqlx::TyConsExt as _;
+
+                let _: (#(#param_types),*,) = (#(#params_ty_cons),*,);
+            }
+        }
+    };
+
+    Ok(quote! {{
+        #params
+
+        sqlx::Query::<#backend_path, _, (#(#output_types),*,)> {
             query: #query,
-            params,
+            input: params,
             output: ::core::marker::PhantomData,
             backend: ::core::marker::PhantomData,
         }

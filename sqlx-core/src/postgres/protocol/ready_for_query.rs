@@ -37,9 +37,10 @@ impl Decode for ReadyForQuery {
 
                 status => {
                     return Err(protocol_err!(
-                            "received {:?} for TransactionStatus in ReadyForQuery",
-                            status
-                    ).into());
+                        "received {:?} for TransactionStatus in ReadyForQuery",
+                        status
+                    )
+                    .into());
                 }
             },
         })

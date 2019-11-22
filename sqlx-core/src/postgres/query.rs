@@ -2,7 +2,7 @@ use super::Postgres;
 use crate::{
     encode::{Encode, IsNull},
     io::BufMut,
-    query::QueryParameters,
+    params::QueryParameters,
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};

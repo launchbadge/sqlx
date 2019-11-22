@@ -4,7 +4,7 @@ use super::PostgresQueryParameters;
 use super::PostgresRow;
 use crate::backend::Backend;
 use crate::describe::{Describe, ResultField};
-use crate::query::QueryParameters;
+use crate::params::QueryParameters;
 use crate::url::Url;
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;

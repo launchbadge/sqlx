@@ -1,4 +1,4 @@
-use crate::{backend::Backend, error::Error, query::IntoQueryParameters, row::FromRow};
+use crate::{backend::Backend, error::Error, params::IntoQueryParameters, row::FromRow};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::TryStreamExt;
 

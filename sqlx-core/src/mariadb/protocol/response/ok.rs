@@ -24,7 +24,10 @@ impl OkPacket {
     pub fn decode(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<Self> {
         let header = buf.get_u8()?;
         if header != 0 && header != 0xFE {
-            return Err(protocol_err!("expected 0x00 or 0xFE; received 0x{:X}", header));
+            return Err(protocol_err!(
+                "expected 0x00 or 0xFE; received 0x{:X}",
+                header
+            ));
         }
 
         let affected_rows = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);

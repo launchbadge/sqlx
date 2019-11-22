@@ -2,7 +2,7 @@ use super::MariaDb;
 use crate::{
     encode::{Encode, IsNull},
     mariadb::types::MariaDbTypeMetadata,
-    query::QueryParameters,
+    params::QueryParameters,
     types::HasSqlType,
 };
 

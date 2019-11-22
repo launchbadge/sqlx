@@ -1,6 +1,10 @@
 use crate::{
-    backend::Backend, connection::Connection, error::Error, executor::Executor,
-    query::IntoQueryParameters, row::FromRow,
+    backend::Backend,
+    connection::Connection,
+    error::Error,
+    executor::Executor,
+    params::IntoQueryParameters,
+    row::{FromRow, Row},
 };
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
@@ -322,7 +326,7 @@ where
             let mut s = live.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
-                yield T::from_row(row);
+                yield T::from_row(Row(row));
             }
         })
     }
@@ -337,9 +341,14 @@ where
         T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let mut live = self.0.acquire().await?;
-            let row = live.fetch_optional(query, params.into_params()).await?;
-            Ok(row.map(T::from_row))
+            Ok(self
+                .0
+                .acquire()
+                .await?
+                .fetch_optional(query, params.into_params())
+                .await?
+                .map(Row)
+                .map(T::from_row))
         })
     }
 }

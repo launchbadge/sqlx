@@ -27,7 +27,7 @@ impl ResultRow {
         let header = buf.get_u8()?;
 
         if header != 0 {
-            return Err(protocol_err!("expected header 0x00, got: {:#04X}", header).into())
+            return Err(protocol_err!("expected header 0x00, got: {:#04X}", header).into());
         }
 
         // NULL-Bitmap : byte<(number_of_columns + 9) / 8>

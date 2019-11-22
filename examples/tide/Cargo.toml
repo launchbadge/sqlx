@@ -13,3 +13,4 @@ tide = "0.3.0"
 tokio = { version = "0.2.0-alpha.4", default-features = false, features = [ "rt-full" ] }
 sqlx = { path = "../..", features = [ "postgres" ] }
 serde = { version = "1", features = [ "derive"] }
+futures = "0.3.1"

@@ -1,5 +1,5 @@
 use crate::describe::Describe;
-use crate::{query::QueryParameters, row::RawRow, types::HasTypeMetadata};
+use crate::{params::QueryParameters, row::RawRow, types::HasTypeMetadata};
 use async_trait::async_trait;
 use futures_core::stream::BoxStream;
 

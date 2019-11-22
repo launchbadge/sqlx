@@ -22,28 +22,25 @@ mod executor;
 mod pool;
 
 #[macro_use]
-pub mod query;
+pub mod params;
 
 pub mod encode;
-mod sql;
+mod query;
 pub mod types;
 
 mod describe;
 
-mod compiled;
-
 #[doc(inline)]
 pub use self::{
     backend::Backend,
-    compiled::CompiledSql,
     connection::Connection,
     decode::Decode,
     encode::Encode,
     error::{Error, Result},
     executor::Executor,
     pool::Pool,
+    query::{query, Query},
     row::{FromRow, Row},
-    sql::{query, SqlQuery},
     types::HasSqlType,
 };
 

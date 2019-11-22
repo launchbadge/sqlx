@@ -17,8 +17,8 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
 };
-use url::Url;
 use url::quirks::protocol;
+use url::Url;
 
 pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
@@ -151,10 +151,10 @@ impl MariaDb {
 
             id => {
                 return Err(protocol_err!(
-                        "unexpected packet identifier 0x{:X?} when expecting 0xFE (OK) or 0xFF \
-                         (ERR)",
-                        id
-                    )
+                    "unexpected packet identifier 0x{:X?} when expecting 0xFE (OK) or 0xFF \
+                     (ERR)",
+                    id
+                )
                 .into());
             }
         })

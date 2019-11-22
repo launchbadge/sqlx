@@ -3,9 +3,10 @@ use crate::{
     describe::Describe,
     error::Error,
     executor::Executor,
+    params::IntoQueryParameters,
     pool::{Live, SharedPool},
-    query::IntoQueryParameters,
     row::FromRow,
+    row::Row,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
@@ -76,7 +77,7 @@ where
             let mut s = self.live.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
-                yield T::from_row(row);
+                yield T::from_row(Row(row));
             }
         })
     }
@@ -96,7 +97,7 @@ where
                 .fetch_optional(query, params.into_params())
                 .await?;
 
-            Ok(row.map(T::from_row))
+            Ok(row.map(Row).map(T::from_row))
         })
     }
 }

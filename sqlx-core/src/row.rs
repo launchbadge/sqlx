@@ -6,6 +6,14 @@ pub trait RawRow: Send {
     fn len(&self) -> usize;
 
     fn get_raw(&self, index: usize) -> Option<&[u8]>;
+
+    fn get<T>(&self, index: usize) -> T
+    where
+        Self::Backend: HasSqlType<T>,
+        T: Decode<Self::Backend>,
+    {
+        T::decode(self.get_raw(index))
+    }
 }
 
 pub struct Row<DB>(pub(crate) DB::Row)
@@ -21,27 +29,16 @@ where
         DB: HasSqlType<T>,
         T: Decode<DB>,
     {
-        T::decode(self.0.get_raw(index))
+        self.0.get(index)
     }
 }
 
 pub trait FromRow<DB: Backend> {
-    fn from_row(row: DB::Row) -> Self;
-}
-
-impl<T, DB> FromRow<DB> for T
-where
-    DB: Backend + HasSqlType<T>,
-    T: Decode<DB>,
-{
-    #[inline]
-    fn from_row(row: DB::Row) -> Self {
-        T::decode(row.get_raw(0))
-    }
+    fn from_row(row: Row<DB>) -> Self;
 }
 
 #[allow(unused)]
-macro_rules! impl_from_sql_row_tuple {
+macro_rules! impl_from_row {
     ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
         impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
         where
@@ -49,10 +46,8 @@ macro_rules! impl_from_sql_row_tuple {
             $($T: crate::decode::Decode<$B>,)+
         {
             #[inline]
-            fn from_row(row: <$B as crate::Backend>::Row) -> Self {
-                use crate::row::RawRow;
-
-                ($($T::decode(row.get_raw($idx)),)+)
+            fn from_row(row: crate::row::Row<$B>) -> Self {
+                ($(row.get($idx),)+)
             }
         }
     };
@@ -63,34 +58,34 @@ macro_rules! impl_from_row_for_backend {
     ($B:ident) => {
         impl crate::row::FromRow<$B> for crate::row::Row<$B> where $B: crate::Backend {
             #[inline]
-            fn from_row(row: <$B as crate::Backend>::Row) -> Self {
-                Self(row)
+            fn from_row(row: crate::row::Row<$B>) -> Self {
+                row
             }
         }
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
             (3) -> T4;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -98,7 +93,7 @@ macro_rules! impl_from_row_for_backend {
             (4) -> T5;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -107,7 +102,7 @@ macro_rules! impl_from_row_for_backend {
             (5) -> T6;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -117,7 +112,7 @@ macro_rules! impl_from_row_for_backend {
             (6) -> T7;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;
@@ -128,7 +123,7 @@ macro_rules! impl_from_row_for_backend {
             (7) -> T8;
         );
 
-        impl_from_sql_row_tuple!($B:
+        impl_from_row!($B:
             (0) -> T1;
             (1) -> T2;
             (2) -> T3;

@@ -22,7 +22,9 @@ impl ComStmtPrepareOk {
         let header = buf.get_u8()?;
 
         if header != 0x00 {
-            return Err(protocol_err!("expected COM_STMT_PREPARE_OK (0x00); received {}", header).into());
+            return Err(
+                protocol_err!("expected COM_STMT_PREPARE_OK (0x00); received {}", header).into(),
+            );
         }
 
         let statement_id = buf.get_u32::<LittleEndian>()?;

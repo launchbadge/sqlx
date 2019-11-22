@@ -98,7 +98,11 @@ impl Postgres {
                         }
 
                         auth => {
-                            return Err(protocol_err!("requires unimplemented authentication method: {:?}", auth).into());
+                            return Err(protocol_err!(
+                                "requires unimplemented authentication method: {:?}",
+                                auth
+                            )
+                            .into());
                         }
                     }
                 }
@@ -203,8 +207,7 @@ impl Postgres {
                 }
 
                 message => {
-                    return Err(protocol_err!("received unexpected message: {:?}", message)
-                    .into());
+                    return Err(protocol_err!("received unexpected message: {:?}", message).into());
                 }
             }
         }
@@ -254,8 +257,7 @@ impl Postgres {
                 b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
 
                 id => {
-                    return Err(protocol_err!("received unknown message id: {:?}", id)
-                    .into());
+                    return Err(protocol_err!("received unknown message id: {:?}", id).into());
                 }
             };
 

@@ -344,23 +344,25 @@ impl Decode for Response {
 
                 _ => {
                     // TODO: Should we return these somehow, like in a map?
-                    return Err(protocol_err!("received unknown field in Response: {}", field_type).into());
+                    return Err(protocol_err!(
+                        "received unknown field in Response: {}",
+                        field_type
+                    )
+                    .into());
                 }
             }
         }
 
         let severity = severity_non_local
             .or_else(move || unsafe { severity?.as_ref() }.parse().ok())
-            .ok_or(protocol_err!("did not receieve field `severity` for Response"))?;
+            .ok_or(protocol_err!(
+                "did not receieve field `severity` for Response"
+            ))?;
 
-        let code = code.ok_or(
-            protocol_err!(
-                "did not receieve field `code` for Response",
-            )
-        )?;
-        let message = message.ok_or(
-            protocol_err!("did not receieve field `message` for Response")
-        )?;
+        let code = code.ok_or(protocol_err!("did not receieve field `code` for Response",))?;
+        let message = message.ok_or(protocol_err!(
+            "did not receieve field `message` for Response"
+        ))?;
 
         Ok(Self {
             buffer,
