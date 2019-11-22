@@ -1,7 +1,7 @@
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
-    deserialize::FromSql,
-    serialize::{IsNull, ToSql},
+    decode::Decode,
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 
@@ -15,18 +15,18 @@ impl HasSqlType<bool> for Postgres {
     }
 }
 
-impl ToSql<Postgres> for bool {
+impl Encode<Postgres> for bool {
     #[inline]
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.push(*self as u8);
 
         IsNull::No
     }
 }
 
-impl FromSql<Postgres> for bool {
+impl Decode<Postgres> for bool {
     #[inline]
-    fn from_sql(buf: Option<&[u8]>) -> Self {
+    fn decode(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals
         buf.unwrap()[0] != 0
     }

@@ -1,8 +1,8 @@
 use super::{MariaDb, MariaDbTypeMetadata};
 use crate::{
-    deserialize::FromSql,
+    decode::Decode,
     mariadb::protocol::{FieldType, ParameterFlag},
-    serialize::{IsNull, ToSql},
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 
@@ -16,18 +16,18 @@ impl HasSqlType<bool> for MariaDb {
     }
 }
 
-impl ToSql<MariaDb> for bool {
+impl Encode<MariaDb> for bool {
     #[inline]
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.push(*self as u8);
 
         IsNull::No
     }
 }
 
-impl FromSql<MariaDb> for bool {
+impl Decode<MariaDb> for bool {
     #[inline]
-    fn from_sql(buf: Option<&[u8]>) -> Self {
+    fn decode(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals
         buf.unwrap()[0] != 0
     }

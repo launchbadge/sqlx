@@ -1,6 +1,6 @@
 use crate::{
     backend::Backend, error::Error, executor::Executor, query::QueryParameters, row::FromSqlRow,
-    serialize::ToSql, types::HasSqlType,
+    encode::Encode, types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 
@@ -26,7 +26,7 @@ where
     pub fn bind<T>(mut self, value: T) -> Self
     where
         DB: HasSqlType<T>,
-        T: ToSql<DB>,
+        T: Encode<DB>,
     {
         self.params.bind(value);
         self

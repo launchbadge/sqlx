@@ -2,7 +2,7 @@ use super::MariaDb;
 use crate::{
     mariadb::types::MariaDbTypeMetadata,
     query::QueryParameters,
-    serialize::{IsNull, ToSql},
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 
@@ -27,14 +27,14 @@ impl QueryParameters for MariaDbQueryParameters {
     where
         Self: Sized,
         Self::Backend: HasSqlType<T>,
-        T: ToSql<Self::Backend>,
+        T: Encode<Self::Backend>,
     {
         let metadata = <MariaDb as HasSqlType<T>>::metadata();
         let index = self.param_types.len();
 
         self.param_types.push(metadata);
 
-        if let IsNull::Yes = value.to_sql(&mut self.params) {
+        if let IsNull::Yes = value.encode(&mut self.params) {
             self.null[index / 8] = self.null[index / 8] & (1 << index % 8);
         }
     }

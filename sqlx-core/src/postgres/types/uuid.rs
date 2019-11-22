@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
-    deserialize::FromSql,
-    serialize::{IsNull, ToSql},
+    decode::Decode,
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 
@@ -17,18 +17,18 @@ impl HasSqlType<Uuid> for Postgres {
     }
 }
 
-impl ToSql<Postgres> for Uuid {
+impl Encode<Postgres> for Uuid {
     #[inline]
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
 
         IsNull::No
     }
 }
 
-impl FromSql<Postgres> for Uuid {
+impl Decode<Postgres> for Uuid {
     #[inline]
-    fn from_sql(buf: Option<&[u8]>) -> Self {
+    fn decode(buf: Option<&[u8]>) -> Self {
         // TODO: Handle optionals, error
         Uuid::from_slice(buf.unwrap()).unwrap()
     }

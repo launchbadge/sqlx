@@ -1,4 +1,4 @@
-use crate::{backend::Backend, serialize::ToSql, types::HasSqlType};
+use crate::{backend::Backend, encode::Encode, types::HasSqlType};
 
 pub trait QueryParameters: Send {
     type Backend: Backend;
@@ -10,7 +10,7 @@ pub trait QueryParameters: Send {
     fn bind<T>(&mut self, value: T)
     where
         Self::Backend: HasSqlType<T>,
-        T: ToSql<Self::Backend>;
+        T: Encode<Self::Backend>;
 }
 
 pub trait IntoQueryParameters<DB>
@@ -26,7 +26,7 @@ macro_rules! impl_into_query_parameters {
         impl<$($T,)+> crate::query::IntoQueryParameters<$B> for ($($T,)+)
         where
             $($B: crate::types::HasSqlType<$T>,)+
-            $($T: crate::serialize::ToSql<$B>,)+
+            $($T: crate::encode::Encode<$B>,)+
         {
             fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
                 let mut params = <<$B as crate::backend::Backend>::QueryParameters

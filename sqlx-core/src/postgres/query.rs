@@ -2,7 +2,7 @@ use super::Postgres;
 use crate::{
     io::BufMut,
     query::QueryParameters,
-    serialize::{IsNull, ToSql},
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};
@@ -30,7 +30,7 @@ impl QueryParameters for PostgresQueryParameters {
     where
         Self: Sized,
         Self::Backend: HasSqlType<T>,
-        T: ToSql<Self::Backend>,
+        T: Encode<Self::Backend>,
     {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
@@ -40,7 +40,7 @@ impl QueryParameters for PostgresQueryParameters {
         let pos = self.buf.len();
         self.buf.put_i32::<NetworkEndian>(0);
 
-        let len = if let IsNull::No = value.to_sql(&mut self.buf) {
+        let len = if let IsNull::No = value.encode(&mut self.buf) {
             (self.buf.len() - pos - 4) as i32
         } else {
             // Write a -1 for the len to indicate NULL

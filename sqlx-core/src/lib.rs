@@ -9,7 +9,7 @@ pub mod error;
 mod io;
 
 mod backend;
-pub mod deserialize;
+pub mod decode;
 
 #[cfg(any(feature = "postgres", feature = "mariadb"))]
 mod url;
@@ -24,7 +24,7 @@ mod pool;
 #[macro_use]
 pub mod query;
 
-pub mod serialize;
+pub mod encode;
 mod sql;
 pub mod types;
 
@@ -37,12 +37,12 @@ pub use self::{
     backend::Backend,
     compiled::CompiledSql,
     connection::Connection,
-    deserialize::FromSql,
+    decode::Decode,
     error::{Error, Result},
     executor::Executor,
     pool::Pool,
     row::{FromSqlRow, Row},
-    serialize::ToSql,
+    encode::Encode,
     sql::{query, SqlQuery},
     types::HasSqlType,
 };
