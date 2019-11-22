@@ -1,10 +1,6 @@
 use crate::{
-    backend::Backend,
-    connection::{Connection, RawConnection},
-    error::Error,
-    executor::Executor,
-    query::IntoQueryParameters,
-    row::FromSqlRow,
+    backend::Backend, connection::Connection, error::Error, executor::Executor,
+    query::IntoQueryParameters, row::FromSqlRow,
 };
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;
@@ -238,7 +234,7 @@ where
             if self.size.compare_and_swap(size, size + 1, Ordering::AcqRel) == size {
                 // Open a new connection and return directly
 
-                let raw = <DB as Backend>::RawConnection::establish(&self.url).await?;
+                let raw = DB::open(&self.url).await?;
                 let live = Live {
                     raw,
                     since: Instant::now(),
@@ -404,7 +400,7 @@ pub(crate) struct Live<DB>
 where
     DB: Backend,
 {
-    pub(crate) raw: DB::RawConnection,
+    pub(crate) raw: DB,
     #[allow(unused)]
     pub(crate) since: Instant,
 }

@@ -168,6 +168,7 @@ mod tests {
         assert_eq!(&buf[..], b"\xFC\xFE\x00");
     }
 
+    #[test]
     fn it_encodes_int_lenenc_ff() {
         let mut buf = Vec::with_capacity(1024);
         buf.put_uint_lenenc::<LittleEndian, _>(0xFF as u64);

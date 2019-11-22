@@ -4,77 +4,12 @@ use crate::{
     error::Error,
     executor::Executor,
     pool::{Live, SharedPool},
-    query::{IntoQueryParameters, QueryParameters},
+    query::IntoQueryParameters,
     row::FromSqlRow,
 };
-use async_trait::async_trait;
-use crossbeam_queue::SegQueue;
-use crossbeam_utils::atomic::AtomicCell;
-use futures_channel::oneshot::{channel, Sender};
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
-use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-    time::Instant,
-};
-
-/// A connection to the database.
-///
-/// This trait is not intended to be used directly. Instead [sqlx::Connection] or [sqlx::Pool] should be used instead, which provide
-/// concurrent access and typed retrieval of results.
-#[async_trait]
-pub trait RawConnection: Send + Sync {
-    // The database backend this type connects to.
-    type Backend: Backend;
-
-    /// Establish a new connection to the database server.
-    async fn establish(url: &str) -> crate::Result<Self>
-    where
-        Self: Sized;
-
-    /// Release resources for this database connection immediately.
-    ///
-    /// This method is not required to be called. A database server will eventually notice
-    /// and clean up not fully closed connections.
-    ///
-    /// It is safe to close an already closed connection.
-    async fn close(mut self) -> crate::Result<()>;
-
-    /// Verifies a connection to the database is still alive.
-    async fn ping(&mut self) -> crate::Result<()> {
-        let _ = self
-            .execute(
-                "SELECT 1",
-                <<Self::Backend as Backend>::QueryParameters>::new(),
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    async fn execute(
-        &mut self,
-        query: &str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> crate::Result<u64>;
-
-    fn fetch(
-        &mut self,
-        query: &str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxStream<'_, crate::Result<<Self::Backend as Backend>::Row>>;
-
-    async fn fetch_optional(
-        &mut self,
-        query: &str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> crate::Result<Option<<Self::Backend as Backend>::Row>>;
-
-    async fn describe(&mut self, query: &str) -> crate::Result<Describe<Self::Backend>>;
-}
+use std::{sync::Arc, time::Instant};
 
 pub struct Connection<DB>
 where
@@ -95,8 +30,8 @@ where
         }
     }
 
-    pub async fn establish(url: &str) -> crate::Result<Self> {
-        let raw = <DB as Backend>::RawConnection::establish(url).await?;
+    pub async fn open(url: &str) -> crate::Result<Self> {
+        let raw = DB::open(url).await?;
         let live = Live {
             raw,
             since: Instant::now(),

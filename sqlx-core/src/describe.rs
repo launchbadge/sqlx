@@ -13,7 +13,9 @@ pub struct Describe<DB: Backend> {
 }
 
 impl<DB: Backend> fmt::Debug for Describe<DB>
-    where <DB as HasTypeMetadata>::TypeId: fmt::Debug, ResultField<DB>: fmt::Debug
+where
+    <DB as HasTypeMetadata>::TypeId: fmt::Debug,
+    ResultField<DB>: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Describe")
@@ -31,7 +33,9 @@ pub struct ResultField<DB: Backend> {
 }
 
 impl<DB: Backend> fmt::Debug for ResultField<DB>
-    where <DB as Backend>::TableIdent: fmt::Debug, <DB as HasTypeMetadata>::TypeId: fmt::Debug
+where
+    <DB as Backend>::TableIdent: fmt::Debug,
+    <DB as HasTypeMetadata>::TypeId: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("ResultField")

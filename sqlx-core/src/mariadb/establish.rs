@@ -1,13 +1,13 @@
 use crate::{
     mariadb::{
-        connection::MariaDbRawConnection,
-        protocol::{Capabilities, Encode, HandshakeResponsePacket, InitialHandshakePacket},
+        connection::MariaDb,
+        protocol::{Capabilities, HandshakeResponsePacket, InitialHandshakePacket},
     },
     Result,
 };
 use url::Url;
 
-pub(crate) async fn establish(conn: &mut MariaDbRawConnection, url: &Url) -> Result<()> {
+pub(crate) async fn establish(conn: &mut MariaDb, url: &Url) -> Result<()> {
     let initial = InitialHandshakePacket::decode(conn.receive().await?)?;
 
     // TODO: Capabilities::SECURE_CONNECTION
@@ -17,7 +17,7 @@ pub(crate) async fn establish(conn: &mut MariaDbRawConnection, url: &Url) -> Res
     // TODO: Capabilities::TRANSACTIONS
     // TODO: Capabilities::CLIENT_DEPRECATE_EOF
     // TODO?: Capabilities::CLIENT_SESSION_TRACK
-    let mut capabilities = Capabilities::CLIENT_PROTOCOL_41 | Capabilities::CONNECT_WITH_DB;
+    let capabilities = Capabilities::CLIENT_PROTOCOL_41 | Capabilities::CONNECT_WITH_DB;
 
     let response = HandshakeResponsePacket {
         // TODO: Find a good value for [max_packet_size]

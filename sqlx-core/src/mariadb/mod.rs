@@ -8,7 +8,4 @@ mod query;
 mod row;
 pub mod types;
 
-pub use self::{
-    backend::MariaDb, connection::MariaDbRawConnection, query::MariaDbQueryParameters,
-    row::MariaDbRow,
-};
+pub use self::{connection::MariaDb, query::MariaDbQueryParameters, row::MariaDbRow};

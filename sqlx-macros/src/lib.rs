@@ -88,22 +88,22 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
 
     match db_url.scheme() {
         #[cfg(feature = "postgres")]
-        "postgresql" => {
+        "postgresql" | "postgres" => {
             process_sql_with(
                 input,
-                sqlx::Connection::<sqlx::Postgres>::establish(db_url.as_str())
+                sqlx::Connection::<sqlx::Postgres>::open(db_url.as_str())
                     .await
                     .map_err(|e| format!("failed to connect to database: {}", e))?,
             )
             .await
         }
         #[cfg(feature = "mariadb")]
-        "mysql" => {
+        "mysql" | "mariadb" => {
             process_sql_with(
                 input,
-                sqlx::Connection::<sqlx::MariaDb>::establish(db_url.as_str())
-                .await
-                .map_err(|e| format!("failed to connect to database: {}", e))?,
+                sqlx::Connection::<sqlx::MariaDb>::open(db_url.as_str())
+                    .await
+                    .map_err(|e| format!("failed to connect to database: {}", e))?,
             )
             .await
         }

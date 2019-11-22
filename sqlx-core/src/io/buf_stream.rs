@@ -1,7 +1,9 @@
+use async_std::io::{
+    prelude::{ReadExt, WriteExt},
+    Read, Write,
+};
 use bytes::{BufMut, BytesMut};
 use std::io;
-use async_std::io::{Read, Write, prelude::{ReadExt, WriteExt}};
-use async_std::future::poll_fn;
 
 pub struct BufStream<S> {
     pub(crate) stream: S,

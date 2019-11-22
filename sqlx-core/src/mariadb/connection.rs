@@ -1,8 +1,5 @@
 use super::establish;
 use crate::{
-    connection::RawConnection,
-    describe::{Describe, ResultField},
-    error::DatabaseError,
     io::{Buf, BufMut, BufStream},
     mariadb::{
         protocol::{
@@ -10,31 +7,27 @@ use crate::{
             ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
             OkPacket, ResultRow, StmtExecFlag,
         },
-        MariaDb, MariaDbQueryParameters, MariaDbRow,
+        MariaDbQueryParameters,
     },
-    Backend, Error, Result,
+    Error, Result,
 };
-use async_trait::async_trait;
+use async_std::net::TcpStream;
 use byteorder::{ByteOrder, LittleEndian};
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::stream::{self, StreamExt};
 use std::{
-    future::Future,
     io,
     net::{IpAddr, SocketAddr},
 };
-use async_std::net::TcpStream;
 use url::Url;
 
-pub struct MariaDbRawConnection {
+pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
     pub(crate) rbuf: Vec<u8>,
     pub(crate) capabilities: Capabilities,
     next_seq_no: u8,
 }
 
-impl MariaDbRawConnection {
-    async fn establish(url: &str) -> Result<Self> {
+impl MariaDb {
+    pub async fn open(url: &str) -> Result<Self> {
         // TODO: Handle errors
         let url = Url::parse(url).unwrap();
 
@@ -110,7 +103,7 @@ impl MariaDbRawConnection {
         Ok(Some(&self.rbuf[..len]))
     }
 
-    fn start_sequence(&mut self) {
+    pub(super) fn start_sequence(&mut self) {
         // At the start of a command sequence we reset our understanding
         // of [next_seq_no]. In a sequence our initial command must be 0, followed
         // by the server response that is 1, then our response to that response (if any),
@@ -147,7 +140,7 @@ impl MariaDbRawConnection {
     // to terminate immediately
     pub(crate) async fn receive_ok_or_err(&mut self) -> Result<OkPacket> {
         let capabilities = self.capabilities;
-        let mut buf = self.receive().await?;
+        let buf = self.receive().await?;
         Ok(match buf[0] {
             0xfe | 0x00 => OkPacket::decode(buf, capabilities)?,
 
@@ -175,7 +168,7 @@ impl MariaDbRawConnection {
         })
     }
 
-    async fn check_eof(&mut self) -> Result<()> {
+    pub(super) async fn check_eof(&mut self) -> Result<()> {
         if !self
             .capabilities
             .contains(Capabilities::CLIENT_DEPRECATE_EOF)
@@ -186,7 +179,10 @@ impl MariaDbRawConnection {
         Ok(())
     }
 
-    async fn send_prepare<'c>(&'c mut self, statement: &'c str) -> Result<ComStmtPrepareOk> {
+    pub(super) async fn send_prepare<'c>(
+        &'c mut self,
+        statement: &'c str,
+    ) -> Result<ComStmtPrepareOk> {
         self.stream.flush().await?;
 
         self.start_sequence();
@@ -204,7 +200,11 @@ impl MariaDbRawConnection {
         ComStmtPrepareOk::decode(packet).map_err(Into::into)
     }
 
-    async fn execute(&mut self, statement_id: u32, params: MariaDbQueryParameters) -> Result<u64> {
+    pub(super) async fn execute(
+        &mut self,
+        statement_id: u32,
+        _params: MariaDbQueryParameters,
+    ) -> Result<u64> {
         // TODO: EXECUTE(READ_ONLY) => FETCH instead of EXECUTE(NO)
 
         // SEND ================
@@ -277,132 +277,5 @@ impl MariaDbRawConnection {
         }
 
         Ok(rows)
-    }
-}
-
-enum ExecResult {
-    NoRows(OkPacket),
-    Rows(Vec<ColumnDefinitionPacket>),
-}
-
-#[async_trait]
-impl RawConnection for MariaDbRawConnection {
-    type Backend = MariaDb;
-
-    async fn establish(url: &str) -> crate::Result<Self>
-    where
-        Self: Sized,
-    {
-        MariaDbRawConnection::establish(url).await
-    }
-
-    async fn close(mut self) -> crate::Result<()> {
-        self.close().await
-    }
-
-    async fn ping(&mut self) -> crate::Result<()> {
-        self.ping().await
-    }
-
-    async fn execute(&mut self, query: &str, params: MariaDbQueryParameters) -> crate::Result<u64> {
-        // Write prepare statement to buffer
-        self.start_sequence();
-        let prepare_ok = self.send_prepare(query).await?;
-
-        let affected = self.execute(prepare_ok.statement_id, params).await?;
-
-        Ok(affected)
-    }
-
-    fn fetch(
-        &mut self,
-        query: &str,
-        params: MariaDbQueryParameters,
-    ) -> BoxStream<'_, Result<MariaDbRow>> {
-        unimplemented!();
-    }
-
-    async fn fetch_optional(
-        &mut self,
-        query: &str,
-        params: MariaDbQueryParameters,
-    ) -> crate::Result<Option<<Self::Backend as Backend>::Row>> {
-        unimplemented!();
-    }
-
-    async fn describe(&mut self, query: &str) -> crate::Result<Describe<MariaDb>> {
-        let prepare_ok = self.send_prepare(query).await?;
-
-        let mut param_types = Vec::with_capacity(prepare_ok.params as usize);
-
-        for _ in 0..prepare_ok.params {
-            let param = ColumnDefinitionPacket::decode(self.receive().await?)?;
-            param_types.push(param.field_type.0);
-        }
-
-        self.check_eof().await?;
-
-        let mut columns = Vec::with_capacity(prepare_ok.columns as usize);
-
-        for _ in 0..prepare_ok.columns {
-            let column = ColumnDefinitionPacket::decode(self.receive().await?)?;
-            columns.push(ResultField {
-                name: column.column_alias.or(column.column),
-                table_id: column.table_alias.or(column.table),
-                type_id: column.field_type.0,
-            })
-        }
-
-        self.check_eof().await?;
-
-        Ok(Describe {
-            param_types,
-            result_fields: columns,
-        })
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{query::QueryParameters, Error, Pool};
-
-    #[async_std::test]
-    async fn it_can_connect() -> Result<()> {
-        MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn it_fails_to_connect_with_bad_username() -> Result<()> {
-        match MariaDbRawConnection::establish("mariadb://roote@127.0.0.1:3306/test").await {
-            Ok(_) => panic!("Somehow connected to database with incorrect username"),
-            Err(_) => Ok(()),
-        }
-    }
-
-    #[async_std::test]
-    async fn it_can_ping() -> Result<()> {
-        let mut conn =
-            MariaDbRawConnection::establish("mariadb://root@127.0.0.1:3306/test").await?;
-        conn.ping().await?;
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn it_can_describe() -> Result<()> {
-        let mut conn =
-            MariaDbRawConnection::establish("mysql://sqlx_user@127.0.0.1:3306/sqlx_test").await?;
-        let describe = conn.describe("SELECT id from accounts where id = ?").await?;
-
-        dbg!(describe);
-
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn it_can_create_mariadb_pool() -> Result<()> {
-        let pool: Pool<MariaDb> = Pool::new("mariadb://root@127.0.0.1:3306/test").await?;
-        Ok(())
     }
 }
