@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.1.1-pre"
+version = "0.1.0-pre"
 license = "MIT OR Apache-2.0"
 description = "The Rust SQL Toolkit."
 edition = "2018"
@@ -35,7 +35,3 @@ uuid = { version = "0.8.1", optional = true }
 
 [dev-dependencies]
 matches = "0.1.8"
-
-[profile.release]
-lto = true
-codegen-units = 1

@@ -6,7 +6,7 @@ use proc_macro2::Span;
 
 use proc_macro_hack::proc_macro_hack;
 
-use quote::{quote, quote_spanned, format_ident, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 
 use syn::{
     parse::{self, Parse, ParseStream},
