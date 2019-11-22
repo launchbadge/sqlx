@@ -19,7 +19,7 @@ unsafe impl Send for DataRow {}
 unsafe impl Sync for DataRow {}
 
 impl Decode for DataRow {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
         let mut buf = &*buffer;

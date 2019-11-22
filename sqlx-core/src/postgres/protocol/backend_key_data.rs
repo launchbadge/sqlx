@@ -25,7 +25,7 @@ impl BackendKeyData {
 }
 
 impl Decode for BackendKeyData {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let process_id = buf.get_u32::<NetworkEndian>()?;
         let secret_key = buf.get_u32::<NetworkEndian>()?;
 

@@ -45,7 +45,7 @@ impl fmt::Debug for NotificationResponse {
 }
 
 impl Decode for NotificationResponse {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let pid = buf.get_u32::<NetworkEndian>()?;
 
         let buffer = Pin::new(buf.into());

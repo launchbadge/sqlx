@@ -18,6 +18,7 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 use url::Url;
+use url::quirks::protocol;
 
 pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
@@ -145,24 +146,15 @@ impl MariaDb {
             0xfe | 0x00 => OkPacket::decode(buf, capabilities)?,
 
             0xff => {
-                let err = ErrPacket::decode(buf)?;
-
-                // TODO: Bubble as Error::Database
-                //                panic!("received db err = {:?}", err);
-                return Err(
-                    io::Error::new(io::ErrorKind::InvalidInput, format!("{:?}", err)).into(),
-                );
+                return ErrPacket::decode(buf)?.expect_error();
             }
 
             id => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
+                return Err(protocol_err!(
                         "unexpected packet identifier 0x{:X?} when expecting 0xFE (OK) or 0xFF \
                          (ERR)",
                         id
-                    ),
-                )
+                    )
                 .into());
             }
         })
@@ -228,8 +220,7 @@ impl MariaDb {
         if packet[0] == 0x00 {
             let _ok = OkPacket::decode(packet, capabilities)?;
         } else if packet[0] == 0xFF {
-            let err = ErrPacket::decode(packet)?;
-            panic!("received db err = {:?}", err);
+            return ErrPacket::decode(packet)?.expect_error();
         } else {
             // A Resultset starts with a [ColumnCountPacket] which is a single field that encodes
             // how many columns we can expect when fetching rows from this statement

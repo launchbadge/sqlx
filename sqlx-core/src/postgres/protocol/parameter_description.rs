@@ -9,7 +9,7 @@ pub struct ParameterDescription {
 }
 
 impl Decode for ParameterDescription {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut ids = Vec::with_capacity(cnt);
 

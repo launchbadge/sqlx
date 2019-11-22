@@ -20,7 +20,7 @@ pub struct RowField {
 }
 
 impl Decode for RowDescription {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut fields = Vec::with_capacity(cnt);
 

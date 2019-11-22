@@ -28,7 +28,7 @@ impl ReadyForQuery {
 }
 
 impl Decode for ReadyForQuery {
-    fn decode(buf: &[u8]) -> io::Result<Self> {
+    fn decode(buf: &[u8]) -> crate::Result<Self> {
         Ok(Self {
             status: match buf[0] {
                 b'I' => TransactionStatus::Idle,
@@ -36,13 +36,10 @@ impl Decode for ReadyForQuery {
                 b'E' => TransactionStatus::Error,
 
                 status => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!(
+                    return Err(protocol_err!(
                             "received {:?} for TransactionStatus in ReadyForQuery",
                             status
-                        ),
-                    ));
+                    ).into());
                 }
             },
         })
