@@ -70,7 +70,7 @@ impl ErrPacket {
     pub fn expect_error<T>(self) -> crate::Result<T> {
         match self {
             ErrPacket::Progress { .. } => {
-                Err(invalid_data!("expected ErrPacket::Err, got {:?}", self).into())
+                Err(protocol_err!("expected ErrPacket::Err, got {:?}", self).into())
             }
             ErrPacket::Error { code, message, .. } => Err(Error { code, message }.into()),
         }

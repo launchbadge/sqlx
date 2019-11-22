@@ -54,9 +54,9 @@ impl Severity {
 }
 
 impl FromStr for Severity {
-    type Err = io::Error;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> io::Result<Self> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         Ok(match s {
             "PANIC" => Severity::Panic,
             "FATAL" => Severity::Fatal,
@@ -68,7 +68,7 @@ impl FromStr for Severity {
             "LOG" => Severity::Log,
 
             _ => {
-                return Err(io::ErrorKind::InvalidData.into());
+                return Err(protocol_err!("unexpected response severity: {}", s).into());
             }
         })
     }
@@ -225,7 +225,7 @@ impl fmt::Debug for Response {
 }
 
 impl Decode for Response {
-    fn decode(buf: &[u8]) -> io::Result<Self> {
+    fn decode(buf: &[u8]) -> crate::Result<Self> {
         let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
         let mut buf: &[u8] = &*buffer;
 
@@ -286,7 +286,7 @@ impl Decode for Response {
                     position = Some(
                         field_value
                             .parse()
-                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                            .or(Err(protocol_err!("expected int, got: {}", field_value)))?,
                     );
                 }
 
@@ -294,7 +294,7 @@ impl Decode for Response {
                     internal_position = Some(
                         field_value
                             .parse()
-                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                            .or(Err(protocol_err!("expected int, got: {}", field_value)))?,
                     );
                 }
 
@@ -334,7 +334,7 @@ impl Decode for Response {
                     line = Some(
                         field_value
                             .parse()
-                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                            .or(Err(protocol_err!("expected int, got: {}", field_value)))?,
                     );
                 }
 
@@ -344,35 +344,23 @@ impl Decode for Response {
 
                 _ => {
                     // TODO: Should we return these somehow, like in a map?
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("received unknown field in Response: {}", field_type),
-                    ));
+                    return Err(protocol_err!("received unknown field in Response: {}", field_type).into());
                 }
             }
         }
 
         let severity = severity_non_local
             .or_else(move || unsafe { severity?.as_ref() }.parse().ok())
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "did not receieve field `severity` for Response",
-                )
-            })?;
+            .ok_or(protocol_err!("did not receieve field `severity` for Response"))?;
 
-        let code = code.ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
+        let code = code.ok_or(
+            protocol_err!(
                 "did not receieve field `code` for Response",
             )
-        })?;
-        let message = message.ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "did not receieve field `message` for Response",
-            )
-        })?;
+        )?;
+        let message = message.ok_or(
+            protocol_err!("did not receieve field `message` for Response")
+        )?;
 
         Ok(Self {
             buffer,

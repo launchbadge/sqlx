@@ -34,7 +34,7 @@ impl ParameterStatus {
 }
 
 impl Decode for ParameterStatus {
-    fn decode(buf: &[u8]) -> io::Result<Self> {
+    fn decode(buf: &[u8]) -> crate::Result<Self> {
         let buffer = Pin::new(buf.into());
         let mut buf: &[u8] = &*buffer;
 

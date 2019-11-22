@@ -43,7 +43,7 @@ pub enum Authentication {
 }
 
 impl Decode for Authentication {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         Ok(match buf.get_u32::<NetworkEndian>()? {
             0 => Authentication::Ok,
 
@@ -104,10 +104,7 @@ impl Decode for Authentication {
             }
 
             id => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("unknown authentication response: {}", id),
-                ));
+                return Err(protocol_err!("unknown authentication response: {}", id).into());
             }
         })
     }

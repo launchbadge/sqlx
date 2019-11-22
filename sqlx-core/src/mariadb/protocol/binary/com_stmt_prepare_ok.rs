@@ -18,14 +18,11 @@ pub struct ComStmtPrepareOk {
 }
 
 impl ComStmtPrepareOk {
-    pub(crate) fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    pub(crate) fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         let header = buf.get_u8()?;
 
         if header != 0x00 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("expected COM_STMT_PREPARE_OK (0x00); received {}", header),
-            ));
+            return Err(protocol_err!("expected COM_STMT_PREPARE_OK (0x00); received {}", header).into());
         }
 
         let statement_id = buf.get_u32::<LittleEndian>()?;

@@ -22,11 +22,13 @@ unsafe impl Send for ResultRow {}
 unsafe impl Sync for ResultRow {}
 
 impl ResultRow {
-    pub fn decode(mut buf: &[u8], columns: &[ColumnDefinitionPacket]) -> io::Result<Self> {
+    pub fn decode(mut buf: &[u8], columns: &[ColumnDefinitionPacket]) -> crate::Result<Self> {
         // 0x00 header : byte<1>
         let header = buf.get_u8()?;
-        // TODO: Replace with InvalidData err
-        debug_assert_eq!(header, 0);
+
+        if header != 0 {
+            return Err(protocol_err!("expected header 0x00, got: {:#04X}", header).into())
+        }
 
         // NULL-Bitmap : byte<(number_of_columns + 9) / 8>
         let null_len = (columns.len() + 9) / 8;

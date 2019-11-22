@@ -15,7 +15,7 @@ impl CommandComplete {
 }
 
 impl Decode for CommandComplete {
-    fn decode(mut buf: &[u8]) -> io::Result<Self> {
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         // TODO: MariaDb/MySQL return 0 for affected rows in a SELECT .. statement.
         //       PostgreSQL returns a row count. Should we force return 0 for compatibilities sake?
 
