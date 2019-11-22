@@ -1,4 +1,4 @@
-use crate::{backend::Backend, deserialize::FromSql, types::HasSqlType};
+use crate::{backend::Backend, decode::Decode, types::HasSqlType};
 
 pub trait Row: Send {
     type Backend: Backend;
@@ -13,9 +13,9 @@ pub trait Row: Send {
     fn get<T>(&self, index: usize) -> T
     where
         Self::Backend: HasSqlType<T>,
-        T: FromSql<Self::Backend>,
+        T: Decode<Self::Backend>,
     {
-        T::from_sql(self.get_raw(index))
+        T::decode(self.get_raw(index))
     }
 }
 
@@ -26,7 +26,7 @@ pub trait FromSqlRow<DB: Backend> {
 impl<T, DB> FromSqlRow<DB> for T
 where
     DB: Backend + HasSqlType<T>,
-    T: FromSql<DB>,
+    T: Decode<DB>,
 {
     #[inline]
     fn from_row<R: Row<Backend = DB>>(row: R) -> Self {
@@ -40,7 +40,7 @@ macro_rules! impl_from_sql_row_tuple {
         impl<$($T,)+> crate::row::FromSqlRow<$B> for ($($T,)+)
         where
             $($B: crate::types::HasSqlType<$T>,)+
-            $($T: crate::deserialize::FromSql<$B>,)+
+            $($T: crate::decode::Decode<$B>,)+
         {
             #[inline]
             fn from_row<R: crate::row::Row<Backend = $B>>(row: R) -> Self {

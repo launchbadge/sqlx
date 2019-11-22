@@ -1,7 +1,7 @@
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
-    deserialize::FromSql,
-    serialize::{IsNull, ToSql},
+    decode::Decode,
+    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 use std::str;
@@ -24,25 +24,25 @@ impl HasSqlType<String> for Postgres {
     }
 }
 
-impl ToSql<Postgres> for str {
+impl Encode<Postgres> for str {
     #[inline]
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
 
         IsNull::No
     }
 }
 
-impl ToSql<Postgres> for String {
+impl Encode<Postgres> for String {
     #[inline]
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
-        <str as ToSql<Postgres>>::to_sql(self.as_str(), buf)
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
+        <str as Encode<Postgres>>::to_sql(self.as_str(), buf)
     }
 }
 
-impl FromSql<Postgres> for String {
+impl Decode<Postgres> for String {
     #[inline]
-    fn from_sql(buf: Option<&[u8]>) -> Self {
+    fn decode(buf: Option<&[u8]>) -> Self {
         // TODO: Handle nulls
 
         let s = if cfg!(debug_assertions) {

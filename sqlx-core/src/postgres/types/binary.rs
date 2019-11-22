@@ -1,7 +1,7 @@
 use crate::{
     postgres::types::{PostgresTypeFormat, PostgresTypeMetadata},
-    serialize::IsNull,
-    FromSql, HasSqlType, Postgres, ToSql,
+    encode::IsNull,
+    Decode, HasSqlType, Postgres, Encode,
 };
 
 impl HasSqlType<[u8]> for Postgres {
@@ -20,21 +20,21 @@ impl HasSqlType<Vec<u8>> for Postgres {
     }
 }
 
-impl ToSql<Postgres> for [u8] {
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
+impl Encode<Postgres> for [u8] {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         buf.extend_from_slice(self);
         IsNull::No
     }
 }
 
-impl ToSql<Postgres> for Vec<u8> {
-    fn to_sql(&self, buf: &mut Vec<u8>) -> IsNull {
-        <[u8] as ToSql<Postgres>>::to_sql(self, buf)
+impl Encode<Postgres> for Vec<u8> {
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
+        <[u8] as Encode<Postgres>>::to_sql(self, buf)
     }
 }
 
-impl FromSql<Postgres> for Vec<u8> {
-    fn from_sql(raw: Option<&[u8]>) -> Self {
+impl Decode<Postgres> for Vec<u8> {
+    fn decode(raw: Option<&[u8]>) -> Self {
         raw.unwrap().into()
     }
 }
