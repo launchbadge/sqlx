@@ -3,7 +3,7 @@ use uuid::Uuid;
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
     decode::Decode,
-    encode::{IsNull, Encode},
+    encode::{Encode, IsNull},
     types::HasSqlType,
 };
 

@@ -2,18 +2,22 @@ use crate::{
     backend::Backend, connection::Connection, error::Error, executor::Executor,
     query::IntoQueryParameters, row::FromSqlRow,
 };
-use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::stream::StreamExt;
+use futures_util::{future::FutureExt, stream::StreamExt};
 use std::{
+    future::Future,
     marker::PhantomData,
+    ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicU32, AtomicUsize, Ordering},
         Arc,
     },
     time::{Duration, Instant},
 };
+
+use async_std::sync::{channel, Receiver, Sender};
+use async_std::task;
 
 /// A pool of database connections.
 pub struct Pool<DB>(Arc<SharedPool<DB>>)
@@ -68,7 +72,7 @@ where
 
     /// Returns the number of idle connections.
     pub fn idle(&self) -> usize {
-        self.0.num_idle.load(Ordering::Acquire)
+        self.0.pool_rx.len()
     }
 
     /// Returns the configured maximum pool size.
@@ -170,11 +174,9 @@ where
     DB: Backend,
 {
     url: String,
-    idle: ArrayQueue<Idle<DB>>,
-    waiters: SegQueue<oneshot::Sender<Live<DB>>>,
+    pool_rx: Receiver<Idle<DB>>,
+    pool_tx: Sender<Idle<DB>>,
     size: AtomicU32,
-    num_waiters: AtomicUsize,
-    num_idle: AtomicUsize,
     options: Options,
 }
 
@@ -185,26 +187,20 @@ where
     async fn new(url: &str, options: Options) -> crate::Result<Self> {
         // TODO: Establish [min_idle] connections
 
+        let (pool_tx, pool_rx) = channel(options.max_size as usize);
+
         Ok(Self {
             url: url.to_owned(),
-            idle: ArrayQueue::new(options.max_size as usize),
-            waiters: SegQueue::new(),
+            pool_rx,
+            pool_tx,
             size: AtomicU32::new(0),
-            num_idle: AtomicUsize::new(0),
-            num_waiters: AtomicUsize::new(0),
             options,
         })
     }
 
     #[inline]
     fn try_acquire(&self) -> Option<Live<DB>> {
-        if let Ok(idle) = self.idle.pop() {
-            self.num_idle.fetch_sub(1, Ordering::AcqRel);
-
-            return Some(idle.live);
-        }
-
-        None
+        Some(self.pool_rx.recv().now_or_never()??.live(&self.pool_tx))
     }
 
     async fn acquire(&self) -> crate::Result<Live<DB>> {
@@ -219,53 +215,22 @@ where
                 // Too many open connections
                 // Wait until one is available
 
-                let (sender, receiver) = oneshot::channel();
-
-                self.waiters.push(sender);
-                self.num_waiters.fetch_add(1, Ordering::AcqRel);
-
                 // Waiters are not dropped unless the pool is dropped
                 // which would drop this future
-                return Ok(receiver
+                return Ok(self
+                    .pool_rx
+                    .recv()
                     .await
-                    .expect("waiter dropped without dropping pool"));
+                    .expect("waiter dropped without dropping pool")
+                    .live(&self.pool_tx));
             }
 
             if self.size.compare_and_swap(size, size + 1, Ordering::AcqRel) == size {
                 // Open a new connection and return directly
-
                 let raw = DB::open(&self.url).await?;
-                let live = Live {
-                    raw,
-                    since: Instant::now(),
-                };
-
-                return Ok(live);
+                return Ok(Live::pooled(raw, &self.pool_tx));
             }
         }
-    }
-
-    pub(crate) fn release(&self, mut live: Live<DB>) {
-        if self.num_waiters.load(Ordering::Acquire) > 0 {
-            while let Ok(waiter) = self.waiters.pop() {
-                self.num_waiters.fetch_sub(1, Ordering::AcqRel);
-
-                live = match waiter.send(live) {
-                    Ok(()) => {
-                        return;
-                    }
-
-                    Err(live) => live,
-                };
-            }
-        }
-
-        let _ = self.idle.push(Idle {
-            live,
-            since: Instant::now(),
-        });
-
-        self.num_idle.fetch_add(1, Ordering::AcqRel);
     }
 }
 
@@ -338,9 +303,7 @@ where
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await?;
-            let result = live.raw.execute(query, params.into_params()).await;
-            self.0.release(live);
-
+            let result = live.execute(query, params.into_params()).await;
             result
         })
     }
@@ -356,14 +319,11 @@ where
     {
         Box::pin(async_stream::try_stream! {
             let mut live = self.0.acquire().await?;
-            let mut s = live.raw.fetch(query, params.into_params());
+            let mut s = live.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
             }
-
-            drop(s);
-            self.0.release(live);
         })
     }
 
@@ -378,29 +338,100 @@ where
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await?;
-            let row = live.raw.fetch_optional(query, params.into_params()).await?;
-
-            self.0.release(live);
-
+            let row = live.fetch_optional(query, params.into_params()).await?;
             Ok(row.map(T::from_row))
         })
     }
+}
+
+struct Raw<DB> {
+    pub(crate) inner: DB,
+    pub(crate) created: Instant,
 }
 
 struct Idle<DB>
 where
     DB: Backend,
 {
-    live: Live<DB>,
+    raw: Raw<DB>,
     #[allow(unused)]
     since: Instant,
+}
+
+impl<DB: Backend> Idle<DB> {
+    fn live(self, pool_tx: &Sender<Idle<DB>>) -> Live<DB> {
+        Live {
+            raw: Some(self.raw),
+            pool_tx: Some(pool_tx.clone()),
+        }
+    }
 }
 
 pub(crate) struct Live<DB>
 where
     DB: Backend,
 {
-    pub(crate) raw: DB,
-    #[allow(unused)]
-    pub(crate) since: Instant,
+    raw: Option<Raw<DB>>,
+    pool_tx: Option<Sender<Idle<DB>>>,
+}
+
+impl<DB: Backend> Live<DB> {
+    pub fn unpooled(raw: DB) -> Self {
+        Live {
+            raw: Some(Raw {
+                inner: raw,
+                created: Instant::now(),
+            }),
+            pool_tx: None,
+        }
+    }
+
+    fn pooled(raw: DB, pool_tx: &Sender<Idle<DB>>) -> Self {
+        Live {
+            raw: Some(Raw {
+                inner: raw,
+                created: Instant::now(),
+            }),
+            pool_tx: Some(pool_tx.clone()),
+        }
+    }
+
+    pub fn release(mut self) {
+        self.release_mut()
+    }
+
+    fn release_mut(&mut self) {
+        // `.release_mut()` will be called twice if `.release()` is called
+        if let (Some(raw), Some(pool_tx)) = (self.raw.take(), self.pool_tx.as_ref()) {
+            pool_tx
+                .send(Idle {
+                    raw,
+                    since: Instant::now(),
+                })
+                .now_or_never()
+                .expect("(bug) connection released into a full pool")
+        }
+    }
+}
+
+const DEREF_ERR: &str = "(bug) connection already released to pool";
+
+impl<DB: Backend> Deref for Live<DB> {
+    type Target = DB;
+
+    fn deref(&self) -> &DB {
+        &self.raw.as_ref().expect(DEREF_ERR).inner
+    }
+}
+
+impl<DB: Backend> DerefMut for Live<DB> {
+    fn deref_mut(&mut self) -> &mut DB {
+        &mut self.raw.as_mut().expect(DEREF_ERR).inner
+    }
+}
+
+impl<DB: Backend> Drop for Live<DB> {
+    fn drop(&mut self) {
+        self.release_mut()
+    }
 }
