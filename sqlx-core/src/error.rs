@@ -17,12 +17,6 @@ pub enum Error {
     ///  - [io::ErrorKind::ConnectionRefused] - Database backend is most likely behind a firewall.
     ///
     ///  - [io::ErrorKind::ConnectionReset] - Database backend dropped the client connection (perhaps from an administrator action).
-    ///
-    ///  - [io::ErrorKind::InvalidData] - Unexpected or invalid data was encountered. This would indicate that we received data that we were not
-    ///         expecting or it was in a format we did not understand. This generally means either there is a programming error in a SQLx driver or
-    ///         something with the connection or the database backend itself is corrupted. Additional details are provided along with the
-    ///         error.
-    ///
     Io(io::Error),
 
     /// An error was returned by the database backend.
@@ -33,6 +27,13 @@ pub enum Error {
 
     /// More than one row was returned by a query expected to return exactly one row.
     FoundMoreThanOne,
+
+    /// Unexpected or invalid data was encountered. This would indicate that we received data that we were not
+    /// expecting or it was in a format we did not understand. This generally means either there is a programming error in a SQLx driver or
+    /// something with the connection or the database backend itself is corrupted.
+    ///
+    /// Context is provided by the included error message.
+    Protocol(Box<str>),
 
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
     #[doc(hidden)]
@@ -62,6 +63,8 @@ impl Display for Error {
                 f.write_str("found more than one row when we expected exactly one")
             }
 
+            Error::Protocol(ref err) => f.write_str(err),
+
             Error::__Nonexhaustive => unreachable!(),
         }
     }
@@ -74,13 +77,10 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<InvalidData<'_>> for Error {
+impl From<ProtocolError<'_>> for Error {
     #[inline]
-    fn from(err: InvalidData) -> Self {
-        Error::Io(io::Error::new(
-            io::ErrorKind::InvalidData,
-            err.args.to_string(),
-        ))
+    fn from(err: ProtocolError) -> Self {
+        Error::Protocol(err.args.to_string().into_boxed_str())
     }
 }
 
@@ -99,8 +99,14 @@ pub trait DatabaseError: Display + Debug + Send + Sync {
     fn message(&self) -> &str;
 }
 
-/// Used by the `invalid_data!()` macro for a lazily evaluated conversion to `io::Error`
-/// so we can use the macro with `.ok_or()` without Clippy complaining.
-pub(crate) struct InvalidData<'a> {
+/// Used by the `protocol_error!()` macro for a lazily evaluated conversion to
+/// `crate::Error::Protocol` so we can use the macro with `.ok_or()` without Clippy complaining.
+pub(crate) struct ProtocolError<'a> {
     pub args: fmt::Arguments<'a>,
 }
+
+macro_rules! protocol_err (
+    ($($args:tt)*) => {
+        $crate::error::ProtocolError { args: format_args!($($args)*) }
+    }
+);

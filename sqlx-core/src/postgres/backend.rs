@@ -112,7 +112,7 @@ impl Backend for Postgres {
             let step = self
                 .step()
                 .await?
-                .ok_or(invalid_data!("did not receive ParameterDescription"));
+                .ok_or(protocol_err!("did not receive ParameterDescription"));
 
             if let Step::ParamDesc(desc) = step? {
                 break desc;
@@ -123,7 +123,7 @@ impl Backend for Postgres {
             let step = self
                 .step()
                 .await?
-                .ok_or(invalid_data!("did not receive RowDescription"));
+                .ok_or(protocol_err!("did not receive RowDescription"));
 
             if let Step::RowDesc(desc) = step? {
                 break desc;
