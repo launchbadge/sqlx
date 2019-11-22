@@ -1,6 +1,6 @@
 use crate::{
-    backend::Backend, error::Error, executor::Executor, query::QueryParameters, row::FromSqlRow,
-    encode::Encode, types::HasSqlType,
+    backend::Backend, encode::Encode, error::Error, executor::Executor, query::QueryParameters,
+    row::FromSqlRow, types::HasSqlType,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 

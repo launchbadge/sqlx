@@ -15,7 +15,7 @@ pub struct Connection<DB>
 where
     DB: Backend,
 {
-    live: Option<Live<DB>>,
+    live: Live<DB>,
     pool: Option<Arc<SharedPool<DB>>>,
 }
 
@@ -24,25 +24,17 @@ where
     DB: Backend,
 {
     pub(crate) fn new(live: Live<DB>, pool: Option<Arc<SharedPool<DB>>>) -> Self {
-        Self {
-            live: Some(live),
-            pool,
-        }
+        Self { live, pool }
     }
 
     pub async fn open(url: &str) -> crate::Result<Self> {
         let raw = DB::open(url).await?;
-        let live = Live {
-            raw,
-            since: Instant::now(),
-        };
-
-        Ok(Self::new(live, None))
+        Ok(Self::new(Live::unpooled(raw), None))
     }
 
     /// Verifies a connection to the database is still alive.
     pub async fn ping(&mut self) -> crate::Result<()> {
-        self.live.as_mut().expect("released").raw.ping().await
+        self.live.ping().await
     }
 
     /// Analyze the SQL statement and report the inferred bind parameter types and returned
@@ -50,12 +42,7 @@ where
     ///
     /// Mainly intended for use by sqlx-macros.
     pub async fn describe(&mut self, statement: &str) -> crate::Result<Describe<DB>> {
-        self.live
-            .as_mut()
-            .expect("released")
-            .raw
-            .describe(statement)
-            .await
+        self.live.describe(statement).await
     }
 }
 
@@ -73,14 +60,7 @@ where
     where
         A: IntoQueryParameters<Self::Backend> + Send,
     {
-        Box::pin(async move {
-            self.live
-                .as_mut()
-                .expect("released")
-                .raw
-                .execute(query, params.into_params())
-                .await
-        })
+        Box::pin(async move { self.live.execute(query, params.into_params()).await })
     }
 
     fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
@@ -93,7 +73,7 @@ where
         T: FromSqlRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut s = self.live.as_mut().expect("released").raw.fetch(query, params.into_params());
+            let mut s = self.live.fetch(query, params.into_params());
 
             while let Some(row) = s.next().await.transpose()? {
                 yield T::from_row(row);
@@ -113,26 +93,10 @@ where
         Box::pin(async move {
             let row = self
                 .live
-                .as_mut()
-                .expect("released")
-                .raw
                 .fetch_optional(query, params.into_params())
                 .await?;
 
             Ok(row.map(T::from_row))
         })
-    }
-}
-
-impl<DB> Drop for Connection<DB>
-where
-    DB: Backend,
-{
-    fn drop(&mut self) {
-        if let Some(pool) = &self.pool {
-            if let Some(live) = self.live.take() {
-                pool.release(live);
-            }
-        }
     }
 }

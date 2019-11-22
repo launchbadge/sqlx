@@ -38,11 +38,11 @@ pub use self::{
     compiled::CompiledSql,
     connection::Connection,
     decode::Decode,
+    encode::Encode,
     error::{Error, Result},
     executor::Executor,
     pool::Pool,
     row::{FromSqlRow, Row},
-    encode::Encode,
     sql::{query, SqlQuery},
     types::HasSqlType,
 };

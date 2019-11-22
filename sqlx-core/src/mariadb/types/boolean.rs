@@ -1,8 +1,8 @@
 use super::{MariaDb, MariaDbTypeMetadata};
 use crate::{
     decode::Decode,
+    encode::{Encode, IsNull},
     mariadb::protocol::{FieldType, ParameterFlag},
-    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 

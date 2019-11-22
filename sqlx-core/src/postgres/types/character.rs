@@ -1,7 +1,7 @@
 use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
 use crate::{
     decode::Decode,
-    encode::{IsNull, Encode},
+    encode::{Encode, IsNull},
     types::HasSqlType,
 };
 use std::str;
@@ -36,7 +36,7 @@ impl Encode<Postgres> for str {
 impl Encode<Postgres> for String {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <str as Encode<Postgres>>::to_sql(self.as_str(), buf)
+        <str as Encode<Postgres>>::encode(self.as_str(), buf)
     }
 }
 

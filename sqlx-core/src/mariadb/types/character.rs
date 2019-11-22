@@ -1,8 +1,8 @@
 use super::{MariaDb, MariaDbTypeMetadata};
 use crate::{
     decode::Decode,
+    encode::{Encode, IsNull},
     mariadb::protocol::{FieldType, ParameterFlag},
-    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 use std::str;
@@ -37,7 +37,7 @@ impl Encode<MariaDb> for str {
 impl Encode<MariaDb> for String {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <str as Encode<MariaDb>>::to_sql(self.as_str(), buf)
+        <str as Encode<MariaDb>>::encode(self.as_str(), buf)
     }
 }
 

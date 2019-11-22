@@ -1,7 +1,7 @@
 use crate::{
-    postgres::types::{PostgresTypeFormat, PostgresTypeMetadata},
     encode::IsNull,
-    Decode, HasSqlType, Postgres, Encode,
+    postgres::types::{PostgresTypeFormat, PostgresTypeMetadata},
+    Decode, Encode, HasSqlType, Postgres,
 };
 
 impl HasSqlType<[u8]> for Postgres {
@@ -29,7 +29,7 @@ impl Encode<Postgres> for [u8] {
 
 impl Encode<Postgres> for Vec<u8> {
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <[u8] as Encode<Postgres>>::to_sql(self, buf)
+        <[u8] as Encode<Postgres>>::encode(self, buf)
     }
 }
 

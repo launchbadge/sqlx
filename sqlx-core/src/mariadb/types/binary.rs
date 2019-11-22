@@ -1,10 +1,10 @@
 use crate::{
+    encode::IsNull,
     mariadb::{
         protocol::{FieldType, ParameterFlag},
         types::MariaDbTypeMetadata,
     },
-    encode::IsNull,
-    Decode, HasSqlType, MariaDb, Encode,
+    Decode, Encode, HasSqlType, MariaDb,
 };
 
 impl HasSqlType<[u8]> for MariaDb {
@@ -31,7 +31,7 @@ impl Encode<MariaDb> for [u8] {
 
 impl Encode<MariaDb> for Vec<u8> {
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <[u8] as Encode<MariaDb>>::to_sql(self, buf)
+        <[u8] as Encode<MariaDb>>::encode(self, buf)
     }
 }
 

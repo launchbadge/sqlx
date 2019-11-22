@@ -1,8 +1,8 @@
 use super::Postgres;
 use crate::{
+    encode::{Encode, IsNull},
     io::BufMut,
     query::QueryParameters,
-    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};
@@ -44,7 +44,7 @@ impl QueryParameters for PostgresQueryParameters {
             (self.buf.len() - pos - 4) as i32
         } else {
             // Write a -1 for the len to indicate NULL
-            // TODO: It is illegal for [to_sql] to write any data if IsSql::No; fail a debug assertion
+            // TODO: It is illegal for [encode] to write any data if IsSql::No; fail a debug assertion
             -1
         };
 

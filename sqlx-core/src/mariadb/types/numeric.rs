@@ -1,8 +1,8 @@
 use super::{MariaDb, MariaDbTypeMetadata};
 use crate::{
     decode::Decode,
+    encode::{Encode, IsNull},
     mariadb::protocol::{FieldType, ParameterFlag},
-    encode::{IsNull, Encode},
     types::HasSqlType,
 };
 use byteorder::{BigEndian, ByteOrder};
@@ -102,14 +102,14 @@ impl HasSqlType<f32> for MariaDb {
 impl Encode<MariaDb> for f32 {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <i32 as Encode<MariaDb>>::to_sql(&(self.to_bits() as i32), buf)
+        <i32 as Encode<MariaDb>>::encode(&(self.to_bits() as i32), buf)
     }
 }
 
 impl Decode<MariaDb> for f32 {
     #[inline]
     fn decode(buf: Option<&[u8]>) -> Self {
-        f32::from_bits(<i32 as Decode<MariaDb>>::from_sql(buf) as u32)
+        f32::from_bits(<i32 as Decode<MariaDb>>::decode(buf) as u32)
     }
 }
 
@@ -127,13 +127,13 @@ impl HasSqlType<f64> for MariaDb {
 impl Encode<MariaDb> for f64 {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        <i64 as Encode<MariaDb>>::to_sql(&(self.to_bits() as i64), buf)
+        <i64 as Encode<MariaDb>>::encode(&(self.to_bits() as i64), buf)
     }
 }
 
 impl Decode<MariaDb> for f64 {
     #[inline]
     fn decode(buf: Option<&[u8]>) -> Self {
-        f64::from_bits(<i64 as Decode<MariaDb>>::from_sql(buf) as u64)
+        f64::from_bits(<i64 as Decode<MariaDb>>::decode(buf) as u64)
     }
 }
