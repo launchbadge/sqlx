@@ -4,6 +4,8 @@ use proc_macro::TokenStream;
 
 use proc_macro2::Span;
 
+use proc_macro_hack::proc_macro_hack;
+
 use quote::{quote, quote_spanned, format_ident, ToTokens};
 
 use syn::{
@@ -59,8 +61,8 @@ impl Parse for MacroInput {
     }
 }
 
-#[proc_macro]
-pub fn sql(input: TokenStream) -> TokenStream {
+#[proc_macro_hack]
+pub fn query(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as MacroInput);
 
     eprintln!("expanding macro");
@@ -111,7 +113,7 @@ async fn process_sql(input: MacroInput) -> Result<TokenStream> {
 
 async fn process_sql_with<DB: BackendExt>(
     input: MacroInput,
-    conn: sqlx::Connection<DB>,
+    mut conn: sqlx::Connection<DB>,
 ) -> Result<TokenStream>
 where
     <DB as HasTypeMetadata>::TypeId: Display,

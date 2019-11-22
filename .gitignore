@@ -12,3 +12,6 @@ Cargo.lock
 
 # Environment
 .env
+
+# rustfmt backup files
+**/*.rs.bk
