@@ -40,6 +40,10 @@ criterion = "0.3.0"
 name = "sql-macro-test"
 required-features = ["postgres", "uuid", "macros"]
 
+[[test]]
+name = "postgres-types"
+required-features = ["postgres"]
+
 [[bench]]
 name = "postgres_protocol"
 required-features = ["postgres", "unstable"]
