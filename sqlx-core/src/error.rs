@@ -76,6 +76,8 @@ impl Display for Error {
 
             Error::TimedOut => f.write_str("timed out while waiting for an open connection"),
 
+            Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
+
             Error::__Nonexhaustive => unreachable!(),
         }
     }

@@ -12,7 +12,7 @@ use futures_core::stream::BoxStream;
 /// Instead [sqlx::Connection] or [sqlx::Pool] should be used instead,
 /// which provide concurrent access and typed retrieval of results.
 #[async_trait]
-pub trait Backend: HasTypeMetadata + Send + Sync + Sized {
+pub trait Backend: HasTypeMetadata + Send + Sync + Sized + 'static {
     /// The concrete `QueryParameters` implementation for this backend.
     type QueryParameters: QueryParameters<Backend = Self>;
 
