@@ -41,6 +41,9 @@ pub enum Error {
     /// because another task encountered too many errors while trying to open a new connection.
     TimedOut,
 
+    /// `Pool::close()` was called while we were waiting in `Pool::acquire()`.
+    PoolClosed,
+
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
     #[doc(hidden)]
     __Nonexhaustive,
