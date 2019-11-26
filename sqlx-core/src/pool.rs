@@ -244,25 +244,25 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q: 'c, A: 'c>(
+    fn execute<'c, 'q: 'c, I: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<u64, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
+        I: IntoQueryParameters<Self::Backend> + Send,
     {
         Box::pin(async move { <&Pool<DB> as Executor>::execute(&mut &*self, query, params).await })
     }
 
-    fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxStream<'c, Result<T, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut self_ = &*self;
@@ -276,14 +276,14 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch_optional<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send,
     {
         Box::pin(async move {
             <&Pool<DB> as Executor>::fetch_optional(&mut &*self, query, params).await
@@ -297,13 +297,13 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q: 'c, A: 'c>(
+    fn execute<'c, 'q: 'c, I: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<u64, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
+        I: IntoQueryParameters<Self::Backend> + Send,
     {
         Box::pin(async move {
             let mut live = self.0.acquire().await?;
@@ -312,14 +312,14 @@ where
         })
     }
 
-    fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxStream<'c, Result<T, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut live = self.0.acquire().await?;
@@ -331,14 +331,14 @@ where
         })
     }
 
-    fn fetch_optional<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch_optional<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send,
     {
         Box::pin(async move {
             Ok(self
