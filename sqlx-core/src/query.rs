@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<DB> Query<'_, DB, <DB as Backend>::QueryParameters, Row<DB>>
+impl<DB, Target> Query<'_, DB, <DB as Backend>::QueryParameters, Row<DB>, Target>
 where
     DB: Backend,
 {
