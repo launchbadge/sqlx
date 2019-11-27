@@ -1,4 +1,3 @@
-use futures::TryStreamExt;
 use sqlx::{FromRow, Pool, Postgres};
 use std::env;
 use tide::error::ResultExt;
@@ -21,6 +20,8 @@ async fn main() -> anyhow::Result<()> {
     app.at("/v1/user").get(get_all_users).post(create_user);
 
     app.at("/v1/user/first").get(get_first_user);
+
+    app.at("/v1/user/last").get(get_last_user);
 
     app.serve(("localhost", 8080))?;
 
@@ -47,23 +48,50 @@ async fn get_all_users(cx: Context<Pool<Postgres>>) -> EndpointResult {
     let mut pool = cx.state();
 
     let users: Vec<(i32, String)> = sqlx::query(r#"SELECT id, name FROM users"#)
-        .fetch(&mut pool) // -> Stream<Row>
-        .map_ok(FromRow::from_row)
-        .try_collect()
+        .fetch_all(&mut pool)
         .await
         .server_err()?;
 
     Ok(response::json(users))
 }
 
+// TODO: #[derive(FromRow)]
+struct UserRow {
+    id: i32,
+}
+
+impl FromRow<Postgres, (i32,)> for UserRow {
+    fn from_row(row: sqlx::Row<Postgres>) -> Self {
+        Self { id: row.get(0) }
+    }
+}
+
 async fn get_first_user(cx: Context<Pool<Postgres>>) -> EndpointResult {
     let mut pool = cx.state();
 
-    let (user_id,) /* : (i32,) */ = sqlx::query!(
+    let row: UserRow = sqlx::query!(
         r#"
 SELECT id
 FROM users
 ORDER BY created_at DESC
+LIMIT 1
+        "#,
+    )
+    .fetch_one(&mut pool)
+    .await
+    .server_err()?;
+
+    Ok(response::json(vec![row.id]))
+}
+
+async fn get_last_user(cx: Context<Pool<Postgres>>) -> EndpointResult {
+    let mut pool = cx.state();
+
+    let (user_id,) = sqlx::query!(
+        r#"
+SELECT id
+FROM users
+ORDER BY created_at ASC
 LIMIT 1
         "#,
     )

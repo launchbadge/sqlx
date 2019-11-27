@@ -33,14 +33,27 @@ where
     }
 }
 
-pub trait FromRow<DB: Backend> {
+pub trait FromRow<DB: Backend, O = Row<DB>> {
     fn from_row(row: Row<DB>) -> Self;
 }
 
 #[allow(unused)]
 macro_rules! impl_from_row {
     ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
+        // Row -> (T1, T2, ...)
         impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
+        where
+            $($B: crate::types::HasSqlType<$T>,)+
+            $($T: crate::decode::Decode<$B>,)+
+        {
+            #[inline]
+            fn from_row(row: crate::row::Row<$B>) -> Self {
+                ($(row.get($idx),)+)
+            }
+        }
+
+        // (T1, T2, ...) -> (T1, T2, ...)
+        impl<$($T,)+> crate::row::FromRow<$B, ($($T,)+)> for ($($T,)+)
         where
             $($B: crate::types::HasSqlType<$T>,)+
             $($T: crate::decode::Decode<$B>,)+

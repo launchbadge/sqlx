@@ -5,52 +5,52 @@ use futures_util::TryStreamExt;
 pub trait Executor: Send {
     type Backend: Backend;
 
-    fn execute<'c, 'q: 'c, A: 'c>(
+    fn execute<'c, 'q: 'c, I: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<u64, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send;
+        I: IntoQueryParameters<Self::Backend> + Send;
 
-    fn fetch<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxStream<'c, Result<T, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send + Unpin;
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send + Unpin;
 
-    fn fetch_all<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch_all<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<Vec<T>, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send + Unpin,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send + Unpin,
     {
         Box::pin(self.fetch(query, params).try_collect())
     }
 
-    fn fetch_optional<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch_optional<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<Option<T>, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send;
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send;
 
-    fn fetch_one<'c, 'q: 'c, T: 'c, A: 'c>(
+    fn fetch_one<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
         &'c mut self,
         query: &'q str,
-        params: A,
+        params: I,
     ) -> BoxFuture<'c, Result<T, Error>>
     where
-        A: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend> + Send,
+        I: IntoQueryParameters<Self::Backend> + Send,
+        T: FromRow<Self::Backend, O> + Send,
     {
         let fut = self.fetch_optional(query, params);
         Box::pin(async move { fut.await?.ok_or(Error::NotFound) })
