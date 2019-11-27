@@ -1,0 +1,14 @@
+[package]
+name = "sqlx-example-realworld-tide"
+version = "0.1.0"
+edition = "2018"
+workspace = "../.."
+
+[dependencies]
+anyhow = "1.0.22"
+dotenv = "0.15.0"
+async-std = "1.1.0"
+tide = "0.4.0"
+sqlx = { path = "../..", features = [ "postgres" ] }
+serde = { version = "1", features = [ "derive"] }
+futures = "0.3.1"
