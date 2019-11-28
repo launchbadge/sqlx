@@ -27,7 +27,7 @@ impl OkPacket {
             return Err(protocol_err!(
                 "expected 0x00 or 0xFE; received 0x{:X}",
                 header
-            ));
+            ))?;
         }
 
         let affected_rows = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);
