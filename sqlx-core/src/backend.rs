@@ -10,7 +10,6 @@ use futures_core::future::BoxFuture;
 /// important related traits as associated types.
 ///
 /// This trait is not intended to be used directly.
-/// Instead [sqlx::Connection] or [sqlx::Pool] should be used instead.
 pub trait Backend:
     Executor<Backend = Self> + HasTypeMetadata + Send + Sync + Sized + 'static
 {

@@ -4,6 +4,8 @@ use std::{
     io,
 };
 
+use async_std::future::TimeoutError;
+
 /// A convenient Result instantiation appropriate for SQLx.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -35,6 +37,13 @@ pub enum Error {
     /// Context is provided by the included error message.
     Protocol(Box<str>),
 
+    /// A `Pool::acquire()` timed out due to connections not becoming available or
+    /// because another task encountered too many errors while trying to open a new connection.
+    TimedOut,
+
+    /// `Pool::close()` was called while we were waiting in `Pool::acquire()`.
+    PoolClosed,
+
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
     #[doc(hidden)]
     __Nonexhaustive,
@@ -65,6 +74,10 @@ impl Display for Error {
 
             Error::Protocol(ref err) => f.write_str(err),
 
+            Error::TimedOut => f.write_str("timed out while waiting for an open connection"),
+
+            Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
+
             Error::__Nonexhaustive => unreachable!(),
         }
     }
@@ -74,6 +87,12 @@ impl From<io::Error> for Error {
     #[inline]
     fn from(err: io::Error) -> Self {
         Error::Io(err)
+    }
+}
+
+impl From<TimeoutError> for Error {
+    fn from(_: TimeoutError) -> Self {
+        Error::TimedOut
     }
 }
 

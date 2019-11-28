@@ -20,19 +20,18 @@ where
     DB: Backend,
 {
     live: Live<DB>,
-    pool: Option<Arc<SharedPool<DB>>>,
 }
 
 impl<DB> Connection<DB>
 where
     DB: Backend,
 {
-    pub(crate) fn new(live: Live<DB>, pool: Option<Arc<SharedPool<DB>>>) -> Self {
-        Self { live, pool }
+    pub(crate) fn new(live: Live<DB>) -> Self {
+        Self { live }
     }
 
     pub async fn open(url: &str) -> crate::Result<Self> {
-        Ok(Self::new(Live::unpooled(DB::open(url).await?), None))
+        Ok(Self::new(Live::unpooled(DB::open(url).await?)))
     }
 }
 
