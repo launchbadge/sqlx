@@ -1,6 +1,6 @@
 use crate::{backend::Backend, decode::Decode, types::HasSqlType};
 
-pub trait RawRow: Send {
+pub trait Row: Send {
     type Backend: Backend;
 
     fn len(&self) -> usize;
@@ -16,25 +16,8 @@ pub trait RawRow: Send {
     }
 }
 
-pub struct Row<DB>(pub(crate) DB::Row)
-where
-    DB: Backend;
-
-impl<DB> Row<DB>
-where
-    DB: Backend,
-{
-    pub fn get<T>(&self, index: usize) -> T
-    where
-        DB: HasSqlType<T>,
-        T: Decode<DB>,
-    {
-        self.0.get(index)
-    }
-}
-
-pub trait FromRow<DB: Backend, O = Row<DB>> {
-    fn from_row(row: Row<DB>) -> Self;
+pub trait FromRow<DB: Backend, O = <DB as Backend>::Row> {
+    fn from_row(row: <DB as Backend>::Row) -> Self;
 }
 
 #[allow(unused)]
@@ -47,7 +30,9 @@ macro_rules! impl_from_row {
             $($T: crate::decode::Decode<$B>,)+
         {
             #[inline]
-            fn from_row(row: crate::row::Row<$B>) -> Self {
+            fn from_row(row: <$B as crate::backend::Backend>::Row) -> Self {
+                use crate::row::Row;
+
                 ($(row.get($idx),)+)
             }
         }
@@ -59,7 +44,9 @@ macro_rules! impl_from_row {
             $($T: crate::decode::Decode<$B>,)+
         {
             #[inline]
-            fn from_row(row: crate::row::Row<$B>) -> Self {
+            fn from_row(row: <$B as crate::backend::Backend>::Row) -> Self {
+                use crate::row::Row;
+
                 ($(row.get($idx),)+)
             }
         }
@@ -69,9 +56,9 @@ macro_rules! impl_from_row {
 #[allow(unused)]
 macro_rules! impl_from_row_for_backend {
     ($B:ident) => {
-        impl crate::row::FromRow<$B> for crate::row::Row<$B> where $B: crate::Backend {
+        impl crate::row::FromRow<$B> for <$B as crate::backend::Backend>::Row where $B: crate::Backend {
             #[inline]
-            fn from_row(row: crate::row::Row<$B>) -> Self {
+            fn from_row(row: <$B as crate::backend::Backend>::Row) -> Self {
                 row
             }
         }

@@ -1,9 +1,6 @@
 use sqlx::{FromRow, Pool, Postgres};
 use std::env;
-use tide::http::StatusCode;
-use tide::Request;
-use tide::Response;
-use tide::ResultExt;
+use tide::{http::StatusCode, Request, Response, ResultExt};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {

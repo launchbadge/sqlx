@@ -1,32 +1,49 @@
-use crate::{backend::Backend, error::Error, params::IntoQueryParameters, row::FromRow};
+use crate::{
+    backend::Backend,
+    describe::Describe,
+    error::Error,
+    params::{IntoQueryParameters, QueryParameters},
+    row::FromRow,
+};
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::TryStreamExt;
+use futures_util::{TryFutureExt, TryStreamExt};
 
 pub trait Executor: Send {
     type Backend: Backend;
 
-    fn execute<'c, 'q: 'c, I: 'c>(
-        &'c mut self,
+    /// Verifies a connection to the database is still alive.
+    fn ping<'e>(&'e mut self) -> BoxFuture<'e, crate::Result<()>> {
+        Box::pin(
+            self.execute(
+                "SELECT 1",
+                <Self::Backend as Backend>::QueryParameters::new(),
+            )
+            .map_ok(|_| ()),
+        )
+    }
+
+    fn execute<'e, 'q: 'e, I: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<u64, Error>>
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         I: IntoQueryParameters<Self::Backend> + Send;
 
-    fn fetch<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxStream<'c, Result<T, Error>>
+    ) -> BoxStream<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send + Unpin;
 
-    fn fetch_all<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch_all<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<Vec<T>, Error>>
+    ) -> BoxFuture<'e, crate::Result<Vec<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send + Unpin,
@@ -34,20 +51,20 @@ pub trait Executor: Send {
         Box::pin(self.fetch(query, params).try_collect())
     }
 
-    fn fetch_optional<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<Option<T>, Error>>
+    ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send;
 
-    fn fetch_one<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch_one<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<T, Error>>
+    ) -> BoxFuture<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send,
@@ -55,4 +72,11 @@ pub trait Executor: Send {
         let fut = self.fetch_optional(query, params);
         Box::pin(async move { fut.await?.ok_or(Error::NotFound) })
     }
+
+    /// Analyze the SQL statement and report the inferred bind parameter types and returned
+    /// columns.
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>>;
 }

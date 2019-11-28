@@ -7,8 +7,10 @@ use crate::{
 };
 use async_std::net::TcpStream;
 use byteorder::NetworkEndian;
-use std::net::Shutdown;
-use std::{io, net::SocketAddr};
+use std::{
+    io,
+    net::{Shutdown, SocketAddr},
+};
 
 pub struct Postgres {
     stream: BufStream<TcpStream>,

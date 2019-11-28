@@ -1,4 +1,4 @@
-use sqlx::{Connection, Postgres};
+use sqlx::{Connection, Postgres, Row};
 use std::env;
 
 macro_rules! test {

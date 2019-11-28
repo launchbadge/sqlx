@@ -1,6 +1,7 @@
 mod backend;
 mod connection;
 mod error;
+mod executor;
 mod query;
 mod row;
 

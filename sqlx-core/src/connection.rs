@@ -5,12 +5,15 @@ use crate::{
     executor::Executor,
     params::IntoQueryParameters,
     pool::{Live, SharedPool},
-    row::FromRow,
-    row::Row,
+    row::{FromRow, Row},
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::stream::StreamExt;
-use std::{sync::Arc, time::Instant};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+    time::Instant,
+};
 
 pub struct Connection<DB>
 where
@@ -29,21 +32,7 @@ where
     }
 
     pub async fn open(url: &str) -> crate::Result<Self> {
-        let raw = DB::open(url).await?;
-        Ok(Self::new(Live::unpooled(raw), None))
-    }
-
-    /// Verifies a connection to the database is still alive.
-    pub async fn ping(&mut self) -> crate::Result<()> {
-        self.live.ping().await
-    }
-
-    /// Analyze the SQL statement and report the inferred bind parameter types and returned
-    /// columns.
-    ///
-    /// Mainly intended for use by sqlx-macros.
-    pub async fn describe(&mut self, statement: &str) -> crate::Result<Describe<DB>> {
-        self.live.describe(statement).await
+        Ok(Self::new(Live::unpooled(DB::open(url).await?), None))
     }
 }
 
@@ -53,51 +42,45 @@ where
 {
     type Backend = DB;
 
-    fn execute<'c, 'q: 'c, I: 'c>(
-        &'c mut self,
+    fn execute<'e, 'q: 'e, I: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<u64, Error>>
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
     {
-        Box::pin(async move { self.live.execute(query, params.into_params()).await })
+        self.live.execute(query, params)
     }
 
-    fn fetch<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxStream<'c, Result<T, Error>>
+    ) -> BoxStream<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send + Unpin,
     {
-        Box::pin(async_stream::try_stream! {
-            let mut s = self.live.fetch(query, params.into_params());
-
-            while let Some(row) = s.next().await.transpose()? {
-                yield T::from_row(Row(row));
-            }
-        })
+        self.live.fetch(query, params)
     }
 
-    fn fetch_optional<'c, 'q: 'c, I: 'c, O: 'c, T: 'c>(
-        &'c mut self,
+    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+        &'e mut self,
         query: &'q str,
         params: I,
-    ) -> BoxFuture<'c, Result<Option<T>, Error>>
+    ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O>,
+        T: FromRow<Self::Backend, O> + Send,
     {
-        Box::pin(async move {
-            let row = self
-                .live
-                .fetch_optional(query, params.into_params())
-                .await?;
+        self.live.fetch_optional(query, params)
+    }
 
-            Ok(row.map(Row).map(T::from_row))
-        })
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
+        self.live.describe(query)
     }
 }

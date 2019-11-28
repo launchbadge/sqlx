@@ -1,11 +1,14 @@
 use super::{MariaDb, MariaDbQueryParameters, MariaDbRow};
-use crate::backend::Backend;
-use crate::describe::{Describe, ResultField};
-use crate::mariadb::protocol::{StmtExecFlag, ComStmtExecute, ResultRow, Capabilities, OkPacket, EofPacket, ErrPacket, ColumnDefinitionPacket, ColumnCountPacket};
-use async_trait::async_trait;
+use crate::{
+    backend::Backend,
+    describe::{Describe, ResultField},
+    mariadb::protocol::{
+        Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
+        ErrPacket, OkPacket, ResultRow, StmtExecFlag,
+    },
+};
 use futures_core::stream::BoxStream;
 
-#[async_trait]
 impl Backend for MariaDb {
     type QueryParameters = MariaDbQueryParameters;
     type Row = MariaDbRow;

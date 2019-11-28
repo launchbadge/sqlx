@@ -16,7 +16,7 @@ use syn::{
     Expr, ExprLit, Lit, Token,
 };
 
-use sqlx::HasTypeMetadata;
+use sqlx::{Executor, HasTypeMetadata};
 
 use async_std::task;
 

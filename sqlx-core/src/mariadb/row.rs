@@ -1,5 +1,7 @@
-use crate::mariadb::{protocol::ResultRow, MariaDb};
-use crate::row::RawRow;
+use crate::{
+    mariadb::{protocol::ResultRow, MariaDb},
+    row::RawRow,
+};
 
 pub struct MariaDbRow(pub(super) ResultRow);
 

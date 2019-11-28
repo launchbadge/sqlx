@@ -1,10 +1,10 @@
 use super::{protocol::DataRow, Postgres};
-use crate::row::RawRow;
+use crate::row::Row;
 
 #[derive(Debug)]
 pub struct PostgresRow(pub(crate) DataRow);
 
-impl RawRow for PostgresRow {
+impl Row for PostgresRow {
     type Backend = Postgres;
 
     #[inline]

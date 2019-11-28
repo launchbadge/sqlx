@@ -1,6 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use sqlx::postgres::protocol::{Bind, DataRow, RowDescription};
-use sqlx::postgres::protocol::{Decode, Encode};
+use sqlx::postgres::protocol::{Bind, DataRow, Decode, Encode, RowDescription};
 
 fn bench(c: &mut Criterion) {
     c.bench_function("decode_data_row", |b| {
