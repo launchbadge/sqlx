@@ -16,7 +16,7 @@ postgres = []
 mariadb = []
 
 [dependencies]
-async-std = { version = "1.2.0", features = ["attributes", "unstable"] }
+async-std = { version = "1.2.0", default-features = false, features = [ "unstable" ] }
 async-stream = "0.2.0"
 bitflags = "1.2.1"
 byteorder = { version = "1.3.2", default-features = false }
@@ -32,3 +32,4 @@ uuid = { version = "0.8.1", optional = true }
 [dev-dependencies]
 matches = "0.1.8"
 bytes = "0.5.2"
+async-std = { version = "1.2.0", default-features = false, features = [ "attributes" ] }

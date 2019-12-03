@@ -14,7 +14,7 @@ futures = "0.3.1"
 proc-macro-hack = "0.5.11"
 proc-macro2 = "1.0.6"
 sqlx = { version = "0.1.0-pre", path = "../sqlx-core", package = "sqlx-core" }
-syn = "1.0.11"
+syn = { version = "1.0.11", default-features = false }
 quote = "1.0.2"
 url = "2.1.0"
 
