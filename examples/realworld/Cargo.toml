@@ -5,10 +5,10 @@ edition = "2018"
 workspace = "../.."
 
 [dependencies]
-anyhow = "1.0.22"
+anyhow = "1.0.25"
 dotenv = "0.15.0"
-async-std = "1.1.0"
+async-std = "1.2.0"
 tide = "0.4.0"
 sqlx = { path = "../..", features = [ "postgres" ] }
-serde = { version = "1", features = [ "derive"] }
+serde = { version = "1.0.103", features = [ "derive"] }
 futures = "0.3.1"

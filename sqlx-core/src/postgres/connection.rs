@@ -75,10 +75,12 @@ impl Postgres {
         self.stream.flush().await?;
 
         while let Some(message) = self.receive().await? {
+            println!("recv!?");
             match message {
                 Message::Authentication(auth) => {
                     match *auth {
                         protocol::Authentication::Ok => {
+                            println!("no auth?");
                             // Do nothing. No password is needed to continue.
                         }
 
@@ -125,6 +127,8 @@ impl Postgres {
                 }
             }
         }
+
+        println!("done");
 
         Ok(())
     }
@@ -221,10 +225,6 @@ impl Postgres {
 
     // Wait and return the next message to be received from Postgres.
     pub(super) async fn receive(&mut self) -> crate::Result<Option<Message>> {
-        // Before we start the receive loop
-        // Flush any pending data from the send buffer
-        self.stream.flush().await?;
-
         loop {
             // Read the message header (id + len)
             let mut header = ret_if_none!(self.stream.peek(5).await?);

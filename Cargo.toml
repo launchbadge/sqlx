@@ -28,10 +28,10 @@ uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 [dependencies]
 sqlx-core = { version = "0.1.0-pre", path = "sqlx-core" }
 sqlx-macros = { version = "0.1.0-pre", path = "sqlx-macros", optional = true }
-proc-macro-hack = { version = "0.5", optional = true }
+proc-macro-hack = { version = "0.5.11", optional = true }
 
 [dev-dependencies]
-async-std = { version = "1.1.0", features = [ "attributes" ] }
+async-std = { version = "1.2.0", features = [ "attributes" ] }
 matches = "0.1.8"
 criterion = "0.3.0"
 

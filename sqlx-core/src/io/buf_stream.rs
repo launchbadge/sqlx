@@ -2,8 +2,8 @@ use async_std::io::{
     prelude::{ReadExt, WriteExt},
     Read, Write,
 };
-use bytes::{BufMut, BytesMut};
 use std::io;
+use bitflags::_core::mem::MaybeUninit;
 
 pub struct BufStream<S> {
     pub(crate) stream: S,
@@ -15,19 +15,23 @@ pub struct BufStream<S> {
     wbuf: Vec<u8>,
 
     // Buffer used when reading incoming messages
-    rbuf: BytesMut,
+    rbuf: Vec<u8>,
+    rbuf_rindex: usize,
+    rbuf_windex: usize,
 }
 
 impl<S> BufStream<S>
-where
-    S: Read + Write + Unpin,
+    where
+        S: Read + Write + Unpin,
 {
     pub fn new(stream: S) -> Self {
         Self {
             stream,
             stream_eof: false,
             wbuf: Vec::with_capacity(1024),
-            rbuf: BytesMut::with_capacity(8 * 1024),
+            rbuf: vec![0; 8 * 1024],
+            rbuf_rindex: 0,
+            rbuf_windex: 0,
         }
     }
 
@@ -48,7 +52,7 @@ where
 
     #[inline]
     pub fn consume(&mut self, cnt: usize) {
-        self.rbuf.advance(cnt);
+        self.rbuf_rindex += cnt;
     }
 
     pub async fn peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
@@ -61,25 +65,23 @@ where
 
             // If we have enough bytes in our read buffer,
             // return immediately
-            if self.rbuf.len() >= cnt {
-                return Ok(Some(&self.rbuf[..cnt]));
+            if self.rbuf_windex >= (self.rbuf_rindex + cnt) {
+                return Ok(Some(&self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)]));
             }
 
-            if self.rbuf.capacity() < cnt {
-                // Ask for exactly how much we need with a lower bound of 32-bytes
-                let needed = (cnt - self.rbuf.capacity()).max(32);
-                self.rbuf.reserve(needed);
+            // If we are out of space to write to in the read buffer,
+            // we reset the indexes
+            if self.rbuf.len() < (self.rbuf_windex + cnt) {
+                // TODO: This assumes that all data is consumed when we need to re-allocate
+                debug_assert_eq!(self.rbuf_rindex, self.rbuf_windex);
+
+                self.rbuf_rindex = 0;
+                self.rbuf_windex = 0;
             }
 
-            // SAFE: Read data in directly to buffer without zero-initializing the data.
-            //       Postgres is a self-describing format and the TCP frames encode
-            //       length headers. We will never attempt to decode more than we
-            //       received.
-            let n = self.stream.read(unsafe { self.rbuf.bytes_mut() }).await?;
+            let n = self.stream.read(&mut self.rbuf[self.rbuf_windex..]).await?;
 
-            // SAFE: After we read in N bytes, we can tell the buffer that it actually
-            //       has that many bytes MORE for the decode routines to look at
-            unsafe { self.rbuf.advance_mut(n) }
+            self.rbuf_windex += n;
 
             if n == 0 {
                 self.stream_eof = true;

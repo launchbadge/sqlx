@@ -8,13 +8,13 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-async-std = "1.1.0"
+async-std = "1.2.0"
 dotenv = "0.15.0"
 futures = "0.3.1"
-proc-macro-hack = "0.5"
+proc-macro-hack = "0.5.11"
 proc-macro2 = "1.0.6"
 sqlx = { version = "0.1.0-pre", path = "../sqlx-core", package = "sqlx-core" }
-syn = "1.0.8"
+syn = "1.0.11"
 quote = "1.0.2"
 url = "2.1.0"
 
