@@ -45,6 +45,10 @@ impl ResultRow {
                 values.push(None);
             } else {
                 match columns[column_idx].field_type {
+                    FieldType::MYSQL_TYPE_TINY => {
+                        values.push(Some(buf.get_bytes(1)?.into()));
+                    }
+
                     FieldType::MYSQL_TYPE_LONG => {
                         values.push(Some(buf.get_bytes(4)?.into()));
                     }

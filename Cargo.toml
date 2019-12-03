@@ -43,6 +43,10 @@ required-features = [ "postgres", "uuid", "macros" ]
 name = "postgres-types"
 required-features = [ "postgres" ]
 
+[[test]]
+name = "mysql-types"
+required-features = [ "mariadb" ]
+
 [[bench]]
 name = "postgres-protocol"
 required-features = [ "postgres", "unstable" ]

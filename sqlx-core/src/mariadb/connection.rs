@@ -175,7 +175,37 @@ impl MariaDb {
             return ErrPacket::decode(packet)?.expect_error();
         }
 
-        ComStmtPrepareOk::decode(packet).map_err(Into::into)
+        let ok = ComStmtPrepareOk::decode(packet)?;
+
+        // Input parameters
+        for _ in 0..ok.params {
+            // TODO: Maybe do something with this data ?
+            let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+        }
+
+        // TODO: De-duplicate this
+        if !self
+            .capabilities
+            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+        {
+            let _eof = EofPacket::decode(self.receive().await?)?;
+        }
+
+        // Output parameters
+        for _ in 0..ok.columns {
+            // TODO: Maybe do something with this data ?
+            let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+        }
+
+        // TODO: De-duplicate this
+        if !self
+            .capabilities
+            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+        {
+            let _eof = EofPacket::decode(self.receive().await?)?;
+        }
+
+        Ok(ok)
     }
 
     pub(super) async fn column_definitions(
@@ -192,7 +222,8 @@ impl MariaDb {
         // TODO: This information was *already* returned by PREPARE .., is there a way to suppress generation
         let mut columns = vec![];
         for _ in 0..column_count {
-            columns.push(ColumnDefinitionPacket::decode(self.receive().await?)?);
+            let column =ColumnDefinitionPacket::decode(self.receive().await?)?;
+            columns.push(column);
         }
 
         // When (legacy) EOFs are enabled, the fixed number column definitions are further terminated by
@@ -210,7 +241,7 @@ impl MariaDb {
     pub(super) async fn send_execute(
         &mut self,
         statement_id: u32,
-        _params: MariaDbQueryParameters,
+        params: MariaDbQueryParameters,
     ) -> Result<()> {
         // TODO: EXECUTE(READ_ONLY) => FETCH instead of EXECUTE(NO)
 
@@ -218,10 +249,10 @@ impl MariaDb {
         self.start_sequence();
         self.write(ComStmtExecute {
             statement_id,
-            params: &[],
-            null: &[],
+            params: &params.params,
+            null: &params.null,
             flags: StmtExecFlag::NO_CURSOR,
-            param_types: &[],
+            param_types: &params.param_types,
         });
         self.stream.flush().await?;
         // =====================

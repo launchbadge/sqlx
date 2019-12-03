@@ -115,7 +115,38 @@ impl Executor for MariaDb {
         I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send,
     {
-        unimplemented!();
+        let params = params.into_params();
+
+        Box::pin(async move {
+            let prepare = self.send_prepare(query).await?;
+            self.send_execute(prepare.statement_id, params).await?;
+
+            let columns = self.column_definitions().await?;
+            let capabilities = self.capabilities;
+
+            let mut row: Option<_> = None;
+
+            loop {
+                let packet = self.receive().await?;
+                if packet[0] == 0xFE && packet.len() < 0xFF_FF_FF {
+                    // NOTE: It's possible for a ResultRow to start with 0xFE (which would normally signify end-of-rows)
+                    //       but it's not possible for an Ok/Eof to be larger than 0xFF_FF_FF.
+                    if !capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+                        let _eof = EofPacket::decode(packet)?;
+                    } else {
+                        let _ok = OkPacket::decode(packet, capabilities)?;
+                    }
+
+                    break;
+                } else if packet[0] == 0xFF {
+                    let _err = ErrPacket::decode(packet)?;
+                } else {
+                    row = Some(FromRow::from_row(ResultRow::decode(packet, &columns)?));
+                }
+            }
+
+            Ok(row)
+         })
     }
 
     fn describe<'e, 'q: 'e>(

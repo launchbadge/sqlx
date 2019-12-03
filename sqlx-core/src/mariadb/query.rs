@@ -7,9 +7,9 @@ use crate::{
 };
 
 pub struct MariaDbQueryParameters {
-    param_types: Vec<MariaDbTypeMetadata>,
-    params: Vec<u8>,
-    null: Vec<u8>,
+    pub(crate) param_types: Vec<MariaDbTypeMetadata>,
+    pub(crate) params: Vec<u8>,
+    pub(crate) null: Vec<u8>,
 }
 
 impl QueryParameters for MariaDbQueryParameters {

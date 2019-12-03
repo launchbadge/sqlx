@@ -5,7 +5,7 @@ use crate::{
     mariadb::protocol::{FieldType, ParameterFlag},
     types::HasSqlType,
 };
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{LittleEndian, ByteOrder};
 
 impl HasSqlType<i16> for MariaDb {
     #[inline]
@@ -21,7 +21,7 @@ impl HasSqlType<i16> for MariaDb {
 impl Encode<MariaDb> for i16 {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.extend_from_slice(&self.to_be_bytes());
+        buf.extend_from_slice(&self.to_le_bytes());
 
         IsNull::No
     }
@@ -30,7 +30,7 @@ impl Encode<MariaDb> for i16 {
 impl Decode<MariaDb> for i16 {
     #[inline]
     fn decode(buf: Option<&[u8]>) -> Self {
-        BigEndian::read_i16(buf.unwrap())
+        LittleEndian::read_i16(buf.unwrap())
     }
 }
 
@@ -48,7 +48,7 @@ impl HasSqlType<i32> for MariaDb {
 impl Encode<MariaDb> for i32 {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.extend_from_slice(&self.to_be_bytes());
+        buf.extend_from_slice(&self.to_le_bytes());
 
         IsNull::No
     }
@@ -57,7 +57,7 @@ impl Encode<MariaDb> for i32 {
 impl Decode<MariaDb> for i32 {
     #[inline]
     fn decode(buf: Option<&[u8]>) -> Self {
-        BigEndian::read_i32(buf.unwrap())
+        LittleEndian::read_i32(buf.unwrap())
     }
 }
 
@@ -75,7 +75,7 @@ impl HasSqlType<i64> for MariaDb {
 impl Encode<MariaDb> for i64 {
     #[inline]
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.extend_from_slice(&self.to_be_bytes());
+        buf.extend_from_slice(&self.to_le_bytes());
 
         IsNull::No
     }
@@ -84,7 +84,7 @@ impl Encode<MariaDb> for i64 {
 impl Decode<MariaDb> for i64 {
     #[inline]
     fn decode(buf: Option<&[u8]>) -> Self {
-        BigEndian::read_i64(buf.unwrap())
+        LittleEndian::read_i64(buf.unwrap())
     }
 }
 
