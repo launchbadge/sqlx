@@ -7,7 +7,7 @@ use crate::{
             ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
             OkPacket, ResultRow, StmtExecFlag,
         },
-        MariaDbQueryParameters,
+        query::MariaDbQueryParameters,
     },
     Error, Result,
 };
@@ -157,17 +157,6 @@ impl MariaDb {
         })
     }
 
-    pub(super) async fn check_eof(&mut self) -> Result<()> {
-        if !self
-            .capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-        {
-            let _ = EofPacket::decode(self.receive().await?)?;
-        }
-
-        Ok(())
-    }
-
     pub(super) async fn send_prepare<'c>(
         &'c mut self,
         statement: &'c str,
@@ -187,35 +176,6 @@ impl MariaDb {
         }
 
         ComStmtPrepareOk::decode(packet).map_err(Into::into)
-    }
-
-    pub(super) async fn step(
-        &mut self,
-        columns: &Vec<ColumnDefinitionPacket>,
-        packet: &[u8],
-    ) -> Result<Option<ResultRow>> {
-        // For each row in the result set we will receive a ResultRow packet.
-        // We may receive an [OkPacket], [EofPacket], or [ErrPacket] (depending on if EOFs are enabled) to finalize the iteration.
-        if packet[0] == 0xFE && packet.len() < 0xFF_FF_FF {
-            // NOTE: It's possible for a ResultRow to start with 0xFE (which would normally signify end-of-rows)
-            //       but it's not possible for an Ok/Eof to be larger than 0xFF_FF_FF.
-            if !self
-                .capabilities
-                .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-            {
-                let _eof = EofPacket::decode(packet)?;
-                Ok(None)
-            } else {
-                let _ok = OkPacket::decode(packet, self.capabilities)?;
-                Ok(None)
-            }
-        } else if packet[0] == 0xFF {
-            let _ = ErrPacket::decode(packet)?;
-            // TODO: Should be error
-            Ok(None)
-        } else {
-            Ok(Some(ResultRow::decode(packet, columns)?))
-        }
     }
 
     pub(super) async fn column_definitions(

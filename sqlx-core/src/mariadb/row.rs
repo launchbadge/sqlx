@@ -3,20 +3,17 @@ use crate::{
     row::Row,
 };
 
-#[derive(Debug)]
-pub struct MariaDbRow(pub(crate) ResultRow);
-
-impl Row for MariaDbRow {
+impl Row for ResultRow {
     type Backend = MariaDb;
 
     #[inline]
     fn len(&self) -> usize {
-        self.0.values.len()
+        self.values.len()
     }
 
     #[inline]
     fn get_raw(&self, index: usize) -> Option<&[u8]> {
-        self.0.values[index]
+        self.values[index]
             .as_ref()
             .map(|value| unsafe { value.as_ref() })
     }

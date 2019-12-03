@@ -1,4 +1,6 @@
-use super::{MariaDb, MariaDbQueryParameters, MariaDbRow};
+use super::MariaDb;
+use crate::mariadb::protocol::ResultRow;
+use crate::mariadb::query::MariaDbQueryParameters;
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
@@ -9,7 +11,7 @@ use crate::url::Url;
 
 impl Backend for MariaDb {
     type QueryParameters = MariaDbQueryParameters;
-    type Row = MariaDbRow;
+    type Row = ResultRow;
     type TableIdent = String;
 
     fn open(url: &str) -> BoxFuture<'static, crate::Result<Self>> {
@@ -21,15 +23,11 @@ impl Backend for MariaDb {
         })
     }
 
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move {
             self.close().await
         })
     }
-
-    // async fn ping(&mut self) -> crate::Result<()> {
-    //     self.ping().await
-    // }
 }
 
 impl_from_row_for_backend!(MariaDb);

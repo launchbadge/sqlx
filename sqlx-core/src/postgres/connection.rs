@@ -2,7 +2,6 @@ use crate::{
     io::{Buf, BufStream},
     postgres::{
         protocol::{self, Decode, Encode, Message},
-        PostgresDatabaseError, PostgresQueryParameters, PostgresRow,
     },
 };
 use async_std::net::TcpStream;
@@ -11,6 +10,8 @@ use std::{
     io,
     net::{Shutdown, SocketAddr},
 };
+use crate::postgres::query::PostgresQueryParameters;
+use crate::postgres::error::PostgresDatabaseError;
 
 pub struct Postgres {
     stream: BufStream<TcpStream>,
@@ -193,7 +194,7 @@ impl Postgres {
                 }
 
                 Message::DataRow(body) => {
-                    return Ok(Some(Step::Row(PostgresRow(body))));
+                    return Ok(Some(Step::Row(body)));
                 }
 
                 Message::ReadyForQuery(_) => {
@@ -291,7 +292,7 @@ impl Postgres {
 #[derive(Debug)]
 pub(super) enum Step {
     Command(u64),
-    Row(PostgresRow),
+    Row(protocol::DataRow),
     ParamDesc(Box<protocol::ParameterDescription>),
     RowDesc(Box<protocol::RowDescription>),
 }

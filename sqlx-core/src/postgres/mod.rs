@@ -14,6 +14,5 @@ pub mod protocol;
 pub mod types;
 
 pub use self::{
-    connection::Postgres, error::PostgresDatabaseError, query::PostgresQueryParameters,
-    row::PostgresRow,
+    connection::Postgres
 };

@@ -1,4 +1,4 @@
-use super::{connection::Step, Postgres, PostgresQueryParameters, PostgresRow};
+use super::{connection::Step, Postgres};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
@@ -104,7 +104,7 @@ impl Executor for Postgres {
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(async move {
-            self.parse("", query, &PostgresQueryParameters::new());
+            self.parse("", query, &QueryParameters::new());
             self.describe("");
             self.sync().await?;
 

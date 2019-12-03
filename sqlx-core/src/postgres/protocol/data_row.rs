@@ -11,7 +11,7 @@ use std::{
 pub struct DataRow {
     #[used]
     buffer: Pin<Box<[u8]>>,
-    values: Box<[Option<NonNull<[u8]>>]>,
+    pub(crate) values: Box<[Option<NonNull<[u8]>>]>,
 }
 
 // SAFE: Raw pointers point to pinned memory inside the struct
@@ -46,31 +46,14 @@ impl Decode for DataRow {
     }
 }
 
-impl DataRow {
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.values.len()
-    }
-
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&[u8]> {
-        self.values[index]
-            .as_ref()
-            .map(|value| unsafe { value.as_ref() })
-    }
-}
-
 impl Debug for DataRow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::row::Row;
+
         write!(f, "DataRow(")?;
 
         f.debug_list()
-            .entries((0..self.len()).map(|i| self.get(i).map(ByteStr)))
+            .entries((0..self.len()).map(|i| self.get_raw(i).map(ByteStr)))
             .finish()?;
 
         write!(f, ")")?;

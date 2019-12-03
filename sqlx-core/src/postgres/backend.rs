@@ -1,16 +1,18 @@
-use super::{connection::Step, Postgres, PostgresQueryParameters, PostgresRow};
+use super::{connection::Step, Postgres};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
+    postgres::protocol::DataRow,
     params::QueryParameters,
     url::Url,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
+use crate::postgres::query::PostgresQueryParameters;
 
 impl Backend for Postgres {
     type QueryParameters = PostgresQueryParameters;
 
-    type Row = PostgresRow;
+    type Row = DataRow;
 
     type TableIdent = u32;
 
@@ -33,7 +35,7 @@ impl Backend for Postgres {
         })
     }
 
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(self.terminate())
     }
 }

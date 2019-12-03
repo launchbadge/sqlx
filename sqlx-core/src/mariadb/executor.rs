@@ -1,4 +1,4 @@
-use super::{MariaDb, MariaDbQueryParameters, MariaDbRow};
+use super::MariaDb;
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
@@ -8,6 +8,7 @@ use crate::{
         Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
         ErrPacket, OkPacket, ResultRow, StmtExecFlag,
     },
+    mariadb::query::MariaDbQueryParameters,
     row::FromRow,
     url::Url,
 };
@@ -28,7 +29,7 @@ impl Executor for MariaDb {
 
         Box::pin(async move {
             let prepare = self.send_prepare(query).await?;
-            self.send_execute(prepare.statement_id, params);
+            self.send_execute(prepare.statement_id, params).await?;
 
             let columns = self.column_definitions().await?;
             let capabilities = self.capabilities;
@@ -77,7 +78,7 @@ impl Executor for MariaDb {
 
          Box::pin(async_stream::try_stream! {
             let prepare = self.send_prepare(query).await?;
-            self.send_execute(prepare.statement_id, params);
+            self.send_execute(prepare.statement_id, params).await?;
 
             let columns = self.column_definitions().await?;
             let capabilities = self.capabilities;
