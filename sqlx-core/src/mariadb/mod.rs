@@ -2,6 +2,7 @@ mod backend;
 mod connection;
 mod error;
 mod establish;
+mod executor;
 mod io;
 mod protocol;
 mod query;

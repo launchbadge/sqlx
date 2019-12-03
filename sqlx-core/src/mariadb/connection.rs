@@ -17,7 +17,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
 };
-use url::{quirks::protocol, Url};
+use crate::url::Url;
 
 pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
@@ -27,12 +27,10 @@ pub struct MariaDb {
 }
 
 impl MariaDb {
-    pub async fn open(url: &str) -> Result<Self> {
+    pub async fn open(url: Url) -> Result<Self> {
         // TODO: Handle errors
-        let url = Url::parse(url).unwrap();
-
-        let host = url.host_str().unwrap_or("127.0.0.1");
-        let port = url.port().unwrap_or(3306);
+        let host = url.host();
+        let port = url.port(3306);
 
         // TODO: handle errors
         let host: IpAddr = host.parse().unwrap();
@@ -221,9 +219,10 @@ impl MariaDb {
     }
 
     pub(super) async fn column_definitions(
-        &mut self,
-        packet: &[u8],
+        &mut self
     ) -> Result<Vec<ColumnDefinitionPacket>> {
+        let packet = self.receive().await?;
+
         // A Resultset starts with a [ColumnCountPacket] which is a single field that encodes
         // how many columns we can expect when fetching rows from this statement
         let column_count: u64 = ColumnCountPacket::decode(packet)?.columns;
@@ -248,7 +247,7 @@ impl MariaDb {
         Ok(columns)
     }
 
-    pub(super) async fn execute(
+    pub(super) async fn send_execute(
         &mut self,
         statement_id: u32,
         _params: MariaDbQueryParameters,

@@ -5,7 +5,7 @@ use crate::{
     },
     Result,
 };
-use url::Url;
+use crate::url::Url;
 
 pub(crate) async fn establish(conn: &mut MariaDb, url: &Url) -> Result<()> {
     let initial = InitialHandshakePacket::decode(conn.receive().await?)?;
@@ -25,7 +25,7 @@ pub(crate) async fn establish(conn: &mut MariaDb, url: &Url) -> Result<()> {
         max_packet_size: 1024,
         client_collation: 192, // utf8_unicode_ci
         username: url.username(),
-        database: &url.path()[1..],
+        database: &url.database(),
         auth_data: None,
         auth_plugin_name: None,
         connection_attrs: &[],

@@ -1,11 +1,12 @@
 use crate::{
     mariadb::{protocol::ResultRow, MariaDb},
-    row::RawRow,
+    row::Row,
 };
 
-pub struct MariaDbRow(pub(super) ResultRow);
+#[derive(Debug)]
+pub struct MariaDbRow(pub(crate) ResultRow);
 
-impl RawRow for MariaDbRow {
+impl Row for MariaDbRow {
     type Backend = MariaDb;
 
     #[inline]
