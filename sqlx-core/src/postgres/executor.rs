@@ -40,14 +40,14 @@ impl Executor for Postgres {
         })
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxStream<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         let params = params.into_params();
 
@@ -66,14 +66,14 @@ impl Executor for Postgres {
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
             let params = params.into_params();
@@ -137,7 +137,7 @@ impl Executor for Postgres {
                     .into_vec()
                     .into_iter()
                     .map(|field| ResultField {
-                        name: Some(field.name),
+                        name: if field.name == "?column?" { None } else { Some(field.name) },
                         table_id: Some(field.table_id),
                         type_id: field.type_id,
                     })

@@ -22,14 +22,14 @@ where
         Box::pin(async move { <&Pool<DB> as Executor>::execute(&mut &*self, query, params).await })
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxStream<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut self_ = &*self;
@@ -41,14 +41,14 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
             <&Pool<DB> as Executor>::fetch_optional(&mut &*self, query, params).await
@@ -80,14 +80,14 @@ where
         Box::pin(async move { self.0.acquire().await?.execute(query, params).await })
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxStream<'e, crate::Result<T>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
             let mut live = self.0.acquire().await?;
@@ -99,14 +99,14 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, I: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: I,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move { self.0.acquire().await?.fetch_optional(query, params).await })
     }

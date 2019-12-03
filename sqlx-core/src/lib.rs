@@ -50,6 +50,9 @@ pub use self::{
 #[doc(hidden)]
 pub use types::HasTypeMetadata;
 
+#[doc(hidden)]
+pub use describe::{Describe, ResultField};
+
 #[cfg(feature = "mariadb")]
 pub mod mariadb;
 

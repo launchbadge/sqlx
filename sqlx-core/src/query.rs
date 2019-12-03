@@ -33,7 +33,7 @@ where
     DB: Backend,
     DB::QueryParameters: 'q,
     I: IntoQueryParameters<DB> + Send,
-    O: FromRow<DB, O> + Send + Unpin,
+    O: FromRow<DB> + Send + Unpin,
 {
     #[inline]
     pub fn execute<E>(self, executor: &'q mut E) -> BoxFuture<'q, crate::Result<u64>>
@@ -72,7 +72,7 @@ where
     }
 }
 
-impl<DB> Query<'_, DB, <DB as Backend>::QueryParameters>
+impl<DB> Query<'_, DB>
 where
     DB: Backend,
 {
@@ -90,6 +90,17 @@ where
     {
         self.input.bind(value);
         self
+    }
+}
+
+impl<'q, DB, I, O> Query<'q, DB, I, O> where DB: Backend {
+    pub fn with_output_type<O_>(self) -> Query<'q, DB, I, O_> {
+        Query {
+            query: self.query,
+            input: self.input,
+            output: PhantomData,
+            backend: PhantomData,
+        }
     }
 }
 

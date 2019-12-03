@@ -3,6 +3,10 @@ use sqlx::Backend;
 pub trait BackendExt: Backend {
     const BACKEND_PATH: &'static str;
 
+    fn quotable_path() -> syn::Path {
+        syn::parse_str(Self::BACKEND_PATH).unwrap()
+    }
+
     fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
 
     fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str>;

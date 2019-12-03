@@ -32,6 +32,7 @@ proc-macro-hack = { version = "0.5.11", optional = true }
 
 [dev-dependencies]
 async-std = { version = "1.2.0", features = [ "attributes" ] }
+dotenv = "0.15.0"
 matches = "0.1.8"
 criterion = "0.3.0"
 
