@@ -1,13 +1,11 @@
 use super::MariaDb;
-use crate::mariadb::protocol::ResultRow;
-use crate::mariadb::query::MariaDbQueryParameters;
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
+    mariadb::{protocol::ResultRow, query::MariaDbQueryParameters},
+    url::Url,
 };
-use futures_core::stream::BoxStream;
-use futures_core::future::BoxFuture;
-use crate::url::Url;
+use futures_core::{future::BoxFuture, stream::BoxStream};
 
 impl Backend for MariaDb {
     type QueryParameters = MariaDbQueryParameters;
@@ -24,9 +22,7 @@ impl Backend for MariaDb {
     }
 
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(async move {
-            self.close().await
-        })
+        Box::pin(async move { self.close().await })
     }
 }
 

@@ -2,8 +2,8 @@ use async_std::io::{
     prelude::{ReadExt, WriteExt},
     Read, Write,
 };
-use std::io;
 use bitflags::_core::mem::MaybeUninit;
+use std::io;
 
 pub struct BufStream<S> {
     pub(crate) stream: S,
@@ -21,8 +21,8 @@ pub struct BufStream<S> {
 }
 
 impl<S> BufStream<S>
-    where
-        S: Read + Write + Unpin,
+where
+    S: Read + Write + Unpin,
 {
     pub fn new(stream: S) -> Self {
         Self {

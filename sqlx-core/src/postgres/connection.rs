@@ -1,7 +1,9 @@
 use crate::{
     io::{Buf, BufStream},
     postgres::{
+        error::PostgresDatabaseError,
         protocol::{self, Decode, Encode, Message},
+        query::PostgresQueryParameters,
     },
 };
 use async_std::net::TcpStream;
@@ -10,8 +12,6 @@ use std::{
     io,
     net::{Shutdown, SocketAddr},
 };
-use crate::postgres::query::PostgresQueryParameters;
-use crate::postgres::error::PostgresDatabaseError;
 
 pub struct Postgres {
     stream: BufStream<TcpStream>,
@@ -75,12 +75,10 @@ impl Postgres {
         self.stream.flush().await?;
 
         while let Some(message) = self.receive().await? {
-            println!("recv!?");
             match message {
                 Message::Authentication(auth) => {
                     match *auth {
                         protocol::Authentication::Ok => {
-                            println!("no auth?");
                             // Do nothing. No password is needed to continue.
                         }
 
@@ -127,8 +125,6 @@ impl Postgres {
                 }
             }
         }
-
-        println!("done");
 
         Ok(())
     }

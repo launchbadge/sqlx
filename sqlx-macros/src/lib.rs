@@ -188,11 +188,10 @@ where
     Ok(quote! {{
         #params
 
-        sqlx::Query::<#backend_path, _, (#(#output_types),*,), _> {
+        sqlx::Query::<#backend_path, _, (#(#output_types),*,)> {
             query: #query,
             input: params,
             output: ::core::marker::PhantomData,
-            target: ::core::marker::PhantomData,
             backend: ::core::marker::PhantomData,
         }
     }}

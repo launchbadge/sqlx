@@ -3,9 +3,9 @@ use crate::{
         connection::MariaDb,
         protocol::{Capabilities, HandshakeResponsePacket, InitialHandshakePacket},
     },
+    url::Url,
     Result,
 };
-use crate::url::Url;
 
 pub(crate) async fn establish(conn: &mut MariaDb, url: &Url) -> Result<()> {
     let initial = InitialHandshakePacket::decode(conn.receive().await?)?;

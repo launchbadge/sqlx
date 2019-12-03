@@ -5,7 +5,7 @@ use crate::{
     mariadb::protocol::{FieldType, ParameterFlag},
     types::HasSqlType,
 };
-use byteorder::{LittleEndian, ByteOrder};
+use byteorder::{ByteOrder, LittleEndian};
 
 impl HasSqlType<i16> for MariaDb {
     #[inline]

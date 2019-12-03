@@ -13,6 +13,4 @@ pub mod protocol;
 
 pub mod types;
 
-pub use self::{
-    connection::Postgres
-};
+pub use self::connection::Postgres;

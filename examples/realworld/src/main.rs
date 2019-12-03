@@ -1,6 +1,6 @@
-use sqlx::{FromRow, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use std::env;
-use tide::{http::StatusCode, Request, Response, ResultExt};
+use tide::{Request, Response};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -34,13 +34,14 @@ async fn register(mut req: Request<Pool<Postgres>>) -> Response {
     let mut pool = req.state();
 
     // TODO: Handle the unwrap
-    let (user_id,): (i64,) =
-        sqlx::query("INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id")
-            .bind(body.username)
-            .bind(body.email)
-            .fetch_one(&mut pool)
-            .await
-            .unwrap();
+    let (user_id,): (i64,) = sqlx::query!(
+        "INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id",
+        &*body.username,
+        &*body.email
+    )
+    .fetch_one(&mut pool)
+    .await
+    .unwrap();
 
     #[derive(serde::Serialize)]
     struct RegisterResponseBody {

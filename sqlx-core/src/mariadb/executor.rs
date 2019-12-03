@@ -3,12 +3,14 @@ use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
     executor::Executor,
-    params::{IntoQueryParameters, QueryParameters},
-    mariadb::protocol::{
-        Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
-        ErrPacket, OkPacket, ResultRow, StmtExecFlag,
+    mariadb::{
+        protocol::{
+            Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
+            ErrPacket, OkPacket, ResultRow, StmtExecFlag,
+        },
+        query::MariaDbQueryParameters,
     },
-    mariadb::query::MariaDbQueryParameters,
+    params::{IntoQueryParameters, QueryParameters},
     row::FromRow,
     url::Url,
 };
@@ -76,34 +78,34 @@ impl Executor for MariaDb {
     {
         let params = params.into_params();
 
-         Box::pin(async_stream::try_stream! {
-            let prepare = self.send_prepare(query).await?;
-            self.send_execute(prepare.statement_id, params).await?;
+        Box::pin(async_stream::try_stream! {
+           let prepare = self.send_prepare(query).await?;
+           self.send_execute(prepare.statement_id, params).await?;
 
-            let columns = self.column_definitions().await?;
-            let capabilities = self.capabilities;
+           let columns = self.column_definitions().await?;
+           let capabilities = self.capabilities;
 
-            loop {
-                let packet = self.receive().await?;
-                if packet[0] == 0xFE && packet.len() < 0xFF_FF_FF {
-                    // NOTE: It's possible for a ResultRow to start with 0xFE (which would normally signify end-of-rows)
-                    //       but it's not possible for an Ok/Eof to be larger than 0xFF_FF_FF.
-                    if !capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
-                        let _eof = EofPacket::decode(packet)?;
-                    } else {
-                        let _ok = OkPacket::decode(packet, capabilities)?;
-                    }
+           loop {
+               let packet = self.receive().await?;
+               if packet[0] == 0xFE && packet.len() < 0xFF_FF_FF {
+                   // NOTE: It's possible for a ResultRow to start with 0xFE (which would normally signify end-of-rows)
+                   //       but it's not possible for an Ok/Eof to be larger than 0xFF_FF_FF.
+                   if !capabilities.contains(Capabilities::CLIENT_DEPRECATE_EOF) {
+                       let _eof = EofPacket::decode(packet)?;
+                   } else {
+                       let _ok = OkPacket::decode(packet, capabilities)?;
+                   }
 
-                    break;
-                } else if packet[0] == 0xFF {
-                    let _err = ErrPacket::decode(packet)?;
-                    panic!("ErrPacket received");
-                } else {
-                    let row = ResultRow::decode(packet, &columns)?;
-                    yield FromRow::from_row(row);
-                }
-            }
-         })
+                   break;
+               } else if packet[0] == 0xFF {
+                   let _err = ErrPacket::decode(packet)?;
+                   panic!("ErrPacket received");
+               } else {
+                   let row = ResultRow::decode(packet, &columns)?;
+                   yield FromRow::from_row(row);
+               }
+           }
+        })
     }
 
     fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
@@ -146,7 +148,7 @@ impl Executor for MariaDb {
             }
 
             Ok(row)
-         })
+        })
     }
 
     fn describe<'e, 'q: 'e>(

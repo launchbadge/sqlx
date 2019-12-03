@@ -26,5 +26,3 @@ macro_rules! test {
 
 test!(mysql_bool: bool: "false" == false, "true" == true);
 test!(mysql_long: i32: "2141512" == 2141512_i32);
-
-

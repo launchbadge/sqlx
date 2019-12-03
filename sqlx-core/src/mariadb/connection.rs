@@ -9,6 +9,7 @@ use crate::{
         },
         query::MariaDbQueryParameters,
     },
+    url::Url,
     Error, Result,
 };
 use async_std::net::TcpStream;
@@ -17,7 +18,6 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
 };
-use crate::url::Url;
 
 pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
@@ -208,9 +208,7 @@ impl MariaDb {
         Ok(ok)
     }
 
-    pub(super) async fn column_definitions(
-        &mut self
-    ) -> Result<Vec<ColumnDefinitionPacket>> {
+    pub(super) async fn column_definitions(&mut self) -> Result<Vec<ColumnDefinitionPacket>> {
         let packet = self.receive().await?;
 
         // A Resultset starts with a [ColumnCountPacket] which is a single field that encodes
@@ -222,7 +220,7 @@ impl MariaDb {
         // TODO: This information was *already* returned by PREPARE .., is there a way to suppress generation
         let mut columns = vec![];
         for _ in 0..column_count {
-            let column =ColumnDefinitionPacket::decode(self.receive().await?)?;
+            let column = ColumnDefinitionPacket::decode(self.receive().await?)?;
             columns.push(column);
         }
 

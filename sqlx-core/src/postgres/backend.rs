@@ -2,12 +2,11 @@ use super::{connection::Step, Postgres};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
-    postgres::protocol::DataRow,
     params::QueryParameters,
+    postgres::{protocol::DataRow, query::PostgresQueryParameters},
     url::Url,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use crate::postgres::query::PostgresQueryParameters;
 
 impl Backend for Postgres {
     type QueryParameters = PostgresQueryParameters;
