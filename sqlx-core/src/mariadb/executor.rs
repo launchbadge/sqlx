@@ -19,14 +19,11 @@ use futures_core::{future::BoxFuture, stream::BoxStream};
 impl Executor for MariaDb {
     type Backend = Self;
 
-    fn execute<'e, 'q: 'e, I: 'e>(
+    fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        I: IntoQueryParameters<Self::Backend> + Send,
-    {
+        params: MariaDbQueryParameters,
+    ) -> BoxFuture<'e, crate::Result<u64>> {
         let params = params.into_params();
 
         Box::pin(async move {
@@ -67,13 +64,12 @@ impl Executor for MariaDb {
         })
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, O: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: MariaDbQueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send + Unpin,
     {
         let params = params.into_params();
@@ -108,13 +104,12 @@ impl Executor for MariaDb {
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, O: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: MariaDbQueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend, O> + Send,
     {
         let params = params.into_params();

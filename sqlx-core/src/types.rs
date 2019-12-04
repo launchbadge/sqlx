@@ -1,6 +1,8 @@
 #[cfg(feature = "uuid")]
 pub use uuid::Uuid;
 
+use std::fmt::Display;
+
 /// Information about how a backend stores metadata about
 /// given SQL types.
 pub trait HasTypeMetadata {
@@ -8,7 +10,7 @@ pub trait HasTypeMetadata {
     type TypeMetadata: TypeMetadata<Self::TypeId>;
 
     /// The Rust type of type identifiers in `DESCRIBE` responses for the SQL backend.
-    type TypeId: Eq;
+    type TypeId: Eq + Display;
 }
 
 pub trait TypeMetadata<TypeId: Eq> {

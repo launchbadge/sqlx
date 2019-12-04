@@ -16,58 +16,52 @@ pub trait Executor: Send {
         Box::pin(
             self.execute(
                 "SELECT 1",
-                <Self::Backend as Backend>::QueryParameters::new(),
+                Default::default(),
             )
             .map_ok(|_| ()),
         )
     }
 
-    fn execute<'e, 'q: 'e, I: 'e>(
+    fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        I: IntoQueryParameters<Self::Backend> + Send;
+        params: <Self::Backend as Backend>::QueryParameters,
+    ) -> BoxFuture<'e, crate::Result<u64>>;
 
-    fn fetch<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send + Unpin;
+        T: FromRow<Self::Backend> + Send + Unpin;
 
-    fn fetch_all<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_all<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'e, crate::Result<Vec<T>>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(self.fetch(query, params).try_collect())
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send;
+        T: FromRow<Self::Backend> + Send;
 
-    fn fetch_one<'e, 'q: 'e, I: 'e, O: 'e, T: 'e>(
+    fn fetch_one<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <Self::Backend as Backend>::QueryParameters,
     ) -> BoxFuture<'e, crate::Result<T>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
-        T: FromRow<Self::Backend, O> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
         let fut = self.fetch_optional(query, params);
         Box::pin(async move { fut.await?.ok_or(Error::NotFound) })

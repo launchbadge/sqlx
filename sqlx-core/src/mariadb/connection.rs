@@ -248,7 +248,7 @@ impl MariaDb {
         self.write(ComStmtExecute {
             statement_id,
             params: &params.params,
-            null: &params.null,
+            null: &params.null_bitmap,
             flags: StmtExecFlag::NO_CURSOR,
             param_types: &params.param_types,
         });
