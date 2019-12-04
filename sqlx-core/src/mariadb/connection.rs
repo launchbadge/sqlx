@@ -1,23 +1,20 @@
 use super::establish;
-use crate::{
-    io::{Buf, BufMut, BufStream},
-    mariadb::{
-        protocol::{
-            Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComPing, ComQuit,
-            ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
-            OkPacket, ResultRow, StmtExecFlag,
-        },
-        query::MariaDbQueryParameters,
+use crate::{io::{Buf, BufMut, BufStream}, mariadb::{
+    protocol::{
+        Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComPing, ComQuit,
+        ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
+        OkPacket, ResultRow, StmtExecFlag,
     },
-    url::Url,
-    Error, Result,
-};
+    query::MariaDbQueryParameters,
+}, url::Url, Error, Result, Describe, ResultField};
 use async_std::net::TcpStream;
 use byteorder::{ByteOrder, LittleEndian};
 use std::{
     io,
     net::{IpAddr, SocketAddr},
 };
+
+pub type StatementId = u32;
 
 pub struct MariaDb {
     pub(crate) stream: BufStream<TcpStream>,
@@ -157,7 +154,20 @@ impl MariaDb {
         })
     }
 
-    pub(super) async fn send_prepare<'c>(
+    async fn check_eof(&mut self) -> Result<()> {
+        // When (legacy) EOFs are enabled, the fixed number column definitions are further
+        // terminated by an EOF packet
+        if !self
+            .capabilities
+            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
+        {
+            let _eof = EofPacket::decode(self.receive().await?)?;
+        }
+
+        Ok(())
+    }
+
+    async fn send_prepare<'c>(
         &'c mut self,
         statement: &'c str,
     ) -> Result<ComStmtPrepareOk> {
@@ -177,19 +187,21 @@ impl MariaDb {
 
         let ok = ComStmtPrepareOk::decode(packet)?;
 
+        Ok(ok)
+    }
+
+    // MySQL/MariaDB responds with statement metadata for every PREPARE command
+    // sometimes we care, sometimes we don't
+    pub(super) async fn prepare_ignore_describe(&mut self, statement: &str) -> Result<StatementId> {
+        let ok = self.send_prepare(statement).await?;
+
         // Input parameters
         for _ in 0..ok.params {
             // TODO: Maybe do something with this data ?
             let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
         }
 
-        // TODO: De-duplicate this
-        if !self
-            .capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-        {
-            let _eof = EofPacket::decode(self.receive().await?)?;
-        }
+        self.check_eof().await?;
 
         // Output parameters
         for _ in 0..ok.columns {
@@ -197,18 +209,46 @@ impl MariaDb {
             let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
         }
 
-        // TODO: De-duplicate this
-        if !self
-            .capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-        {
-            let _eof = EofPacket::decode(self.receive().await?)?;
-        }
+        self.check_eof().await?;
 
-        Ok(ok)
+        Ok(ok.statement_id)
     }
 
-    pub(super) async fn column_definitions(&mut self) -> Result<Vec<ColumnDefinitionPacket>> {
+    pub(super) async fn prepare_describe(&mut self, statement: &str) -> Result<Describe<Self>> {
+        let ok = self.send_prepare(statement).await?;
+
+        let mut param_types = Vec::with_capacity(ok.params as usize);
+        let mut result_fields= Vec::with_capacity(ok.columns as usize);
+
+        // Input parameters
+        for _ in 0..ok.params {
+            let param = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            param_types.push(param.field_type.0);
+        }
+
+        self.check_eof().await?;
+
+        // Output parameters
+        for _ in 0..ok.columns {
+            let column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            result_fields.push(ResultField {
+                name: column.column_alias.or(column.column),
+                table_id: column.table_alias.or(column.table),
+                type_id: column.field_type.0,
+                _backcompat: ()
+            });
+        }
+
+        self.check_eof().await?;
+
+        Ok(Describe {
+            param_types,
+            result_fields,
+            _backcompat: (),
+        })
+    }
+
+    pub(super) async fn result_column_defs(&mut self) -> Result<Vec<ColumnDefinitionPacket>> {
         let packet = self.receive().await?;
 
         // A Resultset starts with a [ColumnCountPacket] which is a single field that encodes
@@ -224,14 +264,7 @@ impl MariaDb {
             columns.push(column);
         }
 
-        // When (legacy) EOFs are enabled, the fixed number column definitions are further terminated by
-        // an EOF packet
-        if !self
-            .capabilities
-            .contains(Capabilities::CLIENT_DEPRECATE_EOF)
-        {
-            let _eof = EofPacket::decode(self.receive().await?)?;
-        }
+        self.check_eof().await?;
 
         Ok(columns)
     }

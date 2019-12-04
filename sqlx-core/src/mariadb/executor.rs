@@ -25,10 +25,10 @@ impl Executor for MariaDb {
         params: MariaDbQueryParameters,
     ) -> BoxFuture<'e, crate::Result<u64>> {
         Box::pin(async move {
-            let prepare = self.send_prepare(query).await?;
-            self.send_execute(prepare.statement_id, params).await?;
+            let statement_id = self.prepare_ignore_describe(query).await?;
+            self.send_execute(statement_id, params).await?;
 
-            let columns = self.column_definitions().await?;
+            let columns = self.result_column_defs().await?;
             let capabilities = self.capabilities;
 
             // For each row in the result set we will receive a ResultRow packet.
@@ -109,10 +109,10 @@ impl Executor for MariaDb {
         T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let prepare = self.send_prepare(query).await?;
-            self.send_execute(prepare.statement_id, params).await?;
+            let statement_id = self.prepare_ignore_describe(query).await?;
+            self.send_execute(statement_id, params).await?;
 
-            let columns = self.column_definitions().await?;
+            let columns = self.result_column_defs().await?;
             let capabilities = self.capabilities;
 
             let mut row: Option<_> = None;
@@ -142,6 +142,8 @@ impl Executor for MariaDb {
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
-        _query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> { unimplemented!(); }
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
+        Box::pin(self.prepare_describe(query))
+    }
 }

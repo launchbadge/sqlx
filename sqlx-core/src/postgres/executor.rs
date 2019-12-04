@@ -128,10 +128,12 @@ impl Executor for Postgres {
                     .into_iter()
                     .map(|field| ResultField {
                         name: if field.name == "?column?" { None } else { Some(field.name) },
-                        table_id: Some(field.table_id),
+                        table_id: if field.table_id > 0 { Some(field.table_id) } else { None },
                         type_id: field.type_id,
+                        _backcompat: (),
                     })
                     .collect(),
+                _backcompat: (),
             })
         })
     }

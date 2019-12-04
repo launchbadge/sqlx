@@ -10,6 +10,7 @@ pub struct Describe<DB: Backend> {
     pub param_types: Vec<<DB as HasTypeMetadata>::TypeId>,
     ///
     pub result_fields: Vec<ResultField<DB>>,
+    pub(crate) _backcompat: (),
 }
 
 impl<DB: Backend> fmt::Debug for Describe<DB>
@@ -30,6 +31,7 @@ pub struct ResultField<DB: Backend> {
     pub table_id: Option<<DB as Backend>::TableIdent>,
     /// The type ID of this result column.
     pub type_id: <DB as HasTypeMetadata>::TypeId,
+    pub(crate) _backcompat: (),
 }
 
 impl<DB: Backend> fmt::Debug for ResultField<DB>
