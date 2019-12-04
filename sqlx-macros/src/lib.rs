@@ -68,7 +68,8 @@ pub fn query(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as query::MacroInput);
 
     match task::block_on(with_database!(db => query::process_sql(input, db))) {
-        Ok(ts) => ts.into(),
+        // type annotation required when neither `postgres` nor `mariadb` features are set
+        Result::<proc_macro2::TokenStream>::Ok(ts) => ts.into(),
         Result::Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
                 return parse_err.to_compile_error().into();
