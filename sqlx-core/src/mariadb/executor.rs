@@ -24,8 +24,6 @@ impl Executor for MariaDb {
         query: &'q str,
         params: MariaDbQueryParameters,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        let params = params.into_params();
-
         Box::pin(async move {
             let prepare = self.send_prepare(query).await?;
             self.send_execute(prepare.statement_id, params).await?;
@@ -64,16 +62,14 @@ impl Executor for MariaDb {
         })
     }
 
-    fn fetch<'e, 'q: 'e, O: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: MariaDbQueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
-        T: FromRow<Self::Backend, O> + Send + Unpin,
+        T: FromRow<Self::Backend> + Send + Unpin,
     {
-        let params = params.into_params();
-
         Box::pin(async_stream::try_stream! {
            let prepare = self.send_prepare(query).await?;
            self.send_execute(prepare.statement_id, params).await?;
@@ -104,16 +100,14 @@ impl Executor for MariaDb {
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, O: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
         params: MariaDbQueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
-        T: FromRow<Self::Backend, O> + Send,
+        T: FromRow<Self::Backend> + Send,
     {
-        let params = params.into_params();
-
         Box::pin(async move {
             let prepare = self.send_prepare(query).await?;
             self.send_execute(prepare.statement_id, params).await?;
@@ -148,8 +142,6 @@ impl Executor for MariaDb {
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
-        unimplemented!();
-    }
+        _query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> { unimplemented!(); }
 }

@@ -40,7 +40,7 @@ impl QueryParameters for MariaDbQueryParameters {
         self.null_bitmap.resize(index / 8, 0);
 
         if let IsNull::Yes = value.encode(&mut self.params) {
-            self.null_bitmap[index / 8] &= (1 << index % 8);
+            self.null_bitmap[index / 8] &= 1 << index % 8;
         }
     }
 }

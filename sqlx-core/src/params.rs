@@ -27,6 +27,8 @@ macro_rules! impl_into_query_parameters {
             $($T: crate::encode::Encode<$B>,)+
         {
             fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
+                use crate::params::QueryParameters;
+
                 let mut params = <$B as crate::backend::Backend>::QueryParameters::default();
 
                 let binds = 0 $(+ { $idx; 1 } )+;
