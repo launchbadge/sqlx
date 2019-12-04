@@ -38,6 +38,10 @@ impl Encode<Postgres> for String {
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         <str as Encode<Postgres>>::encode(self.as_str(), buf)
     }
+
+    fn size_hint(&self) -> usize {
+        self.len()
+    }
 }
 
 impl Decode<Postgres> for String {

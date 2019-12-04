@@ -31,6 +31,10 @@ impl Encode<Postgres> for Vec<u8> {
     fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
         <[u8] as Encode<Postgres>>::encode(self, buf)
     }
+
+    fn size_hint(&self) -> usize {
+        self.len()
+    }
 }
 
 impl Decode<Postgres> for Vec<u8> {

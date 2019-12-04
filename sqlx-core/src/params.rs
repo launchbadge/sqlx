@@ -1,11 +1,9 @@
 use crate::{backend::Backend, encode::Encode, types::HasSqlType};
 
-pub trait QueryParameters: Send {
+pub trait QueryParameters: Default + Send {
     type Backend: Backend;
 
-    fn new() -> Self
-    where
-        Self: Sized;
+    fn reserve(&mut self, binds: usize, bytes: usize);
 
     fn bind<T>(&mut self, value: T)
     where
@@ -29,8 +27,12 @@ macro_rules! impl_into_query_parameters {
             $($T: crate::encode::Encode<$B>,)+
         {
             fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
-                let mut params = <<$B as crate::backend::Backend>::QueryParameters
-                    as crate::params::QueryParameters>::new();
+                let mut params = <$B as crate::backend::Backend>::QueryParameters::default();
+
+                let binds = 0 $(+ { $idx; 1 } )+;
+                let bytes = 0 $(+ crate::encode::Encode::size_hint(&self.$idx))+;
+
+                params.reserve(binds, bytes);
 
                 $(crate::params::QueryParameters::bind(&mut params, self.$idx);)+
 
@@ -57,8 +59,7 @@ macro_rules! impl_into_query_parameters_for_backend {
         {
             #[inline]
             fn into_params(self) -> <$B as crate::backend::Backend>::QueryParameters {
-                <<$B as crate::backend::Backend>::QueryParameters
-                    as crate::params::QueryParameters>::new()
+                Default::default()
             }
         }
 

@@ -39,6 +39,13 @@ macro_rules! impl_from_row {
     };
 }
 
+/// Scalar conversions for rows
+impl<T, DB> FromRow<DB> for T where DB: Backend + HasSqlType<T>, T: Decode<DB> {
+    fn from_row(row: <DB as Backend>::Row) -> Self {
+        row.get(0)
+    }
+}
+
 #[allow(unused)]
 macro_rules! impl_from_row_for_backend {
     ($B:ident, $row:ident) => {

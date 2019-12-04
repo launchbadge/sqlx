@@ -8,21 +8,17 @@ use crate::{
     url::Url,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
+use crate::postgres::query::PostgresQueryParameters;
 
 impl Executor for Postgres {
     type Backend = Self;
 
-    fn execute<'e, 'q: 'e, I: 'e>(
+    fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        I: IntoQueryParameters<Self::Backend> + Send,
-    {
+        params: PostgresQueryParameters,
+    ) -> BoxFuture<'e, crate::Result<u64>> {
         Box::pin(async move {
-            let params = params.into_params();
-
             self.parse("", query, &params);
             self.bind("", "", &params);
             self.execute("", 1);
@@ -40,17 +36,14 @@ impl Executor for Postgres {
         })
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: PostgresQueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend> + Send + Unpin,
     {
-        let params = params.into_params();
-
         self.parse("", query, &params);
         self.bind("", "", &params);
         self.execute("", 0);
@@ -66,18 +59,15 @@ impl Executor for Postgres {
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: PostgresQueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
         T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
-            let params = params.into_params();
-
             self.parse("", query, &params);
             self.bind("", "", &params);
             self.execute("", 2);
@@ -104,7 +94,7 @@ impl Executor for Postgres {
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(async move {
-            self.parse("", query, &QueryParameters::new());
+            self.parse("", query, &Default::default());
             self.describe("");
             self.sync().await?;
 

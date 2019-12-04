@@ -7,6 +7,7 @@ use crate::{
 };
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
+#[derive(Default)]
 pub struct PostgresQueryParameters {
     // OIDs of the bind parameters
     pub(super) types: Vec<u32>,
@@ -17,13 +18,9 @@ pub struct PostgresQueryParameters {
 impl QueryParameters for PostgresQueryParameters {
     type Backend = Postgres;
 
-    fn new() -> Self {
-        Self {
-            // Estimates for average number of bind parameters were
-            // chosen from sampling from internal projects
-            types: Vec::with_capacity(4),
-            buf: Vec::with_capacity(32),
-        }
+    fn reserve(&mut self, binds: usize, bytes: usize) {
+        self.types.reserve(binds);
+        self.buf.reserve(bytes);
     }
 
     fn bind<T>(&mut self, value: T)

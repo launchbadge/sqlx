@@ -41,36 +41,33 @@ where
 {
     type Backend = DB;
 
-    fn execute<'e, 'q: 'e, I: 'e>(
+    fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        I: IntoQueryParameters<Self::Backend> + Send,
-    {
+        params: <DB as Backend>::QueryParameters,
+    ) -> BoxFuture<'e, crate::Result<u64>> {
         self.live.execute(query, params)
     }
 
-    fn fetch<'e, 'q: 'e, I: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <DB as Backend>::QueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
+
         T: FromRow<Self::Backend> + Send + Unpin,
     {
         self.live.fetch(query, params)
     }
 
-    fn fetch_optional<'e, 'q: 'e, I: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: I,
+        params: <DB as Backend>::QueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
-        I: IntoQueryParameters<Self::Backend> + Send,
+
         T: FromRow<Self::Backend> + Send,
     {
         self.live.fetch_optional(query, params)

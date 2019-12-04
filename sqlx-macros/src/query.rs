@@ -132,12 +132,9 @@ pub async fn process_sql<DB: BackendExt>(
 
         #params
 
-        sqlx::Query::<#backend_path, _, (#record_type)> {
-            query: #query,
-            input: params,
-            output: ::core::marker::PhantomData,
-            backend: ::core::marker::PhantomData,
-        }
+        sqlx::query::<#backend_path>(#query)
+            .bind_all(params)
+            .as_record::<#record_type>()
     }})
 }
 
