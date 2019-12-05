@@ -30,6 +30,18 @@
 use super::Postgres;
 use crate::types::{HasTypeMetadata, TypeMetadata};
 
+macro_rules! postgres_metadata {
+    ($($({ $($typarams:tt)* })? $type:path: $meta:expr),*$(,)?) => {
+        $(
+            impl$(<$($typarams)*>)? crate::types::HasSqlType<$type> for Postgres {
+                fn metadata() -> PostgresTypeMetadata {
+                    $meta
+                }
+            }
+        )*
+    };
+}
+
 mod binary;
 mod boolean;
 mod character;
@@ -37,6 +49,9 @@ mod numeric;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+#[cfg(feature = "chrono")]
+mod chrono;
 
 pub enum PostgresTypeFormat {
     Text = 0,

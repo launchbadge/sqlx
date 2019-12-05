@@ -23,6 +23,7 @@ unstable = [ "sqlx-core/unstable" ]
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mariadb = [ "sqlx-core/mariadb", "sqlx-macros/mariadb" ]
 macros = [ "sqlx-macros", "proc-macro-hack" ]
+chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]

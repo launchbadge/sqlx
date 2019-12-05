@@ -52,7 +52,7 @@ mod tests {
     use crate::__bytes_builder;
 
     #[test]
-    fn it_decodes_com_stmt_prepare_ok() -> io::Result<()> {
+    fn it_decodes_com_stmt_prepare_ok() -> crate::Result<()> {
         #[rustfmt::skip]
         let buf = &__bytes_builder!(
             // int<1> 0x00 COM_STMT_PREPARE_OK header
