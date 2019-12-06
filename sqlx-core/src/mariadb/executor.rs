@@ -71,10 +71,10 @@ impl Executor for MariaDb {
         T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-           let prepare = self.send_prepare(query).await?;
-           self.send_execute(prepare.statement_id, params).await?;
+           let prepare = self.prepare_ignore_describe(query).await?;
+           self.send_execute(prepare, params).await?;
 
-           let columns = self.column_definitions().await?;
+           let columns = self.result_column_defs().await?;
            let capabilities = self.capabilities;
 
            loop {
