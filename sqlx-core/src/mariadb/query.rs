@@ -37,10 +37,10 @@ impl QueryParameters for MariaDbQueryParameters {
         let index = self.param_types.len();
 
         self.param_types.push(metadata);
-        self.null_bitmap.resize(index / 8, 0);
+        self.null_bitmap.resize((index / 8) + 1, 0);
 
         if let IsNull::Yes = value.encode(&mut self.params) {
-            self.null_bitmap[index / 8] &= 1 << index % 8;
+            self.null_bitmap[index / 8] &= (1 << index % 8) as u8;
         }
     }
 }

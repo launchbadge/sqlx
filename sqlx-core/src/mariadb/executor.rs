@@ -115,10 +115,11 @@ impl Executor for MariaDb {
             let columns = self.result_column_defs().await?;
             let capabilities = self.capabilities;
 
-            let mut row: Option<_> = None;
+            let mut row = None;
 
             loop {
                 let packet = self.receive().await?;
+
                 if packet[0] == 0xFE && packet.len() < 0xFF_FF_FF {
                     // NOTE: It's possible for a ResultRow to start with 0xFE (which would normally signify end-of-rows)
                     //       but it's not possible for an Ok/Eof to be larger than 0xFF_FF_FF.

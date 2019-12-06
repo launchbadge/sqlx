@@ -41,7 +41,7 @@ impl ResultRow {
         let mut values = Vec::with_capacity(columns.len());
 
         for column_idx in 0..columns.len() {
-            if null[column_idx / 8] & (1 << (column_idx % 8)) != 0 {
+            if null[column_idx / 8] & (1 << (column_idx % 8) as u8) != 0 {
                 values.push(None);
             } else {
                 match columns[column_idx].field_type {
