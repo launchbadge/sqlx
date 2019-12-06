@@ -132,6 +132,7 @@ impl Executor for MariaDb {
                     break;
                 } else if packet[0] == 0xFF {
                     let _err = ErrPacket::decode(packet)?;
+                    panic!("Received error packet: {:?}", _err);
                 } else {
                     row = Some(FromRow::from_row(ResultRow::decode(packet, &columns)?));
                 }

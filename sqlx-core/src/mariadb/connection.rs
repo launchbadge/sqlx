@@ -195,21 +195,25 @@ impl MariaDb {
     pub(super) async fn prepare_ignore_describe(&mut self, statement: &str) -> Result<StatementId> {
         let ok = self.send_prepare(statement).await?;
 
-        // Input parameters
-        for _ in 0..ok.params {
-            // TODO: Maybe do something with this data ?
-            let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+        if ok.params > 0 {
+            // Input parameters
+            for _ in 0..ok.params {
+                // TODO: Maybe do something with this data ?
+                let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            }
+
+            self.check_eof().await?;
         }
 
-        self.check_eof().await?;
+        if ok.columns > 0 {
+            // Output parameters
+            for _ in 0..ok.columns {
+                // TODO: Maybe do something with this data ?
+                let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            }
 
-        // Output parameters
-        for _ in 0..ok.columns {
-            // TODO: Maybe do something with this data ?
-            let _column = ColumnDefinitionPacket::decode(self.receive().await?)?;
+            self.check_eof().await?;
         }
-
-        self.check_eof().await?;
 
         Ok(ok.statement_id)
     }
@@ -253,6 +257,11 @@ impl MariaDb {
 
         // A Resultset starts with a [ColumnCountPacket] which is a single field that encodes
         // how many columns we can expect when fetching rows from this statement
+
+        if packet[0] == 255 {
+            ErrPacket::decode(packet)?.expect_error()?;
+        }
+
         let column_count: u64 = ColumnCountPacket::decode(packet)?.columns;
 
         // Next we have a [ColumnDefinitionPacket] which verbosely explains each minute

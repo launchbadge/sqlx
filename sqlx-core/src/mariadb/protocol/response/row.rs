@@ -49,8 +49,16 @@ impl ResultRow {
                         values.push(Some(buf.get_bytes(1)?.into()));
                     }
 
+                    FieldType::MYSQL_TYPE_SHORT => {
+                        values.push(Some(buf.get_bytes(2)?.into()));
+                    }
+
                     FieldType::MYSQL_TYPE_LONG => {
                         values.push(Some(buf.get_bytes(4)?.into()));
+                    }
+
+                    FieldType::MYSQL_TYPE_LONGLONG => {
+                        values.push(Some(buf.get_bytes(8)?.into()));
                     }
 
                     FieldType::MYSQL_TYPE_TINY_BLOB

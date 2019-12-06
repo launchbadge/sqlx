@@ -6,15 +6,26 @@ use crate::{
     types::HasSqlType,
 };
 use std::str;
+use crate::mariadb::io::BufMutExt;
+use byteorder::LittleEndian;
 
 impl HasSqlType<str> for MariaDb {
     #[inline]
     fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
             // MYSQL_TYPE_VAR_STRING
-            field_type: FieldType(253),
+            field_type: FieldType(254),
             param_flag: ParameterFlag::empty(),
         }
+    }
+}
+
+impl Encode<MariaDb> for str {
+    #[inline]
+    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.put_str_lenenc::<LittleEndian>(self);
+
+        IsNull::No
     }
 }
 
@@ -22,15 +33,6 @@ impl HasSqlType<String> for MariaDb {
     #[inline]
     fn metadata() -> MariaDbTypeMetadata {
         <MariaDb as HasSqlType<&str>>::metadata()
-    }
-}
-
-impl Encode<MariaDb> for str {
-    #[inline]
-    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.extend_from_slice(self.as_bytes());
-
-        IsNull::No
     }
 }
 
