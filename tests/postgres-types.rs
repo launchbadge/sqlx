@@ -1,12 +1,13 @@
 use sqlx::{Connection, Postgres, Row};
-use std::env;
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
         async fn $name () -> sqlx::Result<()> {
             let mut conn =
-                Connection::<Postgres>::open(&env::var("DATABASE_URL").unwrap()).await?;
+                Connection::<Postgres>::open(
+                    &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
+                ).await?;
 
             $(
                 let row = sqlx::query(&format!("SELECT {} = $1, $1", $text))
