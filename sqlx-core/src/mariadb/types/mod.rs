@@ -9,6 +9,9 @@ pub mod boolean;
 pub mod character;
 pub mod numeric;
 
+#[cfg(feature = "chrono")]
+pub mod chrono;
+
 #[derive(Debug)]
 pub struct MariaDbTypeMetadata {
     pub field_type: FieldType,

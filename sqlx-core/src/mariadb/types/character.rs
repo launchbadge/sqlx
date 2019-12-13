@@ -14,7 +14,7 @@ impl HasSqlType<str> for MariaDb {
     fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
             // MYSQL_TYPE_VAR_STRING
-            field_type: FieldType(254),
+            field_type: FieldType::MYSQL_TYPE_VAR_STRING,
             param_flag: ParameterFlag::empty(),
         }
     }

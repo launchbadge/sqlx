@@ -38,7 +38,7 @@ mod test {
     use std::io;
 
     #[test]
-    fn it_decodes_eof_packet() -> io::Result<()> {
+    fn it_decodes_eof_packet() -> crate::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // int<1> 0xfe : EOF header

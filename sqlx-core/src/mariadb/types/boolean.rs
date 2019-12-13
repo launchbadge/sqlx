@@ -10,7 +10,7 @@ impl HasSqlType<bool> for MariaDb {
     fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
             // MYSQL_TYPE_TINY
-            field_type: FieldType(1),
+            field_type: FieldType::MYSQL_TYPE_TINY,
             param_flag: ParameterFlag::empty(),
         }
     }

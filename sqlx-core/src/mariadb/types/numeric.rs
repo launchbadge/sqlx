@@ -11,7 +11,7 @@ impl HasSqlType<i8> for MariaDb {
     #[inline]
     fn metadata() -> MariaDbTypeMetadata {
         MariaDbTypeMetadata {
-            field_type: FieldType(1),
+            field_type: FieldType::MYSQL_TYPE_TINY,
             param_flag: ParameterFlag::empty(),
         }
     }

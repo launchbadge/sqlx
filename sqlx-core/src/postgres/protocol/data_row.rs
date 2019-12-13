@@ -65,6 +65,7 @@ impl Debug for DataRow {
 #[cfg(test)]
 mod tests {
     use super::{DataRow, Decode};
+    use crate::Row;
 
     const DATA_ROW: &[u8] = b"\0\x03\0\0\0\x011\0\0\0\x012\0\0\0\x013";
 
@@ -74,9 +75,9 @@ mod tests {
 
         assert_eq!(m.len(), 3);
 
-        assert_eq!(m.get(0), Some(&b"1"[..]));
-        assert_eq!(m.get(1), Some(&b"2"[..]));
-        assert_eq!(m.get(2), Some(&b"3"[..]));
+        assert_eq!(m.get_raw(0), Some(&b"1"[..]));
+        assert_eq!(m.get_raw(1), Some(&b"2"[..]));
+        assert_eq!(m.get_raw(2), Some(&b"3"[..]));
 
         assert_eq!(
             format!("{:?}", m),

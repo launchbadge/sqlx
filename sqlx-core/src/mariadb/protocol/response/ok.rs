@@ -69,7 +69,7 @@ mod test {
     use crate::__bytes_builder;
 
     #[test]
-    fn it_decodes_ok_packet() -> io::Result<()> {
+    fn it_decodes_ok_packet() -> crate::Result<()> {
         #[rustfmt::skip]
         let buf = __bytes_builder!(
             // 0x00 : OK_Packet header or (0xFE if CLIENT_DEPRECATE_EOF is set)

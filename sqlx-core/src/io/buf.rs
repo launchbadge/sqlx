@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
 use memchr::memchr;
-use std::{io, str};
+use std::{io, slice, str};
 
 pub trait Buf {
     fn advance(&mut self, cnt: usize);
@@ -97,4 +97,16 @@ impl<'a> Buf for &'a [u8] {
 
         Ok(s)
     }
+}
+
+pub trait ToBuf {
+    fn to_buf(&self) -> &[u8];
+}
+
+impl ToBuf for [u8] {
+    fn to_buf(&self) -> &[u8] { self }
+}
+
+impl ToBuf for u8 {
+    fn to_buf(&self) -> &[u8] { slice::from_ref(self) }
 }
