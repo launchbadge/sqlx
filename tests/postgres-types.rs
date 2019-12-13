@@ -3,17 +3,18 @@ use sqlx::{Connection, Postgres, Row};
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
-        async fn $name () -> sqlx::Result<()> {
+        async fn $name () -> Result<(), String> {
             let mut conn =
                 Connection::<Postgres>::open(
                     &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
-                ).await?;
+                ).await.map_err(|e| format!("failed to connect to Postgres: {}", e))?;
 
             $(
                 let row = sqlx::query(&format!("SELECT {} = $1, $1", $text))
                     .bind($value)
                     .fetch_one(&mut conn)
-                    .await?;
+                    .await
+                    .map_err(|e| format!("failed to run query: {}", e))?;
 
                 assert!(row.get::<bool>(0));
                 assert!($value == row.get::<$ty>(1));

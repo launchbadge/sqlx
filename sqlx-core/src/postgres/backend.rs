@@ -1,4 +1,4 @@
-use super::{connection::Step, Postgres};
+use super::{connection::{PostgresConn, Step}, Postgres};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
@@ -7,6 +7,7 @@ use crate::{
     url::Url,
 };
 use futures_core::{future::BoxFuture, stream::BoxStream};
+use crate::cache::StatementCache;
 
 impl Backend for Postgres {
     type QueryParameters = PostgresQueryParameters;
@@ -21,7 +22,7 @@ impl Backend for Postgres {
         Box::pin(async move {
             let url = url?;
             let address = url.resolve(5432);
-            let mut conn = Self::new(address).await?;
+            let mut conn = PostgresConn::new(address).await?;
 
             conn.startup(
                 url.username(),
@@ -30,12 +31,16 @@ impl Backend for Postgres {
             )
             .await?;
 
-            Ok(conn)
+            Ok(Postgres {
+                conn,
+                statements: StatementCache::new(),
+                next_id: 0
+            })
         })
     }
 
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(self.terminate())
+        Box::pin(self.conn.terminate())
     }
 }
 

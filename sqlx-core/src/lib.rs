@@ -33,6 +33,8 @@ pub mod types;
 
 mod describe;
 
+mod cache;
+
 #[doc(inline)]
 pub use self::{
     backend::Backend,

@@ -10,6 +10,28 @@ use crate::{
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use crate::postgres::query::PostgresQueryParameters;
 
+impl Postgres {
+    async fn prepare_cached(&mut self, query: &str, params: &PostgresQueryParameters) -> crate::Result<String> {
+        fn get_stmt_name(id: u64) -> String {
+            format!("sqlx_postgres_stmt_{}", id)
+        }
+
+        let conn = &mut self.conn;
+        let next_id = &mut self.next_id;
+
+        self.statements.map_or_compute(
+            query,
+            |&id| get_stmt_name(id),
+            || async {
+                let stmt_id = *next_id;
+                let stmt_name = get_stmt_name(stmt_id);
+                conn.try_parse(&stmt_name, query, params).await?;
+                *next_id += 1;
+                Ok((stmt_id, stmt_name))
+            }).await
+    }
+}
+
 impl Executor for Postgres {
     type Backend = Self;
 
@@ -19,14 +41,15 @@ impl Executor for Postgres {
         params: PostgresQueryParameters,
     ) -> BoxFuture<'e, crate::Result<u64>> {
         Box::pin(async move {
-            self.parse("", query, &params);
-            self.bind("", "", &params);
-            self.execute("", 1);
-            self.sync().await?;
+            let stmt = self.prepare_cached(query, &params).await?;
+
+            self.conn.bind("", &stmt, &params);
+            self.conn.execute("", 1);
+            self.conn.sync().await?;
 
             let mut affected = 0;
 
-            while let Some(step) = self.step().await? {
+            while let Some(step) = self.conn.step().await? {
                 if let Step::Command(cnt) = step {
                     affected = cnt;
                 }
@@ -41,17 +64,16 @@ impl Executor for Postgres {
         query: &'q str,
         params: PostgresQueryParameters,
     ) -> BoxStream<'e, crate::Result<T>>
-    where
-        T: FromRow<Self::Backend> + Send + Unpin,
+        where
+            T: FromRow<Self::Backend> + Send + Unpin,
     {
-        self.parse("", query, &params);
-        self.bind("", "", &params);
-        self.execute("", 0);
-
         Box::pin(async_stream::try_stream! {
-            self.sync().await?;
+            let stmt = self.prepare_cached(query, &params).await?;
+            self.conn.bind("", &stmt, &params);
+            self.conn.execute("", 0);
+            self.conn.sync().await?;
 
-            while let Some(step) = self.step().await? {
+            while let Some(step) = self.conn.step().await? {
                 if let Step::Row(row) = step {
                     yield FromRow::from_row(row);
                 }
@@ -64,18 +86,18 @@ impl Executor for Postgres {
         query: &'q str,
         params: PostgresQueryParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
-    where
-        T: FromRow<Self::Backend> + Send,
+        where
+            T: FromRow<Self::Backend> + Send,
     {
         Box::pin(async move {
-            self.parse("", query, &params);
-            self.bind("", "", &params);
-            self.execute("", 2);
-            self.sync().await?;
+            let stmt = self.prepare_cached(query, &params).await?;
+            self.conn.bind("", &stmt, &params);
+            self.conn.execute("", 2);
+            self.conn.sync().await?;
 
             let mut row: Option<_> = None;
 
-            while let Some(step) = self.step().await? {
+            while let Some(step) = self.conn.step().await? {
                 if let Step::Row(r) = step {
                     if row.is_some() {
                         return Err(crate::Error::FoundMoreThanOne);
@@ -94,13 +116,13 @@ impl Executor for Postgres {
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(async move {
-            self.parse("", query, &Default::default());
-            self.describe("");
-            self.sync().await?;
+            let stmt = self.prepare_cached(query, &PostgresQueryParameters::default()).await?;
+            self.conn.describe(&stmt);
+            self.conn.sync().await?;
 
             let param_desc = loop {
                 let step = self
-                    .step()
+                    .conn.step()
                     .await?
                     .ok_or(protocol_err!("did not receive ParameterDescription"));
 
@@ -111,7 +133,7 @@ impl Executor for Postgres {
 
             let row_desc = loop {
                 let step = self
-                    .step()
+                    .conn.step()
                     .await?
                     .ok_or(protocol_err!("did not receive RowDescription"));
 

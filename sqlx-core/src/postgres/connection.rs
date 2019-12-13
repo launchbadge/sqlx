@@ -13,7 +13,7 @@ use std::{
     net::{Shutdown, SocketAddr},
 };
 
-pub struct Postgres {
+pub struct PostgresConn {
     stream: BufStream<TcpStream>,
 
     // Process ID of the Backend
@@ -34,7 +34,7 @@ pub struct Postgres {
 // [ ] 52.2.9. SSL Session Encryption
 // [ ] 52.2.10. GSSAPI Session Encryption
 
-impl Postgres {
+impl PostgresConn {
     pub(super) async fn new(address: SocketAddr) -> crate::Result<Self> {
         let stream = TcpStream::connect(&address).await?;
 
@@ -139,13 +139,20 @@ impl Postgres {
         Ok(())
     }
 
-    pub(super) fn parse(&mut self, statement: &str, query: &str, params: &PostgresQueryParameters) {
+    pub(super) fn buffer_parse(&mut self, statement: &str, query: &str, params: &PostgresQueryParameters) {
         protocol::Parse {
             statement,
             query,
             param_types: &*params.types,
         }
         .encode(self.stream.buffer_mut());
+    }
+
+    pub(super) async fn try_parse(&mut self, statement: &str, query: &str, params: &PostgresQueryParameters) -> crate::Result<()> {
+        self.buffer_parse(statement, query, params);
+        self.sync().await?;
+        while let Some(_) = self.step().await? {}
+        Ok(())
     }
 
     pub(super) fn describe(&mut self, statement: &str) {

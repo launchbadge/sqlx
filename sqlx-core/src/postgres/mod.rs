@@ -1,3 +1,6 @@
+use crate::postgres::connection::PostgresConn;
+use crate::cache::StatementCache;
+
 mod backend;
 mod connection;
 mod error;
@@ -13,4 +16,8 @@ pub mod protocol;
 
 pub mod types;
 
-pub use self::connection::Postgres;
+pub struct Postgres {
+    conn: PostgresConn,
+    statements: StatementCache<u64>,
+    next_id: u64,
+}
