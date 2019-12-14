@@ -7,7 +7,17 @@ impl_backend_ext! {
         i64,
         f32,
         f64,
+
         #[cfg(feature = "uuid")]
-        sqlx::types::Uuid
+        sqlx::types::Uuid,
+
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::NaiveTime,
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::NaiveDate,
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::NaiveDateTime,
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     }
 }

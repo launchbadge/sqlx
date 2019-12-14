@@ -13,7 +13,7 @@ pub trait BackendExt: Backend {
 }
 
 macro_rules! impl_backend_ext {
-    ($backend:path { $($(#[$meta:meta])? $ty:ty $(| $borrowed:ty)?),* }) => {
+    ($backend:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }) => {
         impl $crate::backend::BackendExt for $backend {
             const BACKEND_PATH: &'static str = stringify!($backend);
 
@@ -24,7 +24,7 @@ macro_rules! impl_backend_ext {
                     $(
                         // `if` statements cannot have attributes but these can
                         $(#[$meta])?
-                        _ if <$backend as sqlx::types::HasSqlType<$ty>>::metadata().type_id_eq(id) => Some(borrowed_ty!($ty $(, $borrowed)?)),
+                        _ if <$backend as sqlx::types::HasSqlType<$ty>>::metadata().type_id_eq(id) => Some(input_ty!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
@@ -45,9 +45,9 @@ macro_rules! impl_backend_ext {
     }
 }
 
-macro_rules! borrowed_ty {
-    ($ty:ty, $borrowed:ty) => {
-        stringify!($borrowed)
+macro_rules! input_ty {
+    ($ty:ty, $input:ty) => {
+        stringify!($input)
     };
     ($ty:ty) => {
         stringify!($ty)

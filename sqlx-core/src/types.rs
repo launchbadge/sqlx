@@ -1,6 +1,11 @@
 #[cfg(feature = "uuid")]
 pub use uuid::Uuid;
 
+#[cfg(feature = "chrono")]
+pub mod chrono {
+    pub use chrono::{NaiveDate, NaiveTime, NaiveDateTime, DateTime, Utc};
+}
+
 use std::fmt::Display;
 
 /// Information about how a backend stores metadata about
