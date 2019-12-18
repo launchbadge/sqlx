@@ -13,7 +13,7 @@ authors = [
 default = []
 unstable = []
 postgres = []
-mariadb = []
+mysql = []
 
 [dependencies]
 async-std = { version = "1.2.0", default-features = false, features = [ "unstable" ] }

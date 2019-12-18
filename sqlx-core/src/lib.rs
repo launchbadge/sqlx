@@ -7,20 +7,19 @@ mod macros;
 #[macro_use]
 pub mod error;
 
-#[cfg(any(feature = "postgres", feature = "mariadb"))]
+#[cfg(any(feature = "postgres", feature = "mysql"))]
 #[macro_use]
 mod io;
 
 mod backend;
 pub mod decode;
 
-#[cfg(any(feature = "postgres", feature = "mariadb"))]
+#[cfg(any(feature = "postgres", feature = "mysql"))]
 mod url;
 
 #[macro_use]
 mod row;
 
-mod connection;
 mod executor;
 mod pool;
 
@@ -55,12 +54,12 @@ pub use types::HasTypeMetadata;
 #[doc(hidden)]
 pub use describe::{Describe, ResultField};
 
-#[cfg(feature = "mariadb")]
-pub mod mariadb;
+#[cfg(feature = "mysql")]
+pub mod mysql;
 
-#[cfg(feature = "mariadb")]
+#[cfg(feature = "mysql")]
 #[doc(inline)]
-pub use mariadb::MariaDb;
+pub use mysql::MySql;
 
 #[cfg(feature = "postgres")]
 pub mod postgres;
@@ -70,6 +69,12 @@ pub mod postgres;
 pub use self::postgres::Postgres;
 
 use std::marker::PhantomData;
+use futures_core::future::BoxFuture;
+
+pub trait Connection: Executor {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>>;
+}
+
 
 // These types allow the `sqlx_macros::sql!()` macro to polymorphically compare a
 // given parameter's type to an expected parameter type even if the former

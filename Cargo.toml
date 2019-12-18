@@ -21,7 +21,7 @@ authors = [
 default = [ "macros" ]
 unstable = [ "sqlx-core/unstable" ]
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
-mariadb = [ "sqlx-core/mariadb", "sqlx-macros/mariadb" ]
+mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 macros = [ "sqlx-macros", "proc-macro-hack" ]
 chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
@@ -47,7 +47,7 @@ required-features = [ "postgres" ]
 
 [[test]]
 name = "mysql-types"
-required-features = [ "mariadb" ]
+required-features = [ "mysql" ]
 
 [[bench]]
 name = "postgres-protocol"

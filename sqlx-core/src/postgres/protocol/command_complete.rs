@@ -16,7 +16,7 @@ impl CommandComplete {
 
 impl Decode for CommandComplete {
     fn decode(mut buf: &[u8]) -> crate::Result<Self> {
-        // TODO: MariaDb/MySQL return 0 for affected rows in a SELECT .. statement.
+        // TODO: Mysql/MySQL return 0 for affected rows in a SELECT .. statement.
         //       PostgreSQL returns a row count. Should we force return 0 for compatibilities sake?
 
         // Attempt to parse the last word in the command tag as an integer

@@ -1,11 +1,4 @@
-use crate::{
-    backend::Backend,
-    connection::Connection,
-    error::Error,
-    executor::Executor,
-    params::IntoQueryParameters,
-    row::{FromRow, Row},
-};
+use crate::{backend::Backend, connection::Connection, error::Error, executor::Executor, params::IntoQueryParameters, row::{FromRow, Row}, Connection};
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{
@@ -38,7 +31,6 @@ where
 {
     url: String,
     pool_rx: Receiver<Idle<DB>>,
-    pool_tx: Sender<Idle<DB>>,
     size: AtomicU32,
     closed: AtomicBool,
     options: Options,
@@ -46,9 +38,9 @@ where
 
 impl<DB> SharedPool<DB>
 where
-    DB: Backend,
+    DB: Backend, DB::Connection: Connection<Backend = DB>
 {
-    pub(crate) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
+    pub(crate) async fn new_arc(url: &str, options: Options) -> crate::Result<(Arc<Self>, Sender<DB::Connection>)> {
         // TODO: Establish [min_idle] connections
 
         let (pool_tx, pool_rx) = channel(options.max_size as usize);
@@ -56,7 +48,6 @@ where
         let pool = Arc::new(Self {
             url: url.to_owned(),
             pool_rx,
-            pool_tx,
             size: AtomicU32::new(0),
             closed: AtomicBool::new(false),
             options,
@@ -64,7 +55,7 @@ where
 
         conn_reaper(&pool);
 
-        Ok(pool)
+        Ok((pool, pool_tx)
     }
 
     pub fn options(&self) -> &Options {
@@ -177,7 +168,7 @@ where
             }
 
             // result here is `Result<Result<DB, Error>, TimeoutError>`
-            match timeout(deadline - Instant::now(), DB::open(&self.url)).await {
+            match timeout(deadline - Instant::now(), DB::connect(&self.url)).await {
                 Ok(Ok(raw)) => return Ok(Live::pooled(raw, &self.pool_tx)),
                 // error while connecting, this should definitely be logged
                 Ok(Err(e)) => log::warn!("error establishing a connection: {}", e),

@@ -1,4 +1,4 @@
-use super::{connection::Step, Postgres};
+use super::{connection::Step, Connection, Postgres};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
@@ -10,7 +10,7 @@ use crate::{
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use crate::postgres::query::PostgresQueryParameters;
 
-impl Postgres {
+impl Connection {
     async fn prepare_cached(&mut self, query: &str, params: &PostgresQueryParameters) -> crate::Result<String> {
         fn get_stmt_name(id: u64) -> String {
             format!("sqlx_postgres_stmt_{}", id)
@@ -32,8 +32,8 @@ impl Postgres {
     }
 }
 
-impl Executor for Postgres {
-    type Backend = Self;
+impl Executor for Connection {
+    type Backend = Postgres;
 
     fn execute<'e, 'q: 'e>(
         &'e mut self,
@@ -114,7 +114,7 @@ impl Executor for Postgres {
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
+    ) -> BoxFuture<'e, crate::Result<Describe<Postgres>>> {
         Box::pin(async move {
             let stmt = self.prepare_cached(query, &PostgresQueryParameters::default()).await?;
             self.conn.describe(&stmt);

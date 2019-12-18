@@ -20,6 +20,6 @@ url = "2.1.0"
 
 [features]
 chrono = ["sqlx/chrono"]
-mariadb = ["sqlx/mariadb"]
+mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
 uuid = ["sqlx/uuid"]

@@ -1,7 +1,4 @@
-use crate::{
-    backend::Backend, connection::Connection, error::Error, executor::Executor,
-    params::IntoQueryParameters, row::FromRow, Row,
-};
+use crate::{backend::Backend, connection::Connection, error::Error, executor::Executor, params::IntoQueryParameters, row::FromRow, Row, Connection};
 use futures_channel::oneshot;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{
@@ -36,13 +33,17 @@ mod inner;
 mod options;
 
 /// A pool of database connections.
-pub struct Pool<DB>(Arc<SharedPool<DB>>)
-where
-    DB: Backend;
+pub struct Pool<DB>
+    where
+        DB: Backend
+{
+    inner: Arc<SharedPool<DB>>,
+    tx: Sender<DB::Connection>
+}
 
 impl<DB> Pool<DB>
 where
-    DB: Backend,
+    DB: Backend, DB::Connection: Connection<Backend = DB>
 {
     /// Creates a connection pool with the default configuration.
     pub async fn new(url: &str) -> crate::Result<Self> {

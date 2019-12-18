@@ -13,7 +13,7 @@ impl<Id> StatementCache<Id> {
         }
     }
 
-    #[cfg(feature = "mariadb")]
+    #[cfg(feature = "mysql")]
     pub async fn get_or_compute<'a, E, Fut>(&'a mut self, query: &str, compute: impl FnOnce() -> Fut)
                                             -> Result<&'a Id, E>
     where

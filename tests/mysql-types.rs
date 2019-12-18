@@ -1,4 +1,4 @@
-use sqlx::{Connection, MariaDb, Row};
+use sqlx::{Connection, Connection, Row};
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {

@@ -10,9 +10,9 @@ use futures_core::future::BoxFuture;
 /// important related traits as associated types.
 ///
 /// This trait is not intended to be used directly.
-pub trait Backend:
-    Executor<Backend = Self> + HasTypeMetadata + Send + Sync + Sized + 'static
-{
+pub trait Backend: HasTypeMetadata + Send + Sync + Sized + 'static {
+    type Connection: crate::Connection<Backend = Self>;
+
     /// The concrete `QueryParameters` implementation for this backend.
     type QueryParameters: QueryParameters<Backend = Self>;
 
@@ -20,17 +20,9 @@ pub trait Backend:
     type Row: Row<Backend = Self>;
 
     /// The identifier for tables; in Postgres this is an `oid` while
-    /// in MariaDB/MySQL this is the qualified name of the table.
+    /// in MySQL/MariaDB this is the qualified name of the table.
     type TableIdent;
 
     /// Establish a new connection to the database server.
-    fn open(url: &str) -> BoxFuture<'static, crate::Result<Self>>
-    where
-        Self: Sized;
-
-    /// Release resources for this database connection immediately.
-    ///
-    /// This method is not required to be called. A database server will
-    /// eventually notice and clean up not fully closed connections.
-    fn close(self) -> BoxFuture<'static, crate::Result<()>>;
+    fn connect(url: &str) -> BoxFuture<'static, crate::Result<Self::Connection>>;
 }

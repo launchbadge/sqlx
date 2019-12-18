@@ -1,5 +1,9 @@
-use crate::postgres::connection::PostgresConn;
+use crate::postgres::connection::Connection as RawConnection;
 use crate::cache::StatementCache;
+use crate::{Error, Backend};
+use futures_core::Future;
+use futures_core::future::BoxFuture;
+use std::net::SocketAddr;
 
 mod backend;
 mod connection;
@@ -16,8 +20,23 @@ pub mod protocol;
 
 pub mod types;
 
-pub struct Postgres {
-    conn: PostgresConn,
+pub enum Postgres {}
+
+impl Postgres {
+    /// Alias for [Backend::connect()](../trait.Backend.html#method.connect).
+    pub async fn connect(url: &str) -> crate::Result<Connection> {
+        <Self as Backend>::connect(url).await
+    }
+}
+
+pub struct Connection {
+    conn: RawConnection,
     statements: StatementCache<u64>,
     next_id: u64,
+}
+
+impl crate::Connection for Connection {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
+        Box::pin(self.conn.terminate())
+    }
 }

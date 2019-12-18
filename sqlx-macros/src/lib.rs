@@ -1,4 +1,4 @@
-#![cfg_attr(not(any(feature = "postgres", feature = "mariadb")), allow(dead_code, unused_macros, unused_imports))]
+#![cfg_attr(not(any(feature = "postgres", feature = "mysql")), allow(dead_code, unused_macros, unused_imports))]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
@@ -43,17 +43,17 @@ macro_rules! with_database(
                      feature of sqlx was not enabled",
                      db_url
                 ).into()),
-                #[cfg(feature = "mariadb")]
-                "mysql" | "mariadb" => {
+                #[cfg(feature = "mysql")]
+                "mysql" | "mysql" => {
                     let $db = sqlx::Connection::<sqlx::MariaDb>::open(db_url.as_str())
                             .await
                             .map_err(|e| format!("failed to connect to database: {}", e))?;
 
                     $expr.await
                 }
-                #[cfg(not(feature = "mariadb"))]
-                "mysql" | "mariadb" => Err(format!(
-                    "DATABASE_URL {} has the scheme of a MySQL/MariaDB database but the `mariadb` \
+                #[cfg(not(feature = "mysql"))]
+                "mysql" | "mysql" => Err(format!(
+                    "DATABASE_URL {} has the scheme of a MySQL/MariaDB database but the `mysql` \
                      feature of sqlx was not enabled",
                      db_url
                 ).into()),
@@ -68,7 +68,7 @@ pub fn query(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as query::MacroInput);
 
     match task::block_on(with_database!(db => query::process_sql(input, db))) {
-        // type annotation required when neither `postgres` nor `mariadb` features are set
+        // type annotation required when neither `postgres` nor `mysql` features are set
         Result::<proc_macro2::TokenStream>::Ok(ts) => ts.into(),
         Result::Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
