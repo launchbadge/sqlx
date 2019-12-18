@@ -3,7 +3,7 @@ use futures_core::{future::BoxFuture, stream::BoxStream};
 use crate::{
     backend::Backend,
     describe::{Describe, ResultField},
-    mysql::{protocol::ResultRow, query::MariaDbQueryParameters},
+    mysql::{protocol::ResultRow, query::MySqlDbParameters},
     url::Url,
 };
 
@@ -13,7 +13,7 @@ use crate::cache::StatementCache;
 
 impl Backend for MySql {
     type Connection = Connection;
-    type QueryParameters = MariaDbQueryParameters;
+    type QueryParameters = MySqlDbParameters;
     type Row = ResultRow;
     type TableIdent = String;
 

@@ -1,4 +1,4 @@
-use super::{MySql, MariaDbTypeMetadata};
+use super::{MySql, MySqlTypeMetadata};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -9,8 +9,8 @@ use byteorder::{ByteOrder, LittleEndian};
 
 impl HasSqlType<i8> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             field_type: FieldType::MYSQL_TYPE_TINY,
             param_flag: ParameterFlag::empty(),
         }
@@ -35,8 +35,8 @@ impl Decode<MySql> for i8 {
 
 impl HasSqlType<u8> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             field_type: FieldType(1),
             param_flag: ParameterFlag::UNSIGNED,
         }
@@ -61,8 +61,8 @@ impl Decode<MySql> for u8 {
 
 impl HasSqlType<i16> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONG
             field_type: FieldType(2),
             param_flag: ParameterFlag::empty(),
@@ -88,8 +88,8 @@ impl Decode<MySql> for i16 {
 
 impl HasSqlType<u16> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONG
             field_type: FieldType(2),
             param_flag: ParameterFlag::UNSIGNED,
@@ -115,8 +115,8 @@ impl Decode<MySql> for u16 {
 
 impl HasSqlType<i32> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONG
             field_type: FieldType(3),
             param_flag: ParameterFlag::empty(),
@@ -142,8 +142,8 @@ impl Decode<MySql> for i32 {
 
 impl HasSqlType<u32 > for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONG
             field_type: FieldType(3),
             param_flag: ParameterFlag::UNSIGNED,
@@ -169,8 +169,8 @@ impl Decode<MySql> for u32 {
 
 impl HasSqlType<i64> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONGLONG
             field_type: FieldType(8),
             param_flag: ParameterFlag::empty(),
@@ -196,8 +196,8 @@ impl Decode<MySql> for i64 {
 
 impl HasSqlType<u64> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_LONGLONG
             field_type: FieldType(8),
             param_flag: ParameterFlag::UNSIGNED,
@@ -223,8 +223,8 @@ impl Decode<MySql> for u64 {
 
 impl HasSqlType<f32> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_FLOAT
             field_type: FieldType(4),
             param_flag: ParameterFlag::empty(),
@@ -248,8 +248,8 @@ impl Decode<MySql> for f32 {
 
 impl HasSqlType<f64> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_DOUBLE
             field_type: FieldType(4),
             param_flag: ParameterFlag::empty(),

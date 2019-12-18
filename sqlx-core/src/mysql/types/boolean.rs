@@ -1,4 +1,4 @@
-use super::{MySql, MariaDbTypeMetadata};
+use super::{MySql, MySqlTypeMetadata};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -7,8 +7,8 @@ use crate::{
 };
 
 impl HasSqlType<bool> for MySql {
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_TINY
             field_type: FieldType::MYSQL_TYPE_TINY,
             param_flag: ParameterFlag::empty(),

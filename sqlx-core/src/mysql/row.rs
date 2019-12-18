@@ -1,10 +1,7 @@
-use crate::{
-    mysql::{protocol::ResultRow, Connection},
-    row::Row,
-};
+use crate::{mysql::{protocol::ResultRow, Connection}, row::Row, MySql};
 
 impl Row for ResultRow {
-    type Backend = Connection;
+    type Backend = MySql;
 
     #[inline]
     fn len(&self) -> usize {

@@ -31,7 +31,7 @@ macro_rules! with_database(
             match db_url.scheme() {
                 #[cfg(feature = "postgres")]
                 "postgresql" | "postgres" => {
-                    let $db = sqlx::Connection::<sqlx::Postgres>::open(db_url.as_str())
+                    let $db = sqlx::Postgres::connect(db_url.as_str())
                         .await
                         .map_err(|e| format!("failed to connect to database: {}", e))?;
 
@@ -44,15 +44,15 @@ macro_rules! with_database(
                      db_url
                 ).into()),
                 #[cfg(feature = "mysql")]
-                "mysql" | "mysql" => {
-                    let $db = sqlx::Connection::<sqlx::MariaDb>::open(db_url.as_str())
+                "mysql" | "mariadb" => {
+                    let $db = sqlx::MySql::connect(db_url.as_str())
                             .await
                             .map_err(|e| format!("failed to connect to database: {}", e))?;
 
                     $expr.await
                 }
                 #[cfg(not(feature = "mysql"))]
-                "mysql" | "mysql" => Err(format!(
+                "mysql" | "mariadb" => Err(format!(
                     "DATABASE_URL {} has the scheme of a MySQL/MariaDB database but the `mysql` \
                      feature of sqlx was not enabled",
                      db_url

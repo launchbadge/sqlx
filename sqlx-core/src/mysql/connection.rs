@@ -14,7 +14,7 @@ use crate::{Describe, Error, io::{Buf, BufMut, BufStream}, mysql::{
         ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
         OkPacket, ResultRow, StmtExecFlag,
     },
-    query::MariaDbQueryParameters,
+    query::MySqlDbParameters,
 }, Result, ResultField, url::Url};
 
 use super::establish;
@@ -288,7 +288,7 @@ impl Connection {
     pub(super) async fn send_execute(
         &mut self,
         statement_id: u32,
-        params: MariaDbQueryParameters,
+        params: MySqlDbParameters,
     ) -> Result<()> {
         // TODO: EXECUTE(READ_ONLY) => FETCH instead of EXECUTE(NO)
 

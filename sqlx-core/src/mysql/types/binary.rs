@@ -2,14 +2,14 @@ use crate::{
     encode::IsNull,
     mysql::{
         protocol::{FieldType, ParameterFlag},
-        types::MariaDbTypeMetadata,
+        types::MySqlTypeMetadata,
     },
     Decode, Encode, HasSqlType, MySql,
 };
 
 impl HasSqlType<[u8]> for MySql {
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             field_type: FieldType::MYSQL_TYPE_BLOB,
             param_flag: ParameterFlag::empty(),
         }
@@ -17,7 +17,7 @@ impl HasSqlType<[u8]> for MySql {
 }
 
 impl HasSqlType<Vec<u8>> for MySql {
-    fn metadata() -> MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
         <Self as HasSqlType<[u8]>>::metadata()
     }
 }

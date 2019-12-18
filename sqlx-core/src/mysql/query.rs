@@ -1,20 +1,15 @@
 use super::Connection;
-use crate::{
-    encode::{Encode, IsNull},
-    mysql::types::MariaDbTypeMetadata,
-    params::QueryParameters,
-    types::HasSqlType,
-};
+use crate::{encode::{Encode, IsNull}, mysql::types::MySqlTypeMetadata, params::QueryParameters, types::HasSqlType, MySql};
 
 #[derive(Default)]
-pub struct MariaDbQueryParameters {
-    pub(crate) param_types: Vec<MariaDbTypeMetadata>,
+pub struct MySqlDbParameters {
+    pub(crate) param_types: Vec<MySqlTypeMetadata>,
     pub(crate) params: Vec<u8>,
     pub(crate) null_bitmap: Vec<u8>,
 }
 
-impl QueryParameters for MariaDbQueryParameters {
-    type Backend = Connection;
+impl QueryParameters for MySqlDbParameters {
+    type Backend = MySql;
 
     fn reserve(&mut self, binds: usize, bytes: usize) {
         self.param_types.reserve(binds);
@@ -33,7 +28,7 @@ impl QueryParameters for MariaDbQueryParameters {
         Self::Backend: HasSqlType<T>,
         T: Encode<Self::Backend>,
     {
-        let metadata = <Connection as HasSqlType<T>>::metadata();
+        let metadata = <MySql as HasSqlType<T>>::metadata();
         let index = self.param_types.len();
 
         self.param_types.push(metadata);

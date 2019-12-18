@@ -1,11 +1,11 @@
-use sqlx::{Connection, Postgres, Row};
+use sqlx::{Postgres, Row};
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
         async fn $name () -> Result<(), String> {
             let mut conn =
-                Connection::<Postgres>::open(
+                Postgres::connect(
                     &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
                 ).await.map_err(|e| format!("failed to connect to Postgres: {}", e))?;
 

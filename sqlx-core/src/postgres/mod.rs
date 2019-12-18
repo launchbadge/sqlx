@@ -4,6 +4,7 @@ use crate::{Error, Backend};
 use futures_core::Future;
 use futures_core::future::BoxFuture;
 use std::net::SocketAddr;
+use bitflags::_core::pin::Pin;
 
 mod backend;
 mod connection;
@@ -20,6 +21,7 @@ pub mod protocol;
 
 pub mod types;
 
+/// The Postgres backend implementation.
 pub enum Postgres {}
 
 impl Postgres {
@@ -29,6 +31,7 @@ impl Postgres {
     }
 }
 
+/// A connection to a Postgres database.
 pub struct Connection {
     conn: RawConnection,
     statements: StatementCache<u64>,

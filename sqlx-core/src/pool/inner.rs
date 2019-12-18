@@ -1,18 +1,11 @@
-use crate::{backend::Backend, connection::Connection, error::Error, executor::Executor, params::IntoQueryParameters, row::{FromRow, Row}, Connection};
-use futures_channel::oneshot;
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{
-    future::{AbortHandle, AbortRegistration, FutureExt, TryFutureExt},
-    stream::StreamExt,
-};
 use std::{
     cmp,
     future::Future,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -22,10 +15,18 @@ use async_std::{
     sync::{channel, Receiver, Sender},
     task,
 };
+use futures_channel::oneshot;
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::{
+    future::{AbortHandle, AbortRegistration, FutureExt, TryFutureExt},
+    stream::StreamExt,
+};
 
-use super::Options;
+use crate::{backend::Backend, Connection, error::Error, executor::Executor, params::IntoQueryParameters, row::{FromRow, Row}};
 
-pub(crate) struct SharedPool<DB>
+use super::{Raw, Idle, Options};
+
+pub(super) struct SharedPool<DB>
 where
     DB: Backend,
 {
@@ -40,7 +41,7 @@ impl<DB> SharedPool<DB>
 where
     DB: Backend, DB::Connection: Connection<Backend = DB>
 {
-    pub(crate) async fn new_arc(url: &str, options: Options) -> crate::Result<(Arc<Self>, Sender<DB::Connection>)> {
+    pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<(Arc<Self>, Sender<Idle<DB>>)> {
         // TODO: Establish [min_idle] connections
 
         let (pool_tx, pool_rx) = channel(options.max_size as usize);
@@ -53,24 +54,24 @@ where
             options,
         });
 
-        conn_reaper(&pool);
+        conn_reaper(&pool, &pool_tx);
 
-        Ok((pool, pool_tx)
+        Ok((pool, pool_tx))
     }
 
     pub fn options(&self) -> &Options {
         &self.options
     }
 
-    pub(crate) fn size(&self) -> u32 {
+    pub(super) fn size(&self) -> u32 {
         self.size.load(Ordering::Acquire)
     }
 
-    pub(crate) fn num_idle(&self) -> usize {
+    pub(super) fn num_idle(&self) -> usize {
         self.pool_rx.len()
     }
 
-    pub(crate) async fn close(&self) {
+    pub(super) async fn close(&self) {
         self.closed.store(true, Ordering::Release);
 
         while self.size.load(Ordering::Acquire) > 0 {
@@ -82,27 +83,30 @@ where
                     idle.close().await;
                     self.size.fetch_sub(1, Ordering::AcqRel);
                 }
-                Some(None) => panic!("we own a Sender how did this happen"),
+                Some(None) => {
+                    log::warn!("was not able to close all connections");
+                    break;
+                },
                 None => task::yield_now().await,
             }
         }
     }
 
     #[inline]
-    pub(crate) fn try_acquire(&self) -> Option<Live<DB>> {
+    pub(super) fn try_acquire(&self) -> Option<Raw<DB>> {
         if self.closed.load(Ordering::Acquire) {
             return None;
         }
 
-        Some(self.pool_rx.recv().now_or_never()??.revive(&self.pool_tx))
+        Some(self.pool_rx.recv().now_or_never()??.raw)
     }
 
-    pub(crate) async fn acquire(&self) -> crate::Result<Live<DB>> {
+    pub(super) async fn acquire(&self) -> crate::Result<Raw<DB>> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
 
-        if let Some(live) = self.try_acquire() {
-            return Ok(live);
+        if let Some(raw) = self.try_acquire() {
+            return Ok(raw);
         }
 
         while !self.closed.load(Ordering::Acquire) {
@@ -136,7 +140,7 @@ where
                     idle.close().await;
                 } else {
                     match idle.raw.inner.ping().await {
-                        Ok(_) => return Ok(idle.revive(&self.pool_tx)),
+                        Ok(_) => return Ok(idle.raw),
                         // an error here means the other end has hung up or we lost connectivity
                         // either way we're fine to just discard the connection
                         // the error itself here isn't necessarily unexpected so WARN is too strong
@@ -160,7 +164,7 @@ where
         Err(Error::PoolClosed)
     }
 
-    async fn new_conn(&self, deadline: Instant) -> crate::Result<Live<DB>> {
+    async fn new_conn(&self, deadline: Instant) -> crate::Result<Raw<DB>> {
         while Instant::now() < deadline {
             if self.closed.load(Ordering::Acquire) {
                 self.size.fetch_sub(1, Ordering::AcqRel);
@@ -169,7 +173,7 @@ where
 
             // result here is `Result<Result<DB, Error>, TimeoutError>`
             match timeout(deadline - Instant::now(), DB::connect(&self.url)).await {
-                Ok(Ok(raw)) => return Ok(Live::pooled(raw, &self.pool_tx)),
+                Ok(Ok(inner)) => return Ok(Raw { inner, created: Instant::now() }),
                 // error while connecting, this should definitely be logged
                 Ok(Err(e)) => log::warn!("error establishing a connection: {}", e),
                 // timed out
@@ -182,95 +186,9 @@ where
     }
 }
 
-struct Raw<DB> {
-    pub(crate) inner: DB,
-    pub(crate) created: Instant,
-}
-
-struct Idle<DB>
-where
-    DB: Backend,
-{
-    raw: Raw<DB>,
-    #[allow(unused)]
-    since: Instant,
-}
-
-impl<DB: Backend> Idle<DB> {
-    fn revive(self, pool_tx: &Sender<Idle<DB>>) -> Live<DB> {
-        Live {
-            raw: Some(self.raw),
-            pool_tx: Some(pool_tx.clone()),
-        }
-    }
-
+impl<DB: Backend> Idle<DB> where DB::Connection: Connection<Backend = DB> {
     async fn close(self) {
         let _ = self.raw.inner.close().await;
-    }
-}
-
-pub(crate) struct Live<DB>
-where
-    DB: Backend,
-{
-    raw: Option<Raw<DB>>,
-    pool_tx: Option<Sender<Idle<DB>>>,
-}
-
-impl<DB: Backend> Live<DB> {
-    pub fn unpooled(raw: DB) -> Self {
-        Live {
-            raw: Some(Raw {
-                inner: raw,
-                created: Instant::now(),
-            }),
-            pool_tx: None,
-        }
-    }
-
-    fn pooled(raw: DB, pool_tx: &Sender<Idle<DB>>) -> Self {
-        Live {
-            raw: Some(Raw {
-                inner: raw,
-                created: Instant::now(),
-            }),
-            pool_tx: Some(pool_tx.clone()),
-        }
-    }
-
-    fn release_mut(&mut self) {
-        // `.release_mut()` will be called twice if `.release()` is called
-        if let (Some(raw), Some(pool_tx)) = (self.raw.take(), self.pool_tx.as_ref()) {
-            pool_tx
-                .send(Idle {
-                    raw,
-                    since: Instant::now(),
-                })
-                .now_or_never()
-                .expect("(bug) connection released into a full pool")
-        }
-    }
-}
-
-const DEREF_ERR: &str = "(bug) connection already released to pool";
-
-impl<DB: Backend> Deref for Live<DB> {
-    type Target = DB;
-
-    fn deref(&self) -> &DB {
-        &self.raw.as_ref().expect(DEREF_ERR).inner
-    }
-}
-
-impl<DB: Backend> DerefMut for Live<DB> {
-    fn deref_mut(&mut self) -> &mut DB {
-        &mut self.raw.as_mut().expect(DEREF_ERR).inner
-    }
-}
-
-impl<DB: Backend> Drop for Live<DB> {
-    fn drop(&mut self) {
-        self.release_mut()
     }
 }
 
@@ -282,9 +200,12 @@ fn should_reap<DB: Backend>(idle: &Idle<DB>, options: &Options) -> bool {
 }
 
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn conn_reaper<DB: Backend>(pool: &Arc<SharedPool<DB>>) {
+fn conn_reaper<DB: Backend>(pool: &Arc<SharedPool<DB>>, pool_tx: &Sender<Idle<DB>>)
+    where DB::Connection: Connection<Backend = DB>
+{
     if pool.options.max_lifetime.is_some() || pool.options.idle_timeout.is_some() {
         let pool = pool.clone();
+        let pool_tx = pool_tx.clone();
 
         let reap_period = cmp::min(pool.options.max_lifetime, pool.options.idle_timeout)
             .expect("one of max_lifetime/idle_timeout should be `Some` at this point");
@@ -305,7 +226,7 @@ fn conn_reaper<DB: Backend>(pool: &Arc<SharedPool<DB>>) {
 
                 for conn in keep {
                     // return these connections to the pool first
-                    pool.pool_tx.send(conn).await;
+                    pool_tx.send(conn).await;
                 }
 
                 for conn in reap {

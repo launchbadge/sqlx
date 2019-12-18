@@ -1,4 +1,4 @@
-use super::{MySql, MariaDbTypeMetadata};
+use super::{MySql, MySqlTypeMetadata};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -11,8 +11,8 @@ use byteorder::LittleEndian;
 
 impl HasSqlType<str> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
-        MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
+        MySqlTypeMetadata {
             // MYSQL_TYPE_VAR_STRING
             field_type: FieldType::MYSQL_TYPE_VAR_STRING,
             param_flag: ParameterFlag::empty(),
@@ -31,7 +31,7 @@ impl Encode<MySql> for str {
 
 impl HasSqlType<String> for MySql {
     #[inline]
-    fn metadata() -> MariaDbTypeMetadata {
+    fn metadata() -> MySqlTypeMetadata {
         <MySql as HasSqlType<&str>>::metadata()
     }
 }

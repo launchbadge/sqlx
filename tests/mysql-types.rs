@@ -1,11 +1,11 @@
-use sqlx::{Connection, Connection, Row};
+use sqlx::{MySql, Row};
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
         async fn $name () -> sqlx::Result<()> {
             let mut conn =
-                Connection::<MariaDb>::open(
+                MySql::connect(
                     &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
                 ).await?;
 

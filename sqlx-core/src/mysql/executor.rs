@@ -1,20 +1,13 @@
 use super::{MySql, Connection};
-use crate::{
-    backend::Backend,
-    describe::{Describe, ResultField},
-    executor::Executor,
-    mysql::{
-        protocol::{
-            Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
-            ErrPacket, OkPacket, ResultRow, StmtExecFlag,
-        },
-        query::MariaDbQueryParameters,
+use crate::{backend::Backend, describe::{Describe, ResultField}, executor::Executor, mysql::{
+    protocol::{
+        Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComStmtExecute, EofPacket,
+        ErrPacket, OkPacket, ResultRow, StmtExecFlag,
     },
-    params::{IntoQueryParameters, QueryParameters},
-    row::FromRow,
-    url::Url,
-};
-use futures_core::{future::BoxFuture, stream::BoxStream};
+    query::MySqlDbParameters,
+}, params::{IntoQueryParameters, QueryParameters}, row::FromRow, url::Url, Error};
+use futures_core::{future::BoxFuture, stream::BoxStream, Future};
+use bitflags::_core::pin::Pin;
 
 impl Connection {
     async fn prepare_cached(&mut self, query: &str) -> crate::Result<u32> {
@@ -26,10 +19,14 @@ impl Connection {
 impl Executor for Connection {
     type Backend = MySql;
 
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+        Box::pin(self.conn.ping())
+    }
+
     fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: MariaDbQueryParameters,
+        params: MySqlDbParameters,
     ) -> BoxFuture<'e, crate::Result<u64>> {
         Box::pin(async move {
             let statement_id = self.prepare_cached(query).await?;
@@ -72,7 +69,7 @@ impl Executor for Connection {
     fn fetch<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: MariaDbQueryParameters,
+        params: MySqlDbParameters,
     ) -> BoxStream<'e, crate::Result<T>>
     where
         T: FromRow<Self::Backend> + Send + Unpin,
@@ -110,7 +107,7 @@ impl Executor for Connection {
     fn fetch_optional<'e, 'q: 'e, T: 'e>(
         &'e mut self,
         query: &'q str,
-        params: MariaDbQueryParameters,
+        params: MySqlDbParameters,
     ) -> BoxFuture<'e, crate::Result<Option<T>>>
     where
         T: FromRow<Self::Backend> + Send,

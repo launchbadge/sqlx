@@ -69,7 +69,7 @@ where
         query: &'q str,
         params: DB::QueryParameters,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        Box::pin(async move { self.0.acquire().await?.execute(query, params).await })
+        Box::pin(async move { self.acquire().await?.execute(query, params).await })
     }
 
     fn fetch<'e, 'q: 'e, T: 'e>(
@@ -81,7 +81,7 @@ where
         T: FromRow<Self::Backend> + Send + Unpin,
     {
         Box::pin(async_stream::try_stream! {
-            let mut live = self.0.acquire().await?;
+            let mut live = self.acquire().await?;
             let mut s = live.fetch(query, params);
 
             while let Some(row) = s.next().await.transpose()? {
@@ -98,13 +98,13 @@ where
     where
         T: FromRow<Self::Backend> + Send,
     {
-        Box::pin(async move { self.0.acquire().await?.fetch_optional(query, params).await })
+        Box::pin(async move { self.acquire().await?.fetch_optional(query, params).await })
     }
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
-        Box::pin(async move { self.0.acquire().await?.describe(query).await })
+        Box::pin(async move { self.acquire().await?.describe(query).await })
     }
 }

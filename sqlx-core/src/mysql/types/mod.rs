@@ -13,17 +13,17 @@ pub mod numeric;
 pub mod chrono;
 
 #[derive(Debug)]
-pub struct MariaDbTypeMetadata {
+pub struct MySqlTypeMetadata {
     pub field_type: FieldType,
     pub param_flag: ParameterFlag,
 }
 
 impl HasTypeMetadata for MySql {
-    type TypeMetadata = MariaDbTypeMetadata;
+    type TypeMetadata = MySqlTypeMetadata;
     type TypeId = u8;
 }
 
-impl TypeMetadata<u8> for MariaDbTypeMetadata {
+impl TypeMetadata<u8> for MySqlTypeMetadata {
     fn type_id_eq(&self, other: &u8) -> bool {
         &self.field_type.0 == other
     }

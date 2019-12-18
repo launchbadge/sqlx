@@ -1,21 +1,18 @@
+use std::fmt::Display;
+
 use proc_macro2::Span;
-
 use proc_macro2::TokenStream;
-
 use syn::{
-    parse::{self, Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned,
-    Expr, ExprLit, Lit, Token, Ident,
+    Expr,
+    ExprLit,
+    Ident,
+    Lit, parse::{self, Parse, ParseStream}, punctuated::Punctuated, spanned::Spanned, Token,
 };
 
-use crate::backend::BackendExt;
-
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use sqlx::{Connection, HasTypeMetadata};
 
-use sqlx::{Executor, HasTypeMetadata};
-
-use std::fmt::Display;
+use crate::backend::BackendExt;
 
 pub struct MacroInput {
     sql: String,
@@ -49,12 +46,13 @@ impl Parse for MacroInput {
 }
 
 /// Given an input like `query!("SELECT * FROM accounts WHERE account_id > ?", account_id)`
-pub async fn process_sql<DB: BackendExt>(
+pub async fn process_sql<C: Connection>(
     input: MacroInput,
-    mut conn: sqlx::Connection<DB>,
+    mut conn: C,
 ) -> crate::Result<TokenStream>
     where
-        <DB as HasTypeMetadata>::TypeId: Display,
+        C::Backend: BackendExt,
+        <C::Backend as HasTypeMetadata>::TypeId: Display
 {
     let describe = conn
         .describe(&input.sql)
@@ -81,7 +79,7 @@ pub async fn process_sql<DB: BackendExt>(
             get_type_override(expr)
                 .or_else(|| {
                     Some(
-                        <DB as BackendExt>::param_type_for_id(type_)?
+                        <C::Backend as BackendExt>::param_type_for_id(type_)?
                             .parse::<proc_macro2::TokenStream>()
                             .unwrap(),
                     )
@@ -97,7 +95,7 @@ pub async fn process_sql<DB: BackendExt>(
     });
 
     let query = &input.sql;
-    let backend_path = DB::quotable_path();
+    let backend_path = C::Backend::quotable_path();
 
     // record_type will be wrapped in parens which the compiler ignores without a trailing comma
     // e.g. (Foo) == Foo but (Foo,) = one-element tuple

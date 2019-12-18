@@ -1,6 +1,6 @@
 use crate::{HasSqlType, MySql, HasTypeMetadata, Encode, Decode};
 use chrono::{NaiveDateTime, Datelike, Timelike, NaiveTime, NaiveDate};
-use crate::mysql::types::MariaDbTypeMetadata;
+use crate::mysql::types::MySqlTypeMetadata;
 use crate::mysql::protocol::{FieldType, ParameterFlag};
 use crate::encode::IsNull;
 
@@ -12,7 +12,7 @@ use chrono::format::Item::Literal;
 
 impl HasSqlType<NaiveDateTime> for MySql {
     fn metadata() -> Self::TypeMetadata {
-        MariaDbTypeMetadata {
+        MySqlTypeMetadata {
             field_type: FieldType::MYSQL_TYPE_DATETIME,
             param_flag: ParameterFlag::empty()
         }
@@ -78,7 +78,7 @@ impl Decode<MySql> for NaiveDateTime {
 
 impl HasSqlType<NaiveDate> for MySql {
     fn metadata() -> Self::TypeMetadata {
-        MariaDbTypeMetadata {
+        MySqlTypeMetadata {
             field_type: FieldType::MYSQL_TYPE_DATE,
             param_flag: ParameterFlag::empty()
         }

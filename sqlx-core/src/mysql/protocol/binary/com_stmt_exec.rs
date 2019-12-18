@@ -3,7 +3,7 @@ use crate::{
     mysql::{
         io::BufMutExt,
         protocol::{binary::BinaryProtocol, Capabilities, Encode},
-        types::MariaDbTypeMetadata,
+        types::MySqlTypeMetadata,
     },
 };
 use byteorder::LittleEndian;
@@ -26,7 +26,7 @@ pub struct ComStmtExecute<'a> {
     pub flags: StmtExecFlag,
     pub params: &'a [u8],
     pub null: &'a [u8],
-    pub param_types: &'a [MariaDbTypeMetadata],
+    pub param_types: &'a [MySqlTypeMetadata],
 }
 
 impl Encode for ComStmtExecute<'_> {

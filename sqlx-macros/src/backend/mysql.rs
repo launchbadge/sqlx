@@ -1,5 +1,5 @@
 impl_backend_ext! {
-    sqlx::MariaDb {
+    sqlx::MySql {
         bool,
         String | &str,
         i16,

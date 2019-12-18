@@ -58,4 +58,4 @@ macro_rules! input_ty {
 mod postgres;
 
 #[cfg(feature = "mysql")]
-mod mariadb;
+mod mysql;
