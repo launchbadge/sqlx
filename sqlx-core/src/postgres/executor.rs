@@ -2,7 +2,7 @@ use super::{connection::Step, Connection, Postgres};
 use crate::{backend::Backend, describe::{Describe, ResultField}, executor::Executor, params::{IntoQueryParameters, QueryParameters}, row::FromRow, url::Url, Error};
 use futures_core::{future::BoxFuture, stream::BoxStream, Future};
 use crate::postgres::query::PostgresQueryParameters;
-use bitflags::_core::pin::Pin;
+use std::pin::Pin;
 
 impl Connection {
     async fn prepare_cached(&mut self, query: &str, params: &PostgresQueryParameters) -> crate::Result<String> {

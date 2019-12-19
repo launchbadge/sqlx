@@ -4,7 +4,7 @@ use crate::{Error, Backend};
 use futures_core::Future;
 use futures_core::future::BoxFuture;
 use std::net::SocketAddr;
-use bitflags::_core::pin::Pin;
+use std::pin::Pin;
 
 mod backend;
 mod connection;

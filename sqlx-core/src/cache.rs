@@ -1,5 +1,5 @@
 use std::collections::hash_map::{HashMap, Entry};
-use bitflags::_core::cmp::Ordering;
+use std::cmp::Ordering;
 use futures_core::Future;
 
 pub struct StatementCache<Id> {

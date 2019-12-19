@@ -1,7 +1,7 @@
 use crate::{backend::Backend, describe::Describe, executor::Executor, params::IntoQueryParameters, pool::Pool, row::FromRow, Error};
 use futures_core::{future::BoxFuture, stream::BoxStream, Future};
 use futures_util::StreamExt;
-use bitflags::_core::pin::Pin;
+use std::pin::Pin;
 
 impl<DB> Executor for Pool<DB>
 where

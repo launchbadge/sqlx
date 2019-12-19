@@ -1,5 +1,5 @@
 use crate::{backend::Backend, encode::Encode, error::Error, executor::Executor, params::{IntoQueryParameters, QueryParameters}, row::FromRow, types::HasSqlType, Row, Decode};
-use bitflags::_core::marker::PhantomData;
+use std::marker::PhantomData;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 
 pub struct Query<'q, DB, P = <DB as Backend>::QueryParameters, R = <DB as Backend>::Row>

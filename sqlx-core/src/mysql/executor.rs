@@ -7,7 +7,7 @@ use crate::{backend::Backend, describe::{Describe, ResultField}, executor::Execu
     query::MySqlDbParameters,
 }, params::{IntoQueryParameters, QueryParameters}, row::FromRow, url::Url, Error};
 use futures_core::{future::BoxFuture, stream::BoxStream, Future};
-use bitflags::_core::pin::Pin;
+use std::pin::Pin;
 
 impl Connection {
     async fn prepare_cached(&mut self, query: &str) -> crate::Result<u32> {

@@ -2,7 +2,7 @@ use async_std::io::{
     prelude::{ReadExt, WriteExt},
     Read, Write,
 };
-use bitflags::_core::mem::MaybeUninit;
+use std::mem::MaybeUninit;
 use std::io;
 
 pub struct BufStream<S> {
