@@ -1,9 +1,7 @@
-use crate::{
-    backend::Backend, describe::Describe, executor::Executor, params::IntoQueryParameters,
-    pool::Pool, row::FromRow,
-};
-use futures_core::{future::BoxFuture, stream::BoxStream};
+use crate::{backend::Backend, describe::Describe, executor::Executor, params::IntoQueryParameters, pool::Pool, row::FromRow, Error};
+use futures_core::{future::BoxFuture, stream::BoxStream, Future};
 use futures_util::StreamExt;
+use bitflags::_core::pin::Pin;
 
 impl<DB> Executor for Pool<DB>
 where
@@ -106,5 +104,9 @@ where
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(async move { self.acquire().await?.describe(query).await })
+    }
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        Box::pin(async move { self.acquire().await?.batch_exec(commands).await })
     }
 }

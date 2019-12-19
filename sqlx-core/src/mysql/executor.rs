@@ -152,4 +152,8 @@ impl Executor for Connection {
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(self.conn.prepare_describe(query))
     }
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        unimplemented!()
+    }
 }

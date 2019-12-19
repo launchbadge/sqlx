@@ -73,4 +73,9 @@ pub trait Executor: Send {
         &'e mut self,
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>>;
+
+    /// Send a semicolon-delimited series of arbitrary SQL commands to the server.
+    ///
+    /// Does not support fetching results.
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>>;
 }

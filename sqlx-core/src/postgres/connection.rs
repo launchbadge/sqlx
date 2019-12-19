@@ -180,6 +180,11 @@ impl Connection {
         protocol::Execute { portal, limit }.encode(self.stream.buffer_mut());
     }
 
+    pub(super) async fn send(&mut self, commands: &str) -> crate::Result<()> {
+        protocol::Query(commands).encode(self.stream.buffer_mut());
+        self.sync().await
+    }
+
     pub(super) async fn sync(&mut self) -> crate::Result<()> {
         protocol::Sync.encode(self.stream.buffer_mut());
 

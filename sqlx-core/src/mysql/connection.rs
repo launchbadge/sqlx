@@ -19,6 +19,7 @@ use crate::{Describe, Error, io::{Buf, BufMut, BufStream}, mysql::{
 
 use super::establish;
 use crate::mysql::MySql;
+use crate::mysql::protocol::ComQuery;
 
 pub type StatementId = u32;
 
@@ -303,6 +304,42 @@ impl Connection {
         });
         self.stream.flush().await?;
         // =====================
+
+        Ok(())
+    }
+
+    async fn expect_eof_or_err(&mut self) -> crate::Result<()> {
+        let packet = self.receive().await?;
+
+        match buf[0] {
+            0xFE => EofPacket::decode(packet)?,
+            0xFF => ErrPacket::decode(packet)?.expect_error()?,
+            _ => return Err(protocol_err!("expected EOF or ERR, got {:02X}", buf[0]).into()),
+        }
+
+        Ok(())
+    }
+
+    pub(super) async fn send_raw(
+        &mut self,
+        commands: &str
+    ) -> Result<()> {
+        self.stream.flush().await?;
+        self.start_sequence();
+        // enable multi-statement only for this query
+        self.write(ComSetOption { option: SetOptionOptions::MySqlOptionMultiStatementsOn });
+        self.write(ComQuery { sql_statement: commands });
+        self.write(ComSetOption { option: SetOptionOptions::MySqlOptionMultiStatementsOff });
+        self.stream.flush().await?;
+
+        self.expect_eof_or_err().await?;
+
+        let packet = self.receive().await?;
+
+        if packet[0] == 0xFF { return ErrPacket::decode(packet)?.expect_error() }
+        /// otherwise ignore packet
+
+        self.expect_eof_or_err().await?;
 
         Ok(())
     }
