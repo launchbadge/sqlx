@@ -68,7 +68,10 @@ impl Default for Options {
             max_size: 10,
             min_idle: 0,
             connect_timeout: Duration::from_secs(30),
-            max_lifetime: None,
+            // 30 minutes
+            // prevents unbounded live-leaking of memory due to naive prepared statement caching
+            // see src/cache.rs for context
+            max_lifetime: Some(Duration::from_secs(1800)),
             idle_timeout: None,
         }
     }

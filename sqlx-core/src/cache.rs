@@ -2,6 +2,14 @@ use std::collections::hash_map::{HashMap, Entry};
 use std::cmp::Ordering;
 use futures_core::Future;
 
+// TODO: figure out a cache eviction strategy
+// we currently naively cache all prepared statements which could live-leak memory
+// on both the client and server if the user is synthesizing queries that are different each time
+
+// We put an upper bound on this by setting a default max connection lifetime in pool::Options but
+// that's only a band-aid
+
+/// Per-connection prepared statement cache.
 pub struct StatementCache<Id> {
     statements: HashMap<String, Id>
 }
