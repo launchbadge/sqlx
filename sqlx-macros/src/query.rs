@@ -12,7 +12,7 @@ use syn::{
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use sqlx::{Connection, HasTypeMetadata};
 
-use crate::backend::BackendExt;
+use crate::backend::{BackendExt, ParamChecking};
 
 pub struct MacroInput {
     sql: String,
@@ -107,7 +107,7 @@ pub async fn process_sql<C: Connection>(
         (record_type.to_token_stream(), generate_record_def(&describe, &record_type)?)
     };
 
-    let params = if input.args.is_empty() {
+    let params = if <C::Backend as BackendExt>::PARAM_CHECKING == ParamChecking::Weak || input.args.is_empty() {
         quote! {
             let params = ();
         }

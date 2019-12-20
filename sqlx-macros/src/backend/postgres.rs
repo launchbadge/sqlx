@@ -19,5 +19,6 @@ impl_backend_ext! {
         sqlx::types::chrono::NaiveDateTime,
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
-    }
+    },
+    ParamChecking::Strong
 }

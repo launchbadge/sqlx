@@ -1,7 +1,15 @@
 use sqlx::Backend;
 
+#[derive(PartialEq, Eq)]
+pub enum ParamChecking {
+    Strong,
+    Weak
+}
+
 pub trait BackendExt: Backend {
     const BACKEND_PATH: &'static str;
+
+    const PARAM_CHECKING: ParamChecking;
 
     fn quotable_path() -> syn::Path {
         syn::parse_str(Self::BACKEND_PATH).unwrap()
@@ -13,9 +21,10 @@ pub trait BackendExt: Backend {
 }
 
 macro_rules! impl_backend_ext {
-    ($backend:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }) => {
+    ($backend:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }, ParamChecking::$param_checking:ident) => {
         impl $crate::backend::BackendExt for $backend {
             const BACKEND_PATH: &'static str = stringify!($backend);
+            const PARAM_CHECKING: $crate::backend::ParamChecking = $crate::backend::ParamChecking::$param_checking;
 
             fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
                 use sqlx::types::TypeMetadata;
