@@ -30,4 +30,4 @@ pub use response::{
     ColumnCountPacket, ColumnDefinitionPacket, EofPacket, ErrPacket, OkPacket, ResultRow,
 };
 pub use server_status::ServerStatusFlag;
-pub use text::{ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit};
+pub use text::{ComDebug, ComInitDb, ComPing, ComProcessKill, ComQuery, ComQuit, ComSetOption, SetOptionOptions};

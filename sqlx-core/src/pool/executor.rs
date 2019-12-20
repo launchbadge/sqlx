@@ -54,6 +54,10 @@ where
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
         Box::pin(async move { <&Pool<DB> as Executor>::describe(&mut &*self, query).await })
     }
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        Box::pin(async move { <&Pool<DB> as Executor>::send(&mut &*self, commands).await })
+    }
 }
 
 impl<DB> Executor for &'_ Pool<DB>
@@ -107,6 +111,6 @@ where
     }
 
     fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(async move { self.acquire().await?.batch_exec(commands).await })
+        Box::pin(async move { self.acquire().await?.send(commands).await })
     }
 }

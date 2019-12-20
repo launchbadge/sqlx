@@ -11,15 +11,16 @@ use futures_util::AsyncWriteExt;
 use crate::{Describe, Error, io::{Buf, BufMut, BufStream}, mysql::{
     protocol::{
         Capabilities, ColumnCountPacket, ColumnDefinitionPacket, ComPing, ComQuit,
-        ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket,
-        OkPacket, ResultRow, StmtExecFlag,
+        ComSetOption, ComStmtExecute,
+        ComStmtPrepare, ComStmtPrepareOk, Encode, EofPacket, ErrPacket, OkPacket,
+        ResultRow, SetOptionOptions, StmtExecFlag,
     },
     query::MySqlDbParameters,
 }, Result, ResultField, url::Url};
-
-use super::establish;
 use crate::mysql::MySql;
 use crate::mysql::protocol::ComQuery;
+
+use super::establish;
 
 pub type StatementId = u32;
 
@@ -311,10 +312,10 @@ impl Connection {
     async fn expect_eof_or_err(&mut self) -> crate::Result<()> {
         let packet = self.receive().await?;
 
-        match buf[0] {
-            0xFE => EofPacket::decode(packet)?,
-            0xFF => ErrPacket::decode(packet)?.expect_error()?,
-            _ => return Err(protocol_err!("expected EOF or ERR, got {:02X}", buf[0]).into()),
+        match packet[0] {
+            0xFE => { EofPacket::decode(packet)?; },
+            0xFF => { ErrPacket::decode(packet)?.expect_error()?; },
+            _ => return Err(protocol_err!("expected EOF or ERR, got {:02X}", packet[0]).into()),
         }
 
         Ok(())
@@ -337,7 +338,7 @@ impl Connection {
         let packet = self.receive().await?;
 
         if packet[0] == 0xFF { return ErrPacket::decode(packet)?.expect_error() }
-        /// otherwise ignore packet
+        // otherwise ignore packet
 
         self.expect_eof_or_err().await?;
 

@@ -154,6 +154,6 @@ impl Executor for Connection {
     }
 
     fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        unimplemented!()
+        Box::pin(self.conn.send_raw(commands))
     }
 }
