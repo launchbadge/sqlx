@@ -125,7 +125,7 @@ impl MySqlConnection {
 
 impl MySqlConnection {
     // TODO: Authentication ?!
-    async fn open(url: crate::Result<Url>) -> crate::Result<Self> {
+    pub(super) async fn open(url: crate::Result<Url>) -> crate::Result<Self> {
         let url = url?;
         let stream = TcpStream::connect((url.host(), url.port(3306))).await?;
 

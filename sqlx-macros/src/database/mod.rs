@@ -1,6 +1,7 @@
 use sqlx::Database;
 
 #[derive(PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ParamChecking {
     Strong,
     Weak,

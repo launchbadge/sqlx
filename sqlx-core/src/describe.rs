@@ -5,6 +5,7 @@ use crate::Database;
 use std::fmt::{self, Debug};
 
 /// The return type of [Executor::describe].
+#[non_exhaustive]
 pub struct Describe<DB>
 where
     DB: Database + ?Sized,
@@ -14,9 +15,6 @@ where
 
     /// The type and table information, if any for the results of the query.
     pub result_columns: Box<[Column<DB>]>,
-
-    // TODO: Remove and use #[non_exhaustive] when we can
-    pub(crate) _non_exhaustive: (),
 }
 
 impl<DB> Debug for Describe<DB>
@@ -34,6 +32,7 @@ where
 }
 
 /// A single column of a result set.
+#[non_exhaustive]
 pub struct Column<DB>
 where
     DB: Database + ?Sized,
@@ -41,9 +40,6 @@ where
     pub name: Option<Box<str>>,
     pub table_id: Option<<DB as HasTypeMetadata>::TableId>,
     pub type_id: <DB as HasTypeMetadata>::TypeId,
-
-    // TODO: Remove and use #[non_exhaustive] when we can
-    pub(crate) _non_exhaustive: (),
 }
 
 impl<DB> Debug for Column<DB>

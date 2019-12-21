@@ -66,7 +66,7 @@ macro_rules! impl_into_arguments {
 
                 arguments.reserve(binds, bytes);
 
-                $(crate::arguments::Arguments::bind(&mut arguments, self.$idx);)+
+                $(crate::arguments::Arguments::add(&mut arguments, self.$idx);)+
 
                 arguments
             }

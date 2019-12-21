@@ -10,3 +10,5 @@ impl Database for Postgres {
 
     type Row = super::PgRow;
 }
+
+impl_into_arguments_for_database!(Postgres);

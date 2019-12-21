@@ -10,3 +10,5 @@ impl Database for MySql {
 
     type Row = super::MySqlRow;
 }
+
+impl_into_arguments_for_database!(MySql);

@@ -292,8 +292,6 @@ impl MySqlConnection {
                 table_id: column.table_alias.or(column.table),
 
                 type_id: column.r#type.0,
-
-                _non_exhaustive: (),
             });
         }
 
@@ -304,8 +302,6 @@ impl MySqlConnection {
         Ok(Describe {
             param_types: param_types.into_boxed_slice(),
             result_columns: result_columns.into_boxed_slice(),
-
-            _non_exhaustive: (),
         })
     }
 

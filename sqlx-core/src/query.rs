@@ -10,84 +10,63 @@ use futures_core::stream::BoxStream;
 use futures_util::TryFutureExt;
 use futures_util::TryStreamExt;
 use std::marker::PhantomData;
+use futures_core::Stream;
 
-/// A SQL query with bind parameters and output type.
-///
-/// Optionally type-safe if constructed through [query!].
-pub struct Query<'q, DB, T = <DB as Database>::Arguments, R = <DB as Database>::Row>
+/// Dynamic SQL query with bind parameters. Returned by [query].
+pub struct Query<'q, DB, T = <DB as Database>::Arguments>
 where
     DB: Database,
 {
     query: &'q str,
     arguments: T,
-    record: PhantomData<R>,
     database: PhantomData<DB>,
 }
 
-impl<'q, DB, P: 'q, R: 'q> Query<'q, DB, P, R>
+impl<'q, DB, P> Query<'q, DB, P>
 where
     DB: Database,
-    DB::Arguments: 'q,
     P: IntoArguments<DB> + Send,
-    R: FromRow<DB::Row> + Send + Unpin,
 {
-    pub fn execute<'e, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<u64>>
+    pub async fn execute<E>(self, executor: &mut E) -> crate::Result<u64>
     where
         E: Executor<Database = DB>,
-        'q: 'e,
     {
-        executor.execute(self.query, self.arguments.into_arguments())
+        executor.execute(self.query, self.arguments.into_arguments()).await
     }
 
-    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<R>>
+    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<DB::Row>>
     where
         E: Executor<Database = DB>,
-        DB::Row: 'e,
-        'q: 'e,
+        'q: 'e
     {
-        Box::pin(
-            executor
-                .fetch(self.query, self.arguments.into_arguments())
-                .map_ok(FromRow::from_row),
-        )
+        executor.fetch(self.query, self.arguments.into_arguments())
     }
 
-    pub fn fetch_all<'e: 'q, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<Vec<R>>>
+    pub async fn fetch_all<E>(self, executor: &mut E) -> crate::Result<Vec<DB::Row>>
     where
         E: Executor<Database = DB>,
-        DB::Row: 'e,
-        'q: 'e,
     {
-        Box::pin(self.fetch(executor).try_collect())
+        executor.fetch(self.query, self.arguments.into_arguments())
+            .try_collect()
+            .await
     }
 
-    pub fn fetch_optional<'e: 'q, E>(
-        self,
-        executor: &'e mut E,
-    ) -> BoxFuture<'e, crate::Result<Option<R>>>
+    pub async fn fetch_optional<E>(self, executor: &mut E) -> crate::Result<Option<DB::Row>>
     where
         E: Executor<Database = DB>,
-        DB::Row: 'e,
-        'q: 'e,
     {
-        Box::pin(
             executor
                 .fetch_optional(self.query, self.arguments.into_arguments())
-                .map_ok(|row| row.map(FromRow::from_row)),
-        )
+                .await
     }
 
-    pub fn fetch_one<'e: 'q, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<R>>
+    pub async fn fetch_one<E>(self, executor: &mut E) -> crate::Result<DB::Row>
     where
         E: Executor<Database = DB>,
-        DB::Row: 'e,
-        'q: 'e,
     {
-        Box::pin(
             executor
                 .fetch_one(self.query, self.arguments.into_arguments())
-                .map_ok(FromRow::from_row),
-        )
+                .await
     }
 }
 
@@ -123,13 +102,12 @@ where
 ///     .map_ok(|row| row.name("name")) // -> Stream<Item = String>
 ///     .try_collect().await?; // -> Vec<String>
 /// ```
-pub fn query<'q, DB>(sql: &'q str) -> Query<'q, DB>
+pub fn query<DB>(sql: &str) -> Query<DB>
 where
     DB: Database,
 {
     Query {
         database: PhantomData,
-        record: PhantomData,
         arguments: Default::default(),
         query: sql.as_ref(),
     }

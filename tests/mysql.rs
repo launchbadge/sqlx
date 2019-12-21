@@ -48,6 +48,25 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
     Ok(())
 }
 
+#[cfg(feature = "macros")]
+#[async_std::test]
+async fn macro_select_from_cte() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+    let account = sqlx::query!(
+        "with accounts (id, name) as (VALUES (1, 'Herp Derpinson')) \
+         select * from accounts where id = ?",
+        1i32
+    )
+        .fetch_one(&mut conn)
+        .await?;
+
+    println!("{:?}", account);
+    println!("{}: {}", account.id, account.name);
+
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<MySqlConnection> {
     Ok(MySqlConnection::open(dotenv::var("DATABASE_URL")?).await?)
 }

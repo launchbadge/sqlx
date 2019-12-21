@@ -15,8 +15,10 @@ mod connection;
 mod database;
 mod executor;
 mod query;
+mod query_as;
 mod url;
 
+#[macro_use]
 pub mod arguments;
 pub mod decode;
 pub mod describe;
@@ -41,6 +43,10 @@ pub use error::{Error, Result};
 pub use connection::Connection;
 pub use executor::Executor;
 pub use query::{query, Query};
+pub use query_as::{query_as, QueryAs};
+
+#[doc(hidden)]
+pub use query_as::query_as_mapped;
 
 #[doc(inline)]
 pub use pool::Pool;
@@ -55,54 +61,3 @@ pub use mysql::MySql;
 #[cfg(feature = "postgres")]
 #[doc(inline)]
 pub use postgres::Postgres;
-
-use std::marker::PhantomData;
-
-// These types allow the `sqlx_macros::sql!()` macro to polymorphically compare a
-// given parameter's type to an expected parameter type even if the former
-// is behind a reference or in `Option`
-
-#[doc(hidden)]
-pub struct TyCons<T>(PhantomData<T>);
-
-impl<T> TyCons<T> {
-    pub fn new(_t: &T) -> TyCons<T> {
-        TyCons(PhantomData)
-    }
-}
-
-#[doc(hidden)]
-pub trait TyConsExt: Sized {
-    type Cons;
-    fn ty_cons(self) -> Self::Cons {
-        panic!("should not be run, only for type resolution")
-    }
-}
-
-impl<T> TyCons<Option<&'_ T>> {
-    pub fn ty_cons(self) -> T {
-        panic!("should not be run, only for type resolution")
-    }
-}
-
-impl<T> TyConsExt for TyCons<&'_ T> {
-    type Cons = T;
-}
-
-impl<T> TyConsExt for TyCons<Option<T>> {
-    type Cons = T;
-}
-
-impl<T> TyConsExt for &'_ TyCons<T> {
-    type Cons = T;
-}
-
-#[test]
-fn test_tycons_ext() {
-    if false {
-        let _: u64 = TyCons::new(&Some(5u64)).ty_cons();
-        let _: u64 = TyCons::new(&Some(&5u64)).ty_cons();
-        let _: u64 = TyCons::new(&&5u64).ty_cons();
-        let _: u64 = TyCons::new(&5u64).ty_cons();
-    }
-}

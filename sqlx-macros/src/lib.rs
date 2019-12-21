@@ -21,11 +21,13 @@ type Result<T> = std::result::Result<T, Error>;
 
 mod database;
 
-mod query;
+mod query_macros;
 
-macro_rules! with_database(
-    ($db:ident => $expr:expr) => {
-        async {
+use query_macros::*;
+
+macro_rules! async_macro (
+    ($db:ident => $expr:expr) => {{
+        let res: Result<proc_macro2::TokenStream> = task::block_on(async {
             use sqlx::Connection;
 
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
@@ -61,25 +63,42 @@ macro_rules! with_database(
                 ).into()),
                 scheme => Err(format!("unexpected scheme {:?} in DATABASE_URL {}", scheme, db_url).into()),
             }
+        });
+
+        match res {
+            Ok(ts) => ts.into(),
+            Err(e) => {
+                if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
+                    return dbg!(parse_err).to_compile_error().into();
+                }
+
+                let msg = format!("{:?}", e);
+                quote!(compile_error!(#msg);).into()
+            }
         }
-    }
+    }}
 );
 
 #[proc_macro_hack]
 pub fn query(input: TokenStream) -> TokenStream {
-    #[allow(unused_variables)]
-    let input = parse_macro_input!(input as query::MacroInput);
+    let input = parse_macro_input!(input as QueryMacroInput);
+    async_macro!(db => expand_query(input, db))
+}
 
-    match task::block_on(with_database!(db => query::process_sql(input, db))) {
-        // type annotation required when neither `postgres` nor `mysql` features are set
-        Result::<proc_macro2::TokenStream>::Ok(ts) => ts.into(),
-        Result::Err(e) => {
-            if let Some(parse_err) = e.downcast_ref::<parse::Error>() {
-                return parse_err.to_compile_error().into();
-            }
+#[proc_macro_hack]
+pub fn query_file(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as QueryMacroInput);
+    async_macro!(db => expand_query_file(input, db))
+}
 
-            let msg = e.to_string();
-            quote!(compile_error!(#msg)).into()
-        }
-    }
+#[proc_macro_hack]
+pub fn query_as(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as QueryAsMacroInput);
+    async_macro!(db => expand_query_as(input, db))
+}
+
+#[proc_macro_hack]
+pub fn query_file_as(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as QueryAsMacroInput);
+    async_macro!(db => expand_query_file_as(input, db))
 }

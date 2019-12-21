@@ -193,7 +193,7 @@ impl PgConnection {
 }
 
 impl PgConnection {
-    async fn open(url: crate::Result<Url>) -> crate::Result<Self> {
+    pub(super) async fn open(url: crate::Result<Url>) -> crate::Result<Self> {
         let url = url?;
         let stream = TcpStream::connect((url.host(), url.port(5432))).await?;
         let mut self_ = Self {

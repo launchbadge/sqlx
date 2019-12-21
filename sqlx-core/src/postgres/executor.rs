@@ -291,13 +291,9 @@ impl super::PgConnection {
                     name: field.name,
                     table_id: field.table_id,
                     type_id: field.type_id,
-
-                    _non_exhaustive: (),
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-
-            _non_exhaustive: (),
         })
     }
 }
