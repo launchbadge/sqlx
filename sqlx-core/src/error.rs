@@ -201,5 +201,5 @@ macro_rules! impl_fmt_error {
                 f.pad(self.message())
             }
         }
-    }
+    };
 }

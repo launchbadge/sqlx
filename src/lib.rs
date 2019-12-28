@@ -16,7 +16,7 @@ pub use sqlx_core::query_as_mapped;
 pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 
 #[cfg(feature = "postgres")]
-pub use sqlx_core::postgres::{self, Postgres, PgConnection, PgPool};
+pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]
