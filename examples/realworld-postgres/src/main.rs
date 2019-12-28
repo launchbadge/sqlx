@@ -57,7 +57,7 @@ async fn register(mut req: Request<PgPool>) -> Response {
 INSERT INTO users ( username, email, password )
 VALUES ( $1, $2, $3 )
 RETURNING id, username, email
-            "#,
+        "#,
         &*body.username,
         &*body.email,
         &*hash,

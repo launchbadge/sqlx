@@ -143,10 +143,10 @@ macro_rules! query (
     // the emitted item for `#[proc_macro_hack]` doesn't look great in docs
     // plus this might let IDEs hint at the syntax
     // `#[allow(dead_code)]` to silence the `enum ProcMacroHack` error
-    ($query:expr) => (#[allow(dead_code)] {
+    ($query:literal) => (#[allow(dead_code)] {
         $crate::query_!($query)
     });
-    ($query:expr, $($args:tt)*) => (#[allow(dead_code)]{
+    ($query:literal, $($args:tt)*) => (#[allow(dead_code)]{
         #![allow(dead_code)]
         $crate::query_!($query, $($args)*)
     })
@@ -196,10 +196,10 @@ macro_rules! query (
 #[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_file (
-    ($query:expr) => (#[allow(dead_code)]{
+    ($query:literal) => (#[allow(dead_code)]{
         $crate::query_file_!($query)
     });
-    ($query:expr, $($args:tt)*) => (#[allow(dead_code)]{
+    ($query:literal, $($args:tt)*) => (#[allow(dead_code)]{
         $crate::query_file_!($query, $($args)*)
     })
 );
@@ -255,10 +255,10 @@ macro_rules! query_file (
 #[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_as (
-    ($out_struct:path, $query:expr) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         $crate::query_as_!($out_struct, $query)
     });
-    ($out_struct:path, $query:expr, $($args:tt)*) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal, $($args:tt)*) => (#[allow(dead_code)] {
         $crate::query_as_!($out_struct, $query, $($args)*)
     })
 );
@@ -298,10 +298,10 @@ macro_rules! query_as (
 #[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_file_as (
-    ($out_struct:path, $query:expr) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         $crate::query_file_as_!($out_struct, $query)
     });
-    ($out_struct:path, $query:expr, $($args:tt)*) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal, $($args:tt)*) => (#[allow(dead_code)] {
         $crate::query_file_as_!($out_struct, $query, $($args)*)
     })
 );
