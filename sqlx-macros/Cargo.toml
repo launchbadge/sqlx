@@ -27,7 +27,7 @@ chrono = [ "sqlx/chrono" ]
 uuid = [ "sqlx/uuid" ]
 
 [dependencies]
-async-std = { version = "1.2.0", default-features = false }
+async-std = { version = "1.4.0", default-features = false }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.1", default-features = false }
 proc-macro-hack = { version = "0.5.11", default-features = false }

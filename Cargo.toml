@@ -40,9 +40,9 @@ sqlx-macros = { version = "0.1.1", path = "sqlx-macros", optional = true }
 proc-macro-hack = { version = "0.5.11", optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.25"
+anyhow = "1.0.26"
 futures = "0.3.1"
-async-std = { version = "1.2.0", features = [ "attributes" ] }
+async-std = { version = "1.4.0", features = [ "attributes" ] }
 dotenv = "0.15.0"
 
 [[test]]

@@ -5,13 +5,13 @@ edition = "2018"
 workspace = "../.."
 
 [dependencies]
-anyhow = "1.0.25"
-async-std = { version = "1.2.0", features = [ "attributes" ] }
-tide = "0.4.0"
+anyhow = "1.0.26"
+async-std = { version = "1.4.0", features = [ "attributes" ] }
+tide = "0.5.1"
 sqlx = { path = "../..", features = [ "postgres" ] }
-serde = { version = "1.0.103", features = [ "derive" ] }
+serde = { version = "1.0.104", features = [ "derive" ] }
 futures = "0.3.1"
-rust-argon2 = "0.6.0"
+rust-argon2 = "0.6.1"
 rand = "0.7.2"
-jsonwebtoken = "6"
+jsonwebtoken = "6.0.1"
 chrono = "0.4.10"
