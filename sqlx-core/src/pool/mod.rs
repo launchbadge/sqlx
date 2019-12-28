@@ -50,7 +50,7 @@ where
 {
     /// Creates a connection pool with the default configuration.
     pub async fn new(url: &str) -> crate::Result<Self> {
-        Self::with_options(url, Options::default()).await
+        Self::builder().build(url).await
     }
 
     async fn with_options(url: &str, options: Options) -> crate::Result<Self> {
@@ -76,8 +76,7 @@ where
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
-    /// Returns `None` if there are no idle connections available in the pool.
-    /// This method will not block waiting to establish a new connection.
+    /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<impl DerefMut<Target = DB::Connection>> {
         self.inner.try_acquire().map(|conn| Connection {
             raw: Some(conn),
@@ -114,8 +113,8 @@ where
     }
 
     /// Returns the configured minimum idle connection count.
-    pub fn min_idle(&self) -> u32 {
-        self.inner.options().min_idle
+    pub fn min_size(&self) -> u32 {
+        self.inner.options().min_size
     }
 
     /// Returns the configured maximum connection lifetime.

@@ -38,8 +38,6 @@ where
         url: &str,
         options: Options,
     ) -> crate::Result<(Arc<Self>, Sender<Idle<DB>>)> {
-        // TODO: Establish [min_idle] connections
-
         let (pool_tx, pool_rx) = channel(options.max_size as usize);
 
         let pool = Arc::new(Self {
@@ -49,6 +47,18 @@ where
             closed: AtomicBool::new(false),
             options,
         });
+
+        for _ in 0.. pool.options.min_size {
+            let raw = pool.new_conn(
+                Instant::now() + pool.options.connect_timeout
+            ).await?;
+
+            pool_tx.send(Idle {
+                    raw,
+                    since: Instant::now()
+                })
+                .await;
+        }
 
         conn_reaper(&pool, &pool_tx);
 
@@ -225,7 +235,7 @@ where
             let max_reaped = pool
                 .size
                 .load(Ordering::Acquire)
-                .saturating_sub(pool.options.min_idle);
+                .saturating_sub(pool.options.min_size);
 
             // collect connections to reap
             let (reap, keep) = (0..max_reaped)
