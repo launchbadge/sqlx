@@ -90,7 +90,7 @@ where
     ///
     /// Does not resolve until all connections are closed.
     pub async fn close(&self) {
-        let _ = self.inner.close().await;
+        self.inner.close().await;
     }
 
     /// Returns the number of connections currently being managed by the pool.

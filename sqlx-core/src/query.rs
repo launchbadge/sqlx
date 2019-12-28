@@ -3,12 +3,8 @@ use crate::arguments::IntoArguments;
 use crate::database::Database;
 use crate::encode::Encode;
 use crate::executor::Executor;
-use crate::row::FromRow;
 use crate::types::HasSqlType;
-use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_core::Stream;
-use futures_util::TryFutureExt;
 use futures_util::TryStreamExt;
 use std::marker::PhantomData;
 
@@ -112,6 +108,6 @@ where
     Query {
         database: PhantomData,
         arguments: Default::default(),
-        query: sql.as_ref(),
+        query: sql,
     }
 }

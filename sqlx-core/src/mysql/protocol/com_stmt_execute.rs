@@ -40,7 +40,7 @@ impl Encode for ComStmtExecute<'_> {
         // iterations (always 1) : int<4>
         buf.put_u32::<LittleEndian>(1);
 
-        if self.param_types.len() > 0 {
+        if !self.param_types.is_empty() {
             // null bitmap : byte<(param_count + 7)/8>
             buf.put_bytes(self.null_bitmap);
 

@@ -1,14 +1,11 @@
-use std::marker::PhantomData;
-
-use futures_core::{future::BoxFuture, stream::BoxStream, Stream};
-use futures_util::{future, FutureExt, TryFutureExt, TryStreamExt};
+use futures_core::Stream;
+use futures_util::{future, TryStreamExt};
 
 use crate::arguments::Arguments;
 use crate::{
-    arguments::IntoArguments, database::Database, decode::Decode, encode::Encode,
+    arguments::IntoArguments, database::Database, encode::Encode,
     executor::Executor, row::FromRow, types::HasSqlType,
 };
-use std::task::Poll;
 
 /// SQL query with bind parameters and output type. Returned by [query_as] and [query!] *et al*.
 pub struct QueryAs<'q, DB, R, P = <DB as Database>::Arguments>

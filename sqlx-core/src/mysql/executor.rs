@@ -8,9 +8,9 @@ use crate::describe::{Column, Describe};
 use crate::executor::Executor;
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
-    Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComSetOption, ComStmtExecute,
+    Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute,
     ComStmtPrepare, ComStmtPrepareOk, Cursor, Decode, EofPacket, ErrPacket, OkPacket, Row,
-    SetOption, Type,
+    Type,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
 
@@ -231,7 +231,7 @@ impl MySqlConnection {
 
         let columns = self.receive_column_types(num_columns as usize).await?;
 
-        while let Some(step) = self.step(&columns, false).await? {
+        while let Some(_step) = self.step(&columns, false).await? {
             // Drop all responses
         }
 

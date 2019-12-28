@@ -26,7 +26,7 @@ where
     ///
     /// The default implementation returns [DecodeError::UnexpectedNull].
     fn decode_null() -> Result<Self, DecodeError> {
-        return Err(DecodeError::UnexpectedNull);
+        Err(DecodeError::UnexpectedNull)
     }
 
     fn decode_nullable(raw: Option<&[u8]>) -> Result<Self, DecodeError> {

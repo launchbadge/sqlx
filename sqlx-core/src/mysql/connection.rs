@@ -7,7 +7,7 @@ use futures_core::future::BoxFuture;
 
 use crate::cache::StatementCache;
 use crate::connection::Connection;
-use crate::io::{Buf, BufMut, BufStream, ByteStr};
+use crate::io::{Buf, BufMut, BufStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
     Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake, HandshakeResponse, OkPacket,

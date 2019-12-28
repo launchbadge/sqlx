@@ -1,8 +1,5 @@
-use byteorder::LittleEndian;
-
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::Type;
 use crate::mysql::types::MySqlTypeMetadata;
 use crate::mysql::MySql;
@@ -22,7 +19,7 @@ impl Encode<MySql> for f32 {
 }
 
 impl Decode<MySql> for f32 {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
         Ok(f32::from_bits(<i32 as Decode<MySql>>::decode(buf)? as u32))
     }
 }
@@ -41,7 +38,7 @@ impl Encode<MySql> for f64 {
 }
 
 impl Decode<MySql> for f64 {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
         Ok(f64::from_bits(<i64 as Decode<MySql>>::decode(buf)? as u64))
     }
 }

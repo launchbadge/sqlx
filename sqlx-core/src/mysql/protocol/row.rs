@@ -24,32 +24,32 @@ impl Row {
     }
 }
 
-fn get_lenenc_size(buf: &[u8]) -> usize {
+fn get_lenenc(buf: &[u8]) -> (usize, usize) {
     match buf[0] {
-        0xFB => 1,
+        0xFB => (1, 0),
 
         0xFC => {
             let len_size = 1 + 2;
             let len = LittleEndian::read_u16(&buf[1..]);
 
-            len_size + (len as usize)
+            (len_size, len as usize)
         }
 
         0xFD => {
             let len_size = 1 + 3;
             let len = LittleEndian::read_u24(&buf[1..]);
 
-            len_size + (len as usize)
+            (len_size, len as usize)
         }
 
         0xFE => {
             let len_size = 1 + 8;
             let len = LittleEndian::read_u64(&buf[1..]);
 
-            len_size + (len as usize)
+            (len_size, len as usize)
         }
 
-        value => 1 + (value as usize),
+        value => (1, value as usize),
     }
 }
 
@@ -61,9 +61,9 @@ impl Row {
             let mut index = 0;
 
             for column_idx in 0..columns.len() {
-                let size = get_lenenc_size(&buf[index..]);
+                let (offset, size) = get_lenenc(&buf[index..]);
 
-                values.push(Some(index..(index + size)));
+                values.push(Some((index + offset)..(index + offset + size)));
 
                 index += size;
                 buf.advance(size);
@@ -95,11 +95,11 @@ impl Row {
             if null_bitmap[column_idx / 8] & (1 << (column_idx % 8) as u8) != 0 {
                 values.push(None);
             } else {
-                let size = match columns[column_idx] {
-                    Type::TINY => 1,
-                    Type::SHORT => 2,
-                    Type::LONG => 4,
-                    Type::LONGLONG => 8,
+                let (offset, size) = match columns[column_idx] {
+                    Type::TINY => (0, 1),
+                    Type::SHORT => (0, 2),
+                    Type::LONG => (0, 4),
+                    Type::LONGLONG => (0, 8),
 
                     Type::TINY_BLOB
                     | Type::MEDIUM_BLOB
@@ -108,15 +108,15 @@ impl Row {
                     | Type::GEOMETRY
                     | Type::STRING
                     | Type::VARCHAR
-                    | Type::VAR_STRING => get_lenenc_size(&buffer[index..]),
+                    | Type::VAR_STRING => get_lenenc(&buffer[index..]),
 
                     r#type => {
                         unimplemented!("encountered unknown field type: {:?}", r#type);
                     }
                 };
 
-                values.push(Some(index..(index + size)));
-                index += size;
+                values.push(Some((index + offset)..(index + offset + size)));
+                index += offset + size;
             }
         }
 

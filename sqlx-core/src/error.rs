@@ -174,13 +174,14 @@ pub(crate) struct ProtocolError<'a> {
     pub args: fmt::Arguments<'a>,
 }
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
+#[allow(unused_macros)]
 macro_rules! protocol_err (
     ($($args:tt)*) => {
         $crate::error::ProtocolError { args: format_args!($($args)*) }
     }
 );
 
+#[allow(unused_macros)]
 macro_rules! impl_fmt_error {
     ($err:ty) => {
         impl std::fmt::Debug for $err {
