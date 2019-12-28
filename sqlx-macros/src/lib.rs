@@ -1,16 +1,16 @@
-#![cfg_attr(not(any(feature = "postgres", feature = "mysql")), allow(dead_code, unused_macros, unused_imports))]
+#![cfg_attr(
+    not(any(feature = "postgres", feature = "mysql")),
+    allow(dead_code, unused_macros, unused_imports)
+)]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
 
 use proc_macro_hack::proc_macro_hack;
 
-use quote::{quote};
+use quote::quote;
 
-use syn::{
-    parse,
-    parse_macro_input,
-};
+use syn::{parse, parse_macro_input};
 
 use async_std::task;
 
@@ -19,19 +19,21 @@ use url::Url;
 type Error = Box<dyn std::error::Error>;
 type Result<T> = std::result::Result<T, Error>;
 
-mod backend;
+mod database;
 
 mod query;
 
 macro_rules! with_database(
     ($db:ident => $expr:expr) => {
         async {
+            use sqlx::Connection;
+
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
 
             match db_url.scheme() {
                 #[cfg(feature = "postgres")]
                 "postgresql" | "postgres" => {
-                    let $db = sqlx::Postgres::connect(db_url.as_str())
+                    let $db = sqlx::postgres::PgConnection::open(db_url.as_str())
                         .await
                         .map_err(|e| format!("failed to connect to database: {}", e))?;
 
@@ -45,7 +47,7 @@ macro_rules! with_database(
                 ).into()),
                 #[cfg(feature = "mysql")]
                 "mysql" | "mariadb" => {
-                    let $db = sqlx::MySql::connect(db_url.as_str())
+                    let $db = sqlx::mysql::MySqlConnection::open(db_url.as_str())
                             .await
                             .map_err(|e| format!("failed to connect to database: {}", e))?;
 
@@ -65,6 +67,7 @@ macro_rules! with_database(
 
 #[proc_macro_hack]
 pub fn query(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
     let input = parse_macro_input!(input as query::MacroInput);
 
     match task::block_on(with_database!(db => query::process_sql(input, db))) {

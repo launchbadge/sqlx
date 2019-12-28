@@ -2,7 +2,6 @@ use async_std::io::{
     prelude::{ReadExt, WriteExt},
     Read, Write,
 };
-use std::mem::MaybeUninit;
 use std::io;
 
 pub struct BufStream<S> {
@@ -66,7 +65,9 @@ where
             // If we have enough bytes in our read buffer,
             // return immediately
             if self.rbuf_windex >= (self.rbuf_rindex + cnt) {
-                return Ok(Some(&self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)]));
+                let buf = &self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)];
+
+                return Ok(Some(buf));
             }
 
             // If we are out of space to write to in the read buffer,

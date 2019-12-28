@@ -1,64 +1,99 @@
-use crate::{backend::Backend, encode::Encode, error::Error, executor::Executor, params::{IntoQueryParameters, QueryParameters}, row::FromRow, types::HasSqlType, Row, Decode};
+use crate::arguments::Arguments;
+use crate::arguments::IntoArguments;
+use crate::database::Database;
+use crate::encode::Encode;
+use crate::executor::Executor;
+use crate::row::FromRow;
+use crate::types::HasSqlType;
+use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::TryFutureExt;
+use futures_util::TryStreamExt;
 use std::marker::PhantomData;
-use futures_core::{future::BoxFuture, stream::BoxStream};
 
-pub struct Query<'q, DB, P = <DB as Backend>::QueryParameters, R = <DB as Backend>::Row>
+/// A SQL query with bind parameters and output type.
+///
+/// Optionally type-safe if constructed through [query!].
+pub struct Query<'q, DB, T = <DB as Database>::Arguments, R = <DB as Database>::Row>
 where
-    DB: Backend,
+    DB: Database,
 {
     query: &'q str,
-    params: P,
+    arguments: T,
     record: PhantomData<R>,
-    backend: PhantomData<DB>,
+    database: PhantomData<DB>,
 }
 
 impl<'q, DB, P: 'q, R: 'q> Query<'q, DB, P, R>
 where
-    DB: Backend,
-    DB::QueryParameters: 'q,
-    P: IntoQueryParameters<DB> + Send,
-    R: FromRow<DB> + Send + Unpin,
+    DB: Database,
+    DB::Arguments: 'q,
+    P: IntoArguments<DB> + Send,
+    R: FromRow<DB::Row> + Send + Unpin,
 {
-    #[inline]
-    pub fn execute<E>(self, executor: &'q mut E) -> BoxFuture<'q, crate::Result<u64>>
+    pub fn execute<'e, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<u64>>
     where
-        E: Executor<Backend = DB>,
+        E: Executor<Database = DB>,
+        'q: 'e,
     {
-        executor.execute(self.query, self.params.into_params())
+        executor.execute(self.query, self.arguments.into_arguments())
     }
 
-    pub fn fetch<E>(self, executor: &'q mut E) -> BoxStream<'q, crate::Result<R>>
+    pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<R>>
     where
-        E: Executor<Backend = DB>,
+        E: Executor<Database = DB>,
+        DB::Row: 'e,
+        'q: 'e,
     {
-        executor.fetch(self.query, self.params.into_params())
+        Box::pin(
+            executor
+                .fetch(self.query, self.arguments.into_arguments())
+                .map_ok(FromRow::from_row),
+        )
     }
 
-    pub fn fetch_all<E>(self, executor: &'q mut E) -> BoxFuture<'q, crate::Result<Vec<R>>>
+    pub fn fetch_all<'e: 'q, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<Vec<R>>>
     where
-        E: Executor<Backend = DB>,
+        E: Executor<Database = DB>,
+        DB::Row: 'e,
+        'q: 'e,
     {
-        executor.fetch_all(self.query, self.params.into_params())
+        Box::pin(self.fetch(executor).try_collect())
     }
 
-    pub fn fetch_optional<E>(self, executor: &'q mut E) -> BoxFuture<'q, crate::Result<Option<R>>>
+    pub fn fetch_optional<'e: 'q, E>(
+        self,
+        executor: &'e mut E,
+    ) -> BoxFuture<'e, crate::Result<Option<R>>>
     where
-        E: Executor<Backend = DB>,
+        E: Executor<Database = DB>,
+        DB::Row: 'e,
+        'q: 'e,
     {
-        executor.fetch_optional(self.query, self.params.into_params())
+        Box::pin(
+            executor
+                .fetch_optional(self.query, self.arguments.into_arguments())
+                .map_ok(|row| row.map(FromRow::from_row)),
+        )
     }
 
-    pub fn fetch_one<E>(self, executor: &'q mut E) -> BoxFuture<'q, crate::Result<R>>
+    pub fn fetch_one<'e: 'q, E>(self, executor: &'e mut E) -> BoxFuture<'e, crate::Result<R>>
     where
-        E: Executor<Backend = DB>,
+        E: Executor<Database = DB>,
+        DB::Row: 'e,
+        'q: 'e,
     {
-        executor.fetch_one(self.query, self.params.into_params())
+        Box::pin(
+            executor
+                .fetch_one(self.query, self.arguments.into_arguments())
+                .map_ok(FromRow::from_row),
+        )
     }
 }
 
 impl<'q, DB> Query<'q, DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     /// Bind a value for use with this SQL query.
     ///
@@ -72,62 +107,30 @@ where
         DB: HasSqlType<T>,
         T: Encode<DB>,
     {
-        self.params.bind(value);
+        self.arguments.add(value);
         self
     }
-
-    /// Bind all query parameters at once.
-    ///
-    /// If any parameters were previously bound with `.bind()` they are discarded.
-    ///
-    /// # Logic Safety
-    ///
-    /// This function should be used with care, as SQLx cannot validate
-    /// that the value is of the right type nor can it validate that you have
-    /// passed the correct number of parameters.
-    pub fn bind_all<I>(self, values: I) -> Query<'q, DB, I> where I: IntoQueryParameters<DB> {
-        Query {
-            query: self.query,
-            params: values,
-            record: PhantomData,
-            backend: PhantomData
-        }
-    }
-}
-//noinspection RsSelfConvention
-impl<'q, DB, I, R> Query<'q, DB, I, R> where DB: Backend {
-
-    /// Change the expected output type of the query to a single scalar value.
-    pub fn as_scalar<R_>(self) -> Query<'q, DB, I, R_> where R_: Decode<DB> {
-        Query {
-            query: self.query,
-            params: self.params,
-            record: PhantomData,
-            backend: PhantomData,
-        }
-    }
-
-    /// Change the expected output of the query to a new type implementing `FromRow`.
-    pub fn as_record<R_>(self) -> Query<'q, DB, I, R_> where R_: FromRow<DB> {
-        Query {
-            query: self.query,
-            params: self.params,
-            record: PhantomData,
-            backend: PhantomData,
-        }
-    }
 }
 
-/// Construct a full SQL query using raw SQL.
-#[inline]
-pub fn query<DB>(query: &str) -> Query<'_, DB>
+/// Construct a full SQL query that can be chained to bind parameters and executed.
+///
+/// # Examples
+///
+/// ```ignore
+/// let names: Vec<String> = sqlx::query("SELECT name FROM users WHERE active = ?")
+///     .bind(false) // [active = ?]
+///     .fetch(&mut connection) // -> Stream<Item = impl Row>
+///     .map_ok(|row| row.name("name")) // -> Stream<Item = String>
+///     .try_collect().await?; // -> Vec<String>
+/// ```
+pub fn query<'q, DB>(sql: &'q str) -> Query<'q, DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     Query {
-        query,
-        params: Default::default(),
+        database: PhantomData,
         record: PhantomData,
-        backend: PhantomData,
+        arguments: Default::default(),
+        query: sql.as_ref(),
     }
 }

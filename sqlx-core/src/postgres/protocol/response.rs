@@ -1,5 +1,5 @@
-use super::Decode;
 use crate::io::Buf;
+use crate::postgres::protocol::Decode;
 use std::{
     fmt, io,
     pin::Pin,
@@ -7,7 +7,7 @@ use std::{
     str::{self, FromStr},
 };
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Severity {
     Panic,
     Fatal,
@@ -74,179 +74,47 @@ impl FromStr for Severity {
     }
 }
 
+#[derive(Debug)]
 pub struct Response {
-    #[used]
-    buffer: Pin<Box<[u8]>>,
-    severity: Severity,
-    code: NonNull<str>,
-    message: NonNull<str>,
-    detail: Option<NonNull<str>>,
-    hint: Option<NonNull<str>>,
-    position: Option<usize>,
-    internal_position: Option<usize>,
-    internal_query: Option<NonNull<str>>,
-    where_: Option<NonNull<str>>,
-    schema: Option<NonNull<str>>,
-    table: Option<NonNull<str>>,
-    column: Option<NonNull<str>>,
-    data_type: Option<NonNull<str>>,
-    constraint: Option<NonNull<str>>,
-    file: Option<NonNull<str>>,
-    line: Option<usize>,
-    routine: Option<NonNull<str>>,
-}
-
-// SAFE: Raw pointers point to pinned memory inside the struct
-unsafe impl Send for Response {}
-unsafe impl Sync for Response {}
-
-impl Response {
-    #[inline]
-    pub fn severity(&self) -> Severity {
-        self.severity
-    }
-
-    #[inline]
-    pub fn code(&self) -> &str {
-        // SAFE: Memory is pinned
-        unsafe { self.code.as_ref() }
-    }
-
-    #[inline]
-    pub fn message(&self) -> &str {
-        // SAFE: Memory is pinned
-        unsafe { self.message.as_ref() }
-    }
-
-    #[inline]
-    pub fn detail(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.detail.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn hint(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.hint.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn position(&self) -> Option<usize> {
-        self.position
-    }
-
-    #[inline]
-    pub fn internal_position(&self) -> Option<usize> {
-        self.internal_position
-    }
-
-    #[inline]
-    pub fn internal_query(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.internal_query.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn where_(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.where_.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn schema(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.schema.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn table(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.table.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn column(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.column.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn data_type(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.data_type.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn constraint(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.constraint.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn file(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.file.as_ref().map(|s| s.as_ref()) }
-    }
-
-    #[inline]
-    pub fn line(&self) -> Option<usize> {
-        self.line
-    }
-
-    #[inline]
-    pub fn routine(&self) -> Option<&str> {
-        // SAFE: Memory is pinned
-        unsafe { self.routine.as_ref().map(|s| s.as_ref()) }
-    }
-}
-
-impl fmt::Debug for Response {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Response")
-            .field("severity", &self.severity)
-            .field("code", &self.code())
-            .field("message", &self.message())
-            .field("detail", &self.detail())
-            .field("hint", &self.hint())
-            .field("position", &self.position())
-            .field("internal_position", &self.internal_position())
-            .field("internal_query", &self.internal_query())
-            .field("where_", &self.where_())
-            .field("schema", &self.schema())
-            .field("table", &self.table())
-            .field("column", &self.column())
-            .field("data_type", &self.data_type())
-            .field("constraint", &self.constraint())
-            .field("file", &self.file())
-            .field("line", &self.line())
-            .field("routine", &self.routine())
-            .finish()
-    }
+    pub severity: Severity,
+    pub code: Box<str>,
+    pub message: Box<str>,
+    pub detail: Option<Box<str>>,
+    pub hint: Option<Box<str>>,
+    pub position: Option<usize>,
+    pub internal_position: Option<usize>,
+    pub internal_query: Option<Box<str>>,
+    pub where_: Option<Box<str>>,
+    pub schema: Option<Box<str>>,
+    pub table: Option<Box<str>>,
+    pub column: Option<Box<str>>,
+    pub data_type: Option<Box<str>>,
+    pub constraint: Option<Box<str>>,
+    pub file: Option<Box<str>>,
+    pub line: Option<usize>,
+    pub routine: Option<Box<str>>,
 }
 
 impl Decode for Response {
-    fn decode(buf: &[u8]) -> crate::Result<Self> {
-        let buffer: Pin<Box<[u8]>> = Pin::new(buf.into());
-        let mut buf: &[u8] = &*buffer;
-
-        let mut code = None::<NonNull<str>>;
-        let mut message = None::<NonNull<str>>;
-        let mut severity = None::<NonNull<str>>;
+    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+        let mut code = None::<Box<str>>;
+        let mut message = None::<Box<str>>;
+        let mut severity = None::<Box<str>>;
         let mut severity_non_local = None::<Severity>;
-        let mut detail = None::<NonNull<str>>;
-        let mut hint = None::<NonNull<str>>;
+        let mut detail = None::<Box<str>>;
+        let mut hint = None::<Box<str>>;
         let mut position = None::<usize>;
         let mut internal_position = None::<usize>;
-        let mut internal_query = None::<NonNull<str>>;
-        let mut where_ = None::<NonNull<str>>;
-        let mut schema = None::<NonNull<str>>;
-        let mut table = None::<NonNull<str>>;
-        let mut column = None::<NonNull<str>>;
-        let mut data_type = None::<NonNull<str>>;
-        let mut constraint = None::<NonNull<str>>;
-        let mut file = None::<NonNull<str>>;
+        let mut internal_query = None::<Box<str>>;
+        let mut where_ = None::<Box<str>>;
+        let mut schema = None::<Box<str>>;
+        let mut table = None::<Box<str>>;
+        let mut column = None::<Box<str>>;
+        let mut data_type = None::<Box<str>>;
+        let mut constraint = None::<Box<str>>;
+        let mut file = None::<Box<str>>;
         let mut line = None::<usize>;
-        let mut routine = None::<NonNull<str>>;
+        let mut routine = None::<Box<str>>;
 
         loop {
             let field_type = buf.get_u8()?;
@@ -354,7 +222,7 @@ impl Decode for Response {
         }
 
         let severity = severity_non_local
-            .or_else(move || unsafe { severity?.as_ref() }.parse().ok())
+            .or_else(move || severity?.as_ref().parse().ok())
             .ok_or(protocol_err!(
                 "did not receieve field `severity` for Response"
             ))?;
@@ -365,7 +233,6 @@ impl Decode for Response {
         ))?;
 
         Ok(Self {
-            buffer,
             severity,
             code,
             message,
@@ -390,6 +257,7 @@ impl Decode for Response {
 #[cfg(test)]
 mod tests {
     use super::{Decode, Response, Severity};
+    use matches::assert_matches;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
           skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
@@ -398,13 +266,13 @@ mod tests {
     fn it_decodes_response() {
         let message = Response::decode(RESPONSE).unwrap();
 
-        assert_eq!(message.severity(), Severity::Notice);
-        assert_eq!(message.code(), "42710");
-        assert_eq!(message.file(), Some("extension.c"));
-        assert_eq!(message.line(), Some(1656));
-        assert_eq!(message.routine(), Some("CreateExtension"));
+        assert_matches!(message.severity, Severity::Notice);
+        assert_eq!(&*message.code, "42710");
+        assert_eq!(&*message.file.unwrap(), "extension.c");
+        assert_eq!(message.line, Some(1656));
+        assert_eq!(&*message.routine.unwrap(), "CreateExtension");
         assert_eq!(
-            message.message(),
+            &*message.message,
             "extension \"uuid-ossp\" already exists, skipping"
         );
     }

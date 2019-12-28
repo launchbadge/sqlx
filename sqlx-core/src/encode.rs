@@ -1,72 +1,82 @@
-//! Types and traits related to serializing values for the database.
-use crate::{backend::Backend, types::HasSqlType};
+//! Types and traits for encoding values to the database.
 
+use crate::database::Database;
+use crate::types::HasSqlType;
 use std::mem;
 
-/// Annotates the result of [Encode] to differentiate between an empty value and a null value.
+/// The return type of [Encode::encode].
 pub enum IsNull {
-    /// The value was null (and no data was written to the buffer).
+    /// The value is null; no data was written.
     Yes,
 
-    /// The value was not null.
+    /// The value is not null.
     ///
-    /// This does not necessarily mean that any data was written to the buffer.
+    /// This does not mean that data was written.
     No,
 }
 
-/// Serializes a single value to be sent to the database.
-///
-/// The data must be written to the buffer in the expected format
-/// for the given backend.
-///
-/// When possible, implementations of this trait should prefer using an
-/// existing implementation, rather than writing to `buf` directly.
-pub trait Encode<DB: Backend> {
-    /// Writes the value of `self` into `buf` as the expected format
-    /// for the given backend.
-    ///
-    /// The return value indicates if this value should be represented as `NULL`.
-    /// If this is the case, implementations **must not** write anything to `out`.
-    fn encode(&self, buf: &mut Vec<u8>) -> IsNull;
+/// Encode a single value to be sent to the database.
+pub trait Encode<DB>
+where
+    DB: Database + ?Sized,
+{
+    /// Writes the value of `self` into `buf` in the expected format for the database.
+    fn encode(&self, buf: &mut Vec<u8>);
 
-    /// Calculate the number of bytes this type will use when encoded.
+    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
+        self.encode(buf);
+
+        IsNull::No
+    }
+
     fn size_hint(&self) -> usize {
         mem::size_of_val(self)
     }
 }
 
-/// [Encode] is implemented for `Option<T>` where `T` implements `Encode`. An `Option<T>`
-/// represents a nullable SQL value.
-impl<T, DB> Encode<DB> for Option<T>
+impl<T: ?Sized, DB> Encode<DB> for &'_ T
 where
-    DB: Backend + HasSqlType<T>,
+    DB: Database + HasSqlType<T>,
     T: Encode<DB>,
 {
-    #[inline]
-    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        (*self).encode(buf)
+    }
+
+    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
+        (*self).encode_nullable(buf)
+    }
+
+    fn size_hint(&self) -> usize {
+        (*self).size_hint()
+    }
+}
+
+impl<T, DB> Encode<DB> for Option<T>
+where
+    DB: Database + HasSqlType<T>,
+    T: Encode<DB>,
+{
+    fn encode(&self, buf: &mut Vec<u8>) {
+        // Forward to [encode_nullable] and ignore the result
+        let _ = self.encode_nullable(buf);
+    }
+
+    fn encode_nullable(&self, buf: &mut Vec<u8>) -> IsNull {
         if let Some(self_) = self {
-            self_.encode(buf)
+            self_.encode(buf);
+
+            IsNull::No
         } else {
             IsNull::Yes
         }
     }
 
     fn size_hint(&self) -> usize {
-        if self.is_some() { mem::size_of::<T>() } else { 0 }
-    }
-}
-
-impl<T: ?Sized, DB> Encode<DB> for &'_ T
-where
-    DB: Backend + HasSqlType<T>,
-    T: Encode<DB>,
-{
-    #[inline]
-    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
-        (*self).encode(buf)
-    }
-
-    fn size_hint(&self) -> usize {
-        (*self).size_hint()
+        if self.is_some() {
+            mem::size_of::<T>()
+        } else {
+            0
+        }
     }
 }

@@ -1,81 +1,60 @@
-use crate::{
-    backend::Backend,
-    describe::Describe,
-    error::Error,
-    params::{IntoQueryParameters, QueryParameters},
-    row::FromRow,
-};
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{TryFutureExt, TryStreamExt};
+use crate::database::Database;
+use crate::describe::Describe;
+use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::TryStreamExt;
 
-pub trait Executor: Send {
-    type Backend: Backend;
+/// Encapsulates query execution on the database.
+///
+/// Implemented by [Pool], [Connection], and [Transaction].
+pub trait Executor {
+    type Database: Database + ?Sized;
 
-    /// Verifies a connection to the database is still alive.
-    fn ping<'e>(&'e mut self) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(
-            self.execute(
-                "SELECT 1",
-                Default::default(),
-            )
-            .map_ok(|_| ()),
-        )
-    }
+    /// Send a raw SQL command to the database.
+    ///
+    /// This is intended for queries that cannot or should not be prepared (ex. `BEGIN`).
+    ///
+    /// Does not support fetching results.
+    fn send<'e, 'q: 'e>(&'e mut self, command: &'q str) -> BoxFuture<'e, crate::Result<()>>;
 
+    /// Execute the query, returning the number of rows affected.
     fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
+        args: <Self::Database as Database>::Arguments,
     ) -> BoxFuture<'e, crate::Result<u64>>;
 
-    fn fetch<'e, 'q: 'e, T: 'e>(
+    /// Executes the query and returns a [Stream] of [Row].
+    fn fetch<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxStream<'e, crate::Result<T>>
-    where
-        T: FromRow<Self::Backend> + Send + Unpin;
+        args: <Self::Database as Database>::Arguments,
+    ) -> BoxStream<'e, crate::Result<<Self::Database as Database>::Row>>;
 
-    fn fetch_all<'e, 'q: 'e, T: 'e>(
+    /// Executes the query and returns up to resulting record.
+    ///  * `Error::FoundMoreThanOne` will be returned if the query produced more than 1 row.
+    fn fetch_optional<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'e, crate::Result<Vec<T>>>
-    where
-        T: FromRow<Self::Backend> + Send + Unpin,
-    {
-        Box::pin(self.fetch(query, params).try_collect())
+        args: <Self::Database as Database>::Arguments,
+    ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as Database>::Row>>> {
+        let mut s = self.fetch(query, args);
+        Box::pin(async move { s.try_next().await })
     }
 
-    fn fetch_optional<'e, 'q: 'e, T: 'e>(
+    /// Execute the query and return at most one resulting record.
+    fn fetch_one<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'e, crate::Result<Option<T>>>
-    where
-        T: FromRow<Self::Backend> + Send;
-
-    fn fetch_one<'e, 'q: 'e, T: 'e>(
-        &'e mut self,
-        query: &'q str,
-        params: <Self::Backend as Backend>::QueryParameters,
-    ) -> BoxFuture<'e, crate::Result<T>>
-    where
-        T: FromRow<Self::Backend> + Send,
-    {
-        let fut = self.fetch_optional(query, params);
-        Box::pin(async move { fut.await?.ok_or(Error::NotFound) })
+        args: <Self::Database as Database>::Arguments,
+    ) -> BoxFuture<'e, crate::Result<<Self::Database as Database>::Row>> {
+        let mut s = self.fetch(query, args);
+        Box::pin(async move { s.try_next().await?.ok_or(crate::Error::NotFound) })
     }
 
-    /// Analyze the SQL statement and report the inferred bind parameter types and returned
-    /// columns.
+    /// Analyze the SQL query and report the inferred bind parameter types and returned columns.
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>>;
-
-    /// Send a semicolon-delimited series of arbitrary SQL commands to the server.
-    ///
-    /// Does not support fetching results.
-    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>>;
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>;
 }

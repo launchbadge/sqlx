@@ -1,7 +1,7 @@
-use super::Decode;
+use crate::postgres::protocol::Decode;
 use std::io;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug)]
 #[repr(u8)]
 pub enum TransactionStatus {
     /// Not in a transaction block.
@@ -14,17 +14,10 @@ pub enum TransactionStatus {
     Error = b'E',
 }
 
-/// `ReadyForQuery` is sent whenever the backend is ready for a new query cycle.
+/// `ReadyForQuery` is sent whenever the database is ready for a new query cycle.
 #[derive(Debug)]
 pub struct ReadyForQuery {
     status: TransactionStatus,
-}
-
-impl ReadyForQuery {
-    #[inline]
-    pub fn status(&self) -> TransactionStatus {
-        self.status
-    }
 }
 
 impl Decode for ReadyForQuery {
@@ -50,6 +43,7 @@ impl Decode for ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{Decode, ReadyForQuery, TransactionStatus};
+    use matches::assert_matches;
 
     const READY_FOR_QUERY: &[u8] = b"E";
 
@@ -57,6 +51,6 @@ mod tests {
     fn it_decodes_ready_for_query() {
         let message = ReadyForQuery::decode(READY_FOR_QUERY).unwrap();
 
-        assert_eq!(message.status, TransactionStatus::Error);
+        assert_matches!(message.status, TransactionStatus::Error);
     }
 }

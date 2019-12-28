@@ -1,22 +1,23 @@
-use super::Decode;
 use crate::io::Buf;
+use crate::postgres::protocol::Decode;
+use crate::postgres::types::TypeFormat;
 use byteorder::NetworkEndian;
 use std::{io, io::BufRead};
 
 #[derive(Debug)]
 pub struct RowDescription {
-    pub fields: Box<[RowField]>,
+    pub fields: Box<[Field]>,
 }
 
 #[derive(Debug)]
-pub struct RowField {
-    pub name: String,
-    pub table_id: u32,
-    pub attr_num: i16,
+pub struct Field {
+    pub name: Option<Box<str>>,
+    pub table_id: Option<u32>,
+    pub column_id: i16,
     pub type_id: u32,
     pub type_size: i16,
     pub type_mod: i32,
-    pub format_code: i16,
+    pub type_format: TypeFormat,
 }
 
 impl Decode for RowDescription {
@@ -25,14 +26,25 @@ impl Decode for RowDescription {
         let mut fields = Vec::with_capacity(cnt);
 
         for _ in 0..cnt {
-            fields.push(RowField {
-                name: super::read_string(&mut buf)?,
-                table_id: buf.get_u32::<NetworkEndian>()?,
-                attr_num: buf.get_i16::<NetworkEndian>()?,
+            let name = buf.get_str_nul()?;
+            let name = if name == "?column?" {
+                None
+            } else {
+                Some(name.to_owned().into_boxed_str())
+            };
+
+            let table_id = buf.get_u32::<NetworkEndian>()?;
+
+            fields.push(Field {
+                name,
+
+                table_id: if table_id > 0 { Some(table_id) } else { None },
+
+                column_id: buf.get_i16::<NetworkEndian>()?,
                 type_id: buf.get_u32::<NetworkEndian>()?,
                 type_size: buf.get_i16::<NetworkEndian>()?,
                 type_mod: buf.get_i32::<NetworkEndian>()?,
-                format_code: buf.get_i16::<NetworkEndian>()?,
+                type_format: buf.get_i16::<NetworkEndian>()?.into(),
             });
         }
 
@@ -49,7 +61,7 @@ mod test {
     #[test]
     fn it_decodes_row_description() {
         #[rustfmt::skip]
-        let buf = __bytes_builder! {
+        let buf = bytes! {
             // Number of Parameters
             0_u8, 2_u8,
 

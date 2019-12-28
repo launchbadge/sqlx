@@ -1,15 +1,13 @@
-use crate::io::BufMut;
-use byteorder::ByteOrder;
 use std::{u16, u32, u64, u8};
+
+use byteorder::ByteOrder;
+
+use crate::io::BufMut;
 
 pub trait BufMutExt {
     fn put_uint_lenenc<T: ByteOrder, U: Into<Option<u64>>>(&mut self, val: U);
 
     fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str);
-
-    fn put_str(&mut self, val: &str);
-
-    fn put_bytes(&mut self, val: &[u8]);
 
     fn put_bytes_lenenc<T: ByteOrder>(&mut self, val: &[u8]);
 }
@@ -49,23 +47,11 @@ impl BufMutExt for Vec<u8> {
         }
     }
 
-    #[inline]
-    fn put_str(&mut self, val: &str) {
-        self.put_bytes(val.as_bytes());
-    }
-
-    #[inline]
     fn put_str_lenenc<T: ByteOrder>(&mut self, val: &str) {
         self.put_uint_lenenc::<T, _>(val.len() as u64);
         self.extend_from_slice(val.as_bytes());
     }
 
-    #[inline]
-    fn put_bytes(&mut self, val: &[u8]) {
-        self.extend_from_slice(val);
-    }
-
-    #[inline]
     fn put_bytes_lenenc<T: ByteOrder>(&mut self, val: &[u8]) {
         self.put_uint_lenenc::<T, _>(val.len() as u64);
         self.extend_from_slice(val);
@@ -74,27 +60,8 @@ impl BufMutExt for Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::BufMutExt;
-    use crate::io::BufMut;
+    use super::{BufMut, BufMutExt};
     use byteorder::LittleEndian;
-
-    // [X] it_encodes_int_lenenc_u64
-    // [X] it_encodes_int_lenenc_u32
-    // [X] it_encodes_int_lenenc_u24
-    // [X] it_encodes_int_lenenc_u16
-    // [X] it_encodes_int_lenenc_u8
-    // [X] it_encodes_int_u64
-    // [X] it_encodes_int_u32
-    // [X] it_encodes_int_u24
-    // [X] it_encodes_int_u16
-    // [X] it_encodes_int_u8
-    // [X] it_encodes_string_lenenc
-    // [X] it_encodes_string_fix
-    // [X] it_encodes_string_null
-    // [X] it_encodes_string_eof
-    // [X] it_encodes_byte_lenenc
-    // [X] it_encodes_byte_fix
-    // [X] it_encodes_byte_eof
 
     #[test]
     fn it_encodes_int_lenenc_none() {

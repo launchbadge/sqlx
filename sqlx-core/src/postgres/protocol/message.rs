@@ -1,8 +1,7 @@
-use super::{
+use crate::postgres::protocol::{
     Authentication, BackendKeyData, CommandComplete, DataRow, NotificationResponse,
-    ParameterDescription, ParameterStatus, ReadyForQuery, Response,
+    ParameterDescription, ParameterStatus, ReadyForQuery, Response, RowDescription,
 };
-use crate::postgres::protocol::row_description::RowDescription;
 
 #[derive(Debug)]
 #[repr(u8)]

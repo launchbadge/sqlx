@@ -1,45 +1,23 @@
-use crate::postgres::connection::Connection as RawConnection;
-use crate::cache::StatementCache;
-use crate::{Error, Backend};
-use futures_core::Future;
-use futures_core::future::BoxFuture;
-use std::net::SocketAddr;
-use std::pin::Pin;
+//! **Postgres** database and connection types.
 
-mod backend;
+mod arguments;
 mod connection;
+mod database;
 mod error;
 mod executor;
-mod query;
-mod row;
-
-#[cfg(not(feature = "unstable"))]
 mod protocol;
+mod row;
+mod types;
 
-#[cfg(feature = "unstable")]
-pub mod protocol;
+pub use database::Postgres;
 
-pub mod types;
+pub use arguments::PgArguments;
 
-/// The Postgres backend implementation.
-pub enum Postgres {}
+pub use connection::PgConnection;
 
-impl Postgres {
-    /// Alias for [Backend::connect()](../trait.Backend.html#method.connect).
-    pub async fn connect(url: &str) -> crate::Result<Connection> {
-        <Self as Backend>::connect(url).await
-    }
-}
+pub use error::PgError;
 
-/// A connection to a Postgres database.
-pub struct Connection {
-    conn: RawConnection,
-    statements: StatementCache<u64>,
-    next_id: u64,
-}
+pub use row::PgRow;
 
-impl crate::Connection for Connection {
-    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(self.conn.terminate())
-    }
-}
+/// An alias for [`Pool`], specialized for **Postgres**.
+pub type PgPool = super::Pool<Postgres>;

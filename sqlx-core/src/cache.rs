@@ -1,6 +1,6 @@
-use std::collections::hash_map::{HashMap, Entry};
-use std::cmp::Ordering;
-use futures_core::Future;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::Arc;
 
 // TODO: figure out a cache eviction strategy
 // we currently naively cache all prepared statements which could live-leak memory
@@ -11,44 +11,39 @@ use futures_core::Future;
 
 /// Per-connection prepared statement cache.
 pub struct StatementCache<Id> {
-    statements: HashMap<String, Id>
+    statements: HashMap<String, Id>,
+    columns: HashMap<Id, Arc<HashMap<Box<str>, usize>>>,
 }
 
-impl<Id> StatementCache<Id> {
+impl<Id> StatementCache<Id>
+where
+    Id: Eq + Hash,
+{
     pub fn new() -> Self {
         StatementCache {
             statements: HashMap::with_capacity(10),
+            columns: HashMap::with_capacity(10),
         }
     }
 
-    #[cfg(feature = "mysql")]
-    pub async fn get_or_compute<'a, E, Fut>(&'a mut self, query: &str, compute: impl FnOnce() -> Fut)
-                                            -> Result<&'a Id, E>
-    where
-        Fut: Future<Output = Result<Id, E>>
-    {
-        match self.statements.entry(query.to_string()) {
-            Entry::Occupied(occupied) => Ok(occupied.into_mut()),
-            Entry::Vacant(vacant) => {
-                Ok(vacant.insert(compute().await?))
-            }
-        }
+    pub fn has_columns(&self, id: Id) -> bool {
+        self.columns.contains_key(&id)
     }
 
-    // for Postgres so it can return the synthetic statement name instead of formatting twice
-    #[cfg(feature = "postgres")]
-    pub async fn map_or_compute<R, E, Fut>(&mut self, query: &str, map: impl FnOnce(&Id) -> R, compute: impl FnOnce() -> Fut)
-        -> Result<R, E>
-    where
-        Fut: Future<Output = Result<(Id, R), E>> {
+    pub fn get(&self, query: &str) -> Option<&Id> {
+        self.statements.get(query)
+    }
 
-        match self.statements.entry(query.to_string()) {
-            Entry::Occupied(occupied) => Ok(map(occupied.get())),
-            Entry::Vacant(vacant) => {
-                let (id, ret) = compute().await?;
-                vacant.insert(id);
-                Ok(ret)
-            }
-        }
+    // It is a logical error to call this without first calling [put_columns]
+    pub fn get_columns(&self, id: Id) -> Arc<HashMap<Box<str>, usize>> {
+        Arc::clone(&self.columns[&id])
+    }
+
+    pub fn put(&mut self, query: String, id: Id) {
+        self.statements.insert(query, id);
+    }
+
+    pub fn put_columns(&mut self, id: Id, columns: HashMap<Box<str>, usize>) {
+        self.columns.insert(id, Arc::new(columns));
     }
 }

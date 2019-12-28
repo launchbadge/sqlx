@@ -1,30 +1,42 @@
-use super::protocol::{FieldType, ParameterFlag};
-use crate::{
-    mysql::MySql,
-    types::{HasTypeMetadata, TypeMetadata},
-};
+use crate::mysql::protocol::Type;
+use crate::mysql::MySql;
+use crate::types::HasTypeMetadata;
 
-pub mod binary;
-pub mod boolean;
-pub mod character;
-pub mod numeric;
+mod bool;
+mod float;
+mod int;
+mod str;
+mod uint;
 
 #[cfg(feature = "chrono")]
-pub mod chrono;
+mod chrono;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct MySqlTypeMetadata {
-    pub field_type: FieldType,
-    pub param_flag: ParameterFlag,
+    pub(crate) r#type: Type,
+    pub(crate) flag: u8, // 0 or 0x80 for unsigned
+}
+
+impl MySqlTypeMetadata {
+    pub(crate) fn new(r#type: Type) -> Self {
+        Self { r#type, flag: 0 }
+    }
+
+    pub(crate) fn unsigned(r#type: Type) -> Self {
+        Self { r#type, flag: 0x80 }
+    }
 }
 
 impl HasTypeMetadata for MySql {
     type TypeMetadata = MySqlTypeMetadata;
+
+    type TableId = Box<str>;
+
     type TypeId = u8;
 }
 
-impl TypeMetadata<u8> for MySqlTypeMetadata {
-    fn type_id_eq(&self, other: &u8) -> bool {
-        &self.field_type.0 == other
+impl PartialEq<u8> for MySqlTypeMetadata {
+    fn eq(&self, other: &u8) -> bool {
+        &self.r#type.0 == other
     }
 }

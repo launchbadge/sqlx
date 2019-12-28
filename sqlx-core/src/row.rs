@@ -1,131 +1,55 @@
-use crate::{backend::Backend, decode::Decode, types::HasSqlType};
+//! Contains the Row and FromRow traits.
 
-pub trait Row: Send {
-    type Backend: Backend;
+use crate::database::Database;
+use crate::decode::Decode;
+use crate::types::HasSqlType;
 
+pub trait RowIndex<R: ?Sized>
+where
+    R: Row,
+{
+    fn try_get<T>(&self, row: &R) -> crate::Result<T>
+    where
+        R::Database: HasSqlType<T>,
+        T: Decode<R::Database>;
+}
+
+/// Represents a single row of the result set.
+pub trait Row: Unpin + Send + 'static {
+    type Database: Database + ?Sized;
+
+    /// Returns `true` if the row contains no values.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the number of values in the row.
     fn len(&self) -> usize;
 
-    fn get_raw(&self, index: usize) -> Option<&[u8]>;
-
-    fn get<T>(&self, index: usize) -> T
+    /// Returns the value at the `index`; can either be an integer ordinal or a column name.
+    fn get<T, I>(&self, index: I) -> T
     where
-        Self::Backend: HasSqlType<T>,
-        T: Decode<Self::Backend>,
-    {
-        T::decode(self.get_raw(index))
-    }
+        Self::Database: HasSqlType<T>,
+        I: RowIndex<Self>,
+        T: Decode<Self::Database>;
 }
 
-pub trait FromRow<DB: Backend> {
-    fn from_row(row: <DB as Backend>::Row) -> Self;
+/// A **record** that can be built from a row returned from by the database.
+pub trait FromRow<R>
+where
+    R: Row,
+{
+    fn from_row(row: R) -> Self;
 }
 
-#[allow(unused)]
-macro_rules! impl_from_row {
-    ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
-        // Row -> (T1, T2, ...)
-        impl<$($T,)+> crate::row::FromRow<$B> for ($($T,)+)
-        where
-            $($B: crate::types::HasSqlType<$T>,)+
-            $($T: crate::decode::Decode<$B>,)+
-        {
+#[allow(unused_macros)]
+macro_rules! impl_from_row_for_row {
+    ($R:ty) => {
+        impl crate::row::FromRow<$R> for $R {
             #[inline]
-            fn from_row(row: <$B as crate::backend::Backend>::Row) -> Self {
-                use crate::row::Row;
-
-                ($(row.get($idx),)+)
-            }
-        }
-    };
-}
-
-/// Scalar conversions for rows
-impl<T, DB> FromRow<DB> for T where DB: Backend + HasSqlType<T>, T: Decode<DB> {
-    fn from_row(row: <DB as Backend>::Row) -> Self {
-        row.get(0)
-    }
-}
-
-#[allow(unused)]
-macro_rules! impl_from_row_for_backend {
-    ($B:ident, $row:ident) => {
-        impl crate::row::FromRow<$B> for $row where $B: crate::Backend {
-            #[inline]
-            fn from_row(row: <$B as crate::backend::Backend>::Row) -> Self {
+            fn from_row(row: $R) -> Self {
                 row
             }
         }
-
-        impl_from_row!($B:
-            (0) -> T1;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-            (7) -> T8;
-        );
-
-        impl_from_row!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-            (7) -> T8;
-            (8) -> T9;
-        );
-    }
+    };
 }

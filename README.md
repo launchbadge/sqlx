@@ -1,16 +1,47 @@
-# SQLx
+<h1 align="center">SQLx</h1>
+<div align="center">
+ <strong>
+   🧰 The Rust SQL Toolkit
+ </strong>
+</div>
 
-The Rust SQL Toolkit.
- 
- * **Asynchronous**. Handle thousands of database connections from a single thread.
- 
- * **Fast**. _TO BE WRITTEN_
- 
- * **Native**. SQLx is a pure Rust<sub>†</sub> toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern ecosystem for asynchronous network services development.
- 
- * **Agnostic**. SQLx is agnostic over the database engine and can operate against a variety of database backends with the backend chosen **at compile-time** through generic constraints **or at runtime** with a slight performance loss (due to dynamic dispatch).
+<br />
 
-<sub><sup>† The SQLite driver (which does not yet exist) will use the libsqlite3 C library as SQLite is an embedded database (the only way we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
+<div align="center">
+  <!-- Crates version -->
+  <a href="https://crates.io/crates/sqlx">
+    <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
+    alt="Crates.io version" />
+  </a>
+  <!-- Downloads -->
+  <a href="https://crates.io/crates/sqlx">
+    <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
+      alt="Download" />
+  </a>
+  <!-- docs.rs docs -->
+  <a href="https://docs.rs/sqlx">
+    <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
+      alt="docs.rs docs" />
+  </a>
+</div>
+
+<div align="center">
+  <sub>Built with ❤️ by <a href="https://github.com/http-rs">The LaunchBadge team</a>
+</div>
+
+<br />
+
+SQLx is a modern SQL client built from the ground up for Rust, in Rust.
+
+ * **Asynchronous**.
+
+ * **Native**. SQLx is a pure Rust toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern ecosystem for asynchronous network services development.
+ 
+ * **Type-safe**. SQLx is built upon the novel idea of preparing SQL statements before or duing compilation to provide strong type safety while not getting in your way with a custom DSL. 
+ 
+## Safety
+
+This crate uses `#[deny(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
 
 ## License
 

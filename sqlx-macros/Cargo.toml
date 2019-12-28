@@ -1,25 +1,33 @@
 [package]
 name = "sqlx-macros"
 version = "0.1.0-pre"
-authors = ["Austin Bonander <austin.bonander@gmail.com>"]
 edition = "2018"
+authors = [
+    "Ryan Leckey <leckey.ryan@gmail.com>",
+    "Austin Bonander <austin.bonander@gmail.com>"
+]
 
 [lib]
 proc-macro = true
 
-[dependencies]
-async-std = "1.2.0"
-dotenv = "0.15.0"
-futures = "0.3.1"
-proc-macro-hack = "0.5.11"
-proc-macro2 = "1.0.6"
-sqlx = { version = "0.1.0-pre", path = "../sqlx-core", package = "sqlx-core" }
-syn = { version = "1.0.11", default-features = false }
-quote = "1.0.2"
-url = "2.1.0"
-
 [features]
-chrono = ["sqlx/chrono"]
-mysql = ["sqlx/mysql"]
-postgres = ["sqlx/postgres"]
-uuid = ["sqlx/uuid"]
+default = []
+
+# database
+mysql = [ "sqlx/mysql" ]
+postgres = [ "sqlx/postgres" ]
+
+# type
+chrono = [ "sqlx/chrono" ]
+uuid = [ "sqlx/uuid" ]
+
+[dependencies]
+async-std = { version = "1.2.0", default-features = false }
+dotenv = { version = "0.15.0", default-features = false }
+futures = { version = "0.3.1", default-features = false }
+proc-macro-hack = { version = "0.5.11", default-features = false }
+proc-macro2 = { version = "1.0.6", default-features = false }
+sqlx = { version = "0.1.0-pre", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+syn = { version = "1.0.11", default-features = false, features = [ "full" ] }
+quote = { version = "1.0.2", default-features = false }
+url = { version = "2.1.0", default-features = false }

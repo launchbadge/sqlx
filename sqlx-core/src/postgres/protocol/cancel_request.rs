@@ -7,10 +7,10 @@ use byteorder::NetworkEndian;
 ///
 /// https://www.postgresql.org/docs/devel/protocol-flow.html#id-1.10.5.7.9
 pub struct CancelRequest {
-    /// The process ID of the target backend.
+    /// The process ID of the target database.
     pub process_id: i32,
 
-    /// The secret key for the target backend.
+    /// The secret key for the target database.
     pub secret_key: i32,
 }
 

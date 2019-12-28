@@ -3,13 +3,16 @@ members = [
     ".",
     "sqlx-core",
     "sqlx-macros",
-    "examples/realworld"
+    "examples/realworld-postgres"
 ]
 
 [package]
 name = "sqlx"
 version = "0.1.1-pre"
 license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/launchbadge/sqlx"
+documentation = "https://docs.rs/sqlx"
 description = "The Rust SQL Toolkit."
 edition = "2018"
 authors = [
@@ -19,11 +22,14 @@ authors = [
 
 [features]
 default = [ "macros" ]
-unstable = [ "sqlx-core/unstable" ]
+macros = [ "sqlx-macros", "proc-macro-hack" ]
+
+# database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
-macros = [ "sqlx-macros", "proc-macro-hack" ]
-chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
+
+# types
+chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]
@@ -32,14 +38,22 @@ sqlx-macros = { version = "0.1.0-pre", path = "sqlx-macros", optional = true }
 proc-macro-hack = { version = "0.5.11", optional = true }
 
 [dev-dependencies]
+anyhow = "1.0.25"
+futures = "0.3.1"
 async-std = { version = "1.2.0", features = [ "attributes" ] }
 dotenv = "0.15.0"
-matches = "0.1.8"
-criterion = "0.3.0"
 
 [[test]]
 name = "macros"
 required-features = [ "postgres", "uuid", "macros" ]
+
+[[test]]
+name = "mysql"
+required-features = [ "mysql" ]
+
+[[test]]
+name = "postgres"
+required-features = [ "postgres" ]
 
 [[test]]
 name = "postgres-types"
@@ -48,8 +62,3 @@ required-features = [ "postgres" ]
 [[test]]
 name = "mysql-types"
 required-features = [ "mysql" ]
-
-[[bench]]
-name = "postgres-protocol"
-required-features = [ "postgres", "unstable" ]
-harness = false

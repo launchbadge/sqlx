@@ -1,35 +1,24 @@
+use crate::decode::{Decode, DecodeError};
+use crate::encode::Encode;
+use crate::postgres::types::PgTypeMetadata;
+use crate::postgres::Postgres;
+use crate::types::HasSqlType;
 use uuid::Uuid;
 
-use super::{Postgres, PostgresTypeFormat, PostgresTypeMetadata};
-use crate::{
-    decode::Decode,
-    encode::{Encode, IsNull},
-    types::HasSqlType,
-};
-
 impl HasSqlType<Uuid> for Postgres {
-    fn metadata() -> PostgresTypeMetadata {
-        PostgresTypeMetadata {
-            format: PostgresTypeFormat::Binary,
-            oid: 2950,
-            array_oid: 2951,
-        }
+    fn metadata() -> PgTypeMetadata {
+        PgTypeMetadata::binary(2950, 2951)
     }
 }
 
 impl Encode<Postgres> for Uuid {
-    #[inline]
-    fn encode(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self.as_bytes());
-
-        IsNull::No
     }
 }
 
 impl Decode<Postgres> for Uuid {
-    #[inline]
-    fn decode(buf: Option<&[u8]>) -> Self {
-        // TODO: Handle optionals, error
-        Uuid::from_slice(buf.unwrap()).unwrap()
+    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+        Uuid::from_slice(buf).map_err(|err| DecodeError::Message(Box::new(err)))
     }
 }

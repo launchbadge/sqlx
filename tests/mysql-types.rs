@@ -1,23 +1,25 @@
-use sqlx::{MySql, Row};
+use sqlx::{mysql::MySqlConnection, Connection as _, Row};
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
         async fn $name () -> sqlx::Result<()> {
             let mut conn =
-                MySql::connect(
+                MySqlConnection::open(
                     &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
                 ).await?;
 
             $(
-                let row = sqlx::query(&format!("SELECT {} = ?, ?", $text))
+                let row = sqlx::query(&format!("SELECT {} = ?, ? as _1", $text))
                     .bind($value)
                     .bind($value)
                     .fetch_one(&mut conn)
                     .await?;
 
-                assert_eq!(row.get::<i32>(0), 1);
-                let value = row.get::<$ty>(1);
+                assert_eq!(row.get::<i32, _>(0), 1);
+                
+                let value = row.get::<$ty, _>("_1");
+
                 assert!($value == value);
             )+
 

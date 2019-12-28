@@ -3,16 +3,16 @@ use std::fmt::Display;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use syn::{
-    Expr,
-    ExprLit,
-    Ident,
-    Lit, parse::{self, Parse, ParseStream}, punctuated::Punctuated, spanned::Spanned, Token,
+    parse::{self, Parse, ParseStream},
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Expr, ExprLit, Ident, Lit, Token,
 };
 
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use sqlx::{Connection, HasTypeMetadata};
+use sqlx::{describe::Describe, types::HasTypeMetadata, Connection};
 
-use crate::backend::{BackendExt, ParamChecking};
+use crate::database::{DatabaseExt, ParamChecking};
 
 pub struct MacroInput {
     sql: String,
@@ -26,8 +26,8 @@ impl Parse for MacroInput {
 
         let sql = match args.next() {
             Some(Expr::Lit(ExprLit {
-                               lit: Lit::Str(sql), ..
-                           })) => sql,
+                lit: Lit::Str(sql), ..
+            })) => sql,
             Some(other_expr) => {
                 return Err(parse::Error::new_spanned(
                     other_expr,
@@ -50,9 +50,9 @@ pub async fn process_sql<C: Connection>(
     input: MacroInput,
     mut conn: C,
 ) -> crate::Result<TokenStream>
-    where
-        C::Backend: BackendExt,
-        <C::Backend as HasTypeMetadata>::TypeId: Display
+where
+    C::Database: DatabaseExt + Sized,
+    <C::Database as HasTypeMetadata>::TypeId: Display,
 {
     let describe = conn
         .describe(&input.sql)
@@ -68,7 +68,7 @@ pub async fn process_sql<C: Connection>(
                 input.args.len()
             ),
         )
-            .into());
+        .into());
     }
 
     let param_types = describe
@@ -79,7 +79,7 @@ pub async fn process_sql<C: Connection>(
             get_type_override(expr)
                 .or_else(|| {
                     Some(
-                        <C::Backend as BackendExt>::param_type_for_id(type_)?
+                        <C::Database as DatabaseExt>::param_type_for_id(type_)?
                             .parse::<proc_macro2::TokenStream>()
                             .unwrap(),
                     )
@@ -95,19 +95,24 @@ pub async fn process_sql<C: Connection>(
     });
 
     let query = &input.sql;
-    let backend_path = C::Backend::quotable_path();
+    let database_path = C::Database::quotable_path();
 
     // record_type will be wrapped in parens which the compiler ignores without a trailing comma
     // e.g. (Foo) == Foo but (Foo,) = one-element tuple
     // and giving an empty stream for record_type makes it unit `()`
-    let (record_type, record) = if describe.result_fields.is_empty() {
+    let (record_type, record) = if describe.result_columns.is_empty() {
         (TokenStream::new(), TokenStream::new())
     } else {
         let record_type = Ident::new("Record", Span::call_site());
-        (record_type.to_token_stream(), generate_record_def(&describe, &record_type)?)
+        (
+            record_type.to_token_stream(),
+            generate_record_def(&describe, &record_type)?,
+        )
     };
 
-    let params = if <C::Backend as BackendExt>::PARAM_CHECKING == ParamChecking::Weak || input.args.is_empty() {
+    let params = if <C::Database as DatabaseExt>::PARAM_CHECKING == ParamChecking::Weak
+        || input.args.is_empty()
+    {
         quote! {
             let params = ();
         }
@@ -130,22 +135,31 @@ pub async fn process_sql<C: Connection>(
 
         #params
 
-        sqlx::query::<#backend_path>(#query)
+        sqlx::query::<#database_path>(#query)
             .bind_all(params)
             .as_record::<#record_type>()
     }})
 }
 
-fn generate_record_def<DB: BackendExt>(describe: &sqlx::Describe<DB>, type_name: &Ident) -> crate::Result<TokenStream> {
-    let fields = describe.result_fields.iter().enumerate()
+fn generate_record_def<DB: DatabaseExt>(
+    describe: &Describe<DB>,
+    type_name: &Ident,
+) -> crate::Result<TokenStream> {
+    let fields = describe
+        .result_columns
+        .iter()
+        .enumerate()
         .map(|(i, column)| {
-            let name = column.name.as_deref()
+            let name = column
+                .name
+                .as_ref()
+                .map(|col| &**col)
                 .ok_or_else(|| format!("column at position {} must have a name", i))?;
 
             let name = syn::parse_str::<Ident>(name)
                 .map_err(|_| format!("{:?} is not a valid Rust identifier", name))?;
 
-            let type_ = <DB as BackendExt>::return_type_for_id(&column.type_id)
+            let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_id)
                 .ok_or_else(|| format!("unknown field type ID: {}", &column.type_id))?
                 .parse::<proc_macro2::TokenStream>()
                 .unwrap();
@@ -153,20 +167,27 @@ fn generate_record_def<DB: BackendExt>(describe: &sqlx::Describe<DB>, type_name:
             Ok((name, type_))
         })
         .collect::<Result<Vec<_>, String>>()
-        .map_err(|e| format!("all SQL result columns must be named with valid Rust identifiers: {}", e))?;
+        .map_err(|e| {
+            format!(
+                "all SQL result columns must be named with valid Rust identifiers: {}",
+                e
+            )
+        })?;
 
     let row_param = format_ident!("row");
 
-    let record_fields = fields.iter()
+    let record_fields = fields
+        .iter()
         .map(|(name, type_)| quote!(#name: #type_,))
         .collect::<TokenStream>();
 
-    let instantiations = fields.iter()
+    let instantiations = fields
+        .iter()
         .enumerate()
         .map(|(i, (name, _))| quote!(#name: #row_param.get(#i),))
         .collect::<TokenStream>();
 
-    let backend = DB::quotable_path();
+    let database = DB::quotable_path();
 
     Ok(quote! {
         #[derive(Debug)]
@@ -174,8 +195,8 @@ fn generate_record_def<DB: BackendExt>(describe: &sqlx::Describe<DB>, type_name:
             #record_fields
         }
 
-        impl sqlx::FromRow<#backend> for #type_name {
-            fn from_row(#row_param: <#backend as sqlx::Backend>::Row) -> Self {
+        impl sqlx::FromRow<#database> for #type_name {
+            fn from_row(#row_param: <#database as sqlx::Database>::Row) -> Self {
                 use sqlx::Row as _;
 
                 #type_name {

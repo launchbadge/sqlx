@@ -1,33 +1,34 @@
-use crate::{backend::Backend, describe::Describe, executor::Executor, params::IntoQueryParameters, pool::Pool, row::FromRow, Error};
-use futures_core::{future::BoxFuture, stream::BoxStream, Future};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::StreamExt;
-use std::pin::Pin;
+
+use crate::{describe::Describe, executor::Executor, pool::Pool, Database};
 
 impl<DB> Executor for Pool<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
-    type Backend = DB;
+    type Database = DB;
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        Box::pin(async move { <&Pool<DB> as Executor>::send(&mut &*self, commands).await })
+    }
 
     fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
+        args: DB::Arguments,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        Box::pin(async move { <&Pool<DB> as Executor>::execute(&mut &*self, query, params).await })
+        Box::pin(async move { <&Pool<DB> as Executor>::execute(&mut &*self, query, args).await })
     }
 
-    fn fetch<'e, 'q: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
-    ) -> BoxStream<'e, crate::Result<T>>
-    where
-        T: FromRow<Self::Backend> + Send + Unpin,
-    {
+        args: DB::Arguments,
+    ) -> BoxStream<'e, crate::Result<DB::Row>> {
         Box::pin(async_stream::try_stream! {
             let mut self_ = &*self;
-            let mut s = <&Pool<DB> as Executor>::fetch(&mut self_, query, params);
+            let mut s = <&Pool<DB> as Executor>::fetch(&mut self_, query, args);
 
             while let Some(row) = s.next().await.transpose()? {
                 yield row;
@@ -35,56 +36,50 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
-    ) -> BoxFuture<'e, crate::Result<Option<T>>>
-    where
-        T: FromRow<Self::Backend> + Send,
-    {
-        Box::pin(async move {
-            <&Pool<DB> as Executor>::fetch_optional(&mut &*self, query, params).await
-        })
+        args: DB::Arguments,
+    ) -> BoxFuture<'e, crate::Result<Option<DB::Row>>> {
+        Box::pin(
+            async move { <&Pool<DB> as Executor>::fetch_optional(&mut &*self, query, args).await },
+        )
     }
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
         Box::pin(async move { <&Pool<DB> as Executor>::describe(&mut &*self, query).await })
-    }
-
-    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(async move { <&Pool<DB> as Executor>::send(&mut &*self, commands).await })
     }
 }
 
 impl<DB> Executor for &'_ Pool<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
-    type Backend = DB;
+    type Database = DB;
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        Box::pin(async move { self.acquire().await?.send(commands).await })
+    }
 
     fn execute<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
+        args: DB::Arguments,
     ) -> BoxFuture<'e, crate::Result<u64>> {
-        Box::pin(async move { self.acquire().await?.execute(query, params).await })
+        Box::pin(async move { self.acquire().await?.execute(query, args).await })
     }
 
-    fn fetch<'e, 'q: 'e, T: 'e>(
+    fn fetch<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
-    ) -> BoxStream<'e, crate::Result<T>>
-    where
-        T: FromRow<Self::Backend> + Send + Unpin,
-    {
+        args: DB::Arguments,
+    ) -> BoxStream<'e, crate::Result<DB::Row>> {
         Box::pin(async_stream::try_stream! {
             let mut live = self.acquire().await?;
-            let mut s = live.fetch(query, params);
+            let mut s = live.fetch(query, args);
 
             while let Some(row) = s.next().await.transpose()? {
                 yield row;
@@ -92,25 +87,18 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, T: 'e>(
+    fn fetch_optional<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-        params: DB::QueryParameters,
-    ) -> BoxFuture<'e, crate::Result<Option<T>>>
-    where
-        T: FromRow<Self::Backend> + Send,
-    {
-        Box::pin(async move { self.acquire().await?.fetch_optional(query, params).await })
+        args: DB::Arguments,
+    ) -> BoxFuture<'e, crate::Result<Option<DB::Row>>> {
+        Box::pin(async move { self.acquire().await?.fetch_optional(query, args).await })
     }
 
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Backend>>> {
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
         Box::pin(async move { self.acquire().await?.describe(query).await })
-    }
-
-    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(async move { self.acquire().await?.send(commands).await })
     }
 }

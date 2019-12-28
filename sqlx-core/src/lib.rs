@@ -1,73 +1,60 @@
 #![recursion_limit = "256"]
-#![allow(unused_imports)]
-
-#[macro_use]
-mod macros;
+#![deny(unsafe_code)]
 
 #[macro_use]
 pub mod error;
 
-#[cfg(any(feature = "postgres", feature = "mysql"))]
+#[cfg(any(feature = "mysql", feature = "postgres"))]
 #[macro_use]
 mod io;
 
-mod backend;
-pub mod decode;
-
-#[cfg(any(feature = "postgres", feature = "mysql"))]
-mod url;
-
-#[macro_use]
-mod row;
-
-mod connection;
-mod executor;
-mod pool;
-
-#[macro_use]
-pub mod params;
-
-pub mod encode;
-mod query;
-pub mod types;
-
-mod describe;
-
+#[cfg(any(feature = "mysql", feature = "postgres"))]
 mod cache;
 
-#[doc(inline)]
-pub use self::{
-    backend::Backend,
-    connection::Connection,
-    decode::Decode,
-    encode::Encode,
-    error::{Error, Result},
-    executor::Executor,
-    pool::Pool,
-    query::{query, Query},
-    row::{FromRow, Row},
-    types::HasSqlType,
-};
+mod connection;
+mod database;
+mod executor;
+mod query;
+mod url;
 
-#[doc(hidden)]
-pub use types::HasTypeMetadata;
+pub mod arguments;
+pub mod decode;
+pub mod describe;
+pub mod encode;
+pub mod pool;
+pub mod types;
 
-#[doc(hidden)]
-pub use describe::{Describe, ResultField};
+#[macro_use]
+pub mod row;
 
 #[cfg(feature = "mysql")]
 pub mod mysql;
+
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
+pub use database::Database;
+
+#[doc(inline)]
+pub use error::{Error, Result};
+
+pub use connection::Connection;
+pub use executor::Executor;
+pub use query::{query, Query};
+
+#[doc(inline)]
+pub use pool::Pool;
+
+#[doc(inline)]
+pub use row::{FromRow, Row};
 
 #[cfg(feature = "mysql")]
 #[doc(inline)]
 pub use mysql::MySql;
 
 #[cfg(feature = "postgres")]
-pub mod postgres;
-
-#[cfg(feature = "postgres")]
 #[doc(inline)]
-pub use self::postgres::Postgres;
+pub use postgres::Postgres;
 
 use std::marker::PhantomData;
 

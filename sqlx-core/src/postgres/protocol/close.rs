@@ -1,48 +1,37 @@
-use super::Encode;
 use crate::io::BufMut;
+use crate::postgres::protocol::Encode;
 use byteorder::NetworkEndian;
 
-#[repr(u8)]
-pub enum CloseKind {
-    PreparedStatement,
-    Portal,
-}
-
-pub struct Close<'a> {
-    kind: CloseKind,
-
-    /// The name of the prepared statement or portal to close (an empty string selects the
-    /// unnamed prepared statement or portal).
-    name: &'a str,
+pub enum Close<'a> {
+    Statement(&'a str),
+    Portal(&'a str),
 }
 
 impl Encode for Close<'_> {
     fn encode(&self, buf: &mut Vec<u8>) {
         buf.push(b'C');
 
+        let (kind, name) = match self {
+            Close::Statement(name) => (b'S', name),
+            Close::Portal(name) => (b'P', name),
+        };
+
         // len + kind + nul + len(string)
-        buf.put_i32::<NetworkEndian>((4 + 1 + 1 + self.name.len()) as i32);
+        buf.put_i32::<NetworkEndian>((4 + 1 + 1 + name.len()) as i32);
 
-        buf.push(match self.kind {
-            CloseKind::PreparedStatement => b'S',
-            CloseKind::Portal => b'P',
-        });
-
-        buf.put_str_nul(self.name);
+        buf.push(kind);
+        buf.put_str_nul(name);
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{Close, CloseKind, Encode};
+    use super::{Close, Encode};
 
     #[test]
     fn it_encodes_close_portal() {
         let mut buf = Vec::new();
-        let m = Close {
-            kind: CloseKind::Portal,
-            name: "__sqlx_p_1",
-        };
+        let m = Close::Portal("__sqlx_p_1");
 
         m.encode(&mut buf);
 
@@ -52,10 +41,7 @@ mod test {
     #[test]
     fn it_encodes_close_statement() {
         let mut buf = Vec::new();
-        let m = Close {
-            kind: CloseKind::PreparedStatement,
-            name: "__sqlx_s_1",
-        };
+        let m = Close::Statement("__sqlx_s_1");
 
         m.encode(&mut buf);
 

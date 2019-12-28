@@ -1,11 +1,11 @@
-use super::Encode;
 use crate::io::BufMut;
+use crate::postgres::protocol::Encode;
 use byteorder::NetworkEndian;
 use md5::{Digest, Md5};
 
-#[derive(Debug)]
 pub enum PasswordMessage<'a> {
-    Cleartext(&'a str),
+    ClearText(&'a str),
+
     Md5 {
         password: &'a str,
         user: &'a str,
@@ -18,7 +18,7 @@ impl Encode for PasswordMessage<'_> {
         buf.push(b'p');
 
         match self {
-            PasswordMessage::Cleartext(s) => {
+            PasswordMessage::ClearText(s) => {
                 // len + password + nul
                 buf.put_u32::<NetworkEndian>((4 + s.len() + 1) as u32);
                 buf.put_str_nul(s);
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn it_encodes_password_clear() {
         let mut buf = Vec::new();
-        let m = PasswordMessage::Cleartext("password");
+        let m = PasswordMessage::ClearText("password");
 
         m.encode(&mut buf);
 

@@ -1,13 +1,10 @@
 use std::{
     cmp,
-    future::Future,
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
     sync::{
+        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
-        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use async_std::{
@@ -15,20 +12,15 @@ use async_std::{
     sync::{channel, Receiver, Sender},
     task,
 };
-use futures_channel::oneshot;
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{
-    future::{AbortHandle, AbortRegistration, FutureExt, TryFutureExt},
-    stream::StreamExt,
-};
+use futures_util::future::FutureExt;
 
-use crate::{backend::Backend, Connection, error::Error, executor::Executor, params::IntoQueryParameters, row::{FromRow, Row}};
+use crate::{error::Error, Connection, Database};
 
-use super::{Raw, Idle, Options};
+use super::{Idle, Options, Raw};
 
 pub(super) struct SharedPool<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     url: String,
     pool_rx: Receiver<Idle<DB>>,
@@ -39,9 +31,13 @@ where
 
 impl<DB> SharedPool<DB>
 where
-    DB: Backend, DB::Connection: Connection<Backend = DB>
+    DB: Database,
+    DB::Connection: Connection<Database = DB>,
 {
-    pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<(Arc<Self>, Sender<Idle<DB>>)> {
+    pub(super) async fn new_arc(
+        url: &str,
+        options: Options,
+    ) -> crate::Result<(Arc<Self>, Sender<Idle<DB>>)> {
         // TODO: Establish [min_idle] connections
 
         let (pool_tx, pool_rx) = channel(options.max_size as usize);
@@ -86,7 +82,7 @@ where
                 Some(None) => {
                     log::warn!("was not able to close all connections");
                     break;
-                },
+                }
                 None => task::yield_now().await,
             }
         }
@@ -119,7 +115,7 @@ where
                 // get the time between the deadline and now and use that as our timeout
                 let max_wait = deadline
                     .checked_duration_since(Instant::now())
-                    .ok_or(Error::TimedOut)?;
+                    .ok_or(Error::PoolTimedOut)?;
 
                 // don't sleep forever
                 let mut idle = match timeout(max_wait, self.pool_rx.recv()).await {
@@ -172,8 +168,13 @@ where
             }
 
             // result here is `Result<Result<DB, Error>, TimeoutError>`
-            match timeout(deadline - Instant::now(), DB::connect(&self.url)).await {
-                Ok(Ok(inner)) => return Ok(Raw { inner, created: Instant::now() }),
+            match timeout(deadline - Instant::now(), DB::Connection::open(&self.url)).await {
+                Ok(Ok(inner)) => {
+                    return Ok(Raw {
+                        inner,
+                        created: Instant::now(),
+                    })
+                }
                 // error while connecting, this should definitely be logged
                 Ok(Err(e)) => log::warn!("error establishing a connection: {}", e),
                 // timed out
@@ -182,17 +183,20 @@ where
         }
 
         self.size.fetch_sub(1, Ordering::AcqRel);
-        Err(Error::TimedOut)
+        Err(Error::PoolTimedOut)
     }
 }
 
-impl<DB: Backend> Idle<DB> where DB::Connection: Connection<Backend = DB> {
+impl<DB: Database> Idle<DB>
+where
+    DB::Connection: Connection<Database = DB>,
+{
     async fn close(self) {
         let _ = self.raw.inner.close().await;
     }
 }
 
-fn should_reap<DB: Backend>(idle: &Idle<DB>, options: &Options) -> bool {
+fn should_reap<DB: Database>(idle: &Idle<DB>, options: &Options) -> bool {
     // check if idle connection was within max lifetime (or not set)
     options.max_lifetime.map_or(true, |max| idle.raw.created.elapsed() < max)
         // and if connection wasn't idle too long (or not set)
@@ -200,8 +204,9 @@ fn should_reap<DB: Backend>(idle: &Idle<DB>, options: &Options) -> bool {
 }
 
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn conn_reaper<DB: Backend>(pool: &Arc<SharedPool<DB>>, pool_tx: &Sender<Idle<DB>>)
-    where DB::Connection: Connection<Backend = DB>
+fn conn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>, pool_tx: &Sender<Idle<DB>>)
+where
+    DB::Connection: Connection<Database = DB>,
 {
     if pool.options.max_lifetime.is_some() || pool.options.idle_timeout.is_some() {
         let pool = pool.clone();

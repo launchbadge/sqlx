@@ -1,5 +1,5 @@
-use super::Decode;
 use crate::io::Buf;
+use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
 use std::io;
 

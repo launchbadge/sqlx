@@ -1,23 +1,23 @@
-use sqlx::{Postgres, Row};
+use sqlx::{postgres::PgConnection, Connection as _, Row};
+
+async fn connect() -> anyhow::Result<PgConnection> {
+    Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
+}
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[async_std::test]
-        async fn $name () -> Result<(), String> {
-            let mut conn =
-                Postgres::connect(
-                    &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set")
-                ).await.map_err(|e| format!("failed to connect to Postgres: {}", e))?;
+        async fn $name () -> anyhow::Result<()> {
+            let mut conn = connect().await?;
 
             $(
-                let row = sqlx::query(&format!("SELECT {} = $1, $1", $text))
+                let row = sqlx::query(&format!("SELECT {} = $1, $1 as _1", $text))
                     .bind($value)
                     .fetch_one(&mut conn)
-                    .await
-                    .map_err(|e| format!("failed to run query: {}", e))?;
+                    .await?;
 
-                assert!(row.get::<bool>(0));
-                assert!($value == row.get::<$ty>(1));
+                assert!(row.get::<bool, _>(0));
+                assert!($value == row.get::<$ty, _>("_1"));
             )+
 
             Ok(())

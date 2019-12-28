@@ -1,48 +1,50 @@
-use std::{
-    error::Error as StdError,
-    fmt::{self, Debug, Display},
-    io,
-};
+//! Error and Result types.
 
-use async_std::future::TimeoutError;
+use crate::decode::DecodeError;
+use std::error::Error as StdError;
+use std::fmt::{self, Debug, Display};
+use std::io;
 
-/// A convenient Result instantiation appropriate for SQLx.
-pub type Result<T> = std::result::Result<T, Error>;
+/// A specialized `Result` type for SQLx.
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
 pub enum Error {
-    /// Error communicating with the database backend.
-    ///
-    /// Some reasons for this to be caused:
-    ///
-    ///  - [io::ErrorKind::ConnectionRefused] - Database backend is most likely behind a firewall.
-    ///
-    ///  - [io::ErrorKind::ConnectionReset] - Database backend dropped the client connection (perhaps from an administrator action).
+    /// Error communicating with the database.
     Io(io::Error),
 
-    /// An error was returned by the database backend.
-    Database(Box<dyn DatabaseError + Send + Sync>),
+    /// Connection URL was malformed.
+    UrlParse(url::ParseError),
 
-    /// No rows were returned by a query expected to return at least one row.
+    /// An error was returned by the database.
+    Database(Box<dyn DatabaseError>),
+
+    /// No rows were returned by a query that expected to return at least one row.
     NotFound,
 
-    /// More than one row was returned by a query expected to return exactly one row.
+    /// More than one row was returned by a query that expected to return exactly one row.
     FoundMoreThanOne,
 
-    /// Unexpected or invalid data was encountered. This would indicate that we received data that we were not
-    /// expecting or it was in a format we did not understand. This generally means either there is a programming error in a SQLx driver or
-    /// something with the connection or the database backend itself is corrupted.
+    /// Column was not found in Row during [Row::try_get].
+    ColumnNotFound(Box<str>),
+
+    /// Unexpected or invalid data was encountered. This would indicate that we received
+    /// data that we were not expecting or it was in a format we did not understand. This
+    /// generally means either there is a programming error in a SQLx driver or
+    /// something with the connection or the database database itself is corrupted.
     ///
     /// Context is provided by the included error message.
     Protocol(Box<str>),
 
-    /// A `Pool::acquire()` timed out due to connections not becoming available or
+    /// A [Pool::acquire] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
-    TimedOut,
+    PoolTimedOut,
 
-    /// `Pool::close()` was called while we were waiting in `Pool::acquire()`.
+    /// [Pool::close] was called while we were waiting in [Pool::acquire].
     PoolClosed,
+
+    Decode(DecodeError),
 
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
     #[doc(hidden)]
@@ -54,6 +56,10 @@ impl StdError for Error {
         match self {
             Error::Io(error) => Some(error),
 
+            Error::UrlParse(error) => Some(error),
+
+            Error::Decode(DecodeError::Other(error)) => Some(&**error),
+
             _ => None,
         }
     }
@@ -64,9 +70,17 @@ impl Display for Error {
         match self {
             Error::Io(error) => write!(f, "{}", error),
 
+            Error::UrlParse(error) => write!(f, "{}", error),
+
+            Error::Decode(error) => write!(f, "{}", error),
+
             Error::Database(error) => Display::fmt(error, f),
 
             Error::NotFound => f.write_str("found no rows when we expected at least one"),
+
+            Error::ColumnNotFound(ref name) => {
+                write!(f, "no column found with the name {:?}", name)
+            }
 
             Error::FoundMoreThanOne => {
                 f.write_str("found more than one row when we expected exactly one")
@@ -74,7 +88,7 @@ impl Display for Error {
 
             Error::Protocol(ref err) => f.write_str(err),
 
-            Error::TimedOut => f.write_str("timed out while waiting for an open connection"),
+            Error::PoolTimedOut => f.write_str("timed out while waiting for an open connection"),
 
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
@@ -90,9 +104,24 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<TimeoutError> for Error {
-    fn from(_: TimeoutError) -> Self {
-        Error::TimedOut
+impl From<io::ErrorKind> for Error {
+    #[inline]
+    fn from(err: io::ErrorKind) -> Self {
+        Error::Io(err.into())
+    }
+}
+
+impl From<DecodeError> for Error {
+    #[inline]
+    fn from(err: DecodeError) -> Self {
+        Error::Decode(err)
+    }
+}
+
+impl From<url::ParseError> for Error {
+    #[inline]
+    fn from(err: url::ParseError) -> Self {
+        Error::UrlParse(err)
     }
 }
 
@@ -113,9 +142,20 @@ where
     }
 }
 
-/// An error that was returned by the database backend.
+/// An error that was returned by the database.
 pub trait DatabaseError: Display + Debug + Send + Sync {
+    /// The primary, human-readable error message.
     fn message(&self) -> &str;
+
+    fn details(&self) -> Option<&str>;
+
+    fn hint(&self) -> Option<&str>;
+
+    fn table_name(&self) -> Option<&str>;
+
+    fn column_name(&self) -> Option<&str>;
+
+    fn constraint_name(&self) -> Option<&str>;
 }
 
 /// Used by the `protocol_error!()` macro for a lazily evaluated conversion to
@@ -124,6 +164,7 @@ pub(crate) struct ProtocolError<'a> {
     pub args: fmt::Arguments<'a>,
 }
 
+#[cfg(any(feature = "mysql", feature = "postgres"))]
 macro_rules! protocol_err (
     ($($args:tt)*) => {
         $crate::error::ProtocolError { args: format_args!($($args)*) }

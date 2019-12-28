@@ -1,13 +1,13 @@
 use std::{marker::PhantomData, time::Duration};
 
-use crate::Backend;
+use crate::Database;
 
 use super::Pool;
 
 #[derive(Default)]
 pub struct Builder<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     phantom: PhantomData<DB>,
     options: Options,
@@ -15,7 +15,7 @@ where
 
 impl<DB> Builder<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     pub fn new() -> Self {
         Self {

@@ -1,5 +1,5 @@
-use super::Decode;
 use crate::io::Buf;
+use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
 use std::io;
 
@@ -12,7 +12,7 @@ pub enum Authentication {
     KerberosV5,
 
     /// A clear-text password is required.
-    CleartextPassword,
+    ClearTextPassword,
 
     /// An MD5-encrypted password is required.
     Md5Password { salt: [u8; 4] },
@@ -49,7 +49,7 @@ impl Decode for Authentication {
 
             2 => Authentication::KerberosV5,
 
-            3 => Authentication::CleartextPassword,
+            3 => Authentication::ClearTextPassword,
 
             5 => {
                 let mut salt = [0_u8; 4];

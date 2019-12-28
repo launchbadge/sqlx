@@ -1,5 +1,5 @@
-use super::Encode;
 use crate::io::BufMut;
+use crate::postgres::protocol::Encode;
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
 pub struct StartupMessage<'a> {

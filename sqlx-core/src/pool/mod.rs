@@ -1,33 +1,19 @@
-use crate::{backend::Backend, error::Error, executor::Executor, params::IntoQueryParameters, row::FromRow, Row};
-use futures_channel::oneshot;
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{
-    future::{AbortHandle, AbortRegistration, FutureExt, TryFutureExt},
-    stream::StreamExt,
-};
+//! **Pool** for SQLx database connections.
+
 use std::{
-    cmp,
-    future::Future,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::{
-        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::Arc,
     time::{Duration, Instant},
 };
 
-use async_std::{
-    future::timeout,
-    sync::{channel, Receiver, Sender},
-    task,
-};
+use async_std::sync::Sender;
+use futures_util::future::FutureExt;
+
+use crate::Database;
 
 use self::inner::SharedPool;
-
-use self::options::Options;
-
 pub use self::options::Builder;
+use self::options::Options;
 
 mod executor;
 mod inner;
@@ -35,32 +21,32 @@ mod options;
 
 /// A pool of database connections.
 pub struct Pool<DB>
-    where
-        DB: Backend
+where
+    DB: Database,
 {
     inner: Arc<SharedPool<DB>>,
-    pool_tx: Sender<Idle<DB>>
+    pool_tx: Sender<Idle<DB>>,
 }
 
-/// A connection tied to a pool. When dropped it is released back to the pool.
-pub struct Connection<DB: Backend> {
+struct Connection<DB: Database> {
     raw: Option<Raw<DB>>,
     pool_tx: Sender<Idle<DB>>,
 }
 
-struct Raw<DB: Backend> {
+struct Raw<DB: Database> {
     inner: DB::Connection,
     created: Instant,
 }
 
-struct Idle<DB: Backend> {
+struct Idle<DB: Database> {
     raw: Raw<DB>,
     since: Instant,
 }
 
 impl<DB> Pool<DB>
 where
-    DB: Backend, DB::Connection: crate::Connection<Backend = DB>
+    DB: Database,
+    DB::Connection: crate::Connection<Database = DB>,
 {
     /// Creates a connection pool with the default configuration.
     pub async fn new(url: &str) -> crate::Result<Self> {
@@ -81,16 +67,22 @@ where
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> crate::Result<Connection<DB>> {
-        self.inner.acquire().await.map(|conn| Connection { raw: Some(conn), pool_tx: self.pool_tx.clone() })
+    pub async fn acquire(&self) -> crate::Result<impl DerefMut<Target = DB::Connection>> {
+        self.inner.acquire().await.map(|conn| Connection {
+            raw: Some(conn),
+            pool_tx: self.pool_tx.clone(),
+        })
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` if there are no idle connections available in the pool.
     /// This method will not block waiting to establish a new connection.
-    pub fn try_acquire(&self) -> Option<Connection<DB>> {
-        self.inner.try_acquire().map(|conn| Connection { raw: Some(conn), pool_tx: self.pool_tx.clone() })
+    pub fn try_acquire(&self) -> Option<impl DerefMut<Target = DB::Connection>> {
+        self.inner.try_acquire().map(|conn| Connection {
+            raw: Some(conn),
+            pool_tx: self.pool_tx.clone(),
+        })
     }
 
     /// Ends the use of a connection pool. Prevents any new connections
@@ -140,7 +132,7 @@ where
 /// Returns a new [Pool] tied to the same shared connection pool.
 impl<DB> Clone for Pool<DB>
 where
-    DB: Backend,
+    DB: Database,
 {
     fn clone(&self) -> Self {
         Self {
@@ -152,7 +144,7 @@ where
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
 
-impl<DB: Backend> Deref for Connection<DB> {
+impl<DB: Database> Deref for Connection<DB> {
     type Target = DB::Connection;
 
     fn deref(&self) -> &Self::Target {
@@ -160,13 +152,13 @@ impl<DB: Backend> Deref for Connection<DB> {
     }
 }
 
-impl<DB: Backend> DerefMut for Connection<DB> {
+impl<DB: Database> DerefMut for Connection<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.raw.as_mut().expect(DEREF_ERR).inner
     }
 }
 
-impl<DB: Backend> Drop for Connection<DB> {
+impl<DB: Database> Drop for Connection<DB> {
     fn drop(&mut self) {
         if let Some(conn) = self.raw.take() {
             self.pool_tx

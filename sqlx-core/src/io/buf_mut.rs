@@ -18,6 +18,10 @@ pub trait BufMut {
 
     fn put_u64<T: ByteOrder>(&mut self, val: u64);
 
+    fn put_bytes(&mut self, val: &[u8]);
+
+    fn put_str(&mut self, val: &str);
+
     fn put_str_nul(&mut self, val: &str);
 }
 
@@ -30,15 +34,15 @@ impl BufMut for Vec<u8> {
         self.push(val);
     }
 
-    fn put_i16<T: ByteOrder>(&mut self, val: i16) {
-        let mut buf = [0; 2];
-        T::write_i16(&mut buf, val);
-        self.extend_from_slice(&buf);
-    }
-
     fn put_u16<T: ByteOrder>(&mut self, val: u16) {
         let mut buf = [0; 2];
         T::write_u16(&mut buf, val);
+        self.extend_from_slice(&buf);
+    }
+
+    fn put_i16<T: ByteOrder>(&mut self, val: i16) {
+        let mut buf = [0; 2];
+        T::write_i16(&mut buf, val);
         self.extend_from_slice(&buf);
     }
 
@@ -66,8 +70,16 @@ impl BufMut for Vec<u8> {
         self.extend_from_slice(&buf);
     }
 
-    fn put_str_nul(&mut self, val: &str) {
+    fn put_bytes(&mut self, val: &[u8]) {
+        self.extend_from_slice(val);
+    }
+
+    fn put_str(&mut self, val: &str) {
         self.extend_from_slice(val.as_bytes());
+    }
+
+    fn put_str_nul(&mut self, val: &str) {
+        self.put_str(val);
         self.push(0);
     }
 }
