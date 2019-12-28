@@ -13,10 +13,10 @@ pub use sqlx_core::{query, query_as};
 pub use sqlx_core::query_as_mapped;
 
 #[cfg(feature = "mysql")]
-pub use sqlx_core::mysql::{self, MySql};
+pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 
 #[cfg(feature = "postgres")]
-pub use sqlx_core::postgres::{self, Postgres};
+pub use sqlx_core::postgres::{self, Postgres, PgConnection, PgPool};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]

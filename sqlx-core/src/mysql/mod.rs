@@ -1,14 +1,5 @@
 //! **MySQL** database and connection types.
 
-use std::convert::TryInto;
-
-pub use arguments::MySqlArguments;
-pub use connection::MySqlConnection;
-pub use database::MySql;
-pub use row::MySqlRow;
-
-use crate::url::Url;
-
 mod arguments;
 mod connection;
 mod database;
@@ -18,6 +9,23 @@ mod io;
 mod protocol;
 mod row;
 mod types;
+
+pub use database::MySql;
+
+pub use arguments::MySqlArguments;
+
+pub use connection::MySqlConnection;
+
+pub use error::MySqlError;
+
+pub use row::MySqlRow;
+
+/// An alias for [`Pool`], specialized for **MySQL**.
+pub type MySqlPool = super::Pool<MySql>;
+
+use std::convert::TryInto;
+
+use crate::url::Url;
 
 // used in tests and hidden code in examples
 #[doc(hidden)]

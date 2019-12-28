@@ -147,15 +147,25 @@ pub trait DatabaseError: Display + Debug + Send + Sync {
     /// The primary, human-readable error message.
     fn message(&self) -> &str;
 
-    fn details(&self) -> Option<&str>;
+    fn details(&self) -> Option<&str> {
+        None
+    }
 
-    fn hint(&self) -> Option<&str>;
+    fn hint(&self) -> Option<&str> {
+        None
+    }
 
-    fn table_name(&self) -> Option<&str>;
+    fn table_name(&self) -> Option<&str> {
+        None
+    }
 
-    fn column_name(&self) -> Option<&str>;
+    fn column_name(&self) -> Option<&str> {
+        None
+    }
 
-    fn constraint_name(&self) -> Option<&str>;
+    fn constraint_name(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// Used by the `protocol_error!()` macro for a lazily evaluated conversion to
@@ -170,3 +180,26 @@ macro_rules! protocol_err (
         $crate::error::ProtocolError { args: format_args!($($args)*) }
     }
 );
+
+macro_rules! impl_fmt_error {
+    ($err:ty) => {
+        impl std::fmt::Debug for $err {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.debug_struct("DatabaseError")
+                    .field("message", &self.message())
+                    .field("details", &self.details())
+                    .field("hint", &self.hint())
+                    .field("table_name", &self.table_name())
+                    .field("column_name", &self.column_name())
+                    .field("constraint_name", &self.constraint_name())
+                    .finish()
+            }
+        }
+
+        impl std::fmt::Display for $err {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.pad(self.message())
+            }
+        }
+    }
+}
