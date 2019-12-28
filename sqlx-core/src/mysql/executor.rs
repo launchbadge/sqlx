@@ -8,9 +8,8 @@ use crate::describe::{Column, Describe};
 use crate::executor::Executor;
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
-    Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute,
-    ComStmtPrepare, ComStmtPrepareOk, Cursor, Decode, EofPacket, ErrPacket, OkPacket, Row,
-    Type,
+    Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
+    ComStmtPrepareOk, Cursor, Decode, EofPacket, ErrPacket, OkPacket, Row, Type,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
 

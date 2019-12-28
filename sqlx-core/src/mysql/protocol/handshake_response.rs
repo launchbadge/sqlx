@@ -12,6 +12,8 @@ pub struct HandshakeResponse<'a> {
     pub client_collation: u8,
     pub username: &'a str,
     pub database: &'a str,
+    pub auth_plugin_name: Option<&'a str>,
+    pub auth_response: Option<&'a str>,
 }
 
 impl Encode for HandshakeResponse<'_> {
@@ -41,17 +43,25 @@ impl Encode for HandshakeResponse<'_> {
 
         if capabilities.contains(Capabilities::PLUGIN_AUTH_LENENC_DATA) {
             // auth_response : string<lenenc>
-            buf.put_str_lenenc::<LittleEndian>("");
+            buf.put_str_lenenc::<LittleEndian>(self.auth_response.unwrap_or_default());
         } else {
+            let auth_response = self.auth_response.unwrap_or_default();
+
             // auth_response_length : int<1>
-            buf.put_u8(0);
+            buf.put_u8(auth_response.len() as u8);
 
             // auth_response : string<{auth_response_length}>
+            buf.put_str(auth_response);
         }
 
         if capabilities.contains(Capabilities::CONNECT_WITH_DB) {
             // database : string<NUL>
             buf.put_str_nul(self.database);
+        }
+
+        if capabilities.contains(Capabilities::PLUGIN_AUTH) {
+            // client_plugin_name : string<NUL>
+            buf.put_str_nul(self.auth_plugin_name.unwrap_or_default());
         }
     }
 }

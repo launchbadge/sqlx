@@ -48,8 +48,8 @@ pub trait Executor {
                     } else {
                         Ok(Some(val))
                     }
-                },
-                None => Ok(None)
+                }
+                None => Ok(None),
             }
         })
     }

@@ -151,14 +151,6 @@ impl MySqlConnection {
         let handshake_packet = self_.receive().await?;
         let handshake = Handshake::decode(handshake_packet)?;
 
-        // TODO: Capabilities::SECURE_CONNECTION
-        // TODO: Capabilities::CONNECT_ATTRS
-        // TODO: Capabilities::PLUGIN_AUTH
-        // TODO: Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA
-        // TODO: Capabilities::TRANSACTIONS
-        // TODO: Capabilities::CLIENT_DEPRECATE_EOF
-        // TODO: Capabilities::COMPRESS
-        // TODO: Capabilities::ZSTD_COMPRESSION_ALGORITHM
         let client_capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE
             | Capabilities::FOUND_ROWS
@@ -176,6 +168,8 @@ impl MySqlConnection {
             username: url.username().unwrap_or("root"),
             // TODO: Remove the panic!
             database: url.database().expect("required database"),
+            auth_plugin_name: handshake.auth_plugin_name.as_deref(),
+            auth_response: None,
         });
 
         self_.stream.flush().await?;
