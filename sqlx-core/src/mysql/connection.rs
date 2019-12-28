@@ -14,6 +14,11 @@ use crate::mysql::protocol::{
 };
 use crate::url::Url;
 
+/// An asynchronous connection to a [MySql] database.
+///
+/// The connection string expected by [Connection::open] should be a MySQL connection
+/// string, as documented at
+/// <https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri>
 pub struct MySqlConnection {
     pub(super) stream: BufStream<TcpStream>,
 

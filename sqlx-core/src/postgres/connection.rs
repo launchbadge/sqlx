@@ -11,6 +11,11 @@ use crate::postgres::protocol::{self, Decode, Encode, Message, StatementId};
 use crate::postgres::PgError;
 use crate::url::Url;
 
+/// An asynchronous connection to a [Postgres] database.
+///
+/// The connection string expected by [Connection::open] should be a PostgreSQL connection
+/// string, as documented at
+/// <https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-CONNSTRING>
 pub struct PgConnection {
     pub(super) stream: BufStream<TcpStream>,
 
