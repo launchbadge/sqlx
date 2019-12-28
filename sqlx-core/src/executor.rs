@@ -6,7 +6,7 @@ use futures_util::TryStreamExt;
 
 /// Encapsulates query execution on the database.
 ///
-/// Implemented by [Pool], [Connection], and [Transaction].
+/// Implemented primarily by [crate::Pool].
 pub trait Executor {
     type Database: Database + ?Sized;
 
@@ -32,14 +32,26 @@ pub trait Executor {
     ) -> BoxStream<'e, crate::Result<<Self::Database as Database>::Row>>;
 
     /// Executes the query and returns up to resulting record.
-    ///  * `Error::FoundMoreThanOne` will be returned if the query produced more than 1 row.
+    ///
+    /// * [crate::Error::FoundMoreThanOne] will be returned if the query produced more than 1 row.
     fn fetch_optional<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
         args: <Self::Database as Database>::Arguments,
     ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as Database>::Row>>> {
         let mut s = self.fetch(query, args);
-        Box::pin(async move { s.try_next().await })
+        Box::pin(async move {
+            match s.try_next().await? {
+                Some(val) => {
+                    if s.try_next().await?.is_some() {
+                        Err(crate::Error::FoundMoreThanOne)
+                    } else {
+                        Ok(Some(val))
+                    }
+                },
+                None => Ok(None)
+            }
+        })
     }
 
     /// Execute the query and return at most one resulting record.
