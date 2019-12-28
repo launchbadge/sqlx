@@ -26,7 +26,7 @@
 </div>
 
 <div align="center">
-  <sub>Built with ❤️ by <a href="https://github.com/http-rs">The LaunchBadge team</a>
+  <sub>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a>
 </div>
 
 <br />
