@@ -13,11 +13,13 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
 documentation = "https://docs.rs/sqlx"
-description = "The Rust SQL Toolkit."
+description = "🧰 The Rust SQL Toolkit."
 edition = "2018"
 authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>"
+    "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
+    "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
+    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>", # zach@launchbadge.com
+    "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
 [features]

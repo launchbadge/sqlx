@@ -6,8 +6,10 @@ description = "Core of SQLx, the rust SQL toolkit. Not intended to be used direc
 license = "MIT OR Apache-2.0"
 edition = "2018"
 authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>"
+    "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
+    "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
+    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>", # zach@launchbadge.com
+    "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
 [features]
