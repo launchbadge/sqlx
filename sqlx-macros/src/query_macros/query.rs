@@ -2,13 +2,18 @@ use std::fmt::Display;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use syn::{Expr, ExprLit, Ident, Lit, parse::{self, Parse, ParseStream}, punctuated::Punctuated, spanned::Spanned, Token, Path};
+use syn::{
+    parse::{self, Parse, ParseStream},
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Expr, ExprLit, Ident, Lit, Path, Token,
+};
 
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use sqlx::{Connection, describe::Describe, types::HasTypeMetadata};
+use sqlx::{describe::Describe, types::HasTypeMetadata, Connection};
 
-use crate::database::{DatabaseExt, ParamChecking};
 use super::{args, output, QueryMacroInput};
+use crate::database::{DatabaseExt, ParamChecking};
 
 /// Given an input like `query!("SELECT * FROM accounts WHERE account_id > ?", account_id)`,
 /// expand to an anonymous record
@@ -41,7 +46,12 @@ where
 
     let record_fields = columns
         .iter()
-        .map(|&output::RustColumn { ref ident, ref type_}| quote!(#ident: #type_,))
+        .map(
+            |&output::RustColumn {
+                 ref ident,
+                 ref type_,
+             }| quote!(#ident: #type_,),
+        )
         .collect::<TokenStream>();
 
     let output = output::quote_query_as::<C::Database>(sql, &record_type, &columns);

@@ -13,10 +13,13 @@ impl_database_ext! {
 
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveTime,
+
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDate,
+
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDateTime,
+
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     },

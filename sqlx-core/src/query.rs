@@ -7,10 +7,10 @@ use crate::row::FromRow;
 use crate::types::HasSqlType;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
+use futures_core::Stream;
 use futures_util::TryFutureExt;
 use futures_util::TryStreamExt;
 use std::marker::PhantomData;
-use futures_core::Stream;
 
 /// Dynamic SQL query with bind parameters. Returned by [query].
 pub struct Query<'q, DB, T = <DB as Database>::Arguments>
@@ -31,13 +31,15 @@ where
     where
         E: Executor<Database = DB>,
     {
-        executor.execute(self.query, self.arguments.into_arguments()).await
+        executor
+            .execute(self.query, self.arguments.into_arguments())
+            .await
     }
 
     pub fn fetch<'e, E>(self, executor: &'e mut E) -> BoxStream<'e, crate::Result<DB::Row>>
     where
         E: Executor<Database = DB>,
-        'q: 'e
+        'q: 'e,
     {
         executor.fetch(self.query, self.arguments.into_arguments())
     }
@@ -46,7 +48,8 @@ where
     where
         E: Executor<Database = DB>,
     {
-        executor.fetch(self.query, self.arguments.into_arguments())
+        executor
+            .fetch(self.query, self.arguments.into_arguments())
             .try_collect()
             .await
     }
@@ -55,18 +58,18 @@ where
     where
         E: Executor<Database = DB>,
     {
-            executor
-                .fetch_optional(self.query, self.arguments.into_arguments())
-                .await
+        executor
+            .fetch_optional(self.query, self.arguments.into_arguments())
+            .await
     }
 
     pub async fn fetch_one<E>(self, executor: &mut E) -> crate::Result<DB::Row>
     where
         E: Executor<Database = DB>,
     {
-            executor
-                .fetch_one(self.query, self.arguments.into_arguments())
-                .await
+        executor
+            .fetch_one(self.query, self.arguments.into_arguments())
+            .await
     }
 }
 

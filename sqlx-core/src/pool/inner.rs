@@ -208,39 +208,42 @@ fn conn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>, pool_tx: &Sender<Idle<D
 where
     DB::Connection: Connection<Database = DB>,
 {
-    if pool.options.max_lifetime.is_some() || pool.options.idle_timeout.is_some() {
-        let pool = pool.clone();
-        let pool_tx = pool_tx.clone();
+    let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
+        (Some(it), None) | (None, Some(it)) => it,
 
-        let reap_period = cmp::min(pool.options.max_lifetime, pool.options.idle_timeout)
-            .expect("one of max_lifetime/idle_timeout should be `Some` at this point");
+        (Some(a), Some(b)) => cmp::min(a, b),
 
-        task::spawn(async move {
-            while !pool.closed.load(Ordering::AcqRel) {
-                // reap at most the current size minus the minimum idle
-                let max_reaped = pool
-                    .size
-                    .load(Ordering::Acquire)
-                    .saturating_sub(pool.options.min_idle);
+        (None, None) => return,
+    };
 
-                // collect connections to reap
-                let (reap, keep) = (0..max_reaped)
-                    // only connections waiting in the queue
-                    .filter_map(|_| pool.pool_rx.recv().now_or_never()?)
-                    .partition::<Vec<_>, _>(|conn| should_reap(conn, &pool.options));
+    let pool = pool.clone();
+    let pool_tx = pool_tx.clone();
 
-                for conn in keep {
-                    // return these connections to the pool first
-                    pool_tx.send(conn).await;
-                }
+    task::spawn(async move {
+        while !pool.closed.load(Ordering::Acquire) {
+            // reap at most the current size minus the minimum idle
+            let max_reaped = pool
+                .size
+                .load(Ordering::Acquire)
+                .saturating_sub(pool.options.min_idle);
 
-                for conn in reap {
-                    conn.close().await;
-                    pool.size.fetch_sub(1, Ordering::AcqRel);
-                }
+            // collect connections to reap
+            let (reap, keep) = (0..max_reaped)
+                // only connections waiting in the queue
+                .filter_map(|_| pool.pool_rx.recv().now_or_never()?)
+                .partition::<Vec<_>, _>(|conn| should_reap(conn, &pool.options));
 
-                task::sleep(reap_period).await;
+            for conn in keep {
+                // return these connections to the pool first
+                pool_tx.send(conn).await;
             }
-        });
-    }
+
+            for conn in reap {
+                conn.close().await;
+                pool.size.fetch_sub(1, Ordering::AcqRel);
+            }
+
+            task::sleep(period).await;
+        }
+    });
 }

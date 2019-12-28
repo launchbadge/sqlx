@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 use futures_core::{future::BoxFuture, stream::BoxStream, Stream};
 use futures_util::{future, FutureExt, TryFutureExt, TryStreamExt};
 
-use crate::{arguments::IntoArguments, database::Database, decode::Decode, encode::Encode, executor::Executor, row::FromRow, types::HasSqlType};
 use crate::arguments::Arguments;
+use crate::{
+    arguments::IntoArguments, database::Database, decode::Decode, encode::Encode,
+    executor::Executor, row::FromRow, types::HasSqlType,
+};
 use std::task::Poll;
 
 /// SQL query with bind parameters and output type. Returned by [query_as] and [query!] *et al*.
@@ -19,15 +22,17 @@ where
 
 /// The result of [query!] for SQL queries that do not return results.
 impl<DB, P> QueryAs<'_, DB, (), P>
-    where
-        DB: Database,
-        P: IntoArguments<DB> + Send,
+where
+    DB: Database,
+    P: IntoArguments<DB> + Send,
 {
     pub async fn execute<E>(self, executor: &mut E) -> crate::Result<u64>
-        where
-            E: Executor<Database = DB>,
+    where
+        E: Executor<Database = DB>,
     {
-        executor.execute(self.query, self.args.into_arguments()).await
+        executor
+            .execute(self.query, self.args.into_arguments())
+            .await
     }
 }
 
@@ -42,8 +47,14 @@ where
         E: Executor<Database = DB>,
         'q: 'e,
     {
-        let Self { query, args, map_row, ..} = self;
-        executor.fetch(query, args.into_arguments())
+        let Self {
+            query,
+            args,
+            map_row,
+            ..
+        } = self;
+        executor
+            .fetch(query, args.into_arguments())
             .and_then(move |row| future::ready(map_row(row)))
     }
 
@@ -58,7 +69,8 @@ where
     where
         E: Executor<Database = DB>,
     {
-        executor.fetch_optional(self.query, self.args.into_arguments())
+        executor
+            .fetch_optional(self.query, self.args.into_arguments())
             .await?
             .map(self.map_row)
             .transpose()
@@ -68,14 +80,18 @@ where
     where
         E: Executor<Database = DB>,
     {
-        (self.map_row)(executor.fetch_one(self.query, self.args.into_arguments()).await?)
+        (self.map_row)(
+            executor
+                .fetch_one(self.query, self.args.into_arguments())
+                .await?,
+        )
     }
 }
 
 impl<'q, DB, R> QueryAs<'q, DB, R>
 where
     DB: Database,
-    DB::Arguments: Arguments<Database = DB>
+    DB::Arguments: Arguments<Database = DB>,
 {
     /// Bind a value for use with this SQL query.
     ///
@@ -95,7 +111,10 @@ where
 
     // used by query!() and friends
     #[doc(hidden)]
-    pub fn bind_all<I>(self, values: I) -> QueryAs<'q, DB, R, I> where I: IntoArguments<DB> {
+    pub fn bind_all<I>(self, values: I) -> QueryAs<'q, DB, R, I>
+    where
+        I: IntoArguments<DB>,
+    {
         QueryAs {
             query: self.query,
             args: values,
@@ -114,18 +133,21 @@ where
     QueryAs {
         query,
         args: Default::default(),
-        map_row: |row| Ok(T::from_row(row))
+        map_row: |row| Ok(T::from_row(row)),
     }
 }
 
 #[doc(hidden)]
-pub fn query_as_mapped<DB, T>(query: &str, map_row: fn(DB::Row) -> crate::Result<T>) -> QueryAs<DB, T>
-    where
-        DB: Database,
+pub fn query_as_mapped<DB, T>(
+    query: &str,
+    map_row: fn(DB::Row) -> crate::Result<T>,
+) -> QueryAs<DB, T>
+where
+    DB: Database,
 {
     QueryAs {
         query,
         args: Default::default(),
-        map_row
+        map_row,
     }
 }

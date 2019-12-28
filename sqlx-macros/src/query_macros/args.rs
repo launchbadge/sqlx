@@ -2,19 +2,22 @@ use std::path::Path;
 
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
-use syn::Expr;
 use syn::spanned::Spanned;
+use syn::Expr;
 
 use sqlx::describe::Describe;
 
 use crate::database::{DatabaseExt, ParamChecking};
 use crate::query_macros::QueryMacroInput;
 
-pub fn quote_args<DB: DatabaseExt>(input: &QueryMacroInput, describe: &Describe<DB>) -> crate::Result<TokenStream> {
+pub fn quote_args<DB: DatabaseExt>(
+    input: &QueryMacroInput,
+    describe: &Describe<DB>,
+) -> crate::Result<TokenStream> {
     if input.args.is_empty() {
         return Ok(quote! {
             let args = ();
-        })
+        });
     }
 
     let args_check = if DB::PARAM_CHECKING == ParamChecking::Strong {

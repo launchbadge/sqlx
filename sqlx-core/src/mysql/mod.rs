@@ -30,8 +30,8 @@ use crate::url::Url;
 // used in tests and hidden code in examples
 #[doc(hidden)]
 pub async fn connect<T>(url: T) -> crate::Result<MySqlConnection>
-    where
-        T: TryInto<Url, Error = crate::Error>
+where
+    T: TryInto<Url, Error = crate::Error>,
 {
     MySqlConnection::open(url.try_into()).await
 }

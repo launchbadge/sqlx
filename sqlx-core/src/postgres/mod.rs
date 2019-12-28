@@ -25,8 +25,8 @@ pub type PgPool = super::Pool<Postgres>;
 // used in tests and hidden code in examples
 #[doc(hidden)]
 pub async fn connect<T>(url: T) -> crate::Result<PgConnection>
-    where
-        T: TryInto<Url, Error = crate::Error>
+where
+    T: TryInto<Url, Error = crate::Error>,
 {
     PgConnection::open(url.try_into()).await
 }

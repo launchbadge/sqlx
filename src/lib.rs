@@ -4,7 +4,9 @@
 pub use sqlx_core::{arguments, decode, describe, encode, error, pool, row, types};
 
 // Types
-pub use sqlx_core::{Connection, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row};
+pub use sqlx_core::{
+    Connection, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row,
+};
 
 // Functions
 pub use sqlx_core::{query, query_as};

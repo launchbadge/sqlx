@@ -57,12 +57,11 @@ async fn macro_select_from_cte() -> anyhow::Result<()> {
          select * from accounts where id = ?",
         1i32
     )
-        .fetch_one(&mut conn)
-        .await?;
+    .fetch_one(&mut conn)
+    .await?;
 
     println!("{:?}", account);
     println!("{}: {}", account.id, account.name);
-
 
     Ok(())
 }

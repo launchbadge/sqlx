@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
-use syn::{Path, Token};
 use quote::quote;
+use syn::{Path, Token};
 
 use sqlx::describe::Describe;
 
@@ -8,7 +8,7 @@ use crate::database::DatabaseExt;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
-    pub(super) type_: TokenStream
+    pub(super) type_: TokenStream,
 }
 
 pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
@@ -35,13 +35,21 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
         .collect::<crate::Result<Vec<_>>>()
 }
 
-pub fn quote_query_as<DB: DatabaseExt>(sql: &str, out_ty: &Path, columns: &[RustColumn]) -> TokenStream {
-    let instantiations = columns
-        .iter()
-        .enumerate()
-        .map(|(i, &RustColumn { ref ident, ref type_, .. })| {
-            quote!( #ident: #i.try_get::<#type_>(&row).try_unwrap_optional()? )
-        });
+pub fn quote_query_as<DB: DatabaseExt>(
+    sql: &str,
+    out_ty: &Path,
+    columns: &[RustColumn],
+) -> TokenStream {
+    let instantiations = columns.iter().enumerate().map(
+        |(
+            i,
+            &RustColumn {
+                ref ident,
+                ref type_,
+                ..
+            },
+        )| { quote!( #ident: #i.try_get::<#type_>(&row).try_unwrap_optional()? ) },
+    );
 
     let db_path = DB::quotable_path();
 
