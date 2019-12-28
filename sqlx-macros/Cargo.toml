@@ -3,6 +3,7 @@ name = "sqlx-macros"
 version = "0.1.1"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
+license = "MIT OR Apache-2.0"
 edition = "2018"
 authors = [
     "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
