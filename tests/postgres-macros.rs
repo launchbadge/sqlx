@@ -65,6 +65,26 @@ async fn test_query_file_as() -> sqlx::Result<()> {
 }
 
 #[async_std::test]
+async fn query_by_string() -> sqlx::Result<()> {
+    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+
+    let string = "Hello, world!".to_string();
+
+    let result = sqlx::query!(
+            "SELECT * from (VALUES('Hello, world!')) strings(string)\
+             where string = $1 or string = $2",
+            string,
+            string[..]
+        )
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(result.string, string);
+
+    Ok(())
+}
+
+#[async_std::test]
 async fn test_nullable_err() -> sqlx::Result<()> {
     #[derive(Debug)]
     struct Account {

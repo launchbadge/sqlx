@@ -27,8 +27,17 @@ impl<T> TyCons<Option<&'_ T>> {
     }
 }
 
-impl<T> TyConsExt for TyCons<&'_ T> {
+// no overlap with the following impls because of the `: Sized` bound
+impl<T: Sized> TyConsExt for TyCons<&'_ T> {
     type Cons = T;
+}
+
+impl TyConsExt for TyCons<&'_ str> {
+    type Cons = String;
+}
+
+impl<T> TyConsExt for TyCons<&'_ [T]> {
+    type Cons = Vec<T>;
 }
 
 impl<T> TyConsExt for TyCons<Option<T>> {

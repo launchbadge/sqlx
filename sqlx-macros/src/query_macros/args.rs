@@ -61,7 +61,7 @@ pub fn quote_args<DB: DatabaseExt>(
     let args = input.args.iter();
 
     Ok(quote! {
-        let args = (#(#args),*,);
+        let args = (#(&#args),*,);
         #args_check
     })
 }
