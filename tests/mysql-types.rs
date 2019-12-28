@@ -17,7 +17,7 @@ macro_rules! test {
                     .await?;
 
                 assert_eq!(row.get::<i32, _>(0), 1);
-                
+
                 let value = row.get::<$ty, _>("_1");
 
                 assert!($value == value);

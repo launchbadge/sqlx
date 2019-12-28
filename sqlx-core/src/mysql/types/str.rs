@@ -36,6 +36,9 @@ impl Encode<MySql> for String {
 
 impl Decode<MySql> for String {
     fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(buf.get_str_lenenc::<LittleEndian>()?.unwrap_or_default().to_owned())
+        Ok(buf
+            .get_str_lenenc::<LittleEndian>()?
+            .unwrap_or_default()
+            .to_owned())
     }
 }

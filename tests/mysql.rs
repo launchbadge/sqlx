@@ -37,7 +37,10 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
     let sum: i32 = sqlx::query("SELECT id FROM users")
         .fetch(&mut conn)
-        .try_fold(0_i32, |acc, x| async move { Ok(acc + x.get::<i32, _>("id")) })
+        .try_fold(
+            0_i32,
+            |acc, x| async move { Ok(acc + x.get::<i32, _>("id")) },
+        )
         .await?;
 
     assert_eq!(sum, 55);
