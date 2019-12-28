@@ -35,12 +35,14 @@
 
 SQLx is a modern SQL client built from the ground up for Rust, in Rust.
 
- * **Asynchronous**.
+ * **Truly Asynchronous**. Built from the ground-up using [async-std] using async streams for maximum concurrency.
 
- * **Native**. SQLx is a pure Rust toolkit for SQL. Where possible, drivers are written from scratch, in Rust, utilizing the modern ecosystem for asynchronous network services development.
+ * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at 
+ compile time. (You can stil use dynamic SQL queries if you like.)
 
- * **Type-safe**. SQLx is built upon the novel idea of preparing SQL statements before or duing compilation to provide strong type safety while not getting in your way with a custom DSL. 
+ * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe code.
 
+[async-std]: https://github.com/rust-async/async-std
 ## Examples
 
 The `sqlx::query` function provides general-purpose prepared statement execution. 
