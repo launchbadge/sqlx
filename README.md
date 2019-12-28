@@ -69,6 +69,8 @@ let countries = sqlx::query!(
     .await?;
 ```
 
+See the beginngins of a [RealWorld](https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication) implementation in [examples/realworld-postgres](./examples/realworld-postgres).
+
 ## Safety
 
 This crate uses `#[deny(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
