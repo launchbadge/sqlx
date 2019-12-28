@@ -71,13 +71,13 @@ async fn query_by_string() -> sqlx::Result<()> {
     let string = "Hello, world!".to_string();
 
     let result = sqlx::query!(
-            "SELECT * from (VALUES('Hello, world!')) strings(string)\
-             where string = $1 or string = $2",
-            string,
-            string[..]
-        )
-        .fetch_one(&mut conn)
-        .await?;
+        "SELECT * from (VALUES('Hello, world!')) strings(string)\
+         where string = $1 or string = $2",
+        string,
+        string[..]
+    )
+    .fetch_one(&mut conn)
+    .await?;
 
     assert_eq!(result.string, string);
 

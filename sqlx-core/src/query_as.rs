@@ -3,8 +3,8 @@ use futures_util::{future, TryStreamExt};
 
 use crate::arguments::Arguments;
 use crate::{
-    arguments::IntoArguments, database::Database, encode::Encode,
-    executor::Executor, row::FromRow, types::HasSqlType,
+    arguments::IntoArguments, database::Database, encode::Encode, executor::Executor, row::FromRow,
+    types::HasSqlType,
 };
 
 /// SQL query with bind parameters, which maps rows to an explicit output type.

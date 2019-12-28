@@ -1,12 +1,12 @@
-use chrono::{NaiveDateTime, NaiveDate, Timelike, Datelike};
 use byteorder::{ByteOrder, LittleEndian};
+use chrono::{Datelike, NaiveDate, NaiveDateTime, Timelike};
 
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
+use crate::mysql::protocol::Type;
+use crate::mysql::types::MySqlTypeMetadata;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
-use crate::mysql::types::{MySqlTypeMetadata};
-use crate::mysql::protocol::Type;
 use std::convert::TryFrom;
 
 impl HasSqlType<NaiveDateTime> for MySql {
@@ -68,7 +68,7 @@ impl Decode<MySql> for NaiveDateTime {
                     LittleEndian::read_u32(&raw[8..])
                 } else {
                     0
-                }
+                },
             )
         } else {
             date.and_hms(0, 0, 0)
@@ -117,7 +117,7 @@ fn decode_date(raw: &[u8]) -> NaiveDate {
     NaiveDate::from_ymd(
         LittleEndian::read_u16(raw) as i32,
         raw[2] as u32,
-        raw[3] as u32
+        raw[3] as u32,
     )
 }
 

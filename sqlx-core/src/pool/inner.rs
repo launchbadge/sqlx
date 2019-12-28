@@ -48,14 +48,15 @@ where
             options,
         });
 
-        for _ in 0.. pool.options.min_size {
-            let raw = pool.new_conn(
-                Instant::now() + pool.options.connect_timeout
-            ).await?;
+        for _ in 0..pool.options.min_size {
+            let raw = pool
+                .new_conn(Instant::now() + pool.options.connect_timeout)
+                .await?;
 
-            pool_tx.send(Idle {
+            pool_tx
+                .send(Idle {
                     raw,
-                    since: Instant::now()
+                    since: Instant::now(),
                 })
                 .await;
         }

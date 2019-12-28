@@ -102,10 +102,12 @@ where
 }
 
 impl<DB> Default for Builder<DB>
-    where
-        DB: Database
+where
+    DB: Database,
 {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub(crate) struct Options {
