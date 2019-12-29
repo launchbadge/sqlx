@@ -71,7 +71,7 @@ let countries = sqlx::query!(
     .await?;
 ```
 
-See the beginngins of a [RealWorld](https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication) implementation in [examples/realworld-postgres](./examples/realworld-postgres).
+See the beginnings of a [RealWorld](https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication) implementation in [examples/realworld-postgres](./examples/realworld-postgres).
 
 ## Safety
 
