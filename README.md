@@ -44,7 +44,7 @@ SQLx is a modern SQL client built from the ground up for Rust, in Rust.
 
  * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe code.
 
-[async-std]: https://github.com/rust-async/async-std
+[async-std]: https://github.com/async-rs/async-std
 ## Examples
 
 The `sqlx::query` function provides general-purpose prepared statement execution. 
