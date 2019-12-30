@@ -11,7 +11,7 @@ pub struct HandshakeResponse<'a> {
     pub max_packet_size: u32,
     pub client_collation: u8,
     pub username: &'a str,
-    pub database: &'a str,
+    pub database: Option<&'a str>,
     pub auth_plugin_name: Option<&'a str>,
     pub auth_response: Option<&'a str>,
 }
@@ -55,8 +55,10 @@ impl Encode for HandshakeResponse<'_> {
         }
 
         if capabilities.contains(Capabilities::CONNECT_WITH_DB) {
-            // database : string<NUL>
-            buf.put_str_nul(self.database);
+            if let Some(database) = self.database {
+                // database : string<NUL>
+                buf.put_str_nul(database);
+            }
         }
 
         if capabilities.contains(Capabilities::PLUGIN_AUTH) {

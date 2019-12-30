@@ -152,10 +152,12 @@ impl MySqlConnection {
         let handshake_packet = self_.receive().await?;
         let handshake = Handshake::decode(handshake_packet)?;
 
-        let client_capabilities = Capabilities::PROTOCOL_41
-            | Capabilities::IGNORE_SPACE
-            | Capabilities::FOUND_ROWS
-            | Capabilities::CONNECT_WITH_DB;
+        let mut client_capabilities =
+            Capabilities::PROTOCOL_41 | Capabilities::IGNORE_SPACE | Capabilities::FOUND_ROWS;
+
+        if url.database().is_some() {
+            client_capabilities |= Capabilities::CONNECT_WITH_DB;
+        }
 
         // Fails if [Capabilities::PROTOCOL_41] is not in [server_capabilities]
         self_.capabilities =
@@ -167,8 +169,7 @@ impl MySqlConnection {
             client_collation: 192, // utf8_unicode_ci
             max_packet_size: 1024,
             username: url.username().unwrap_or("root"),
-            // TODO: Remove the panic!
-            database: url.database().expect("required database"),
+            database: url.database(),
             auth_plugin_name: handshake.auth_plugin_name.as_deref(),
             auth_response: None,
         });
