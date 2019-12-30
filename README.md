@@ -8,7 +8,7 @@
 <br />
 
 <div align="center">
-  <!-- Crates version -->
+  <!-- Version -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
     alt="Crates.io version" />
@@ -18,11 +18,13 @@
     <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
       alt="Download" />
   </a>
-  <!-- docs.rs docs -->
+  <!-- Docs -->
   <a href="https://docs.rs/sqlx">
     <img src="https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square"
       alt="docs.rs docs" />
   </a>
+  <!-- Github Actions -->
+  <img src="https://img.shields.io/github/workflow/status/launchbadge/sqlx/Rust?style=flat-square" alt="actions status" />
 </div>
 
 <br />
