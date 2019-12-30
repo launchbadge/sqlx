@@ -52,7 +52,7 @@ impl Encode for ComStmtExecute<'_> {
                 buf.put_u8(ty.r#type.0);
 
                 // parameter flag : byte<1>
-                buf.put_u8(ty.flag);
+                buf.put_u8(if ty.is_unsigned { 0x80 } else { 0 });
             }
 
             // byte<n> binary parameter value

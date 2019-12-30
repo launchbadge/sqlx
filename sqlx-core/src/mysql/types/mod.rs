@@ -14,16 +14,22 @@ mod chrono;
 #[derive(Default, Debug)]
 pub struct MySqlTypeMetadata {
     pub(crate) r#type: Type,
-    pub(crate) flag: u8, // 0 or 0x80 for unsigned
+    pub(crate) is_unsigned: bool,
 }
 
 impl MySqlTypeMetadata {
     pub(crate) fn new(r#type: Type) -> Self {
-        Self { r#type, flag: 0 }
+        Self {
+            r#type,
+            is_unsigned: false,
+        }
     }
 
     pub(crate) fn unsigned(r#type: Type) -> Self {
-        Self { r#type, flag: 0x80 }
+        Self {
+            r#type,
+            is_unsigned: true,
+        }
     }
 }
 
