@@ -62,6 +62,10 @@ name = "postgres-types"
 required-features = [ "postgres" ]
 
 [[test]]
+name = "postgres-types-chrono"
+required-features = [ "postgres", "chrono" ]
+
+[[test]]
 name = "mysql-types"
 required-features = [ "mysql" ]
 
