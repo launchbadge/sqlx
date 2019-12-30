@@ -7,6 +7,7 @@ use futures_core::future::BoxFuture;
 
 use crate::cache::StatementCache;
 use crate::connection::Connection;
+use crate::executor::Executor;
 use crate::io::{Buf, BufMut, BufStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
@@ -175,6 +176,37 @@ impl MySqlConnection {
         self_.stream.flush().await?;
 
         let _ok = self_.receive_ok().await?;
+
+        // On connect, we want to establish a modern, Rust-compatible baseline so we
+        // tweak connection options to enable UTC for TIMESTAMP, UTF-8 for character types, etc.
+
+        // TODO: Use batch support when we have it to handle the following in one execution
+
+        // https://mariadb.com/kb/en/sql-mode/
+
+        // PIPES_AS_CONCAT - Allows using the pipe character (ASCII 124) as string concatenation operator.
+        //                   This means that "A" || "B" can be used in place of CONCAT("A", "B").
+
+        // NO_ENGINE_SUBSTITUTION - If not set, if the available storage engine specified by a CREATE TABLE is
+        //                          not available, a warning is given and the default storage
+        //                          engine is used instead.
+
+        // NO_ZERO_DATE - Don't allow '0000-00-00'. This is invalid in Rust.
+
+        // NO_ZERO_IN_DATE - Don't allow 'yyyy-00-00'. This is invalid in Rust.
+
+        self_.send("SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'))")
+            .await?;
+
+        // This allows us to assume that the output from a TIMESTAMP field is UTC
+
+        self_.send("SET time_zone = 'UTC'").await?;
+
+        // https://mathiasbynens.be/notes/mysql-utf8mb4
+
+        self_
+            .send("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
+            .await?;
 
         Ok(self_)
     }
