@@ -4,7 +4,7 @@ use byteorder::LittleEndian;
 
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::mysql::io::BufMutExt;
+use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::Type;
 use crate::mysql::types::MySqlTypeMetadata;
 use crate::mysql::MySql;
@@ -36,6 +36,9 @@ impl Encode<MySql> for String {
 
 impl Decode<MySql> for String {
     fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(str::from_utf8(buf)?.to_owned())
+        Ok(buf
+            .get_str_lenenc::<LittleEndian>()?
+            .unwrap_or_default()
+            .to_owned())
     }
 }

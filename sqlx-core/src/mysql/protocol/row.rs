@@ -24,32 +24,32 @@ impl Row {
     }
 }
 
-fn get_lenenc(buf: &[u8]) -> (usize, usize) {
+fn get_lenenc(buf: &[u8]) -> usize {
     match buf[0] {
-        0xFB => (1, 0),
+        0xFB => 1,
 
         0xFC => {
             let len_size = 1 + 2;
             let len = LittleEndian::read_u16(&buf[1..]);
 
-            (len_size, len as usize)
+            len_size + len as usize
         }
 
         0xFD => {
             let len_size = 1 + 3;
             let len = LittleEndian::read_u24(&buf[1..]);
 
-            (len_size, len as usize)
+            len_size + len as usize
         }
 
         0xFE => {
             let len_size = 1 + 8;
             let len = LittleEndian::read_u64(&buf[1..]);
 
-            (len_size, len as usize)
+            len_size + len as usize
         }
 
-        value => (1, value as usize),
+        value => 1 + value as usize,
     }
 }
 
@@ -61,9 +61,9 @@ impl Row {
             let mut index = 0;
 
             for column_idx in 0..columns.len() {
-                let (offset, size) = get_lenenc(&buf[index..]);
+                let size = get_lenenc(&buf[index..]);
 
-                values.push(Some((index + offset)..(index + offset + size)));
+                values.push(Some(index..(index + size)));
 
                 index += size;
                 buf.advance(size);
@@ -95,11 +95,16 @@ impl Row {
             if null_bitmap[column_idx / 8] & (1 << (column_idx % 8) as u8) != 0 {
                 values.push(None);
             } else {
-                let (offset, size) = match columns[column_idx] {
-                    Type::TINY => (0, 1),
-                    Type::SHORT => (0, 2),
-                    Type::LONG => (0, 4),
-                    Type::LONGLONG => (0, 8),
+                let size = match columns[column_idx] {
+                    Type::TINY => 1,
+                    Type::SHORT => 2,
+                    Type::LONG => 4,
+                    Type::LONGLONG => 8,
+
+                    Type::DATE => 5,
+                    Type::TIME => 1 + buffer[index] as usize,
+
+                    Type::TIMESTAMP | Type::DATETIME => 1 + buffer[index] as usize,
 
                     Type::TINY_BLOB
                     | Type::MEDIUM_BLOB
@@ -115,8 +120,8 @@ impl Row {
                     }
                 };
 
-                values.push(Some((index + offset)..(index + offset + size)));
-                index += offset + size;
+                values.push(Some(index..(index + size)));
+                index += size;
             }
         }
 

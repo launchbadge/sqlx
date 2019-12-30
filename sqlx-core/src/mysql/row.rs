@@ -49,6 +49,7 @@ impl RowIndex<MySqlRow> for &'_ str {
             .columns
             .get(*self)
             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
+
         let value = Decode::decode_nullable(row.row.get(*index))?;
 
         Ok(value)
