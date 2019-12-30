@@ -44,3 +44,24 @@ test!(mysql_longlong_unsigned: u64: "2141512" == 2141512_u64);
 test!(mysql_longlong: i64: "2141512" == 2141512_i64);
 
 test!(mysql_string: String: "'helloworld'" == "helloworld");
+
+#[async_std::test]
+async fn mysql_bytes() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let value = b"Hello, World";
+
+    let row = sqlx::query("SELECT X'48656c6c6f2c20576f726c64' = ?, ?")
+        .bind(&value[..])
+        .bind(&value[..])
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(row.get::<bool, _>(0));
+
+    let output: Vec<u8> = row.get(1);
+
+    assert_eq!(&value[..], &*output);
+
+    Ok(())
+}

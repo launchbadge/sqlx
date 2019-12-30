@@ -35,3 +35,23 @@ test!(postgres_real: f32: "9419.122::real" == 9419.122_f32);
 test!(postgres_double: f64: "939399419.1225182::double precision" == 939399419.1225182_f64);
 
 test!(postgres_text: String: "'this is foo'" == "this is foo", "''" == "");
+
+#[async_std::test]
+async fn postgres_bytes() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let value = b"Hello, World";
+
+    let row = sqlx::query("SELECT E'\\\\x48656c6c6f2c20576f726c64' = $1, $1")
+        .bind(&value[..])
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(row.get::<bool, _>(0));
+
+    let output: Vec<u8> = row.get(1);
+
+    assert_eq!(&value[..], &*output);
+
+    Ok(())
+}
