@@ -2,9 +2,9 @@ use byteorder::LittleEndian;
 
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
+use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::Type;
 use crate::mysql::types::MySqlTypeMetadata;
-use crate::mysql::io::{BufMutExt, BufExt};
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
@@ -36,6 +36,9 @@ impl Encode<MySql> for Vec<u8> {
 
 impl Decode<MySql> for Vec<u8> {
     fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(buf.get_bytes_lenenc::<LittleEndian>()?.unwrap_or_default().to_vec())
+        Ok(buf
+            .get_bytes_lenenc::<LittleEndian>()?
+            .unwrap_or_default()
+            .to_vec())
     }
 }

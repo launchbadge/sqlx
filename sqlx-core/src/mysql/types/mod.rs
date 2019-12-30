@@ -3,11 +3,11 @@ use crate::mysql::MySql;
 use crate::types::HasTypeMetadata;
 
 mod bool;
+mod bytes;
 mod float;
 mod int;
 mod str;
 mod uint;
-mod bytes;
 
 #[cfg(feature = "chrono")]
 mod chrono;
