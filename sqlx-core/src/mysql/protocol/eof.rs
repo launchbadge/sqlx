@@ -34,19 +34,3 @@ impl Decode for EofPacket {
         })
     }
 }
-
-//#[cfg(test)]
-//mod tests {
-//    use super::{Capabilities, Decode, ErrPacket, Status};
-//
-//    const ERR_HANDSHAKE_UNKNOWN_DB: &[u8] = b"\xff\x19\x04#42000Unknown database \'unknown\'";
-//
-//    #[test]
-//    fn it_decodes_ok_handshake() {
-//        let mut p = ErrPacket::decode(ERR_HANDSHAKE_UNKNOWN_DB).unwrap();
-//
-//        assert_eq!(p.error_code, 1049);
-//        assert_eq!(&*p.sql_state, "42000");
-//        assert_eq!(&*p.error_message, "Unknown database \'unknown\'");
-//    }
-//}

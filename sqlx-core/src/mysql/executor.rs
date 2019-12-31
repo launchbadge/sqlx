@@ -26,7 +26,7 @@ enum OkOrResultSet {
 impl MySqlConnection {
     async fn ignore_columns(&mut self, count: usize) -> crate::Result<()> {
         for _ in 0..count {
-            let _column = ColumnDefinition::decode(self.receive().await?)?;
+            let _column = ColumnDefinition::decode(self.receive().await?.packet())?;
         }
 
         if count > 0 {
@@ -37,35 +37,15 @@ impl MySqlConnection {
     }
 
     async fn receive_ok_or_column_count(&mut self) -> crate::Result<OkOrResultSet> {
-        let packet = self.receive().await?;
+        self.receive().await?;
 
-        match packet[0] {
-            0xfe if packet.len() < 0xffffff => {
-                let ok = OkPacket::decode(packet)?;
-                self.ready = true;
+        match self.packet[0] {
+            0x00 | 0xfe if self.packet.len() < 0xffffff => self.handle_ok().map(OkOrResultSet::Ok),
+            0xff => self.handle_err(),
 
-                Ok(OkOrResultSet::Ok(ok))
-            }
-
-            0x00 => {
-                let ok = OkPacket::decode(packet)?;
-                self.ready = true;
-
-                Ok(OkOrResultSet::Ok(ok))
-            }
-
-            0xff => {
-                let err = ErrPacket::decode(packet)?;
-                self.ready = true;
-
-                Err(MySqlError(err).into())
-            }
-
-            _ => {
-                let cc = ColumnCount::decode(packet)?;
-
-                Ok(OkOrResultSet::ResultSet(cc))
-            }
+            _ => Ok(OkOrResultSet::ResultSet(ColumnCount::decode(
+                self.packet(),
+            )?)),
         }
     }
 
@@ -73,8 +53,8 @@ impl MySqlConnection {
         let mut columns: Vec<Type> = Vec::with_capacity(count);
 
         for _ in 0..count {
-            let packet = self.receive().await?;
-            let column: ColumnDefinition = ColumnDefinition::decode(packet)?;
+            let column: ColumnDefinition =
+                ColumnDefinition::decode(self.receive().await?.packet())?;
 
             columns.push(column.r#type);
         }
@@ -87,7 +67,7 @@ impl MySqlConnection {
     }
 
     async fn wait_for_ready(&mut self) -> crate::Result<()> {
-        if !self.ready {
+        if self.next_seq_no != 0 {
             while let Some(_step) = self.step(&[], true).await? {
                 // Drain steps until we hit the end
             }
@@ -98,21 +78,19 @@ impl MySqlConnection {
 
     async fn prepare(&mut self, query: &str) -> crate::Result<ComStmtPrepareOk> {
         // Start by sending a COM_STMT_PREPARE
-        self.begin_command_phase();
-        self.write(ComStmtPrepare { query });
-        self.stream.flush().await?;
+        self.send(ComStmtPrepare { query }).await?;
 
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_stmt_prepare.html
 
         // First we should receive a COM_STMT_PREPARE_OK
-        let packet = self.receive().await?;
+        self.receive().await?;
 
-        if packet[0] == 0xff {
+        if self.packet[0] == 0xff {
             // Oops, there was an error in the prepare command
-            return Err(MySqlError(ErrPacket::decode(packet)?).into());
+            return self.handle_err();
         }
 
-        ComStmtPrepareOk::decode(packet)
+        ComStmtPrepareOk::decode(self.packet())
     }
 
     async fn prepare_with_cache(&mut self, query: &str) -> crate::Result<u32> {
@@ -132,7 +110,7 @@ impl MySqlConnection {
             let mut columns = HashMap::with_capacity(prepare_ok.columns as usize);
             let mut index = 0_usize;
             for _ in 0..prepare_ok.columns {
-                let column = ColumnDefinition::decode(self.receive().await?)?;
+                let column = ColumnDefinition::decode(self.receive().await?.packet())?;
 
                 if let Some(name) = column.column_alias.or(column.column) {
                     columns.insert(name, index);
@@ -145,6 +123,9 @@ impl MySqlConnection {
                 self.receive_eof().await?;
             }
 
+            // At the end of a command, this should go back to 0
+            self.next_seq_no = 0;
+
             // Remember our column map in the statement cache
             self.statement_cache
                 .put_columns(prepare_ok.statement_id, columns);
@@ -155,73 +136,59 @@ impl MySqlConnection {
 
     // [COM_STMT_EXECUTE]
     async fn execute_statement(&mut self, id: u32, args: MySqlArguments) -> crate::Result<()> {
-        self.begin_command_phase();
-        self.ready = false;
-
-        self.write(ComStmtExecute {
+        self.send(ComStmtExecute {
             cursor: Cursor::NO_CURSOR,
             statement_id: id,
             params: &args.params,
             null_bitmap: &args.null_bitmap,
             param_types: &args.param_types,
-        });
-
-        self.stream.flush().await?;
-
-        Ok(())
+        })
+        .await
     }
 
     async fn step(&mut self, columns: &[Type], binary: bool) -> crate::Result<Option<Step>> {
         let capabilities = self.capabilities;
         let packet = ret_if_none!(self.try_receive().await?);
 
-        match packet[0] {
-            0xfe if packet.len() < 0xffffff => {
-                // Resultset row can begin with 0xfe byte (when using text protocol
+        match self.packet[0] {
+            0xfe if self.packet.len() < 0xffffff => {
+                // ResultSet row can begin with 0xfe byte (when using text protocol
                 // with a field length > 0xffffff)
 
                 if !capabilities.contains(Capabilities::DEPRECATE_EOF) {
-                    let _eof = EofPacket::decode(packet)?;
-                    self.ready = true;
+                    let _eof = EofPacket::decode(self.packet())?;
 
-                    return Ok(None);
+                    // An EOF -here- signifies the end of the current command sequence
+                    self.next_seq_no = 0;
+
+                    Ok(None)
                 } else {
-                    let ok = OkPacket::decode(packet)?;
-                    self.ready = true;
-
-                    return Ok(Some(Step::Command(ok.affected_rows)));
+                    self.handle_ok()
+                        .map(|ok| Some(Step::Command(ok.affected_rows)))
                 }
             }
 
-            0xff => {
-                let err = ErrPacket::decode(packet)?;
-                self.ready = true;
+            0xff => self.handle_err(),
 
-                return Err(MySqlError(err).into());
-            }
-
-            _ => {
-                return Ok(Some(Step::Row(Row::decode(packet, columns, binary)?)));
-            }
+            _ => Ok(Some(Step::Row(Row::decode(
+                self.packet(),
+                columns,
+                binary,
+            )?))),
         }
     }
 }
 
 impl MySqlConnection {
-    async fn send(&mut self, query: &str) -> crate::Result<()> {
+    pub(super) async fn execute_raw(&mut self, query: &str) -> crate::Result<()> {
         self.wait_for_ready().await?;
 
-        self.begin_command_phase();
-        self.ready = false;
-
-        // enable multi-statement only for this query
-        self.write(ComQuery { query });
-
-        self.stream.flush().await?;
+        self.send(ComQuery { query }).await?;
 
         // COM_QUERY can terminate before the result set with an ERR or OK packet
         let num_columns = match self.receive_ok_or_column_count().await? {
             OkOrResultSet::Ok(_) => {
+                self.next_seq_no = 0;
                 return Ok(());
             }
 
@@ -247,6 +214,8 @@ impl MySqlConnection {
         // COM_STMT_EXECUTE can terminate before the result set with an ERR or OK packet
         let num_columns = match self.receive_ok_or_column_count().await? {
             OkOrResultSet::Ok(ok) => {
+                self.next_seq_no = 0;
+
                 return Ok(ok.affected_rows);
             }
 
@@ -275,7 +244,7 @@ impl MySqlConnection {
         let mut result_columns = Vec::with_capacity(prepare_ok.columns as usize);
 
         for _ in 0..prepare_ok.params {
-            let param = ColumnDefinition::decode(self.receive().await?)?;
+            let param = ColumnDefinition::decode(self.receive().await?.packet())?;
             param_types.push(param.r#type.0);
         }
 
@@ -284,7 +253,7 @@ impl MySqlConnection {
         }
 
         for _ in 0..prepare_ok.columns {
-            let column = ColumnDefinition::decode(self.receive().await?)?;
+            let column = ColumnDefinition::decode(self.receive().await?.packet())?;
             result_columns.push(Column::<MySql> {
                 name: column.column_alias.or(column.column),
 
@@ -297,6 +266,9 @@ impl MySqlConnection {
         if prepare_ok.columns > 0 {
             self.receive_eof().await?;
         }
+
+        // Command sequence is over
+        self.next_seq_no = 0;
 
         Ok(Describe {
             param_types: param_types.into_boxed_slice(),
@@ -321,6 +293,7 @@ impl MySqlConnection {
             // COM_STMT_EXECUTE can terminate before the result set with an ERR or OK packet
             let num_columns = match self.receive_ok_or_column_count().await? {
                 OkOrResultSet::Ok(_) => {
+                    self.next_seq_no = 0;
                     return;
                 }
 
@@ -342,7 +315,7 @@ impl Executor for MySqlConnection {
     type Database = super::MySql;
 
     fn send<'e, 'q: 'e>(&'e mut self, query: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(self.send(query))
+        Box::pin(self.execute_raw(query))
     }
 
     fn execute<'e, 'q: 'e>(
