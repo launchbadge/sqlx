@@ -8,11 +8,13 @@ mod encode;
 pub use decode::Decode;
 pub use encode::Encode;
 
+mod auth_plugin;
 mod capabilities;
 mod field;
 mod status;
 mod r#type;
 
+pub use auth_plugin::AuthPlugin;
 pub use capabilities::Capabilities;
 pub use field::FieldFlags;
 pub use r#type::Type;
@@ -30,6 +32,7 @@ pub use com_stmt_execute::{ComStmtExecute, Cursor};
 pub use com_stmt_prepare::ComStmtPrepare;
 pub use handshake::Handshake;
 
+mod auth_switch;
 mod column_count;
 mod column_def;
 mod com_stmt_prepare_ok;
@@ -39,6 +42,7 @@ mod handshake_response;
 mod ok;
 mod row;
 
+pub use auth_switch::AuthSwitch;
 pub use column_count::ColumnCount;
 pub use column_def::ColumnDefinition;
 pub use com_stmt_prepare_ok::ComStmtPrepareOk;

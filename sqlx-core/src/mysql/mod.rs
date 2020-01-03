@@ -8,7 +8,9 @@ mod executor;
 mod io;
 mod protocol;
 mod row;
+mod rsa;
 mod types;
+mod util;
 
 pub use database::MySql;
 

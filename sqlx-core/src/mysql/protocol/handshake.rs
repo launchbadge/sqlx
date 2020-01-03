@@ -1,7 +1,7 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::protocol::{Capabilities, Decode, Status};
+use crate::mysql::protocol::{AuthPlugin, Capabilities, Decode, Status};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_handshake_v10.html
 // https://mariadb.com/kb/en/connection/#initial-handshake-packet
@@ -13,7 +13,7 @@ pub struct Handshake {
     pub server_capabilities: Capabilities,
     pub server_default_collation: u8,
     pub status: Status,
-    pub auth_plugin_name: Option<Box<str>>,
+    pub auth_plugin: AuthPlugin,
     pub auth_plugin_data: Box<[u8]>,
 }
 
@@ -81,10 +81,10 @@ impl Decode for Handshake {
             buf.advance(1);
         }
 
-        let auth_plugin_name = if capabilities.contains(Capabilities::PLUGIN_AUTH) {
-            Some(buf.get_str_nul()?.to_owned().into())
+        let auth_plugin = if capabilities.contains(Capabilities::PLUGIN_AUTH) {
+            AuthPlugin::from_opt_str(Some(buf.get_str_nul()?))?
         } else {
-            None
+            AuthPlugin::from_opt_str(None)?
         };
 
         Ok(Self {
@@ -94,7 +94,7 @@ impl Decode for Handshake {
             server_default_collation: char_set,
             connection_id,
             auth_plugin_data: scramble.into_boxed_slice(),
-            auth_plugin_name,
+            auth_plugin,
             status,
         })
     }
@@ -102,7 +102,8 @@ impl Decode for Handshake {
 
 #[cfg(test)]
 mod tests {
-    use super::{Capabilities, Decode, Handshake, Status};
+    use super::{AuthPlugin, Capabilities, Decode, Handshake, Status};
+    use matches::assert_matches;
 
     const HANDSHAKE_MARIA_DB_10_4_7: &[u8] = b"\n5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic\x00\x0b\x00\x00\x00t6L\\j\"dS\x00\xfe\xf7\x08\x02\x00\xff\x81\x15\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00U14Oph9\"<H5n\x00mysql_native_password\x00";
     const HANDSHAKE_MYSQL_8_0_18: &[u8] = b"\n8.0.18\x00\x19\x00\x00\x00\x114aB0c\x06g\x00\xff\xff\xff\x02\x00\xff\xc7\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00tL\x03s\x0f[4\rl4. \x00caching_sha2_password\x00";
@@ -147,7 +148,7 @@ mod tests {
 
         assert_eq!(p.server_default_collation, 255);
         assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
-        assert_eq!(p.auth_plugin_name.as_deref(), Some("caching_sha2_password"));
+        assert_matches!(p.auth_plugin, AuthPlugin::CachingSha2Password);
 
         assert_eq!(
             &*p.auth_plugin_data,
@@ -195,7 +196,7 @@ mod tests {
 
         assert_eq!(p.server_default_collation, 8);
         assert!(p.status.contains(Status::SERVER_STATUS_AUTOCOMMIT));
-        assert_eq!(p.auth_plugin_name.as_deref(), Some("mysql_native_password"));
+        assert_matches!(p.auth_plugin, AuthPlugin::MySqlNativePassword);
 
         assert_eq!(
             &*p.auth_plugin_data,
