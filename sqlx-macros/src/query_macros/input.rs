@@ -5,7 +5,7 @@ use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::Token;
-use syn::{Expr, ExprLit, ExprPath, Lit, Path};
+use syn::{Expr, ExprLit, ExprPath, Lit};
 
 use sqlx::describe::Describe;
 use sqlx::Connection;

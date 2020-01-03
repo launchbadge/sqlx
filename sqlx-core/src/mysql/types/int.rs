@@ -22,7 +22,7 @@ impl Encode<MySql> for i8 {
 }
 
 impl Decode<MySql> for i8 {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
         Ok(buf[0] as i8)
     }
 }

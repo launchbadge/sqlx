@@ -121,7 +121,7 @@ impl MySqlConnection {
         // We must have a separate buffer around the stream as we can't operate directly
         // on bytes returned from the stream. We have various kinds of payload manipulation
         // that must be handled before decoding.
-        let mut payload = ret_if_none!(self.stream.peek(self.packet_len).await?);
+        let payload = ret_if_none!(self.stream.peek(self.packet_len).await?);
         self.packet.extend_from_slice(payload);
         self.stream.consume(self.packet_len);
 

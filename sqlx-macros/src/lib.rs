@@ -10,13 +10,14 @@ use proc_macro_hack::proc_macro_hack;
 
 use quote::quote;
 
-use syn::{parse, parse_macro_input};
+use syn::parse_macro_input;
 
 use async_std::task;
 
 use url::Url;
 
 type Error = Box<dyn std::error::Error>;
+
 type Result<T> = std::result::Result<T, Error>;
 
 mod database;

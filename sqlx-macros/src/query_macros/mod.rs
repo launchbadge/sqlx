@@ -1,14 +1,13 @@
 use std::fmt::Display;
 
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::TokenStream;
+use quote::quote;
 
 pub use input::{QueryAsMacroInput, QueryMacroInput};
 pub use query::expand_query;
 
 use crate::database::DatabaseExt;
 
-use sqlx::describe::Describe;
 use sqlx::types::HasTypeMetadata;
 use sqlx::Connection;
 

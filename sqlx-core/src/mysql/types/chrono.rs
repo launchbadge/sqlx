@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, LittleEndian};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
 use crate::decode::{Decode, DecodeError};

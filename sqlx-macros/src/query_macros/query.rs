@@ -2,18 +2,13 @@ use std::fmt::Display;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use syn::{
-    parse::{self, Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned,
-    Expr, ExprLit, Ident, Lit, Path, Token,
-};
+use syn::{Ident, Path};
 
-use quote::{format_ident, quote, quote_spanned, ToTokens};
-use sqlx::{describe::Describe, types::HasTypeMetadata, Connection};
+use quote::quote;
+use sqlx::{types::HasTypeMetadata, Connection};
 
 use super::{args, output, QueryMacroInput};
-use crate::database::{DatabaseExt, ParamChecking};
+use crate::database::DatabaseExt;
 
 /// Given an input like `query!("SELECT * FROM accounts WHERE account_id > ?", account_id)`,
 /// expand to an anonymous record
