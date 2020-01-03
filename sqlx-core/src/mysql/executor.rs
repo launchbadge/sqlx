@@ -6,10 +6,9 @@ use futures_core::stream::BoxStream;
 
 use crate::describe::{Column, Describe};
 use crate::executor::Executor;
-use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
     Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
-    ComStmtPrepareOk, Cursor, Decode, EofPacket, ErrPacket, OkPacket, Row, Type,
+    ComStmtPrepareOk, Cursor, Decode, EofPacket, OkPacket, Row, Type,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
 
@@ -148,7 +147,7 @@ impl MySqlConnection {
 
     async fn step(&mut self, columns: &[Type], binary: bool) -> crate::Result<Option<Step>> {
         let capabilities = self.capabilities;
-        let packet = ret_if_none!(self.try_receive().await?);
+        ret_if_none!(self.try_receive().await?);
 
         match self.packet[0] {
             0xfe if self.packet.len() < 0xffffff => {

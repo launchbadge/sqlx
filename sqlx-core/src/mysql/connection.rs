@@ -5,11 +5,9 @@ use async_std::net::{Shutdown, TcpStream};
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::future::BoxFuture;
 use sha1::Sha1;
-use sha2::{Digest, Sha256};
 
 use crate::cache::StatementCache;
 use crate::connection::Connection;
-use crate::executor::Executor;
 use crate::io::{Buf, BufMut, BufStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
@@ -306,7 +304,7 @@ impl MySqlConnection {
         self.send(&[public_key_request_id][..]).await?;
 
         // server sends a public key response
-        let mut packet = self.receive().await?.packet();
+        let packet = self.receive().await?.packet();
         let rsa_pub_key = &packet[1..];
 
         // The password string data must be NUL terminated

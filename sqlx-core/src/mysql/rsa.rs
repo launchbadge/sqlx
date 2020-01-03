@@ -1,4 +1,4 @@
-use digest::{Digest, DynDigest};
+use digest::Digest;
 use num_bigint::BigUint;
 use rand::{thread_rng, Rng};
 
@@ -125,8 +125,8 @@ fn oaep_encrypt<R: Rng, D: Digest>(
     oeap_mgf1_xor(seed, &mut digest, db);
 
     {
-        let mut m = BigUint::from_bytes_be(&em);
-        let mut c = internals_encrypt(pub_key, &m).to_bytes_be();
+        let m = BigUint::from_bytes_be(&em);
+        let c = internals_encrypt(pub_key, &m).to_bytes_be();
 
         internals_copy_with_left_pad(&mut em, &c);
     }
