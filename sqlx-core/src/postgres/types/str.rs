@@ -1,7 +1,7 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::types::PgTypeMetadata;
-use crate::types::HasSqlType;
+use crate::types::{HasSqlType, HasTypeMetadata};
 use crate::Postgres;
 use std::str;
 
@@ -9,11 +9,24 @@ impl HasSqlType<str> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(25, 1009)
     }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[
+            18, // char
+            19, // name
+            25, // text
+            1043 // varchar
+        ]
+    }
 }
 
 impl HasSqlType<String> for Postgres {
     fn metadata() -> PgTypeMetadata {
         <Postgres as HasSqlType<str>>::metadata()
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        <Postgres as HasSqlType<str>>::compatible_types()
     }
 }
 

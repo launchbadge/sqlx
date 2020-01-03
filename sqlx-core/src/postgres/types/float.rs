@@ -2,11 +2,15 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::types::PgTypeMetadata;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::{HasSqlType, HasTypeMetadata};
 
 impl HasSqlType<f32> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(700, 1021)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[700]
     }
 }
 
@@ -27,6 +31,10 @@ impl Decode<Postgres> for f32 {
 impl HasSqlType<f64> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(701, 1022)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[701]
     }
 }
 

@@ -10,10 +10,7 @@ use crate::cache::StatementCache;
 use crate::connection::Connection;
 use crate::io::{Buf, BufMut, BufStream};
 use crate::mysql::error::MySqlError;
-use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake,
-    HandshakeResponse, OkPacket,
-};
+use crate::mysql::protocol::{AuthPlugin, AuthSwitch,Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake, HandshakeResponse, OkPacket, Type};
 use crate::mysql::rsa;
 use crate::mysql::util::xor_eq;
 use crate::url::Url;
@@ -36,7 +33,7 @@ pub struct MySqlConnection {
 
     // Cache of prepared statements
     //  Query (String) to StatementId to ColumnMap
-    pub(super) statement_cache: StatementCache<u32>,
+    pub(super) statement_cache: StatementCache<u32, Type>,
 
     // Packets are buffered into a second buffer from the stream
     // as we may have compressed or split packets to figure out before

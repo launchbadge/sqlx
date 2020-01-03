@@ -26,6 +26,9 @@ pub trait HasTypeMetadata {
 pub trait HasSqlType<T: ?Sized>: HasTypeMetadata {
     /// Fetch the metadata for the given type.
     fn metadata() -> Self::TypeMetadata;
+
+    /// The type IDs that this Rust type
+    fn compatible_types() -> &'static [<Self as HasTypeMetadata>::TypeId];
 }
 
 impl<T: ?Sized, DB> HasSqlType<&'_ T> for DB
@@ -35,6 +38,10 @@ where
     fn metadata() -> Self::TypeMetadata {
         <DB as HasSqlType<T>>::metadata()
     }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        <DB as HasSqlType<T>>::compatible_types()
+    }
 }
 
 impl<T, DB> HasSqlType<Option<T>> for DB
@@ -43,5 +50,9 @@ where
 {
     fn metadata() -> Self::TypeMetadata {
         <DB as HasSqlType<T>>::metadata()
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        <DB as HasSqlType<T>>::compatible_types()
     }
 }

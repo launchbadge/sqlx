@@ -1,6 +1,6 @@
 use crate::mysql::protocol::Type;
 use crate::mysql::MySql;
-use crate::types::HasTypeMetadata;
+use crate::types::{HasTypeMetadata, MetadataExt};
 
 mod bool;
 mod bytes;
@@ -45,5 +45,13 @@ impl HasTypeMetadata for MySql {
 impl PartialEq<u8> for MySqlTypeMetadata {
     fn eq(&self, other: &u8) -> bool {
         &self.r#type.0 == other
+    }
+}
+
+impl MetadataExt for MySqlTypeMetadata {
+    type TypeId = Type;
+
+    fn type_id(&self) -> &Self::TypeId {
+        &self.r#type
     }
 }

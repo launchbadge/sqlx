@@ -107,6 +107,7 @@ impl MySqlConnection {
 
             // Collect output parameter names
             let mut columns = HashMap::with_capacity(prepare_ok.columns as usize);
+            let mut types = Vec::new();
             let mut index = 0_usize;
             for _ in 0..prepare_ok.columns {
                 let column = ColumnDefinition::decode(self.receive().await?.packet())?;
@@ -114,6 +115,8 @@ impl MySqlConnection {
                 if let Some(name) = column.column_alias.or(column.column) {
                     columns.insert(name, index);
                 }
+
+                types.push(column.r#type);
 
                 index += 1;
             }
@@ -127,7 +130,7 @@ impl MySqlConnection {
 
             // Remember our column map in the statement cache
             self.statement_cache
-                .put_columns(prepare_ok.statement_id, columns);
+                .put_columns(prepare_ok.statement_id, columns, types);
 
             Ok(prepare_ok.statement_id)
         }

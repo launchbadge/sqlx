@@ -6,10 +6,12 @@ use crate::mysql::protocol;
 use crate::mysql::MySql;
 use crate::row::{Row, RowIndex};
 use crate::types::HasSqlType;
+use crate::cache::ColumnsData;
+use crate::mysql::protocol::Type;
 
 pub struct MySqlRow {
     pub(super) row: protocol::Row,
-    pub(super) columns: Arc<HashMap<Box<str>, usize>>,
+    pub(super) columns: Arc<ColumnsData<Type>>,
 }
 
 impl Row for MySqlRow {
@@ -35,6 +37,7 @@ impl RowIndex<MySqlRow> for usize {
         <MySqlRow as Row>::Database: HasSqlType<T>,
         T: Decode<<MySqlRow as Row>::Database>,
     {
+        row.columns.check_type::<MySql, T>(*self)?;
         Ok(Decode::decode_nullable(row.row.get(*self))?)
     }
 }
@@ -45,14 +48,8 @@ impl RowIndex<MySqlRow> for &'_ str {
         <MySqlRow as Row>::Database: HasSqlType<T>,
         T: Decode<<MySqlRow as Row>::Database>,
     {
-        let index = row
-            .columns
-            .get(*self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-
-        let value = Decode::decode_nullable(row.row.get(*index))?;
-
-        Ok(value)
+        let index = row.columns.get_index(self)?;
+        <usize as RowIndex<MySqlRow>>::try_get(&index, row)
     }
 }
 

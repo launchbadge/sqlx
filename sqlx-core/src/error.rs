@@ -29,6 +29,24 @@ pub enum Error {
     /// Column was not found in Row during [Row::try_get].
     ColumnNotFound(Box<str>),
 
+    /// Attempted to get a column index in a row that did not contain that many columns.
+    ColumnIndexOutOfBounds {
+        /// The index that was attempted.
+        index: usize,
+        /// The width of the row.
+        len: usize
+    },
+
+    /// The type of a column does not match the type we attempted to decode.
+    ColumnTypeMismatch {
+        /// The index of the column attempted to decode.
+        index: usize,
+        /// The type we attempted to decode from the column.
+        expected: Box<str>,
+        /// The type of the column returned from the database server.
+        received: Box<str>,
+    },
+
     /// Unexpected or invalid data was encountered. This would indicate that we received
     /// data that we were not expecting or it was in a format we did not understand. This
     /// generally means either there is a programming error in a SQLx driver or
@@ -80,6 +98,20 @@ impl Display for Error {
 
             Error::ColumnNotFound(ref name) => {
                 write!(f, "no column found with the name {:?}", name)
+            }
+
+            Error::ColumnIndexOutOfBounds { index, len } => {
+                write!(f, "column index out of bounds: {}, length was {}", index, len)
+            }
+
+            Error::ColumnTypeMismatch { index, expected, received } => {
+                write!(
+                    f,
+                    "column type received ({}) does not match received ({}) for column index {}",
+                    expected,
+                    received,
+                    index
+                )
             }
 
             Error::FoundMoreThanOne => {

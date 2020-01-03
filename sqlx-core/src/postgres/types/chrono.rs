@@ -2,7 +2,7 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::types::PgTypeMetadata;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::{HasSqlType, HasTypeMetadata};
 use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use std::convert::TryInto;
 use std::mem;
@@ -11,17 +11,29 @@ impl HasSqlType<NaiveTime> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(1083, 1183)
     }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[1083]
+    }
 }
 
 impl HasSqlType<NaiveDate> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(1082, 1182)
     }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[1082]
+    }
 }
 
 impl HasSqlType<NaiveDateTime> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(1114, 1115)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[1114]
     }
 }
 
@@ -31,6 +43,10 @@ where
 {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(1184, 1185)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[1184]
     }
 }
 

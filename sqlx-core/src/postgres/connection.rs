@@ -20,7 +20,7 @@ pub struct PgConnection {
     pub(super) stream: BufStream<TcpStream>,
 
     // Map of query to statement id
-    pub(super) statement_cache: StatementCache<StatementId>,
+    pub(super) statement_cache: StatementCache<StatementId, u32>,
 
     // Next statement id
     pub(super) next_statement_id: u32,

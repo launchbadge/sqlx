@@ -1,9 +1,28 @@
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/binary__log__types_8h.html
 // https://mariadb.com/kb/en/library/resultset/#field-types
+use std::fmt::{self, Display};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Type(pub u8);
 
-impl Type {
+macro_rules! impl_type {
+    ($(pub const $name:ident: Type = Type($id:expr);)*) => {
+        impl Type {
+            $(pub const $name: Type = Type($id);)*
+        }
+
+        impl Display for Type {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                match self.0 {
+                    $($id => write!(f, "MYSQL_TYPE_{}", stringify!($name)),)*
+                    _ => f.pad("UNKNOWN"),
+                }
+            }
+        }
+    }
+}
+
+impl_type! {
     pub const BIT: Type = Type(16);
     pub const BLOB: Type = Type(252);
     pub const DATE: Type = Type(10);

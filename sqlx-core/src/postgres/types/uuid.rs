@@ -2,12 +2,16 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::types::PgTypeMetadata;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::{HasSqlType, HasTypeMetadata};
 use uuid::Uuid;
 
 impl HasSqlType<Uuid> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(2950, 2951)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        &[2950]
     }
 }
 

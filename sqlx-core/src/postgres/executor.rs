@@ -9,6 +9,7 @@ use crate::describe::{Column, Describe};
 use crate::postgres::protocol::{self, Encode, Message, StatementId};
 use crate::postgres::types::TypeFormat;
 use crate::postgres::{PgArguments, PgRow, Postgres};
+use crate::cache::ColumnsData;
 
 #[derive(Debug)]
 enum Step {
@@ -191,7 +192,7 @@ impl super::PgConnection {
     async fn get_columns(
         &mut self,
         statement: StatementId,
-    ) -> crate::Result<Arc<HashMap<Box<str>, usize>>> {
+    ) -> crate::Result<Arc<ColumnsData<u32>>> {
         if !self.statement_cache.has_columns(statement) {
             let desc: Option<_> = 'outer: loop {
                 while let Some(step) = self.step().await? {
@@ -207,19 +208,23 @@ impl super::PgConnection {
                 unreachable!();
             };
 
-            let mut columns = HashMap::new();
+            let mut names_map = HashMap::new();
+            let mut types = Vec::new();
 
             if let Some(desc) = desc {
-                columns.reserve(desc.fields.len());
+                names_map.reserve(desc.fields.len());
+                types.reserve(desc.fields.len());
 
                 for (index, field) in desc.fields.iter().enumerate() {
+                    types.push(field.type_id);
+
                     if let Some(name) = &field.name {
-                        columns.insert(name.clone(), index);
+                        names_map.insert(name.clone(), index);
                     }
                 }
             }
 
-            self.statement_cache.put_columns(statement, columns);
+            self.statement_cache.put_columns(statement, names_map, types);
         }
 
         Ok(self.statement_cache.get_columns(statement))

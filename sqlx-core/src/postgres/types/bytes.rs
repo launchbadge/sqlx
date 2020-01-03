@@ -2,17 +2,26 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::types::PgTypeMetadata;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::{HasSqlType, HasTypeMetadata};
 
 impl HasSqlType<[u8]> for Postgres {
     fn metadata() -> PgTypeMetadata {
         PgTypeMetadata::binary(17, 1001)
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        // TODO: support bit and bit varying?
+        &[17]
     }
 }
 
 impl HasSqlType<Vec<u8>> for Postgres {
     fn metadata() -> Self::TypeMetadata {
         <Postgres as HasSqlType<[u8]>>::metadata()
+    }
+
+    fn compatible_types() -> &'static [Self::TypeId] {
+        <Postgres as HasSqlType<[u8]>>::compatible_types()
     }
 }
 
