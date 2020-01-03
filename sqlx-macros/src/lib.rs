@@ -82,24 +82,28 @@ macro_rules! async_macro (
 
 #[proc_macro_hack]
 pub fn query(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
     let input = parse_macro_input!(input as QueryMacroInput);
     async_macro!(db => expand_query(input, db))
 }
 
 #[proc_macro_hack]
 pub fn query_file(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
     let input = parse_macro_input!(input as QueryMacroInput);
     async_macro!(db => expand_query_file(input, db))
 }
 
 #[proc_macro_hack]
 pub fn query_as(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
     let input = parse_macro_input!(input as QueryAsMacroInput);
     async_macro!(db => expand_query_as(input, db))
 }
 
 #[proc_macro_hack]
 pub fn query_file_as(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
     let input = parse_macro_input!(input as QueryAsMacroInput);
     async_macro!(db => expand_query_file_as(input, db))
 }
