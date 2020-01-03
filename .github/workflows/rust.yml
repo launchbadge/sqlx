@@ -10,11 +10,12 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Setup rust
-      uses: actions-rs/toolchain@v1
+    - name: Cache rust
+      id: cache_rust
+      uses: actions/cache@v1
       with:
-        toolchain: stable
-        override: true
+        path: ~/.rustup/toolchains
+        key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache cargo registry
       uses: actions/cache@v1
@@ -33,6 +34,13 @@ jobs:
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Setup rust
+      uses: actions-rs/toolchain@v1
+      if: steps.cache_rust.outputs.cache-hit != 'true'
+      with:
+        toolchain: stable
+        override: true
 
     - run: cargo check --all-features
 
