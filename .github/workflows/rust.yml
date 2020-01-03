@@ -34,11 +34,6 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Check
-      run: cargo check --all-features
+    - run: cargo check --all-features
 
-    - name: Build
-      run: cargo build --all-features
-
-    - name: Unit Test
-      run: cargo test -p sqlx-core --all-features
+    - run: cargo test -p sqlx-core --all-features

@@ -1,14 +1,13 @@
-name: Rust Format
+name: Format
 
 on: [push]
 
 jobs:
-  build:
+  check:
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v1
     
-    - name: Check Format
-      run: cargo fmt -- --check
+    - run: cargo fmt -- --check
