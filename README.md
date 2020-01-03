@@ -77,7 +77,7 @@ See the beginnings of a [RealWorld](https://github.com/gothinkster/realworld/tre
 
 ## Safety
 
-This crate uses `#[deny(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
+This crate uses `#[forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
 
 ## License
 

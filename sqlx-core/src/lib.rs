@@ -1,5 +1,5 @@
 #![recursion_limit = "256"]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 
 #[macro_use]
 pub mod error;
