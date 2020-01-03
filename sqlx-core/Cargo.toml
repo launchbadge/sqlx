@@ -18,7 +18,7 @@ all-features = true
 [features]
 default = []
 unstable = []
-postgres = [ "md-5" ]
+postgres = [ "md-5", "sha2", "base64", "sha-1", "rand" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 
 [dependencies]
@@ -44,6 +44,8 @@ sha-1 = { version = "0.8.1", default-features = false, optional = true }
 sha2 = { version = "0.8.0", default-features = false, optional = true }
 url = { version = "2.1.0", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true }
+hex = "0.4.0"
+hmac = "0.7.1"
 
 [dev-dependencies]
 matches = "0.1.8"

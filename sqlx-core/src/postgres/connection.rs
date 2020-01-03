@@ -10,6 +10,7 @@ use crate::io::{Buf, BufStream};
 use crate::postgres::protocol::{self, Decode, Encode, Message, StatementId};
 use crate::postgres::PgError;
 use crate::url::Url;
+use std::ops::Deref;
 
 /// An asynchronous connection to a [Postgres] database.
 ///
@@ -90,6 +91,29 @@ impl PgConnection {
                             .encode(self.stream.buffer_mut());
 
                             self.stream.flush().await?;
+                        }
+
+                        protocol::Authentication::Sasl { mechanisms } => {
+                            let mechanism = (*mechanisms)
+                                .get(0)
+                                .ok_or(protocol_err!(
+                                    "Expected mechanisms SCRAM-SHA-256, but received {:?}",
+                                    mechanisms
+                                ))?
+                                .deref();
+                            if "SCRAM-SHA-256" == &*mechanism {
+                                protocol::sasl_auth(
+                                    self,
+                                    username,
+                                    url.password().unwrap_or_default(),
+                                )
+                                .await
+                            } else {
+                                Err(protocol_err!(
+                                    "Expected mechanisms SCRAM-SHA-256, but received {:?}",
+                                    mechanisms
+                                ))?
+                            }?;
                         }
 
                         auth => {
