@@ -29,14 +29,14 @@ use query_macros::*;
 macro_rules! async_macro (
     ($db:ident => $expr:expr) => {{
         let res: Result<proc_macro2::TokenStream> = task::block_on(async {
-            use sqlx::Connection;
+            use sqlx::Connect;
 
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
 
             match db_url.scheme() {
                 #[cfg(feature = "postgres")]
                 "postgresql" | "postgres" => {
-                    let $db = sqlx::postgres::PgConnection::open(db_url.as_str())
+                    let $db = sqlx::postgres::PgConnection::connect(db_url.as_str())
                         .await
                         .map_err(|e| format!("failed to connect to database: {}", e))?;
 
@@ -50,7 +50,7 @@ macro_rules! async_macro (
                 ).into()),
                 #[cfg(feature = "mysql")]
                 "mysql" | "mariadb" => {
-                    let $db = sqlx::mysql::MySqlConnection::open(db_url.as_str())
+                    let $db = sqlx::mysql::MySqlConnection::connect(db_url.as_str())
                             .await
                             .map_err(|e| format!("failed to connect to database: {}", e))?;
 

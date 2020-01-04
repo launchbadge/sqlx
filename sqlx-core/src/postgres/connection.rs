@@ -8,7 +8,7 @@ use rand::Rng;
 use sha2::{Digest, Sha256};
 
 use crate::cache::StatementCache;
-use crate::connection::Connection;
+use crate::connection::{Connect, Connection};
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{
     self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
@@ -334,7 +334,7 @@ impl PgConnection {
 }
 
 impl PgConnection {
-    pub(super) async fn open(url: Result<Url>) -> Result<Self> {
+    pub(super) async fn establish(url: Result<Url>) -> Result<Self> {
         let url = url?;
 
         let stream = MaybeTlsStream::connect(&url, 5432).await?;
@@ -402,7 +402,7 @@ impl PgConnection {
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(PgConnection::open(url.try_into()))
+        Box::pin(PgConnection::establish(url.try_into()))
     }
 }
 
@@ -414,7 +414,7 @@ impl Connect for PgConnection {
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(PgConnection::open(url.try_into()))
+        Box::pin(PgConnection::establish(url.try_into()))
     }
 }
 

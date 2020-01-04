@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::StreamExt;
 
@@ -8,6 +10,8 @@ use crate::{
     pool::Pool,
     Database,
 };
+
+use super::PoolConnection;
 
 impl<C> Executor for Pool<C>
 where
@@ -106,5 +110,47 @@ where
         query: &'q str,
     ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
         Box::pin(async move { self.acquire().await?.describe(query).await })
+    }
+}
+
+impl<C> Executor for PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
+    type Database = <C as Executor>::Database;
+
+    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
+        self.deref_mut().send(commands)
+    }
+
+    fn execute<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+        args: <<C as Executor>::Database as Database>::Arguments,
+    ) -> BoxFuture<'e, crate::Result<u64>> {
+        self.deref_mut().execute(query, args)
+    }
+
+    fn fetch<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+        args: <<C as Executor>::Database as Database>::Arguments,
+    ) -> BoxStream<'e, crate::Result<<<C as Executor>::Database as Database>::Row>> {
+        self.deref_mut().fetch(query, args)
+    }
+
+    fn fetch_optional<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+        args: <<C as Executor>::Database as Database>::Arguments,
+    ) -> BoxFuture<'e, crate::Result<Option<<<C as Executor>::Database as Database>::Row>>> {
+        self.deref_mut().fetch_optional(query, args)
+    }
+
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
+        self.deref_mut().describe(query)
     }
 }

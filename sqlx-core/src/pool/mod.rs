@@ -2,20 +2,25 @@
 
 use std::{
     fmt,
+    mem,
     ops::{Deref, DerefMut},
     sync::Arc,
     time::{Duration, Instant},
 };
 
+use futures_core::future::BoxFuture;
+
 use crate::connection::{Connect, Connection};
+use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
-pub use self::options::Builder;
 use self::options::Options;
 
 mod executor;
 mod inner;
 mod options;
+
+pub use self::options::Builder;
 
 /// A pool of database connections.
 pub struct Pool<C>(Arc<SharedPool<C>>);
@@ -82,6 +87,11 @@ where
             live: Some(conn),
             pool: Arc::clone(&self.0),
         })
+    }
+
+    /// Retrieves a new connection and immediately begins a new transaction.
+    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
+        Ok(Transaction::new(0, self.acquire().await?).await?)
     }
 
     /// Ends the use of a connection pool. Prevents any new connections
@@ -169,6 +179,27 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(DEREF_ERR).raw
+    }
+}
+
+impl<C> Connection for PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
+    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+        Box::pin(async move {
+            if let Some(live) = self.live.take() {
+                let raw = live.raw;
+
+                // Explicitly close the connection
+                raw.close().await?;
+            }
+
+            // Forget ourself so it does not go back to the pool
+            mem::forget(self);
+
+            Ok(())
+        })
     }
 }
 

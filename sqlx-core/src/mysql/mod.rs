@@ -26,16 +26,3 @@ pub use row::MySqlRow;
 
 /// An alias for [`Pool`], specialized for **MySQL**.
 pub type MySqlPool = super::Pool<MySql>;
-
-use std::convert::TryInto;
-
-use crate::url::Url;
-
-// used in tests and hidden code in examples
-#[doc(hidden)]
-pub async fn connect<T>(url: T) -> crate::Result<MySqlConnection>
-where
-    T: TryInto<Url, Error = crate::Error>,
-{
-    MySqlConnection::open(url.try_into()).await
-}

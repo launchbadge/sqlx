@@ -7,7 +7,7 @@ use futures_core::future::BoxFuture;
 use sha1::Sha1;
 
 use crate::cache::StatementCache;
-use crate::connection::Connection;
+use crate::connection::{Connect, Connection};
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
@@ -475,7 +475,7 @@ impl MySqlConnection {
 }
 
 impl MySqlConnection {
-    pub(super) async fn open(url: crate::Result<Url>) -> crate::Result<Self> {
+    pub(super) async fn establish(url: crate::Result<Url>) -> crate::Result<Self> {
         let url = url?;
         let mut self_ = Self::new(&url).await?;
 
@@ -598,19 +598,19 @@ impl MySqlConnection {
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(MySqlConnection::open(url.try_into()))
+        Box::pin(MySqlConnection::establish(url.try_into()))
     }
 }
 
 impl Connect for MySqlConnection {
     type Connection = MySqlConnection;
 
-    fn connect<T>(url: T) -> BoxFuture<'static, Result<MySqlConnection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<MySqlConnection>>
     where
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(PgConnection::open(url.try_into()))
+        Box::pin(MySqlConnection::establish(url.try_into()))
     }
 }
 
