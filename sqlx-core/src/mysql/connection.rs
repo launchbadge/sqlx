@@ -133,7 +133,7 @@ impl MySqlConnection {
     pub(crate) async fn receive(&mut self) -> crate::Result<&mut Self> {
         self.try_receive()
             .await?
-            .ok_or(io::ErrorKind::UnexpectedEof)?;
+            .ok_or(io::ErrorKind::ConnectionAborted)?;
 
         Ok(self)
     }
