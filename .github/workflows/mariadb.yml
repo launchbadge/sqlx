@@ -1,0 +1,55 @@
+name: MariaDB
+
+on: [push]
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mariadb: [10.1.43, 10.4.11]
+
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: sqlx
+        ports:
+        # will assign a random free host port
+        - 3306/tcp
+        # needed because the container does not provide a healthcheck
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 30s --health-timeout 30s --health-retries 10
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Cache cargo registry
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-mysql-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-mysql-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-mysql-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Setup rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - run: cargo test -p sqlx --no-default-features --features 'mysql macros chrono'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
