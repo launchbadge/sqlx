@@ -1,8 +1,8 @@
 use digest::{Digest, FixedOutput};
 use generic_array::GenericArray;
+use memchr::memchr;
 use sha1::Sha1;
 use sha2::Sha256;
-use memchr::memchr;
 
 use crate::mysql::util::xor_eq;
 
@@ -39,7 +39,7 @@ impl AuthPlugin {
             AuthPlugin::MySqlNativePassword => {
                 // The [nonce] for mysql_native_password is (optionally) nul terminated
                 let end = memchr(b'\0', nonce).unwrap_or(nonce.len());
-                
+
                 scramble_sha1(password, &nonce[..end]).to_vec()
             }
             AuthPlugin::CachingSha2Password => scramble_sha256(password, nonce).to_vec(),
