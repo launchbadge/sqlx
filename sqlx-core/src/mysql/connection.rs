@@ -162,6 +162,9 @@ impl MySqlConnection {
         let mut client_capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE
             | Capabilities::FOUND_ROWS
+            | Capabilities::TRANSACTIONS
+            | Capabilities::SECURE_CONNECTION
+            | Capabilities::PLUGIN_AUTH_LENENC_DATA
             | Capabilities::PLUGIN_AUTH;
 
         if url.database().is_some() {

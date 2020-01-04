@@ -42,7 +42,7 @@ bitflags::bitflags! {
         const TRANSACTIONS = 8192;
 
         // 4.1+ authentication
-        const SECURE_CONNECTION = (1 << 13);
+        const SECURE_CONNECTION = (1 << 15);
 
         // Enable/disable multi-statement support for COM_QUERY *and* COM_STMT_PREPARE
         const MULTI_STATEMENTS = (1 << 16);

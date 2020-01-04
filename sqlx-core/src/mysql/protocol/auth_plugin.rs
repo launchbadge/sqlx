@@ -2,6 +2,7 @@ use digest::{Digest, FixedOutput};
 use generic_array::GenericArray;
 use sha1::Sha1;
 use sha2::Sha256;
+use memchr::memchr;
 
 use crate::mysql::util::xor_eq;
 
@@ -36,8 +37,10 @@ impl AuthPlugin {
     pub(crate) fn scramble(&self, password: &str, nonce: &[u8]) -> Vec<u8> {
         match self {
             AuthPlugin::MySqlNativePassword => {
-                // The [nonce] for mysql_native_password is nul terminated
-                scramble_sha1(password, &nonce[..(nonce.len() - 1)]).to_vec()
+                // The [nonce] for mysql_native_password is (optionally) nul terminated
+                let end = memchr(b'\0', nonce).unwrap_or(nonce.len());
+                
+                scramble_sha1(password, &nonce[..end]).to_vec()
             }
             AuthPlugin::CachingSha2Password => scramble_sha256(password, nonce).to_vec(),
 

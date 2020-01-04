@@ -44,7 +44,7 @@ impl Encode for HandshakeResponse<'_> {
         if capabilities.contains(Capabilities::PLUGIN_AUTH_LENENC_DATA) {
             // auth_response : string<lenenc>
             buf.put_bytes_lenenc::<LittleEndian>(self.auth_response);
-        } else {
+        } else if capabilities.contains(Capabilities::SECURE_CONNECTION) {
             let auth_response = self.auth_response;
 
             // auth_response_length : int<1>
@@ -52,6 +52,9 @@ impl Encode for HandshakeResponse<'_> {
 
             // auth_response : string<{auth_response_length}>
             buf.put_bytes(auth_response);
+        } else {
+            // no auth : int<1>
+            buf.put_u8(0);
         }
 
         if capabilities.contains(Capabilities::CONNECT_WITH_DB) {
