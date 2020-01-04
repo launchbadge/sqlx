@@ -1,4 +1,4 @@
-name: MariaDB
+name: MySQL
 
 on: [push]
 
@@ -9,11 +9,11 @@ jobs:
 
     strategy:
       matrix:
-        mariadb: [10.1.43, 10.4.11]
+        mysql: [5.7.28, 8.0.18]
 
     services:
-      mariadb:
-        image: mariadb:${{ matrix.mariadb }}
+      mysql:
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_ROOT_PASSWORD: password
           MYSQL_DATABASE: sqlx
@@ -52,4 +52,4 @@ jobs:
 
     - run: cargo test -p sqlx --no-default-features --features 'mysql macros chrono'
       env:
-        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx
