@@ -53,8 +53,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 async fn macro_select_from_cte() -> anyhow::Result<()> {
     let mut conn = connect().await?;
     let account = sqlx::query!(
-        "with accounts (id, name) as (VALUES (1, 'Herp Derpinson')) \
-         select * from accounts where id = ?",
+        "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
         1i32
     )
     .fetch_one(&mut conn)
