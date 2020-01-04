@@ -1,0 +1,7 @@
+# cargo-release
+# https://github.com/sunng87/cargo-release/blob/master/release.toml
+
+no-dev-version = true
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="## Unreleased", replace="## Unreleased\n\n## {{version}} - {{date}}"},
+]
