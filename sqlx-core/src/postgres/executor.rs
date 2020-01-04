@@ -125,7 +125,7 @@ impl super::PgConnection {
         }
 
         // Connection was (unexpectedly) closed
-        Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
+        Err(io::Error::from(io::ErrorKind::ConnectionAborted).into())
     }
 }
 
