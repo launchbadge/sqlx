@@ -21,7 +21,7 @@ jobs:
         # will assign a random free host port
         - 3309/tcp
         # needed because the container does not provide a healthcheck
-        options: --health-cmd "mysqladmin ping -h localhost" --health-interval 10s --health-timeout 5s --health-retries 5
+        options: --health-cmd "mysql --user=root --password=$MYSQL_PASSWORD -e 'show databases;'" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - uses: actions/checkout@v1
