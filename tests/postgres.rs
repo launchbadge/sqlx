@@ -72,6 +72,23 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     Ok(())
 }
 
+#[async_std::test]
+async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    // This tests the internal buffer wrapping around at the end
+    // Specifically: https://github.com/launchbadge/sqlx/issues/30
+
+    let rows = sqlx::query("SELECT i, random()::text FROM generate_series(1, 1000) as i")
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(rows.len(), 1000);
+    assert_eq!(rows[rows.len() - 1].get::<i32, _>(0), 1000);
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<PgConnection> {
     Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
 }

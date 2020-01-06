@@ -4,6 +4,8 @@ use async_std::io::{
 };
 use std::io;
 
+const RBUF_SIZE: usize = 8 * 1024;
+
 pub struct BufStream<S> {
     pub(crate) stream: S,
 
@@ -28,7 +30,7 @@ where
             stream,
             stream_eof: false,
             wbuf: Vec::with_capacity(1024),
-            rbuf: vec![0; 8 * 1024],
+            rbuf: vec![0; RBUF_SIZE],
             rbuf_rindex: 0,
             rbuf_windex: 0,
         }
@@ -70,14 +72,39 @@ where
                 return Ok(Some(buf));
             }
 
-            // If we are out of space to write to in the read buffer,
-            // we reset the indexes
+            // If we are out of space to write to in the read buffer ..
             if self.rbuf.len() < (self.rbuf_windex + cnt) {
-                // TODO: This assumes that all data is consumed when we need to re-allocate
-                debug_assert_eq!(self.rbuf_rindex, self.rbuf_windex);
+                if self.rbuf_rindex == self.rbuf_windex {
+                    // We have consumed all data; simply reset the indexes
+                    self.rbuf_rindex = 0;
+                    self.rbuf_windex = 0;
+                } else {
+                    // Allocate a new buffer
+                    let mut new_rbuf = Vec::with_capacity(RBUF_SIZE);
 
-                self.rbuf_rindex = 0;
-                self.rbuf_windex = 0;
+                    // Take the minimum of the read and write indexes
+                    let min_index = self.rbuf_rindex.min(self.rbuf_windex);
+
+                    // Copy the old buffer to our new buffer
+                    new_rbuf.extend_from_slice(&self.rbuf[min_index..]);
+
+                    // Zero-extend the new buffer
+                    new_rbuf.resize(new_rbuf.capacity(), 0);
+
+                    // Replace the old buffer with our new buffer
+                    self.rbuf = new_rbuf;
+
+                    // And reduce the indexes
+                    self.rbuf_rindex -= min_index;
+                    self.rbuf_windex -= min_index;
+                }
+
+                // Do we need more space still
+                if self.rbuf.len() < (self.rbuf_windex + cnt) {
+                    let needed = (self.rbuf_windex + cnt) - self.rbuf.len();
+
+                    self.rbuf.resize(self.rbuf.len() + needed, 0);
+                }
             }
 
             let n = self.stream.read(&mut self.rbuf[self.rbuf_windex..]).await?;
