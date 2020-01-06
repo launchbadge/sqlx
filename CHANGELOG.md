@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+ - https://github.com/launchbadge/sqlx/issues/30
+
 ## 0.1.2 - 2020-01-03
 
 ### Added
