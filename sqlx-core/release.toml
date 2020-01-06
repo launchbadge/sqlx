@@ -1,0 +1,4 @@
+# cargo-release
+# https://github.com/sunng87/cargo-release/blob/master/release.toml
+
+pre-release-replacements = []

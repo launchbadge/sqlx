@@ -2,6 +2,9 @@
 # https://github.com/sunng87/cargo-release/blob/master/release.toml
 
 no-dev-version = true
+tag-name = "{{crate_name}}-v{{version}}"
+pre-release-commit-message = "(cargo-release) {{crate_name}}: v{{version}}"
 pre-release-replacements = [
+  {file="Cargo.toml", search="sqlx-core = \\{ version = \"0.1.1\"", replace="sqlx-core = { version = \"={{version}}\""},
   {file="CHANGELOG.md", search="## Unreleased", replace="## Unreleased\n\n## {{version}} - {{date}}"},
 ]
