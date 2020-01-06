@@ -19,7 +19,11 @@ impl Encode<MySql> for bool {
 
 impl Decode<MySql> for bool {
     fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        // FIXME: Return an error if the buffer size is not (at least) 1
-        Ok(buf[0] != 0)
+        match buf.len() {
+            0 => Err(DecodeError::Message(Box::new(
+                "Expected minimum 1 byte but received none.",
+            ))),
+            _ => Ok(buf[0] != 0),
+        }
     }
 }
