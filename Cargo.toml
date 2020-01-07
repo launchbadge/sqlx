@@ -47,6 +47,9 @@ futures = "0.3.1"
 async-std = { version = "1.4.0", features = [ "attributes" ] }
 dotenv = "0.15.0"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [[test]]
 name = "postgres-macros"
 required-features = [ "postgres", "macros" ]

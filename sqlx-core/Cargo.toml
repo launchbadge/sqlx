@@ -41,3 +41,6 @@ uuid = { version = "0.8.1", default-features = false, optional = true }
 
 [dev-dependencies]
 matches = "0.1.8"
+
+[package.metadata.docs.rs]
+all-features = true
