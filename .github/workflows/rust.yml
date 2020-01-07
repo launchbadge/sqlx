@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    # Common ----------------------------------------------
+    # Rust ------------------------------------------------
 
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
@@ -36,7 +36,7 @@ jobs:
 
     - run: cargo test -p sqlx-core --all-features
 
-    # Common ----------------------------------------------
+    # Rust ------------------------------------------------
 
     - name: Prepare build directory for cache
       run: |

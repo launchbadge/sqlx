@@ -1,9 +1,13 @@
 name: Postgres
 
-on: [push]
+on:
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
-  test:
+  postgres:
 
     runs-on: ubuntu-latest
 
@@ -27,30 +31,34 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Setup rust
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
+      if: steps.cache_rust.outputs.cache-hit != 'true'
       with:
         toolchain: stable
+        profile: minimal
         override: true
 
-    - name: Cache cargo registry
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-postgres-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo index
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-postgres-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-    
-    - name: Cache cargo build
+    - name: Cache target/
       uses: actions/cache@v1
       with:
         path: target
-        key: ${{ runner.os }}-postgres-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-build-target-postgres-${{ hashFiles('**/Cargo.lock') }}
+
+    # -----------------------------------------------------
 
     - run: cargo test -p sqlx --no-default-features --features 'postgres macros uuid chrono'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # Rust ------------------------------------------------
+
+    - name: Prepare build directory for cache
+      run: |
+        find ./target/debug -maxdepth 1 -type f -delete \
+        && rm -fr ./target/debug/{deps,.fingerprint}/*sqlx* \
+        && rm -f  ./target/.rustc_info.json
+
+    # -----------------------------------------------------
