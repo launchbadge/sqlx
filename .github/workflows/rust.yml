@@ -1,6 +1,10 @@
 name: Rust
 
-on: [push]
+on:
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -9,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+
+    # Rust ---------------------------------------
 
     - name: Cache rust
       id: cache_rust
@@ -41,6 +47,8 @@ jobs:
       with:
         toolchain: stable
         override: true
+
+    # --------------------------------------------
 
     - run: cargo check --all-features
 
