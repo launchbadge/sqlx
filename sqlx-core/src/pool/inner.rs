@@ -70,12 +70,20 @@ where
         &self.options
     }
 
+    pub(super) fn url(&self) -> &str {
+        &self.url
+    }
+
     pub(super) fn size(&self) -> u32 {
         self.size.load(Ordering::Acquire)
     }
 
     pub(super) fn num_idle(&self) -> usize {
         self.pool_rx.len()
+    }
+
+    pub(super) fn closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
     }
 
     pub(super) async fn close(&self) {

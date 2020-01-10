@@ -1,6 +1,7 @@
 //! **Pool** for SQLx database connections.
 
 use std::{
+    fmt,
     ops::{Deref, DerefMut},
     sync::Arc,
     time::{Duration, Instant},
@@ -138,6 +139,18 @@ where
             inner: Arc::clone(&self.inner),
             pool_tx: self.pool_tx.clone(),
         }
+    }
+}
+
+impl<DB: Database> fmt::Debug for Pool<DB> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("Pool")
+            .field("url", &self.inner.url())
+            .field("size", &self.inner.size())
+            .field("num_idle", &self.inner.num_idle())
+            .field("closed", &self.inner.closed())
+            .field("options", self.inner.options())
+            .finish()
     }
 }
 
