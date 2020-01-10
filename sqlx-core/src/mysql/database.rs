@@ -9,6 +9,10 @@ impl Database for MySql {
     type Arguments = super::MySqlArguments;
 
     type Row = super::MySqlRow;
+
+    type TypeInfo = super::MySqlTypeInfo;
+
+    type TableId = Box<str>;
 }
 
 impl_into_arguments_for_database!(MySql);

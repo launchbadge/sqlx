@@ -1,27 +1,30 @@
-use crate::decode::{Decode, DecodeError};
-use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
-use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use std::convert::TryInto;
 use std::mem;
 
+use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+
+use crate::decode::{Decode, DecodeError};
+use crate::encode::Encode;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
+use crate::postgres::Postgres;
+use crate::types::HasSqlType;
+
 impl HasSqlType<NaiveTime> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(1083, 1183)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::TIME)
     }
 }
 
 impl HasSqlType<NaiveDate> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(1082, 1182)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::DATE)
     }
 }
 
 impl HasSqlType<NaiveDateTime> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(1114, 1115)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::TIMESTAMP)
     }
 }
 
@@ -29,8 +32,35 @@ impl<Tz> HasSqlType<DateTime<Tz>> for Postgres
 where
     Tz: TimeZone,
 {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(1184, 1185)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::TIMESTAMPTZ)
+    }
+}
+
+impl HasSqlType<[NaiveTime]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIME)
+    }
+}
+
+impl HasSqlType<[NaiveDate]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_DATE)
+    }
+}
+
+impl HasSqlType<[NaiveDateTime]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP)
+    }
+}
+
+impl<Tz> HasSqlType<[DateTime<Tz>]> for Postgres
+where
+    Tz: TimeZone,
+{
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ)
     }
 }
 

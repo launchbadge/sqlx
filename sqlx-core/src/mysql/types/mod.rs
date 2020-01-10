@@ -1,7 +1,3 @@
-use crate::mysql::protocol::Type;
-use crate::mysql::MySql;
-use crate::types::HasTypeMetadata;
-
 mod bool;
 mod bytes;
 mod float;
@@ -12,38 +8,82 @@ mod uint;
 #[cfg(feature = "chrono")]
 mod chrono;
 
-#[derive(Default, Debug)]
-pub struct MySqlTypeMetadata {
-    pub(crate) r#type: Type,
+use std::fmt::{self, Debug, Display};
+
+use crate::mysql::protocol::TypeId;
+use crate::mysql::protocol::{ColumnDefinition, FieldFlags};
+use crate::types::TypeInfo;
+
+#[derive(Clone, Debug, Default)]
+pub struct MySqlTypeInfo {
+    pub(crate) id: TypeId,
     pub(crate) is_unsigned: bool,
+    pub(crate) is_binary: bool,
+    pub(crate) char_set: u16,
 }
 
-impl MySqlTypeMetadata {
-    pub(crate) fn new(r#type: Type) -> Self {
+impl MySqlTypeInfo {
+    pub(crate) const fn new(id: TypeId) -> Self {
         Self {
-            r#type,
+            id,
             is_unsigned: false,
+            is_binary: true,
+            char_set: 0,
         }
     }
 
-    pub(crate) fn unsigned(r#type: Type) -> Self {
+    pub(crate) const fn unsigned(id: TypeId) -> Self {
         Self {
-            r#type,
+            id,
             is_unsigned: true,
+            is_binary: false,
+            char_set: 0,
+        }
+    }
+
+    pub(crate) fn from_column_def(def: &ColumnDefinition) -> Self {
+        Self {
+            id: def.type_id,
+            is_unsigned: def.flags.contains(FieldFlags::UNSIGNED),
+            is_binary: def.flags.contains(FieldFlags::BINARY),
+            char_set: def.char_set,
         }
     }
 }
 
-impl HasTypeMetadata for MySql {
-    type TypeMetadata = MySqlTypeMetadata;
-
-    type TableId = Box<str>;
-
-    type TypeId = u8;
+impl Display for MySqlTypeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO: Should we attempt to render the type *name* here?
+        write!(f, "{}", self.id.0)
+    }
 }
 
-impl PartialEq<u8> for MySqlTypeMetadata {
-    fn eq(&self, other: &u8) -> bool {
-        &self.r#type.0 == other
+impl TypeInfo for MySqlTypeInfo {
+    fn compatible(&self, other: &Self) -> bool {
+        match self.id {
+            TypeId::VAR_CHAR
+            | TypeId::TEXT
+            | TypeId::CHAR
+            | TypeId::TINY_BLOB
+            | TypeId::MEDIUM_BLOB
+            | TypeId::LONG_BLOB
+                if (self.is_binary == other.is_binary)
+                    && match other.id {
+                        TypeId::VAR_CHAR
+                        | TypeId::TEXT
+                        | TypeId::CHAR
+                        | TypeId::TINY_BLOB
+                        | TypeId::MEDIUM_BLOB
+                        | TypeId::LONG_BLOB => true,
+
+                        _ => false,
+                    } =>
+            {
+                true
+            }
+
+            // Fallback to equality of only [id] and [is_unsigned]
+            _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
+        }
     }
 }

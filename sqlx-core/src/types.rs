@@ -1,6 +1,8 @@
 //! Traits linking Rust types to SQL types.
 
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
+
+use crate::Database;
 
 #[cfg(feature = "uuid")]
 pub use uuid::Uuid;
@@ -10,38 +12,36 @@ pub mod chrono {
     pub use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 }
 
-/// Information about how a database stores metadata about given SQL types.
-pub trait HasTypeMetadata {
-    /// The actual type used to represent metadata.
-    type TypeMetadata: PartialEq<Self::TypeId>;
-
-    /// The Rust type of table identifiers.
-    type TableId: Display;
-
-    /// The Rust type of type identifiers.
-    type TypeId: Display;
+pub trait TypeInfo: Debug + Display + Clone {
+    /// Compares type information to determine if `other` is compatible at the Rust level
+    /// with `self`.
+    fn compatible(&self, other: &Self) -> bool;
 }
 
 /// Indicates that a SQL type is supported for a database.
-pub trait HasSqlType<T: ?Sized>: HasTypeMetadata {
-    /// Fetch the metadata for the given type.
-    fn metadata() -> Self::TypeMetadata;
+pub trait HasSqlType<T: ?Sized>: Database {
+    /// Returns the canonical type information on the database for the type `T`.
+    fn type_info() -> Self::TypeInfo;
 }
 
+// For references to types in Rust, the underlying SQL type information
+// is equivalent
 impl<T: ?Sized, DB> HasSqlType<&'_ T> for DB
 where
     DB: HasSqlType<T>,
 {
-    fn metadata() -> Self::TypeMetadata {
-        <DB as HasSqlType<T>>::metadata()
+    fn type_info() -> Self::TypeInfo {
+        <DB as HasSqlType<T>>::type_info()
     }
 }
 
+// For optional types in Rust, the underlying SQL type information
+// is equivalent
 impl<T, DB> HasSqlType<Option<T>> for DB
 where
     DB: HasSqlType<T>,
 {
-    fn metadata() -> Self::TypeMetadata {
-        <DB as HasSqlType<T>>::metadata()
+    fn type_info() -> Self::TypeInfo {
+        <DB as HasSqlType<T>>::type_info()
     }
 }

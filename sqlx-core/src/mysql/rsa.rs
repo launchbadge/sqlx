@@ -178,7 +178,6 @@ mod tests {
     use super::{BigUint, PublicKey};
     use rand::rngs::adapter::ReadRng;
     use sha1::Sha1;
-    use sha2::Sha256;
 
     const INPUT: &str = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv9E+l0oFIoGnZmu6bdil\nI3WK79iug/hukj5QrWRrJVVCHL8rRxNsQGYPvQfXgqEnJW0Rqy2BBebNrnSMduny\nCazz1KM1h57hSI1xHGhg/o82Us1j9fUucKo0Pt3vg7xjVVcN0j1bwr96gEbt6B4Q\nt4eKZBhtle1bgoBcqFBhGfU17cnedSzMUCutM+kXTzzOTplKoqXeJpEZDTX8AP9F\nQ9JkoA22yTn8H2GROIAffm1UQS7DXXjI5OnzBJNs72oNSeK8i72xLkoSdfVw3vCu\ni+mpt4LJgAZLvzc2O4nLzu4Bljb+Mrch34HSWyxOfWzt1v9vpJfEVQ2/VZaIng6U\nUQIDAQAB\n-----END PUBLIC KEY-----\n";
 
@@ -239,7 +238,7 @@ mod tests {
             0x2c, 0x49,
         ];
 
-        let mut seed = &[
+        let seed = &[
             0xaa, 0xfd, 0x12, 0xf6, 0x59, 0xca, 0xe6, 0x34, 0x89, 0xb4, 0x79, 0xe5, 0x07, 0x6d,
             0xde, 0xc2, 0xf0, 0x6c, 0xb5, 0x8f,
         ][..];

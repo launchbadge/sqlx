@@ -1,6 +1,5 @@
 use crate::io::Buf;
 use crate::postgres::protocol::Decode;
-use std::io;
 
 #[derive(Debug)]
 pub struct CommandComplete {

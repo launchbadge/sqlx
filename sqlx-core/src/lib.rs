@@ -20,7 +20,10 @@ mod url;
 
 #[macro_use]
 pub mod arguments;
+
+#[doc(hidden)]
 pub mod decode;
+
 pub mod describe;
 pub mod encode;
 pub mod pool;

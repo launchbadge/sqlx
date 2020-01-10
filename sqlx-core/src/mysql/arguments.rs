@@ -1,12 +1,12 @@
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 #[derive(Default)]
 pub struct MySqlArguments {
-    pub(crate) param_types: Vec<MySqlTypeMetadata>,
+    pub(crate) param_types: Vec<MySqlTypeInfo>,
     pub(crate) params: Vec<u8>,
     pub(crate) null_bitmap: Vec<u8>,
 }
@@ -38,10 +38,10 @@ impl Arguments for MySqlArguments {
         Self::Database: HasSqlType<T>,
         T: Encode<Self::Database>,
     {
-        let metadata = <MySql as HasSqlType<T>>::metadata();
+        let type_id = <MySql as HasSqlType<T>>::type_info();
         let index = self.param_types.len();
 
-        self.param_types.push(metadata);
+        self.param_types.push(type_id);
         self.null_bitmap.resize((index / 8) + 1, 0);
 
         if let IsNull::Yes = value.encode_nullable(&mut self.params) {

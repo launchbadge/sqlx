@@ -3,15 +3,14 @@ use byteorder::LittleEndian;
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 impl HasSqlType<u8> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::unsigned(Type::TINY)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::unsigned(TypeId::TINY_INT)
     }
 }
 
@@ -28,9 +27,8 @@ impl Decode<MySql> for u8 {
 }
 
 impl HasSqlType<u16> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::unsigned(Type::SHORT)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::unsigned(TypeId::SMALL_INT)
     }
 }
 
@@ -47,9 +45,8 @@ impl Decode<MySql> for u16 {
 }
 
 impl HasSqlType<u32> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::unsigned(Type::LONG)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::unsigned(TypeId::INT)
     }
 }
 
@@ -66,9 +63,8 @@ impl Decode<MySql> for u32 {
 }
 
 impl HasSqlType<u64> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::unsigned(Type::LONGLONG)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::unsigned(TypeId::BIG_INT)
     }
 }
 

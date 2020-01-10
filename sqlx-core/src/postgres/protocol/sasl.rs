@@ -1,12 +1,9 @@
 use crate::io::BufMut;
-use crate::postgres::connection::PgConnection;
-use crate::postgres::protocol::authentication::Authentication::SaslContinue;
 use crate::postgres::protocol::Encode;
-use crate::postgres::protocol::Message;
 use crate::Result;
 use byteorder::NetworkEndian;
 use hmac::{Hmac, Mac};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 
 pub struct SaslInitialResponse<'a>(pub &'a str);
 

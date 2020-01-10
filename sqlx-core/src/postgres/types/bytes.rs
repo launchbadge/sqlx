@@ -1,18 +1,26 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::HasSqlType;
 
 impl HasSqlType<[u8]> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(17, 1001)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::BYTEA)
     }
 }
 
+impl HasSqlType<[&'_ [u8]]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_BYTEA)
+    }
+}
+
+// TODO: Do we need the [HasSqlType] here on the Vec?
 impl HasSqlType<Vec<u8>> for Postgres {
-    fn metadata() -> Self::TypeMetadata {
-        <Postgres as HasSqlType<[u8]>>::metadata()
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[u8]>>::type_info()
     }
 }
 
@@ -20,19 +28,11 @@ impl Encode<Postgres> for [u8] {
     fn encode(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);
     }
-
-    fn size_hint(&self) -> usize {
-        self.len()
-    }
 }
 
 impl Encode<Postgres> for Vec<u8> {
     fn encode(&self, buf: &mut Vec<u8>) {
         <[u8] as Encode<Postgres>>::encode(self, buf);
-    }
-
-    fn size_hint(&self) -> usize {
-        self.len()
     }
 }
 

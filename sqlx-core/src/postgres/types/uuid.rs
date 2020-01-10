@@ -1,13 +1,21 @@
-use crate::decode::{Decode, DecodeError};
-use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
 use uuid::Uuid;
 
+use crate::decode::{Decode, DecodeError};
+use crate::encode::Encode;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
+use crate::postgres::Postgres;
+use crate::types::HasSqlType;
+
 impl HasSqlType<Uuid> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(2950, 2951)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::UUID)
+    }
+}
+
+impl HasSqlType<[Uuid]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_UUID)
     }
 }
 

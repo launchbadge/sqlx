@@ -1,13 +1,13 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 impl HasSqlType<bool> for MySql {
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::new(Type::TINY)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::TINY_INT)
     }
 }
 

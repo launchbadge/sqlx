@@ -17,7 +17,7 @@ mod r#type;
 pub use auth_plugin::AuthPlugin;
 pub use capabilities::Capabilities;
 pub use field::FieldFlags;
-pub use r#type::Type;
+pub use r#type::TypeId;
 pub use status::Status;
 
 mod com_query;

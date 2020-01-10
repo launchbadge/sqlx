@@ -1,7 +1,6 @@
 use super::Decode;
 use crate::io::Buf;
 use byteorder::NetworkEndian;
-use std::io;
 
 #[derive(Debug)]
 pub struct BackendKeyData {

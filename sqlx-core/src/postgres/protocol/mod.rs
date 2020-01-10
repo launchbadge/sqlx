@@ -1,9 +1,11 @@
 //! Low level Postgres protocol. Defines the encoding and decoding of the messages communicated
 //! to and from the database server.
 
-// There is much to the Postgres protocol that is not yet used. As we mature we'll be trimming
-// the size of this module to exactly what is necessary.
-#![allow(unused)]
+mod type_format;
+mod type_id;
+
+pub use type_format::TypeFormat;
+pub use type_id::TypeId;
 
 mod bind;
 mod cancel_request;

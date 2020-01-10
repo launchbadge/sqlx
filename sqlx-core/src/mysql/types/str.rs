@@ -5,14 +5,19 @@ use byteorder::LittleEndian;
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::mysql::io::{BufExt, BufMutExt};
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 impl HasSqlType<str> for MySql {
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::new(Type::VAR_STRING)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo {
+            id: TypeId::TEXT,
+            is_binary: false,
+            is_unsigned: false,
+            char_set: 224, // utf8mb4_unicode_ci
+        }
     }
 }
 
@@ -22,9 +27,10 @@ impl Encode<MySql> for str {
     }
 }
 
+// TODO: Do we need the [HasSqlType] for String
 impl HasSqlType<String> for MySql {
-    fn metadata() -> MySqlTypeMetadata {
-        <MySql as HasSqlType<&str>>::metadata()
+    fn type_info() -> MySqlTypeInfo {
+        <Self as HasSqlType<&str>>::type_info()
     }
 }
 

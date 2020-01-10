@@ -18,7 +18,7 @@ bitflags::bitflags! {
         const BLOB = 16;
 
         /// Field is unsigned
-        const UNISIGNED = 32;
+        const UNSIGNED = 32;
 
         /// Field is zero filled.
         const ZEROFILL = 64;
