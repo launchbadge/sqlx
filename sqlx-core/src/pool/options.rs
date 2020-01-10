@@ -110,6 +110,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Options {
     pub max_size: u32,
     pub connect_timeout: Duration,
