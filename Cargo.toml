@@ -30,6 +30,7 @@ all-features = true
 [features]
 default = [ "macros" ]
 macros = [ "sqlx-macros", "proc-macro-hack" ]
+tls = ["sqlx-core/tls"]
 
 # database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
@@ -48,6 +49,7 @@ hex = "0.4.0"
 [dev-dependencies]
 anyhow = "1.0.26"
 futures = "0.3.1"
+env_logger = "0.7"
 async-std = { version = "1.4.0", features = [ "attributes" ] }
 dotenv = "0.15.0"
 

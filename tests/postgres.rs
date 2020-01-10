@@ -66,5 +66,7 @@ async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
 }
 
 async fn connect() -> anyhow::Result<PgConnection> {
+    let _ = dotenv::dotenv();
+    let _ = env_logger::try_init();
     Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
 }
