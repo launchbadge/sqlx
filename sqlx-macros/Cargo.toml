@@ -12,6 +12,9 @@ authors = [
     "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 proc-macro = true
 
@@ -36,6 +39,3 @@ sqlx = { version = "0.1.1", default-features = false, path = "../sqlx-core", pac
 syn = { version = "1.0.11", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
 url = { version = "2.1.0", default-features = false }
-
-[package.metadata.docs.rs]
-all-features = true

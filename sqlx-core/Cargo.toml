@@ -12,6 +12,9 @@ authors = [
     "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = []
 unstable = []
@@ -19,7 +22,7 @@ postgres = [ "md-5" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 
 [dependencies]
-async-std = { version = "1.4.0", default-features = false, features = [ "unstable" ] }
+async-std = { version = "1.4.0", default-features = false }
 async-stream = { version = "0.2.0", default-features = false }
 base64 = { version = "0.11.0", default-features = false, optional = true, features = [ "std" ] }
 bitflags = { version = "1.2.1", default-features = false }
@@ -44,6 +47,3 @@ uuid = { version = "0.8.1", default-features = false, optional = true }
 
 [dev-dependencies]
 matches = "0.1.8"
-
-[package.metadata.docs.rs]
-all-features = true
