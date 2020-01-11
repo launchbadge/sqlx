@@ -39,6 +39,7 @@ mod com_stmt_prepare_ok;
 mod eof;
 mod err;
 mod handshake_response;
+mod ssl_request;
 mod ok;
 mod row;
 
@@ -50,4 +51,5 @@ pub use eof::EofPacket;
 pub use err::ErrPacket;
 pub use handshake_response::HandshakeResponse;
 pub use ok::OkPacket;
+pub use ssl_request::SslRequest;
 pub use row::Row;

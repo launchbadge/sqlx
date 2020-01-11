@@ -8,15 +8,14 @@ use sha1::Sha1;
 
 use crate::cache::StatementCache;
 use crate::connection::Connection;
-use crate::io::{Buf, BufMut, BufStream};
+use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::error::MySqlError;
-use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake,
-    HandshakeResponse, OkPacket,
-};
+use crate::mysql::protocol::{AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake, HandshakeResponse, OkPacket, SslRequest};
 use crate::mysql::rsa;
 use crate::mysql::util::xor_eq;
 use crate::url::Url;
+use std::borrow::Cow;
+use std::path::Path;
 
 // Size before a packet is split
 const MAX_PACKET_SIZE: u32 = 1024;
@@ -29,7 +28,7 @@ const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 /// string, as documented at
 /// <https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri>
 pub struct MySqlConnection {
-    pub(super) stream: BufStream<TcpStream>,
+    pub(super) stream: BufStream<MaybeTlsStream>,
 
     // Active capabilities of the client _&_ the server
     pub(super) capabilities: Capabilities,
@@ -197,9 +196,7 @@ impl MySqlConnection {
             }
         })
     }
-}
 
-impl MySqlConnection {
     pub(crate) fn handle_ok(&mut self) -> crate::Result<OkPacket> {
         let ok = OkPacket::decode(self.packet())?;
 
@@ -301,8 +298,6 @@ impl MySqlConnection {
     ) -> crate::Result<Box<[u8]>> {
         // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
-        // TODO: Handle SSL
-
         // client sends a public key request
         self.send(&[public_key_request_id][..]).await?;
 
@@ -324,11 +319,17 @@ impl MySqlConnection {
 
 impl MySqlConnection {
     async fn new(url: &Url) -> crate::Result<Self> {
-        let stream = TcpStream::connect((url.host(), url.port(3306))).await?;
+        let stream = MaybeTlsStream::connect(url, 3306).await?;
+
+        let mut capabilities = Capabilities::empty();
+
+        if cfg!(feature = "tls") {
+            capabilities |= Capabilities::SSL;
+        }
 
         Ok(Self {
             stream: BufStream::new(stream),
-            capabilities: Capabilities::empty(),
+            capabilities,
             packet: Vec::with_capacity(8192),
             packet_len: 0,
             next_seq_no: 0,
@@ -372,6 +373,29 @@ impl MySqlConnection {
 
         Ok(())
     }
+
+    #[cfg(feature = "tls")]
+    async fn try_ssl(&mut self, url: &Url, ca_file: Option<&str>, invalid_hostnames: bool) -> crate::Result<()> {
+        use async_native_tls::{Certificate, TlsConnector};
+        use async_std::fs;
+
+        let mut connector = TlsConnector::new()
+            .danger_accept_invalid_certs(ca_file.is_none())
+            .danger_accept_invalid_hostnames(invalid_hostnames);
+
+        if let Some(ca_file) = ca_file {
+            let root_cert = fs::read(ca_file).await?;
+            connector = connector.add_root_certificate(Certificate::from_pem(&root_cert)?);
+        }
+
+        // send upgrade request and then immediately try TLS handshake
+        self.send(SslRequest {
+            client_collation: COLLATE_UTF8MB4_UNICODE_CI,
+            max_packet_size: MAX_PACKET_SIZE
+        }).await?;
+
+        self.stream.stream.upgrade(url, connector).await
+    }
 }
 
 impl MySqlConnection {
@@ -383,7 +407,51 @@ impl MySqlConnection {
         // https://mariadb.com/kb/en/connection/
 
         // On connect, server immediately sends the handshake
-        let handshake = self_.receive_handshake(&url).await?;
+        let mut handshake = self_.receive_handshake(&url).await?;
+
+        let ca_file = url.get_param("ssl-ca");
+
+        let ssl_mode = url.get_param("ssl-mode")
+            .unwrap_or(if ca_file.is_some() { "VERIFY_CA" } else { "PREFERRED" }.into());
+
+        let supports_ssl = handshake.server_capabilities.contains(Capabilities::SSL);
+
+        match &*ssl_mode {
+            "DISABLED" => (),
+
+            // don't try upgrade
+            #[cfg(feature = "tls")]
+            "PREFERRED" if !supports_ssl => log::info!("server does not support TLS; using unencrypted connection"),
+
+            // try to upgrade
+            #[cfg(feature = "tls")]
+            "PREFERRED" => if let Err(e) = self_.try_ssl(&url, None, true).await {
+                log::info!("server does not support TLS");
+                // fallback, redo connection
+                self_ = Self::new(&url).await?;
+                handshake = self_.receive_handshake(&url).await?;
+            },
+
+            #[cfg(not(feature = "tls"))]
+            "PREFERRED" => log::info!("compiled without TLS, skipping upgrade"),
+
+            #[cfg(feature = "tls")]
+            "REQUIRED" if !supports_ssl => return Err(tls_err!("server does not support TLS").into()),
+
+            #[cfg(feature = "tls")]
+            "REQUIRED" => self_.try_ssl(&url, None, true).await?,
+
+            #[cfg(feature = "tls")]
+            "VERIFY_CA" | "VERIFY_FULL" if ca_file.is_none() =>
+                return Err(tls_err!("`ssl-mode` of {:?} requires `ssl-ca` to be set", ssl_mode).into()),
+
+            #[cfg(feature = "tls")]
+            "VERIFY_CA" | "VERIFY_FULL" => self_.try_ssl(&url, ca_file.as_deref(), ssl_mode != "VERIFY_FULL").await?,
+
+            #[cfg(not(feature = "tls"))]
+            "REQUIRED" | "VERIFY_CA" | "VERIFY_FULL" => return Err(tls_err!("compiled without TLS").into()),
+            _ => return Err(tls_err!("unknown `ssl-mode` value: {:?}", ssl_mode).into()),
+        }
 
         // Pre-generate an auth response by using the auth method in the [Handshake]
         let password = url.password().unwrap_or_default();
