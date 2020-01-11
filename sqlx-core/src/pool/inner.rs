@@ -3,12 +3,12 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+use crossbeam_queue::{ArrayQueue, SegQueue};
 use async_std::prelude::FutureExt as _;
-use async_std::sync::{channel, Receiver, Sender};
+use futures_channel::oneshot::{channel, Sender};
 use async_std::task;
-use futures_util::future::FutureExt as _;
 
-use super::{Idle, Options, Raw};
+use super::{Idle, Options, Live};
 use crate::{error::Error, Connection, Database};
 
 pub(super) struct SharedPool<DB>
@@ -16,9 +16,10 @@ where
     DB: Database,
 {
     url: String,
-    pool_rx: Receiver<Idle<DB>>,
+    idle: ArrayQueue<Idle<DB>>,
+    waiters: SegQueue<Sender<Live<DB>>>,
     size: AtomicU32,
-    closed: AtomicBool,
+    is_closed: AtomicBool,
     options: Options,
 }
 
@@ -30,33 +31,35 @@ where
     pub(super) async fn new_arc(
         url: &str,
         options: Options,
-    ) -> crate::Result<(Arc<Self>, Sender<Idle<DB>>)> {
-        let (pool_tx, pool_rx) = channel(options.max_size as usize);
-
+    ) -> crate::Result<Arc<Self>> {
         let pool = Arc::new(Self {
             url: url.to_owned(),
-            pool_rx,
+            idle: ArrayQueue::new(options.max_size as usize),
+            waiters: SegQueue::new(),
             size: AtomicU32::new(0),
-            closed: AtomicBool::new(false),
+            is_closed: AtomicBool::new(false),
             options,
         });
 
+        // If a minimum size was configured for the pool,
+        // establish N connections
+        // TODO: Should we do this in the background?
         for _ in 0..pool.options.min_size {
-            let raw = pool
+            let live = pool
                 .eventually_connect(Instant::now() + pool.options.connect_timeout)
                 .await?;
 
-            pool_tx
-                .send(Idle {
-                    raw,
-                    since: Instant::now(),
-                })
-                .await;
+            // Ignore error here, we are capping this loop by min_size which we 
+            // already should make sure is less than max_size
+            let _ = pool.idle.push(Idle {
+                live,
+                since: Instant::now(),
+            });
         }
 
-        conn_reaper(&pool, &pool_tx);
+        spawn_reaper(&pool);
 
-        Ok((pool, pool_tx))
+        Ok(pool)
     }
 
     pub fn options(&self) -> &Options {
@@ -72,66 +75,82 @@ where
     }
 
     pub(super) fn num_idle(&self) -> usize {
-        self.pool_rx.len()
+        // NOTE: This is very expensive
+        self.waiters.len()
     }
 
-    pub(super) fn closed(&self) -> bool {
-        self.closed.load(Ordering::SeqCst)
+    pub(super) fn is_closed(&self) -> bool {
+        self.is_closed.load(Ordering::Acquire)
     }
 
     pub(super) async fn close(&self) {
-        self.closed.store(true, Ordering::Release);
+        self.is_closed.store(true, Ordering::Release);
 
         while self.size.load(Ordering::Acquire) > 0 {
             // don't block on the receiver because we own one Sender so it should never return
             // `None`; a `select!()` would also work but that produces more complicated code
             // and a timeout isn't necessarily appropriate
-            match self.pool_rx.recv().now_or_never() {
-                Some(Some(idle)) => {
-                    idle.close().await;
-                    self.size.fetch_sub(1, Ordering::AcqRel);
-                }
-                Some(None) => {
-                    log::warn!("was not able to close all connections");
-                    break;
-                }
-                None => task::yield_now().await,
+            while let Ok(idle) = self.idle.pop() {
+                idle.close().await;
+                self.size.fetch_sub(1, Ordering::AcqRel);
             }
+
+            task::yield_now().await
         }
     }
 
     #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Raw<DB>> {
-        if self.closed.load(Ordering::Acquire) {
+    pub(super) fn try_acquire(&self) -> Option<Live<DB>> {
+        if self.is_closed.load(Ordering::Acquire) {
             return None;
         }
 
-        Some(self.pool_rx.recv().now_or_never()??.raw)
+        Some(self.idle.pop().ok()?.live)
     }
 
-    pub(super) async fn acquire(&self) -> crate::Result<Raw<DB>> {
+    pub(super) fn release(&self, mut live: Live<DB>) {
+        // Try waiters in (FIFO) order until one is still waiting ..
+        while let Ok(waiter) = self.waiters.pop() {
+            live = match waiter.send(live) {
+                // successfully released
+                Ok(()) => return,
+
+                Err(live) => {
+                    live
+                },
+            };
+        }
+
+        // .. if there were no waiters still waiting, just push the connection
+        // back to the idle queue
+        let _ = self.idle.push(Idle {
+            live,
+            since: Instant::now(),
+        });
+    }
+
+    pub(super) async fn acquire(&self) -> crate::Result<Live<DB>> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
 
         // Unless the pool has been closed ...
-        while !self.closed.load(Ordering::Acquire) {
-            let size = self.size.load(Ordering::Acquire);
-
+        while !self.is_closed.load(Ordering::Acquire) {
             // Attempt to immediately acquire a connection. This will return Some
             // if there is an idle connection in our channel.
-            let mut idle = if let Some(idle) = self.pool_rx.recv().now_or_never() {
-                let idle = match idle {
-                    Some(idle) => idle,
+            if let Some(idle) = self.idle.pop().ok() {
+                if let Some(live) = check_live(idle.live, &self.options).await {
+                    return Ok(live);
+                }
+            }
 
-                    // This isn't possible. [Pool] owns the sender and [SharedPool]
-                    // owns the receiver.
-                    None => unreachable!(),
-                };
-
-                idle
-            } else if size >= self.options.max_size {
+            let size = self.size.load(Ordering::Acquire);
+    
+            if size >= self.options.max_size {
                 // Too many open connections
                 // Wait until one is available
+                let (tx, rx) = channel();
+
+                self.waiters.push(tx);
 
                 // get the time between the deadline and now and use that as our timeout
                 let until = deadline
@@ -139,13 +158,12 @@ where
                     .ok_or(Error::PoolTimedOut(None))?;
 
                 // don't sleep forever
-                let idle = match self.pool_rx.recv().timeout(until).await {
+                let live = match rx.timeout(until).await {
                     // A connection was returned to the pool
-                    Ok(Some(idle)) => idle,
+                    Ok(Ok(live)) => live,
 
-                    // This isn't possible. [Pool] owns the sender and [SharedPool]
-                    // owns the receiver.
-                    Ok(None) => unreachable!(),
+                    // Pool dropped without dropping waiter
+                    Ok(Err(_)) => unreachable!(),
 
                     // Timed out waiting for a connection
                     // Error is not forwarded as its useless context
@@ -154,55 +172,27 @@ where
                     }
                 };
 
-                idle
-            } else if self.size.compare_and_swap(size, size + 1, Ordering::AcqRel) == size {
-                // pool has slots available; open a new connection
-                match self.connect(deadline).await {
-                    Ok(Some(conn)) => return Ok(conn),
-                    // [size] is internally decremented on _retry_ and _error_
-                    Ok(None) => continue,
-                    Err(e) => return Err(e),
+                // If pool was closed while waiting for a connection,
+                // release the connection
+                if self.is_closed.load(Ordering::Acquire) {
+                    live.close().await;
+                    self.size.fetch_sub(1, Ordering::AcqRel);
+
+                    return Err(Error::PoolClosed);
                 }
-            } else {
+
+                match check_live(live, &self.options).await {
+                    Some(live) => return Ok(live),
+
+                    // Need to re-connect
+                    None => {}
+                }
+            } else if self.size.compare_and_swap(size, size + 1, Ordering::AcqRel) != size {
+                // size was incremented while we compared it just above
                 continue;
-            };
-
-            // If pool was closed while waiting for a connection,
-            // release the connection
-            if self.closed.load(Ordering::Acquire) {
-                idle.close().await;
-                self.size.fetch_sub(1, Ordering::AcqRel);
-
-                return Err(Error::PoolClosed);
             }
 
-            // If the connection we pulled has expired, close the connection and
-            // immediately create a new connection
-            if is_beyond_lifetime(&idle.raw, &self.options) {
-                // close the connection but don't really care about the result
-                let _ = idle.close().await;
-            } else if self.options.test_on_acquire {
-                // TODO: Check on acquire should be a configuration setting
-                // Check that the connection is still live
-                match idle.raw.inner.ping().await {
-                    // Connection still seems to respond
-                    Ok(_) => return Ok(idle.raw),
-
-                    // an error here means the other end has hung up or we lost connectivity
-                    // either way we're fine to just discard the connection
-                    // the error itself here isn't necessarily unexpected so WARN is too strong
-                    Err(e) => log::info!("ping on idle connection returned error: {}", e),
-                }
-
-                // make sure the idle connection is gone explicitly before we open one
-                // this will close the resources for the stream on our side
-                drop(idle);
-            } else {
-                // No need to re-connect
-                return Ok(idle.raw);
-            }
-
-            // while there is still room in the pool, acquire a new connection
+            // pool has slots available; open a new connection
             match self.connect(deadline).await {
                 Ok(Some(conn)) => return Ok(conn),
                 // [size] is internally decremented on _retry_ and _error_
@@ -214,7 +204,7 @@ where
         Err(Error::PoolClosed)
     }
 
-    async fn eventually_connect(&self, deadline: Instant) -> crate::Result<Raw<DB>> {
+    async fn eventually_connect(&self, deadline: Instant) -> crate::Result<Live<DB>> {
         loop {
             // [connect] will raise an error when past deadline
             // [connect] returns None if its okay to retry
@@ -224,7 +214,7 @@ where
         }
     }
 
-    async fn connect(&self, deadline: Instant) -> crate::Result<Option<Raw<DB>>> {
+    async fn connect(&self, deadline: Instant) -> crate::Result<Option<Live<DB>>> {
         // FIXME: Code between `-` is duplicate with [acquire]
         // ---------------------------------
 
@@ -235,7 +225,7 @@ where
 
         // If pool was closed while waiting for a connection,
         // release the connection
-        if self.closed.load(Ordering::Acquire) {
+        if self.is_closed.load(Ordering::Acquire) {
             self.size.fetch_sub(1, Ordering::AcqRel); // ?
 
             return Err(Error::PoolClosed);
@@ -246,9 +236,9 @@ where
         // result here is `Result<Result<DB, Error>, TimeoutError>`
         match DB::Connection::open(&self.url).timeout(until).await {
             // successfully established connection
-            Ok(Ok(inner)) => {
-                Ok(Some(Raw {
-                    inner,
+            Ok(Ok(raw)) => {
+                Ok(Some(Live {
+                    raw,
                     // remember when it was created so we can expire it
                     // if there is a [max_lifetime] set
                     created: Instant::now(),
@@ -281,17 +271,26 @@ where
     DB::Connection: Connection<Database = DB>,
 {
     async fn close(self) {
-        let _ = self.raw.inner.close().await;
+        self.live.close().await;
+    }
+}
+
+impl<DB: Database> Live<DB>
+where
+    DB::Connection: Connection<Database = DB>,
+{
+    async fn close(self) {
+        let _ = self.raw.close().await;
     }
 }
 
 // NOTE: Function names here are bizzare. Helpful help would be appreciated.
 
-fn is_beyond_lifetime<DB: Database>(raw: &Raw<DB>, options: &Options) -> bool {
+fn is_beyond_lifetime<DB: Database>(live: &Live<DB>, options: &Options) -> bool {
     // check if connection was within max lifetime (or not set)
     options
         .max_lifetime
-        .map_or(false, |max| raw.created.elapsed() > max)
+        .map_or(false, |max| live.created.elapsed() > max)
 }
 
 fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &Options) -> bool {
@@ -301,8 +300,38 @@ fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &Options) -> bool {
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
+async fn check_live<DB: Database>(mut live: Live<DB>, options: &Options) -> Option<Live<DB>> {
+    // If the connection we pulled has expired, close the connection and
+    // immediately create a new connection
+    if is_beyond_lifetime(&live, options) {
+        // close the connection but don't really care about the result
+        let _ = live.close().await;
+    } else if options.test_on_acquire {
+        // TODO: Check on acquire should be a configuration setting
+        // Check that the connection is still live
+        match live.raw.ping().await {
+            // Connection still seems to respond
+            Ok(_) => return Some(live),
+
+            // an error here means the other end has hung up or we lost connectivity
+            // either way we're fine to just discard the connection
+            // the error itself here isn't necessarily unexpected so WARN is too strong
+            Err(e) => log::info!("ping on idle connection returned error: {}", e),
+        }
+
+        // make sure the idle connection is gone explicitly before we open one
+        // this will close the resources for the stream on our side
+        drop(live);
+    } else {
+        // No need to re-connect
+        return Some(live);
+    }
+
+    None
+}
+
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn conn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>, pool_tx: &Sender<Idle<DB>>)
+fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>)
 where
     DB::Connection: Connection<Database = DB>,
 {
@@ -314,11 +343,10 @@ where
         (None, None) => return,
     };
 
-    let pool = pool.clone();
-    let pool_tx = pool_tx.clone();
+    let pool = Arc::clone(&pool);
 
     task::spawn(async move {
-        while !pool.closed.load(Ordering::Acquire) {
+        while !pool.is_closed.load(Ordering::Acquire) {
             // reap at most the current size minus the minimum idle
             let max_reaped = pool
                 .size
@@ -328,15 +356,15 @@ where
             // collect connections to reap
             let (reap, keep) = (0..max_reaped)
                 // only connections waiting in the queue
-                .filter_map(|_| pool.pool_rx.recv().now_or_never()?)
+                .filter_map(|_| pool.idle.pop().ok())
                 .partition::<Vec<_>, _>(|conn| {
                     is_beyond_idle(conn, &pool.options)
-                        || is_beyond_lifetime(&conn.raw, &pool.options)
+                        || is_beyond_lifetime(&conn.live, &pool.options)
                 });
 
             for conn in keep {
                 // return these connections to the pool first
-                pool_tx.send(conn).await;
+                pool.idle.push(conn).expect("unreachable: pool overflowed");
             }
 
             for conn in reap {

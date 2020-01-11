@@ -7,9 +7,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use async_std::sync::Sender;
-use futures_util::future::FutureExt;
-
 use crate::Database;
 
 use self::inner::SharedPool;
@@ -21,26 +18,22 @@ mod inner;
 mod options;
 
 /// A pool of database connections.
-pub struct Pool<DB>
+pub struct Pool<DB>(Arc<SharedPool<DB>>)
 where
-    DB: Database,
-{
-    inner: Arc<SharedPool<DB>>,
-    pool_tx: Sender<Idle<DB>>,
-}
+    DB: Database;
 
 struct Connection<DB: Database> {
-    raw: Option<Raw<DB>>,
-    pool_tx: Sender<Idle<DB>>,
+    live: Option<Live<DB>>,
+    pool: Arc<SharedPool<DB>>,
 }
 
-struct Raw<DB: Database> {
-    inner: DB::Connection,
+struct Live<DB: Database> {
+    raw: DB::Connection,
     created: Instant,
 }
 
 struct Idle<DB: Database> {
-    raw: Raw<DB>,
+    live: Live<DB>,
     since: Instant,
 }
 
@@ -55,9 +48,9 @@ where
     }
 
     async fn with_options(url: &str, options: Options) -> crate::Result<Self> {
-        let (inner, pool_tx) = SharedPool::new_arc(url, options).await?;
+        let inner = SharedPool::new_arc(url, options).await?;
 
-        Ok(Pool { inner, pool_tx })
+        Ok(Pool(inner))
     }
 
     /// Returns a [Builder] to configure a new connection pool.
@@ -69,9 +62,9 @@ where
     ///
     /// Waits for at most the configured connection timeout before returning an error.
     pub async fn acquire(&self) -> crate::Result<impl DerefMut<Target = DB::Connection>> {
-        self.inner.acquire().await.map(|conn| Connection {
-            raw: Some(conn),
-            pool_tx: self.pool_tx.clone(),
+        self.0.acquire().await.map(|conn| Connection {
+            live: Some(conn),
+            pool: Arc::clone(&self.0),
         })
     }
 
@@ -79,9 +72,9 @@ where
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<impl DerefMut<Target = DB::Connection>> {
-        self.inner.try_acquire().map(|conn| Connection {
-            raw: Some(conn),
-            pool_tx: self.pool_tx.clone(),
+        self.0.try_acquire().map(|conn| Connection {
+            live: Some(conn),
+            pool: Arc::clone(&self.0),
         })
     }
 
@@ -90,42 +83,42 @@ where
     ///
     /// Does not resolve until all connections are closed.
     pub async fn close(&self) {
-        self.inner.close().await;
+        self.0.close().await;
     }
 
     /// Returns the number of connections currently being managed by the pool.
     pub fn size(&self) -> u32 {
-        self.inner.size()
+        self.0.size()
     }
 
     /// Returns the number of idle connections.
     pub fn idle(&self) -> usize {
-        self.inner.num_idle()
+        self.0.num_idle()
     }
 
     /// Returns the configured maximum pool size.
     pub fn max_size(&self) -> u32 {
-        self.inner.options().max_size
+        self.0.options().max_size
     }
 
     /// Returns the maximum time spent acquiring a new connection before an error is returned.
     pub fn connect_timeout(&self) -> Duration {
-        self.inner.options().connect_timeout
+        self.0.options().connect_timeout
     }
 
     /// Returns the configured minimum idle connection count.
     pub fn min_size(&self) -> u32 {
-        self.inner.options().min_size
+        self.0.options().min_size
     }
 
     /// Returns the configured maximum connection lifetime.
     pub fn max_lifetime(&self) -> Option<Duration> {
-        self.inner.options().max_lifetime
+        self.0.options().max_lifetime
     }
 
     /// Returns the configured idle connection timeout.
     pub fn idle_timeout(&self) -> Option<Duration> {
-        self.inner.options().idle_timeout
+        self.0.options().idle_timeout
     }
 }
 
@@ -135,21 +128,18 @@ where
     DB: Database,
 {
     fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-            pool_tx: self.pool_tx.clone(),
-        }
+        Self(Arc::clone(&self.0))
     }
 }
 
 impl<DB: Database> fmt::Debug for Pool<DB> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
-            .field("url", &self.inner.url())
-            .field("size", &self.inner.size())
-            .field("num_idle", &self.inner.num_idle())
-            .field("closed", &self.inner.closed())
-            .field("options", self.inner.options())
+            .field("url", &self.0.url())
+            .field("size", &self.0.size())
+            .field("num_idle", &self.0.num_idle())
+            .field("is_closed", &self.0.is_closed())
+            .field("options", self.0.options())
             .finish()
     }
 }
@@ -160,26 +150,20 @@ impl<DB: Database> Deref for Connection<DB> {
     type Target = DB::Connection;
 
     fn deref(&self) -> &Self::Target {
-        &self.raw.as_ref().expect(DEREF_ERR).inner
+        &self.live.as_ref().expect(DEREF_ERR).raw
     }
 }
 
 impl<DB: Database> DerefMut for Connection<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.raw.as_mut().expect(DEREF_ERR).inner
+        &mut self.live.as_mut().expect(DEREF_ERR).raw
     }
 }
 
 impl<DB: Database> Drop for Connection<DB> {
     fn drop(&mut self) {
-        if let Some(conn) = self.raw.take() {
-            self.pool_tx
-                .send(Idle {
-                    raw: conn,
-                    since: Instant::now(),
-                })
-                .now_or_never()
-                .expect("(bug) connection released into a full pool")
+        if let Some(live) = self.live.take() {
+            self.pool.release(live);
         }
     }
 }
