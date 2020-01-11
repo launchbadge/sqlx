@@ -34,7 +34,8 @@ digest = { version = "0.8.1", default-features = false, optional = true, feature
 futures-channel = { version = "0.3.1", default-features = false }
 futures-core = { version = "0.3.1", default-features = false }
 futures-util = { version = "0.3.1", default-features = false }
-generic-array = { version = "0.13.2", default-features = false, optional = true }
+# generic-array must match version that digest crates use
+generic-array = { version = "0.12.3", default-features = false, optional = true }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.2.1", default-features = false }
