@@ -20,6 +20,7 @@ pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 #[cfg(feature = "postgres")]
 pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 
+#[allow(unused_attributes)]
 #[macro_export]
 mod macros;
 
