@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use sqlx::{mysql::MySqlConnection, Connection as _, Executor as _, Row as _};
+use sqlx::{Connection as _, Executor as _, MySqlConnection, MySqlPool, Row as _};
 
 #[async_std::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -48,6 +48,28 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
     Ok(())
 }
 
+#[async_std::test]
+async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
+    // Malform the database url by changing the password
+    let url = url()?.replace("password", "not-the-password");
+
+    let pool = MySqlPool::new(&url).await?;
+
+    let res = pool.acquire().await;
+
+    match res {
+        Err(sqlx::Error::Database(err)) if err.message().contains("Access denied") => {
+            // Access was properly denied
+        }
+
+        Err(e) => panic!("unexpected error: {:?}", e),
+
+        Ok(_) => panic!("unexpected ok"),
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "macros")]
 #[async_std::test]
 async fn macro_select_from_cte() -> anyhow::Result<()> {
@@ -65,6 +87,10 @@ async fn macro_select_from_cte() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn url() -> anyhow::Result<String> {
+    Ok(dotenv::var("DATABASE_URL")?)
+}
+
 async fn connect() -> anyhow::Result<MySqlConnection> {
-    Ok(MySqlConnection::open(dotenv::var("DATABASE_URL")?).await?)
+    Ok(MySqlConnection::open(url()?).await?)
 }
