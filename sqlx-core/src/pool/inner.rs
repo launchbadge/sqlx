@@ -4,9 +4,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_queue::{ArrayQueue, SegQueue};
-use async_std::prelude::FutureExt as _;
 use futures_channel::oneshot::{channel, Sender};
-use async_std::task;
+use async_std::{task, future::timeout};
 
 use super::{Idle, Options, Live};
 use crate::{error::Error, Connection, Database};
@@ -158,7 +157,7 @@ where
                     .ok_or(Error::PoolTimedOut(None))?;
 
                 // don't sleep forever
-                let live = match rx.timeout(until).await {
+                let live = match timeout(until, rx).await {
                     // A connection was returned to the pool
                     Ok(Ok(live)) => live,
 
@@ -234,7 +233,7 @@ where
         // ---------------------------------
 
         // result here is `Result<Result<DB, Error>, TimeoutError>`
-        match DB::Connection::open(&self.url).timeout(until).await {
+        match timeout(until, DB::Connection::open(&self.url)).await {
             // successfully established connection
             Ok(Ok(raw)) => {
                 Ok(Some(Live {
