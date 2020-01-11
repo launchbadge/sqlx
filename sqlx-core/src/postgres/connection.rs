@@ -7,13 +7,16 @@ use futures_core::future::BoxFuture;
 use crate::cache::StatementCache;
 use crate::connection::Connection;
 use crate::io::{Buf, BufStream};
-use crate::postgres::protocol::{self, Decode, Encode, Message, StatementId, SaslResponse, SaslInitialResponse, hi, Authentication};
+use crate::postgres::protocol::{
+    self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
+    StatementId,
+};
 use crate::postgres::PgError;
 use crate::url::Url;
-use sha2::{Sha256, Digest};
-use hmac::{Mac, Hmac};
 use crate::Result;
+use hmac::{Hmac, Mac};
 use rand::Rng;
+use sha2::{Digest, Sha256};
 
 /// An asynchronous connection to a [Postgres] database.
 ///
@@ -97,20 +100,35 @@ impl PgConnection {
                         }
 
                         protocol::Authentication::Sasl { mechanisms } => {
-                            match mechanisms.get(0).map(|m| &**m) {
-                                Some("SCRAM-SHA-256") => {
-                                    sasl_auth(
-                                        self,
-                                        username,
-                                        url.password().unwrap_or_default(),
-                                    )
-                                    .await?;
-                                }
+                            let mut has_sasl: bool = false;
+                            let mut has_sasl_plus: bool = false;
 
-                                _ => return Err(protocol_err!(
-                                    "Expected mechanisms SCRAM-SHA-256, but received {:?}",
+                            for mechanism in &*mechanisms {
+                                match &**mechanism {
+                                    "SCRAM-SHA-256" => {
+                                        has_sasl = true;
+                                    }
+
+                                    "SCRAM-SHA-256-PLUS" => {
+                                        has_sasl_plus = true;
+                                    }
+
+                                    _ => {
+                                        log::info!("unsupported auth mechanism: {}", mechanism);
+                                    }
+                                }
+                            }
+
+                            if has_sasl || has_sasl_plus {
+                                // TODO: Handle -PLUS differently if we're in a TLS stream
+                                sasl_auth(self, username, url.password().unwrap_or_default())
+                                    .await?;
+                            } else {
+                                return Err(protocol_err!(
+                                    "unsupported SASL auth mechanisms: {:?}",
                                     mechanisms
-                                ).into()),
+                                )
+                                .into());
                             }
                         }
 
@@ -288,11 +306,7 @@ fn nonce() -> String {
 
 // Performs authenticiton using Simple Authentication Security Layer (SASL) which is what
 // Postgres uses
-async fn sasl_auth<T: AsRef<str>>(
-    conn: &mut PgConnection,
-    username: T,
-    password: T,
-) -> Result<()> {
+async fn sasl_auth<T: AsRef<str>>(conn: &mut PgConnection, username: T, password: T) -> Result<()> {
     // channel-binding = "c=" base64
     let channel_binding = format!("{}={}", CHANNEL_ATTR, base64::encode(GS2_HEADER));
     // "n=" saslname ;; Usernames are prepared using SASLprep.
@@ -308,8 +322,7 @@ async fn sasl_auth<T: AsRef<str>>(
         client_first_message_bare = client_first_message_bare
     );
 
-    SaslInitialResponse(&client_first_message)
-    .encode(conn.stream.buffer_mut());
+    SaslInitialResponse(&client_first_message).encode(conn.stream.buffer_mut());
     conn.stream.flush().await?;
 
     let server_first_message = conn.receive().await?;
@@ -379,8 +392,7 @@ async fn sasl_auth<T: AsRef<str>>(
                 client_proof = base64::encode(&client_proof)
             );
 
-            SaslResponse(&client_final_message)
-            .encode(conn.stream.buffer_mut());
+            SaslResponse(&client_final_message).encode(conn.stream.buffer_mut());
             conn.stream.flush().await?;
             let _server_final_response = conn.receive().await?;
 
