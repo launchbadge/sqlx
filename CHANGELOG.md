@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+ - https://github.com/launchbadge/sqlx/issues/43
+
+ - https://github.com/launchbadge/sqlx/issues/40
+
+### Added
+
+ - Support for `SCRAM-SHA-256` authentication in Postgres [#37](https://github.com/launchbadge/sqlx/pull/37) [@danielakhterov](https://github.com/danielakhterov)
+
+ - Implement `Debug` for Pool [#42](https://github.com/launchbadge/sqlx/pull/42) [@prettynatty](https://github.com/prettynatty)
+
 ## 0.1.3 - 2020-01-06
 
 ### Fixed
