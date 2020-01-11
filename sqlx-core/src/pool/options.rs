@@ -94,9 +94,9 @@ where
         self
     }
 
-    /// If true, the health of a connection will be verified by a call to `Connection::ping` 
+    /// If true, the health of a connection will be verified by a call to `Connection::ping`
     /// before returning the connection.
-    /// 
+    ///
     /// Defaults to `true`.
     pub fn test_on_acquire(mut self, test: bool) -> Self {
         self.options.test_on_acquire = test;

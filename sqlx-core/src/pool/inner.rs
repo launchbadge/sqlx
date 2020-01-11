@@ -3,11 +3,11 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+use async_std::{future::timeout, task};
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot::{channel, Sender};
-use async_std::{task, future::timeout};
 
-use super::{Idle, Options, Live};
+use super::{Idle, Live, Options};
 use crate::{error::Error, Connection, Database};
 
 pub(super) struct SharedPool<DB>
@@ -27,10 +27,7 @@ where
     DB: Database,
     DB::Connection: Connection<Database = DB>,
 {
-    pub(super) async fn new_arc(
-        url: &str,
-        options: Options,
-    ) -> crate::Result<Arc<Self>> {
+    pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let pool = Arc::new(Self {
             url: url.to_owned(),
             idle: ArrayQueue::new(options.max_size as usize),
@@ -48,7 +45,7 @@ where
                 .eventually_connect(Instant::now() + pool.options.connect_timeout)
                 .await?;
 
-            // Ignore error here, we are capping this loop by min_size which we 
+            // Ignore error here, we are capping this loop by min_size which we
             // already should make sure is less than max_size
             let _ = pool.idle.push(Idle {
                 live,
@@ -114,9 +111,7 @@ where
                 // successfully released
                 Ok(()) => return,
 
-                Err(live) => {
-                    live
-                },
+                Err(live) => live,
             };
         }
 
@@ -143,7 +138,7 @@ where
             }
 
             let size = self.size.load(Ordering::Acquire);
-    
+
             if size >= self.options.max_size {
                 // Too many open connections
                 // Wait until one is available
