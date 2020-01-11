@@ -77,3 +77,6 @@ required-features = [ "mysql" ]
 [[test]]
 name = "mysql-types-chrono"
 required-features = [ "mysql", "chrono" ]
+
+[profile.release]
+lto = true

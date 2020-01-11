@@ -28,14 +28,16 @@ where
                 max_size: 10,
                 // don't open connections until necessary
                 min_size: 0,
-                // try to connect for 30 seconds before erroring
-                connect_timeout: Duration::from_secs(30),
+                // try to connect for 10 seconds before erroring
+                connect_timeout: Duration::from_secs(60),
                 // reap connections that have been alive > 30 minutes
                 // prevents unbounded live-leaking of memory due to naive prepared statement caching
                 // see src/cache.rs for context
                 max_lifetime: Some(Duration::from_secs(1800)),
                 // don't reap connections based on idle time
                 idle_timeout: None,
+                // If true, test the health of a connection on acquire
+                test_on_acquire: true,
             },
         }
     }
@@ -92,6 +94,15 @@ where
         self
     }
 
+    /// If true, the health of a connection will be verified by a call to `Connection::ping` 
+    /// before returning the connection.
+    /// 
+    /// Defaults to `true`.
+    pub fn test_on_acquire(mut self, test: bool) -> Self {
+        self.options.test_on_acquire = test;
+        self
+    }
+
     /// Spin up the connection pool.
     ///
     /// If [min_size] was set to a non-zero value, that many connections will be immediately
@@ -117,4 +128,5 @@ pub(crate) struct Options {
     pub min_size: u32,
     pub max_lifetime: Option<Duration>,
     pub idle_timeout: Option<Duration>,
+    pub test_on_acquire: bool,
 }

@@ -6,6 +6,7 @@ workspace = "../.."
 
 [dependencies]
 anyhow = "1.0.26"
+env_logger = "0.7.1"
 async-std = { version = "1.4.0", features = [ "attributes" ] }
 tide = "0.5.1"
 sqlx = { path = "../..", features = [ "postgres" ] }

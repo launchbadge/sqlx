@@ -12,7 +12,12 @@ const SECRET_KEY: &str = "this-is-the-most-secret-key-ever-secreted";
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
-    let pool = PgPool::new(&env::var("DATABASE_URL")?).await?;
+    env_logger::try_init()?;
+
+    let pool = PgPool::builder()
+        .max_size(100)
+        .test_on_acquire(false)
+        .build(&env::var("DATABASE_URL")?).await?;
 
     let mut server = tide::with_state(pool);
 
@@ -20,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     server.at("/api/user").get(get_current_user);
 
-    server.listen(("localhost", 8080)).await?;
+    server.listen(("0.0.0.0", 8080)).await?;
 
     Ok(())
 }
