@@ -26,6 +26,7 @@ where
         }
     }
 
+    #[allow(unused)]
     pub fn has_columns(&self, id: Id) -> bool {
         self.columns.contains_key(&id)
     }
