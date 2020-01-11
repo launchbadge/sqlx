@@ -18,7 +18,7 @@ pub enum Error {
     UrlParse(url::ParseError),
 
     /// An error was returned by the database.
-    Database(Box<dyn DatabaseError>),
+    Database(Box<dyn DatabaseError + Send + Sync>),
 
     /// No rows were returned by a query that expected to return at least one row.
     NotFound,
@@ -39,7 +39,7 @@ pub enum Error {
 
     /// A [Pool::acquire] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
-    PoolTimedOut,
+    PoolTimedOut(Option<Box<dyn StdError + Send + Sync>>),
 
     /// [Pool::close] was called while we were waiting in [Pool::acquire].
     PoolClosed,
@@ -57,6 +57,8 @@ impl StdError for Error {
             Error::Io(error) => Some(error),
 
             Error::UrlParse(error) => Some(error),
+
+            Error::PoolTimedOut(Some(error)) => Some(&**error),
 
             Error::Decode(DecodeError::Other(error)) => Some(&**error),
 
@@ -88,7 +90,13 @@ impl Display for Error {
 
             Error::Protocol(ref err) => f.write_str(err),
 
-            Error::PoolTimedOut => f.write_str("timed out while waiting for an open connection"),
+            Error::PoolTimedOut(Some(ref err)) => {
+                write!(f, "timed out while waiting for an open connection: {}", err)
+            }
+
+            Error::PoolTimedOut(None) => {
+                write!(f, "timed out while waiting for an open connection")
+            }
 
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
