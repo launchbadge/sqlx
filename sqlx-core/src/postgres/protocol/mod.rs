@@ -31,7 +31,7 @@ pub use flush::Flush;
 pub use parse::Parse;
 pub use password_message::PasswordMessage;
 pub use query::Query;
-pub use sasl::{sasl_auth, SaslInitialResponse, SaslResponse};
+pub use sasl::{hi, SaslInitialResponse, SaslResponse};
 pub use startup_message::StartupMessage;
 pub use statement::StatementId;
 pub use sync::Sync;

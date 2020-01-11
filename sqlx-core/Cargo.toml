@@ -18,7 +18,7 @@ all-features = true
 [features]
 default = []
 unstable = []
-postgres = [ "md-5", "sha2", "base64", "sha-1", "rand" ]
+postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 
 [dependencies]
@@ -34,7 +34,7 @@ digest = { version = "0.8.1", default-features = false, optional = true, feature
 futures-channel = { version = "0.3.1", default-features = false }
 futures-core = { version = "0.3.1", default-features = false }
 futures-util = { version = "0.3.1", default-features = false }
-generic-array = { version = "0.12.3", default-features = false, optional = true }
+generic-array = { version = "0.13.2", default-features = false, optional = true }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.2.1", default-features = false }
@@ -44,8 +44,7 @@ sha-1 = { version = "0.8.1", default-features = false, optional = true }
 sha2 = { version = "0.8.0", default-features = false, optional = true }
 url = { version = "2.1.0", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true }
-hex = "0.4.0"
-hmac = "0.7.1"
+hmac = { version = "0.7.1", default-features = false, optional = true }
 
 [dev-dependencies]
 matches = "0.1.8"

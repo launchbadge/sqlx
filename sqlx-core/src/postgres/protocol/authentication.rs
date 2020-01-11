@@ -3,6 +3,7 @@ use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
 use std::borrow::Cow;
 use std::io;
+use std::str;
 
 #[derive(Debug)]
 pub enum Authentication {
@@ -99,29 +100,44 @@ impl Decode for Authentication {
                 let mut nonce: Vec<u8> = Vec::new();
                 let mut iter_count: u32 = 0;
 
-                buf.split(|byte| *byte == b',')
+                let key_value: Vec<(char, &[u8])> = buf
+                    .split(|byte| *byte == b',')
                     .map(|s| {
                         let (key, value) = s.split_at(1);
                         let value = value.split_at(1).1;
 
                         (key[0] as char, value)
                     })
-                    .for_each(|(key, value)| match key {
+                    .collect();
+
+                for (key, value) in key_value.iter() {
+                    match key {
                         's' => salt = value.to_vec(),
                         'r' => nonce = value.to_vec(),
                         'i' => {
-                            iter_count = u32::from_str_radix(&String::from_utf8_lossy(&value), 10)
-                                .unwrap_or(0);
+                            let s = str::from_utf8(&value).map_err(|_| {
+                                protocol_err!(
+                                    "iteration count in sasl response was not a valid utf8 string"
+                                )
+                            })?;
+                            iter_count = u32::from_str_radix(&s, 10).unwrap_or(0);
                         }
 
                         _ => {}
-                    });
+                    }
+                }
 
                 Authentication::SaslContinue(SaslContinue {
-                    salt: base64::decode(&salt).unwrap(),
+                    salt: base64::decode(&salt).map_err(|_| {
+                        protocol_err!("salt value response from postgres was not base64 encoded")
+                    })?,
                     nonce,
                     iter_count,
-                    data: String::from_utf8_lossy(buf).into_owned(),
+                    data: str::from_utf8(buf)
+                        .map_err(|_| {
+                            protocol_err!("SaslContinue response was not a valid utf8 string")
+                        })?
+                        .to_string(),
                 })
             }
 
