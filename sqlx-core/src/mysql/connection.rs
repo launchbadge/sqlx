@@ -362,7 +362,7 @@ impl MySqlConnection {
         // This allows us to assume that the output from a TIMESTAMP field is UTC
 
         // language=MySQL
-        self.execute_raw("SET time_zone = 'UTC'").await?;
+        self.execute_raw("SET time_zone = '+00:00'").await?;
 
         // https://mathiasbynens.be/notes/mysql-utf8mb4
 
