@@ -60,7 +60,7 @@ let is_active: bool = row.get("is_active");
 ```
 
 The `sqlx::query!` macro prepares the SQL query and interprets the result in order to constrain input types and 
-infer output types. The result of `query!` is an anoymous struct (or named tuple).
+infer output types. The result of `query!` is an anonymous struct (or named tuple).
 
 ```rust
 let countries = sqlx::query!(
