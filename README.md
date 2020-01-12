@@ -14,7 +14,9 @@
     alt="Crates.io version" />
   </a>
   <!-- Discord -->
-  <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
+  <a href="https://discord.gg/uuruzJ7">
+    <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
+  </a>
   <!-- Downloads -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
