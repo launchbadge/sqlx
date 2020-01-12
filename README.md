@@ -13,6 +13,8 @@
     <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
     alt="Crates.io version" />
   </a>
+  <!-- Discord -->
+  <img src="https://img.shields.io/discord/665528275556106240?style=flat-square" alt="chat" />
   <!-- Downloads -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/d/sqlx.svg?style=flat-square"
