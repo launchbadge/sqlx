@@ -1,33 +1,72 @@
 use std::convert::TryInto;
 use std::path::Path;
 
+use async_native_tls::Certificate;
 use async_std::fs;
 use async_std::net::Shutdown;
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
-
-use crate::cache::StatementCache;
-use crate::connection::Connection;
-use crate::io::{Buf, BufStream};
-use crate::postgres::protocol::{
-    self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
-    StatementId,
-};
-use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::PgError;
-use crate::postgres::protocol::{self, Decode, Encode, Message, StatementId};
-use crate::url::Url;
-use crate::Result;
 use hmac::{Hmac, Mac};
 use rand::Rng;
 use sha2::{Digest, Sha256};
-use async_native_tls::Certificate;
+
+use crate::cache::StatementCache;
+use crate::connection::Connection;
+use crate::io::{Buf, BufStream, MaybeTlsStream};
+use crate::postgres::PgError;
+use crate::postgres::protocol::{
+    self, Authentication, Decode, Encode, hi, Message, SaslInitialResponse, SaslResponse,
+    StatementId,
+};
+use crate::Result;
+use crate::url::Url;
 
 /// An asynchronous connection to a [Postgres] database.
 ///
 /// The connection string expected by [Connection::open] should be a PostgreSQL connection
 /// string, as documented at
 /// <https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-CONNSTRING>
+///
+/// ### TLS Support (requires `tls` feature)
+/// This connection type supports the same `sslmode` query parameter that `libpq` does in
+/// connection strings: https://www.postgresql.org/docs/12/libpq-ssl.html
+///
+/// If the `tls` feature is not enabled, `disable`, `allow` and `prefer` are no-ops and `require`,
+/// `verify-ca` and `verify-full` are forbidden (attempting to connect with these will return
+/// an error).
+///
+/// If the `tls` feature is enabled, an upgrade to TLS is attempted on every connection by default
+/// (equivalent to `sslmode=prefer`). If the server does not support TLS (because it was not
+/// started with a valid certificate and key, see https://www.postgresql.org/docs/12/ssl-tcp.html)
+/// then it falls back to an unsecured connection and logs a warning.
+///
+/// Add `sslmode=require` to your connection string to emit an error if the TLS upgrade fails.
+///
+/// However, like with `libpq` the server certificate is **not** checked for validity by default.
+///
+/// Specifying `sslmode=verify-ca` will cause the TLS upgrade to verify the server's SSL
+/// certificate against a local CA root certificate; this is not the system root certificate
+/// but is instead expected to be specified in one of a few ways:
+///
+/// * The path to the certificate can be specified by adding the `sslrootcert` query parameter
+/// to the connection string. (Remember to percent-encode it!)
+///
+/// * The path may also be specified via the `PGSSLROOTCERT` environment variable (which
+/// should *not* be percent-encoded.)
+///
+/// * Otherwise, the library will look for the Postgres global root CA certificate in the default
+/// location:
+///
+///     * `$HOME/.postgresql/root.crt` on POSIX systems
+///     * `%APPDATA%\postgresql\root.crt` on Windows
+///
+/// These locations are documented here: https://www.postgresql.org/docs/12/libpq-ssl.html#LIBQ-SSL-CERTIFICATES
+/// If the root certificate cannot be found by any of these means then the TLS upgrade will fail.
+///
+/// If `sslmode=verify-full` is specified, in addition to checking the certificate as with
+/// `sslmode=verify-ca`, the hostname in the connection string will be verified
+/// against the hostname in the server certificate, so they must be the same for the TLS
+/// upgrade to succeed.
 pub struct PgConnection {
     pub(super) stream: BufStream<MaybeTlsStream>,
 
@@ -299,7 +338,9 @@ impl PgConnection {
             "disable" | "allow" => (),
 
             #[cfg(feature = "tls")]
-            "prefer" => { self_.try_ssl(&url, true, true).await?; },
+            "prefer" => if !self_.try_ssl(&url, true, true).await? {
+                log::warn!("server does not support TLS, falling back to unsecured connection")
+            },
 
             #[cfg(not(feature = "tls"))]
             "prefer" => log::info!("compiled without TLS, skipping upgrade"),
