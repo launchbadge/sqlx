@@ -27,6 +27,42 @@ const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 /// The connection string expected by [Connection::open] should be a MySQL connection
 /// string, as documented at
 /// <https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri>
+///
+/// ### TLS Support (requires `tls` feature)
+/// This connection type supports some of the same flags as the `mysql` CLI application for SSL
+/// connections, but they must be specified via the query segment of the connection string
+/// rather than as program arguments.
+///
+/// The same options for `--ssl-mode` are supported as the `ssl-mode` query parameter:
+/// https://dev.mysql.com/doc/refman/8.0/en/connection-options.html#option_general_ssl-mode
+///
+/// If the `tls` feature is not enabled, `ssl-mode=DISABLED` and `ssl-mode=PREFERRED` are no-ops and
+/// `ssl-mode=REQUIRED`, `ssl-mode=VERIFY_CA` and `ssl-mode=VERIFY_IDENTITY` are forbidden
+/// (attempting to connect with these will return an error).
+///
+/// If the `tls` feature is enabled, an upgrade to TLS is attempted on every connection by default
+/// (equivalent to `ssl-mode=PREFERRED`). If the server does not support TLS (because `--ssl=0` was
+/// passed or an invalid certificate or key was used,
+/// https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html)
+/// then it falls back to an unsecured connection and logs a warning.
+///
+/// Add `ssl-mode=REQUIRED` to your connection string to emit an error if the TLS upgrade fails.
+///
+/// However, like with `mysql` the server certificate is **not** checked for validity by default.
+///
+/// Specifying `ssl-mode=VERIFY_CA` will cause the TLS upgrade to verify the server's SSL
+/// certificate against a local CA root certificate; this is not the system root certificate
+/// but is instead expected to be specified as a local path with the `ssl-ca` query parameter
+/// (percent-encoded so the URL remains valid).
+///
+/// If `ssl-ca` is not specified or the file cannot be read, then an error is returned.
+/// `ssl-ca` implies `ssl-mode=VERIFY_CA` so you only actually need to specify the former
+/// but you may prefer having both to be more explicit.
+///
+/// If `sslmode=VERIFY_IDENTITY` is specified, in addition to checking the certificate as with
+/// `ssl-mode=VERIFY_CA`, the hostname in the connection string will be verified
+/// against the hostname in the server certificate, so they must be the same for the TLS
+/// upgrade to succeed. `ssl-ca` must still be specified.
 pub struct MySqlConnection {
     pub(super) stream: BufStream<MaybeTlsStream>,
 
@@ -426,7 +462,7 @@ impl MySqlConnection {
             // try to upgrade
             #[cfg(feature = "tls")]
             "PREFERRED" => if let Err(e) = self_.try_ssl(&url, None, true).await {
-                log::info!("server does not support TLS");
+                log::warn!("server does not support TLS");
                 // fallback, redo connection
                 self_ = Self::new(&url).await?;
                 handshake = self_.receive_handshake(&url).await?;
