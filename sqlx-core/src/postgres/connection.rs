@@ -1,8 +1,5 @@
 use std::convert::TryInto;
-use std::path::Path;
 
-use async_native_tls::Certificate;
-use async_std::fs;
 use async_std::net::Shutdown;
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
@@ -13,13 +10,13 @@ use sha2::{Digest, Sha256};
 use crate::cache::StatementCache;
 use crate::connection::Connection;
 use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::PgError;
 use crate::postgres::protocol::{
-    self, Authentication, Decode, Encode, hi, Message, SaslInitialResponse, SaslResponse,
+    self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
     StatementId,
 };
-use crate::Result;
+use crate::postgres::PgError;
 use crate::url::Url;
+use crate::Result;
 
 /// An asynchronous connection to a [Postgres] database.
 ///
@@ -88,9 +85,13 @@ pub struct PgConnection {
 
 impl PgConnection {
     #[cfg(feature = "tls")]
-    async fn try_ssl(&mut self, url: &Url, invalid_certs: bool, invalid_hostnames: bool) -> crate::Result<bool> {
-        use async_native_tls::{TlsConnector, Certificate};
-        use std::env;
+    async fn try_ssl(
+        &mut self,
+        url: &Url,
+        invalid_certs: bool,
+        invalid_hostnames: bool,
+    ) -> crate::Result<bool> {
+        use async_native_tls::TlsConnector;
 
         protocol::SslRequest::encode(self.stream.buffer_mut());
 
@@ -99,8 +100,10 @@ impl PgConnection {
         match self.stream.peek(1).await? {
             Some(b"N") => return Ok(false),
             Some(b"S") => (),
-            Some(other) => return Err(tls_err!("unexpected single-byte response: 0x{:02X}", other[0]).into()),
-            None => return Err(tls_err!("server unexpectedly closed connection").into())
+            Some(other) => {
+                return Err(tls_err!("unexpected single-byte response: 0x{:02X}", other[0]).into())
+            }
+            None => return Err(tls_err!("server unexpectedly closed connection").into()),
         }
 
         let mut connector = TlsConnector::new()
@@ -112,7 +115,7 @@ impl PgConnection {
                 Ok(cert) => {
                     connector = connector.add_root_certificate(cert);
                 }
-                Err(e) => log::warn!("failed to read Postgres root certificate: {}", e)
+                Err(e) => log::warn!("failed to read Postgres root certificate: {}", e),
             }
         }
 
@@ -162,7 +165,7 @@ impl PgConnection {
                             protocol::PasswordMessage::ClearText(
                                 url.password().unwrap_or_default(),
                             )
-                                .encode(self.stream.buffer_mut());
+                            .encode(self.stream.buffer_mut());
 
                             self.stream.flush().await?;
                         }
@@ -173,7 +176,7 @@ impl PgConnection {
                                 user: username,
                                 salt,
                             }
-                                .encode(self.stream.buffer_mut());
+                            .encode(self.stream.buffer_mut());
 
                             self.stream.flush().await?;
                         }
@@ -216,7 +219,7 @@ impl PgConnection {
                                 "requires unimplemented authentication method: {:?}",
                                 auth
                             )
-                                .into());
+                            .into());
                         }
                     }
                 }
@@ -338,27 +341,37 @@ impl PgConnection {
             "disable" | "allow" => (),
 
             #[cfg(feature = "tls")]
-            "prefer" => if !self_.try_ssl(&url, true, true).await? {
-                log::warn!("server does not support TLS, falling back to unsecured connection")
-            },
+            "prefer" => {
+                if !self_.try_ssl(&url, true, true).await? {
+                    log::warn!("server does not support TLS, falling back to unsecured connection")
+                }
+            }
 
             #[cfg(not(feature = "tls"))]
             "prefer" => log::info!("compiled without TLS, skipping upgrade"),
 
             #[cfg(feature = "tls")]
-            "require" | "verify-ca" | "verify-full" => if !self_.try_ssl(
-                &url,
-                ssl_mode == "require", // false for both verify-ca and verify-full
-                ssl_mode != "verify-full" // false for only verify-full
-            ).await? {
-                return Err(tls_err!("Postgres server does not support TLS").into())
+            "require" | "verify-ca" | "verify-full" => {
+                if !self_
+                    .try_ssl(
+                        &url,
+                        ssl_mode == "require", // false for both verify-ca and verify-full
+                        ssl_mode != "verify-full", // false for only verify-full
+                    )
+                    .await?
+                {
+                    return Err(tls_err!("Postgres server does not support TLS").into());
+                }
             }
 
             #[cfg(not(feature = "tls"))]
-            "require" | "verify-ca" | "verify-full" => return Err(
-                tls_err!("sslmode {:?} unsupported; SQLx was compiled without `tls` feature",
-                         ssl_mode).into()
-            ),
+            "require" | "verify-ca" | "verify-full" => {
+                return Err(tls_err!(
+                    "sslmode {:?} unsupported; SQLx was compiled without `tls` feature",
+                    ssl_mode
+                )
+                .into())
+            }
             _ => return Err(tls_err!("unknown `sslmode` value: {:?}", ssl_mode).into()),
         }
 
@@ -370,9 +383,9 @@ impl PgConnection {
 
 impl Connection for PgConnection {
     fn open<T>(url: T) -> BoxFuture<'static, Result<Self>>
-        where
-            T: TryInto<Url, Error=crate::Error>,
-            Self: Sized,
+    where
+        T: TryInto<Url, Error = crate::Error>,
+        Self: Sized,
     {
         Box::pin(PgConnection::open(url.try_into()))
     }
@@ -388,7 +401,7 @@ async fn read_root_certificate(url: &Url) -> crate::Result<async_native_tls::Cer
 
     let root_cert_path = if let Some(path) = url.get_param("sslrootcert") {
         path.into()
-    } else if let Ok(cert_path) = env::var("PGSSLROOTCERT"){
+    } else if let Ok(cert_path) = env::var("PGSSLROOTCERT") {
         cert_path
     } else if cfg!(windows) {
         let appdata = env::var("APPDATA").map_err(|_| tls_err!("APPDATA not set"))?;

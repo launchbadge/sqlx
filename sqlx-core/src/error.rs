@@ -243,4 +243,3 @@ macro_rules! impl_fmt_error {
         }
     };
 }
-

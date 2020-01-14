@@ -8,9 +8,7 @@ impl SslRequest {
         // packet length: 8 bytes including self
         buf.put_u32::<NetworkEndian>(8);
         // 1234 in high 16 bits, 5679 in low 16
-        buf.put_u32::<NetworkEndian>(
-            (1234 << 16) | 5679,
-        );
+        buf.put_u32::<NetworkEndian>((1234 << 16) | 5679);
     }
 }
 

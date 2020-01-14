@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::io;
 
-use async_std::net::{Shutdown, TcpStream};
+use async_std::net::Shutdown;
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::future::BoxFuture;
 use sha1::Sha1;
@@ -17,8 +17,6 @@ use crate::mysql::protocol::{
 use crate::mysql::rsa;
 use crate::mysql::util::xor_eq;
 use crate::url::Url;
-use std::borrow::Cow;
-use std::path::Path;
 
 // Size before a packet is split
 const MAX_PACKET_SIZE: u32 = 1024;
@@ -347,7 +345,7 @@ impl MySqlConnection {
             clear_text.push_str(password);
             clear_text.push('\0');
 
-            return Ok(clear_text.into_boxed_bytes());
+            return Ok(clear_text.into_bytes().into_boxed_slice());
         }
 
         // client sends a public key request

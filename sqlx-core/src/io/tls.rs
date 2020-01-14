@@ -29,6 +29,7 @@ impl MaybeTlsStream {
         })
     }
 
+    #[allow(dead_code)]
     pub fn is_tls(&self) -> bool {
         match self.inner {
             Inner::NotTls(_) => false,

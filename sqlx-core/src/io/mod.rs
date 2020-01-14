@@ -12,7 +12,7 @@ pub use self::{
     buf_mut::BufMut,
     buf_stream::BufStream,
     byte_str::ByteStr,
-    tls::MaybeTlsStream
+    tls::MaybeTlsStream,
 };
 
 #[cfg(test)]

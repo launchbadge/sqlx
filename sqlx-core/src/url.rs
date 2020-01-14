@@ -1,5 +1,5 @@
-use std::convert::{TryFrom, TryInto};
 use std::borrow::Cow;
+use std::convert::{TryFrom, TryInto};
 
 pub struct Url(url::Url);
 
@@ -67,12 +67,8 @@ impl Url {
     }
 
     pub fn get_param(&self, key: &str) -> Option<Cow<str>> {
-        self.0.query_pairs().find_map(|(key_, val)| {
-            if key == key_ {
-                Some(val)
-            } else {
-                None
-            }
-        })
+        self.0
+            .query_pairs()
+            .find_map(|(key_, val)| if key == key_ { Some(val) } else { None })
     }
 }
