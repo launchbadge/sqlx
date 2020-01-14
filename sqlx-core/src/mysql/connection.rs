@@ -10,7 +10,10 @@ use crate::cache::StatementCache;
 use crate::connection::Connection;
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::error::MySqlError;
-use crate::mysql::protocol::{AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake, HandshakeResponse, OkPacket, SslRequest};
+use crate::mysql::protocol::{
+    AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake,
+    HandshakeResponse, OkPacket, SslRequest,
+};
 use crate::mysql::rsa;
 use crate::mysql::util::xor_eq;
 use crate::url::Url;
@@ -59,7 +62,7 @@ const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 /// `ssl-ca` implies `ssl-mode=VERIFY_CA` so you only actually need to specify the former
 /// but you may prefer having both to be more explicit.
 ///
-/// If `sslmode=VERIFY_IDENTITY` is specified, in addition to checking the certificate as with
+/// If `ssl-mode=VERIFY_IDENTITY` is specified, in addition to checking the certificate as with
 /// `ssl-mode=VERIFY_CA`, the hostname in the connection string will be verified
 /// against the hostname in the server certificate, so they must be the same for the TLS
 /// upgrade to succeed. `ssl-ca` must still be specified.
@@ -338,6 +341,15 @@ impl MySqlConnection {
     ) -> crate::Result<Box<[u8]>> {
         // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
+        if self.stream.is_tls() {
+            // If in a TLS stream, send the password directly in clear text
+            let mut clear_text = String::with_capacity(password.len() + 1);
+            clear_text.push_str(password);
+            clear_text.push('\0');
+
+            return Ok(clear_text.into_boxed_bytes());
+        }
+
         // client sends a public key request
         self.send(&[public_key_request_id][..]).await?;
 
@@ -415,7 +427,12 @@ impl MySqlConnection {
     }
 
     #[cfg(feature = "tls")]
-    async fn try_ssl(&mut self, url: &Url, ca_file: Option<&str>, invalid_hostnames: bool) -> crate::Result<()> {
+    async fn try_ssl(
+        &mut self,
+        url: &Url,
+        ca_file: Option<&str>,
+        invalid_hostnames: bool,
+    ) -> crate::Result<()> {
         use async_native_tls::{Certificate, TlsConnector};
         use async_std::fs;
 
@@ -431,8 +448,9 @@ impl MySqlConnection {
         // send upgrade request and then immediately try TLS handshake
         self.send(SslRequest {
             client_collation: COLLATE_UTF8MB4_UNICODE_CI,
-            max_packet_size: MAX_PACKET_SIZE
-        }).await?;
+            max_packet_size: MAX_PACKET_SIZE,
+        })
+        .await?;
 
         self.stream.stream.upgrade(url, connector).await
     }
@@ -451,8 +469,14 @@ impl MySqlConnection {
 
         let ca_file = url.get_param("ssl-ca");
 
-        let ssl_mode = url.get_param("ssl-mode")
-            .unwrap_or(if ca_file.is_some() { "VERIFY_CA" } else { "PREFERRED" }.into());
+        let ssl_mode = url.get_param("ssl-mode").unwrap_or(
+            if ca_file.is_some() {
+                "VERIFY_CA"
+            } else {
+                "PREFERRED"
+            }
+            .into(),
+        );
 
         let supports_ssl = handshake.server_capabilities.contains(Capabilities::SSL);
 
@@ -461,35 +485,50 @@ impl MySqlConnection {
 
             // don't try upgrade
             #[cfg(feature = "tls")]
-            "PREFERRED" if !supports_ssl => log::info!("server does not support TLS; using unencrypted connection"),
+            "PREFERRED" if !supports_ssl => {
+                log::info!("server does not support TLS; using unencrypted connection")
+            }
 
             // try to upgrade
             #[cfg(feature = "tls")]
-            "PREFERRED" => if let Err(e) = self_.try_ssl(&url, None, true).await {
-                log::warn!("TLS handshake failed, falling back to insecure: {}", e);
-                // fallback, redo connection
-                self_ = Self::new(&url).await?;
-                handshake = self_.receive_handshake(&url).await?;
-            },
+            "PREFERRED" => {
+                if let Err(e) = self_.try_ssl(&url, None, true).await {
+                    log::warn!("TLS handshake failed, falling back to insecure: {}", e);
+                    // fallback, redo connection
+                    self_ = Self::new(&url).await?;
+                    handshake = self_.receive_handshake(&url).await?;
+                }
+            }
 
             #[cfg(not(feature = "tls"))]
             "PREFERRED" => log::info!("compiled without TLS, skipping upgrade"),
 
             #[cfg(feature = "tls")]
-            "REQUIRED" if !supports_ssl => return Err(tls_err!("server does not support TLS").into()),
+            "REQUIRED" if !supports_ssl => {
+                return Err(tls_err!("server does not support TLS").into())
+            }
 
             #[cfg(feature = "tls")]
             "REQUIRED" => self_.try_ssl(&url, None, true).await?,
 
             #[cfg(feature = "tls")]
-            "VERIFY_CA" | "VERIFY_FULL" if ca_file.is_none() =>
-                return Err(tls_err!("`ssl-mode` of {:?} requires `ssl-ca` to be set", ssl_mode).into()),
+            "VERIFY_CA" | "VERIFY_FULL" if ca_file.is_none() => {
+                return Err(
+                    tls_err!("`ssl-mode` of {:?} requires `ssl-ca` to be set", ssl_mode).into(),
+                )
+            }
 
             #[cfg(feature = "tls")]
-            "VERIFY_CA" | "VERIFY_FULL" => self_.try_ssl(&url, ca_file.as_deref(), ssl_mode != "VERIFY_FULL").await?,
+            "VERIFY_CA" | "VERIFY_FULL" => {
+                self_
+                    .try_ssl(&url, ca_file.as_deref(), ssl_mode != "VERIFY_FULL")
+                    .await?
+            }
 
             #[cfg(not(feature = "tls"))]
-            "REQUIRED" | "VERIFY_CA" | "VERIFY_FULL" => return Err(tls_err!("compiled without TLS").into()),
+            "REQUIRED" | "VERIFY_CA" | "VERIFY_FULL" => {
+                return Err(tls_err!("compiled without TLS").into())
+            }
             _ => return Err(tls_err!("unknown `ssl-mode` value: {:?}", ssl_mode).into()),
         }
 
