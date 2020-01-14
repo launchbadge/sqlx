@@ -26,7 +26,16 @@ use crate::Result;
 ///
 /// ### TLS Support (requires `tls` feature)
 /// This connection type supports the same `sslmode` query parameter that `libpq` does in
-/// connection strings: https://www.postgresql.org/docs/12/libpq-ssl.html
+/// connection strings: <https://www.postgresql.org/docs/12/libpq-ssl.html>
+///
+/// ```text
+/// postgresql://<user>[:<password>]@<host>[:<port>]/<database>[?sslmode=<ssl-mode>[&sslcrootcert=<path>]]
+/// ```
+/// where
+/// ```text
+/// ssl-mode = disable | allow | prefer | require | verify-ca | verify-full
+/// path = percent (URL) encoded path on the local machine
+/// ```
 ///
 /// If the `tls` feature is not enabled, `disable`, `allow` and `prefer` are no-ops and `require`,
 /// `verify-ca` and `verify-full` are forbidden (attempting to connect with these will return
@@ -34,10 +43,15 @@ use crate::Result;
 ///
 /// If the `tls` feature is enabled, an upgrade to TLS is attempted on every connection by default
 /// (equivalent to `sslmode=prefer`). If the server does not support TLS (because it was not
-/// started with a valid certificate and key, see https://www.postgresql.org/docs/12/ssl-tcp.html)
+/// started with a valid certificate and key, see <https://www.postgresql.org/docs/12/ssl-tcp.html>)
 /// then it falls back to an unsecured connection and logs a warning.
 ///
 /// Add `sslmode=require` to your connection string to emit an error if the TLS upgrade fails.
+///
+/// If you're running Postgres locally, your connection string might look like this:
+/// ```text
+/// postgresql://root:password@localhost/my_database?sslmode=require
+/// ```
 ///
 /// However, like with `libpq` the server certificate is **not** checked for validity by default.
 ///
@@ -57,7 +71,7 @@ use crate::Result;
 ///     * `$HOME/.postgresql/root.crt` on POSIX systems
 ///     * `%APPDATA%\postgresql\root.crt` on Windows
 ///
-/// These locations are documented here: https://www.postgresql.org/docs/12/libpq-ssl.html#LIBQ-SSL-CERTIFICATES
+/// These locations are documented here: <https://www.postgresql.org/docs/12/libpq-ssl.html#LIBQ-SSL-CERTIFICATES>
 /// If the root certificate cannot be found by any of these means then the TLS upgrade will fail.
 ///
 /// If `sslmode=verify-full` is specified, in addition to checking the certificate as with
