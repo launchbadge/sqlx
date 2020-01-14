@@ -41,6 +41,7 @@ mod err;
 mod handshake_response;
 mod ok;
 mod row;
+mod ssl_request;
 
 pub use auth_switch::AuthSwitch;
 pub use column_count::ColumnCount;
@@ -51,3 +52,4 @@ pub use err::ErrPacket;
 pub use handshake_response::HandshakeResponse;
 pub use ok::OkPacket;
 pub use row::Row;
+pub use ssl_request::SslRequest;

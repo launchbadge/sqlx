@@ -5,6 +5,7 @@
 // the size of this module to exactly what is necessary.
 #![allow(unused)]
 
+// REQUESTS
 mod bind;
 mod cancel_request;
 mod close;
@@ -16,6 +17,7 @@ mod parse;
 mod password_message;
 mod query;
 mod sasl;
+mod ssl_request;
 mod startup_message;
 mod statement;
 mod sync;
@@ -32,11 +34,13 @@ pub use parse::Parse;
 pub use password_message::PasswordMessage;
 pub use query::Query;
 pub use sasl::{hi, SaslInitialResponse, SaslResponse};
+pub use ssl_request::SslRequest;
 pub use startup_message::StartupMessage;
 pub use statement::StatementId;
 pub use sync::Sync;
 pub use terminate::Terminate;
 
+// RESPONSES
 mod authentication;
 mod backend_key_data;
 mod command_complete;

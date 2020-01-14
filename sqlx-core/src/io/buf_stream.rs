@@ -3,6 +3,7 @@ use async_std::io::{
     Read, Write,
 };
 use std::io;
+use std::ops::{Deref, DerefMut};
 
 const RBUF_SIZE: usize = 8 * 1024;
 
@@ -49,6 +50,12 @@ where
         }
 
         Ok(())
+    }
+
+    pub fn clear_bufs(&mut self) {
+        self.rbuf_rindex = 0;
+        self.rbuf_windex = 0;
+        self.wbuf.clear();
     }
 
     #[inline]
@@ -115,6 +122,20 @@ where
                 self.stream_eof = true;
             }
         }
+    }
+}
+
+impl<S> Deref for BufStream<S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        &self.stream
+    }
+}
+
+impl<S> DerefMut for BufStream<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.stream
     }
 }
 

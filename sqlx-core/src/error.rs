@@ -44,6 +44,9 @@ pub enum Error {
     /// [Pool::close] was called while we were waiting in [Pool::acquire].
     PoolClosed,
 
+    /// An error occurred during a TLS upgrade.
+    TlsUpgrade(Box<dyn StdError + Send + Sync>),
+
     Decode(DecodeError),
 
     // TODO: Remove and replace with `#[non_exhaustive]` when possible
@@ -61,6 +64,8 @@ impl StdError for Error {
             Error::PoolTimedOut(Some(error)) => Some(&**error),
 
             Error::Decode(DecodeError::Other(error)) => Some(&**error),
+
+            Error::TlsUpgrade(error) => Some(&**error),
 
             _ => None,
         }
@@ -100,6 +105,8 @@ impl Display for Error {
 
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
+            Error::TlsUpgrade(ref err) => write!(f, "error during TLS upgrade: {}", err),
+
             Error::__Nonexhaustive => unreachable!(),
         }
     }
@@ -137,6 +144,21 @@ impl From<ProtocolError<'_>> for Error {
     #[inline]
     fn from(err: ProtocolError) -> Self {
         Error::Protocol(err.args.to_string().into_boxed_str())
+    }
+}
+
+#[cfg(feature = "tls")]
+impl From<async_native_tls::Error> for Error {
+    #[inline]
+    fn from(err: async_native_tls::Error) -> Self {
+        Error::TlsUpgrade(err.into())
+    }
+}
+
+impl From<TlsError<'_>> for Error {
+    #[inline]
+    fn from(err: TlsError<'_>) -> Self {
+        Error::TlsUpgrade(err.args.to_string().into())
     }
 }
 
@@ -188,6 +210,15 @@ macro_rules! protocol_err (
         $crate::error::ProtocolError { args: format_args!($($args)*) }
     }
 );
+
+pub(crate) struct TlsError<'a> {
+    pub args: fmt::Arguments<'a>,
+}
+
+#[allow(unused_macros)]
+macro_rules! tls_err {
+    ($($args:tt)*) => { crate::error::TlsError { args: format_args!($($args)*)} };
+}
 
 #[allow(unused_macros)]
 macro_rules! impl_fmt_error {

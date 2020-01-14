@@ -43,6 +43,12 @@ where
     DB::Connection: crate::Connection<Database = DB>,
 {
     /// Creates a connection pool with the default configuration.
+    ///
+    /// The connection URL syntax is documented on the connection type for the respective
+    /// database you're connecting to:
+    ///
+    /// * MySQL/MariaDB: [crate::MySqlConnection]
+    /// * PostgreSQL: [crate::PgConnection]
     pub async fn new(url: &str) -> crate::Result<Self> {
         Self::builder().build(url).await
     }

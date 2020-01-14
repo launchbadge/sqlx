@@ -20,8 +20,10 @@ default = []
 unstable = []
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
+tls = ["async-native-tls"]
 
 [dependencies]
+async-native-tls = { version = "0.3", optional = true }
 async-std = "1.4.0"
 async-stream = { version = "0.2.0", default-features = false }
 base64 = { version = "0.11.0", default-features = false, optional = true, features = [ "std" ] }

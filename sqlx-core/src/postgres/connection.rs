@@ -1,12 +1,15 @@
 use std::convert::TryInto;
 
-use async_std::net::{Shutdown, TcpStream};
+use async_std::net::Shutdown;
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
+use hmac::{Hmac, Mac};
+use rand::Rng;
+use sha2::{Digest, Sha256};
 
 use crate::cache::StatementCache;
 use crate::connection::Connection;
-use crate::io::{Buf, BufStream};
+use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{
     self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
     StatementId,
@@ -14,17 +17,69 @@ use crate::postgres::protocol::{
 use crate::postgres::PgError;
 use crate::url::Url;
 use crate::Result;
-use hmac::{Hmac, Mac};
-use rand::Rng;
-use sha2::{Digest, Sha256};
 
 /// An asynchronous connection to a [Postgres] database.
 ///
 /// The connection string expected by [Connection::open] should be a PostgreSQL connection
 /// string, as documented at
 /// <https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-CONNSTRING>
+///
+/// ### TLS Support (requires `tls` feature)
+/// This connection type supports the same `sslmode` query parameter that `libpq` does in
+/// connection strings: <https://www.postgresql.org/docs/12/libpq-ssl.html>
+///
+/// ```text
+/// postgresql://<user>[:<password>]@<host>[:<port>]/<database>[?sslmode=<ssl-mode>[&sslcrootcert=<path>]]
+/// ```
+/// where
+/// ```text
+/// ssl-mode = disable | allow | prefer | require | verify-ca | verify-full
+/// path = percent (URL) encoded path on the local machine
+/// ```
+///
+/// If the `tls` feature is not enabled, `disable`, `allow` and `prefer` are no-ops and `require`,
+/// `verify-ca` and `verify-full` are forbidden (attempting to connect with these will return
+/// an error).
+///
+/// If the `tls` feature is enabled, an upgrade to TLS is attempted on every connection by default
+/// (equivalent to `sslmode=prefer`). If the server does not support TLS (because it was not
+/// started with a valid certificate and key, see <https://www.postgresql.org/docs/12/ssl-tcp.html>)
+/// then it falls back to an unsecured connection and logs a warning.
+///
+/// Add `sslmode=require` to your connection string to emit an error if the TLS upgrade fails.
+///
+/// If you're running Postgres locally, your connection string might look like this:
+/// ```text
+/// postgresql://root:password@localhost/my_database?sslmode=require
+/// ```
+///
+/// However, like with `libpq` the server certificate is **not** checked for validity by default.
+///
+/// Specifying `sslmode=verify-ca` will cause the TLS upgrade to verify the server's SSL
+/// certificate against a local CA root certificate; this is not the system root certificate
+/// but is instead expected to be specified in one of a few ways:
+///
+/// * The path to the certificate can be specified by adding the `sslrootcert` query parameter
+/// to the connection string. (Remember to percent-encode it!)
+///
+/// * The path may also be specified via the `PGSSLROOTCERT` environment variable (which
+/// should *not* be percent-encoded.)
+///
+/// * Otherwise, the library will look for the Postgres global root CA certificate in the default
+/// location:
+///
+///     * `$HOME/.postgresql/root.crt` on POSIX systems
+///     * `%APPDATA%\postgresql\root.crt` on Windows
+///
+/// These locations are documented here: <https://www.postgresql.org/docs/12/libpq-ssl.html#LIBQ-SSL-CERTIFICATES>
+/// If the root certificate cannot be found by any of these means then the TLS upgrade will fail.
+///
+/// If `sslmode=verify-full` is specified, in addition to checking the certificate as with
+/// `sslmode=verify-ca`, the hostname in the connection string will be verified
+/// against the hostname in the server certificate, so they must be the same for the TLS
+/// upgrade to succeed.
 pub struct PgConnection {
-    pub(super) stream: BufStream<TcpStream>,
+    pub(super) stream: BufStream<MaybeTlsStream>,
 
     // Map of query to statement id
     pub(super) statement_cache: StatementCache<StatementId>,
@@ -43,8 +98,49 @@ pub struct PgConnection {
 }
 
 impl PgConnection {
+    #[cfg(feature = "tls")]
+    async fn try_ssl(
+        &mut self,
+        url: &Url,
+        invalid_certs: bool,
+        invalid_hostnames: bool,
+    ) -> crate::Result<bool> {
+        use async_native_tls::TlsConnector;
+
+        protocol::SslRequest::encode(self.stream.buffer_mut());
+
+        self.stream.flush().await?;
+
+        match self.stream.peek(1).await? {
+            Some(b"N") => return Ok(false),
+            Some(b"S") => (),
+            Some(other) => {
+                return Err(tls_err!("unexpected single-byte response: 0x{:02X}", other[0]).into())
+            }
+            None => return Err(tls_err!("server unexpectedly closed connection").into()),
+        }
+
+        let mut connector = TlsConnector::new()
+            .danger_accept_invalid_certs(invalid_certs)
+            .danger_accept_invalid_hostnames(invalid_hostnames);
+
+        if !invalid_certs {
+            match read_root_certificate(&url).await {
+                Ok(cert) => {
+                    connector = connector.add_root_certificate(cert);
+                }
+                Err(e) => log::warn!("failed to read Postgres root certificate: {}", e),
+            }
+        }
+
+        self.stream.clear_bufs();
+        self.stream.stream.upgrade(url, connector).await?;
+
+        Ok(true)
+    }
+
     // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
-    async fn startup(&mut self, url: Url) -> Result<()> {
+    async fn startup(&mut self, url: &Url) -> Result<()> {
         // Defaults to postgres@.../postgres
         let username = url.username().unwrap_or("postgres");
         let database = url.database().unwrap_or("postgres");
@@ -240,7 +336,8 @@ impl PgConnection {
 impl PgConnection {
     pub(super) async fn open(url: Result<Url>) -> Result<Self> {
         let url = url?;
-        let stream = TcpStream::connect((url.host(), url.port(5432))).await?;
+
+        let stream = MaybeTlsStream::connect(&url, 5432).await?;
         let mut self_ = Self {
             stream: BufStream::new(stream),
             process_id: 0,
@@ -251,7 +348,48 @@ impl PgConnection {
             ready: true,
         };
 
-        self_.startup(url).await?;
+        let ssl_mode = url.get_param("sslmode").unwrap_or("prefer".into());
+
+        match &*ssl_mode {
+            // TODO: on "allow" retry with TLS if startup fails
+            "disable" | "allow" => (),
+
+            #[cfg(feature = "tls")]
+            "prefer" => {
+                if !self_.try_ssl(&url, true, true).await? {
+                    log::warn!("server does not support TLS, falling back to unsecured connection")
+                }
+            }
+
+            #[cfg(not(feature = "tls"))]
+            "prefer" => log::info!("compiled without TLS, skipping upgrade"),
+
+            #[cfg(feature = "tls")]
+            "require" | "verify-ca" | "verify-full" => {
+                if !self_
+                    .try_ssl(
+                        &url,
+                        ssl_mode == "require", // false for both verify-ca and verify-full
+                        ssl_mode != "verify-full", // false for only verify-full
+                    )
+                    .await?
+                {
+                    return Err(tls_err!("Postgres server does not support TLS").into());
+                }
+            }
+
+            #[cfg(not(feature = "tls"))]
+            "require" | "verify-ca" | "verify-full" => {
+                return Err(tls_err!(
+                    "sslmode {:?} unsupported; SQLx was compiled without `tls` feature",
+                    ssl_mode
+                )
+                .into())
+            }
+            _ => return Err(tls_err!("unknown `sslmode` value: {:?}", ssl_mode).into()),
+        }
+
+        self_.startup(&url).await?;
 
         Ok(self_)
     }
@@ -269,6 +407,26 @@ impl Connection for PgConnection {
     fn close(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(self.terminate())
     }
+}
+
+#[cfg(feature = "tls")]
+async fn read_root_certificate(url: &Url) -> crate::Result<async_native_tls::Certificate> {
+    use std::env;
+
+    let root_cert_path = if let Some(path) = url.get_param("sslrootcert") {
+        path.into()
+    } else if let Ok(cert_path) = env::var("PGSSLROOTCERT") {
+        cert_path
+    } else if cfg!(windows) {
+        let appdata = env::var("APPDATA").map_err(|_| tls_err!("APPDATA not set"))?;
+        format!("{}\\postgresql\\root.crt", appdata)
+    } else {
+        let home = env::var("HOME").map_err(|_| tls_err!("HOME not set"))?;
+        format!("{}/.postgresql/root.crt", home)
+    };
+
+    let root_cert = async_std::fs::read(root_cert_path).await?;
+    Ok(async_native_tls::Certificate::from_pem(&root_cert)?)
 }
 
 static GS2_HEADER: &'static str = "n,,";
@@ -354,7 +512,7 @@ async fn sasl_auth<T: AsRef<str>>(conn: &mut PgConnection, username: T, password
             );
 
             // AuthMessage := client-first-message-bare + "," + server-first-message + "," + client-final-message-without-proof
-            let auth_message = format!("{client_first_message_bare},{server_first_message},{client_final_message_wo_proof}", 
+            let auth_message = format!("{client_first_message_bare},{server_first_message},{client_final_message_wo_proof}",
                 client_first_message_bare = client_first_message_bare,
                 server_first_message = server_first_message,
                 client_final_message_wo_proof = client_final_message_wo_proof);

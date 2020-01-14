@@ -5,11 +5,14 @@ mod buf;
 mod buf_mut;
 mod byte_str;
 
+mod tls;
+
 pub use self::{
     buf::{Buf, ToBuf},
     buf_mut::BufMut,
     buf_stream::BufStream,
     byte_str::ByteStr,
+    tls::MaybeTlsStream,
 };
 
 #[cfg(test)]
