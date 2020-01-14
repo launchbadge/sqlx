@@ -19,5 +19,5 @@ fn test_ssl_request() {
     let mut buf = Vec::new();
     SslRequest::encode(&mut buf);
 
-    assert_eq!((&buf[..]).get_u32::<NetworkEndian>().unwrap(), 80877103);
+    assert_eq!(&buf, b"\x00\x00\x00\x08\x04\xd2\x16/");
 }
