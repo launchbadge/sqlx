@@ -31,8 +31,6 @@ jobs:
 
 
     steps:
-    - run: docker logs ${{ job.services.mysql.id }}
-    - run: ls /data/mysql
     - uses: actions/checkout@v1
 
     # Rust ------------------------------------------------
