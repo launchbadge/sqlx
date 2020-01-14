@@ -504,7 +504,7 @@ impl MySqlConnection {
             // don't try upgrade
             #[cfg(feature = "tls")]
             "PREFERRED" if !supports_ssl => {
-                log::info!("server does not support TLS; using unencrypted connection")
+                log::warn!("server does not support TLS; using unencrypted connection")
             }
 
             // try to upgrade
