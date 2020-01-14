@@ -206,6 +206,10 @@ impl MySqlConnection {
             client_capabilities |= Capabilities::CONNECT_WITH_DB;
         }
 
+        if cfg!(feature = "tls") {
+            client_capabilities |= Capabilities::SSL;
+        }
+
         self.capabilities =
             (client_capabilities & handshake.server_capabilities) | Capabilities::PROTOCOL_41;
 
@@ -462,7 +466,7 @@ impl MySqlConnection {
             // try to upgrade
             #[cfg(feature = "tls")]
             "PREFERRED" => if let Err(e) = self_.try_ssl(&url, None, true).await {
-                log::warn!("server does not support TLS");
+                log::warn!("TLS handshake failed, falling back to insecure: {}", e);
                 // fallback, redo connection
                 self_ = Self::new(&url).await?;
                 handshake = self_.receive_handshake(&url).await?;

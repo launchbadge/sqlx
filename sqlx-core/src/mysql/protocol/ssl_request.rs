@@ -14,9 +14,11 @@ pub struct SslRequest {
 
 impl Encode for SslRequest {
     fn encode(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
-        // client capabilities : int<4>
         // SSL must be set or else it makes no sense to ask for an upgrade
-        buf.put_u32::<LittleEndian>((capabilities | Capabilities::SSL).bits() as u32);
+        assert!(capabilities.contains(Capabilities::SSL), "SSL bit must be set for Capabilities");
+
+        // client capabilities : int<4>
+        buf.put_u32::<LittleEndian>(capabilities.bits() as u32);
 
         // max packet size : int<4>
         buf.put_u32::<LittleEndian>(self.max_packet_size);
