@@ -46,6 +46,7 @@ where
     }
 
     let args_tokens = args::quote_args(&input.query_input, &describe)?;
+    let arg_names = &input.query_input.arg_names;
 
     let columns = output::columns_to_rust(&describe)?;
     let output = output::quote_query_as::<C::Database>(
@@ -54,10 +55,14 @@ where
         &columns,
     );
 
-    Ok(quote! {{
-        #args_tokens
-        #output.bind_all(args)
-    }})
+    Ok(quote! {
+        macro_rules! macro_result {
+            (#($#arg_names:expr),*) => {{
+                #args_tokens
+                #output.bind_all(args)
+            }}
+        }
+    })
 }
 
 pub async fn expand_query_file_as<C: Connection>(

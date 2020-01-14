@@ -50,15 +50,20 @@ where
         .collect::<TokenStream>();
 
     let output = output::quote_query_as::<C::Database>(sql, &record_type, &columns);
+    let arg_names = &input.arg_names;
 
-    Ok(quote! {{
-        #[derive(Debug)]
-        struct #record_type {
-            #record_fields
-        }
+    Ok(quote! {
+        macro_rules! macro_result {
+            (#($#arg_names:expr),*) => {{
+                #[derive(Debug)]
+                struct #record_type {
+                    #record_fields
+                }
 
-        #args
+                #args
 
-        #output.bind_all(args)
-    }})
+                #output.bind_all(args)
+            }
+        }}
+    })
 }

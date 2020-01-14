@@ -74,6 +74,21 @@ async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
 #[async_std::test]
 async fn macro_select_from_cte() -> anyhow::Result<()> {
     let mut conn = connect().await?;
+    let account =
+        sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name) accounts")
+            .fetch_one(&mut conn)
+            .await?;
+
+    println!("{:?}", account);
+    println!("{}: {}", account.id, account.name);
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[async_std::test]
+async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
     let account = sqlx::query!(
         "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
         1i32

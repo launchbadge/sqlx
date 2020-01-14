@@ -12,7 +12,7 @@ pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
     describe: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
-    if input.args.is_empty() {
+    if input.arg_names.is_empty() {
         return Ok(quote! {
             let args = ();
         });
@@ -22,7 +22,7 @@ pub fn quote_args<DB: DatabaseExt>(
         let param_types = describe
             .param_types
             .iter()
-            .zip(&*input.args)
+            .zip(&*input.arg_exprs)
             .map(|(type_, expr)| {
                 get_type_override(expr)
                     .or_else(|| {
@@ -36,7 +36,7 @@ pub fn quote_args<DB: DatabaseExt>(
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        let args_ty_cons = input.args.iter().enumerate().map(|(i, expr)| {
+        let args_ty_cons = input.arg_names.iter().enumerate().map(|(i, expr)| {
             // required or `quote!()` emits it as `Nusize`
             let i = syn::Index::from(i);
             quote_spanned!( expr.span() => {
@@ -56,10 +56,10 @@ pub fn quote_args<DB: DatabaseExt>(
         TokenStream::new()
     };
 
-    let args = input.args.iter();
+    let args = input.arg_names.iter();
 
     Ok(quote! {
-        let args = (#(&#args),*,);
+        let args = (#(&$#args),*,);
         #args_check
     })
 }

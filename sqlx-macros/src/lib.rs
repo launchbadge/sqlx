@@ -6,8 +6,6 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 
-use proc_macro_hack::proc_macro_hack;
-
 use quote::quote;
 
 use syn::parse_macro_input;
@@ -26,8 +24,22 @@ mod query_macros;
 
 use query_macros::*;
 
+fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
+    quote!(
+        macro_rules! macro_result {
+            ($($args:tt)*) => (#tokens)
+        }
+    )
+    .into()
+}
+
 macro_rules! async_macro (
-    ($db:ident => $expr:expr) => {{
+    ($db:ident, $input:ident: $ty:ty => $expr:expr) => {{
+        let $input = match syn::parse::<$ty>($input) {
+            Ok(input) => input,
+            Err(e) => return macro_result(e.to_compile_error()),
+        };
+
         let res: Result<proc_macro2::TokenStream> = task::block_on(async {
             use sqlx::Connection;
 
@@ -70,40 +82,36 @@ macro_rules! async_macro (
             Ok(ts) => ts.into(),
             Err(e) => {
                 if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
-                    return dbg!(parse_err).to_compile_error().into();
+                    macro_result(parse_err.to_compile_error())
+                } else {
+                    let msg = format!("{:?}", e);
+                    macro_result(quote!(compile_error(#msg)))
                 }
-
-                let msg = format!("{:?}", e);
-                quote!(compile_error!(#msg);).into()
             }
         }
     }}
 );
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn query(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
-    let input = parse_macro_input!(input as QueryMacroInput);
-    async_macro!(db => expand_query(input, db))
+    async_macro!(db, input: QueryMacroInput => expand_query(input, db))
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn query_file(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
-    let input = parse_macro_input!(input as QueryMacroInput);
-    async_macro!(db => expand_query_file(input, db))
+    async_macro!(db, input: QueryMacroInput => expand_query_file(input, db))
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn query_as(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
-    let input = parse_macro_input!(input as QueryAsMacroInput);
-    async_macro!(db => expand_query_as(input, db))
+    async_macro!(db, input: QueryAsMacroInput => expand_query_as(input, db))
 }
 
-#[proc_macro_hack]
+#[proc_macro]
 pub fn query_file_as(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
-    let input = parse_macro_input!(input as QueryAsMacroInput);
-    async_macro!(db => expand_query_file_as(input, db))
+    async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db))
 }
