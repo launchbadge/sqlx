@@ -65,7 +65,7 @@ sqlx = "0.2"
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.2", no-default-features = true, features = [ "runtime-tokio", "macros" ] } 
+sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio", "macros" ] }
 ```
 
 #### Cargo Feature Flags
