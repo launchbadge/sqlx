@@ -4,10 +4,10 @@ use async_std::task;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
+use crate::connection::Connection;
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::executor::Executor;
-use crate::connection::Connection;
 
 pub struct Transaction<T>
 where
@@ -96,15 +96,13 @@ where
     }
 }
 
-impl<T> Connection for Transaction<T> 
-where 
-    T: Connection
+impl<T> Connection for Transaction<T>
+where
+    T: Connection,
 {
     // Close is equivalent to ROLLBACK followed by CLOSE
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(async move {
-            self.rollback().await?.close().await
-        })
+        Box::pin(async move { self.rollback().await?.close().await })
     }
 }
 

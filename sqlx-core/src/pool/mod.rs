@@ -1,8 +1,7 @@
 //! **Pool** for SQLx database connections.
 
 use std::{
-    fmt,
-    mem,
+    fmt, mem,
     ops::{Deref, DerefMut},
     sync::Arc,
     time::{Duration, Instant},
