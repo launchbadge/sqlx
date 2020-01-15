@@ -1,7 +1,7 @@
 use std::io;
 use std::ops::{Deref, DerefMut};
 
-use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWriteExt, AsyncWrite};
+use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const RBUF_SIZE: usize = 8 * 1024;
 

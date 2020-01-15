@@ -6,8 +6,8 @@ use std::time::Instant;
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot::{channel, Sender};
 
-use crate::runtime::{sleep, spawn, timeout, yield_now};
 use super::{Idle, Live, Options};
+use crate::runtime::{sleep, spawn, timeout, yield_now};
 use crate::{
     connection::{Connect, Connection},
     error::Error,

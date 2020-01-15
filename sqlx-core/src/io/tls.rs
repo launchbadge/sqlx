@@ -1,10 +1,10 @@
-use std::io::{IoSlice, IoSliceMut};
-use std::pin::Pin;
-use std::net::Shutdown;
 use std::io;
+use std::io::{IoSlice, IoSliceMut};
+use std::net::Shutdown;
+use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::runtime::{TcpStream, AsyncRead, AsyncWrite};
+use crate::runtime::{AsyncRead, AsyncWrite, TcpStream};
 use crate::url::Url;
 
 use self::Inner::*;
@@ -57,7 +57,7 @@ impl MaybeTlsStream {
         Ok(())
     }
 
-    pub fn shutdown(&self, how:Shutdown) -> io::Result<()> {
+    pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         match self.inner {
             NotTls(ref conn) => conn.shutdown(how),
             #[cfg(feature = "tls")]

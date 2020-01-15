@@ -1,10 +1,10 @@
 use std::convert::TryInto;
 use std::io;
 
-use std::net::Shutdown;
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::future::BoxFuture;
 use sha1::Sha1;
+use std::net::Shutdown;
 
 use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};
@@ -451,8 +451,8 @@ impl MySqlConnection {
         ca_file: Option<&str>,
         invalid_hostnames: bool,
     ) -> crate::Result<()> {
-        use async_native_tls::{Certificate, TlsConnector};
         use crate::runtime::fs;
+        use async_native_tls::{Certificate, TlsConnector};
 
         let mut connector = TlsConnector::new()
             .danger_accept_invalid_certs(ca_file.is_none())

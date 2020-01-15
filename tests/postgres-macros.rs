@@ -1,4 +1,4 @@
-use sqlx::{PgConnection, Connect};
+use sqlx::{Connect, PgConnection};
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]

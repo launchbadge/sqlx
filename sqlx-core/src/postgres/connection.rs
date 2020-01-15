@@ -1,11 +1,11 @@
 use std::convert::TryInto;
 
-use std::net::Shutdown;
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
 use hmac::{Hmac, Mac};
 use rand::Rng;
 use sha2::{Digest, Sha256};
+use std::net::Shutdown;
 
 use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};

@@ -1,7 +1,7 @@
 use std::env;
 
-use sqlx::runtime::fs;
 use proc_macro2::{Ident, Span, TokenStream};
+use sqlx::runtime::fs;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;

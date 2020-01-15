@@ -3,11 +3,11 @@ use std::ops::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
-use crate::runtime::spawn;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::executor::Executor;
+use crate::runtime::spawn;
 
 pub struct Transaction<T>
 where
@@ -27,9 +27,7 @@ where
         } else {
             let stmt = format!("SAVEPOINT _sqlx_savepoint_{}", depth);
 
-            inner
-                .send(&stmt)
-                .await?;
+            inner.send(&stmt).await?;
         }
 
         Ok(Self {
@@ -51,9 +49,7 @@ where
         } else {
             let stmt = format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner
-                .send(&stmt)
-                .await?;
+            inner.send(&stmt).await?;
         }
 
         Ok(inner)
@@ -66,14 +62,9 @@ where
         if depth == 1 {
             inner.send("ROLLBACK").await?;
         } else {
-            let stmt = format!(
-                "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
-                depth - 1
-            );
+            let stmt = format!("ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner
-                .send(&stmt)
-                .await?;
+            inner.send(&stmt).await?;
         }
 
         Ok(inner)
