@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.2.0 - 2020-01-15
+
+### Fixed
+
+ - https://github.com/launchbadge/sqlx/issues/47
+ 
+### Added
+
+ - Support Tokio through an optional `runtime-tokio` feature.
+
+ - Support SQL transactions. You may now use the `begin()` function on `Pool` or `Connection` to 
+   start a new SQL transaction. This returns `sqlx::Transaction` which will `ROLLBACK` on `Drop`
+   or can be explicitly `COMMIT` using `commit()`.
+   
+ - Support TLS connections.
 
 ## 0.1.4 - 2020-01-11
 
