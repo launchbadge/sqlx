@@ -28,7 +28,7 @@ use query_macros::*;
 #[cfg(feature = "runtime-tokio")]
 lazy_static::lazy_static! {
     static ref BASIC_RUNTIME: tokio::runtime::Runtime = {
-        tokio::runtime::Builder::new().basic_scheduler().enable_all().build().expect("failed to build tokio runtime")
+        tokio::runtime::Builder::new().threaded_scheduler().enable_all().build().expect("failed to build tokio runtime")
     };
 }
 
