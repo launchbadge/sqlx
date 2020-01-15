@@ -25,8 +25,10 @@ where
         if depth == 0 {
             inner.send("BEGIN").await?;
         } else {
+            let stmt = format!("SAVEPOINT _sqlx_savepoint_{}", depth);
+
             inner
-                .send(&format!("SAVEPOINT _sqlx_savepoint_{}", depth))
+                .send(&stmt)
                 .await?;
         }
 
@@ -47,8 +49,10 @@ where
         if depth == 1 {
             inner.send("COMMIT").await?;
         } else {
+            let stmt = format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1);
+
             inner
-                .send(&format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1))
+                .send(&stmt)
                 .await?;
         }
 
@@ -62,11 +66,13 @@ where
         if depth == 1 {
             inner.send("ROLLBACK").await?;
         } else {
+            let stmt = format!(
+                "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
+                depth - 1
+            );
+
             inner
-                .send(&format!(
-                    "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
-                    depth - 1
-                ))
+                .send(&stmt)
                 .await?;
         }
 
