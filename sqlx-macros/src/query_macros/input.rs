@@ -1,11 +1,15 @@
 use std::env;
 
 use async_std::fs;
-use proc_macro2::Span;
+use proc_macro2::{Ident, Span, TokenStream};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::Token;
+use syn::spanned::Spanned;
+use syn::token::Group;
 use syn::{Expr, ExprLit, ExprPath, Lit};
+use syn::{ExprGroup, Token};
+
+use quote::{format_ident, quote, ToTokens};
 
 use sqlx::describe::Describe;
 use sqlx::Connection;
@@ -14,28 +18,55 @@ use sqlx::Connection;
 pub struct QueryMacroInput {
     pub(super) source: String,
     pub(super) source_span: Span,
-    pub(super) args: Vec<Expr>,
+    // `arg0 .. argN` for N arguments
+    pub(super) arg_names: Vec<Ident>,
+    pub(super) arg_exprs: Vec<Expr>,
 }
 
 impl QueryMacroInput {
     fn from_exprs(input: ParseStream, mut args: impl Iterator<Item = Expr>) -> syn::Result<Self> {
-        let sql = match args.next() {
+        fn lit_err<T>(span: Span, unexpected: Expr) -> syn::Result<T> {
+            Err(syn::Error::new(
+                span,
+                format!(
+                    "expected string literal, got {}",
+                    unexpected.to_token_stream()
+                ),
+            ))
+        }
+
+        let (source, source_span) = match args.next() {
             Some(Expr::Lit(ExprLit {
                 lit: Lit::Str(sql), ..
-            })) => sql,
-            Some(other_expr) => {
-                return Err(syn::Error::new_spanned(
-                    other_expr,
-                    "expected string literal",
-                ));
+            })) => (sql.value(), sql.span()),
+            Some(Expr::Group(ExprGroup {
+                expr,
+                group_token: Group { span },
+                ..
+            })) => {
+                // this duplication with the above is necessary because `expr` is `Box<Expr>` here
+                // which we can't directly pattern-match without `box_patterns`
+                match *expr {
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(sql), ..
+                    }) => (sql.value(), span),
+                    other_expr => return lit_err(span, other_expr),
+                }
             }
+            Some(other_expr) => return lit_err(other_expr.span(), other_expr),
             None => return Err(input.error("expected SQL string literal")),
         };
 
+        let arg_exprs: Vec<_> = args.collect();
+        let arg_names = (0..arg_exprs.len())
+            .map(|i| format_ident!("arg{}", i))
+            .collect();
+
         Ok(Self {
-            source: sql.value(),
-            source_span: sql.span(),
-            args: args.collect(),
+            source,
+            source_span,
+            arg_exprs,
+            arg_names,
         })
     }
 
@@ -56,13 +87,13 @@ impl QueryMacroInput {
             .await
             .map_err(|e| syn::Error::new(self.source_span, e))?;
 
-        if self.args.len() != describe.param_types.len() {
+        if self.arg_names.len() != describe.param_types.len() {
             return Err(syn::Error::new(
                 Span::call_site(),
                 format!(
                     "expected {} parameters, got {}",
                     describe.param_types.len(),
-                    self.args.len()
+                    self.arg_names.len()
                 ),
             )
             .into());
@@ -97,16 +128,33 @@ impl QueryAsMacroInput {
 
 impl Parse for QueryAsMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        fn path_err<T>(span: Span, unexpected: Expr) -> syn::Result<T> {
+            Err(syn::Error::new(
+                span,
+                format!(
+                    "expected path to a type, got {}",
+                    unexpected.to_token_stream()
+                ),
+            ))
+        }
+
         let mut args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter();
 
         let as_ty = match args.next() {
             Some(Expr::Path(path)) => path,
-            Some(other_expr) => {
-                return Err(syn::Error::new_spanned(
-                    other_expr,
-                    "expected path to a type",
-                ));
+            Some(Expr::Group(ExprGroup {
+                expr,
+                group_token: Group { span },
+                ..
+            })) => {
+                // this duplication with the above is necessary because `expr` is `Box<Expr>` here
+                // which we can't directly pattern-match without `box_patterns`
+                match *expr {
+                    Expr::Path(path) => path,
+                    other_expr => return path_err(span, other_expr),
+                }
             }
+            Some(other_expr) => return path_err(other_expr.span(), other_expr),
             None => return Err(input.error("expected path to SQL file")),
         };
 

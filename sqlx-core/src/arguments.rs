@@ -38,123 +38,22 @@ where
     fn into_arguments(self) -> DB::Arguments;
 }
 
-impl<DB> IntoArguments<DB> for DB::Arguments
+impl<A> IntoArguments<A::Database> for A
 where
-    DB: Database,
+    A: Arguments,
+    A::Database: Database<Arguments = Self> + Sized,
 {
     #[inline]
-    fn into_arguments(self) -> DB::Arguments {
+    fn into_arguments(self) -> Self {
         self
     }
 }
 
-#[allow(unused)]
-macro_rules! impl_into_arguments {
-    ($B:ident: $( ($idx:tt) -> $T:ident );+;) => {
-        impl<$($T,)+> crate::arguments::IntoArguments<$B> for ($($T,)+)
-        where
-            $($B: crate::types::HasSqlType<$T>,)+
-            $($T: crate::encode::Encode<$B>,)+
-        {
-            fn into_arguments(self) -> <$B as crate::database::Database>::Arguments {
-                use crate::arguments::Arguments;
+#[doc(hidden)]
+pub struct ImmutableArguments<DB: Database>(pub DB::Arguments);
 
-                let mut arguments = <$B as crate::database::Database>::Arguments::default();
-
-                let binds = 0 $(+ { $idx; 1 } )+;
-                let bytes = 0 $(+ crate::encode::Encode::size_hint(&self.$idx))+;
-
-                arguments.reserve(binds, bytes);
-
-                $(crate::arguments::Arguments::add(&mut arguments, self.$idx);)+
-
-                arguments
-            }
-        }
-    };
-}
-
-#[allow(unused)]
-macro_rules! impl_into_arguments_for_database {
-    ($B:ident) => {
-        impl crate::arguments::IntoArguments<$B> for ()
-        {
-            #[inline]
-            fn into_arguments(self) -> <$B as crate::database::Database>::Arguments {
-                Default::default()
-            }
-        }
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-            (7) -> T8;
-        );
-
-        impl_into_arguments!($B:
-            (0) -> T1;
-            (1) -> T2;
-            (2) -> T3;
-            (3) -> T4;
-            (4) -> T5;
-            (5) -> T6;
-            (6) -> T7;
-            (7) -> T8;
-            (8) -> T9;
-        );
+impl<DB: Database> IntoArguments<DB> for ImmutableArguments<DB> {
+    fn into_arguments(self) -> <DB as Database>::Arguments {
+        self.0
     }
 }

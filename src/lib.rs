@@ -20,33 +20,13 @@ pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 #[cfg(feature = "postgres")]
 pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 
-#[allow(unused_attributes)]
+#[cfg(feature = "macros")]
+#[doc(hidden)]
+pub extern crate sqlx_macros;
+
+#[cfg(feature = "macros")]
 #[macro_export]
 mod macros;
-
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-#[proc_macro_hack::proc_macro_hack(fake_call_site)]
-#[allow(dead_code)]
-pub use sqlx_macros::query as query_;
-
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-#[proc_macro_hack::proc_macro_hack(fake_call_site)]
-#[allow(dead_code)]
-pub use sqlx_macros::query_as as query_as_;
-
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-#[proc_macro_hack::proc_macro_hack(fake_call_site)]
-#[allow(dead_code)]
-pub use sqlx_macros::query_file as query_file_;
-
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-#[proc_macro_hack::proc_macro_hack(fake_call_site)]
-#[allow(dead_code)]
-pub use sqlx_macros::query_file_as as query_file_as_;
 
 // macro support
 #[cfg(feature = "macros")]

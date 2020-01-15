@@ -82,18 +82,23 @@
 /// * [query_as!] if you want to use a struct you can name,
 /// * [query_file!] if you want to define the SQL query out-of-line,
 /// * [query_file_as!] if you want both of the above.
-#[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query (
-    // the emitted item for `#[proc_macro_hack]` doesn't look great in docs
-    // plus this might let IDEs hint at the syntax
-    // `#[allow(dead_code)]` to silence the `enum ProcMacroHack` error
-    ($query:literal) => (#[allow(dead_code)] {
-        $crate::query_!($query)
+    // by emitting a macro definition from our proc-macro containing the result tokens,
+    // we no longer have a need for `proc-macro-hack`
+    ($query:literal) => ({
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query!($query);
+        }
+        macro_result!()
     });
-    ($query:literal, $($args:tt)*) => (#[allow(dead_code)]{
-        #![allow(dead_code)]
-        $crate::query_!($query, $($args)*)
+    ($query:literal, $($args:expr),*) => ({
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query!($query, $($args),*);
+        }
+        macro_result!($($args),*)
     })
 );
 
@@ -139,14 +144,21 @@ macro_rules! query (
 /// # #[cfg(not(feature = "mysql"))]
 /// # fn main() {}
 /// ```
-#[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_file (
     ($query:literal) => (#[allow(dead_code)]{
-        $crate::query_file_!($query)
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file!($query);
+        }
+        macro_result!()
     });
-    ($query:literal, $($args:tt)*) => (#[allow(dead_code)]{
-        $crate::query_file_!($query, $($args)*)
+    ($query:literal, $($args:expr),*) => (#[allow(dead_code)]{
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file!($query, $($args),*);
+        }
+        macro_result!($($args),*)
     })
 );
 
@@ -197,14 +209,21 @@ macro_rules! query_file (
 /// # #[cfg(not(feature = "mysql"))]
 /// # fn main() {}
 /// ```
-#[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
-        $crate::query_as_!($out_struct, $query)
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as!($out_struct, $query);
+        }
+        macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:tt)*) => (#[allow(dead_code)] {
-        $crate::query_as_!($out_struct, $query, $($args)*)
+    ($out_struct:path, $query:literal, $($args:expr),*) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
     })
 );
 
@@ -240,13 +259,20 @@ macro_rules! query_as (
 /// # #[cfg(not(feature = "mysql"))]
 /// # fn main() {}
 /// ```
-#[cfg(feature = "macros")]
 #[macro_export]
 macro_rules! query_file_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
-        $crate::query_file_as_!($out_struct, $query)
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as!($out_struct, $query);
+        }
+        macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:tt)*) => (#[allow(dead_code)] {
-        $crate::query_file_as_!($out_struct, $query, $($args)*)
+    ($out_struct:path, $query:literal, $($args:expr),*) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
     })
 );

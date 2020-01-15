@@ -108,3 +108,23 @@ async fn test_nullable_err() -> sqlx::Result<()> {
         panic!("expected `UnexpectedNull`, got {}", err)
     }
 }
+
+#[async_std::test]
+async fn test_many_args() -> sqlx::Result<()> {
+    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+
+    // previous implementation would only have supported 10 bind parameters
+    // (this is really gross to test in MySQL)
+    let rows = sqlx::query!(
+        "SELECT * from unnest(array[$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12]::int[]) ids(id);",
+        0i32, 1i32, 2i32, 3i32, 4i32, 5i32, 6i32, 7i32, 8i32, 9i32, 10i32, 11i32
+    )
+        .fetch_all(&mut conn)
+        .await?;
+
+    for (i, row) in rows.iter().enumerate() {
+        assert_eq!(i as i32, row.id);
+    }
+
+    Ok(())
+}

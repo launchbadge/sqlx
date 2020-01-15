@@ -14,5 +14,3 @@ impl Database for Postgres {
 
     type TableId = u32;
 }
-
-impl_into_arguments_for_database!(Postgres);

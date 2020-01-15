@@ -29,7 +29,7 @@ all-features = true
 
 [features]
 default = [ "macros" ]
-macros = [ "sqlx-macros", "proc-macro-hack" ]
+macros = [ "sqlx-macros" ]
 tls = ["sqlx-core/tls"]
 
 # database
@@ -43,7 +43,6 @@ uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 [dependencies]
 sqlx-core = { version = "=0.1.4", path = "sqlx-core" }
 sqlx-macros = { version = "0.1.1", path = "sqlx-macros", optional = true }
-proc-macro-hack = { version = "0.5.11", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.26"
