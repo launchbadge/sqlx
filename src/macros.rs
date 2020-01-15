@@ -10,7 +10,7 @@
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::connect(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
 /// // let mut conn = <impl sqlx::Executor>;
 /// let account = sqlx::query!("select (1) as id, 'Herp Derpinson' as name")
 ///     .fetch_one(&mut conn)
@@ -38,7 +38,7 @@
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::connect(db_url).await?;
+/// # let mut conn = sqlx::mysql::MySqlConnection::open(db_url).await?;
 /// // let mut conn = <impl sqlx::Executor>;
 /// let account = sqlx::query!(
 ///         // just pretend "accounts" is a real table
@@ -129,7 +129,7 @@ macro_rules! query (
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::connect(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
 /// // let mut conn = <impl sqlx::Executor>;
 /// let account = sqlx::query_file!("examples/queries/account-by-id.sql", 1i32)
 ///     .fetch_one(&mut conn)
@@ -184,7 +184,7 @@ macro_rules! query_file (
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::connect(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
 /// #[derive(Debug)]
 /// struct Account {
 ///     id: i32,
@@ -238,7 +238,7 @@ macro_rules! query_as (
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::connect(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
 /// #[derive(Debug)]
 /// struct Account {
 ///     id: i32,
