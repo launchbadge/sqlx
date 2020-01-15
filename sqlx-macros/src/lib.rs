@@ -70,7 +70,7 @@ macro_rules! async_macro (
             Ok(ts) => ts.into(),
             Err(e) => {
                 if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
-                    return dbg!(parse_err).to_compile_error().into();
+                    return parse_err.to_compile_error().into();
                 }
 
                 let msg = format!("{:?}", e);
