@@ -25,4 +25,4 @@ pub use types::MySqlTypeInfo;
 pub use row::MySqlRow;
 
 /// An alias for [`Pool`], specialized for **MySQL**.
-pub type MySqlPool = super::Pool<MySql>;
+pub type MySqlPool = super::Pool<MySqlConnection>;

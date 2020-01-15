@@ -17,4 +17,4 @@ mod row;
 mod types;
 
 /// An alias for [`Pool`], specialized for **Postgres**.
-pub type PgPool = super::Pool<Postgres>;
+pub type PgPool = super::Pool<PgConnection>;
