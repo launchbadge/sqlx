@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use async_std::net::Shutdown;
+use std::net::Shutdown;
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
 use hmac::{Hmac, Mac};
@@ -440,7 +440,7 @@ async fn read_root_certificate(url: &Url) -> crate::Result<async_native_tls::Cer
         format!("{}/.postgresql/root.crt", home)
     };
 
-    let root_cert = async_std::fs::read(root_cert_path).await?;
+    let root_cert = crate::runtime::fs::read(root_cert_path).await?;
     Ok(async_native_tls::Certificate::from_pem(&root_cert)?)
 }
 

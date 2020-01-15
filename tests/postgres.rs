@@ -1,7 +1,8 @@
 use futures::TryStreamExt;
 use sqlx::{postgres::PgConnection, Connection as _, Executor as _, Row as _};
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -14,7 +15,8 @@ async fn it_connects() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -48,7 +50,8 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 

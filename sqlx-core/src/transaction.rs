@@ -1,9 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
-use async_std::task;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
+use crate::runtime::spawn;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::describe::Describe;
@@ -155,7 +155,7 @@ where
     fn drop(&mut self) {
         if self.depth > 0 {
             if let Some(mut inner) = self.inner.take() {
-                task::spawn(async move {
+                spawn(async move {
                     let res = inner.send("ROLLBACK").await;
 
                     // If the rollback failed we need to close the inner connection

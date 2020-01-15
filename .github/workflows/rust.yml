@@ -32,9 +32,13 @@ jobs:
 
     # -----------------------------------------------------
 
-    - run: cargo check --all-features
+    - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
 
-    - run: cargo test -p sqlx-core --all-features
+    - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
+
+    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
+
+    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
 
     # Rust ------------------------------------------------
 

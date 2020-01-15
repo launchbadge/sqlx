@@ -1,6 +1,6 @@
 use std::env;
 
-use async_std::fs;
+use sqlx::runtime::fs;
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;

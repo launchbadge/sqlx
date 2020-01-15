@@ -19,6 +19,9 @@ mod query_as;
 mod transaction;
 mod url;
 
+#[doc(hidden)]
+pub mod runtime;
+
 #[macro_use]
 pub mod arguments;
 

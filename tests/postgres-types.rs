@@ -6,7 +6,8 @@ async fn connect() -> anyhow::Result<PgConnection> {
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
-        #[async_std::test]
+        #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
         async fn $name () -> anyhow::Result<()> {
             let mut conn = connect().await?;
 
@@ -36,7 +37,8 @@ test!(postgres_double: f64: "939399419.1225182::double precision" == 939399419.1
 
 test!(postgres_text: String: "'this is foo'" == "this is foo", "''" == "");
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn postgres_bytes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 

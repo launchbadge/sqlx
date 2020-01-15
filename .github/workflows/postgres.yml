@@ -50,9 +50,15 @@ jobs:
     # -----------------------------------------------------
 
     # Check that we build with TLS support (TODO: we need a postgres image with SSL certs to test)
-    - run: cargo check -p sqlx-core --no-default-features --features 'postgres macros uuid chrono tls'
+    - run: cargo check -p sqlx-core --no-default-features --features 'runtime-async-std postgres macros uuid chrono tls'
 
-    - run: cargo test -p sqlx --no-default-features --features 'postgres macros uuid chrono'
+    # Test on async-std
+    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std postgres macros uuid chrono'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # Test on tokio
+    - run: cargo test -p sqlx --no-default-features --features 'runtime-tokio postgres macros uuid chrono'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 

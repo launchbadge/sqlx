@@ -5,7 +5,8 @@ async fn connect() -> anyhow::Result<MySqlConnection> {
     Ok(MySqlConnection::open(dotenv::var("DATABASE_URL")?).await?)
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_date() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -25,7 +26,8 @@ async fn mysql_chrono_date() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_date_time() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -43,7 +45,8 @@ async fn mysql_chrono_date_time() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_time() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -60,7 +63,8 @@ async fn mysql_chrono_time() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_timestamp() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 

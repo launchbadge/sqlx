@@ -1,5 +1,11 @@
 #![allow(dead_code)]
 
+#[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
+compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
+
+#[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
+compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
+
 // Modules
 pub use sqlx_core::{arguments, decode, describe, encode, error, pool, row, types};
 

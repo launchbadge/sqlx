@@ -1,7 +1,8 @@
 use futures::TryStreamExt;
 use sqlx::{Connection as _, Executor as _, MySqlConnection, MySqlPool, Row as _};
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -14,7 +15,8 @@ async fn it_connects() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
@@ -48,7 +50,8 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
     Ok(())
 }
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
     // Malform the database url by changing the password
     let url = url()?.replace("password", "not-the-password");
@@ -71,7 +74,8 @@ async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "macros")]
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn macro_select_from_cte() -> anyhow::Result<()> {
     let mut conn = connect().await?;
     let account =
@@ -86,7 +90,8 @@ async fn macro_select_from_cte() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "macros")]
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
     let mut conn = connect().await?;
     let account = sqlx::query!(

@@ -3,10 +3,10 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
-use async_std::{future::timeout, task};
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot::{channel, Sender};
 
+use crate::runtime::{sleep, spawn, timeout, yield_now};
 use super::{Idle, Live, Options};
 use crate::{
     connection::{Connect, Connection},
@@ -90,7 +90,7 @@ where
                 self.size.fetch_sub(1, Ordering::AcqRel);
             }
 
-            task::yield_now().await
+            yield_now().await
         }
     }
 
@@ -341,7 +341,7 @@ where
 
     let pool = Arc::clone(&pool);
 
-    task::spawn(async move {
+    spawn(async move {
         while !pool.is_closed.load(Ordering::Acquire) {
             // reap at most the current size minus the minimum idle
             let max_reaped = pool
@@ -368,7 +368,7 @@ where
                 pool.size.fetch_sub(1, Ordering::AcqRel);
             }
 
-            task::sleep(period).await;
+            sleep(period).await;
         }
     });
 }

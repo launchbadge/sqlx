@@ -1,6 +1,9 @@
-#[async_std::test]
-async fn test_query() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+use sqlx::{PgConnection, Connect};
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     let account = sqlx::query!(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
@@ -14,9 +17,10 @@ async fn test_query() -> sqlx::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
-async fn test_query_file() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_file() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     let account = sqlx::query_file!("tests/test-query.sql")
         .fetch_one(&mut conn)
@@ -33,9 +37,10 @@ struct Account {
     name: Option<String>,
 }
 
-#[async_std::test]
-async fn test_query_as() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_as() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     let account = sqlx::query_as!(
         Account,
@@ -51,9 +56,10 @@ async fn test_query_as() -> sqlx::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
-async fn test_query_file_as() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_file_as() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     let account = sqlx::query_file_as!(Account, "tests/test-query.sql")
         .fetch_one(&mut conn)
@@ -64,9 +70,10 @@ async fn test_query_file_as() -> sqlx::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
-async fn query_by_string() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn query_by_string() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     let string = "Hello, world!".to_string();
 
@@ -84,15 +91,16 @@ async fn query_by_string() -> sqlx::Result<()> {
     Ok(())
 }
 
-#[async_std::test]
-async fn test_nullable_err() -> sqlx::Result<()> {
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_nullable_err() -> anyhow::Result<()> {
     #[derive(Debug)]
     struct Account {
         id: i32,
         name: String,
     }
 
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+    let mut conn = connect().await?;
 
     let err = sqlx::query_as!(
         Account,
@@ -109,9 +117,10 @@ async fn test_nullable_err() -> sqlx::Result<()> {
     }
 }
 
-#[async_std::test]
-async fn test_many_args() -> sqlx::Result<()> {
-    let mut conn = sqlx::postgres::connect(&dotenv::var("DATABASE_URL").unwrap()).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_many_args() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
 
     // previous implementation would only have supported 10 bind parameters
     // (this is really gross to test in MySQL)
@@ -127,4 +136,11 @@ async fn test_many_args() -> sqlx::Result<()> {
     }
 
     Ok(())
+}
+
+async fn connect() -> anyhow::Result<PgConnection> {
+    let _ = dotenv::dotenv();
+    let _ = env_logger::try_init();
+
+    Ok(PgConnection::connect(dotenv::var("DATABASE_URL")?).await?)
 }

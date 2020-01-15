@@ -6,7 +6,8 @@ async fn connect() -> anyhow::Result<MySqlConnection> {
 
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
-        #[async_std::test]
+        #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
         async fn $name () -> anyhow::Result<()> {
             let mut conn = connect().await?;
 
@@ -45,7 +46,8 @@ test!(mysql_longlong: i64: "2141512" == 2141512_i64);
 
 test!(mysql_string: String: "'helloworld'" == "helloworld");
 
-#[async_std::test]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_bytes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 

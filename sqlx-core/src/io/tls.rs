@@ -1,10 +1,10 @@
 use std::io::{IoSlice, IoSliceMut};
 use std::pin::Pin;
+use std::net::Shutdown;
+use std::io;
 use std::task::{Context, Poll};
 
-use async_std::io::{self, Read, Write};
-use async_std::net::{Shutdown, TcpStream};
-
+use crate::runtime::{TcpStream, AsyncRead, AsyncWrite};
 use crate::url::Url;
 
 use self::Inner::*;
@@ -57,7 +57,7 @@ impl MaybeTlsStream {
         Ok(())
     }
 
-    pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+    pub fn shutdown(&self, how:Shutdown) -> io::Result<()> {
         match self.inner {
             NotTls(ref conn) => conn.shutdown(how),
             #[cfg(feature = "tls")]
@@ -81,7 +81,7 @@ macro_rules! forward_pin (
     )
 );
 
-impl Read for MaybeTlsStream {
+impl AsyncRead for MaybeTlsStream {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
@@ -90,6 +90,7 @@ impl Read for MaybeTlsStream {
         forward_pin!(self.poll_read(cx, buf))
     }
 
+    #[cfg(feature = "runtime-async-std")]
     fn poll_read_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
@@ -99,7 +100,7 @@ impl Read for MaybeTlsStream {
     }
 }
 
-impl Write for MaybeTlsStream {
+impl AsyncWrite for MaybeTlsStream {
     fn poll_write(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
@@ -112,10 +113,17 @@ impl Write for MaybeTlsStream {
         forward_pin!(self.poll_flush(cx))
     }
 
+    #[cfg(feature = "runtime-async-std")]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         forward_pin!(self.poll_close(cx))
     }
 
+    #[cfg(feature = "runtime-tokio")]
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+        forward_pin!(self.poll_shutdown(cx))
+    }
+
+    #[cfg(feature = "runtime-async-std")]
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,

@@ -4,7 +4,6 @@ mod buf_stream;
 mod buf;
 mod buf_mut;
 mod byte_str;
-
 mod tls;
 
 pub use self::{
