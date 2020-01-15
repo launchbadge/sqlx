@@ -39,7 +39,7 @@
 
 <br />
 
-SQLx is a modern SQL client built from the ground up for Rust, in Rust.
+SQLx is an async, pure Rust SQL crate featuring compile-time checked queries without a DSL.
 
  * **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
