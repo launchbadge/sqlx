@@ -12,9 +12,6 @@ authors = [
     "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
-[package.metadata.docs.rs]
-all-features = true
-
 [lib]
 proc-macro = true
 

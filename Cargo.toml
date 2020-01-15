@@ -25,7 +25,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-all-features = true
+features = [ "tls", "postgres", "mysql", "uuid", "chrono" ]
 
 [features]
 default = [ "macros", "runtime-async-std" ]
