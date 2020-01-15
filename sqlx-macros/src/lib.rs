@@ -10,7 +10,8 @@ use quote::quote;
 
 use syn::parse_macro_input;
 
-use async_std::task;
+#[cfg(feature = "runtime-async-std")]
+use async_std::task::block_on;
 
 use url::Url;
 
@@ -23,6 +24,12 @@ mod database;
 mod query_macros;
 
 use query_macros::*;
+
+#[cfg(feature = "runtime-tokio")]
+fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    // TODO: Someone think of something better for async proc macros + tokio
+    tokio::runtime::Runtime::new().unwrap().block_on(future)
+} 
 
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
     quote!(
@@ -40,7 +47,7 @@ macro_rules! async_macro (
             Err(e) => return macro_result(e.to_compile_error()),
         };
 
-        let res: Result<proc_macro2::TokenStream> = task::block_on(async {
+        let res: Result<proc_macro2::TokenStream> = block_on(async {
             use sqlx::Connect;
 
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;

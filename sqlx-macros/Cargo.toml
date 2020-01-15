@@ -18,6 +18,9 @@ proc-macro = true
 [features]
 default = []
 
+runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
+runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "once_cell" ]
+
 # database
 mysql = [ "sqlx/mysql" ]
 postgres = [ "sqlx/postgres" ]
@@ -27,7 +30,9 @@ chrono = [ "sqlx/chrono" ]
 uuid = [ "sqlx/uuid" ]
 
 [dependencies]
-async-std = { version = "1.4.0", default-features = false }
+async-std = { version = "1.4.0", default-features = false, optional = true }
+tokio = { version = "0.2", optional = true }
+once_cell = { version = "1.3", optional = true }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.1", default-features = false }
 proc-macro2 = { version = "1.0.6", default-features = false }

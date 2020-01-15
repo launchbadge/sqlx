@@ -51,7 +51,7 @@ jobs:
 
     # -----------------------------------------------------
 
-    - run: cargo test -p sqlx --no-default-features --features 'mysql macros chrono tls'
+    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std mysql macros chrono tls'
       env:
         # pass the path to the CA that the MySQL service generated
         # Github Actions' YML parser doesn't handle multiline strings correctly

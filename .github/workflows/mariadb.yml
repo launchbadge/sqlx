@@ -48,7 +48,7 @@ jobs:
 
     # -----------------------------------------------------
 
-    - run: cargo test -p sqlx --no-default-features --features 'mysql macros chrono'
+    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std mysql macros chrono'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
 

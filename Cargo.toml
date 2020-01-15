@@ -33,8 +33,8 @@ macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
 # runtime
-runtime-async-std = [ "sqlx-core/runtime-async-std" ]
-runtime-tokio = [ "sqlx-core/runtime-tokio" ]
+runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
+runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 
 # database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
