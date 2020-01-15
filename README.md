@@ -92,7 +92,7 @@ It is a very good idea to always create a connection pool at the beginning of yo
 and then share that.
 
 ```rust
-# Postgres
+// Postgres
 let pool = sqlx::PgPool::new("postgres://localhost/database").await?;
 ```
 
