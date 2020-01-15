@@ -26,9 +26,15 @@ mod query_macros;
 use query_macros::*;
 
 #[cfg(feature = "runtime-tokio")]
+lazy_static::lazy_static! {
+    static ref BASIC_RUNTIME: tokio::runtime::Runtime = {
+        tokio::runtime::Builder::new().basic_scheduler().enable_all().build().expect("failed to build tokio runtime")
+    };
+}
+
+#[cfg(feature = "runtime-tokio")]
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
-    // TODO: Someone think of something better for async proc macros + tokio
-    tokio::runtime::Runtime::new().unwrap().block_on(future)
+    BASIC_RUNTIME.enter(|| futures::executor::block_on(future))
 }
 
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
