@@ -59,6 +59,7 @@ pub fn quote_args<DB: DatabaseExt>(
     let args = input.arg_names.iter();
 
     Ok(quote! {
+        // emit as a tuple first so each expression is only evaluated once
         let args = (#(&$#args),*,);
         #args_check
     })

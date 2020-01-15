@@ -55,11 +55,26 @@ where
         &columns,
     );
 
+    let db_path = <C::Database as DatabaseExt>::quotable_path();
+    let args_count = arg_names.len();
+    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
+    let arg_indices_2 = arg_indices.clone();
+
     Ok(quote! {
         macro_rules! macro_result {
             (#($#arg_names:expr),*) => {{
+                use sqlx::arguments::Arguments as _;
+
                 #args_tokens
-                #output.bind_all(args)
+
+                let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
+                query_args.reserve(
+                    #args_count,
+                    0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
+                );
+                #(query_args.add(args.#arg_indices_2);)*
+
+                #output.bind_all(query_args)
             }}
         }
     })

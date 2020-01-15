@@ -1,7 +1,7 @@
 use futures_core::Stream;
 use futures_util::{future, TryStreamExt};
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, ImmutableArguments};
 use crate::{
     arguments::IntoArguments, database::Database, encode::Encode, executor::Executor, row::FromRow,
     types::HasSqlType,
@@ -128,13 +128,10 @@ where
 
     // used by query!() and friends
     #[doc(hidden)]
-    pub fn bind_all<I>(self, values: I) -> QueryAs<'q, DB, R, I>
-    where
-        I: IntoArguments<DB>,
-    {
+    pub fn bind_all(self, values: DB::Arguments) -> QueryAs<'q, DB, R, ImmutableArguments<DB>> {
         QueryAs {
             query: self.query,
-            args: values,
+            args: ImmutableArguments(values),
             map_row: self.map_row,
         }
     }

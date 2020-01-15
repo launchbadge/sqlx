@@ -85,7 +85,7 @@ macro_rules! async_macro (
                     macro_result(parse_err.to_compile_error())
                 } else {
                     let msg = format!("{:?}", e);
-                    macro_result(quote!(compile_error(#msg)))
+                    macro_result(quote!(compile_error!(#msg)))
                 }
             }
         }

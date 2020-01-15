@@ -14,5 +14,3 @@ impl Database for MySql {
 
     type TableId = Box<str>;
 }
-
-impl_into_arguments_for_database!(MySql);
