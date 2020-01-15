@@ -50,7 +50,7 @@ async fn register(mut req: Request<PgPool>) -> Response {
     let body: RegisterRequestBody = req.body_json().await.unwrap();
     let hash = hash_password(&body.password).unwrap();
 
-    // Make a new transaction
+    // Make a new transaction (for giggles)
     let pool = req.state();
     let mut tx = pool.begin().await.unwrap();
 
@@ -70,7 +70,7 @@ RETURNING id, username, email
 
     let token = generate_token(rec.id).unwrap();
 
-    // Explicitly commit
+    // Explicitly commit (otherwise this would rollback on drop)
     tx.commit().await.unwrap();
 
     #[derive(serde::Serialize)]
