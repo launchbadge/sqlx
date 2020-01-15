@@ -591,15 +591,30 @@ impl MySqlConnection {
     }
 }
 
-impl Connection for MySqlConnection {
-    fn open<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
+impl MySqlConnection {
+    #[deprecated(note = "please use 'connect' instead")]
+    pub fn open<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
     where
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
         Box::pin(MySqlConnection::open(url.try_into()))
     }
+}
 
+impl Connect for MySqlConnection {
+    type Connection = MySqlConnection;
+
+    fn connect<T>(url: T) -> BoxFuture<'static, Result<MySqlConnection>>
+    where
+        T: TryInto<Url, Error = crate::Error>,
+        Self: Sized,
+    {
+        Box::pin(PgConnection::open(url.try_into()))
+    }
+}
+
+impl Connection for MySqlConnection {
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(self.close())
     }

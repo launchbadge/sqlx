@@ -43,7 +43,7 @@ pub use database::Database;
 #[doc(inline)]
 pub use error::{Error, Result};
 
-pub use connection::Connection;
+pub use connection::{Connect, Connection};
 pub use executor::Executor;
 pub use query::{query, Query};
 pub use query_as::{query_as, QueryAs};

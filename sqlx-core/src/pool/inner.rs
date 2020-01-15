@@ -8,24 +8,23 @@ use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_channel::oneshot::{channel, Sender};
 
 use super::{Idle, Live, Options};
-use crate::{error::Error, Connection, Database};
+use crate::{
+    connection::{Connect, Connection},
+    error::Error,
+};
 
-pub(super) struct SharedPool<DB>
-where
-    DB: Database,
-{
+pub(super) struct SharedPool<C> {
     url: String,
-    idle: ArrayQueue<Idle<DB>>,
-    waiters: SegQueue<Sender<Live<DB>>>,
+    idle: ArrayQueue<Idle<C>>,
+    waiters: SegQueue<Sender<Live<C>>>,
     size: AtomicU32,
     is_closed: AtomicBool,
     options: Options,
 }
 
-impl<DB> SharedPool<DB>
+impl<C> SharedPool<C>
 where
-    DB: Database,
-    DB::Connection: Connection<Database = DB>,
+    C: Connection + Connect<Connection = C>,
 {
     pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let pool = Arc::new(Self {
@@ -96,7 +95,7 @@ where
     }
 
     #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Live<DB>> {
+    pub(super) fn try_acquire(&self) -> Option<Live<C>> {
         if self.is_closed.load(Ordering::Acquire) {
             return None;
         }
@@ -104,7 +103,7 @@ where
         Some(self.idle.pop().ok()?.live)
     }
 
-    pub(super) fn release(&self, mut live: Live<DB>) {
+    pub(super) fn release(&self, mut live: Live<C>) {
         // Try waiters in (FIFO) order until one is still waiting ..
         while let Ok(waiter) = self.waiters.pop() {
             live = match waiter.send(live) {
@@ -123,7 +122,7 @@ where
         });
     }
 
-    pub(super) async fn acquire(&self) -> crate::Result<Live<DB>> {
+    pub(super) async fn acquire(&self) -> crate::Result<Live<C>> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
 
@@ -198,7 +197,7 @@ where
         Err(Error::PoolClosed)
     }
 
-    async fn eventually_connect(&self, deadline: Instant) -> crate::Result<Live<DB>> {
+    async fn eventually_connect(&self, deadline: Instant) -> crate::Result<Live<C>> {
         loop {
             // [connect] will raise an error when past deadline
             // [connect] returns None if its okay to retry
@@ -208,7 +207,7 @@ where
         }
     }
 
-    async fn connect(&self, deadline: Instant) -> crate::Result<Option<Live<DB>>> {
+    async fn connect(&self, deadline: Instant) -> crate::Result<Option<Live<C>>> {
         // FIXME: Code between `-` is duplicate with [acquire]
         // ---------------------------------
 
@@ -227,8 +226,8 @@ where
 
         // ---------------------------------
 
-        // result here is `Result<Result<DB, Error>, TimeoutError>`
-        match timeout(until, DB::Connection::open(&self.url)).await {
+        // result here is `Result<Result<C, Error>, TimeoutError>`
+        match timeout(until, C::connect(&self.url)).await {
             // successfully established connection
             Ok(Ok(raw)) => {
                 Ok(Some(Live {
@@ -260,18 +259,18 @@ where
     }
 }
 
-impl<DB: Database> Idle<DB>
+impl<C> Idle<C>
 where
-    DB::Connection: Connection<Database = DB>,
+    C: Connection,
 {
     async fn close(self) {
         self.live.close().await;
     }
 }
 
-impl<DB: Database> Live<DB>
+impl<C> Live<C>
 where
-    DB::Connection: Connection<Database = DB>,
+    C: Connection,
 {
     async fn close(self) {
         let _ = self.raw.close().await;
@@ -280,21 +279,24 @@ where
 
 // NOTE: Function names here are bizzare. Helpful help would be appreciated.
 
-fn is_beyond_lifetime<DB: Database>(live: &Live<DB>, options: &Options) -> bool {
+fn is_beyond_lifetime<C>(live: &Live<C>, options: &Options) -> bool {
     // check if connection was within max lifetime (or not set)
     options
         .max_lifetime
         .map_or(false, |max| live.created.elapsed() > max)
 }
 
-fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &Options) -> bool {
+fn is_beyond_idle<C>(idle: &Idle<C>, options: &Options) -> bool {
     // if connection wasn't idle too long (or not set)
     options
         .idle_timeout
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
-async fn check_live<DB: Database>(mut live: Live<DB>, options: &Options) -> Option<Live<DB>> {
+async fn check_live<C>(mut live: Live<C>, options: &Options) -> Option<Live<C>>
+where
+    C: Connection,
+{
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_lifetime(&live, options) {
@@ -325,9 +327,9 @@ async fn check_live<DB: Database>(mut live: Live<DB>, options: &Options) -> Opti
 }
 
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>)
+fn spawn_reaper<C>(pool: &Arc<SharedPool<C>>)
 where
-    DB::Connection: Connection<Database = DB>,
+    C: Connection,
 {
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,

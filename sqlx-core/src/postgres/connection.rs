@@ -395,15 +395,30 @@ impl PgConnection {
     }
 }
 
-impl Connection for PgConnection {
-    fn open<T>(url: T) -> BoxFuture<'static, Result<Self>>
+impl PgConnection {
+    #[deprecated(note = "please use 'connect' instead")]
+    pub fn open<T>(url: T) -> BoxFuture<'static, Result<Self>>
     where
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
         Box::pin(PgConnection::open(url.try_into()))
     }
+}
 
+impl Connect for PgConnection {
+    type Connection = PgConnection;
+
+    fn connect<T>(url: T) -> BoxFuture<'static, Result<PgConnection>>
+    where
+        T: TryInto<Url, Error = crate::Error>,
+        Self: Sized,
+    {
+        Box::pin(PgConnection::open(url.try_into()))
+    }
+}
+
+impl Connection for PgConnection {
     fn close(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(self.terminate())
     }

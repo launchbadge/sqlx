@@ -1,26 +1,19 @@
 use std::{marker::PhantomData, time::Duration};
 
-use crate::Database;
-
 use super::Pool;
+use crate::connection::{Connect, Connection};
 
 /// Builder for [Pool].
-pub struct Builder<DB>
-where
-    DB: Database,
-{
-    phantom: PhantomData<DB>,
+pub struct Builder<C> {
+    phantom: PhantomData<C>,
     options: Options,
 }
 
-impl<DB> Builder<DB>
-where
-    DB: Database,
-{
+impl<C> Builder<C> {
     /// Get a new builder with default options.
     ///
     /// See the source of this method for current defaults.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             phantom: PhantomData,
             options: Options {
@@ -107,15 +100,15 @@ where
     ///
     /// If [min_size] was set to a non-zero value, that many connections will be immediately
     /// opened and placed into the pool.
-    pub async fn build(self, url: &str) -> crate::Result<Pool<DB>> {
+    pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
+    where
+        C: Connection + Connect<Connection = C>,
+    {
         Pool::with_options(url, self.options).await
     }
 }
 
-impl<DB> Default for Builder<DB>
-where
-    DB: Database,
-{
+impl<C> Default for Builder<C> {
     fn default() -> Self {
         Self::new()
     }

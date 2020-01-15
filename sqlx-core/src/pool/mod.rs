@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::Database;
+use crate::connection::{Connect, Connection};
 
 use self::inner::SharedPool;
 pub use self::options::Builder;
@@ -18,29 +18,29 @@ mod inner;
 mod options;
 
 /// A pool of database connections.
-pub struct Pool<DB>(Arc<SharedPool<DB>>)
-where
-    DB: Database;
+pub struct Pool<C>(Arc<SharedPool<C>>);
 
-struct Connection<DB: Database> {
-    live: Option<Live<DB>>,
-    pool: Arc<SharedPool<DB>>,
+pub struct PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
+    live: Option<Live<C>>,
+    pool: Arc<SharedPool<C>>,
 }
 
-struct Live<DB: Database> {
-    raw: DB::Connection,
+struct Live<C> {
+    raw: C,
     created: Instant,
 }
 
-struct Idle<DB: Database> {
-    live: Live<DB>,
+struct Idle<C> {
+    live: Live<C>,
     since: Instant,
 }
 
-impl<DB> Pool<DB>
+impl<C> Pool<C>
 where
-    DB: Database,
-    DB::Connection: crate::Connection<Database = DB>,
+    C: Connection + Connect<Connection = C>,
 {
     /// Creates a connection pool with the default configuration.
     ///
@@ -60,15 +60,15 @@ where
     }
 
     /// Returns a [Builder] to configure a new connection pool.
-    pub fn builder() -> Builder<DB> {
+    pub fn builder() -> Builder<C> {
         Builder::new()
     }
 
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> crate::Result<impl DerefMut<Target = DB::Connection>> {
-        self.0.acquire().await.map(|conn| Connection {
+    pub async fn acquire(&self) -> crate::Result<PoolConnection<C>> {
+        self.0.acquire().await.map(|conn| PoolConnection {
             live: Some(conn),
             pool: Arc::clone(&self.0),
         })
@@ -77,8 +77,8 @@ where
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
-    pub fn try_acquire(&self) -> Option<impl DerefMut<Target = DB::Connection>> {
-        self.0.try_acquire().map(|conn| Connection {
+    pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
+        self.0.try_acquire().map(|conn| PoolConnection {
             live: Some(conn),
             pool: Arc::clone(&self.0),
         })
@@ -129,16 +129,16 @@ where
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
-impl<DB> Clone for Pool<DB>
-where
-    DB: Database,
-{
+impl<C> Clone for Pool<C> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<DB: Database> fmt::Debug for Pool<DB> {
+impl<C> fmt::Debug for Pool<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
             .field("url", &self.0.url())
@@ -152,21 +152,30 @@ impl<DB: Database> fmt::Debug for Pool<DB> {
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
 
-impl<DB: Database> Deref for Connection<DB> {
-    type Target = DB::Connection;
+impl<C> Deref for PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
+    type Target = C;
 
     fn deref(&self) -> &Self::Target {
         &self.live.as_ref().expect(DEREF_ERR).raw
     }
 }
 
-impl<DB: Database> DerefMut for Connection<DB> {
+impl<C> DerefMut for PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(DEREF_ERR).raw
     }
 }
 
-impl<DB: Database> Drop for Connection<DB> {
+impl<C> Drop for PoolConnection<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
     fn drop(&mut self) {
         if let Some(live) = self.live.take() {
             self.pool.release(live);
