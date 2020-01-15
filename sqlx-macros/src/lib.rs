@@ -29,7 +29,7 @@ use query_macros::*;
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
     // TODO: Someone think of something better for async proc macros + tokio
     tokio::runtime::Runtime::new().unwrap().block_on(future)
-} 
+}
 
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
     quote!(
