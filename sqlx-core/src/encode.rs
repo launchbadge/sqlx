@@ -74,7 +74,7 @@ where
 
     fn size_hint(&self) -> usize {
         if self.is_some() {
-            mem::size_of::<T>()
+            (*self).size_hint()
         } else {
             0
         }

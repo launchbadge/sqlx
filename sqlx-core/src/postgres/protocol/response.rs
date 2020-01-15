@@ -1,11 +1,6 @@
 use crate::io::Buf;
 use crate::postgres::protocol::Decode;
-use std::{
-    fmt, io,
-    pin::Pin,
-    ptr::NonNull,
-    str::{self, FromStr},
-};
+use std::str::{self, FromStr};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Severity {
@@ -24,31 +19,6 @@ impl Severity {
         match self {
             Severity::Panic | Severity::Fatal | Severity::Error => true,
             _ => false,
-        }
-    }
-
-    pub fn is_notice(self) -> bool {
-        match self {
-            Severity::Warning
-            | Severity::Notice
-            | Severity::Debug
-            | Severity::Info
-            | Severity::Log => true,
-
-            _ => false,
-        }
-    }
-
-    pub fn to_str(self) -> &'static str {
-        match self {
-            Severity::Panic => "PANIC",
-            Severity::Fatal => "FATAL",
-            Severity::Error => "ERROR",
-            Severity::Warning => "WARNING",
-            Severity::Notice => "NOTICE",
-            Severity::Debug => "DEBUG",
-            Severity::Info => "INFO",
-            Severity::Log => "LOG",
         }
     }
 }

@@ -1,12 +1,19 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::HasSqlType;
 
 impl HasSqlType<f32> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(700, 1021)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::FLOAT4)
+    }
+}
+
+impl HasSqlType<[f32]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT4)
     }
 }
 
@@ -25,8 +32,14 @@ impl Decode<Postgres> for f32 {
 }
 
 impl HasSqlType<f64> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(701, 1022)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::FLOAT8)
+    }
+}
+
+impl HasSqlType<[f64]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT8)
     }
 }
 

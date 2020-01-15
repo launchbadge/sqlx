@@ -3,22 +3,25 @@ use byteorder::LittleEndian;
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::mysql::io::{BufExt, BufMutExt};
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
-// TODO: We only have support for BLOB below; we map [u8] to BLOB, as we do not have the size information yet
-
 impl HasSqlType<[u8]> for MySql {
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::new(Type::BLOB)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo {
+            id: TypeId::TEXT,
+            is_binary: true,
+            is_unsigned: false,
+            char_set: 63, // binary
+        }
     }
 }
 
 impl HasSqlType<Vec<u8>> for MySql {
-    fn metadata() -> MySqlTypeMetadata {
-        <Self as HasSqlType<[u8]>>::metadata()
+    fn type_info() -> MySqlTypeInfo {
+        <Self as HasSqlType<[u8]>>::type_info()
     }
 }
 

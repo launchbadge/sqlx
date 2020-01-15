@@ -8,8 +8,8 @@ pub use query::expand_query;
 
 use crate::database::DatabaseExt;
 
-use sqlx::types::HasTypeMetadata;
 use sqlx::Connection;
+use sqlx::Database;
 
 mod args;
 mod input;
@@ -22,7 +22,7 @@ pub async fn expand_query_file<C: Connection>(
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
-    <C::Database as HasTypeMetadata>::TypeId: Display,
+    <C::Database as Database>::TypeInfo: Display,
 {
     expand_query(input.expand_file_src().await?, conn).await
 }
@@ -33,7 +33,7 @@ pub async fn expand_query_as<C: Connection>(
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
-    <C::Database as HasTypeMetadata>::TypeId: Display,
+    <C::Database as Database>::TypeInfo: Display,
 {
     let describe = input.query_input.describe_validate(&mut conn).await?;
 
@@ -66,7 +66,7 @@ pub async fn expand_query_file_as<C: Connection>(
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
-    <C::Database as HasTypeMetadata>::TypeId: Display,
+    <C::Database as Database>::TypeInfo: Display,
 {
     expand_query_as(input.expand_file_src().await?, conn).await
 }

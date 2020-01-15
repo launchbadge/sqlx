@@ -1,13 +1,21 @@
-use crate::decode::{Decode, DecodeError};
-use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
 use byteorder::{ByteOrder, NetworkEndian};
 
+use crate::decode::{Decode, DecodeError};
+use crate::encode::Encode;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
+use crate::postgres::Postgres;
+use crate::types::HasSqlType;
+
 impl HasSqlType<i16> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(21, 1005)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::INT2)
+    }
+}
+
+impl HasSqlType<[i16]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_INT2)
     }
 }
 
@@ -24,8 +32,14 @@ impl Decode<Postgres> for i16 {
 }
 
 impl HasSqlType<i32> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(23, 1007)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::INT4)
+    }
+}
+
+impl HasSqlType<[i32]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_INT4)
     }
 }
 
@@ -42,8 +56,14 @@ impl Decode<Postgres> for i32 {
 }
 
 impl HasSqlType<i64> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(20, 1016)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::INT8)
+    }
+}
+
+impl HasSqlType<[i64]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_INT8)
     }
 }
 

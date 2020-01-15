@@ -1,14 +1,13 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 impl HasSqlType<f32> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::new(Type::FLOAT)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::FLOAT)
     }
 }
 
@@ -25,9 +24,8 @@ impl Decode<MySql> for f32 {
 }
 
 impl HasSqlType<f64> for MySql {
-    #[inline]
-    fn metadata() -> MySqlTypeMetadata {
-        MySqlTypeMetadata::new(Type::DOUBLE)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::DOUBLE)
     }
 }
 

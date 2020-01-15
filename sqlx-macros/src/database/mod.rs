@@ -16,9 +16,9 @@ pub trait DatabaseExt: Database {
         syn::parse_str(Self::DATABASE_PATH).unwrap()
     }
 
-    fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
+    fn param_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
 
-    fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str>;
+    fn return_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
 }
 
 macro_rules! impl_database_ext {
@@ -27,22 +27,22 @@ macro_rules! impl_database_ext {
             const DATABASE_PATH: &'static str = stringify!($database);
             const PARAM_CHECKING: $crate::database::ParamChecking = $crate::database::ParamChecking::$param_checking;
 
-            fn param_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
+            fn param_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {
                 match () {
                     $(
                         // `if` statements cannot have attributes but these can
                         $(#[$meta])?
-                        _ if <$database as sqlx::types::HasSqlType<$ty>>::metadata().eq(id) => Some(input_ty!($ty $(, $input)?)),
+                        _ if sqlx::types::TypeInfo::compatible(&<$database as sqlx::types::HasSqlType<$ty>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
             }
 
-            fn return_type_for_id(id: &Self::TypeId) -> Option<&'static str> {
+            fn return_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {
                 match () {
                     $(
                         $(#[$meta])?
-                        _ if <$database as sqlx::types::HasSqlType<$ty>>::metadata().eq(id) => return Some(stringify!($ty)),
+                        _ if sqlx::types::TypeInfo::compatible(&<$database as sqlx::types::HasSqlType<$ty>>::type_info(), &info) => return Some(stringify!($ty)),
                     )*
                     _ => None
                 }

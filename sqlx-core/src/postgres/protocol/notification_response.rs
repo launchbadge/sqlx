@@ -1,7 +1,6 @@
 use crate::io::Buf;
 use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
-use std::{fmt, io, pin::Pin, ptr::NonNull};
 
 #[derive(Debug)]
 pub struct NotificationResponse {

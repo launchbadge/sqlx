@@ -64,7 +64,7 @@ pub trait Executor {
         Box::pin(async move { s.try_next().await?.ok_or(crate::Error::NotFound) })
     }
 
-    /// Analyze the SQL query and report the inferred bind parameter types and returned columns.
+    #[doc(hidden)]
     fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,

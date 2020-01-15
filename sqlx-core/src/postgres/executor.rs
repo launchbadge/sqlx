@@ -6,9 +6,8 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
 use crate::describe::{Column, Describe};
-use crate::postgres::protocol::{self, Encode, Message, StatementId};
-use crate::postgres::types::TypeFormat;
-use crate::postgres::{PgArguments, PgRow, Postgres};
+use crate::postgres::protocol::{self, Encode, Message, StatementId, TypeFormat};
+use crate::postgres::{PgArguments, PgRow, PgTypeInfo, Postgres};
 
 #[derive(Debug)]
 enum Step {
@@ -281,7 +280,12 @@ impl super::PgConnection {
         };
 
         Ok(Describe {
-            param_types: params.ids,
+            param_types: params
+                .ids
+                .iter()
+                .map(|id| PgTypeInfo::new(*id))
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
             result_columns: result
                 .fields
                 .into_vec()
@@ -290,7 +294,7 @@ impl super::PgConnection {
                 .map(|field| Column {
                     name: field.name,
                     table_id: field.table_id,
-                    type_id: field.type_id,
+                    type_info: PgTypeInfo::new(field.type_id),
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),

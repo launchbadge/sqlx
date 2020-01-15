@@ -8,9 +8,9 @@ use crate::describe::{Column, Describe};
 use crate::executor::Executor;
 use crate::mysql::protocol::{
     Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
-    ComStmtPrepareOk, Cursor, Decode, EofPacket, OkPacket, Row, Type,
+    ComStmtPrepareOk, Cursor, Decode, EofPacket, OkPacket, Row, TypeId,
 };
-use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
+use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo};
 
 enum Step {
     Command(u64),
@@ -48,14 +48,14 @@ impl MySqlConnection {
         }
     }
 
-    async fn receive_column_types(&mut self, count: usize) -> crate::Result<Box<[Type]>> {
-        let mut columns: Vec<Type> = Vec::with_capacity(count);
+    async fn receive_column_types(&mut self, count: usize) -> crate::Result<Box<[TypeId]>> {
+        let mut columns: Vec<TypeId> = Vec::with_capacity(count);
 
         for _ in 0..count {
             let column: ColumnDefinition =
                 ColumnDefinition::decode(self.receive().await?.packet())?;
 
-            columns.push(column.r#type);
+            columns.push(column.type_id);
         }
 
         if count > 0 {
@@ -145,7 +145,7 @@ impl MySqlConnection {
         .await
     }
 
-    async fn step(&mut self, columns: &[Type], binary: bool) -> crate::Result<Option<Step>> {
+    async fn step(&mut self, columns: &[TypeId], binary: bool) -> crate::Result<Option<Step>> {
         let capabilities = self.capabilities;
         ret_if_none!(self.try_receive().await?);
 
@@ -244,7 +244,7 @@ impl MySqlConnection {
 
         for _ in 0..prepare_ok.params {
             let param = ColumnDefinition::decode(self.receive().await?.packet())?;
-            param_types.push(param.r#type.0);
+            param_types.push(MySqlTypeInfo::from_column_def(&param));
         }
 
         if prepare_ok.params > 0 {
@@ -254,11 +254,9 @@ impl MySqlConnection {
         for _ in 0..prepare_ok.columns {
             let column = ColumnDefinition::decode(self.receive().await?.packet())?;
             result_columns.push(Column::<MySql> {
+                type_info: MySqlTypeInfo::from_column_def(&column),
                 name: column.column_alias.or(column.column),
-
                 table_id: column.table_alias.or(column.table),
-
-                type_id: column.r#type.0,
             });
         }
 

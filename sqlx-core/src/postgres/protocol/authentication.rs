@@ -1,8 +1,6 @@
 use crate::io::Buf;
 use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
-use std::borrow::Cow;
-use std::io;
 use std::str;
 
 #[derive(Debug)]

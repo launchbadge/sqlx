@@ -1,5 +1,4 @@
 use crate::postgres::protocol::Decode;
-use std::io;
 
 #[derive(Debug)]
 #[repr(u8)]

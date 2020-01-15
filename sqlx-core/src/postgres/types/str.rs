@@ -1,19 +1,28 @@
-use crate::decode::{Decode, DecodeError};
-use crate::encode::Encode;
-use crate::postgres::types::PgTypeMetadata;
-use crate::types::HasSqlType;
-use crate::Postgres;
 use std::str;
 
+use crate::decode::{Decode, DecodeError};
+use crate::encode::Encode;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::types::PgTypeInfo;
+use crate::types::HasSqlType;
+use crate::Postgres;
+
 impl HasSqlType<str> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        PgTypeMetadata::binary(25, 1009)
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::TEXT)
     }
 }
 
+impl HasSqlType<[&'_ str]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TEXT)
+    }
+}
+
+// TODO: Do we need [HasSqlType] on String here?
 impl HasSqlType<String> for Postgres {
-    fn metadata() -> PgTypeMetadata {
-        <Postgres as HasSqlType<str>>::metadata()
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<str>>::type_info()
     }
 }
 

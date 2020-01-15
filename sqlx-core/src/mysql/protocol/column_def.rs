@@ -2,7 +2,7 @@ use byteorder::LittleEndian;
 
 use crate::io::Buf;
 use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Decode, FieldFlags, Type};
+use crate::mysql::protocol::{Decode, FieldFlags, TypeId};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_query_response_text_resultset_column_definition.html
 // https://mariadb.com/kb/en/resultset/#column-definition-packet
@@ -20,7 +20,7 @@ pub struct ColumnDefinition {
 
     pub max_size: u32,
 
-    pub r#type: Type,
+    pub type_id: TypeId,
 
     pub flags: FieldFlags,
 
@@ -57,7 +57,7 @@ impl Decode for ColumnDefinition {
         let char_set = buf.get_u16::<LittleEndian>()?;
         let max_size = buf.get_u32::<LittleEndian>()?;
 
-        let r#type = buf.get_u8()?;
+        let type_id = buf.get_u8()?;
         let flags = buf.get_u16::<LittleEndian>()?;
         let decimals = buf.get_u8()?;
 
@@ -69,7 +69,7 @@ impl Decode for ColumnDefinition {
             column_alias,
             char_set,
             max_size,
-            r#type: Type(r#type),
+            type_id: TypeId(type_id),
             flags: FieldFlags::from_bits_truncate(flags),
             decimals,
         })

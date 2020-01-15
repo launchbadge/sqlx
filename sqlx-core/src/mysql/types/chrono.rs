@@ -6,14 +6,14 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, 
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
-use crate::mysql::protocol::Type;
-use crate::mysql::types::MySqlTypeMetadata;
+use crate::mysql::protocol::TypeId;
+use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::HasSqlType;
 
 impl HasSqlType<DateTime<Utc>> for MySql {
-    fn metadata() -> Self::TypeMetadata {
-        MySqlTypeMetadata::new(Type::TIMESTAMP)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::TIMESTAMP)
     }
 }
 
@@ -32,8 +32,8 @@ impl Decode<MySql> for DateTime<Utc> {
 }
 
 impl HasSqlType<NaiveTime> for MySql {
-    fn metadata() -> Self::TypeMetadata {
-        MySqlTypeMetadata::new(Type::TIME)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::TIME)
     }
 }
 
@@ -81,8 +81,8 @@ impl Decode<MySql> for NaiveTime {
 }
 
 impl HasSqlType<NaiveDate> for MySql {
-    fn metadata() -> Self::TypeMetadata {
-        MySqlTypeMetadata::new(Type::DATE)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::DATE)
     }
 }
 
@@ -105,8 +105,8 @@ impl Decode<MySql> for NaiveDate {
 }
 
 impl HasSqlType<NaiveDateTime> for MySql {
-    fn metadata() -> Self::TypeMetadata {
-        MySqlTypeMetadata::new(Type::DATETIME)
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::new(TypeId::DATETIME)
     }
 }
 

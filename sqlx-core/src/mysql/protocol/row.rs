@@ -4,7 +4,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
 use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Decode, Type};
+use crate::mysql::protocol::{Decode, TypeId};
 
 pub struct Row {
     buffer: Box<[u8]>,
@@ -54,7 +54,7 @@ fn get_lenenc(buf: &[u8]) -> usize {
 }
 
 impl Row {
-    pub fn decode(mut buf: &[u8], columns: &[Type], binary: bool) -> crate::Result<Self> {
+    pub fn decode(mut buf: &[u8], columns: &[TypeId], binary: bool) -> crate::Result<Self> {
         if !binary {
             let buffer: Box<[u8]> = buf.into();
             let mut values = Vec::with_capacity(columns.len());
@@ -96,27 +96,25 @@ impl Row {
                 values.push(None);
             } else {
                 let size = match columns[column_idx] {
-                    Type::TINY => 1,
-                    Type::SHORT => 2,
-                    Type::LONG => 4,
-                    Type::LONGLONG => 8,
+                    TypeId::TINY_INT => 1,
+                    TypeId::SMALL_INT => 2,
+                    TypeId::INT => 4,
+                    TypeId::BIG_INT => 8,
 
-                    Type::DATE => 5,
-                    Type::TIME => 1 + buffer[index] as usize,
+                    TypeId::DATE => 5,
+                    TypeId::TIME => 1 + buffer[index] as usize,
 
-                    Type::TIMESTAMP | Type::DATETIME => 1 + buffer[index] as usize,
+                    TypeId::TIMESTAMP | TypeId::DATETIME => 1 + buffer[index] as usize,
 
-                    Type::TINY_BLOB
-                    | Type::MEDIUM_BLOB
-                    | Type::LONG_BLOB
-                    | Type::BLOB
-                    | Type::GEOMETRY
-                    | Type::STRING
-                    | Type::VARCHAR
-                    | Type::VAR_STRING => get_lenenc(&buffer[index..]),
+                    TypeId::TINY_BLOB
+                    | TypeId::MEDIUM_BLOB
+                    | TypeId::LONG_BLOB
+                    | TypeId::CHAR
+                    | TypeId::TEXT
+                    | TypeId::VAR_CHAR => get_lenenc(&buffer[index..]),
 
-                    r#type => {
-                        unimplemented!("encountered unknown field type: {:?}", r#type);
+                    id => {
+                        unimplemented!("encountered unknown field type id: {:?}", id);
                     }
                 };
 

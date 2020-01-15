@@ -1,8 +1,6 @@
 use crate::io::Buf;
-use crate::postgres::protocol::Decode;
-use crate::postgres::types::TypeFormat;
+use crate::postgres::protocol::{Decode, TypeFormat, TypeId};
 use byteorder::NetworkEndian;
-use std::{io, io::BufRead};
 
 #[derive(Debug)]
 pub struct RowDescription {
@@ -14,7 +12,7 @@ pub struct Field {
     pub name: Option<Box<str>>,
     pub table_id: Option<u32>,
     pub column_id: i16,
-    pub type_id: u32,
+    pub type_id: TypeId,
     pub type_size: i16,
     pub type_mod: i32,
     pub type_format: TypeFormat,
@@ -41,7 +39,7 @@ impl Decode for RowDescription {
                 table_id: if table_id > 0 { Some(table_id) } else { None },
 
                 column_id: buf.get_i16::<NetworkEndian>()?,
-                type_id: buf.get_u32::<NetworkEndian>()?,
+                type_id: TypeId(buf.get_u32::<NetworkEndian>()?),
                 type_size: buf.get_i16::<NetworkEndian>()?,
                 type_mod: buf.get_i32::<NetworkEndian>()?,
                 type_format: buf.get_i16::<NetworkEndian>()?.into(),
@@ -87,8 +85,8 @@ mod test {
         let desc = RowDescription::decode(&buf).unwrap();
 
         assert_eq!(desc.fields.len(), 2);
-        assert_eq!(desc.fields[0].type_id, 0x0000_0000);
-        assert_eq!(desc.fields[1].type_id, 0x0000_0500);
+        assert_eq!(desc.fields[0].type_id.0, 0x0000_0000);
+        assert_eq!(desc.fields[1].type_id.0, 0x0000_0500);
     }
 
     #[test]

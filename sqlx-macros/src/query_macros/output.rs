@@ -25,8 +25,8 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let ident = syn::parse_str::<Ident>(name)
                 .map_err(|_| format!("{:?} is not a valid Rust identifier", name))?;
 
-            let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_id)
-                .ok_or_else(|| format!("unknown field type ID: {}", &column.type_id))?
+            let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
+                .ok_or_else(|| format!("unknown type: {}", &column.type_info))?
                 .parse::<TokenStream>()
                 .unwrap();
 

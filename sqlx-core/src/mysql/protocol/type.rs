@@ -1,39 +1,42 @@
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/binary__log__types_8h.html
 // https://mariadb.com/kb/en/library/resultset/#field-types
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Type(pub u8);
+pub struct TypeId(pub u8);
 
-impl Type {
-    pub const BIT: Type = Type(16);
-    pub const BLOB: Type = Type(252);
-    pub const DATE: Type = Type(10);
-    pub const DATETIME: Type = Type(12);
-    pub const DECIMAL: Type = Type(0);
-    pub const DOUBLE: Type = Type(5);
-    pub const ENUM: Type = Type(247);
-    pub const FLOAT: Type = Type(4);
-    pub const GEOMETRY: Type = Type(255);
-    pub const INT24: Type = Type(9);
-    pub const JSON: Type = Type(245); // MySQL Only
-    pub const LONG: Type = Type(3);
-    pub const LONGLONG: Type = Type(8);
-    pub const LONG_BLOB: Type = Type(251);
-    pub const MEDIUM_BLOB: Type = Type(250);
-    pub const NULL: Type = Type(6);
-    pub const SET: Type = Type(248);
-    pub const SHORT: Type = Type(2);
-    pub const STRING: Type = Type(254);
-    pub const TIME: Type = Type(11);
-    pub const TIMESTAMP: Type = Type(7);
-    pub const TINY: Type = Type(1);
-    pub const TINY_BLOB: Type = Type(249);
-    pub const VARCHAR: Type = Type(15);
-    pub const VAR_STRING: Type = Type(253);
-    pub const YEAR: Type = Type(13);
+// https://github.com/google/mysql/blob/c01fc2134d439282a21a2ddf687566e198ddee28/include/mysql_com.h#L429
+impl TypeId {
+    pub const NULL: TypeId = TypeId(6);
+
+    // String: CHAR, VARCHAR, TEXT
+    // Bytes: BINARY, VARBINARY, BLOB
+    pub const CHAR: TypeId = TypeId(254); // or BINARY
+    pub const VAR_CHAR: TypeId = TypeId(253); // or VAR_BINARY
+    pub const TEXT: TypeId = TypeId(252); // or BLOB
+
+    // More Bytes
+    pub const TINY_BLOB: TypeId = TypeId(249);
+    pub const MEDIUM_BLOB: TypeId = TypeId(250);
+    pub const LONG_BLOB: TypeId = TypeId(251);
+
+    // Numeric: TINYINT, SMALLINT, INT, BIGINT
+    pub const TINY_INT: TypeId = TypeId(1);
+    pub const SMALL_INT: TypeId = TypeId(2);
+    pub const INT: TypeId = TypeId(3);
+    pub const BIG_INT: TypeId = TypeId(8);
+
+    // Numeric: FLOAT, DOUBLE
+    pub const FLOAT: TypeId = TypeId(4);
+    pub const DOUBLE: TypeId = TypeId(5);
+
+    // Date/Time: DATE, TIME, DATETIME, TIMESTAMP
+    pub const DATE: TypeId = TypeId(10);
+    pub const TIME: TypeId = TypeId(11);
+    pub const DATETIME: TypeId = TypeId(12);
+    pub const TIMESTAMP: TypeId = TypeId(7);
 }
 
-impl Default for Type {
-    fn default() -> Type {
-        Type::NULL
+impl Default for TypeId {
+    fn default() -> TypeId {
+        TypeId::NULL
     }
 }

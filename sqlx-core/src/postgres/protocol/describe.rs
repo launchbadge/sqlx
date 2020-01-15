@@ -35,7 +35,6 @@ impl Encode for Describe<'_> {
 #[cfg(test)]
 mod test {
     use super::{Describe, Encode};
-    use crate::io::ByteStr;
     use crate::postgres::protocol::StatementId;
 
     #[test]

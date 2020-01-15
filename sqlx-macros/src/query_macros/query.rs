@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use syn::{Ident, Path};
 
 use quote::quote;
-use sqlx::{types::HasTypeMetadata, Connection};
+use sqlx::{Connection, Database};
 
 use super::{args, output, QueryMacroInput};
 use crate::database::DatabaseExt;
@@ -18,7 +18,7 @@ pub async fn expand_query<C: Connection>(
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
-    <C::Database as HasTypeMetadata>::TypeId: Display,
+    <C::Database as Database>::TypeInfo: Display,
 {
     let describe = input.describe_validate(&mut conn).await?;
     let sql = &input.source;
