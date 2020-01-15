@@ -11,14 +11,16 @@ async fn mysql_chrono_date() -> anyhow::Result<()> {
 
     let value = NaiveDate::from_ymd(2019, 1, 2);
 
-    let row = sqlx::query("SELECT DATE '2019-01-02' = ?, ?")
-        .bind(&value)
-        .bind(&value)
-        .fetch_one(&mut conn)
-        .await?;
+    let row = sqlx::query!(
+        "SELECT (DATE '2019-01-02' = ?) as _1, CAST(? AS DATE) as _2",
+        value,
+        value
+    )
+    .fetch_one(&mut conn)
+    .await?;
 
-    assert!(row.get::<bool, _>(0));
-    assert_eq!(value, row.get(1));
+    assert!(row._1 != 0);
+    assert_eq!(value, row._2);
 
     Ok(())
 }

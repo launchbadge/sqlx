@@ -44,7 +44,6 @@ uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 sqlx-core = { version = "=0.1.4", path = "sqlx-core" }
 sqlx-macros = { version = "0.1.1", path = "sqlx-macros", optional = true }
 proc-macro-hack = { version = "0.5.11", optional = true }
-hex = "0.4.0"
 
 [dev-dependencies]
 anyhow = "1.0.26"
@@ -79,7 +78,7 @@ required-features = [ "mysql" ]
 
 [[test]]
 name = "mysql-types-chrono"
-required-features = [ "mysql", "chrono" ]
+required-features = [ "mysql", "chrono", "macros" ]
 
 [profile.release]
 lto = true
