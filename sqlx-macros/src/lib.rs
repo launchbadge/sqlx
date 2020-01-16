@@ -111,25 +111,28 @@ macro_rules! async_macro (
 );
 
 #[proc_macro]
+#[allow(unused_variables)]
 pub fn query(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
     async_macro!(db, input: QueryMacroInput => expand_query(input, db))
 }
 
 #[proc_macro]
+#[allow(unused_variables)]
 pub fn query_file(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
     async_macro!(db, input: QueryMacroInput => expand_query_file(input, db))
 }
 
 #[proc_macro]
+#[allow(unused_variables)]
 pub fn query_as(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
     async_macro!(db, input: QueryAsMacroInput => expand_query_as(input, db))
 }
 
 #[proc_macro]
+#[allow(unused_variables)]
 pub fn query_file_as(input: TokenStream) -> TokenStream {
-    #[allow(unused_variables)]
     async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db))
 }
