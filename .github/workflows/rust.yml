@@ -101,12 +101,12 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: tokio
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
