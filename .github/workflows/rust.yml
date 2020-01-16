@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - run: cargo fmt -- --check
+    - run: cargo fmt --all -- --check
 
   build:
     runs-on: ubuntu-latest
@@ -44,10 +44,10 @@ jobs:
     - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
 
     # unit test: async-std
-    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-async-std'
 
     # unit test: tokio
-    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-tokio'
 
     # Rust ------------------------------------------------
 
