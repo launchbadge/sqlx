@@ -7,7 +7,7 @@ async fn connect() -> anyhow::Result<MySqlConnection> {
 macro_rules! test {
     ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
         #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+        #[cfg_attr(feature = "runtime-tokio", tokio::test)]
         async fn $name () -> anyhow::Result<()> {
             let mut conn = connect().await?;
 
@@ -51,17 +51,15 @@ test!(mysql_string: String: "'helloworld'" == "helloworld");
 async fn mysql_bytes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let value = b"Hello, World";
+    let value = &b"Hello, World"[..];
 
-    let row = sqlx::query("SELECT X'48656c6c6f2c20576f726c64' = ?, ?")
-        .bind(&value[..])
-        .bind(&value[..])
+    let rec = sqlx::query!("SELECT (X'48656c6c6f2c20576f726c64' = ?) as _1, CAST(? as BINARY) as _2", value, value)
         .fetch_one(&mut conn)
         .await?;
 
-    assert!(row.get::<bool, _>(0));
+    assert!(rec._1 != 0);
 
-    let output: Vec<u8> = row.get(1);
+    let output: Vec<u8> = rec._2;
 
     assert_eq!(&value[..], &*output);
 

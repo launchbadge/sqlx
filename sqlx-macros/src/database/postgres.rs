@@ -8,6 +8,9 @@ impl_database_ext! {
         f32,
         f64,
 
+        // BYTEA
+        Vec<u8>,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
