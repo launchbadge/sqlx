@@ -122,7 +122,7 @@ let countries = sqlx::query!(
     )
     .fetch(&mut conn) // -> impl Stream<Item = { country: String, count: i64 }>
     .map_ok(|rec| (rec.country, rec.count))
-    .collect::<HashMap<_>>() // -> HashMap<String, i64>
+    .try_collect::<HashMap<_>>() // -> HashMap<String, i64>
     .await?;
 ```
 
