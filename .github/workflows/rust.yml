@@ -153,14 +153,14 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros uuid chrono tls'
       env:
         # pass the path to the CA that the MySQL service generated
         # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
         DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
 
     # integration test: tokio
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
       env:
         # pass the path to the CA that the MySQL service generated
         # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
@@ -207,11 +207,11 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-async-std mysql macros chrono'
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros chrono'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
 
     # integration test: tokio
-    - run: cargo test -p sqlx --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
