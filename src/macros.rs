@@ -4,7 +4,7 @@
 /// if the query has output columns, or `()` (unit) otherwise:
 ///
 /// ```rust
-/// # #[cfg(feature = "mysql")]
+/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -23,7 +23,7 @@
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(not(feature = "mysql"))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
 ///
@@ -32,7 +32,7 @@
 /// and this macro will typecheck passed arguments and error on missing ones:
 ///
 /// ```rust
-/// # #[cfg(feature = "mysql")]
+/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -53,7 +53,7 @@
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(not(feature = "mysql"))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
 ///
@@ -123,7 +123,7 @@ macro_rules! query (
 ///
 /// `src/my_query.rs`:
 /// ```rust
-/// # #[cfg(feature = "mysql")]
+/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -141,7 +141,7 @@ macro_rules! query (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(not(feature = "mysql"))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
 #[macro_export]
@@ -178,7 +178,7 @@ macro_rules! query_file (
 ///
 /// The only modification to the syntax is that the struct name is given before the SQL string:
 /// ```rust
-/// # #[cfg(feature = "mysql")]
+/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -206,7 +206,7 @@ macro_rules! query_file (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(not(feature = "mysql"))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
 #[macro_export]
@@ -232,7 +232,7 @@ macro_rules! query_as (
 /// Enforces requirements of both macros; see them for details.
 ///
 /// ```rust
-/// # #[cfg(feature = "mysql")]
+/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -256,7 +256,7 @@ macro_rules! query_as (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(not(feature = "mysql"))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
 #[macro_export]
