@@ -53,9 +53,13 @@ async fn mysql_bytes() -> anyhow::Result<()> {
 
     let value = &b"Hello, World"[..];
 
-    let rec = sqlx::query!("SELECT (X'48656c6c6f2c20576f726c64' = ?) as _1, CAST(? as BINARY) as _2", value, value)
-        .fetch_one(&mut conn)
-        .await?;
+    let rec = sqlx::query!(
+        "SELECT (X'48656c6c6f2c20576f726c64' = ?) as _1, CAST(? as BINARY) as _2",
+        value,
+        value
+    )
+    .fetch_one(&mut conn)
+    .await?;
 
     assert!(rec._1 != 0);
 
