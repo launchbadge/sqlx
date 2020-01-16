@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.2.1 - 2020-01-16
+
 ### Fixed
+
+ - Fix decoding of Rows containing NULLs in MySQL [@danielakhterov] [#64] [#65]
+
+[@danielakhterov]: https://github.com/danielakhterov
+[#64]: https://github.com/launchbadge/sqlx/pull/64
+[#65]: https://github.com/launchbadge/sqlx/pull/65
 
  - Use a shared tokio runtime for the `query!` macro compile-time execution (under the `runtime-tokio` feature). [@udoprog] [#55]
 
