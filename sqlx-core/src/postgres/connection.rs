@@ -389,6 +389,8 @@ impl PgConnection {
             _ => return Err(tls_err!("unknown `sslmode` value: {:?}", ssl_mode).into()),
         }
 
+        self_.stream.clear_bufs();
+
         self_.startup(&url).await?;
 
         Ok(self_)
