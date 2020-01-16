@@ -16,7 +16,7 @@ authors = [
 proc-macro = true
 
 [features]
-default = []
+default = [ "runtime-async-std" ]
 
 runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
 runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
