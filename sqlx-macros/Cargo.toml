@@ -31,9 +31,9 @@ uuid = [ "sqlx/uuid" ]
 
 [dependencies]
 async-std = { version = "1.4.0", default-features = false, optional = true }
-tokio = { version = "0.2", optional = true }
+tokio = { version = "0.2", default-features = false, features = [ "rt-threaded" ], optional = true }
 dotenv = { version = "0.15.0", default-features = false }
-futures = { version = "0.3.1", default-features = false, features = ["executor"] }
+futures = { version = "0.3.1", default-features = false, features = [ "executor" ] }
 proc-macro2 = { version = "1.0.6", default-features = false }
 sqlx = { version = "0.2.1", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
 syn = { version = "1.0.11", default-features = false, features = [ "full" ] }
