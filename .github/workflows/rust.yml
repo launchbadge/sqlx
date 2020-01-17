@@ -7,8 +7,14 @@ on:
       - master
 
 jobs:
-  build:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
 
+    - run: cargo fmt --all -- --check
+
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +24,6 @@ jobs:
 
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
-      if: steps.cache_rust.outputs.cache-hit != 'true'
       with:
         toolchain: stable
         profile: minimal
@@ -32,13 +37,17 @@ jobs:
 
     # -----------------------------------------------------
 
+    # check: async-std
     - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
 
+    # check: tokio
     - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
 
-    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
+    # unit test: async-std
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-async-std'
 
-    - run: cargo test -p sqlx-core --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
+    # unit test: tokio
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-tokio'
 
     # Rust ------------------------------------------------
 
@@ -49,3 +58,160 @@ jobs:
         && rm -f  ./target/.rustc_info.json
 
     # -----------------------------------------------------
+
+  postgres:
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: [9.4.25, 10.11, 12.1]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+        # will assign a random free host port
+        - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    # -----------------------------------------------------
+
+    # integration test: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # integration test: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+  mysql:
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mysql: [5.7.28, 8.0.18]
+
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: sqlx
+        ports:
+        # will assign a random free host port
+        - 3306/tcp
+        # needed because the container does not provide a healthcheck
+        options: >-
+          --health-cmd "mysqladmin ping --silent" --health-interval 30s --health-timeout 30s
+          --health-retries 10 -v /data/mysql:/var/lib/mysql
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    # -----------------------------------------------------
+
+    # integration test: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros uuid chrono tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # integration test: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+  mariadb:
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mariadb: [10.1.43, 10.4.11]
+
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: sqlx
+        ports:
+        # will assign a random free host port
+        - 3306/tcp
+        # needed because the container does not provide a healthcheck
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 30s --health-timeout 30s --health-retries 10
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    # -----------------------------------------------------
+
+    # integration test: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros chrono uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # integration test: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
