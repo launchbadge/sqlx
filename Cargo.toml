@@ -45,8 +45,8 @@ chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]
-sqlx-core = { version = "0.2.1", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.2.1", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.2.2", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.2.2", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.26"

@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-macros"
-version = "0.2.1"
+version = "0.2.2"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -35,7 +35,7 @@ tokio = { version = "0.2.9", default-features = false, features = [ "rt-threaded
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.1", default-features = false, features = [ "executor" ] }
 proc-macro2 = { version = "1.0.7", default-features = false }
-sqlx = { version = "0.2.1", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+sqlx = { version = "0.2.2", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
 syn = { version = "1.0.13", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
 url = { version = "2.1.1", default-features = false }
