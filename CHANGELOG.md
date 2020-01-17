@@ -7,19 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.2.2 - 2020-01-16
+
+### Added
+
+ - [[#57]] Add support for unsigned integers and binary types in `query!` for MySQL [[@mehcode]]
+
+[#57]: https://github.com/launchbadge/sqlx/issues/57
+
+### Fixed
+
+ - Fix stall when requesting TLS from a Postgres server that explicitly does not support TLS (such as postgres running inside docker) [[@abonander]]
+
+ - [[#66]] Declare used features for `tokio` in `sqlx-macros` explicitly
+ 
+[#66]: https://github.com/launchbadge/sqlx/issues/66
+
 ## 0.2.1 - 2020-01-16
 
 ### Fixed
 
- - Fix decoding of Rows containing NULLs in MySQL [@danielakhterov] [#64] [#65]
+ - [[#64], [#65]] Fix decoding of Rows containing NULLs in MySQL [[@danielakhterov]]
 
-[@danielakhterov]: https://github.com/danielakhterov
 [#64]: https://github.com/launchbadge/sqlx/pull/64
 [#65]: https://github.com/launchbadge/sqlx/pull/65
 
- - Use a shared tokio runtime for the `query!` macro compile-time execution (under the `runtime-tokio` feature). [@udoprog] [#55]
+ - [[#55]] Use a shared tokio runtime for the `query!` macro compile-time execution (under the `runtime-tokio` feature) [[@udoprog]] 
 
-[@udoprog]: https://github.com/udoprog
 [#55]: https://github.com/launchbadge/sqlx/pull/55
 
 ## 0.2.0 - 2020-01-15
@@ -67,3 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - [`Chrono`](https://github.com/chronotope/chrono) support for MySQL was only partially implemented (was missing `NaiveTime` and `DateTime<Utc>`).
 
  - `Vec<u8>` (and `[u8]`) support for MySQL (`BLOB`) and Postgres (`BYTEA`).
+
+[@abonander]: https://github.com/abonander
+[@danielakhterov]: https://github.com/danielakhterov
+[@mehcode]: https://github.com/mehcode
+[@udoprog]: https://github.com/udoprog
