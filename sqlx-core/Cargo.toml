@@ -22,9 +22,9 @@ runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
 runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
 
 [dependencies]
-async-native-tls = { version = "0.3", default-features = false, optional = true }
+async-native-tls = { version = "0.3.2", default-features = false, optional = true }
 async-std = { version = "1.4.0", optional = true }
-tokio = { version = "0.2", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true } 
+tokio = { version = "0.2.9", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true } 
 async-stream = { version = "0.2.0", default-features = false }
 base64 = { version = "0.11.0", default-features = false, optional = true, features = [ "std" ] }
 bitflags = { version = "1.2.1", default-features = false }
@@ -40,12 +40,12 @@ futures-util = { version = "0.3.1", default-features = false }
 generic-array = { version = "0.12.3", default-features = false, optional = true }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
-memchr = { version = "2.2.1", default-features = false }
-num-bigint = { version = "0.2.3", default-features = false, optional = true, features = [ "std" ] }
-rand = { version = "0.7.2", default-features = false, optional = true, features = [ "std" ] }
-sha-1 = { version = "0.8.1", default-features = false, optional = true }
-sha2 = { version = "0.8.0", default-features = false, optional = true }
-url = { version = "2.1.0", default-features = false }
+memchr = { version = "2.3.0", default-features = false }
+num-bigint = { version = "0.2.5", default-features = false, optional = true, features = [ "std" ] }
+rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
+sha-1 = { version = "0.8.2", default-features = false, optional = true }
+sha2 = { version = "0.8.1", default-features = false, optional = true }
+url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true }
 hmac = { version = "0.7.1", default-features = false, optional = true }
 

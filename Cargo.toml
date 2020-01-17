@@ -51,9 +51,9 @@ sqlx-macros = { version = "0.2.1", path = "sqlx-macros", default-features = fals
 [dev-dependencies]
 anyhow = "1.0.26"
 futures = "0.3.1"
-env_logger = "0.7"
+env_logger = "0.7.1"
 async-std = { version = "1.4.0", features = [ "attributes" ] }
-tokio = { version = "0.2.0", features = [ "full" ] }
+tokio = { version = "0.2.9", features = [ "full" ] }
 dotenv = "0.15.0"
 
 [[test]]

@@ -31,12 +31,12 @@ uuid = [ "sqlx/uuid" ]
 
 [dependencies]
 async-std = { version = "1.4.0", default-features = false, optional = true }
-tokio = { version = "0.2", default-features = false, features = [ "rt-threaded" ], optional = true }
+tokio = { version = "0.2.9", default-features = false, features = [ "rt-threaded" ], optional = true }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.1", default-features = false, features = [ "executor" ] }
-proc-macro2 = { version = "1.0.6", default-features = false }
+proc-macro2 = { version = "1.0.7", default-features = false }
 sqlx = { version = "0.2.1", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
-syn = { version = "1.0.11", default-features = false, features = [ "full" ] }
+syn = { version = "1.0.13", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
-url = { version = "2.1.0", default-features = false }
+url = { version = "2.1.1", default-features = false }
 lazy_static = { version = "1.4.0", optional = true }
