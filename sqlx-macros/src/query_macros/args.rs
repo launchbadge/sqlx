@@ -1,6 +1,5 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
-use syn::spanned::Spanned;
 use syn::Expr;
 
 use sqlx::describe::Describe;

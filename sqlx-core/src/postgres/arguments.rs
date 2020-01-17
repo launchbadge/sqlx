@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian};
 
-use crate::arguments::{Arguments, IntoArguments};
+use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::io::BufMut;
 use crate::types::HasSqlType;
