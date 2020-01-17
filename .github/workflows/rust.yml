@@ -207,11 +207,11 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std
-    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros chrono'
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros chrono uuid chrono tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
 
     # integration test: tokio
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
