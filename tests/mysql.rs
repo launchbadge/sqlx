@@ -52,6 +52,20 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_selects_null() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let row = sqlx::query("SELECT NULL").fetch_one(&mut conn).await?;
+
+    let val: Option<i32> = row.get(0);
+
+    assert!(val.is_none());
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
     // Malform the database url by changing the password
     let url = url()?.replace("password", "not-the-password");

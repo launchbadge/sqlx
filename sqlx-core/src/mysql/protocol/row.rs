@@ -92,13 +92,13 @@ impl Row {
         let mut index = 0;
 
         for column_idx in 0..columns.len() {
-            let null = if column_idx % 8 > 5 {
-                null_bitmap[column_idx + 1 / 8] & (4 << (column_idx % 8) as u8)
-            } else {
-                null_bitmap[column_idx / 8] & (1 << (column_idx % 8) as u8)
-            };
+            // the null index for a column starts at the 3rd bit in the null bitmap
+            // for no reason at all besides mysql probably
+            let column_null_idx = column_idx + 2;
+            let is_null =
+                null_bitmap[column_null_idx / 8] & (1 << (column_null_idx % 8) as u8) != 0;
 
-            if null != 0 {
+            if is_null {
                 values.push(None);
             } else {
                 let size = match columns[column_idx] {
