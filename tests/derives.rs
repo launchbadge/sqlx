@@ -21,7 +21,7 @@ fn decode() {
     struct Foo(i32);
 
     #[cfg(feature = "postgres")]
-    let _: Box<dyn Decode<sqlx::Postgres>> = Box::new(Foo(1));
+    <Foo as Decode<sqlx::Postgres>>::decode_null().ok();
     #[cfg(feature = "mysql")]
-    let _: Box<dyn Decode<sqlx::MySql>> = Box::new(Foo(1));
+    <Foo as Decode<sqlx::MySql>>::decode_null().ok();
 }
