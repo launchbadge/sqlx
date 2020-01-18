@@ -1,4 +1,4 @@
-use sqlx::{Connect, PgConnection};
+use sqlx::{Connect, Executor, PgConnection};
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -19,7 +19,19 @@ async fn test_query() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn test_query_file() -> anyhow::Result<()> {
+async fn test_no_result() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let _ = sqlx::query!("DELETE FROM pg_enum")
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn _file() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let account = sqlx::query_file!("tests/test-query.sql")

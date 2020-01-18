@@ -25,11 +25,32 @@ where
 
     let args = args::quote_args(&input, &describe)?;
 
+    let arg_names = &input.arg_names;
+    let args_count = arg_names.len();
+    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
+    let arg_indices_2 = arg_indices.clone();
+    let db_path = <C::Database as DatabaseExt>::quotable_path();
+
     if describe.result_columns.is_empty() {
-        return Ok(quote! {{
-            #args
-            sqlx::query_as_mapped(#sql, |_| Ok(())).bind_all(args)
-        }});
+        return Ok(quote! {
+            macro_rules! macro_result {
+                (#($#arg_names:expr),*) => {{
+                    use sqlx::arguments::Arguments as _;
+
+                    #args
+
+                    let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
+                    query_args.reserve(
+                        #args_count,
+                        0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
+                    );
+
+                    #(query_args.add(args.#arg_indices_2);)*
+
+                    sqlx::query_as_mapped(#sql, |_| Ok(())).bind_all(query_args)
+                }
+            }}
+        });
     }
 
     let columns = output::columns_to_rust(&describe)?;
@@ -50,11 +71,6 @@ where
         .collect::<TokenStream>();
 
     let output = output::quote_query_as::<C::Database>(sql, &record_type, &columns);
-    let arg_names = &input.arg_names;
-    let args_count = arg_names.len();
-    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
-    let arg_indices_2 = arg_indices.clone();
-    let db_path = <C::Database as DatabaseExt>::quotable_path();
 
     Ok(quote! {
         macro_rules! macro_result {

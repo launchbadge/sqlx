@@ -272,7 +272,8 @@ impl super::PgConnection {
         };
 
         let result = match self.step().await? {
-            Some(Step::RowDesc(desc)) => desc,
+            Some(Step::RowDesc(desc)) => Some(desc),
+            Some(Step::NoData) => None,
 
             step => {
                 return Err(protocol_err!("expected RowDescription; received {:?}", step).into());
@@ -287,7 +288,8 @@ impl super::PgConnection {
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
             result_columns: result
-                .fields
+                .map(|r| r.fields)
+                .unwrap_or_default()
                 .into_vec()
                 .into_iter()
                 // TODO: Should [Column] just wrap [protocol::Field] ?
