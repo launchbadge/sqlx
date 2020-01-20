@@ -24,6 +24,14 @@ impl PgTypeInfo {
     pub(crate) fn new(id: TypeId) -> Self {
         Self { id }
     }
+
+    /// Create a `PgTypeInfo` from a type's object identifier.
+    ///
+    /// The object identifier of a type can be queried with
+    /// `SELECT oid FROM pg_type WHERE typname = <name>;`
+    pub fn with_oid(oid: u32) -> Self {
+        Self { id: TypeId(oid) }
+    }
 }
 
 impl Display for PgTypeInfo {
