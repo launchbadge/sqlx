@@ -555,7 +555,7 @@ impl MySqlConnection {
         let auth_response = self_
             .make_auth_initial_response(
                 &handshake.auth_plugin,
-                password,
+                &password,
                 &handshake.auth_plugin_data,
             )
             .await?;
@@ -569,7 +569,7 @@ impl MySqlConnection {
         self_
             .receive_auth_ok(
                 &handshake.auth_plugin,
-                password,
+                &password,
                 &handshake.auth_plugin_data,
             )
             .await?;

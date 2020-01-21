@@ -177,7 +177,7 @@ impl PgConnection {
 
                         protocol::Authentication::ClearTextPassword => {
                             protocol::PasswordMessage::ClearText(
-                                url.password().unwrap_or_default(),
+                                &url.password().unwrap_or_default(),
                             )
                             .encode(self.stream.buffer_mut());
 
@@ -186,7 +186,7 @@ impl PgConnection {
 
                         protocol::Authentication::Md5Password { salt } => {
                             protocol::PasswordMessage::Md5 {
-                                password: url.password().unwrap_or_default(),
+                                password: &url.password().unwrap_or_default(),
                                 user: username,
                                 salt,
                             }
@@ -217,7 +217,7 @@ impl PgConnection {
 
                             if has_sasl || has_sasl_plus {
                                 // TODO: Handle -PLUS differently if we're in a TLS stream
-                                sasl_auth(self, username, url.password().unwrap_or_default())
+                                sasl_auth(self, username, &url.password().unwrap_or_default())
                                     .await?;
                             } else {
                                 return Err(protocol_err!(
