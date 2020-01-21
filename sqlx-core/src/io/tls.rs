@@ -1,5 +1,4 @@
 use std::io;
-use std::io::{IoSlice, IoSliceMut};
 use std::net::Shutdown;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -94,7 +93,7 @@ impl AsyncRead for MaybeTlsStream {
     fn poll_read_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-        bufs: &mut [IoSliceMut],
+        bufs: &mut [std::io::IoSliceMut],
     ) -> Poll<io::Result<usize>> {
         forward_pin!(self.poll_read_vectored(cx, bufs))
     }
@@ -127,7 +126,7 @@ impl AsyncWrite for MaybeTlsStream {
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
-        bufs: &[IoSlice],
+        bufs: &[std::io::IoSlice],
     ) -> Poll<io::Result<usize>> {
         forward_pin!(self.poll_write_vectored(cx, bufs))
     }
