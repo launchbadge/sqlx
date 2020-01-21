@@ -37,11 +37,21 @@ jobs:
 
     # -----------------------------------------------------
 
-    # check: async-std
-    - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std'
+    # check w/deny warnings in sqlx-core: async-std
+    - working-directory: sqlx-core
+      run: cargo rustc --no-default-features --features 'chrono uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
 
-    # check: tokio
-    - run: cargo check --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio'
+    # check w/deny warnings in sqlx-core: tokio
+    # `cargo rustc -p sqlx-core` ignores `--no-default-features` and builds with `runtime-async-std` anyway
+    # https://github.com/rust-lang/cargo/issues/5364
+    - working-directory: sqlx-core
+      run: cargo rustc --no-default-features --features 'chrono uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
+
+    # check w/deny warnings: async-std
+    - run: cargo rustc --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata
+
+    # check w/deny warnings: tokio
+    - run: cargo rustc --no-default-features --features 'chrono uuid postgres mysql macros tls runtime-tokio' -- -D warnings --emit=metadata
 
     # unit test: async-std
     - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-async-std'
