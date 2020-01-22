@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::io::BufMut;
 use crate::postgres::protocol::Encode;
 use byteorder::NetworkEndian;

@@ -1,6 +1,6 @@
 use std::env;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, Span};
 use sqlx::runtime::fs;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -9,7 +9,7 @@ use syn::token::Group;
 use syn::{Expr, ExprLit, ExprPath, Lit};
 use syn::{ExprGroup, Token};
 
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, ToTokens};
 
 use sqlx::describe::Describe;
 use sqlx::Connection;

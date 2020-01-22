@@ -1,5 +1,6 @@
-use crate::io::{Buf, BufMut};
 use byteorder::NetworkEndian;
+
+use crate::io::BufMut;
 
 pub struct SslRequest;
 

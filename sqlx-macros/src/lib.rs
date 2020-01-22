@@ -8,8 +8,6 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-use syn::parse_macro_input;
-
 #[cfg(feature = "runtime-async-std")]
 use async_std::task::block_on;
 
@@ -102,7 +100,7 @@ macro_rules! async_macro (
                 if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
                     macro_result(parse_err.to_compile_error())
                 } else {
-                    let msg = format!("{:?}", e);
+                    let msg = e.to_string();
                     macro_result(quote!(compile_error!(#msg)))
                 }
             }

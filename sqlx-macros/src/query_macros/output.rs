@@ -22,8 +22,7 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                 .as_deref()
                 .ok_or_else(|| format!("column at position {} must have a name", i))?;
 
-            let ident = syn::parse_str::<Ident>(name)
-                .map_err(|_| format!("{:?} is not a valid Rust identifier", name))?;
+            let ident = parse_ident(name)?;
 
             let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
                 .ok_or_else(|| format!("unknown type: {}", &column.type_info))?
@@ -60,4 +59,19 @@ pub fn quote_query_as<DB: DatabaseExt>(
             Ok(#out_ty { #(#instantiations),* })
         })
     }
+}
+
+fn parse_ident(name: &str) -> crate::Result<Ident> {
+    // workaround for the following issue (it's semi-fixed but still spits out extra diagnostics)
+    // https://github.com/dtolnay/syn/issues/749#issuecomment-575451318
+
+    let is_valid_ident = name.chars().all(|c| c.is_alphanumeric() || c == '_');
+
+    if is_valid_ident {
+        if let Ok(ident) = syn::parse_str(name) {
+            return Ok(ident);
+        }
+    }
+
+    Err(format!("{:?} is not a valid Rust identifier", name).into())
 }

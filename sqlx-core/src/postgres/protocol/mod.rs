@@ -19,6 +19,7 @@ mod parse;
 mod password_message;
 mod query;
 mod sasl;
+#[cfg_attr(not(feature = "tls"), allow(unused_imports, dead_code))]
 mod ssl_request;
 mod startup_message;
 mod statement;

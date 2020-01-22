@@ -31,7 +31,6 @@ pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 pub extern crate sqlx_macros;
 
 #[cfg(feature = "macros")]
-#[macro_export]
 mod macros;
 
 // macro support
