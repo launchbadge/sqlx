@@ -148,6 +148,7 @@ impl From<ProtocolError<'_>> for Error {
 }
 
 #[cfg(feature = "tls")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 impl From<async_native_tls::Error> for Error {
     #[inline]
     fn from(err: async_native_tls::Error) -> Self {

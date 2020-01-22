@@ -99,6 +99,7 @@ pub struct PgConnection {
 
 impl PgConnection {
     #[cfg(feature = "tls")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
     async fn try_ssl(
         &mut self,
         url: &Url,

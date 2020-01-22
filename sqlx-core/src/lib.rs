@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 #![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
 pub mod error;
@@ -37,9 +38,11 @@ pub mod types;
 pub mod row;
 
 #[cfg(feature = "mysql")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub mod mysql;
 
 #[cfg(feature = "postgres")]
+#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub mod postgres;
 
 pub use database::Database;
@@ -63,9 +66,11 @@ pub use pool::Pool;
 pub use row::{FromRow, Row};
 
 #[cfg(feature = "mysql")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 #[doc(inline)]
 pub use mysql::MySql;
 
 #[cfg(feature = "postgres")]
+#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 #[doc(inline)]
 pub use postgres::Postgres;

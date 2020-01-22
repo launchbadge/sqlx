@@ -40,6 +40,7 @@ impl MaybeTlsStream {
     }
 
     #[cfg(feature = "tls")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
     pub async fn upgrade(
         &mut self,
         url: &Url,
@@ -113,16 +114,19 @@ impl AsyncWrite for MaybeTlsStream {
     }
 
     #[cfg(feature = "runtime-async-std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "runtime-async-std")))]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         forward_pin!(self.poll_close(cx))
     }
 
     #[cfg(feature = "runtime-tokio")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "runtime-tokio")))]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         forward_pin!(self.poll_shutdown(cx))
     }
 
     #[cfg(feature = "runtime-async-std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "runtime-async-std")))]
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
