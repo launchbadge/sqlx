@@ -1,13 +1,10 @@
 //! **Pool** for SQLx database connections.
 
 use std::{
-    fmt, mem,
-    ops::{Deref, DerefMut},
+    fmt,
     sync::Arc,
     time::{Duration, Instant},
 };
-
-use futures_core::future::BoxFuture;
 
 use crate::connection::{Connect, Connection};
 use crate::transaction::Transaction;
@@ -15,32 +12,19 @@ use crate::transaction::Transaction;
 use self::inner::SharedPool;
 use self::options::Options;
 
+pub use self::conn::PoolConnection;
+
+mod conn;
 mod executor;
 mod inner;
 mod options;
+mod queue;
+mod size;
 
 pub use self::options::Builder;
 
 /// A pool of database connections.
 pub struct Pool<C>(Arc<SharedPool<C>>);
-
-pub struct PoolConnection<C>
-where
-    C: Connection + Connect<Connection = C>,
-{
-    live: Option<Live<C>>,
-    pool: Arc<SharedPool<C>>,
-}
-
-struct Live<C> {
-    raw: C,
-    created: Instant,
-}
-
-struct Idle<C> {
-    live: Live<C>,
-    since: Instant,
-}
 
 impl<C> Pool<C>
 where
@@ -72,20 +56,14 @@ where
     ///
     /// Waits for at most the configured connection timeout before returning an error.
     pub async fn acquire(&self) -> crate::Result<PoolConnection<C>> {
-        self.0.acquire().await.map(|conn| PoolConnection {
-            live: Some(conn),
-            pool: Arc::clone(&self.0),
-        })
+        self.0.acquire().await.map(|conn| conn.attach(&self.0))
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
-        self.0.try_acquire().map(|conn| PoolConnection {
-            live: Some(conn),
-            pool: Arc::clone(&self.0),
-        })
+        self.0.try_acquire().map(|conn| conn.attach(&self.0))
     }
 
     /// Retrieves a new connection and immediately begins a new transaction.
@@ -159,56 +137,22 @@ where
     }
 }
 
-const DEREF_ERR: &str = "(bug) connection already released to pool";
-
-impl<C> Deref for PoolConnection<C>
-where
-    C: Connection + Connect<Connection = C>,
-{
-    type Target = C;
-
-    fn deref(&self) -> &Self::Target {
-        &self.live.as_ref().expect(DEREF_ERR).raw
-    }
+/// get the time between the deadline and now and use that as our timeout
+///
+/// returns `Error::PoolTimedOut` if the deadline is in the past
+fn deadline_as_timeout(deadline: Instant) -> crate::Result<Duration> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .ok_or(crate::Error::PoolTimedOut(None))
 }
 
-impl<C> DerefMut for PoolConnection<C>
-where
-    C: Connection + Connect<Connection = C>,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.live.as_mut().expect(DEREF_ERR).raw
-    }
-}
+#[test]
+fn assert_pool_traits() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    fn assert_clone<T: Clone>() {}
 
-impl<C> Connection for PoolConnection<C>
-where
-    C: Connection + Connect<Connection = C>,
-{
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(async move {
-            if let Some(live) = self.live.take() {
-                let raw = live.raw;
-
-                // Explicitly close the connection
-                raw.close().await?;
-            }
-
-            // Forget ourself so it does not go back to the pool
-            mem::forget(self);
-
-            Ok(())
-        })
-    }
-}
-
-impl<C> Drop for PoolConnection<C>
-where
-    C: Connection + Connect<Connection = C>,
-{
-    fn drop(&mut self) {
-        if let Some(live) = self.live.take() {
-            self.pool.release(live);
-        }
+    fn assert_pool<C: Connection + Connect<Connection = C>>() {
+        assert_send_sync::<Pool<C>>();
+        assert_clone::<Pool<C>>();
     }
 }
