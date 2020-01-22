@@ -52,8 +52,20 @@ impl Url {
         }
     }
 
-    pub fn password(&self) -> Option<&str> {
-        self.0.password()
+    pub fn password(&self) -> Option<Cow<str>> {
+        match self.0.password() {
+            Some(s) => {
+                let decoded = percent_encoding::percent_decode_str(s);
+
+                // FIXME: Handle error
+                Some(
+                    decoded
+                        .decode_utf8()
+                        .expect("percent-encoded password contained non-UTF-8 bytes"),
+                )
+            }
+            None => None,
+        }
     }
 
     pub fn database(&self) -> Option<&str> {
