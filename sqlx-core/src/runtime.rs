@@ -1,5 +1,4 @@
 #[cfg(feature = "runtime-async-std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime-async-std")))]
 pub use async_std::{
     fs,
     future::timeout,
@@ -12,7 +11,6 @@ pub use async_std::{
 };
 
 #[cfg(feature = "runtime-tokio")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime-tokio")))]
 pub use tokio::{
     fs,
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},

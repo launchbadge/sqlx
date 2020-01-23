@@ -2,7 +2,6 @@
     not(any(feature = "postgres", feature = "mysql")),
     allow(dead_code, unused_macros, unused_imports)
 )]
-#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
