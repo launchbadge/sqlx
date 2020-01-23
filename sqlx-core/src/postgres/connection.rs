@@ -18,9 +18,9 @@ use crate::postgres::PgError;
 use crate::url::Url;
 use crate::Result;
 
-/// An asynchronous connection to a [Postgres] database.
+/// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
-/// The connection string expected by [Connection::open] should be a PostgreSQL connection
+/// The connection string expected by [Connect::connect] should be a PostgreSQL connection
 /// string, as documented at
 /// <https://www.postgresql.org/docs/12/libpq-connect.html#LIBPQ-CONNSTRING>
 ///

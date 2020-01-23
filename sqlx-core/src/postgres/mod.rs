@@ -16,5 +16,5 @@ mod protocol;
 mod row;
 mod types;
 
-/// An alias for [`Pool`], specialized for **Postgres**.
+/// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.
 pub type PgPool = super::Pool<PgConnection>;

@@ -7,7 +7,7 @@ use std::time::Instant;
 use super::inner::SharedPool;
 use super::size::{DecreaseOnDrop, PoolSize};
 
-/// A connection checked out from [PgPool][crate::pool::PgPool].
+/// A connection checked out from [`Pool`][crate::Pool].
 ///
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<C>
@@ -75,7 +75,7 @@ where
     }
 }
 
-/// Returns the connection to the [PgPool][crate::pool::PgPool] it was checked-out from.
+/// Returns the connection to the [`Pool`][crate::Pool] it was checked-out from.
 impl<C> Drop for PoolConnection<C>
 where
     C: Connection + Connect<Connection = C>,

@@ -35,8 +35,8 @@ where
     /// The connection URL syntax is documented on the connection type for the respective
     /// database you're connecting to:
     ///
-    /// * MySQL/MariaDB: [crate::MySqlConnection]
-    /// * PostgreSQL: [crate::PgConnection]
+    /// * MySQL/MariaDB: [crate::mysql::MySqlConnection]
+    /// * PostgreSQL: [crate::postgres::PgConnection]
     pub async fn new(url: &str) -> crate::Result<Self> {
         Self::builder().build(url).await
     }
@@ -79,7 +79,7 @@ where
         self.0.close().await;
     }
 
-    /// Returns `true` if [.close()][Pool::close] has been called on the pool, `false` otherwise.
+    /// Returns `true` if [`.close()`][Pool::close] has been called on the pool, `false` otherwise.
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
     }
