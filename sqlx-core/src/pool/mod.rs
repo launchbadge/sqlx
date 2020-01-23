@@ -79,6 +79,11 @@ where
         self.0.close().await;
     }
 
+    /// Returns `true` if [.close()][Pool::close] has been called on the pool, `false` otherwise.
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
+    }
+
     /// Returns the number of connections currently being managed by the pool.
     pub fn size(&self) -> u32 {
         self.0.size()
