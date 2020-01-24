@@ -1,10 +1,6 @@
-use proc_macro2::Span;
 use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::token::{Gt, Lt, Where};
 use syn::{
-    parse_quote, Data, DataStruct, DeriveInput, Fields, FieldsUnnamed, PredicateType, Token,
-    WhereClause, WherePredicate,
+    parse_quote, Data, DataStruct, DeriveInput, Fields, FieldsUnnamed, 
 };
 
 pub(crate) fn expand_derive_encode(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
