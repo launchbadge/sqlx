@@ -35,6 +35,7 @@ pub use parse::Parse;
 pub use password_message::PasswordMessage;
 pub use query::Query;
 pub use sasl::{hi, SaslInitialResponse, SaslResponse};
+#[cfg(feature = "tls")]
 pub use ssl_request::SslRequest;
 pub use startup_message::StartupMessage;
 pub use statement::StatementId;

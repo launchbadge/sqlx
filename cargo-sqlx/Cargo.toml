@@ -1,0 +1,23 @@
+[package]
+name = "cargo-sqlx"
+version = "0.1.0"
+repository = "https://github.com/launchbadge/sqlx"
+description = "SQLx cargo subcommand"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+authors = [
+    "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
+    "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
+    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>", # zach@launchbadge.com
+    "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
+]
+
+[dependencies]
+anyhow = "1.0.26"
+env_logger = "0.7.1"
+async-std = { version = "1.4.0", features = [ "attributes" ] }
+sqlx = { path = "..", features = [ "postgres", "mysql", "runtime-async-std", "macros" ] }
+serde = { version = "1.0.104", features = [ "derive" ] }
+structopt = "0.3.8"
+sha3 = "0.8.2"
+hex = "0.4.0"

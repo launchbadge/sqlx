@@ -1,6 +1,7 @@
 [workspace]
 members = [
     ".",
+    "cargo-sqlx",
     "sqlx-core",
     "sqlx-macros",
     "sqlx-test",
