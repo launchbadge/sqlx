@@ -84,5 +84,9 @@ required-features = [ "mysql" ]
 name = "mysql-types-chrono"
 required-features = [ "mysql", "chrono", "macros" ]
 
+[[test]]
+name = "derives"
+required-features = [ "macros" ]
+
 [profile.release]
 lto = true
