@@ -1,7 +1,5 @@
 use quote::quote;
-use syn::{
-    parse_quote, Data, DataStruct, DeriveInput, Fields, FieldsUnnamed, 
-};
+use syn::{parse_quote, Data, DataStruct, DeriveInput, Fields, FieldsUnnamed};
 
 pub(crate) fn expand_derive_encode(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     match &input.data {
