@@ -3,20 +3,18 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::{Gt, Lt, Where};
 use syn::{
-    parse_quote, Data, DataStruct, DeriveInput, Fields, PredicateType, Token, WhereClause,
-    WherePredicate,
+    parse_quote, Data, DataStruct, DeriveInput, Fields, FieldsUnnamed, PredicateType, Token,
+    WhereClause, WherePredicate,
 };
 
 pub(crate) fn expand_derive_encode(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    if let Data::Struct(DataStruct {
-        fields: Fields::Unnamed(fields),
-        ..
-    }) = &input.data
-    {
-        let fields = &fields.unnamed;
-        if fields.len() == 1 {
+    match &input.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
+            ..
+        }) if unnamed.len() == 1 => {
             let ident = &input.ident;
-            let ty = &fields.first().unwrap().ty;
+            let ty = &unnamed.first().unwrap().ty;
 
             // extract type generics
             let generics = &input.generics;
@@ -44,30 +42,22 @@ pub(crate) fn expand_derive_encode(input: DeriveInput) -> syn::Result<proc_macro
                     }
                 }
             ))
-        } else {
-            Err(syn::Error::new_spanned(
-                input,
-                "expected a tuple struct with a single field",
-            ))
         }
-    } else {
-        Err(syn::Error::new_spanned(
+        _ => Err(syn::Error::new_spanned(
             input,
             "expected a tuple struct with a single field",
-        ))
+        )),
     }
 }
 
 pub(crate) fn expand_derive_decode(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    if let Data::Struct(DataStruct {
-        fields: Fields::Unnamed(fields),
-        ..
-    }) = &input.data
-    {
-        let fields = &fields.unnamed;
-        if fields.len() == 1 {
+    match &input.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
+            ..
+        }) if unnamed.len() == 1 => {
             let ident = &input.ident;
-            let ty = &fields.first().unwrap().ty;
+            let ty = &unnamed.first().unwrap().ty;
 
             // extract type generics
             let generics = &input.generics;
@@ -95,16 +85,10 @@ pub(crate) fn expand_derive_decode(input: DeriveInput) -> syn::Result<proc_macro
                     }
                 }
             ))
-        } else {
-            Err(syn::Error::new_spanned(
-                input,
-                "expected a tuple struct with a single field",
-            ))
         }
-    } else {
-        Err(syn::Error::new_spanned(
+        _ => Err(syn::Error::new_spanned(
             input,
             "expected a tuple struct with a single field",
-        ))
+        )),
     }
 }
