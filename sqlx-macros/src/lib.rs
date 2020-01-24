@@ -19,6 +19,8 @@ type Result<T> = std::result::Result<T, Error>;
 
 mod database;
 
+mod derives;
+
 mod query_macros;
 
 use query_macros::*;
@@ -133,4 +135,22 @@ pub fn query_as(input: TokenStream) -> TokenStream {
 #[allow(unused_variables)]
 pub fn query_file_as(input: TokenStream) -> TokenStream {
     async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db))
+}
+
+#[proc_macro_derive(Encode)]
+pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
+    match derives::expand_derive_encode(input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[proc_macro_derive(Decode)]
+pub fn derive_decode(tokenstream: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
+    match derives::expand_derive_decode(input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
 }
