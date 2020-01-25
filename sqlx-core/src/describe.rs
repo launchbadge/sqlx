@@ -39,6 +39,8 @@ where
     pub name: Option<Box<str>>,
     pub table_id: Option<DB::TableId>,
     pub type_info: DB::TypeInfo,
+    /// Whether or not the column may be `NULL` (or if that is even known).
+    pub nullability: Nullability,
 }
 
 impl<DB> Debug for Column<DB>
@@ -54,4 +56,11 @@ where
             .field("type_id", &self.type_info)
             .finish()
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Nullability {
+    NonNull,
+    Nullable,
+    Unknown
 }

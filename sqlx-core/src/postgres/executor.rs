@@ -5,9 +5,13 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
-use crate::describe::{Column, Describe};
-use crate::postgres::protocol::{self, Encode, Message, StatementId, TypeFormat};
+use crate::describe::{Column, Describe, Nullability};
+use crate::postgres::protocol::{self, Encode, Message, StatementId, TypeFormat, Field};
 use crate::postgres::{PgArguments, PgRow, PgTypeInfo, Postgres};
+use crate::row::Row;
+use crate::arguments::Arguments;
+use futures_util::TryStreamExt;
+use crate::encode::IsNull::No;
 
 #[derive(Debug)]
 enum Step {
@@ -31,7 +35,7 @@ impl super::PgConnection {
                 query,
                 param_types: &*args.types,
             }
-            .encode(self.stream.buffer_mut());
+                .encode(self.stream.buffer_mut());
 
             self.statement_cache.put(query.to_owned(), id);
 
@@ -53,7 +57,7 @@ impl super::PgConnection {
             values: &*args.values,
             result_formats: &[TypeFormat::Binary],
         }
-        .encode(self.stream.buffer_mut());
+            .encode(self.stream.buffer_mut());
     }
 
     fn write_execute(&mut self, portal: &str, limit: i32) {
@@ -280,6 +284,8 @@ impl super::PgConnection {
             }
         };
 
+        while let Some(_) = self.step().await? {}
+
         Ok(Describe {
             param_types: params
                 .ids
@@ -287,20 +293,74 @@ impl super::PgConnection {
                 .map(|id| PgTypeInfo::new(*id))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            result_columns: result
-                .map(|r| r.fields)
-                .unwrap_or_default()
-                .into_vec()
-                .into_iter()
-                // TODO: Should [Column] just wrap [protocol::Field] ?
-                .map(|field| Column {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_info: PgTypeInfo::new(field.type_id),
-                })
-                .collect::<Vec<_>>()
+            result_columns: self.map_result_columns(
+                result
+                    .map(|r| r.fields)
+                    .unwrap_or_default()
+            ).await?
                 .into_boxed_slice(),
         })
+    }
+
+    async fn map_result_columns(&mut self, fields: Box<[Field]>) -> crate::Result<Vec<Column<Postgres>>> {
+        use crate::describe::Nullability::*;
+        use std::fmt::Write;
+
+        if fields.is_empty() { return Ok(vec![]); }
+
+        let mut query = "select col.idx, pg_attribute.attnotnull from (VALUES ".to_string();
+
+        let mut pushed = false;
+
+        let mut iter = fields
+            .iter()
+            .enumerate()
+            .flat_map(|(i, field)| {
+                field.table_id.and_then(|table_id| {
+                    // column_id = 0 means not a real column, < 0 means system column
+                    // TODO: how do we want to handle system columns, always non-null?
+                    if field.column_id > 0 { Some((i, table_id, field.column_id)) } else { None }
+                })
+            });
+
+        let mut args = PgArguments::default();
+
+        for ((i, table_id, column_id), bind) in iter.zip((1 ..).step_by(3)) {
+            if pushed {
+                query += ", ";
+            }
+
+            pushed = true;
+            let _ = write!(query, "(${}, ${}, ${})", bind, bind + 1, bind + 2);
+
+            args.add(i as i32);
+            args.add(table_id as i32);
+            args.add(column_id);
+        }
+
+        let mut columns: Vec<_> = fields.into_vec().into_iter().map(|field| Column {
+            name: field.name,
+            table_id: field.table_id,
+            type_info: PgTypeInfo::new(field.type_id),
+            nullability: Unknown
+        }).collect();
+
+        query += ") as col(idx, table_id, col_idx) \
+        inner join pg_catalog.pg_attribute on attrelid = table_id and attnum = col_idx \
+        order by idx;";
+
+        log::trace!("describe pg_attribute query: {:#?}", query);
+
+        let mut result = self.fetch(&query, args);
+
+        while let Some(row) = result.try_next().await? {
+            let i = row.get::<i32, _>(0);
+            let nonnull = row.get::<bool, _>(1);
+
+            columns[i as usize].nullability = if nonnull { NonNull } else { Nullable };
+        }
+
+        Ok(columns)
     }
 }
 

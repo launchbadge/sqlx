@@ -156,6 +156,32 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_describe_nullability() -> anyhow::Result<()> {
+    use sqlx::describe::Nullability::*;
+
+    let mut conn = connect().await?;
+
+    let _ = conn.send(r#"
+        CREATE TEMP TABLE nullability_test (
+            id SERIAL primary key,
+            name text not null,
+            address text
+        )
+    "#).await?;
+
+    let describe = conn.describe("select nt.*, ''::text from nullability_test nt")
+        .await?;
+
+    assert_eq!(describe.result_columns[0].nullability, NonNull);
+    assert_eq!(describe.result_columns[1].nullability, NonNull);
+    assert_eq!(describe.result_columns[2].nullability, Nullable);
+    assert_eq!(describe.result_columns[3].nullability, Unknown);
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<PgConnection> {
     let _ = dotenv::dotenv();
     let _ = env_logger::try_init();
