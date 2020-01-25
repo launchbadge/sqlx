@@ -240,7 +240,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-sqlx"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",

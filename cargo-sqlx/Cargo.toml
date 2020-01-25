@@ -1,6 +1,6 @@
 [package]
 name = "cargo-sqlx"
-version = "0.1.0"
+version = "0.0.1"
 repository = "https://github.com/launchbadge/sqlx"
 description = "SQLx cargo subcommand"
 license = "MIT OR Apache-2.0"
