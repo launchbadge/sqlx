@@ -120,6 +120,16 @@ jobs:
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
+    # UI feature gate tests: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # UI feature gate tests: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
   mysql:
     needs: build
     runs-on: ubuntu-latest
@@ -176,6 +186,21 @@ jobs:
         # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
         DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
 
+    # UI feature gate tests: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros tls' --test ui-tests
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # UI feature gate tests: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros tls' --test ui-tests
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+
   mariadb:
     needs: build
     runs-on: ubuntu-latest
@@ -223,5 +248,15 @@ jobs:
 
     # integration test: tokio
     - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # UI feature gate tests: async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # UI feature gate tests: tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx

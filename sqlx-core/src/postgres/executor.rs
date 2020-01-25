@@ -1,12 +1,20 @@
-use futures_core::future::BoxFuture;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 
+use futures_core::future::BoxFuture;
+use futures_util::{stream, StreamExt, TryStreamExt};
+
+use crate::arguments::Arguments;
 use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::postgres::protocol::{
-    self, CommandComplete, Message, ParameterDescription, RowDescription, StatementId, TypeFormat,
+    self, CommandComplete, Field, Message, ParameterDescription, RowDescription, StatementId,
+    TypeFormat, TypeId,
 };
-use crate::postgres::{PgArguments, PgConnection, PgCursor, PgTypeInfo, Postgres};
+use crate::postgres::types::SharedStr;
+use crate::postgres::{PgArguments, PgConnection, PgCursor, PgRow, PgTypeInfo, Postgres};
+use crate::row::Row;
 
 impl PgConnection {
     pub(crate) fn write_simple_query(&mut self, query: &str) {
@@ -132,13 +140,14 @@ impl PgConnection {
         &'e mut self,
         query: &'q str,
     ) -> crate::Result<Describe<Postgres>> {
+        self.is_ready = false;
+
         let statement = self.write_prepare(query, &Default::default());
 
         self.write_describe(protocol::Describe::Statement(statement));
         self.write_sync();
 
         self.stream.flush().await?;
-        self.wait_until_ready().await?;
 
         let params = loop {
             match self.stream.read().await? {
@@ -171,27 +180,147 @@ impl PgConnection {
             }
         };
 
+        self.wait_until_ready().await?;
+
+        let result_fields = result.map_or_else(Default::default, |r| r.fields);
+
+        // TODO: cache this result
+        let type_names = self
+            .get_type_names(
+                params
+                    .ids
+                    .iter()
+                    .cloned()
+                    .chain(result_fields.iter().map(|field| field.type_id)),
+            )
+            .await?;
+
         Ok(Describe {
             param_types: params
                 .ids
                 .iter()
-                .map(|id| PgTypeInfo::new(*id))
+                .map(|id| PgTypeInfo::new(*id, &type_names[&id.0]))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            result_columns: result
-                .map(|r| r.fields)
-                .unwrap_or_default()
-                .into_vec()
-                .into_iter()
-                // TODO: Should [Column] just wrap [protocol::Field] ?
-                .map(|field| Column {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_info: PgTypeInfo::new(field.type_id),
-                })
-                .collect::<Vec<_>>()
+            result_columns: self
+                .map_result_columns(result_fields, type_names)
+                .await?
                 .into_boxed_slice(),
         })
+    }
+
+    async fn get_type_names(
+        &mut self,
+        ids: impl IntoIterator<Item = TypeId>,
+    ) -> crate::Result<HashMap<u32, SharedStr>> {
+        let type_ids: HashSet<u32> = ids.into_iter().map(|id| id.0).collect::<HashSet<u32>>();
+
+        if type_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // uppercase type names are easier to visually identify
+        let mut query = "select types.type_id, UPPER(pg_type.typname) from (VALUES ".to_string();
+        let mut args = PgArguments::default();
+        let mut pushed = false;
+
+        // TODO: dedup this with the one below, ideally as an API we can export
+        for (i, (&type_id, bind)) in type_ids.iter().zip((1..).step_by(2)).enumerate() {
+            if pushed {
+                query += ", ";
+            }
+
+            pushed = true;
+            let _ = write!(query, "(${}, ${})", bind, bind + 1);
+
+            // not used in the output but ensures are values are sorted correctly
+            args.add(i as i32);
+            args.add(type_id as i32);
+        }
+
+        query += ") as types(idx, type_id) \
+                  inner join pg_catalog.pg_type on pg_type.oid = type_id \
+                  order by types.idx";
+
+        crate::query::query(&query)
+            .bind_all(args)
+            .map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
+                Ok((
+                    row.get::<i32, _>(0)? as u32,
+                    row.get::<String, _>(1)?.into(),
+                ))
+            })
+            .fetch(self)
+            .try_collect()
+            .await
+    }
+
+    async fn map_result_columns(
+        &mut self,
+        fields: Box<[Field]>,
+        type_names: HashMap<u32, SharedStr>,
+    ) -> crate::Result<Vec<Column<Postgres>>> {
+        if fields.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query = "select col.idx, pg_attribute.attnotnull from (VALUES ".to_string();
+        let mut pushed = false;
+        let mut args = PgArguments::default();
+
+        for (i, (field, bind)) in fields.iter().zip((1..).step_by(3)).enumerate() {
+            if pushed {
+                query += ", ";
+            }
+
+            pushed = true;
+            let _ = write!(
+                query,
+                "(${}::int4, ${}::int4, ${}::int2)",
+                bind,
+                bind + 1,
+                bind + 2
+            );
+
+            args.add(i as i32);
+            args.add(field.table_id.map(|id| id as i32));
+            args.add(field.column_id);
+        }
+
+        query += ") as col(idx, table_id, col_idx) \
+        left join pg_catalog.pg_attribute on table_id is not null and attrelid = table_id and attnum = col_idx \
+        order by col.idx;";
+
+        log::trace!("describe pg_attribute query: {:#?}", query);
+
+        crate::query::query(&query)
+            .bind_all(args)
+            .map(|row: PgRow| {
+                let idx = row.get::<i32, _>(0)?;
+                let non_null = row.get::<Option<bool>, _>(1)?;
+
+                Ok((idx, non_null))
+            })
+            .fetch(self)
+            .zip(stream::iter(fields.into_vec().into_iter().enumerate()))
+            .map(|(row, (fidx, field))| -> crate::Result<Column<_>> {
+                let (idx, non_null) = row?;
+
+                if idx != fidx as i32 {
+                    return Err(
+                        protocol_err!("missing field from query, field: {:?}", field).into(),
+                    );
+                }
+
+                Ok(Column {
+                    name: field.name,
+                    table_id: field.table_id,
+                    type_info: PgTypeInfo::new(field.type_id, &type_names[&field.type_id.0]),
+                    non_null,
+                })
+            })
+            .try_collect()
+            .await
     }
 
     // Poll messages from Postgres, counting the rows affected, until we finish the query

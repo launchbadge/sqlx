@@ -4,11 +4,11 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 
-use crate::describe::{Column, Describe};
+use crate::describe::{Column, Describe, Nullability};
 use crate::executor::Executor;
 use crate::mysql::protocol::{
     Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
-    ComStmtPrepareOk, Cursor, Decode, EofPacket, OkPacket, Row, TypeId,
+    ComStmtPrepareOk, Cursor, Decode, EofPacket, FieldFlags, OkPacket, Row, TypeId,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo};
 
@@ -253,10 +253,12 @@ impl MySqlConnection {
 
         for _ in 0..prepare_ok.columns {
             let column = ColumnDefinition::decode(self.receive().await?.packet())?;
+
             result_columns.push(Column::<MySql> {
                 type_info: MySqlTypeInfo::from_column_def(&column),
                 name: column.column_alias.or(column.column),
                 table_id: column.table_alias.or(column.table),
+                non_null: Some(column.flags.contains(FieldFlags::NOT_NULL)),
             });
         }
 

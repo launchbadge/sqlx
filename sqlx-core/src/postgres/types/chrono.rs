@@ -15,19 +15,19 @@ use crate::Error;
 
 impl Type<Postgres> for NaiveTime {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIME)
+        PgTypeInfo::new(TypeId::TIME, "TIME")
     }
 }
 
 impl Type<Postgres> for NaiveDate {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::DATE)
+        PgTypeInfo::new(TypeId::DATE, "DATE")
     }
 }
 
 impl Type<Postgres> for NaiveDateTime {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMP)
+        PgTypeInfo::new(TypeId::TIMESTAMP, "TIMESTAMP")
     }
 }
 
@@ -36,25 +36,25 @@ where
     Tz: TimeZone,
 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::TIMESTAMPTZ, "TIMESTAMPTZ")
     }
 }
 
 impl Type<Postgres> for [NaiveTime] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIME)
+        PgTypeInfo::new(TypeId::ARRAY_TIME, "TIME[]")
     }
 }
 
 impl Type<Postgres> for [NaiveDate] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_DATE)
+        PgTypeInfo::new(TypeId::ARRAY_DATE, "DATE[]")
     }
 }
 
 impl Type<Postgres> for [NaiveDateTime] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP, "TIMESTAMP[]")
     }
 }
 
@@ -63,7 +63,7 @@ where
     Tz: TimeZone,
 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ, "TIMESTAMP[]")
     }
 }
 
