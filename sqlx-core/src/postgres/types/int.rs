@@ -13,13 +13,13 @@ use crate::Error;
 
 impl Type<Postgres> for i16 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT2)
+        PgTypeInfo::new(TypeId::INT2, "INT2")
     }
 }
 
 impl Type<Postgres> for [i16] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT2)
+        PgTypeInfo::new(TypeId::ARRAY_INT2, "INT2[]")
     }
 }
 
@@ -40,13 +40,13 @@ impl<'de> Decode<'de, Postgres> for i16 {
 
 impl Type<Postgres> for i32 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT4)
+        PgTypeInfo::new(TypeId::INT4, "INT4")
     }
 }
 
 impl Type<Postgres> for [i32] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT4)
+        PgTypeInfo::new(TypeId::ARRAY_INT4, "INT4[]")
     }
 }
 
@@ -67,13 +67,13 @@ impl<'de> Decode<'de, Postgres> for i32 {
 
 impl Type<Postgres> for i64 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT8)
+        PgTypeInfo::new(TypeId::INT8, "INT8")
     }
 }
 
 impl Type<Postgres> for [i64] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT8)
+        PgTypeInfo::new(TypeId::ARRAY_INT8, "INT8[]")
     }
 }
 

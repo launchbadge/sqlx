@@ -67,6 +67,49 @@ async fn it_selects_null() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_describe() -> anyhow::Result<()> {
+    use sqlx::describe::Nullability::*;
+
+    let mut conn = connect().await?;
+
+    let _ = conn
+        .send(
+            r#"
+        CREATE TEMPORARY TABLE describe_test (
+            id int primary key auto_increment,
+            name text not null,
+            hash blob
+        )
+    "#,
+        )
+        .await?;
+
+    let describe = conn
+        .describe("select nt.*, false from describe_test nt")
+        .await?;
+
+    assert_eq!(describe.result_columns[0].nullability, NonNull);
+    assert_eq!(describe.result_columns[0].type_info.type_name(), "INT");
+    assert_eq!(describe.result_columns[1].nullability, NonNull);
+    assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
+    assert_eq!(describe.result_columns[2].nullability, Nullable);
+    assert_eq!(describe.result_columns[2].type_info.type_name(), "TEXT");
+    assert_eq!(describe.result_columns[3].nullability, NonNull);
+
+    let bool_ty_name = describe.result_columns[3].type_info.type_name();
+
+    // MySQL 5.7, 8 and MariaDB 10.1 return BIG_INT, MariaDB 10.4 returns INT (optimization?)
+    assert!(
+        ["BIG_INT", "INT"].contains(&bool_ty_name),
+        "type name returned: {}",
+        bool_ty_name
+    );
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
     // Malform the database url by changing the password
     let url = url()?.replace("password", "not-the-password");

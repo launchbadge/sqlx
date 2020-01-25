@@ -27,5 +27,6 @@ impl_database_ext! {
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     },
     ParamChecking::Strong,
+    feature-types: info => info.type_feature_gate(),
     row = sqlx::postgres::PgRow
 }

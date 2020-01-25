@@ -13,13 +13,13 @@ use crate::types::Type;
 
 impl Type<Postgres> for f32 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT4)
+        PgTypeInfo::new(TypeId::FLOAT4, "FLOAT4")
     }
 }
 
 impl Type<Postgres> for [f32] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT4)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT4, "FLOAT4[]")
     }
 }
 
@@ -44,13 +44,13 @@ impl<'de> Decode<'de, Postgres> for f32 {
 
 impl Type<Postgres> for f64 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT8)
+        PgTypeInfo::new(TypeId::FLOAT8, "FLOAT8")
     }
 }
 
 impl Type<Postgres> for [f64] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT8)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT8, "FLOAT8[]")
     }
 }
 

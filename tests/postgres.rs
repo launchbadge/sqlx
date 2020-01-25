@@ -141,6 +141,39 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_describe() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+        CREATE TEMP TABLE describe_test (
+            id SERIAL primary key,
+            name text not null,
+            hash bytea
+        )
+    "#,
+        )
+        .await?;
+
+    let describe = conn
+        .describe("select nt.*, false from describe_test nt")
+        .await?;
+
+    assert_eq!(describe.result_columns[0].non_null, Some(true));
+    assert_eq!(describe.result_columns[0].type_info.type_name(), "INT4");
+    assert_eq!(describe.result_columns[1].non_null, Some(true));
+    assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
+    assert_eq!(describe.result_columns[2].non_null, Some(false));
+    assert_eq!(describe.result_columns[2].type_info.type_name(), "BYTEA");
+    assert_eq!(describe.result_columns[3].non_null, None);
+    assert_eq!(describe.result_columns[3].type_info.type_name(), "BOOL");
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<PgConnection> {
     let _ = dotenv::dotenv();
     let _ = env_logger::try_init();

@@ -12,13 +12,13 @@ use crate::Error;
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TEXT)
+        PgTypeInfo::new(TypeId::TEXT, "TEXT")
     }
 }
 
 impl Type<Postgres> for [&'_ str] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TEXT)
+        PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT[]")
     }
 }
 

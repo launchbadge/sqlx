@@ -9,13 +9,13 @@ use crate::types::Type;
 
 impl Type<Postgres> for [u8] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::BYTEA)
+        PgTypeInfo::new(TypeId::BYTEA, "BYTEA")
     }
 }
 
 impl Type<Postgres> for [&'_ [u8]] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_BYTEA)
+        PgTypeInfo::new(TypeId::ARRAY_BYTEA, "BYTEA[]")
     }
 }
 

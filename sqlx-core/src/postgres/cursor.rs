@@ -74,7 +74,7 @@ fn parse_row_description(rd: RowDescription) -> (HashMap<Box<str>, usize>, Vec<T
 
 // Used to describe the incoming results
 // We store the column map in an Arc and share it among all rows
-async fn describe(
+async fn expect_desc(
     conn: &mut PgConnection,
 ) -> crate::Result<(HashMap<Box<str>, usize>, Vec<TypeFormat>)> {
     let description: Option<_> = loop {
@@ -108,7 +108,7 @@ async fn get_or_describe(
     if !conn.cache_statement_columns.contains_key(&statement)
         || !conn.cache_statement_formats.contains_key(&statement)
     {
-        let (columns, formats) = describe(conn).await?;
+        let (columns, formats) = expect_desc(conn).await?;
 
         conn.cache_statement_columns
             .insert(statement, Arc::new(columns));

@@ -30,5 +30,6 @@ impl_database_ext! {
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
     },
     ParamChecking::Weak,
+    feature-types: info => info.type_feature_gate(),
     row = sqlx::mysql::MySqlRow
 }
