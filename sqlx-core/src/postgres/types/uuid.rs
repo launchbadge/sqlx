@@ -13,13 +13,13 @@ use crate::types::Type;
 
 impl Type<Postgres> for Uuid {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::UUID)
+        PgTypeInfo::new(TypeId::UUID, "UUID")
     }
 }
 
 impl Type<Postgres> for [Uuid] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_UUID)
+        PgTypeInfo::new(TypeId::ARRAY_UUID, "UUID[]")
     }
 }
 
