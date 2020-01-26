@@ -158,26 +158,30 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn test_describe_nullability() -> anyhow::Result<()> {
+async fn test_describe() -> anyhow::Result<()> {
     use sqlx::describe::Nullability::*;
 
     let mut conn = connect().await?;
 
     let _ = conn.send(r#"
-        CREATE TEMP TABLE nullability_test (
+        CREATE TEMP TABLE describe_test (
             id SERIAL primary key,
             name text not null,
-            address text
+            hash bytea
         )
     "#).await?;
 
-    let describe = conn.describe("select nt.*, ''::text from nullability_test nt")
+    let describe = conn.describe("select nt.*, false from describe_test nt")
         .await?;
 
     assert_eq!(describe.result_columns[0].nullability, NonNull);
+    assert_eq!(describe.result_columns[0].type_info.type_name(), "int4");
     assert_eq!(describe.result_columns[1].nullability, NonNull);
+    assert_eq!(describe.result_columns[1].type_info.type_name(), "text");
     assert_eq!(describe.result_columns[2].nullability, Nullable);
+    assert_eq!(describe.result_columns[2].type_info.type_name(), "bytea");
     assert_eq!(describe.result_columns[3].nullability, Unknown);
+    assert_eq!(describe.result_columns[3].type_info.type_name(), "bool");
 
     Ok(())
 }

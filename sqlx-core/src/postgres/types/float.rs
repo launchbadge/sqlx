@@ -7,13 +7,13 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<f32> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT4)
+        PgTypeInfo::new(TypeId::FLOAT4, "float4")
     }
 }
 
 impl HasSqlType<[f32]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT4)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT4, "float4[]")
     }
 }
 
@@ -33,13 +33,13 @@ impl Decode<Postgres> for f32 {
 
 impl HasSqlType<f64> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT8)
+        PgTypeInfo::new(TypeId::FLOAT8, "float8")
     }
 }
 
 impl HasSqlType<[f64]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT8)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT8, "float8[]")
     }
 }
 

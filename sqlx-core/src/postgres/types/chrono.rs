@@ -12,19 +12,19 @@ use crate::types::HasSqlType;
 
 impl HasSqlType<NaiveTime> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIME)
+        PgTypeInfo::new(TypeId::TIME, "time")
     }
 }
 
 impl HasSqlType<NaiveDate> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::DATE)
+        PgTypeInfo::new(TypeId::DATE, "date")
     }
 }
 
 impl HasSqlType<NaiveDateTime> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMP)
+        PgTypeInfo::new(TypeId::TIMESTAMP, "timestamp")
     }
 }
 
@@ -33,25 +33,25 @@ where
     Tz: TimeZone,
 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::TIMESTAMPTZ, "timestamptz")
     }
 }
 
 impl HasSqlType<[NaiveTime]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIME)
+        PgTypeInfo::new(TypeId::ARRAY_TIME, "time[]")
     }
 }
 
 impl HasSqlType<[NaiveDate]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_DATE)
+        PgTypeInfo::new(TypeId::ARRAY_DATE, "date[]")
     }
 }
 
 impl HasSqlType<[NaiveDateTime]> for Postgres {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP, "timestamp[]")
     }
 }
 
@@ -60,7 +60,7 @@ where
     Tz: TimeZone,
 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ, "timestamp[]")
     }
 }
 
