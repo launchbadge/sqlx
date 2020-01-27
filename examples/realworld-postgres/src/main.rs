@@ -62,7 +62,7 @@ RETURNING id, username, email
         "#,
         body.username,
         body.email,
-        hash,
+        hash
     )
     .fetch_one(&mut tx)
     .await
@@ -106,7 +106,7 @@ SELECT username, email
 FROM users
 WHERE id = $1
         "#,
-        user_id,
+        user_id
     )
     .fetch_one(&mut pool)
     .await
