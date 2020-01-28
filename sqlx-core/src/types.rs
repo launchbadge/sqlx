@@ -5,9 +5,11 @@ use std::fmt::{Debug, Display};
 use crate::Database;
 
 #[cfg(feature = "uuid")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
 pub use uuid::Uuid;
 
 #[cfg(feature = "chrono")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono")))]
 pub mod chrono {
     pub use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 }

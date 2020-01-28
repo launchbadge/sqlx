@@ -26,6 +26,7 @@ authors = [
 
 [package.metadata.docs.rs]
 features = [ "tls", "postgres", "mysql", "uuid", "chrono" ]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = [ "macros", "runtime-async-std" ]

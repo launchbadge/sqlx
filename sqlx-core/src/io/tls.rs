@@ -40,6 +40,7 @@ impl MaybeTlsStream {
     }
 
     #[cfg(feature = "tls")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
     pub async fn upgrade(
         &mut self,
         url: &Url,

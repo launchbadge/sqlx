@@ -83,6 +83,7 @@
 /// * [query_file!] if you want to define the SQL query out-of-line,
 /// * [query_file_as!] if you want both of the above.
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query (
     // by emitting a macro definition from our proc-macro containing the result tokens,
     // we no longer have a need for `proc-macro-hack`
@@ -145,6 +146,7 @@ macro_rules! query (
 /// # fn main() {}
 /// ```
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file (
     ($query:literal) => (#[allow(dead_code)]{
         #[macro_use]
@@ -210,6 +212,7 @@ macro_rules! query_file (
 /// # fn main() {}
 /// ```
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
@@ -260,6 +263,7 @@ macro_rules! query_as (
 /// # fn main() {}
 /// ```
 #[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
