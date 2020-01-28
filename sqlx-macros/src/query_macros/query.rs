@@ -26,9 +26,6 @@ where
     let args = args::quote_args(&input, &describe)?;
 
     let arg_names = &input.arg_names;
-    let args_count = arg_names.len();
-    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
-    let arg_indices_2 = arg_indices.clone();
     let db_path = <C::Database as DatabaseExt>::db_path();
 
     if describe.result_columns.is_empty() {
@@ -38,14 +35,6 @@ where
                     use sqlx::arguments::Arguments as _;
 
                     #args
-
-                    let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
-                    query_args.reserve(
-                        #args_count,
-                        0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
-                    );
-
-                    #(query_args.add(args.#arg_indices_2);)*
 
                     sqlx::query::<#db_path>(#sql).bind_all(query_args)
                 }
@@ -84,14 +73,6 @@ where
                 }
 
                 #args
-
-                let mut #query_args = <#db_path as sqlx::Database>::Arguments::default();
-                #query_args.reserve(
-                    #args_count,
-                    0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
-                );
-
-                #(#query_args.add(args.#arg_indices_2);)*
 
                 #output
             }

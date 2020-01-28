@@ -40,7 +40,7 @@ mod macros;
 // macro support
 #[cfg(feature = "macros")]
 #[doc(hidden)]
-pub mod ty_cons;
+pub mod ty_match;
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]

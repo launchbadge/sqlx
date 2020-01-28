@@ -75,10 +75,6 @@ where
     }
 
     fn size_hint(&self) -> usize {
-        if self.is_some() {
-            (*self).size_hint()
-        } else {
-            0
-        }
+        self.as_ref().map_or(0, Encode::size_hint)
     }
 }

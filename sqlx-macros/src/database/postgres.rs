@@ -1,7 +1,7 @@
 impl_database_ext! {
     sqlx::postgres::Postgres {
         bool,
-        String,
+        String | &str,
         i16,
         i32,
         i64,
@@ -9,7 +9,7 @@ impl_database_ext! {
         f64,
 
         // BYTEA
-        Vec<u8>,
+        Vec<u8> | &[u8],
 
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
