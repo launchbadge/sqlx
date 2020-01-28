@@ -1,7 +1,7 @@
 use std::env;
 
 use proc_macro2::{Ident, Span};
-use sqlx::runtime::fs;
+use quote::{format_ident, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -9,10 +9,9 @@ use syn::token::Group;
 use syn::{Expr, ExprLit, ExprPath, Lit};
 use syn::{ExprGroup, Token};
 
-use quote::{format_ident, ToTokens};
-
 use sqlx::connection::Connection;
 use sqlx::describe::Describe;
+use sqlx::runtime::fs;
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {
