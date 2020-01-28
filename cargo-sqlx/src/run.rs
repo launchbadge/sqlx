@@ -3,10 +3,15 @@ use sqlx::mysql::MySqlRow;
 use sqlx::postgres::PgRow;
 use sqlx::row::Row;
 use sqlx::FromRow;
-use sqlx::PgPool;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
+use sqlx::postgres::PgConnection;
+use sqlx::mysql::MySqlConnection;
+use sqlx::Connect;
+use sqlx::Connection;
+use sqlx::Database;
+use sqlx::encode::Encode;
 
 #[derive(Debug)]
 struct Migration {
@@ -40,9 +45,36 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
     let database = std::env::var("DATABASE_URL")
         .map_err(|_| anyhow!("DATABASE_URL environment variable MUST be set"))?;
 
-    let mut pool = PgPool::new(&database).await?;
+    match database.as_str() {
+        "postgressql" | "postgres" => blah(PgConnection::connect(&database).await?, path).await,
+        "mysql" | "mariadb" => blah(MySqlConnection::connect(&database).await?, path).await,
+        _ => Err(anyhow!("Unsupported database")),
+    }
+}
 
-    sqlx::query("create table if not exists sqlx_migrations (migration text not null primary key, hash bytea not null)").execute(&mut pool).await?;
+trait Hash {
+    fn hash(&self) -> Vec<u8>;
+}
+
+impl Hash for String {
+    fn hash(&self) -> Vec<u8> {
+        let mut hasher = Sha3_512::new();
+        hasher.input(&self.as_bytes());
+        hasher.result().as_slice().to_vec()
+    }
+}
+
+async fn blah<C, P>(mut conn: C, path: P) -> anyhow::Result<()> 
+where 
+    C: Connection,
+    <C as sqlx::Executor>::Database: Sized,
+    <C as sqlx::Executor>::Database: sqlx::types::HasSqlType<Vec<u8>>,
+    <C as sqlx::Executor>::Database: sqlx::types::HasSqlType<String>,
+    Vec<u8>: Encode<<C as sqlx::Executor>::Database>,
+    String: Encode<<C as sqlx::Executor>::Database>,
+    Migration: FromRow<<<C as sqlx::Executor>::Database as Database>::Row>,
+    P: AsRef<Path>, {
+    sqlx::query("create table if not exists sqlx_migrations (migration text not null primary key, hash bytea not null)").execute(&mut conn).await?;
 
     let mut files = fs::read_dir(path)?
         .filter_map(Result::ok)
@@ -50,8 +82,8 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
     files.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
 
     let migrations =
-        sqlx::query_as::<_, Migration>("select * from sqlx_migrations order by migration asc")
-            .fetch_all(&mut pool)
+        sqlx::query_as::<<C as sqlx::Executor>::Database, Migration>("select * from sqlx_migrations order by migration asc")
+            .fetch_all(&mut conn)
             .await?;
 
     for (index, file) in files.iter().enumerate() {
@@ -65,12 +97,12 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
                         return Err(anyhow!("{:?} is not synced with the database.", filename));
                     }
                 } else {
-                    sqlx::query(&migration_to_run).execute(&mut pool).await?;
+                    sqlx::query(&migration_to_run).execute(&mut conn).await?;
 
                     sqlx::query("INSERT INTO sqlx_migrations (migration, hash) VALUES ($1, $2)")
                         .bind(filename)
                         .bind(hash)
-                        .execute(&mut pool)
+                        .execute(&mut conn)
                         .await?;
                 }
             }
@@ -78,16 +110,4 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
     }
 
     Ok(())
-}
-
-trait Hash {
-    fn hash(&self) -> Vec<u8>;
-}
-
-impl Hash for String {
-    fn hash(&self) -> Vec<u8> {
-        let mut hasher = Sha3_512::new();
-        hasher.input(&self.as_bytes());
-        hasher.result().as_slice().to_vec()
-    }
 }
