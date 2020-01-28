@@ -45,8 +45,7 @@ where
         .into());
     }
 
-    let args_tokens = args::quote_args(&input.query_input, &describe)?;
-    let arg_names = &input.query_input.arg_names;
+    let args = args::quote_args(&input.query_input, &describe)?;
 
     let columns = output::columns_to_rust(&describe)?;
     let output = output::quote_query_as::<C::Database>(
@@ -55,24 +54,14 @@ where
         &columns,
     );
 
-    let db_path = <C::Database as DatabaseExt>::quotable_path();
-    let args_count = arg_names.len();
-    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
-    let arg_indices_2 = arg_indices.clone();
+    let arg_names = &input.query_input.arg_names;
 
     Ok(quote! {
         macro_rules! macro_result {
             (#($#arg_names:expr),*) => {{
                 use sqlx::arguments::Arguments as _;
 
-                #args_tokens
-
-                let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
-                query_args.reserve(
-                    #args_count,
-                    0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
-                );
-                #(query_args.add(args.#arg_indices_2);)*
+                #args
 
                 #output.bind_all(query_args)
             }}

@@ -7,13 +7,17 @@ use sqlx::describe::Describe;
 use crate::database::{DatabaseExt, ParamChecking};
 use crate::query_macros::QueryMacroInput;
 
+/// Returns a tokenstream which typechecks the arguments passed to the macro
+/// and binds them to `DB::Arguments` with the ident `query_args`.
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
     describe: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
+    let db_path = DB::quotable_path();
+
     if input.arg_names.is_empty() {
         return Ok(quote! {
-            let args = ();
+            let query_args = <#db_path as sqlx::Database>::Arguments::default();
         });
     }
 
@@ -38,15 +42,16 @@ pub fn quote_args<DB: DatabaseExt>(
         let args_ty_cons = input.arg_names.iter().enumerate().map(|(i, expr)| {
             // required or `quote!()` emits it as `Nusize`
             let i = syn::Index::from(i);
+            // see src/ty_cons.rs in the main repo for details on this hack
             quote_spanned!( expr.span() => {
-                use sqlx::ty_cons::TyConsExt as _;
-                sqlx::ty_cons::TyCons::new(&args.#i).ty_cons()
+                sqlx::ty_cons::TyCons::new(args.#i).lift().ty_cons()
             })
         });
 
         // we want to make sure it doesn't run
         quote! {
             if false {
+                use sqlx::ty_cons::TyConsExt as _;
                 let _: (#(#param_types),*,) = (#(#args_ty_cons),*,);
             }
         }
@@ -56,11 +61,21 @@ pub fn quote_args<DB: DatabaseExt>(
     };
 
     let args = input.arg_names.iter();
+    let args_count = input.arg_names.len();
+    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
+    let arg_indices_2 = arg_indices.clone();
 
     Ok(quote! {
         // emit as a tuple first so each expression is only evaluated once
+        // these could be separate bindings instead but this is how I decided to write it
         let args = (#(&$#args),*,);
         #args_check
+        let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
+        query_args.reserve(
+            #args_count,
+            0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
+        );
+        #(query_args.add(args.#arg_indices_2);)*
     })
 }
 

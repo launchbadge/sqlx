@@ -54,9 +54,11 @@ struct Account {
 async fn test_query_as() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
+    let name: Option<&str> = None;
     let account = sqlx::query_as!(
         Account,
-        "SELECT * from (VALUES (1, null)) accounts(id, name)"
+        "SELECT * from (VALUES (1, $1)) accounts(id, name)",
+        name
     )
     .fetch_one(&mut conn)
     .await?;
