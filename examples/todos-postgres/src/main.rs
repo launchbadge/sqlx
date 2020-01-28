@@ -22,14 +22,12 @@ async fn main(args: Args) -> anyhow::Result<()> {
     match args.cmd {
         Some(Command::Add { description }) => {
             println!("Adding new todo with description '{}'", &description);
-            println!(
-                "Added new todo with id {}",
-                add_todo(&pool, &description).await.unwrap()
-            );
+            let todo_id = add_todo(&pool, &description).await?;
+            println!("Added new todo with id {}", todo_id);
         }
         Some(Command::Done { id }) => {
             println!("Marking todo {} as done", id);
-            if complete_todo(&pool, id).await.unwrap() {
+            if complete_todo(&pool, id).await? {
                 println!("Todo {} is marked as done", id);
             } else {
                 println!("Invalid id {}", id);
@@ -37,25 +35,23 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         None => {
             println!("Printing list of all todos");
-            list_todos(&mut pool).await.unwrap();
+            list_todos(&mut pool).await?;
         }
     }
-
-    pool.close().await;
 
     Ok(())
 }
 
-async fn add_todo(pool: &PgPool, description: &str) -> Result<i64, sqlx::error::Error> {
+async fn add_todo(pool: &PgPool, description: &str) -> anyhow::Result<i64> {
     let mut tx = pool.begin().await?;
 
     let rec = sqlx::query!(
-        r#"
+        "
 INSERT INTO todos ( description )
 VALUES ( $1 )
 RETURNING id
-        "#,
-        description.to_string()
+        ",
+        description
     )
     .fetch_one(&mut tx)
     .await?;
@@ -65,15 +61,15 @@ RETURNING id
     Ok(rec.id)
 }
 
-async fn complete_todo(pool: &PgPool, id: i64) -> Result<bool, sqlx::error::Error> {
+async fn complete_todo(pool: &PgPool, id: i64) -> anyhow::Result<bool> {
     let mut tx = pool.begin().await?;
 
     let rows_affected = sqlx::query!(
-        r#"
+        "
 UPDATE todos
 SET done = TRUE
 WHERE id = $1
-        "#,
+        ",
         id
     )
     .execute(&mut tx)
@@ -84,13 +80,13 @@ WHERE id = $1
     Ok(rows_affected > 0)
 }
 
-async fn list_todos(pool: &mut PgPool) -> Result<(), sqlx::error::Error> {
+async fn list_todos(pool: &mut PgPool) -> anyhow::Result<()> {
     let recs = sqlx::query!(
-        r#"
+        "
 SELECT id, description, done
 FROM todos
 ORDER BY id
-        "#
+        "
     )
     .fetch_all(pool)
     .await?;
@@ -98,10 +94,7 @@ ORDER BY id
     for rec in recs {
         println!(
             "- [{}] {}: {}",
-            match rec.done {
-                true => "x",  // Done
-                false => " ", // Not Done
-            },
+            if rec.done { "x" } else { " " },
             rec.id,
             &rec.description,
         );
