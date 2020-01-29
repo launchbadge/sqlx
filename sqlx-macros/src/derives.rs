@@ -5,7 +5,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Arm, Attribute, Block, Data, DataEnum, DataStruct, DeriveInput, Expr, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Lit, Meta, MetaNameValue, NestedMeta, Variant,Stmt,
+    Fields, FieldsNamed, FieldsUnnamed, Lit, Meta, MetaNameValue, NestedMeta, Stmt, Variant,
 };
 
 macro_rules! assert_attribute {
