@@ -5,6 +5,7 @@ pub use connection::PgConnection;
 pub use cursor::PgCursor;
 pub use database::Postgres;
 pub use error::PgError;
+pub use listen::{NotifyMessage, PgListener};
 pub use row::{PgRow, PgValue};
 pub use types::PgTypeInfo;
 
@@ -14,6 +15,7 @@ mod cursor;
 mod database;
 mod error;
 mod executor;
+mod listen;
 mod protocol;
 mod row;
 mod sasl;
