@@ -41,6 +41,9 @@ pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
 pub extern crate sqlx_macros;
 
 #[cfg(feature = "macros")]
+pub use sqlx_macros::Type;
+
+#[cfg(feature = "macros")]
 mod macros;
 
 // macro support

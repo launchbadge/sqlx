@@ -57,6 +57,10 @@ impl PgTypeInfo {
             _ => None,
         }
     }
+
+    pub fn oid(&self) -> u32 {
+        self.id.0
+    }
 }
 
 impl Display for PgTypeInfo {
