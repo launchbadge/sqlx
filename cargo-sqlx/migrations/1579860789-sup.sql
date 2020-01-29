@@ -1,1 +1,4 @@
-select 1
+create table users (
+    email       text,
+    password    text
+);

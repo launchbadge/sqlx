@@ -12,6 +12,8 @@ use sqlx::Connect;
 use sqlx::Connection;
 use sqlx::Database;
 use sqlx::encode::Encode;
+use url::Url;
+use std::io;
 
 #[derive(Debug)]
 struct Migration {
@@ -45,7 +47,9 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
     let database = std::env::var("DATABASE_URL")
         .map_err(|_| anyhow!("DATABASE_URL environment variable MUST be set"))?;
 
-    match database.as_str() {
+    let url = Url::parse(&database)?;
+
+    match url.scheme() {
         "postgressql" | "postgres" => migrate(PgConnection::connect(&database).await?, path).await,
         "mysql" | "mariadb" => migrate(MySqlConnection::connect(&database).await?, path).await,
         _ => Err(anyhow!("Unsupported database")),
@@ -53,23 +57,52 @@ pub async fn run<T: AsRef<Path>>(path: T) -> Result<(), anyhow::Error> {
 }
 
 trait Hash {
-    fn hash(&self) -> Vec<u8>;
+    type Target;
+    fn hash(&self) -> Self::Target;
 }
 
 impl Hash for String {
-    fn hash(&self) -> Vec<u8> {
+    type Target = Vec<u8>;
+
+    fn hash(&self) -> Self::Target {
         let mut hasher = Sha3_512::new();
         hasher.input(&self.as_bytes());
         hasher.result().as_slice().to_vec()
     }
 }
 
+impl Hash for io::Result<String> {
+    type Target = Option<Vec<u8>>;
+
+    fn hash(&self) -> Self::Target {
+        match self {
+            Ok(value) => Some(value.hash()),
+            _ => None
+        }
+    }
+}
+
+impl<'a> Hash for Option<&'a Migration> {
+    type Target = Option<&'a Vec<u8>>;
+
+    fn hash(&self) -> Option<&'a Vec<u8>> {
+        if let Some(value) = self {
+            Some(&value.hash)
+        } else {
+            None
+        }
+    }
+}
+
 macro_rules! conditional_rollback {
     ($conn: ident, $ident: ident) => {
-        if let Err(err) = $ident {
-            $conn.send("rollback").await?;
-            return Err(err)?;
-        }
+        match $ident {
+            Err(err) => {
+                $conn.send("rollback").await?;
+                return Err(err)?;
+            },
+            Ok(value) => value,
+        };
     }
 }
 
@@ -97,31 +130,29 @@ where
         sqlx::query_as::<<C as sqlx::Executor>::Database, Migration>("select * from sqlx_migrations order by migration asc")
             .fetch_all(&mut conn)
             .await;
-    conditional_rollback!(conn, migrations);
+    let migrations = conditional_rollback!(conn, migrations);
 
     for (index, file) in files.iter().enumerate() {
         let filename = file.file_name().into_string().unwrap();
 
-        if let Ok(migration_to_run) = fs::read_to_string(file.path()) {
-            let hash = migration_to_run.hash();
-            if let Some(upstream_migration) = migrations.get(index) {
-                if std::cmp::Ordering::Equal != hash.cmp(&upstream_migration.hash) {
-                    conn.send("rollback").await?;
-                    return Err(anyhow!("{:?} is not synced with the database.", filename));
-                }
-            } else {
-                let result = conn.send(&migration_to_run).await;
+        let migration = fs::read_to_string(file.path());
+        match (&migration, &migration.hash(), migrations.get(index).hash()) {
+            (Ok(ref migration_to_run), Some(migration_to_run_hash), Some(upstream_migration_hash)) if migration_to_run_hash == upstream_migration_hash => {
+                let result = conn.send(migration_to_run).await;
                 conditional_rollback!(conn, result);
 
                 let result = sqlx::query("INSERT INTO sqlx_migrations (migration, hash) VALUES ($1, $2)")
                     .bind(filename)
-                    .bind(hash)
+                    .bind(migration_to_run_hash)
                     .execute(&mut conn)
                     .await;
                 conditional_rollback!(conn, result);
             }
-        } else {
 
+            (_, _, _) => {
+                conn.send("rollback").await?;
+                return Err(anyhow!("{:?} is not synced with the database.", filename));
+            }
         }
     }
 

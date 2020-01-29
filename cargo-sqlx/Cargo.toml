@@ -21,3 +21,4 @@ serde = { version = "1.0.104", features = [ "derive" ] }
 structopt = "0.3.8"
 sha3 = "0.8.2"
 hex = "0.4.0"
+url = "2.1.1"
