@@ -63,6 +63,10 @@ name = "postgres-macros"
 required-features = [ "postgres", "macros" ]
 
 [[test]]
+name = "mysql-macros"
+required-features = [ "mysql", "macros" ]
+
+[[test]]
 name = "mysql"
 required-features = [ "mysql" ]
 

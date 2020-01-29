@@ -68,7 +68,8 @@ fn parse_ident(name: &str) -> crate::Result<Ident> {
     let is_valid_ident = name.chars().all(|c| c.is_alphanumeric() || c == '_');
 
     if is_valid_ident {
-        if let Ok(ident) = syn::parse_str(name) {
+        let ident = String::from("r#") + name;
+        if let Ok(ident) = syn::parse_str(&ident) {
             return Ok(ident);
         }
     }

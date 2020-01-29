@@ -87,40 +87,6 @@ async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "macros")]
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn macro_select_from_cte() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
-    let account =
-        sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name) accounts")
-            .fetch_one(&mut conn)
-            .await?;
-
-    println!("{:?}", account);
-    println!("{}: {}", account.id, account.name);
-
-    Ok(())
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
-    let account = sqlx::query!(
-        "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
-        1i32
-    )
-    .fetch_one(&mut conn)
-    .await?;
-
-    println!("{:?}", account);
-    println!("{}: {}", account.id, account.name);
-
-    Ok(())
-}
-
 fn url() -> anyhow::Result<String> {
     Ok(dotenv::var("DATABASE_URL")?)
 }

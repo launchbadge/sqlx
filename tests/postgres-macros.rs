@@ -68,6 +68,32 @@ async fn test_query_as() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
+struct RawAccount {
+    r#type: i32,
+    name: Option<String>,
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_as_raw() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let account = sqlx::query_as!(
+        RawAccount,
+        "SELECT * from (VALUES (1, null)) accounts(type, name)"
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(None, account.name);
+    assert_eq!(1, account.r#type);
+
+    println!("{:?}", account);
+
+    Ok(())
+}
+
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_query_file_as() -> anyhow::Result<()> {
