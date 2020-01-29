@@ -88,12 +88,12 @@ sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio"
 
 #### Connect
 
-It is a very good idea to always create a connection pool at the beginning of your application
-and then share that.
+Connection pools can be created at the beginning of your application and shared to acquire connections for query execution.
 
 ```rust
 // Postgres
 let pool = sqlx::PgPool::new("postgres://localhost/database").await?;
+let mut conn = pool.acquire().await?;
 ```
 
 #### Dynamic
