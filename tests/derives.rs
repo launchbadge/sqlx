@@ -121,8 +121,8 @@ where
         let mut encoded = Vec::new();
         let mut encoded_orig = Vec::new();
 
-        Encode::<sqlx::MySql>::encode(example, &mut encoded);
-        Encode::<sqlx::MySql>::encode(name, &mut encoded_orig);
+        Encode::<DB>::encode(example, &mut encoded);
+        Encode::<DB>::encode(*name, &mut encoded_orig);
 
         assert_eq!(encoded, encoded_orig);
     }
