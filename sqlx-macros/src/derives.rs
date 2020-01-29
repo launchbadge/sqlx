@@ -358,40 +358,34 @@ fn expand_derive_encode_strong_enum(
 
     let ident = &input.ident;
 
-    let mut tts = proc_macro2::TokenStream::new();
-
-    if cfg!(feature = "mysql") {
-        let mut value_arms = Vec::new();
-        for v in variants {
-            let id = &v.ident;
-            let attributes = parse_attributes(&v.attrs)?;
-            if let Some(rename) = attributes.rename {
-                value_arms.push(quote!(#ident :: #id => #rename,));
-            } else {
-                let name = id.to_string();
-                value_arms.push(quote!(#ident :: #id => #name,));
-            }
+    let mut value_arms = Vec::new();
+    for v in variants {
+        let id = &v.ident;
+        let attributes = parse_attributes(&v.attrs)?;
+        if let Some(rename) = attributes.rename {
+            value_arms.push(quote!(#ident :: #id => #rename,));
+        } else {
+            let name = id.to_string();
+            value_arms.push(quote!(#ident :: #id => #name,));
         }
-
-        tts.extend(quote!(
-            impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where str: sqlx::encode::Encode<DB> {
-                fn encode(&self, buf: &mut std::vec::Vec<u8>) {
-                    let val = match self {
-                        #(#value_arms)*
-                    };
-                    <str as sqlx::encode::Encode<DB>>::encode(val, buf)
-                }
-                fn size_hint(&self) -> usize {
-                    let val = match self {
-                        #(#value_arms)*
-                    };
-                    <str as sqlx::encode::Encode<DB>>::size_hint(val)
-                }
-            }
-        ));
     }
 
-    Ok(tts)
+    Ok(quote!(
+        impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where str: sqlx::encode::Encode<DB> {
+            fn encode(&self, buf: &mut std::vec::Vec<u8>) {
+                let val = match self {
+                    #(#value_arms)*
+                };
+                <str as sqlx::encode::Encode<DB>>::encode(val, buf)
+            }
+            fn size_hint(&self) -> usize {
+                let val = match self {
+                    #(#value_arms)*
+                };
+                <str as sqlx::encode::Encode<DB>>::size_hint(val)
+            }
+        }
+    ))
 }
 
 fn expand_derive_encode_struct(
@@ -579,7 +573,7 @@ fn expand_derive_decode_strong_enum(
 
     // TODO: prevent heap allocation
     Ok(quote!(
-        impl<DB: sqlx::Database> sqlx::decode::Decode<DB> for #ident where String: sqlx::decode::Decode<DB> {
+        impl<DB: sqlx::Database> sqlx::decode::Decode<DB> for #ident where std::string::String: sqlx::decode::Decode<DB> {
             fn decode(buf: &[u8]) -> std::result::Result<Self, sqlx::decode::DecodeError> {
                 let val = <String as sqlx::decode::Decode<DB>>::decode(buf)?;
                 match val.as_str() {
@@ -597,31 +591,34 @@ fn expand_derive_decode_struct(
 ) -> syn::Result<proc_macro2::TokenStream> {
     check_struct_attributes(input, fields)?;
 
-    let ident = &input.ident;
+    let mut tts = proc_macro2::TokenStream::new();
 
-    let column_count = fields.len();
+    if cfg!(feature = "postgres") {
+        let ident = &input.ident;
 
-    // extract type generics
-    let generics = &input.generics;
-    let (_, ty_generics, _) = generics.split_for_impl();
+        let column_count = fields.len();
 
-    // add db type for impl generics & where clause
-    let mut generics = generics.clone();
-    let predicates = &mut generics.make_where_clause().predicates;
-    for field in fields {
-        let ty = &field.ty;
-        predicates.push(parse_quote!(#ty: sqlx::decode::Decode<sqlx::Postgres>));
-        predicates.push(parse_quote!(sqlx::Postgres: sqlx::types::HasSqlType<#ty>));
-    }
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
+        // extract type generics
+        let generics = &input.generics;
+        let (_, ty_generics, _) = generics.split_for_impl();
 
-    let mut reads: Vec<Vec<Stmt>> = Vec::new();
-    let mut names: Vec<Ident> = Vec::new();
-    for field in fields {
-        let id = &field.ident;
-        names.push(id.clone().unwrap());
-        let ty = &field.ty;
-        reads.push(parse_quote!(
+        // add db type for impl generics & where clause
+        let mut generics = generics.clone();
+        let predicates = &mut generics.make_where_clause().predicates;
+        for field in fields {
+            let ty = &field.ty;
+            predicates.push(parse_quote!(#ty: sqlx::decode::Decode<sqlx::Postgres>));
+            predicates.push(parse_quote!(sqlx::Postgres: sqlx::types::HasSqlType<#ty>));
+        }
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        let mut reads: Vec<Vec<Stmt>> = Vec::new();
+        let mut names: Vec<Ident> = Vec::new();
+        for field in fields {
+            let id = &field.ident;
+            names.push(id.clone().unwrap());
+            let ty = &field.ty;
+            reads.push(parse_quote!(
             if buf.len() < 8 {
                 return Err(sqlx::decode::DecodeError::Message(std::boxed::Box::new("Not enough data sent")));
             }
@@ -642,10 +639,10 @@ fn expand_derive_decode_struct(
 
             let buf = &buf[8+len..];
         ));
-    }
-    let reads = reads.into_iter().flatten();
+        }
+        let reads = reads.into_iter().flatten();
 
-    Ok(quote!(
+        tts.extend(quote!(
         impl #impl_generics sqlx::decode::Decode<sqlx::Postgres> for #ident#ty_generics #where_clause {
             fn decode(buf: &[u8]) -> std::result::Result<Self, sqlx::decode::DecodeError> {
                 if buf.len() < 4 {
@@ -670,6 +667,8 @@ fn expand_derive_decode_struct(
             }
         }
     ))
+    }
+    Ok(tts)
 }
 
 pub(crate) fn expand_derive_has_sql_type(
