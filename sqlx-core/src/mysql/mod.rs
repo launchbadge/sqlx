@@ -22,6 +22,8 @@ pub use error::MySqlError;
 
 pub use types::MySqlTypeInfo;
 
+pub use protocol::TypeId;
+
 pub use row::MySqlRow;
 
 /// An alias for [`Pool`], specialized for **MySQL**.

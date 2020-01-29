@@ -32,6 +32,10 @@ impl PgTypeInfo {
     pub fn with_oid(oid: u32) -> Self {
         Self { id: TypeId(oid) }
     }
+
+    pub fn oid(&self) -> u32 {
+        self.id.0
+    }
 }
 
 impl Display for PgTypeInfo {

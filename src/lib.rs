@@ -8,7 +8,7 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
 // Modules
-pub use sqlx_core::{arguments, describe, error, pool, row, types};
+pub use sqlx_core::{arguments, describe, error, pool, row};
 
 // Types
 pub use sqlx_core::{
@@ -48,3 +48,8 @@ pub mod result_ext;
 pub mod encode;
 
 pub mod decode;
+
+pub mod types;
+
+#[cfg(feature = "macros")]
+pub use sqlx_macros::Type;

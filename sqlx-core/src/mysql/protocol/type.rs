@@ -13,6 +13,9 @@ impl TypeId {
     pub const VAR_CHAR: TypeId = TypeId(253); // or VAR_BINARY
     pub const TEXT: TypeId = TypeId(252); // or BLOB
 
+    // Enum
+    pub const ENUM: TypeId = TypeId(247);
+
     // More Bytes
     pub const TINY_BLOB: TypeId = TypeId(249);
     pub const MEDIUM_BLOB: TypeId = TypeId(250);
