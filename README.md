@@ -126,8 +126,8 @@ let countries = sqlx::query!(
     .await?;
 ```
 
-For this mode, the `DATABASE_URL` environment variable must be set at build time so that the macro can utilize the database
-server to analyze queries and check them for correctness and record their inputs (bind parameters) and outputs (columns); the database does not have to contain any data but must have the same schema as the database you will be connecting to at runtime. For convenience, you can use [a `.env` file](https://github.com/dotenv-rs/dotenv#examples) to set `DATABASE_URL` so that you don't have to pass it every time:
+For this mode, the `DATABASE_URL` environment variable must be set at build time to a database which it can prepare queries
+against; the database does not have to contain any data but must be the same kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime. For convenience, you can use [a `.env` file](https://github.com/dotenv-rs/dotenv#examples) to set `DATABASE_URL` so that you don't have to pass it every time:
 
 ```
 DATABASE_URL=mysql://localhost/my_database
