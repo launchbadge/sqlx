@@ -112,7 +112,7 @@ let is_active: bool = row.get("is_active");
 
 #### Static
 
-The `sqlx::query!` macro prepares the SQL query and interprets the result in order to constrain input types and 
+The `sqlx::query!` macro prepares the SQL query at compile time and interprets the result in order to constrain input types and 
 infer output types. The result of `query!` is an anonymous struct (or named tuple).
 
 ```rust
