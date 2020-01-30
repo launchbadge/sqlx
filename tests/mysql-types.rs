@@ -18,11 +18,11 @@ macro_rules! test {
                     .fetch_one(&mut conn)
                     .await?;
 
-                assert_eq!(row.get::<i32, _>(0), 1);
-
                 let value = row.get::<$ty, _>("_1");
 
-                assert!($value == value);
+                assert_eq!(row.get::<i32, _>(0), 1, "value returned from server: {:?}", value);
+
+                assert_eq!($value, value);
             )+
 
             Ok(())
@@ -43,6 +43,9 @@ test!(mysql_long: i32: "2141512" == 2141512_i32);
 
 test!(mysql_longlong_unsigned: u64: "2141512" == 2141512_u64);
 test!(mysql_longlong: i64: "2141512" == 2141512_i64);
+
+// `DOUBLE` can be compared with decimal literals just fine but the same can't be said for `FLOAT`
+test!(mysql_double: f64: "3.14159265" == 3.14159265f64);
 
 test!(mysql_string: String: "'helloworld'" == "helloworld");
 
@@ -66,6 +69,26 @@ async fn mysql_bytes() -> anyhow::Result<()> {
     let output: Vec<u8> = rec._2;
 
     assert_eq!(&value[..], &*output);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn mysql_float() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let value = 10.2f32;
+    let row = sqlx::query("SELECT ? as _1")
+        .bind(value)
+        .fetch_one(&mut conn)
+        .await?;
+
+    // comparison between FLOAT and literal doesn't work as expected
+    // we get implicit widening to DOUBLE which gives a slightly different value
+    // however, round-trip does work as expected
+    let ret = row.get::<f32, _>("_1");
+    assert_eq!(value, ret);
 
     Ok(())
 }

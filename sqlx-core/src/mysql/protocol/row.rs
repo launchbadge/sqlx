@@ -104,8 +104,8 @@ impl Row {
                 let size = match columns[column_idx] {
                     TypeId::TINY_INT => 1,
                     TypeId::SMALL_INT => 2,
-                    TypeId::INT => 4,
-                    TypeId::BIG_INT => 8,
+                    TypeId::INT | TypeId::FLOAT => 4,
+                    TypeId::BIG_INT | TypeId::DOUBLE => 8,
 
                     TypeId::DATE => 5,
                     TypeId::TIME => 1 + buffer[index] as usize,
