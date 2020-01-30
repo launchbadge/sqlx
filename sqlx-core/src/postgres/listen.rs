@@ -1,114 +1,230 @@
 use std::ops::DerefMut;
 
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
+use futures_core::stream::Stream;
 
 use crate::connection::Connection;
-use crate::describe::Describe;
 use crate::executor::Executor;
 use crate::pool::PoolConnection;
 use crate::postgres::protocol::{Message, NotificationResponse};
-use crate::postgres::{PgArguments, PgConnection, PgPool, PgRow, Postgres};
+use crate::postgres::{PgConnection, PgPool};
 use crate::Result;
 
 type PgPoolConnection = PoolConnection<PgConnection>;
 
-impl PgConnection {
-    /// Register this connection as a listener on the specified channel.
-    ///
-    /// If an error is returned here, the connection will be dropped.
-    pub async fn listen(mut self, channel: impl AsRef<str>) -> Result<PgListener<Self>> {
-        let cmd = build_listen_all_query(&[channel]);
-        let _ = self.send(cmd.as_str()).await?;
-        Ok(PgListener::new(self))
-    }
+/// Extension methods for Postgres connections.
+pub trait PgConnectionExt<C: Connection> {
+    fn listen(self, channels: &[&str]) -> PgListener<C>;
+}
 
-    /// Register this connection as a listener on all of the specified channels.
-    ///
-    /// If an error is returned here, the connection will be dropped.
-    pub async fn listen_all(
-        mut self,
-        channels: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<PgListener<Self>> {
-        let cmd = build_listen_all_query(channels);
-        let _ = self.send(cmd.as_str()).await?;
-        Ok(PgListener::new(self))
+impl PgConnectionExt<PgConnection> for PgConnection {
+    /// Register this connection as a listener on the specified channels.
+    fn listen(self, channels: &[&str]) -> PgListener<Self> {
+        PgListener::new(Some(self), channels, None)
     }
 }
 
-impl PgPool {
+impl PgConnectionExt<PgPoolConnection> for PgPoolConnection {
+    /// Register this connection as a listener on the specified channels.
+    fn listen(self, channels: &[&str]) -> PgListener<Self> {
+        PgListener::new(Some(self), channels, None)
+    }
+}
+
+/// Extension methods for Postgres connection pools.
+pub trait PgPoolExt {
+    fn listen(&self, channels: &[&str]) -> PgListener<PgPoolConnection>;
+}
+
+impl PgPoolExt for PgPool {
     /// Fetch a new connection from the pool and register it as a listener on the specified channel.
-    pub async fn listen(&self, channel: impl AsRef<str>) -> Result<PgListener<PgPoolConnection>> {
-        let mut conn = self.acquire().await?;
-        let cmd = build_listen_all_query(&[channel]);
-        let _ = conn.send(cmd.as_str()).await?;
-        Ok(PgListener::new(conn))
-    }
-
-    /// Fetch a new connection from the pool and register it as a listener on the specified channels.
-    pub async fn listen_all(
-        &self,
-        channels: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<PgListener<PgPoolConnection>> {
-        let mut conn = self.acquire().await?;
-        let cmd = build_listen_all_query(channels);
-        let _ = conn.send(cmd.as_str()).await?;
-        Ok(PgListener::new(conn))
-    }
-}
-
-impl PgPoolConnection {
-    /// Register this connection as a listener on the specified channel.
     ///
-    /// If an error is returned here, the connection will be dropped.
-    pub async fn listen(mut self, channel: impl AsRef<str>) -> Result<PgListener<Self>> {
-        let cmd = build_listen_all_query(&[channel]);
-        let _ = self.send(cmd.as_str()).await?;
-        Ok(PgListener::new(self))
-    }
-
-    /// Register this connection as a listener on all of the specified channels.
-    ///
-    /// If an error is returned here, the connection will be dropped.
-    pub async fn listen_all(
-        mut self,
-        channels: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<PgListener<Self>> {
-        let cmd = build_listen_all_query(channels);
-        let _ = self.send(cmd.as_str()).await?;
-        Ok(PgListener::new(self))
+    /// If the underlying connection ever dies, a new connection will be acquired from the pool,
+    /// and listening will resume as normal.
+    fn listen(&self, channels: &[&str]) -> PgListener<PgPoolConnection> {
+        PgListener::new(None, channels, Some(self.clone()))
     }
 }
 
 /// A stream of async database notifications.
 ///
 /// Notifications will always correspond to the channel(s) specified this object is created.
-pub struct PgListener<C>(C);
+pub struct PgListener<C> {
+    needs_to_send_listen_cmd: bool,
+    connection: Option<C>,
+    channels: Vec<String>,
+    pool: Option<PgPool>,
+}
 
 impl<C> PgListener<C> {
     /// Construct a new instance.
-    pub(self) fn new(conn: C) -> Self {
-        Self(conn)
+    pub(self) fn new(connection: Option<C>, channels: &[&str], pool: Option<PgPool>) -> Self {
+        let channels = channels.iter().map(|chan| String::from(*chan)).collect();
+        Self {
+            needs_to_send_listen_cmd: true,
+            connection,
+            channels,
+            pool,
+        }
     }
 }
 
-impl<C> PgListener<C>
-where
-    C: DerefMut<Target = PgConnection>,
-{
-    /// Get the next async notification from the database.
-    pub async fn next(&mut self) -> Result<NotifyMessage> {
+impl PgListener<PgPoolConnection> {
+    /// Receives the next notification available from any of the subscribed channels.
+    ///
+    /// When a `PgListener` is created from `PgPool.listen(..)`, the `PgListener` will perform
+    /// automatic reconnects to the database using the original `PgPool` and will submit a
+    /// `LISTEN` command to the database using the same originally specified channels. As such,
+    /// this routine will never return `None` when called on a `PgListener` created from a `PgPool`.
+    ///
+    /// However, if a `PgListener` instance is created outside of the context of a `PgPool`, then
+    /// this routine will return `None` when the underlying connection dies. At that point, any
+    /// further calls to this routine will also return `None`.
+    pub async fn recv(&mut self) -> Option<Result<PgNotification>> {
         loop {
-            match (&mut self.0).receive().await? {
-                Some(Message::NotificationResponse(notification)) => return Ok(notification.into()),
-                Some(msg) => {
-                    return Err(protocol_err!(
+            // Ensure we have an active connection to work with.
+            let conn = match &mut self.connection {
+                Some(conn) => conn,
+                None => match self.get_new_connection().await {
+                    // A new connection has been established, bind it and loop.
+                    Ok(Some(conn)) => {
+                        self.connection = Some(conn);
+                        continue;
+                    }
+                    // No pool is present on this listener, return None.
+                    Ok(None) => return None,
+                    // We have a pool to work with, but some error has come up. Return the error.
+                    // The next call to `recv` will build a new connection if available.
+                    Err(err) => return Some(Err(err)),
+                },
+            };
+            // Ensure the current connection has properly registered all listener channels.
+            if self.needs_to_send_listen_cmd {
+                if let Err(err) = send_listen_query(conn, &self.channels).await {
+                    // If we've encountered an error here, test the connection, drop it if needed,
+                    // and return the error. The next call to recv will build a new connection if possible.
+                    if let Err(_) = conn.ping().await {
+                        self.close_conn().await;
+                    }
+                    return Some(Err(err));
+                }
+                self.needs_to_send_listen_cmd = false;
+            }
+            // Await a notification from the DB.
+            match conn.receive().await {
+                // We've received an async notification, return it.
+                Ok(Some(Message::NotificationResponse(notification))) => {
+                    return Some(Ok(notification.into()))
+                }
+                // Protocol error, return the error.
+                Ok(Some(msg)) => {
+                    return Some(Err(protocol_err!(
                         "unexpected message received from database {:?}",
                         msg
                     )
-                    .into())
+                    .into()))
                 }
-                None => continue,
+                // The connection is dead, ensure that it is dropped, update self state, and loop to try again.
+                Ok(None) => {
+                    self.close_conn().await;
+                    self.needs_to_send_listen_cmd = true;
+                    continue;
+                }
+                // An error has come up, return it.
+                Err(err) => return Some(Err(err)),
+            }
+        }
+    }
+
+    /// Consume this listener, returning a `Stream` of notifications.
+    pub fn stream(mut self) -> impl Stream<Item = Result<PgNotification>> {
+        use async_stream::stream;
+        stream! {
+            loop {
+                match self.recv().await {
+                    Some(res) => yield res,
+                    None => break,
+                }
+            }
+        }
+    }
+
+    /// Fetch a new connection from the connection pool, if a connection pool is available.
+    ///
+    /// Errors here are transient. `Ok(None)` indicates that no pool is available.
+    async fn get_new_connection(&mut self) -> Result<Option<PgPoolConnection>> {
+        let pool = match &self.pool {
+            Some(pool) => pool,
+            None => return Ok(None),
+        };
+        Ok(Some(pool.acquire().await?))
+    }
+
+    /// Close and drop the current connection.
+    async fn close_conn(&mut self) {
+        if let Some(conn) = self.connection.take() {
+            let _ = conn.close().await;
+        }
+    }
+}
+
+impl PgListener<PgConnection> {
+    /// Receives the next notification available from any of the subscribed channels.
+    ///
+    /// If the underlying connection ever dies, this routine will return `None`. Any further calls
+    /// to this routine will also return `None`. If automatic reconnect behavior is needed, use
+    /// `PgPool.listen(..)`, which will automatically establish a new connection from the pool and
+    /// resusbcribe to all channels.
+    pub async fn recv(&mut self) -> Option<Result<PgNotification>> {
+        loop {
+            // Ensure we have an active connection to work with.
+            let mut conn = match &mut self.connection {
+                Some(conn) => conn,
+                None => return None, // This will never practically be hit, but let's make Rust happy.
+            };
+            // Ensure the current connection has properly registered all listener channels.
+            if self.needs_to_send_listen_cmd {
+                if let Err(err) = send_listen_query(&mut conn, &self.channels).await {
+                    // If we've encountered an error here, test the connection. If the connection
+                    // is good, we return the error. Else, we return `None` as the connection is dead.
+                    if let Err(_) = conn.ping().await {
+                        return None;
+                    }
+                    return Some(Err(err));
+                }
+                self.needs_to_send_listen_cmd = false;
+            }
+            // Await a notification from the DB.
+            match conn.receive().await {
+                // We've received an async notification, return it.
+                Ok(Some(Message::NotificationResponse(notification))) => {
+                    return Some(Ok(notification.into()))
+                }
+                // Protocol error, return the error.
+                Ok(Some(msg)) => {
+                    return Some(Err(protocol_err!(
+                        "unexpected message received from database {:?}",
+                        msg
+                    )
+                    .into()))
+                }
+                // The connection is dead, return None.
+                Ok(None) => return None,
+                // An error has come up, return it.
+                Err(err) => return Some(Err(err)),
+            }
+        }
+    }
+
+    /// Consume this listener, returning a `Stream` of notifications.
+    pub fn stream(mut self) -> impl Stream<Item = Result<PgNotification>> {
+        use async_stream::stream;
+        stream! {
+            loop {
+                match self.recv().await {
+                    Some(res) => yield res,
+                    None => break,
+                }
             }
         }
     }
@@ -120,68 +236,29 @@ where
 {
     /// Close this listener stream and its underlying connection.
     pub async fn close(self) -> BoxFuture<'static, Result<()>> {
-        self.0.close()
-    }
-}
-
-impl<C> std::ops::Deref for PgListener<C> {
-    type Target = C;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<C> std::ops::DerefMut for PgListener<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<C: Connection<Database = Postgres>> crate::Executor for PgListener<C> {
-    type Database = super::Postgres;
-
-    fn send<'e, 'q: 'e>(&'e mut self, query: &'q str) -> BoxFuture<'e, Result<()>> {
-        Box::pin(self.0.send(query))
-    }
-
-    fn execute<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> BoxFuture<'e, Result<u64>> {
-        Box::pin(self.0.execute(query, args))
-    }
-
-    fn fetch<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> BoxStream<'e, Result<PgRow>> {
-        self.0.fetch(query, args)
-    }
-
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>>> {
-        Box::pin(self.0.describe(query))
+        match self.connection {
+            Some(conn) => conn.close(),
+            None => Box::pin(futures_util::future::ok(())),
+        }
     }
 }
 
 /// An asynchronous message sent from the database.
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct NotifyMessage {
+pub struct PgNotification {
+    /// The PID of the database process which sent this notification.
+    pub pid: u32,
     /// The channel of the notification, which can be thought of as a topic.
     pub channel: String,
     /// The payload of the notification.
     pub payload: String,
 }
 
-impl From<Box<NotificationResponse>> for NotifyMessage {
+impl From<Box<NotificationResponse>> for PgNotification {
     fn from(src: Box<NotificationResponse>) -> Self {
         Self {
+            pid: src.pid,
             channel: src.channel_name,
             payload: src.message,
         }
@@ -196,6 +273,15 @@ fn build_listen_all_query(channels: impl IntoIterator<Item = impl AsRef<str>>) -
         acc.push_str(r#"";"#);
         acc
     })
+}
+
+/// Send the structure listen query to the database.
+async fn send_listen_query<C: DerefMut<Target = PgConnection>>(
+    conn: &mut C,
+    channels: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Result<()> {
+    let cmd = build_listen_all_query(channels);
+    conn.send(cmd.as_str()).await
 }
 
 #[cfg(test)]
