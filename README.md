@@ -111,7 +111,7 @@ let is_active: bool = row.get("is_active");
 
 #### Static
 
-The `sqlx::query!` macro prepares the SQL query and interprets the result in order to constrain input types and 
+The `sqlx::query!` macro prepares the SQL query at compile time and interprets the result in order to constrain input types and 
 infer output types. The result of `query!` is an anonymous struct (or named tuple).
 
 ```rust
@@ -123,6 +123,13 @@ let countries = sqlx::query!(
     .map_ok(|rec| (rec.country, rec.count))
     .try_collect::<HashMap<_>>() // -> HashMap<String, i64>
     .await?;
+```
+
+For this mode, the `DATABASE_URL` environment variable must be set at build time to a database which it can prepare queries
+against; the database does not have to contain any data but must be the same kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime. For convenience, you can use [a `.env` file](https://github.com/dotenv-rs/dotenv#examples) to set `DATABASE_URL` so that you don't have to pass it every time:
+
+```
+DATABASE_URL=mysql://localhost/my_database
 ```
 
 See the beginnings of a [RealWorld](https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication) implementation in [examples/realworld-postgres](./examples/realworld-postgres).

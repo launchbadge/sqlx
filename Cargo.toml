@@ -3,7 +3,8 @@ members = [
     ".",
     "sqlx-core",
     "sqlx-macros",
-    "examples/realworld-postgres"
+    "examples/realworld-postgres",
+    "examples/todos-postgres",
 ]
 
 [package]
