@@ -18,8 +18,6 @@ mod conn;
 mod executor;
 mod inner;
 mod options;
-mod queue;
-mod size;
 
 pub use self::options::Builder;
 

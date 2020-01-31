@@ -4,8 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::inner::SharedPool;
-use super::size::{DecreaseOnDrop, PoolSize};
+use super::inner::{DecreaseSizeGuard, SharedPool};
 
 /// A connection checked out from [`Pool`][crate::Pool].
 ///
@@ -28,9 +27,10 @@ pub(super) struct Idle<C> {
     pub(super) since: Instant,
 }
 
-pub(super) struct Floating<'g, C> {
+/// RAII wrapper for connections being handled by functions that may drop them
+pub(super) struct Floating<'p, C> {
     inner: C,
-    guard: DecreaseOnDrop<'g>,
+    guard: DecreaseSizeGuard<'p>,
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
@@ -62,15 +62,8 @@ where
     /// Detach the connection from the pool and close it nicely.
     fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move {
-            if let Some(live) = self.live.take() {
-                self.pool.size.decrease_on_drop();
-                let raw = live.raw;
-
-                // Explicitly close the connection
-                raw.close().await?;
-            }
-
-            Ok(())
+            let live = self.live.take().expect("PoolConnection double-dropped");
+            live.float(&self.pool).into_idle().close().await
         })
     }
 }
@@ -82,16 +75,16 @@ where
 {
     fn drop(&mut self) {
         if let Some(live) = self.live.take() {
-            self.pool.release(live.float(&self.pool.size));
+            self.pool.release(live.float(&self.pool));
         }
     }
 }
 
 impl<C> Live<C> {
-    pub fn float(self, size: &PoolSize) -> Floating<Self> {
+    pub fn float(self, pool: &SharedPool<C>) -> Floating<Self> {
         Floating {
             inner: self,
-            guard: size.decrease_on_drop(),
+            guard: DecreaseSizeGuard::new(pool),
         }
     }
 
@@ -118,13 +111,6 @@ impl<C> DerefMut for Idle<C> {
 }
 
 impl<'s, C> Floating<'s, C> {
-    pub fn new(conn: C, size: &'s PoolSize) -> Self {
-        Floating {
-            inner: conn,
-            guard: size.decrease_on_drop(),
-        }
-    }
-
     pub fn into_leakable(self) -> C {
         self.guard.cancel();
         self.inner
@@ -132,14 +118,14 @@ impl<'s, C> Floating<'s, C> {
 }
 
 impl<'s, C> Floating<'s, Live<C>> {
-    pub fn new_live(conn: C, size: &'s PoolSize) -> Self {
-        Self::new(
-            Live {
+    pub fn new_live(conn: C, guard: DecreaseSizeGuard<'s>) -> Self {
+        Self {
+            inner: Live {
                 raw: conn,
                 created: Instant::now(),
             },
-            size,
-        )
+            guard
+        }
     }
 
     pub fn attach(self, pool: &Arc<SharedPool<C>>) -> PoolConnection<C>
@@ -147,6 +133,9 @@ impl<'s, C> Floating<'s, Live<C>> {
         C: Connection + Connect<Connection = C>,
     {
         let Floating { inner, guard } = self;
+
+        debug_assert!(guard.same_pool(pool), "BUG: attaching connection to different pool");
+
         guard.cancel();
         PoolConnection {
             live: Some(inner),
@@ -163,6 +152,13 @@ impl<'s, C> Floating<'s, Live<C>> {
 }
 
 impl<'s, C> Floating<'s, Idle<C>> {
+    pub fn from_idle(idle: Idle<C>, pool: &'s SharedPool<C>) -> Self {
+        Self {
+            inner: idle,
+            guard: DecreaseSizeGuard::new(pool),
+        }
+    }
+
     pub async fn ping(&mut self) -> crate::Result<()>
     where
         C: Connection,

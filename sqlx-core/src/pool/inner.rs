@@ -1,36 +1,140 @@
 use std::cmp;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::mem;
+use std::ptr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Instant;
 
-use crate::runtime::{sleep, spawn};
+use crossbeam_queue::{ArrayQueue, SegQueue};
+use futures_core::task::{Poll, Waker};
+use futures_util::future;
+
 use crate::{
     connection::{Connect, Connection},
     error::Error,
 };
+use crate::pool::deadline_as_timeout;
+use crate::runtime::{sleep, spawn, timeout};
 
 use super::conn::{Floating, Idle, Live};
-use super::queue::ConnectionQueue;
-use super::size::{IncreaseGuard, PoolSize};
 use super::Options;
 
 pub(super) struct SharedPool<C> {
     url: String,
-    queue: ConnectionQueue<C>,
-    pub(super) size: PoolSize,
+    idle_conns: ArrayQueue<Idle<C>>,
+    waiters: SegQueue<Waker>,
+    pub(super) size: AtomicU32,
     is_closed: AtomicBool,
     options: Options,
 }
 
 impl<C> SharedPool<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connection,
 {
+    pub fn options(&self) -> &Options {
+        &self.options
+    }
+
+    pub(super) fn url(&self) -> &str {
+        &self.url
+    }
+
+    pub(super) fn size(&self) -> u32 {
+        self.size.load(Ordering::Acquire)
+    }
+
+    pub(super) fn num_idle(&self) -> usize {
+        // NOTE: This is very expensive
+        self.idle_conns.len()
+    }
+
+    pub(super) fn is_closed(&self) -> bool {
+        self.is_closed.load(Ordering::Acquire)
+    }
+
+    pub(super) async fn close(&self) {
+        self.is_closed.store(true, Ordering::Release);
+        while let Ok(_) = self.idle_conns.pop() {}
+        while let Ok(waker) = self.waiters.pop() {
+            waker.wake();
+        }
+    }
+
+    #[inline]
+    pub(super) fn try_acquire(&self) -> Option<Floating<Live<C>>> {
+        Some(self.pop_idle()?.into_live())
+    }
+
+    fn pop_idle(&self) -> Option<Floating<Idle<C>>> {
+        if self.is_closed.load(Ordering::Acquire) {
+            return None;
+        }
+
+        Some(Floating::from_idle(self.idle_conns.pop().ok()?, self))
+    }
+
+    pub(super) fn release(&self, floating: Floating<Live<C>>) {
+        self.idle_conns.push(floating.into_idle().into_leakable())
+            .expect("BUG: connection queue overflow in release()");
+        self.notify_waiter();
+    }
+
+    pub(super) fn notify_waiter(&self) {
+        if let Ok(waker) = self.waiters.pop() {
+            waker.wake();
+        }
+    }
+
+    fn try_increase_size(&self) -> Option<IncreaseSizeGuard> {
+        let mut size = self.size();
+
+        while size < self.options.max_size {
+            let new_size = self.size.compare_and_swap(size, size + 1, Ordering::AcqRel);
+
+            if new_size == size {
+                return Some(IncreaseSizeGuard(DecreaseSizeGuard::new(self)))
+            }
+
+            size = new_size;
+        }
+
+        None
+    }
+
+    /// Wait for a connection, if either `size` drops below `max_size` so we can
+    /// open a new connection, or if an idle connection is returned to the pool.
+    ///
+    /// Returns an error if `deadline` elapses before we are woken.
+    async fn wait_for_conn(&self, deadline: Instant) -> crate::Result<()> {
+        let mut waker_pushed = false;
+
+        timeout(
+            deadline_as_timeout(deadline)?,
+            // `poll_fn` gets us easy access to a `Waker` that we can push to our queue
+            future::poll_fn(|ctx| -> Poll<()> {
+                if !waker_pushed {
+                    // only push the waker once
+                    self.waiters.push(ctx.waker().to_owned());
+                    waker_pushed = true;
+                    Poll::Pending
+                } else {
+                    Poll::Ready(())
+                }
+            })
+        )
+            .await
+            .map_err(|_| crate::Error::PoolTimedOut(None))
+    }
+}
+
+impl<C> SharedPool<C> where C: Connection + Connect<Connection = C> {
     pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let mut pool = Self {
             url: url.to_owned(),
-            queue: ConnectionQueue::new(options.max_size),
-            size: PoolSize::new(options.max_size),
+            idle_conns: ArrayQueue::new(options.max_size as usize),
+            waiters: SegQueue::new(),
+            size: AtomicU32::new(0),
             is_closed: AtomicBool::new(false),
             options,
         };
@@ -44,45 +148,6 @@ where
         Ok(pool)
     }
 
-    pub fn options(&self) -> &Options {
-        &self.options
-    }
-
-    pub(super) fn url(&self) -> &str {
-        &self.url
-    }
-
-    pub(super) fn size(&self) -> u32 {
-        self.size.current()
-    }
-
-    pub(super) fn num_idle(&self) -> usize {
-        // NOTE: This is very expensive
-        self.queue.num_idle()
-    }
-
-    pub(super) fn is_closed(&self) -> bool {
-        self.is_closed.load(Ordering::Acquire)
-    }
-
-    pub(super) async fn close(&self) {
-        self.is_closed.store(true, Ordering::Release);
-        self.queue.dump(&self.size).await;
-    }
-
-    #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Floating<Live<C>>> {
-        if self.is_closed.load(Ordering::Acquire) {
-            return None;
-        }
-
-        Some(self.queue.try_pop(&self.size)?.into_live())
-    }
-
-    pub(super) fn release(&self, floating: Floating<Live<C>>) {
-        self.queue.push(floating.into_idle());
-    }
-
     pub(super) async fn acquire<'s>(&'s self) -> crate::Result<Floating<'s, Live<C>>> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
@@ -91,13 +156,14 @@ where
         while !self.is_closed() {
             // Attempt to immediately acquire a connection. This will return Some
             // if there is an idle connection in our channel.
-            if let Some(conn) = self.queue.try_pop(&self.size) {
+            if let Ok(conn) = self.idle_conns.pop() {
+                let conn = Floating::from_idle(conn, self);
                 if let Some(live) = check_conn(conn, &self.options).await {
                     return Ok(live);
                 }
             }
 
-            if let Some(guard) = self.size.try_increase() {
+            if let Some(guard) = self.try_increase_size() {
                 // pool has slots available; open a new connection
                 match self.connect(deadline, guard).await {
                     Ok(Some(conn)) => return Ok(conn),
@@ -107,22 +173,9 @@ where
                 }
             }
 
-            let idle = self.queue.pop(&self.size, deadline).await?;
-
-            // If pool was closed while waiting for a connection,
-            // release the connection
-            if self.is_closed.load(Ordering::Acquire) {
-                // closing is a courtesy, we don't care if it succeeded
-                let _ = idle.close().await;
-                return Err(Error::PoolClosed);
-            }
-
-            match check_conn(idle, &self.options).await {
-                Some(live) => return Ok(live),
-
-                // Need to re-connect
-                None => {}
-            }
+            // Wait for a connection to become available (or we are allowed to open a new one)
+            // Returns an error if `deadline` passes
+            self.wait_for_conn(deadline).await?;
         }
 
         Err(Error::PoolClosed)
@@ -134,11 +187,12 @@ where
             let deadline = Instant::now() + self.options.connect_timeout;
 
             // this guard will prevent us from exceeding `max_size`
-            while let Some(guard) = self.size.try_increase() {
+            while let Some(guard) = self.try_increase_size() {
                 // [connect] will raise an error when past deadline
                 // [connect] returns None if its okay to retry
                 if let Some(conn) = self.connect(deadline, guard).await? {
-                    self.queue.push(conn.into_idle());
+                    self.idle_conns.push(conn.into_idle().into_leakable())
+                        .expect("BUG: connection queue overflow in init_min_connections");
                 }
             }
         }
@@ -149,7 +203,7 @@ where
     async fn connect<'s>(
         &'s self,
         deadline: Instant,
-        guard: IncreaseGuard<'s>,
+        guard: IncreaseSizeGuard<'s>,
     ) -> crate::Result<Option<Floating<'s, Live<C>>>> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
@@ -161,8 +215,7 @@ where
         match crate::runtime::timeout(timeout, C::connect(&self.url)).await {
             // successfully established connection
             Ok(Ok(raw)) => {
-                guard.commit();
-                Ok(Some(Floating::new_live(raw, &self.size)))
+                Ok(Some(Floating::new_live(raw, guard.commit())))
             }
 
             // IO error while connecting, this should definitely be logged
@@ -248,19 +301,20 @@ where
     spawn(async move {
         while !pool.is_closed.load(Ordering::Acquire) {
             // reap at most the current size minus the minimum idle
-            let max_reaped = pool.size.current().saturating_sub(pool.options.min_size);
+            let max_reaped = pool.size().saturating_sub(pool.options.min_size);
 
             // collect connections to reap
             let (reap, keep) = (0..max_reaped)
                 // only connections waiting in the queue
-                .filter_map(|_| pool.queue.try_pop(&pool.size))
+                .filter_map(|_| pool.pop_idle())
                 .partition::<Vec<_>, _>(|conn| {
                     is_beyond_idle(conn, &pool.options) || is_beyond_lifetime(conn, &pool.options)
                 });
 
             for conn in keep {
                 // return these connections to the pool first
-                pool.queue.push(conn);
+                pool.idle_conns.push(conn.into_leakable())
+                    .expect("BUG: connection queue overflow in spawn_reaper");
             }
 
             for conn in reap {
@@ -270,4 +324,48 @@ where
             sleep(period).await;
         }
     });
+}
+
+struct IncreaseSizeGuard<'a>(DecreaseSizeGuard<'a>);
+
+pub(in crate::pool) struct DecreaseSizeGuard<'a> {
+    size: &'a AtomicU32,
+    waiters: &'a SegQueue<Waker>,
+    dropped: bool,
+}
+
+impl<'s> IncreaseSizeGuard<'s> {
+    fn commit(self) -> DecreaseSizeGuard<'s>{
+        self.0
+    }
+}
+
+impl<'a> DecreaseSizeGuard<'a> {
+    pub fn new<C>(pool: &'a SharedPool<C>) -> Self {
+        Self {
+            size: &pool.size,
+            waiters: &pool.waiters,
+            dropped: false,
+        }
+    }
+
+    pub fn same_pool<C>(&self, pool: &'a SharedPool<C>) -> bool {
+        ptr::eq(self.size, &pool.size)
+            && ptr::eq(self.waiters, &pool.waiters)
+    }
+
+    pub fn cancel(self) {
+        mem::forget(self);
+    }
+}
+
+impl Drop for DecreaseSizeGuard<'_> {
+    fn drop(&mut self) {
+        assert!(!self.dropped, "double-dropped!");
+        self.dropped = true;
+        self.size.fetch_sub(1, Ordering::SeqCst);
+        if let Ok(waker) = self.waiters.pop() {
+            waker.wake();
+        }
+    }
 }
