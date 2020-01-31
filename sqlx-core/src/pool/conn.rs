@@ -124,7 +124,7 @@ impl<'s, C> Floating<'s, Live<C>> {
                 raw: conn,
                 created: Instant::now(),
             },
-            guard
+            guard,
         }
     }
 
@@ -134,7 +134,10 @@ impl<'s, C> Floating<'s, Live<C>> {
     {
         let Floating { inner, guard } = self;
 
-        debug_assert!(guard.same_pool(pool), "BUG: attaching connection to different pool");
+        debug_assert!(
+            guard.same_pool(pool),
+            "BUG: attaching connection to different pool"
+        );
 
         guard.cancel();
         PoolConnection {

@@ -1,20 +1,20 @@
 use std::cmp;
 use std::mem;
 use std::ptr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_core::task::{Poll, Waker};
 use futures_util::future;
 
+use crate::pool::deadline_as_timeout;
+use crate::runtime::{sleep, spawn, timeout};
 use crate::{
     connection::{Connect, Connection},
     error::Error,
 };
-use crate::pool::deadline_as_timeout;
-use crate::runtime::{sleep, spawn, timeout};
 
 use super::conn::{Floating, Idle, Live};
 use super::Options;
@@ -75,7 +75,8 @@ where
     }
 
     pub(super) fn release(&self, floating: Floating<Live<C>>) {
-        self.idle_conns.push(floating.into_idle().into_leakable())
+        self.idle_conns
+            .push(floating.into_idle().into_leakable())
             .expect("BUG: connection queue overflow in release()");
         self.notify_waiter();
     }
@@ -93,7 +94,7 @@ where
             let new_size = self.size.compare_and_swap(size, size + 1, Ordering::AcqRel);
 
             if new_size == size {
-                return Some(IncreaseSizeGuard(DecreaseSizeGuard::new(self)))
+                return Some(IncreaseSizeGuard(DecreaseSizeGuard::new(self)));
             }
 
             size = new_size;
@@ -121,14 +122,17 @@ where
                 } else {
                     Poll::Ready(())
                 }
-            })
+            }),
         )
-            .await
-            .map_err(|_| crate::Error::PoolTimedOut(None))
+        .await
+        .map_err(|_| crate::Error::PoolTimedOut(None))
     }
 }
 
-impl<C> SharedPool<C> where C: Connection + Connect<Connection = C> {
+impl<C> SharedPool<C>
+where
+    C: Connection + Connect<Connection = C>,
+{
     pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let mut pool = Self {
             url: url.to_owned(),
@@ -191,7 +195,8 @@ impl<C> SharedPool<C> where C: Connection + Connect<Connection = C> {
                 // [connect] will raise an error when past deadline
                 // [connect] returns None if its okay to retry
                 if let Some(conn) = self.connect(deadline, guard).await? {
-                    self.idle_conns.push(conn.into_idle().into_leakable())
+                    self.idle_conns
+                        .push(conn.into_idle().into_leakable())
                         .expect("BUG: connection queue overflow in init_min_connections");
                 }
             }
@@ -214,9 +219,7 @@ impl<C> SharedPool<C> where C: Connection + Connect<Connection = C> {
         // result here is `Result<Result<C, Error>, TimeoutError>`
         match crate::runtime::timeout(timeout, C::connect(&self.url)).await {
             // successfully established connection
-            Ok(Ok(raw)) => {
-                Ok(Some(Floating::new_live(raw, guard.commit())))
-            }
+            Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard.commit()))),
 
             // IO error while connecting, this should definitely be logged
             // and we should attempt to retry
@@ -313,7 +316,8 @@ where
 
             for conn in keep {
                 // return these connections to the pool first
-                pool.idle_conns.push(conn.into_leakable())
+                pool.idle_conns
+                    .push(conn.into_leakable())
                     .expect("BUG: connection queue overflow in spawn_reaper");
             }
 
@@ -335,7 +339,7 @@ pub(in crate::pool) struct DecreaseSizeGuard<'a> {
 }
 
 impl<'s> IncreaseSizeGuard<'s> {
-    fn commit(self) -> DecreaseSizeGuard<'s>{
+    fn commit(self) -> DecreaseSizeGuard<'s> {
         self.0
     }
 }
@@ -350,8 +354,7 @@ impl<'a> DecreaseSizeGuard<'a> {
     }
 
     pub fn same_pool<C>(&self, pool: &'a SharedPool<C>) -> bool {
-        ptr::eq(self.size, &pool.size)
-            && ptr::eq(self.waiters, &pool.waiters)
+        ptr::eq(self.size, &pool.size) && ptr::eq(self.waiters, &pool.waiters)
     }
 
     pub fn cancel(self) {
