@@ -4,6 +4,7 @@ members = [
     "sqlx-core",
     "sqlx-macros",
     "sqlx-test",
+    "examples/postgres-listen",
     "examples/realworld-postgres",
     "examples/todos-postgres",
 ]

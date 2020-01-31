@@ -34,7 +34,7 @@ impl PgConnectionExt<PgPoolConnection> for PgPoolConnection {
 
 /// A stream of async database notifications.
 ///
-/// Notifications will always correspond to the channel(s) specified this object is created.
+/// Notifications will always correspond to the channel(s) specified when this object was created.
 ///
 /// This listener is bound to the lifetime of its underlying connection. If the connection ever
 /// dies, this listener will terminate and will no longer yield any notifications.
@@ -130,7 +130,7 @@ impl PgPoolExt for PgPool {
 
 /// A stream of async database notifications.
 ///
-/// Notifications will always correspond to the channel(s) specified this object is created.
+/// Notifications will always correspond to the channel(s) specified when this object was created.
 ///
 /// This listener, as it is built from a `PgPool`, supports auto-reconnect. If the active
 /// connection being used ever dies, this listener will detect that event, acquire a new connection
