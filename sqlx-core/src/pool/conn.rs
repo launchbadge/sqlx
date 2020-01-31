@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::inner::{DecreaseSizeGuard, SharedPool};
+use super::inner::{DecrementSizeGuard, SharedPool};
 
 /// A connection checked out from [`Pool`][crate::Pool].
 ///
@@ -30,7 +30,7 @@ pub(super) struct Idle<C> {
 /// RAII wrapper for connections being handled by functions that may drop them
 pub(super) struct Floating<'p, C> {
     inner: C,
-    guard: DecreaseSizeGuard<'p>,
+    guard: DecrementSizeGuard<'p>,
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
@@ -84,7 +84,7 @@ impl<C> Live<C> {
     pub fn float(self, pool: &SharedPool<C>) -> Floating<Self> {
         Floating {
             inner: self,
-            guard: DecreaseSizeGuard::new(pool),
+            guard: DecrementSizeGuard::new(pool),
         }
     }
 
@@ -118,7 +118,7 @@ impl<'s, C> Floating<'s, C> {
 }
 
 impl<'s, C> Floating<'s, Live<C>> {
-    pub fn new_live(conn: C, guard: DecreaseSizeGuard<'s>) -> Self {
+    pub fn new_live(conn: C, guard: DecrementSizeGuard<'s>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
@@ -158,7 +158,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
     pub fn from_idle(idle: Idle<C>, pool: &'s SharedPool<C>) -> Self {
         Self {
             inner: idle,
-            guard: DecreaseSizeGuard::new(pool),
+            guard: DecrementSizeGuard::new(pool),
         }
     }
 

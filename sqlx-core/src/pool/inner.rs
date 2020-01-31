@@ -78,23 +78,22 @@ where
         self.idle_conns
             .push(floating.into_idle().into_leakable())
             .expect("BUG: connection queue overflow in release()");
-        self.notify_waiter();
-    }
-
-    pub(super) fn notify_waiter(&self) {
         if let Ok(waker) = self.waiters.pop() {
             waker.wake();
         }
     }
 
-    fn try_increase_size(&self) -> Option<IncreaseSizeGuard> {
+    /// Try to atomically increment the pool size for a new connection.
+    ///
+    /// Returns `None` if we are at max_size.
+    fn try_increment_size(&self) -> Option<DecrementSizeGuard> {
         let mut size = self.size();
 
         while size < self.options.max_size {
             let new_size = self.size.compare_and_swap(size, size + 1, Ordering::AcqRel);
 
             if new_size == size {
-                return Some(IncreaseSizeGuard(DecreaseSizeGuard::new(self)));
+                return Some(DecrementSizeGuard::new(self));
             }
 
             size = new_size;
@@ -167,7 +166,7 @@ where
                 }
             }
 
-            if let Some(guard) = self.try_increase_size() {
+            if let Some(guard) = self.try_increment_size() {
                 // pool has slots available; open a new connection
                 match self.connect(deadline, guard).await {
                     Ok(Some(conn)) => return Ok(conn),
@@ -191,7 +190,7 @@ where
             let deadline = Instant::now() + self.options.connect_timeout;
 
             // this guard will prevent us from exceeding `max_size`
-            while let Some(guard) = self.try_increase_size() {
+            while let Some(guard) = self.try_increment_size() {
                 // [connect] will raise an error when past deadline
                 // [connect] returns None if its okay to retry
                 if let Some(conn) = self.connect(deadline, guard).await? {
@@ -208,7 +207,7 @@ where
     async fn connect<'s>(
         &'s self,
         deadline: Instant,
-        guard: IncreaseSizeGuard<'s>,
+        guard: DecrementSizeGuard<'s>,
     ) -> crate::Result<Option<Floating<'s, Live<C>>>> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
@@ -219,7 +218,7 @@ where
         // result here is `Result<Result<C, Error>, TimeoutError>`
         match crate::runtime::timeout(timeout, C::connect(&self.url)).await {
             // successfully established connection
-            Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard.commit()))),
+            Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard))),
 
             // IO error while connecting, this should definitely be logged
             // and we should attempt to retry
@@ -330,21 +329,17 @@ where
     });
 }
 
-struct IncreaseSizeGuard<'a>(DecreaseSizeGuard<'a>);
-
-pub(in crate::pool) struct DecreaseSizeGuard<'a> {
+/// RAII guard returned by `Pool::try_increment_size()` and others.
+///
+/// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
+/// (where the pool thinks it has more connections than it does).
+pub(in crate::pool) struct DecrementSizeGuard<'a> {
     size: &'a AtomicU32,
     waiters: &'a SegQueue<Waker>,
     dropped: bool,
 }
 
-impl<'s> IncreaseSizeGuard<'s> {
-    fn commit(self) -> DecreaseSizeGuard<'s> {
-        self.0
-    }
-}
-
-impl<'a> DecreaseSizeGuard<'a> {
+impl<'a> DecrementSizeGuard<'a> {
     pub fn new<C>(pool: &'a SharedPool<C>) -> Self {
         Self {
             size: &pool.size,
@@ -353,6 +348,7 @@ impl<'a> DecreaseSizeGuard<'a> {
         }
     }
 
+    /// Return `true` if the internal references point to the same fields in `SharedPool`.
     pub fn same_pool<C>(&self, pool: &'a SharedPool<C>) -> bool {
         ptr::eq(self.size, &pool.size) && ptr::eq(self.waiters, &pool.waiters)
     }
@@ -362,7 +358,7 @@ impl<'a> DecreaseSizeGuard<'a> {
     }
 }
 
-impl Drop for DecreaseSizeGuard<'_> {
+impl Drop for DecrementSizeGuard<'_> {
     fn drop(&mut self) {
         assert!(!self.dropped, "double-dropped!");
         self.dropped = true;
