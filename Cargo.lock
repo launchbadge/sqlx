@@ -913,6 +913,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
 
 [[package]]
+name = "listen-postgres"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "futures 0.3.1",
+ "sqlx 0.2.5",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1234,15 +1243,6 @@ name = "pkg-config"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05da548ad6865900e60eaba7f589cc0783590a92e940c26953ff81ddbab2d677"
-
-[[package]]
-name = "postgres-listen"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "futures 0.3.1",
- "sqlx 0.2.5",
-]
 
 [[package]]
 name = "ppv-lite86"
