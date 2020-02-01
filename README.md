@@ -88,8 +88,7 @@ sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio"
 
 #### Connect
 
-It is a very good idea to always create a connection pool at the beginning of your application
-and then share that.
+It is a very good idea to always create a connection pool at the beginning of your application and then share that.
 
 ```rust
 // Postgres
@@ -104,7 +103,7 @@ The result is an implementation of the `Row` trait. Values can be efficiently ac
 ```rust
 let row = sqlx::query("SELECT is_active FROM users WHERE id = ?")
     .bind(some_user_id)
-    .fetch_one(&mut conn)
+    .fetch_one(&mut &pool)
     .await?;
     
 let is_active: bool = row.get("is_active");
@@ -120,7 +119,7 @@ let countries = sqlx::query!(
         "SELECT country, COUNT(*) FROM users GROUP BY country WHERE organization = ?", 
         organization
     )
-    .fetch(&mut conn) // -> impl Stream<Item = { country: String, count: i64 }>
+    .fetch(&mut &pool) // -> impl Stream<Item = { country: String, count: i64 }>
     .map_ok(|rec| (rec.country, rec.count))
     .try_collect::<HashMap<_>>() // -> HashMap<String, i64>
     .await?;
