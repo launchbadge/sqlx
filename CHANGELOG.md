@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.5 - 2020-02-01
+
+### Fixed
+
+ - Fix decoding of Rows containing NULLs in Postgres [#104]
+
+ - After a large review and some battle testing by [@ianthetechie](https://github.com/ianthetechie)
+   of the `Pool`, a live leaking issue was found. This has now been fixed by [@abonander] in [#84] which
+   included refactoring to make the pool internals less brittle (using RAII instead of manual 
+   work is one example) and to help any future contributors when changing the pool internals.
+
+ - Passwords are now being precent decoding before being presented to the server [[@repnop]]
+ 
+ - [@100] Fix `FLOAT` and `DOUBLE` decoding in MySQL
+
+[#84]: https://github.com/launchbadge/sqlx/issues/84
+[#100]: https://github.com/launchbadge/sqlx/issues/100
+[#104]: https://github.com/launchbadge/sqlx/issues/104
+
+[@repnop]: https://github.com/repnop
+
+### Added
+
+ - [[#72]] Add `PgTypeInfo::with_oid` to allow simple construction of `PgTypeInfo` which enables `HasSqlType`
+   to be implemented by downstream consumers of SQLx [[@jplatte]]
+
+ - [[#96]] Add support for returning columns from `query!` with a name of a rust keyword by 
+   using raw identifiers [[@yaahc]]
+
+ - [[#71]] Implement derives for `Encode` and `Decode`. This is the first step to supporting custom types in SQLx. [[@Freax13]]
+
+[@jplatte]: https://github.com/jplatte
+[@yaahc]: https://github.com/yaahc
+[@Freax13]: https://github.com/Freax13
+
 ## 0.2.4 - 2020-01-18
 
 ### Fixed
