@@ -70,6 +70,37 @@ async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
     Ok(())
 }
 
+// https://github.com/launchbadge/sqlx/issues/104
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let row = sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let _1: Option<i32> = row.get(0);
+    let _2: Option<i32> = row.get(1);
+    let _3: Option<i32> = row.get(2);
+    let _4: Option<i32> = row.get(3);
+    let _5: Option<i32> = row.get(4);
+    let _6: Option<i32> = row.get(5);
+    let _7: Option<i32> = row.get(6);
+    let _8: Option<i32> = row.get(7);
+
+    assert_eq!(_1, None);
+    assert_eq!(_2, Some(10));
+    assert_eq!(_3, None);
+    assert_eq!(_4, Some(20));
+    assert_eq!(_5, None);
+    assert_eq!(_6, Some(40));
+    assert_eq!(_7, None);
+    assert_eq!(_8, Some(80));
+
+    Ok(())
+}
+
 // run with `cargo test --features postgres -- --ignored --nocapture pool_smoke_test`
 #[ignore]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]

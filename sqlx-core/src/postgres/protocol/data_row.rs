@@ -36,6 +36,8 @@ impl Decode for DataRow {
 
             if size == -1 {
                 values.push(None);
+
+                index += 4;
             } else {
                 values.push(Some((index)..(index + (size as u32))));
 
