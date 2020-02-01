@@ -1,5 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::{Connection as _, Executor as _, MySqlConnection, MySqlPool, Row as _};
+use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -83,6 +84,61 @@ async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
 
         Ok(_) => panic!("unexpected ok"),
     }
+
+    Ok(())
+}
+
+// run with `cargo test --features mysql -- --ignored --nocapture pool_smoke_test`
+#[ignore]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn pool_smoke_test() -> anyhow::Result<()> {
+    use sqlx_core::runtime::{sleep, spawn, timeout};
+
+    eprintln!("starting pool");
+
+    let pool = MySqlPool::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .min_size(5)
+        .max_size(10)
+        .build(&dotenv::var("DATABASE_URL")?)
+        .await?;
+
+    // spin up more tasks than connections available, and ensure we don't deadlock
+    for i in 0..20 {
+        let pool = pool.clone();
+        spawn(async move {
+            loop {
+                if let Err(e) = sqlx::query("select 1 + 1").fetch_one(&mut &pool).await {
+                    eprintln!("pool task {} dying due to {}", i, e);
+                    break;
+                }
+            }
+        });
+    }
+
+    for _ in 0..5 {
+        let pool = pool.clone();
+        spawn(async move {
+            while !pool.is_closed() {
+                // drop acquire() futures in a hot loop
+                // https://github.com/launchbadge/sqlx/issues/83
+                drop(pool.acquire());
+            }
+        });
+    }
+
+    eprintln!("sleeping for 30 seconds");
+
+    sleep(Duration::from_secs(30)).await;
+
+    assert_eq!(pool.size(), 10);
+
+    eprintln!("closing pool");
+
+    timeout(Duration::from_secs(30), pool.close()).await?;
+
+    eprintln!("pool closed successfully");
 
     Ok(())
 }
