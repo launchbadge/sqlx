@@ -39,20 +39,19 @@ pub fn quote_args<DB: DatabaseExt>(
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        let args_ty_cons = input.arg_names.iter().enumerate().map(|(i, expr)| {
-            // required or `quote!()` emits it as `Nusize`
-            let i = syn::Index::from(i);
-            // see src/ty_cons.rs in the main repo for details on this hack
-            quote_spanned!( expr.span() => {
-                sqlx::ty_cons::TyCons::new(args.#i).lift().ty_cons()
+        let args_ty_checks = input.arg_names.iter().zip(param_types).map(|(arg, ty)| {
+            // see src/ty_match in the main repo for details on this hack
+            quote_spanned!( arg.span() => {
+                let mut arg_check = sqlx::ty_match::InnerType::new(#arg).inner_type();
+                arg_check = sqlx::ty_match::MatchBorrow::<#ty, _>::new(arg_check).match_borrow();
             })
         });
 
         // we want to make sure it doesn't run
         quote! {
             if false {
-                use sqlx::ty_cons::TyConsExt as _;
-                let _: (#(#param_types),*,) = (#(#args_ty_cons),*,);
+                use sqlx::ty_match::{InnerTypeExt as _, MatchBorrowExt as _};
+                #(#args_ty_checks)*
             }
         }
     } else {
@@ -60,22 +59,19 @@ pub fn quote_args<DB: DatabaseExt>(
         TokenStream::new()
     };
 
-    let args = input.arg_names.iter();
+    let arg_name = &input.arg_names;
     let args_count = input.arg_names.len();
-    let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
-    let arg_indices_2 = arg_indices.clone();
 
     Ok(quote! {
-        // emit as a tuple first so each expression is only evaluated once
-        // these could be separate bindings instead but this is how I decided to write it
-        let args = (#(&$#args),*,);
+        // bind as a local expression, by-ref
+        #(let #arg_name = &$#arg_name;)*
         #args_check
         let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
         query_args.reserve(
             #args_count,
-            0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
+            0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
         );
-        #(query_args.add(args.#arg_indices_2);)*
+        #(query_args.add(#arg_name);)*
     })
 }
 

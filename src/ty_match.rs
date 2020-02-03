@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 pub struct InnerType<T>(PhantomData<T>);
 
 impl<T: Sized> InnerType<T> {
-    fn new(_t: T) -> Self { InnerType(PhantomData) }
+    pub fn new(_t: T) -> Self { InnerType(PhantomData) }
 }
 
 pub trait InnerTypeExt: Sized {
@@ -39,7 +39,7 @@ impl<T> InnerTypeExt for &'_ InnerType<T> {
 pub struct MatchBorrow<T, U>(PhantomData<T>, PhantomData<U>);
 
 impl<T, U> MatchBorrow<T, U> {
-    fn new(_u: U) -> Self { MatchBorrow(PhantomData, PhantomData) }
+    pub fn new(_u: U) -> Self { MatchBorrow(PhantomData, PhantomData) }
 }
 
 pub trait MatchBorrowExt: Sized {
