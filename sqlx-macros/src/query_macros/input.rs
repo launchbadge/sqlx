@@ -1,7 +1,7 @@
 use std::env;
 
 use proc_macro2::{Ident, Span};
-use sqlx::runtime::fs;
+use quote::{format_ident, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -9,9 +9,8 @@ use syn::token::Group;
 use syn::{Expr, ExprLit, ExprPath, Lit};
 use syn::{ExprGroup, Token};
 
-use quote::{format_ident, ToTokens};
-
 use sqlx::describe::Describe;
+use sqlx::runtime::fs;
 use sqlx::Connection;
 
 /// Macro input shared by `query!()` and `query_file!()`
@@ -58,8 +57,10 @@ impl QueryMacroInput {
         };
 
         let arg_exprs: Vec<_> = args.collect();
-        let arg_names = (0..arg_exprs.len())
-            .map(|i| format_ident!("arg{}", i))
+        let arg_names = arg_exprs
+            .iter()
+            .enumerate()
+            .map(|(i, arg)| format_ident!("arg{}", i, span = expr_span(arg)))
             .collect();
 
         Ok(Self {
@@ -211,4 +212,12 @@ async fn read_file_src(source: &str, source_span: Span) -> syn::Result<String> {
             ),
         )
     })
+}
+
+fn expr_span(expr: &Expr) -> Span {
+    if let Expr::Group(ExprGroup { expr, .. }) = expr {
+        expr.span()
+    } else {
+        expr.span()
+    }
 }

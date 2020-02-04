@@ -119,12 +119,13 @@ async fn query_by_string() -> anyhow::Result<()> {
 
     let result = sqlx::query!(
         "SELECT * from (VALUES('Hello, world!')) strings(string)\
-         where string in ($1, $2, $3, $4, $5)",
-        string,
-        string[..],
+         where string in ($1, $2, $3, $4, $5, $6)",
+        string, // make sure we don't actually take ownership here
+        &string[..],
         Some(&string),
         Some(&string[..]),
-        Option::<String>::None
+        Option::<String>::None,
+        string.clone()
     )
     .fetch_one(&mut conn)
     .await?;

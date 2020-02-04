@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, ToTokens};
 use syn::Expr;
 
 use sqlx::describe::Describe;
@@ -21,6 +21,8 @@ pub fn quote_args<DB: DatabaseExt>(
         });
     }
 
+    let arg_name = &input.arg_names;
+
     let args_check = if DB::PARAM_CHECKING == ParamChecking::Strong {
         let param_types = describe
             .param_types
@@ -39,33 +41,21 @@ pub fn quote_args<DB: DatabaseExt>(
             })
             .collect::<crate::Result<Vec<_>>>()?;
 
-        let args_ty_checks = input.arg_names.iter().zip(param_types).map(|(arg, ty)| {
-            // see src/ty_match in the main repo for details on this hack
-            quote_spanned!( arg.span() => {
-                let mut arg_check = sqlx::ty_match::InnerType::new(#arg).inner_type();
-                arg_check = sqlx::ty_match::MatchBorrow::<#ty, _>::new(arg_check).match_borrow();
-            })
-        });
-
-        // we want to make sure it doesn't run
         quote! {
-            if false {
-                use sqlx::ty_match::{InnerTypeExt as _, MatchBorrowExt as _};
-                #(#args_ty_checks)*
-            }
+            sqlx::match_type!(#(#param_types: $#arg_name),*,);
         }
     } else {
         // all we can do is check arity which we did in `QueryMacroInput::describe_validate()`
         TokenStream::new()
     };
 
-    let arg_name = &input.arg_names;
     let args_count = input.arg_names.len();
 
     Ok(quote! {
+        #args_check
+
         // bind as a local expression, by-ref
         #(let #arg_name = &$#arg_name;)*
-        #args_check
         let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
         query_args.reserve(
             #args_count,
