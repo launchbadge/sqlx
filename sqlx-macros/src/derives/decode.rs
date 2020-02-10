@@ -2,7 +2,6 @@ use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
     check_weak_enum_attributes, parse_attributes,
 };
-use proc_macro2::Ident;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -161,16 +160,15 @@ fn expand_derive_decode_struct(
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let mut reads: Vec<Stmt> = Vec::new();
-        let mut names: Vec<Ident> = Vec::new();
-        for field in fields {
+        let reads = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;
-            names.push(id.clone().unwrap());
             let ty = &field.ty;
-            reads.push(parse_quote!(
+            parse_quote!(
                 let #id = sqlx::postgres::decode_struct_field::<#ty>(&mut buf)?;
-            ));
-        }
+            )
+        });
+
+        let names = fields.iter().map(|field| &field.ident);
 
         tts.extend(quote!(
         impl #impl_generics sqlx::decode::Decode<sqlx::Postgres> for #ident#ty_generics #where_clause {

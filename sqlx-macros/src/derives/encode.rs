@@ -160,22 +160,20 @@ fn expand_derive_encode_struct(
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let mut writes: Vec<Stmt> = Vec::new();
-        for field in fields {
+        let writes = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;
-            writes.push(parse_quote!(
+            parse_quote!(
                 sqlx::postgres::encode_struct_field(buf, &self. #id);
-            ));
-        }
+            )
+        });
 
-        let mut sizes: Vec<Expr> = Vec::new();
-        for field in fields {
+        let sizes = fields.iter().map(|field| -> Expr {
             let id = &field.ident;
             let ty = &field.ty;
-            sizes.push(
-                parse_quote!(<#ty as sqlx::encode::Encode<sqlx::Postgres>>::size_hint(&self. #id)),
-            );
-        }
+            parse_quote!(
+                <#ty as sqlx::encode::Encode<sqlx::Postgres>>::size_hint(&self. #id)
+            )
+        });
 
         tts.extend(quote!(
             impl #impl_generics sqlx::encode::Encode<sqlx::Postgres> for #ident #ty_generics #where_clause {
