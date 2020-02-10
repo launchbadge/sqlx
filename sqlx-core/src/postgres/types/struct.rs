@@ -1,7 +1,5 @@
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
 use crate::types::HasSqlType;
 use crate::Postgres;
 use std::convert::TryInto;
