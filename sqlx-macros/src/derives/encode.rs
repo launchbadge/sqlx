@@ -182,7 +182,9 @@ fn expand_derive_encode_struct(
                     #(#writes)*
                 }
                 fn size_hint(&self) -> usize {
-                    4 + #column_count * (4 + 4) + #(#sizes)+*
+                    4 // oid
+                     + #column_count * (4 + 4) // oid (int) and length (int) for each column
+                     + #(#sizes)+* // sum of the size hints for each column
                 }
             }
         ));
