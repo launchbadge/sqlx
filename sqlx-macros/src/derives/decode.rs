@@ -161,35 +161,16 @@ fn expand_derive_decode_struct(
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let mut reads: Vec<Vec<Stmt>> = Vec::new();
+        let mut reads: Vec<Stmt> = Vec::new();
         let mut names: Vec<Ident> = Vec::new();
         for field in fields {
             let id = &field.ident;
             names.push(id.clone().unwrap());
             let ty = &field.ty;
             reads.push(parse_quote!(
-            if buf.len() < 8 {
-                return Err(sqlx::decode::DecodeError::Message(std::boxed::Box::new("Not enough data sent")));
-            }
-
-            let oid = u32::from_be_bytes(std::convert::TryInto::try_into(&buf[0..4]).unwrap());
-            if oid != <sqlx::Postgres as sqlx::types::HasSqlType<#ty>>::type_info().oid() {
-                return Err(sqlx::decode::DecodeError::Message(std::boxed::Box::new("Invalid oid")));
-            }
-
-            let len = u32::from_be_bytes(std::convert::TryInto::try_into(&buf[4..8]).unwrap()) as usize;
-
-            if buf.len() < 8 + len {
-                return Err(sqlx::decode::DecodeError::Message(std::boxed::Box::new("Not enough data sent")));
-            }
-
-            let raw = &buf[8..8+len];
-            let #id = <#ty as sqlx::decode::Decode<sqlx::Postgres>>::decode(raw)?;
-
-            let buf = &buf[8+len..];
-        ));
+                let #id = sqlx::postgres::decode_struct_field::<#ty>(&mut buf)?;
+            ));
         }
-        let reads = reads.into_iter().flatten();
 
         tts.extend(quote!(
         impl #impl_generics sqlx::decode::Decode<sqlx::Postgres> for #ident#ty_generics #where_clause {
@@ -202,7 +183,7 @@ fn expand_derive_decode_struct(
                 if column_count != #column_count {
                     return Err(sqlx::decode::DecodeError::Message(std::boxed::Box::new("Invalid column count")));
                 }
-                let buf = &buf[4..];
+                let mut buf = &buf[4..];
 
                 #(#reads)*
 
