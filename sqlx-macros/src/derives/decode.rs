@@ -118,17 +118,16 @@ fn expand_derive_decode_strong_enum(
 
     let ident = &input.ident;
 
-    let mut value_arms = Vec::new();
-    for v in variants {
+    let value_arms = variants.iter().map(|v| -> Arm {
         let id = &v.ident;
-        let attributes = parse_attributes(&v.attrs)?;
+        let attributes = parse_attributes(&v.attrs).unwrap();
         if let Some(rename) = attributes.rename {
-            value_arms.push(quote!(#rename => Ok(#ident :: #id),));
+            parse_quote!(#rename => Ok(#ident :: #id),)
         } else {
             let name = id.to_string();
-            value_arms.push(quote!(#name => Ok(#ident :: #id),));
+            parse_quote!(#name => Ok(#ident :: #id),)
         }
-    }
+    });
 
     // TODO: prevent heap allocation
     Ok(quote!(
