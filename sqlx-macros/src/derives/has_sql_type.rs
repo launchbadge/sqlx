@@ -27,9 +27,20 @@ pub fn expand_derive_has_sql_type(input: &DeriveInput) -> syn::Result<proc_macro
             fields: Fields::Named(FieldsNamed { named, .. }),
             ..
         }) => expand_derive_has_sql_type_struct(input, named),
-        _ => Err(syn::Error::new_spanned(
+        Data::Union(_) => Err(syn::Error::new_spanned(input, "unions are not supported")),
+        Data::Struct(DataStruct {
+            fields: Fields::Unnamed(..),
+            ..
+        }) => Err(syn::Error::new_spanned(
             input,
-            "expected a tuple struct with a single field",
+            "structs with zero or more than one unnamed field are not supported",
+        )),
+        Data::Struct(DataStruct {
+            fields: Fields::Unit,
+            ..
+        }) => Err(syn::Error::new_spanned(
+            input,
+            "unit structs are not supported",
         )),
     }
 }
