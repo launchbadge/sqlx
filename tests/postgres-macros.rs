@@ -34,7 +34,7 @@ async fn test_no_result() -> anyhow::Result<()> {
 async fn _file() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let account = sqlx::query_file!("tests/test-query.sql")
+    let account = sqlx::query_file!("tests/test-query.sql",)
         .fetch_one(&mut conn)
         .await?;
 
@@ -99,7 +99,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_file_as() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let account = sqlx::query_file_as!(Account, "tests/test-query.sql")
+    let account = sqlx::query_file_as!(Account, "tests/test-query.sql",)
         .fetch_one(&mut conn)
         .await?;
 
