@@ -5,6 +5,8 @@ pub use connection::PgConnection;
 pub use database::Postgres;
 pub use error::PgError;
 pub use row::PgRow;
+#[doc(hidden)]
+pub use types::r#struct::{decode_struct_field, encode_struct_field};
 pub use types::PgTypeInfo;
 
 mod arguments;

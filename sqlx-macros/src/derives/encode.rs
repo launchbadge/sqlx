@@ -6,8 +6,8 @@ use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Block, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Variant,
+    parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Stmt, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -160,26 +160,12 @@ fn expand_derive_encode_struct(
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let mut writes: Vec<Block> = Vec::new();
+        let mut writes: Vec<Stmt> = Vec::new();
         for field in fields {
             let id = &field.ident;
-            let ty = &field.ty;
-            writes.push(parse_quote!({
-                // write oid
-                let info = <sqlx::Postgres as sqlx::types::HasSqlType<#ty>>::type_info();
-                buf.extend(&info.oid().to_be_bytes());
-
-                // write zeros for length
-                buf.extend(&[0; 4]);
-
-                let start = buf.len();
-                sqlx::encode::Encode::<sqlx::Postgres>::encode(&self. #id, buf);
-                let end = buf.len();
-                let size = end - start;
-
-                // replaces zeros with actual length
-                buf[start-4..start].copy_from_slice(&(size as u32).to_be_bytes());
-            }));
+            writes.push(parse_quote!(
+                sqlx::postgres::encode_struct_field(buf, &self. #id);
+            ));
         }
 
         let mut sizes: Vec<Expr> = Vec::new();
