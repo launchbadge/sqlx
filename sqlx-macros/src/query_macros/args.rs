@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
+use syn::spanned::Spanned;
 use syn::Expr;
 
 use sqlx::describe::Describe;
@@ -24,26 +25,42 @@ pub fn quote_args<DB: DatabaseExt>(
     let arg_name = &input.arg_names;
 
     let args_check = if DB::PARAM_CHECKING == ParamChecking::Strong {
-        let param_types = describe
+        describe
             .param_types
             .iter()
-            .zip(&*input.arg_exprs)
-            .map(|(type_, expr)| {
-                get_type_override(expr)
+            .zip(input.arg_names.iter().zip(&input.arg_exprs))
+            .map(|(param_ty, (name, expr))| {
+                let param_ty = get_type_override(expr)
                     .or_else(|| {
                         Some(
-                            DB::param_type_for_id(type_)?
+                            DB::param_type_for_id(param_ty)?
                                 .parse::<proc_macro2::TokenStream>()
                                 .unwrap(),
                         )
                     })
-                    .ok_or_else(|| format!("unknown type param ID: {}", type_).into())
-            })
-            .collect::<crate::Result<Vec<_>>>()?;
+                    .ok_or_else(|| format!("unknown type param ID: {}", param_ty))?;
 
-        quote! {
-            sqlx::match_type!(#(#param_types: $#arg_name),*,);
-        }
+                Ok(quote_spanned!(expr.span() =>
+                    // this shouldn't actually run
+                    if false {
+                        use sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
+
+                        // evaluate the expression only once in case it contains moves
+                        let _expr = sqlx::ty_match::dupe_value(&$#name);
+
+                        // if `_expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
+                        let wrapped_same = sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
+                        // if `_expr` is `&str`, convert `String` to `&str`
+                        let mut ty_check = sqlx::ty_match::MatchBorrow::new(wrapped_same, &_expr).match_borrow();
+
+                        ty_check = _expr;
+
+                        // this causes move-analysis to effectively ignore this block
+                        panic!();
+                    }
+                ))
+            })
+            .collect::<crate::Result<TokenStream>>()?
     } else {
         // all we can do is check arity which we did in `QueryMacroInput::describe_validate()`
         TokenStream::new()

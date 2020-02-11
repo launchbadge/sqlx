@@ -57,10 +57,8 @@ impl QueryMacroInput {
         };
 
         let arg_exprs: Vec<_> = args.collect();
-        let arg_names = arg_exprs
-            .iter()
-            .enumerate()
-            .map(|(i, arg)| format_ident!("arg{}", i, span = expr_span(arg)))
+        let arg_names = (0..arg_exprs.len())
+            .map(|i| format_ident!("arg{}", i))
             .collect();
 
         Ok(Self {
@@ -212,12 +210,4 @@ async fn read_file_src(source: &str, source_span: Span) -> syn::Result<String> {
             ),
         )
     })
-}
-
-fn expr_span(expr: &Expr) -> Span {
-    if let Expr::Group(ExprGroup { expr, .. }) = expr {
-        expr.span()
-    } else {
-        expr.span()
-    }
 }
