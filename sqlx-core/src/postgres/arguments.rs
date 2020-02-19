@@ -18,14 +18,6 @@ pub struct PgArguments {
 impl Arguments for PgArguments {
     type Database = super::Postgres;
 
-    fn len(&self) -> usize {
-        self.types.len()
-    }
-
-    fn size(&self) -> usize {
-        self.values.len()
-    }
-
     fn reserve(&mut self, len: usize, size: usize) {
         self.types.reserve(len);
         self.values.reserve(size);

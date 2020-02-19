@@ -14,14 +14,6 @@ pub struct MySqlArguments {
 impl Arguments for MySqlArguments {
     type Database = MySql;
 
-    fn len(&self) -> usize {
-        self.param_types.len()
-    }
-
-    fn size(&self) -> usize {
-        self.params.len()
-    }
-
     fn reserve(&mut self, len: usize, size: usize) {
         self.param_types.reserve(len);
         self.params.reserve(size);
