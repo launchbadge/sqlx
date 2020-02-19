@@ -1,7 +1,7 @@
 use crate::error::DatabaseError;
 use crate::postgres::protocol::Response;
 
-pub struct PgError(pub(super) Box<Response>);
+pub struct PgError(pub(super) Response);
 
 impl DatabaseError for PgError {
     fn message(&self) -> &str {

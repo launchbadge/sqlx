@@ -1,34 +1,49 @@
 use crate::io::{Buf, ByteStr};
 use crate::postgres::protocol::Decode;
+use crate::postgres::PgConnection;
 use byteorder::NetworkEndian;
 use std::fmt::{self, Debug};
 use std::ops::Range;
 
 pub struct DataRow {
-    buffer: Box<[u8]>,
-    values: Box<[Option<Range<u32>>]>,
+    len: u16,
 }
 
 impl DataRow {
     pub fn len(&self) -> usize {
-        self.values.len()
+        self.len as usize
     }
 
-    pub fn get(&self, index: usize) -> Option<&[u8]> {
-        let range = self.values[index].as_ref()?;
+    pub fn get<'a>(
+        &self,
+        buffer: &'a [u8],
+        values: &[Option<Range<u32>>],
+        index: usize,
+    ) -> Option<&'a [u8]> {
+        let range = values[index].as_ref()?;
 
-        Some(&self.buffer[(range.start as usize)..(range.end as usize)])
+        Some(&buffer[(range.start as usize)..(range.end as usize)])
     }
 }
 
-impl Decode for DataRow {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
-        let len = buf.get_u16::<NetworkEndian>()? as usize;
-        let buffer: Box<[u8]> = buf.into();
-        let mut values = Vec::with_capacity(len);
-        let mut index = 4;
+impl DataRow {
+    pub(crate) fn read<'a>(
+        connection: &mut PgConnection,
+        // buffer: &'a [u8],
+        // values: &'a mut Vec<Option<Range<u32>>>,
+    ) -> crate::Result<Self> {
+        let buffer = connection.stream.buffer();
+        let values = &mut connection.data_row_values_buf;
 
-        while values.len() < len {
+        values.clear();
+
+        let mut buf = buffer;
+
+        let len = buf.get_u16::<NetworkEndian>()?;
+
+        let mut index = 6;
+
+        while values.len() < (len as usize) {
             // The length of the column value, in bytes (this count does not include itself).
             // Can be zero. As a special case, -1 indicates a NULL column value.
             // No value bytes follow in the NULL case.
@@ -46,26 +61,7 @@ impl Decode for DataRow {
             }
         }
 
-        Ok(Self {
-            values: values.into_boxed_slice(),
-            buffer,
-        })
-    }
-}
-
-impl Debug for DataRow {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DataRow(")?;
-
-        let len = self.values.len();
-
-        f.debug_list()
-            .entries((0..len).map(|i| self.get(i).map(ByteStr)))
-            .finish()?;
-
-        write!(f, ")")?;
-
-        Ok(())
+        Ok(Self { len })
     }
 }
 
@@ -76,18 +72,14 @@ mod tests {
     const DATA_ROW: &[u8] = b"\0\x03\0\0\0\x011\0\0\0\x012\0\0\0\x013";
 
     #[test]
-    fn it_decodes_data_row() {
-        let m = DataRow::decode(DATA_ROW).unwrap();
+    fn it_reads_data_row() {
+        let mut values = Vec::new();
+        let m = DataRow::read(DATA_ROW, &mut values).unwrap();
 
-        assert_eq!(m.values.len(), 3);
+        assert_eq!(m.len, 3);
 
-        assert_eq!(m.get(0), Some(&b"1"[..]));
-        assert_eq!(m.get(1), Some(&b"2"[..]));
-        assert_eq!(m.get(2), Some(&b"3"[..]));
-
-        assert_eq!(
-            format!("{:?}", m),
-            "DataRow([Some(b\"1\"), Some(b\"2\"), Some(b\"3\")])"
-        );
+        assert_eq!(m.get(DATA_ROW, &values, 0), Some(&b"1"[..]));
+        assert_eq!(m.get(DATA_ROW, &values, 1), Some(&b"2"[..]));
+        assert_eq!(m.get(DATA_ROW, &values, 2), Some(&b"3"[..]));
     }
 }

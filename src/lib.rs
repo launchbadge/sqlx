@@ -12,7 +12,7 @@ pub use sqlx_core::{arguments, describe, error, pool, row, types};
 
 // Types
 pub use sqlx_core::{
-    Connect, Connection, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row,
+    Connect, Connection, Cursor, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row,
     Transaction,
 };
 

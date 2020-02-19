@@ -3,8 +3,10 @@ use rand::Rng;
 use sha2::{Digest, Sha256};
 
 use crate::postgres::protocol::{
-    hi, Authentication, Encode, Message, SaslInitialResponse, SaslResponse,
+    hi, Authentication, AuthenticationSaslContinue, Encode, Message, SaslInitialResponse,
+    SaslResponse,
 };
+use crate::postgres::stream::PgStream;
 use crate::postgres::PgConnection;
 
 static GS2_HEADER: &'static str = "n,,";
@@ -43,7 +45,7 @@ fn nonce() -> String {
 // Performs authenticiton using Simple Authentication Security Layer (SASL) which is what
 // Postgres uses
 pub(super) async fn authenticate<T: AsRef<str>>(
-    conn: &mut PgConnection,
+    stream: &mut PgStream,
     username: T,
     password: T,
 ) -> crate::Result<()> {
@@ -62,13 +64,18 @@ pub(super) async fn authenticate<T: AsRef<str>>(
         client_first_message_bare = client_first_message_bare
     );
 
-    SaslInitialResponse(&client_first_message).encode(conn.stream.buffer_mut());
-    conn.stream.flush().await?;
+    stream.write(SaslInitialResponse(&client_first_message));
+    stream.flush().await?;
 
-    let server_first_message = conn.receive().await?;
+    let server_first_message = stream.read().await?;
 
-    if let Some(Message::Authentication(auth)) = server_first_message {
-        if let Authentication::SaslContinue(sasl) = *auth {
+    if let Message::Authentication = server_first_message {
+        let auth = Authentication::read(stream.buffer())?;
+
+        if let Authentication::SaslContinue = auth {
+            // todo: better way to indicate that we consumed just these 4 bytes?
+            let sasl = AuthenticationSaslContinue::read(&stream.buffer()[4..])?;
+
             let server_first_message = sasl.data;
 
             // SaltedPassword := Hi(Normalize(password), salt, i)
@@ -132,9 +139,11 @@ pub(super) async fn authenticate<T: AsRef<str>>(
                 client_proof = base64::encode(&client_proof)
             );
 
-            SaslResponse(&client_final_message).encode(conn.stream.buffer_mut());
-            conn.stream.flush().await?;
-            let _server_final_response = conn.receive().await?;
+            stream.write(SaslResponse(&client_final_message));
+            stream.flush().await?;
+
+            let _server_final_response = stream.read().await?;
+            // todo: assert that this was SaslFinal?
 
             Ok(())
         } else {

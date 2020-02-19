@@ -1,0 +1,10 @@
+[package]
+workspace = "../../.."
+name = "sqlx-example-postgres-basic"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+async-std = { version = "1", features = [ "attributes" ] }
+anyhow = "1"
+sqlx = { path = "../../..", features = [ "postgres" ] }

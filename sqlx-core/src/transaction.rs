@@ -4,6 +4,7 @@ use futures_core::future::BoxFuture;
 
 use crate::connection::Connection;
 use crate::database::HasCursor;
+use crate::describe::Describe;
 use crate::executor::{Execute, Executor};
 use crate::runtime::spawn;
 use crate::Database;
@@ -19,10 +20,11 @@ where
     depth: u32,
 }
 
-impl<T> Transaction<T>
+impl<DB, T> Transaction<T>
 where
-    T: Connection,
-    T: Executor<'static>,
+    T: Connection<Database = DB>,
+    DB: Database,
+    T: Executor<'static, Database = DB>,
 {
     pub(crate) async fn new(depth: u32, mut inner: T) -> crate::Result<Self> {
         if depth == 0 {
@@ -98,10 +100,11 @@ where
     }
 }
 
-impl<T> Connection for Transaction<T>
+impl<T, DB> Connection for Transaction<T>
 where
-    T: Connection,
-    T: Executor<'static>,
+    T: Connection<Database = DB>,
+    DB: Database,
+    T: Executor<'static, Database = DB>,
 {
     type Database = <T as Connection>::Database;
 
@@ -109,9 +112,23 @@ where
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move { self.rollback().await?.close().await })
     }
+
+    #[inline]
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+        Box::pin(self.deref_mut().ping())
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
+        Box::pin(self.deref_mut().describe(query))
+    }
 }
 
-impl<'a, DB, T> Executor<'a> for &'a mut Transaction<T>
+impl<'c, DB, T> Executor<'c> for &'c mut Transaction<T>
 where
     DB: Database,
     T: Connection<Database = DB>,
@@ -119,19 +136,19 @@ where
 {
     type Database = <T as Connection>::Database;
 
-    fn execute<'b, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'a>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'c, 'q>>::Cursor
     where
-        E: Execute<'b, Self::Database>,
+        E: Execute<'q, Self::Database>,
     {
         (**self).execute_by_ref(query)
     }
 
-    fn execute_by_ref<'b, 'c, E>(
-        &'c mut self,
+    fn execute_by_ref<'q, 'e, E>(
+        &'e mut self,
         query: E,
-    ) -> <Self::Database as HasCursor<'c>>::Cursor
+    ) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
-        E: Execute<'b, Self::Database>,
+        E: Execute<'q, Self::Database>,
     {
         (**self).execute_by_ref(query)
     }

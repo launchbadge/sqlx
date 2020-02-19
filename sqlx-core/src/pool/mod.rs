@@ -20,13 +20,15 @@ mod inner;
 mod options;
 
 pub use self::options::Builder;
+use crate::Database;
 
 /// A pool of database connections.
 pub struct Pool<C>(Arc<SharedPool<C>>);
 
-impl<C> Pool<C>
+impl<C, DB> Pool<C>
 where
-    C: Connect,
+    C: Connect<Database = DB>,
+    DB: Database<Connection = C>,
 {
     /// Creates a connection pool with the default configuration.
     ///

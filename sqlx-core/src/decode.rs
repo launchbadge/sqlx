@@ -4,7 +4,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display};
 
 use crate::database::Database;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
 pub enum DecodeError {
     /// An unexpected `NULL` was encountered while decoding.
@@ -40,7 +40,8 @@ where
 
 impl<T, DB> Decode<DB> for Option<T>
 where
-    DB: Database + HasSqlType<T>,
+    DB: Database,
+    T: Type<DB>,
     T: Decode<DB>,
 {
     fn decode(buf: &[u8]) -> Result<Self, DecodeError> {

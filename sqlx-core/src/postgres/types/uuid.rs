@@ -5,15 +5,15 @@ use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<Uuid> for Postgres {
+impl Type<Postgres> for Uuid {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::UUID)
     }
 }
 
-impl HasSqlType<[Uuid]> for Postgres {
+impl Type<Postgres> for [Uuid] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_UUID)
     }

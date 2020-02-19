@@ -1,58 +1,58 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::connection::MaybeOwnedConnection;
 use crate::decode::Decode;
+use crate::pool::PoolConnection;
 use crate::postgres::protocol::DataRow;
-use crate::postgres::Postgres;
+use crate::postgres::{PgConnection, Postgres};
 use crate::row::{Row, RowIndex};
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-pub struct PgRow {
+pub struct PgRow<'c> {
+    pub(super) connection: MaybeOwnedConnection<'c, PgConnection>,
     pub(super) data: DataRow,
     pub(super) columns: Arc<HashMap<Box<str>, usize>>,
 }
 
-impl Row for PgRow {
+impl<'c> Row<'c> for PgRow<'c> {
     type Database = Postgres;
 
     fn len(&self) -> usize {
         self.data.len()
     }
 
-    fn get<T, I>(&self, index: I) -> T
+    fn try_get_raw<'i, I>(&'c self, index: I) -> crate::Result<Option<&'c [u8]>>
     where
-        Self::Database: HasSqlType<T>,
-        I: RowIndex<Self>,
-        T: Decode<Self::Database>,
+        I: RowIndex<'c, Self> + 'i,
     {
-        index.try_get(self).unwrap()
+        index.try_get_raw(self)
     }
 }
 
-impl RowIndex<PgRow> for usize {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        Ok(Decode::decode_nullable(row.data.get(*self))?)
+impl<'c> RowIndex<'c, PgRow<'c>> for usize {
+    fn try_get_raw(self, row: &'c PgRow<'c>) -> crate::Result<Option<&'c [u8]>> {
+        Ok(row.data.get(
+            row.connection.stream.buffer(),
+            &row.connection.data_row_values_buf,
+            self,
+        ))
     }
 }
 
-impl RowIndex<PgRow> for &'_ str {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        let index = row
-            .columns
-            .get(*self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-        let value = Decode::decode_nullable(row.data.get(*index))?;
+// impl<'c> RowIndex<'c, PgRow<'c>> for &'_ str {
+//     fn try_get_raw(self, row: &'r PgRow<'c>) -> crate::Result<Option<&'c [u8]>> {
+//         let index = row
+//             .columns
+//             .get(self)
+//             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
+//
+//         Ok(row.data.get(
+//             row.connection.stream.buffer(),
+//             &row.connection.data_row_values_buf,
+//             *index,
+//         ))
+//     }
+// }
 
-        Ok(value)
-    }
-}
-
-impl_from_row_for_row!(PgRow);
+// TODO: impl_from_row_for_row!(PgRow);

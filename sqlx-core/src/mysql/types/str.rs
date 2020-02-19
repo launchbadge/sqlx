@@ -8,9 +8,9 @@ use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<str> for MySql {
+impl Type<str> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
             id: TypeId::TEXT,
@@ -28,9 +28,9 @@ impl Encode<MySql> for str {
 }
 
 // TODO: Do we need the [HasSqlType] for String
-impl HasSqlType<String> for MySql {
+impl Type<String> for MySql {
     fn type_info() -> MySqlTypeInfo {
-        <Self as HasSqlType<&str>>::type_info()
+        <Self as Type<&str>>::type_info()
     }
 }
 

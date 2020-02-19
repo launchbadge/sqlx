@@ -36,6 +36,11 @@ where
     }
 
     #[inline]
+    pub fn buffer(&self) -> &[u8] {
+        &self.rbuf[self.rbuf_rindex..]
+    }
+
+    #[inline]
     pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
         &mut self.wbuf
     }
@@ -61,7 +66,14 @@ where
         self.rbuf_rindex += cnt;
     }
 
-    pub async fn peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
+    pub async fn peek(&mut self, cnt: usize) -> io::Result<&[u8]> {
+        self.try_peek(cnt)
+            .await
+            .transpose()
+            .ok_or(io::ErrorKind::ConnectionAborted)?
+    }
+
+    pub async fn try_peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
         loop {
             // Reaching end-of-file (read 0 bytes) will continuously
             // return None from all future calls to read

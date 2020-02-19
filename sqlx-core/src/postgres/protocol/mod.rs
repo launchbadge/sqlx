@@ -58,7 +58,10 @@ mod row_description;
 
 mod message;
 
-pub use authentication::Authentication;
+pub use authentication::{
+    Authentication, AuthenticationMd5, AuthenticationSasl, AuthenticationSaslContinue,
+    AuthenticationSaslFinal,
+};
 pub use backend_key_data::BackendKeyData;
 pub use command_complete::CommandComplete;
 pub use data_row::DataRow;

@@ -1,10 +1,11 @@
-use crate::{Connect, Connection};
+use crate::{Connect, Connection, Executor};
 use futures_core::future::BoxFuture;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
 use super::inner::{DecrementSizeGuard, SharedPool};
+use crate::describe::Describe;
 
 /// A connection checked out from [`Pool`][crate::Pool].
 ///
@@ -67,6 +68,20 @@ where
             let live = self.live.take().expect("PoolConnection double-dropped");
             live.float(&self.pool).into_idle().close().await
         })
+    }
+
+    #[inline]
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+        Box::pin(self.deref_mut().ping())
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
+        Box::pin(self.deref_mut().describe(query))
     }
 }
 
@@ -168,8 +183,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
     where
         C: Connection,
     {
-        // TODO self.live.raw.ping().await
-        todo!()
+        self.live.raw.ping().await
     }
 
     pub fn into_live(self) -> Floating<'s, Live<C>> {

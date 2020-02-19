@@ -65,8 +65,8 @@ pub struct Response {
     pub routine: Option<Box<str>>,
 }
 
-impl Decode for Response {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl Response {
+    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let mut code = None::<Box<str>>;
         let mut message = None::<Box<str>>;
         let mut severity = None::<Box<str>>;

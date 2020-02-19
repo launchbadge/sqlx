@@ -5,7 +5,7 @@ use crate::decode::Decode;
 use crate::mysql::protocol;
 use crate::mysql::MySql;
 use crate::row::{Row, RowIndex};
-use crate::types::HasSqlType;
+use crate::types::Type;
 
 pub struct MySqlRow {
     pub(super) row: protocol::Row,
@@ -21,7 +21,7 @@ impl Row for MySqlRow {
 
     fn get<T, I>(&self, index: I) -> T
     where
-        Self::Database: HasSqlType<T>,
+        Self::Database: Type<T>,
         I: RowIndex<Self>,
         T: Decode<Self::Database>,
     {
@@ -32,7 +32,7 @@ impl Row for MySqlRow {
 impl RowIndex<MySqlRow> for usize {
     fn try_get<T>(&self, row: &MySqlRow) -> crate::Result<T>
     where
-        <MySqlRow as Row>::Database: HasSqlType<T>,
+        <MySqlRow as Row>::Database: Type<T>,
         T: Decode<<MySqlRow as Row>::Database>,
     {
         Ok(Decode::decode_nullable(row.row.get(*self))?)
@@ -42,7 +42,7 @@ impl RowIndex<MySqlRow> for usize {
 impl RowIndex<MySqlRow> for &'_ str {
     fn try_get<T>(&self, row: &MySqlRow) -> crate::Result<T>
     where
-        <MySqlRow as Row>::Database: HasSqlType<T>,
+        <MySqlRow as Row>::Database: Type<T>,
         T: Decode<<MySqlRow as Row>::Database>,
     {
         let index = row

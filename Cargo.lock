@@ -1527,6 +1527,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-postgres-basic"
+version = "0.1.0"
+dependencies = [
+ "anyhow 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sqlx 0.2.5",
+]
+
+[[package]]
 name = "sqlx-example-realworld-postgres"
 version = "0.1.0"
 dependencies = [

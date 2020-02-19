@@ -2,20 +2,17 @@
 
 use crate::database::Database;
 use crate::decode::Decode;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-pub trait RowIndex<R: ?Sized>
+pub trait RowIndex<'c, R: ?Sized>
 where
-    R: Row,
+    R: Row<'c>,
 {
-    fn try_get<T>(&self, row: &R) -> crate::Result<T>
-    where
-        R::Database: HasSqlType<T>,
-        T: Decode<R::Database>;
+    fn try_get_raw(self, row: &'c R) -> crate::Result<Option<&'c [u8]>>;
 }
 
 /// Represents a single row of the result set.
-pub trait Row: Unpin + Send + 'static {
+pub trait Row<'c>: Unpin + Send {
     type Database: Database + ?Sized;
 
     /// Returns `true` if the row contains no values.
@@ -26,18 +23,34 @@ pub trait Row: Unpin + Send + 'static {
     /// Returns the number of values in the row.
     fn len(&self) -> usize;
 
-    /// Returns the value at the `index`; can either be an integer ordinal or a column name.
-    fn get<T, I>(&self, index: I) -> T
+    fn get<T, I>(&'c self, index: I) -> T
     where
-        Self::Database: HasSqlType<T>,
-        I: RowIndex<Self>,
-        T: Decode<Self::Database>;
+        T: Type<Self::Database>,
+        I: RowIndex<'c, Self>,
+        T: Decode<Self::Database>,
+    {
+        // todo: use expect with a proper message
+        self.try_get(index).unwrap()
+    }
+
+    fn try_get<T, I>(&'c self, index: I) -> crate::Result<T>
+    where
+        T: Type<Self::Database>,
+        I: RowIndex<'c, Self>,
+        T: Decode<Self::Database>,
+    {
+        Ok(Decode::decode_nullable(self.try_get_raw(index)?)?)
+    }
+
+    fn try_get_raw<'i, I>(&'c self, index: I) -> crate::Result<Option<&'c [u8]>>
+    where
+        I: RowIndex<'c, Self> + 'i;
 }
 
 /// A **record** that can be built from a row returned from by the database.
-pub trait FromRow<R>
+pub trait FromRow<'a, R>
 where
-    R: Row,
+    R: Row<'a>,
 {
     fn from_row(row: R) -> Self;
 }

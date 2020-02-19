@@ -13,18 +13,18 @@ impl Database for Postgres {
     type TableId = u32;
 }
 
-impl HasRow for Postgres {
+impl<'a> HasRow<'a> for Postgres {
     // TODO: Can we drop the `type Database = _`
     type Database = Postgres;
 
-    type Row = super::PgRow;
+    type Row = super::PgRow<'a>;
 }
 
-impl<'a> HasCursor<'a> for Postgres {
+impl<'s, 'q> HasCursor<'s, 'q> for Postgres {
     // TODO: Can we drop the `type Database = _`
     type Database = Postgres;
 
-    type Cursor = super::PgCursor<'a>;
+    type Cursor = super::PgCursor<'s, 'q>;
 }
 
 impl<'a> HasRawValue<'a> for Postgres {

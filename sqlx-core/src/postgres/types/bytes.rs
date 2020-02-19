@@ -3,24 +3,24 @@ use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<[u8]> for Postgres {
+impl Type<Postgres> for [u8] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::BYTEA)
     }
 }
 
-impl HasSqlType<[&'_ [u8]]> for Postgres {
+impl Type<Postgres> for [&'_ [u8]] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_BYTEA)
     }
 }
 
 // TODO: Do we need the [HasSqlType] here on the Vec?
-impl HasSqlType<Vec<u8>> for Postgres {
+impl Type<Postgres> for Vec<u8> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[u8]>>::type_info()
+        <[u8] as Type<Postgres>>::type_info()
     }
 }
 

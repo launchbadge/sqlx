@@ -1,16 +1,26 @@
 use std::convert::TryInto;
+use std::ops::Range;
 
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
-use std::net::Shutdown;
+use futures_core::Future;
+use futures_util::TryFutureExt;
 
 use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};
+use crate::describe::{Column, Describe};
 use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::protocol::{self, Authentication, Decode, Encode, Message, StatementId};
-use crate::postgres::{sasl, PgError};
+use crate::postgres::protocol::{
+    self, Authentication, AuthenticationMd5, AuthenticationSasl, Decode, Encode, Message,
+    ParameterDescription, PasswordMessage, RowDescription, StartupMessage, StatementId, Terminate,
+};
+use crate::postgres::sasl;
+use crate::postgres::stream::PgStream;
+use crate::postgres::{PgError, PgTypeInfo};
 use crate::url::Url;
-use crate::{Postgres, Result};
+use crate::{Error, Executor, Postgres};
+
+// TODO: TLS
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
@@ -73,301 +83,279 @@ use crate::{Postgres, Result};
 /// against the hostname in the server certificate, so they must be the same for the TLS
 /// upgrade to succeed.
 pub struct PgConnection {
-    pub(super) stream: BufStream<MaybeTlsStream>,
-
-    // Map of query to statement id
-    pub(super) statement_cache: StatementCache<StatementId>,
-
-    // Next statement id
+    pub(super) stream: PgStream,
     pub(super) next_statement_id: u32,
+    pub(super) is_ready: bool,
 
-    // Process ID of the Backend
-    process_id: u32,
-
-    // Backend-unique key to use to send a cancel query message to the server
-    secret_key: u32,
-
-    // Is there a query in progress; are we ready to continue
-    pub(super) ready: bool,
+    // TODO: Think of a better way to do this, better name perhaps?
+    pub(super) data_row_values_buf: Vec<Option<Range<u32>>>,
 }
 
-impl PgConnection {
-    // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
-    async fn startup(&mut self, url: &Url) -> Result<()> {
-        // Defaults to postgres@.../postgres
-        let username = url.username().unwrap_or("postgres");
-        let database = url.database().unwrap_or("postgres");
+// https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
+async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
+    // Defaults to postgres@.../postgres
+    let username = url.username().unwrap_or("postgres");
+    let database = url.database().unwrap_or("postgres");
 
-        // See this doc for more runtime parameters
-        // https://www.postgresql.org/docs/12/runtime-config-client.html
-        let params = &[
-            ("user", username),
-            ("database", database),
-            // Sets the display format for date and time values,
-            // as well as the rules for interpreting ambiguous date input values.
-            ("DateStyle", "ISO, MDY"),
-            // Sets the display format for interval values.
-            ("IntervalStyle", "iso_8601"),
-            // Sets the time zone for displaying and interpreting time stamps.
-            ("TimeZone", "UTC"),
-            // Adjust postgres to return percise values for floats
-            // NOTE: This is default in postgres 12+
-            ("extra_float_digits", "3"),
-            // Sets the client-side encoding (character set).
-            ("client_encoding", "UTF-8"),
-        ];
+    // See this doc for more runtime parameters
+    // https://www.postgresql.org/docs/12/runtime-config-client.html
+    let params = &[
+        ("user", username),
+        ("database", database),
+        // Sets the display format for date and time values,
+        // as well as the rules for interpreting ambiguous date input values.
+        ("DateStyle", "ISO, MDY"),
+        // Sets the display format for interval values.
+        ("IntervalStyle", "iso_8601"),
+        // Sets the time zone for displaying and interpreting time stamps.
+        ("TimeZone", "UTC"),
+        // Adjust postgres to return percise values for floats
+        // NOTE: This is default in postgres 12+
+        ("extra_float_digits", "3"),
+        // Sets the client-side encoding (character set).
+        ("client_encoding", "UTF-8"),
+    ];
 
-        protocol::StartupMessage { params }.encode(self.stream.buffer_mut());
-        self.stream.flush().await?;
+    stream.write(StartupMessage { params });
+    stream.flush().await?;
 
-        while let Some(message) = self.receive().await? {
-            match message {
-                Message::Authentication(auth) => {
-                    match *auth {
-                        protocol::Authentication::Ok => {
-                            // Do nothing. No password is needed to continue.
-                        }
+    loop {
+        match stream.read().await? {
+            Message::Authentication => match Authentication::read(stream.buffer())? {
+                Authentication::Ok => {
+                    // do nothing. no password is needed to continue.
+                }
 
-                        protocol::Authentication::ClearTextPassword => {
-                            protocol::PasswordMessage::ClearText(
-                                &url.password().unwrap_or_default(),
-                            )
-                            .encode(self.stream.buffer_mut());
+                Authentication::CleartextPassword => {
+                    stream.write(PasswordMessage::ClearText(
+                        &url.password().unwrap_or_default(),
+                    ));
 
-                            self.stream.flush().await?;
-                        }
+                    stream.flush().await?;
+                }
 
-                        protocol::Authentication::Md5Password { salt } => {
-                            protocol::PasswordMessage::Md5 {
-                                password: &url.password().unwrap_or_default(),
-                                user: username,
-                                salt,
-                            }
-                            .encode(self.stream.buffer_mut());
+                Authentication::Md5Password => {
+                    // TODO: Just reference the salt instead of returning a stack array
+                    // TODO: Better way to make sure we skip the first 4 bytes here
+                    let data = AuthenticationMd5::read(&stream.buffer()[4..])?;
 
-                            self.stream.flush().await?;
-                        }
+                    stream.write(PasswordMessage::Md5 {
+                        password: &url.password().unwrap_or_default(),
+                        user: username,
+                        salt: data.salt,
+                    });
 
-                        protocol::Authentication::Sasl { mechanisms } => {
-                            let mut has_sasl: bool = false;
-                            let mut has_sasl_plus: bool = false;
+                    stream.flush().await?;
+                }
 
-                            for mechanism in &*mechanisms {
-                                match &**mechanism {
-                                    "SCRAM-SHA-256" => {
-                                        has_sasl = true;
-                                    }
+                Authentication::Sasl => {
+                    // TODO: Make this iterative for traversing the mechanisms to remove the allocation
+                    // TODO: Better way to make sure we skip the first 4 bytes here
+                    let data = AuthenticationSasl::read(&stream.buffer()[4..])?;
 
-                                    "SCRAM-SHA-256-PLUS" => {
-                                        has_sasl_plus = true;
-                                    }
+                    let mut has_sasl: bool = false;
+                    let mut has_sasl_plus: bool = false;
 
-                                    _ => {
-                                        log::info!("unsupported auth mechanism: {}", mechanism);
-                                    }
-                                }
+                    for mechanism in &*data.mechanisms {
+                        match &**mechanism {
+                            "SCRAM-SHA-256" => {
+                                has_sasl = true;
                             }
 
-                            if has_sasl || has_sasl_plus {
-                                // TODO: Handle -PLUS differently if we're in a TLS stream
-                                sasl::authenticate(
-                                    self,
-                                    username,
-                                    &url.password().unwrap_or_default(),
-                                )
-                                .await?;
-                            } else {
-                                return Err(protocol_err!(
-                                    "unsupported SASL auth mechanisms: {:?}",
-                                    mechanisms
-                                )
-                                .into());
+                            "SCRAM-SHA-256-PLUS" => {
+                                has_sasl_plus = true;
+                            }
+
+                            _ => {
+                                log::info!("unsupported auth mechanism: {}", mechanism);
                             }
                         }
+                    }
 
-                        auth => {
-                            return Err(protocol_err!(
-                                "requires unimplemented authentication method: {:?}",
-                                auth
-                            )
-                            .into());
-                        }
+                    if has_sasl || has_sasl_plus {
+                        // TODO: Handle -PLUS differently if we're in a TLS stream
+                        sasl::authenticate(stream, username, &url.password().unwrap_or_default())
+                            .await?;
+                    } else {
+                        return Err(protocol_err!(
+                            "unsupported SASL auth mechanisms: {:?}",
+                            data.mechanisms
+                        )
+                        .into());
                     }
                 }
 
-                Message::BackendKeyData(body) => {
-                    self.process_id = body.process_id;
-                    self.secret_key = body.secret_key;
+                auth => {
+                    return Err(
+                        protocol_err!("requested unsupported authentication: {:?}", auth).into(),
+                    );
                 }
+            },
 
-                Message::ReadyForQuery(_) => {
-                    // Connection fully established and ready to receive queries.
+            Message::BackendKeyData => {
+                // do nothing. we do not care about the server values here.
+                // todo: we should care and store these on the connection
+            }
+
+            Message::ParameterStatus => {
+                // do nothing. we do not care about the server values here.
+            }
+
+            Message::ReadyForQuery => {
+                // done. connection is now fully established and can accept
+                // queries for execution.
+                break;
+            }
+
+            type_ => {
+                return Err(protocol_err!("unexpected message: {:?}", type_).into());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.10
+async fn terminate(mut stream: PgStream) -> crate::Result<()> {
+    stream.write(Terminate);
+    stream.flush().await?;
+    stream.shutdown()?;
+
+    Ok(())
+}
+
+impl PgConnection {
+    pub(super) async fn new(url: crate::Result<Url>) -> crate::Result<Self> {
+        let url = url?;
+        let mut stream = PgStream::new(&url).await?;
+
+        startup(&mut stream, &url).await?;
+
+        Ok(Self {
+            stream,
+            data_row_values_buf: Vec::new(),
+            next_statement_id: 1,
+            is_ready: true,
+        })
+    }
+
+    pub(super) async fn wait_until_ready(&mut self) -> crate::Result<()> {
+        // depending on how the previous query finished we may need to continue
+        // pulling messages from the stream until we receive a [ReadyForQuery] message
+
+        // postgres sends the [ReadyForQuery] message when it's fully complete with processing
+        // the previous query
+
+        if !self.is_ready {
+            loop {
+                if let Message::ReadyForQuery = self.stream.read().await? {
+                    // we are now ready to go
+                    self.is_ready = true;
                     break;
                 }
-
-                message => {
-                    return Err(protocol_err!("received unexpected message: {:?}", message).into());
-                }
             }
         }
 
         Ok(())
     }
 
-    // https://www.postgresql.org/docs/devel/protocol-flow.html#id-1.10.5.7.10
-    async fn terminate(mut self) -> Result<()> {
-        protocol::Terminate.encode(self.stream.buffer_mut());
+    async fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> crate::Result<Describe<Postgres>> {
+        let statement = self.write_prepare(query, &Default::default());
+
+        self.write_describe(protocol::Describe::Statement(statement));
+        self.write_sync();
 
         self.stream.flush().await?;
-        self.stream.stream.shutdown(Shutdown::Both)?;
+        self.wait_until_ready().await?;
 
-        Ok(())
-    }
-
-    // Wait and return the next message to be received from Postgres.
-    pub(super) async fn receive(&mut self) -> Result<Option<Message>> {
-        loop {
-            // Read the message header (id + len)
-            let mut header = ret_if_none!(self.stream.peek(5).await?);
-
-            let id = header.get_u8()?;
-            let len = (header.get_u32::<NetworkEndian>()? - 4) as usize;
-
-            // Read the message body
-            self.stream.consume(5);
-            let body = ret_if_none!(self.stream.peek(len).await?);
-
-            let message = match id {
-                b'N' | b'E' => Message::Response(Box::new(protocol::Response::decode(body)?)),
-                b'D' => Message::DataRow(protocol::DataRow::decode(body)?),
-                b'S' => {
-                    Message::ParameterStatus(Box::new(protocol::ParameterStatus::decode(body)?))
-                }
-                b'Z' => Message::ReadyForQuery(protocol::ReadyForQuery::decode(body)?),
-                b'R' => Message::Authentication(Box::new(protocol::Authentication::decode(body)?)),
-                b'K' => Message::BackendKeyData(protocol::BackendKeyData::decode(body)?),
-                b'C' => Message::CommandComplete(protocol::CommandComplete::decode(body)?),
-                b'A' => Message::NotificationResponse(Box::new(
-                    protocol::NotificationResponse::decode(body)?,
-                )),
-                b'1' => Message::ParseComplete,
-                b'2' => Message::BindComplete,
-                b'3' => Message::CloseComplete,
-                b'n' => Message::NoData,
-                b's' => Message::PortalSuspended,
-                b't' => Message::ParameterDescription(Box::new(
-                    protocol::ParameterDescription::decode(body)?,
-                )),
-                b'T' => Message::RowDescription(Box::new(protocol::RowDescription::decode(body)?)),
-
-                id => {
-                    return Err(protocol_err!("received unknown message id: {:?}", id).into());
-                }
-            };
-
-            self.stream.consume(len);
-
-            match message {
-                Message::ParameterStatus(_body) => {
-                    // TODO: not sure what to do with these yet
+        let params = loop {
+            match self.stream.read().await? {
+                Message::ParseComplete => {
+                    // ignore complete messsage
+                    // continue
                 }
 
-                Message::Response(body) => {
-                    if body.severity.is_error() {
-                        // This is an error, stop the world and bubble as an error
-                        return Err(PgError(body).into());
-                    } else {
-                        // This is a _warning_
-                        // TODO: Log the warning
-                    }
+                Message::ParameterDescription => {
+                    break ParameterDescription::read(self.stream.buffer())?;
                 }
 
                 message => {
-                    return Ok(Some(message));
+                    return Err(protocol_err!(
+                        "expected ParameterDescription; received {:?}",
+                        message
+                    )
+                    .into());
                 }
-            }
-        }
-    }
-}
-
-impl PgConnection {
-    pub(super) async fn establish(url: Result<Url>) -> Result<Self> {
-        let url = url?;
-
-        let stream = MaybeTlsStream::connect(&url, 5432).await?;
-        let mut self_ = Self {
-            stream: BufStream::new(stream),
-            process_id: 0,
-            secret_key: 0,
-            // Important to start at 1 as 0 means "unnamed" in our protocol
-            next_statement_id: 1,
-            statement_cache: StatementCache::new(),
-            ready: true,
+            };
         };
 
-        let ssl_mode = url.get_param("sslmode").unwrap_or("prefer".into());
+        let result = match self.stream.read().await? {
+            Message::NoData => None,
+            Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
 
-        match &*ssl_mode {
-            // TODO: on "allow" retry with TLS if startup fails
-            "disable" | "allow" => (),
-
-            #[cfg(feature = "tls")]
-            "prefer" => {
-                if !self_.try_ssl(&url, true, true).await? {
-                    log::warn!("server does not support TLS, falling back to unsecured connection")
-                }
-            }
-
-            #[cfg(not(feature = "tls"))]
-            "prefer" => log::info!("compiled without TLS, skipping upgrade"),
-
-            #[cfg(feature = "tls")]
-            "require" | "verify-ca" | "verify-full" => {
-                if !self_
-                    .try_ssl(
-                        &url,
-                        ssl_mode == "require", // false for both verify-ca and verify-full
-                        ssl_mode != "verify-full", // false for only verify-full
-                    )
-                    .await?
-                {
-                    return Err(tls_err!("Postgres server does not support TLS").into());
-                }
-            }
-
-            #[cfg(not(feature = "tls"))]
-            "require" | "verify-ca" | "verify-full" => {
-                return Err(tls_err!(
-                    "sslmode {:?} unsupported; SQLx was compiled without `tls` feature",
-                    ssl_mode
+            message => {
+                return Err(protocol_err!(
+                    "expected RowDescription or NoData; received {:?}",
+                    message
                 )
-                .into())
+                .into());
             }
-            _ => return Err(tls_err!("unknown `sslmode` value: {:?}", ssl_mode).into()),
-        }
+        };
 
-        self_.stream.clear_bufs();
-
-        self_.startup(&url).await?;
-
-        Ok(self_)
+        Ok(Describe {
+            param_types: params
+                .ids
+                .iter()
+                .map(|id| PgTypeInfo::new(*id))
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            result_columns: result
+                .map(|r| r.fields)
+                .unwrap_or_default()
+                .into_vec()
+                .into_iter()
+                // TODO: Should [Column] just wrap [protocol::Field] ?
+                .map(|field| Column {
+                    name: field.name,
+                    table_id: field.table_id,
+                    type_info: PgTypeInfo::new(field.type_id),
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        })
     }
 }
 
 impl Connect for PgConnection {
-    fn connect<T>(url: T) -> BoxFuture<'static, Result<PgConnection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<PgConnection>>
     where
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(PgConnection::establish(url.try_into()))
+        Box::pin(PgConnection::new(url.try_into()))
     }
 }
 
 impl Connection for PgConnection {
     type Database = Postgres;
 
-    fn close(self) -> BoxFuture<'static, Result<()>> {
-        Box::pin(self.terminate())
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
+        Box::pin(terminate(self.stream))
+    }
+
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+        Box::pin(self.execute("SELECT 1").map_ok(|_| ()))
+    }
+
+    #[doc(hidden)]
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
+        Box::pin(self.describe(query))
     }
 }
