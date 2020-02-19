@@ -13,10 +13,10 @@ mod io;
 mod cache;
 
 mod connection;
+mod cursor;
 mod database;
 mod executor;
 mod query;
-mod query_as;
 mod transaction;
 mod url;
 
@@ -51,13 +51,10 @@ pub use database::Database;
 pub use error::{Error, Result};
 
 pub use connection::{Connect, Connection};
+pub use cursor::Cursor;
 pub use executor::Executor;
 pub use query::{query, Query};
-pub use query_as::{query_as, QueryAs};
 pub use transaction::Transaction;
-
-#[doc(hidden)]
-pub use query_as::query_as_mapped;
 
 #[doc(inline)]
 pub use pool::Pool;

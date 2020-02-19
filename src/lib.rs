@@ -12,14 +12,11 @@ pub use sqlx_core::{arguments, describe, error, pool, row, types};
 
 // Types
 pub use sqlx_core::{
-    Connect, Connection, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row,
+    Connect, Connection, Database, Error, Executor, FromRow, Pool, Query, Result, Row,
 };
 
 // Functions
-pub use sqlx_core::{query, query_as};
-
-#[doc(hidden)]
-pub use sqlx_core::query_as_mapped;
+pub use sqlx_core::query;
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]

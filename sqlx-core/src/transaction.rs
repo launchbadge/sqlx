@@ -1,17 +1,19 @@
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
 
 use crate::connection::Connection;
-use crate::database::Database;
-use crate::describe::Describe;
-use crate::executor::Executor;
+use crate::database::HasCursor;
+use crate::executor::{Execute, Executor};
 use crate::runtime::spawn;
+use crate::Database;
 
+// Transaction<PoolConnection<PgConnection>>
+// Transaction<PgConnection>
 pub struct Transaction<T>
 where
-    T: Connection + Send + 'static,
+    T: Connection,
+    T: Executor<'static>,
 {
     inner: Option<T>,
     depth: u32,
@@ -19,15 +21,16 @@ where
 
 impl<T> Transaction<T>
 where
-    T: Connection + Send + 'static,
+    T: Connection,
+    T: Executor<'static>,
 {
     pub(crate) async fn new(depth: u32, mut inner: T) -> crate::Result<Self> {
         if depth == 0 {
-            inner.send("BEGIN").await?;
+            inner.execute_by_ref("BEGIN").await?;
         } else {
             let stmt = format!("SAVEPOINT _sqlx_savepoint_{}", depth);
 
-            inner.send(&stmt).await?;
+            inner.execute_by_ref(&*stmt).await?;
         }
 
         Ok(Self {
@@ -45,11 +48,11 @@ where
         let depth = self.depth;
 
         if depth == 1 {
-            inner.send("COMMIT").await?;
+            inner.execute_by_ref("COMMIT").await?;
         } else {
             let stmt = format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner.send(&stmt).await?;
+            inner.execute_by_ref(&*stmt).await?;
         }
 
         Ok(inner)
@@ -60,11 +63,11 @@ where
         let depth = self.depth;
 
         if depth == 1 {
-            inner.send("ROLLBACK").await?;
+            inner.execute_by_ref("ROLLBACK").await?;
         } else {
             let stmt = format!("ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner.send(&stmt).await?;
+            inner.execute_by_ref(&*stmt).await?;
         }
 
         Ok(inner)
@@ -73,20 +76,22 @@ where
 
 const ERR_FINALIZED: &str = "(bug) transaction already finalized";
 
-impl<Conn> Deref for Transaction<Conn>
+impl<T> Deref for Transaction<T>
 where
-    Conn: Connection,
+    T: Connection,
+    T: Executor<'static>,
 {
-    type Target = Conn;
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.inner.as_ref().expect(ERR_FINALIZED)
     }
 }
 
-impl<Conn> DerefMut for Transaction<Conn>
+impl<T> DerefMut for Transaction<T>
 where
-    Conn: Connection,
+    T: Connection,
+    T: Executor<'static>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner.as_mut().expect(ERR_FINALIZED)
@@ -96,64 +101,52 @@ where
 impl<T> Connection for Transaction<T>
 where
     T: Connection,
+    T: Executor<'static>,
 {
+    type Database = <T as Connection>::Database;
+
     // Close is equivalent to ROLLBACK followed by CLOSE
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move { self.rollback().await?.close().await })
     }
 }
 
-impl<T> Executor for Transaction<T>
+impl<'a, DB, T> Executor<'a> for &'a mut Transaction<T>
 where
-    T: Connection,
+    DB: Database,
+    T: Connection<Database = DB>,
+    T: Executor<'static, Database = DB>,
 {
-    type Database = T::Database;
+    type Database = <T as Connection>::Database;
 
-    fn send<'e, 'q: 'e>(&'e mut self, commands: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        self.deref_mut().send(commands)
+    fn execute<'b, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'a>>::Cursor
+    where
+        E: Execute<'b, Self::Database>,
+    {
+        (**self).execute_by_ref(query)
     }
 
-    fn execute<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<u64>> {
-        self.deref_mut().execute(query, args)
-    }
-
-    fn fetch<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxStream<'e, crate::Result<<Self::Database as Database>::Row>> {
-        self.deref_mut().fetch(query, args)
-    }
-
-    fn fetch_optional<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as Database>::Row>>> {
-        self.deref_mut().fetch_optional(query, args)
-    }
-
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        self.deref_mut().describe(query)
+    fn execute_by_ref<'b, 'c, E>(
+        &'c mut self,
+        query: E,
+    ) -> <Self::Database as HasCursor<'c>>::Cursor
+    where
+        E: Execute<'b, Self::Database>,
+    {
+        (**self).execute_by_ref(query)
     }
 }
 
-impl<Conn> Drop for Transaction<Conn>
+impl<T> Drop for Transaction<T>
 where
-    Conn: Connection,
+    T: Connection,
+    T: Executor<'static>,
 {
     fn drop(&mut self) {
         if self.depth > 0 {
             if let Some(mut inner) = self.inner.take() {
                 spawn(async move {
-                    let res = inner.send("ROLLBACK").await;
+                    let res = inner.execute_by_ref("ROLLBACK").await;
 
                     // If the rollback failed we need to close the inner connection
                     if res.is_err() {

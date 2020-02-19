@@ -16,7 +16,7 @@ use crate::postgres::protocol::{
 };
 use crate::postgres::PgError;
 use crate::url::Url;
-use crate::Result;
+use crate::{Postgres, Result};
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
@@ -397,17 +397,6 @@ impl PgConnection {
     }
 }
 
-impl PgConnection {
-    #[deprecated(note = "please use 'connect' instead")]
-    pub fn open<T>(url: T) -> BoxFuture<'static, Result<Self>>
-    where
-        T: TryInto<Url, Error = crate::Error>,
-        Self: Sized,
-    {
-        Box::pin(PgConnection::establish(url.try_into()))
-    }
-}
-
 impl Connect for PgConnection {
     fn connect<T>(url: T) -> BoxFuture<'static, Result<PgConnection>>
     where
@@ -419,6 +408,8 @@ impl Connect for PgConnection {
 }
 
 impl Connection for PgConnection {
+    type Database = Postgres;
+
     fn close(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(self.terminate())
     }
