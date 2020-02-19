@@ -1,3 +1,5 @@
+use crate::database::Database;
+use crate::describe::Describe;
 use crate::executor::Executor;
 use crate::url::Url;
 use futures_core::future::BoxFuture;
@@ -8,13 +10,29 @@ use std::convert::TryInto;
 ///
 /// Prefer running queries from [Pool] unless there is a specific need for a single, continuous
 /// connection.
-pub trait Connection: Executor + Send + 'static {
+pub trait Connection
+where
+    Self: Send + 'static,
+{
+    type Database: Database;
+
     /// Close this database connection.
     fn close(self) -> BoxFuture<'static, crate::Result<()>>;
 
     /// Verifies a connection to the database is still alive.
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
-        Box::pin(self.execute("SELECT 1", Default::default()).map_ok(|_| ()))
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>>
+    where
+        for<'a> &'a mut Self: Executor<'a>,
+    {
+        Box::pin((&mut *self).execute("SELECT 1").map_ok(|_| ()))
+    }
+
+    #[doc(hidden)]
+    fn describe<'e, 'q: 'e>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
+        todo!("make this a required function");
     }
 }
 

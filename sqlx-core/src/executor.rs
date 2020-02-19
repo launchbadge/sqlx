@@ -1,72 +1,57 @@
-use crate::database::Database;
+use crate::database::{Database, HasCursor};
 use crate::describe::Describe;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
-/// Encapsulates query execution on the database.
+/// A type that contains or can provide a database connection to use for executing queries
+/// against the database.
 ///
-/// Implemented primarily by [crate::Pool].
-pub trait Executor {
-    type Database: Database + ?Sized;
+/// No guarantees are provided that successive queries run on the same physical database
+/// connection. A [`Connection`](trait.Connection.html) is an `Executor` that guarantees that successive
+/// queries are run on the same physical database connection.
+///
+/// Implementations are provided for [`&Pool`](struct.Pool.html),
+/// [`&mut PoolConnection`](struct.PoolConnection.html),
+/// and [`&mut Connection`](trait.Connection.html).
+pub trait Executor<'a>
+where
+    Self: Send,
+{
+    /// The specific database that this type is implemented for.
+    type Database: Database;
 
-    /// Send a raw SQL command to the database.
-    ///
-    /// This is intended for queries that cannot or should not be prepared (ex. `BEGIN`).
-    ///
-    /// Does not support fetching results.
-    fn send<'e, 'q: 'e>(&'e mut self, command: &'q str) -> BoxFuture<'e, crate::Result<()>>;
-
-    /// Execute the query, returning the number of rows affected.
-    fn execute<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<u64>>;
-
-    /// Executes the query and returns a [Stream] of [Row].
-    fn fetch<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxStream<'e, crate::Result<<Self::Database as Database>::Row>>;
-
-    /// Executes the query and returns up to resulting record.
-    ///
-    /// * [crate::Error::FoundMoreThanOne] will be returned if the query produced more than 1 row.
-    fn fetch_optional<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<Option<<Self::Database as Database>::Row>>> {
-        let mut s = self.fetch(query, args);
-        Box::pin(async move {
-            match s.try_next().await? {
-                Some(val) => {
-                    if s.try_next().await?.is_some() {
-                        Err(crate::Error::FoundMoreThanOne)
-                    } else {
-                        Ok(Some(val))
-                    }
-                }
-                None => Ok(None),
-            }
-        })
-    }
-
-    /// Execute the query and return at most one resulting record.
-    fn fetch_one<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: <Self::Database as Database>::Arguments,
-    ) -> BoxFuture<'e, crate::Result<<Self::Database as Database>::Row>> {
-        let mut s = self.fetch(query, args);
-        Box::pin(async move { s.try_next().await?.ok_or(crate::Error::NotFound) })
-    }
+    /// Executes a query that may or may not return a result set.
+    fn execute<'b, E>(self, query: E) -> <Self::Database as HasCursor<'a>>::Cursor
+    where
+        E: Execute<'b, Self::Database>;
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>;
+    fn execute_by_ref<'b, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_>>::Cursor
+    where
+        E: Execute<'b, Self::Database>;
+}
+
+/// A type that may be executed against a database connection.
+pub trait Execute<'a, DB>
+where
+    DB: Database,
+{
+    /// Returns the query to be executed and the arguments to bind against the query, if any.
+    ///
+    /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
+    /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
+    /// will be prepared (and cached) before execution.
+    #[doc(hidden)]
+    fn into_parts(self) -> (&'a str, Option<DB::Arguments>);
+}
+
+impl<'a, DB> Execute<'a, DB> for &'a str
+where
+    DB: Database,
+{
+    #[inline]
+    fn into_parts(self) -> (&'a str, Option<DB::Arguments>) {
+        (self, None)
+    }
 }

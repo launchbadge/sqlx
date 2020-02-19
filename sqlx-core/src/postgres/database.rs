@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::database::{Database, HasCursor, HasRawValue, HasRow};
 
 /// **Postgres** database driver.
 pub struct Postgres;
@@ -8,9 +8,25 @@ impl Database for Postgres {
 
     type Arguments = super::PgArguments;
 
-    type Row = super::PgRow;
-
     type TypeInfo = super::PgTypeInfo;
 
     type TableId = u32;
+}
+
+impl HasRow for Postgres {
+    // TODO: Can we drop the `type Database = _`
+    type Database = Postgres;
+
+    type Row = super::PgRow;
+}
+
+impl<'a> HasCursor<'a> for Postgres {
+    // TODO: Can we drop the `type Database = _`
+    type Database = Postgres;
+
+    type Cursor = super::PgCursor<'a>;
+}
+
+impl<'a> HasRawValue<'a> for Postgres {
+    type RawValue = Option<&'a [u8]>;
 }
