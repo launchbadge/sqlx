@@ -8,18 +8,6 @@ use crate::types::HasSqlType;
 pub trait Arguments: Send + Sized + Default + 'static {
     type Database: Database + ?Sized;
 
-    /// Returns `true` if there are no values.
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Returns the number of values.
-    fn len(&self) -> usize;
-
-    /// Returns the size of the arguments, in bytes.
-    fn size(&self) -> usize;
-
     /// Reserves the capacity for at least `len` more values (of `size` bytes) to
     /// be added to the arguments without a reallocation.  
     fn reserve(&mut self, len: usize, size: usize);
