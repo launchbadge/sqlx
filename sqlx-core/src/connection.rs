@@ -19,11 +19,9 @@ pub trait Connection: Executor + Send + 'static {
 }
 
 /// Represents a type that can directly establish a new connection.
-pub trait Connect {
-    type Connection: Connection;
-
+pub trait Connect: Connection {
     /// Establish a new database connection.
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self::Connection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
     where
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized;

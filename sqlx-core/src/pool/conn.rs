@@ -11,7 +11,7 @@ use super::inner::{DecrementSizeGuard, SharedPool};
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     live: Option<Live<C>>,
     pool: Arc<SharedPool<C>>,
@@ -37,7 +37,7 @@ const DEREF_ERR: &str = "(bug) connection already released to pool";
 
 impl<C> Deref for PoolConnection<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     type Target = C;
 
@@ -48,7 +48,7 @@ where
 
 impl<C> DerefMut for PoolConnection<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(DEREF_ERR).raw
@@ -57,7 +57,7 @@ where
 
 impl<C> Connection for PoolConnection<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     /// Detach the connection from the pool and close it nicely.
     fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
@@ -71,7 +71,7 @@ where
 /// Returns the connection to the [`Pool`][crate::Pool] it was checked-out from.
 impl<C> Drop for PoolConnection<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     fn drop(&mut self) {
         if let Some(live) = self.live.take() {
@@ -130,7 +130,7 @@ impl<'s, C> Floating<'s, Live<C>> {
 
     pub fn attach(self, pool: &Arc<SharedPool<C>>) -> PoolConnection<C>
     where
-        C: Connection + Connect<Connection = C>,
+        C: Connect,
     {
         let Floating { inner, guard } = self;
 

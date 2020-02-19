@@ -130,7 +130,7 @@ where
 
 impl<C> SharedPool<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let mut pool = Self {
