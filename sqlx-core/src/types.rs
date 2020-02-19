@@ -21,29 +21,34 @@ pub trait TypeInfo: Debug + Display + Clone {
 }
 
 /// Indicates that a SQL type is supported for a database.
-pub trait HasSqlType<T: ?Sized>: Database {
+pub trait Type<DB>
+where
+    DB: Database,
+{
     /// Returns the canonical type information on the database for the type `T`.
-    fn type_info() -> Self::TypeInfo;
+    fn type_info() -> DB::TypeInfo;
 }
 
 // For references to types in Rust, the underlying SQL type information
 // is equivalent
-impl<T: ?Sized, DB> HasSqlType<&'_ T> for DB
+impl<T: ?Sized, DB> Type<DB> for &'_ T
 where
-    DB: HasSqlType<T>,
+    DB: Database,
+    T: Type<DB>,
 {
-    fn type_info() -> Self::TypeInfo {
-        <DB as HasSqlType<T>>::type_info()
+    fn type_info() -> DB::TypeInfo {
+        <T as Type<DB>>::type_info()
     }
 }
 
 // For optional types in Rust, the underlying SQL type information
 // is equivalent
-impl<T, DB> HasSqlType<Option<T>> for DB
+impl<T, DB> Type<DB> for Option<T>
 where
-    DB: HasSqlType<T>,
+    DB: Database,
+    T: Type<DB>,
 {
-    fn type_info() -> Self::TypeInfo {
-        <DB as HasSqlType<T>>::type_info()
+    fn type_info() -> DB::TypeInfo {
+        <T as Type<DB>>::type_info()
     }
 }

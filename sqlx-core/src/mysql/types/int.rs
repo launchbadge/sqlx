@@ -6,9 +6,9 @@ use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<i8> for MySql {
+impl Type<i8> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TINY_INT)
     }
@@ -26,7 +26,7 @@ impl Decode<MySql> for i8 {
     }
 }
 
-impl HasSqlType<i16> for MySql {
+impl Type<i16> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::SMALL_INT)
     }
@@ -44,7 +44,7 @@ impl Decode<MySql> for i16 {
     }
 }
 
-impl HasSqlType<i32> for MySql {
+impl Type<i32> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::INT)
     }
@@ -62,7 +62,7 @@ impl Decode<MySql> for i32 {
     }
 }
 
-impl HasSqlType<i64> for MySql {
+impl Type<i64> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::BIG_INT)
     }

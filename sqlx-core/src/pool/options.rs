@@ -2,6 +2,7 @@ use std::{marker::PhantomData, time::Duration};
 
 use super::Pool;
 use crate::connection::Connect;
+use crate::Database;
 
 /// Builder for [Pool].
 pub struct Builder<C> {
@@ -9,7 +10,11 @@ pub struct Builder<C> {
     options: Options,
 }
 
-impl<C> Builder<C> {
+impl<C, DB> Builder<C>
+where
+    C: Connect<Database = DB>,
+    DB: Database<Connection = C>,
+{
     /// Get a new builder with default options.
     ///
     /// See the source of this method for current defaults.
@@ -108,7 +113,11 @@ impl<C> Builder<C> {
     }
 }
 
-impl<C> Default for Builder<C> {
+impl<C, DB> Default for Builder<C>
+where
+    C: Connect<Database = DB>,
+    DB: Database<Connection = C>,
+{
     fn default() -> Self {
         Self::new()
     }

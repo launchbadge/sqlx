@@ -14,7 +14,7 @@ use futures_util::TryStreamExt;
 /// Implementations are provided for [`&Pool`](struct.Pool.html),
 /// [`&mut PoolConnection`](struct.PoolConnection.html),
 /// and [`&mut Connection`](trait.Connection.html).
-pub trait Executor<'a>
+pub trait Executor<'c>
 where
     Self: Send,
 {
@@ -22,18 +22,18 @@ where
     type Database: Database;
 
     /// Executes a query that may or may not return a result set.
-    fn execute<'b, E>(self, query: E) -> <Self::Database as HasCursor<'a>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
     where
-        E: Execute<'b, Self::Database>;
+        E: Execute<'q, Self::Database>;
 
     #[doc(hidden)]
-    fn execute_by_ref<'b, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_>>::Cursor
+    fn execute_by_ref<'b, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_, 'b>>::Cursor
     where
         E: Execute<'b, Self::Database>;
 }
 
 /// A type that may be executed against a database connection.
-pub trait Execute<'a, DB>
+pub trait Execute<'q, DB>
 where
     DB: Database,
 {
@@ -43,15 +43,15 @@ where
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     #[doc(hidden)]
-    fn into_parts(self) -> (&'a str, Option<DB::Arguments>);
+    fn into_parts(self) -> (&'q str, Option<DB::Arguments>);
 }
 
-impl<'a, DB> Execute<'a, DB> for &'a str
+impl<'q, DB> Execute<'q, DB> for &'q str
 where
     DB: Database,
 {
     #[inline]
-    fn into_parts(self) -> (&'a str, Option<DB::Arguments>) {
+    fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
         (self, None)
     }
 }

@@ -32,7 +32,7 @@ macro_rules! impl_database_ext {
                     $(
                         // `if` statements cannot have attributes but these can
                         $(#[$meta])?
-                        _ if sqlx::types::TypeInfo::compatible(&<$database as sqlx::types::HasSqlType<$ty>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
+                        _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
@@ -42,7 +42,7 @@ macro_rules! impl_database_ext {
                 match () {
                     $(
                         $(#[$meta])?
-                        _ if sqlx::types::TypeInfo::compatible(&<$database as sqlx::types::HasSqlType<$ty>>::type_info(), &info) => return Some(stringify!($ty)),
+                        _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => return Some(stringify!($ty)),
                     )*
                     _ => None
                 }

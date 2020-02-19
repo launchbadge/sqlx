@@ -4,25 +4,25 @@ use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::types::HasSqlType;
+use crate::types::Type;
 use crate::Postgres;
 
-impl HasSqlType<str> for Postgres {
+impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::TEXT)
     }
 }
 
-impl HasSqlType<[&'_ str]> for Postgres {
+impl Type<Postgres> for [&'_ str] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_TEXT)
     }
 }
 
 // TODO: Do we need [HasSqlType] on String here?
-impl HasSqlType<String> for Postgres {
+impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<str>>::type_info()
+        <str as Type<Postgres>>::type_info()
     }
 }
 

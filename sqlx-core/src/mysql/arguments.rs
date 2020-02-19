@@ -2,7 +2,7 @@ use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
 #[derive(Default)]
 pub struct MySqlArguments {
@@ -27,10 +27,10 @@ impl Arguments for MySqlArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        Self::Database: HasSqlType<T>,
+        Self::Database: Type<T>,
         T: Encode<Self::Database>,
     {
-        let type_id = <MySql as HasSqlType<T>>::type_info();
+        let type_id = <MySql as Type<T>>::type_info();
         let index = self.param_types.len();
 
         self.param_types.push(type_id);

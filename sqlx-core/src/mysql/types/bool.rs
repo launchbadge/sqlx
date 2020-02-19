@@ -3,9 +3,9 @@ use crate::encode::Encode;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<bool> for MySql {
+impl Type<bool> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TINY_INT)
     }

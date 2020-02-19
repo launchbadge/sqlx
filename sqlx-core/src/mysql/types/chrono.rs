@@ -9,9 +9,9 @@ use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<DateTime<Utc>> for MySql {
+impl Type<DateTime<Utc>> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIMESTAMP)
     }
@@ -31,7 +31,7 @@ impl Decode<MySql> for DateTime<Utc> {
     }
 }
 
-impl HasSqlType<NaiveTime> for MySql {
+impl Type<NaiveTime> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIME)
     }
@@ -80,7 +80,7 @@ impl Decode<MySql> for NaiveTime {
     }
 }
 
-impl HasSqlType<NaiveDate> for MySql {
+impl Type<NaiveDate> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATE)
     }
@@ -104,7 +104,7 @@ impl Decode<MySql> for NaiveDate {
     }
 }
 
-impl HasSqlType<NaiveDateTime> for MySql {
+impl Type<NaiveDateTime> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATETIME)
     }

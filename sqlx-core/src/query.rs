@@ -4,68 +4,69 @@ use crate::cursor::Cursor;
 use crate::database::{Database, HasCursor, HasRow};
 use crate::encode::Encode;
 use crate::executor::{Execute, Executor};
-use crate::types::HasSqlType;
+use crate::types::Type;
 use futures_core::stream::BoxStream;
 use futures_util::future::ready;
 use futures_util::TryFutureExt;
 use futures_util::TryStreamExt;
 use std::future::Future;
 use std::marker::PhantomData;
+use std::mem;
 
 /// Raw SQL query with bind parameters. Returned by [`query`].
-pub struct Query<'a, DB, T = <DB as Database>::Arguments>
+pub struct Query<'q, DB, T = <DB as Database>::Arguments>
 where
     DB: Database,
 {
-    query: &'a str,
+    query: &'q str,
     arguments: T,
     database: PhantomData<DB>,
 }
 
-impl<'a, DB, P> Execute<'a, DB> for Query<'a, DB, P>
+impl<'q, DB, P> Execute<'q, DB> for Query<'q, DB, P>
 where
     DB: Database,
     P: IntoArguments<DB> + Send,
 {
-    fn into_parts(self) -> (&'a str, Option<<DB as Database>::Arguments>) {
+    fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
         (self.query, Some(self.arguments.into_arguments()))
     }
 }
 
-impl<'a, DB, P> Query<'a, DB, P>
+impl<'q, DB, P> Query<'q, DB, P>
 where
     DB: Database,
     P: IntoArguments<DB> + Send,
 {
-    pub fn execute<'b, E>(self, executor: E) -> impl Future<Output = crate::Result<u64>> + 'b
+    pub async fn execute<'e, E>(self, executor: E) -> crate::Result<u64>
     where
-        E: Executor<'b, Database = DB>,
-        'a: 'b,
+        E: Executor<'e, Database = DB>,
+    {
+        executor.execute(self).await
+    }
+
+    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
+    where
+        E: Executor<'e, Database = DB>,
     {
         executor.execute(self)
     }
 
-    pub fn fetch<'b, E>(self, executor: E) -> <DB as HasCursor<'b>>::Cursor
-    where
-        E: Executor<'b, Database = DB>,
-        'a: 'b,
-    {
-        executor.execute(self)
-    }
-
-    pub async fn fetch_optional<'b, E>(
+    pub async fn fetch_optional<'e, E>(
         self,
         executor: E,
-    ) -> crate::Result<Option<<DB as HasRow>::Row>>
+    ) -> crate::Result<Option<<DB as HasRow<'e>>::Row>>
     where
-        E: Executor<'b, Database = DB>,
+        E: Executor<'e, Database = DB>,
+        'q: 'e,
     {
         executor.execute(self).first().await
     }
 
-    pub async fn fetch_one<'b, E>(self, executor: E) -> crate::Result<<DB as HasRow>::Row>
+    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<<DB as HasRow<'e>>::Row>
     where
-        E: Executor<'b, Database = DB>,
+        E: Executor<'e, Database = DB>,
+        'q: 'e,
     {
         self.fetch_optional(executor)
             .and_then(|row| match row {
@@ -83,7 +84,7 @@ where
     /// Bind a value for use with this SQL query.
     pub fn bind<T>(mut self, value: T) -> Self
     where
-        DB: HasSqlType<T>,
+        T: Type<DB>,
         T: Encode<DB>,
     {
         self.arguments.add(value);

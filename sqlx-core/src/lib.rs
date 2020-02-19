@@ -1,5 +1,5 @@
-#![recursion_limit = "256"]
 #![forbid(unsafe_code)]
+#![allow(unused)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
@@ -52,7 +52,7 @@ pub use error::{Error, Result};
 
 pub use connection::{Connect, Connection};
 pub use cursor::Cursor;
-pub use executor::Executor;
+pub use executor::{Execute, Executor};
 pub use query::{query, Query};
 pub use transaction::Transaction;
 
@@ -71,3 +71,7 @@ pub use mysql::MySql;
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 #[doc(inline)]
 pub use postgres::Postgres;
+
+// Named Lifetimes:
+//  'c: connection
+//  'q: query string (and arguments)

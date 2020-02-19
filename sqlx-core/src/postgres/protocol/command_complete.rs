@@ -6,8 +6,8 @@ pub struct CommandComplete {
     pub affected_rows: u64,
 }
 
-impl Decode for CommandComplete {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl CommandComplete {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         // Attempt to parse the last word in the command tag as an integer
         // If it can't be parsed, the tag is probably "CREATE TABLE" or something
         // and we should return 0 rows
@@ -35,29 +35,29 @@ mod tests {
     const COMMAND_COMPLETE_BEGIN: &[u8] = b"BEGIN\0";
 
     #[test]
-    fn it_decodes_command_complete_for_insert() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_INSERT).unwrap();
+    fn it_reads_command_complete_for_insert() {
+        let message = CommandComplete::read(COMMAND_COMPLETE_INSERT).unwrap();
 
         assert_eq!(message.affected_rows, 1);
     }
 
     #[test]
-    fn it_decodes_command_complete_for_update() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_UPDATE).unwrap();
+    fn it_reads_command_complete_for_update() {
+        let message = CommandComplete::read(COMMAND_COMPLETE_UPDATE).unwrap();
 
         assert_eq!(message.affected_rows, 512);
     }
 
     #[test]
-    fn it_decodes_command_complete_for_begin() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_BEGIN).unwrap();
+    fn it_reads_command_complete_for_begin() {
+        let message = CommandComplete::read(COMMAND_COMPLETE_BEGIN).unwrap();
 
         assert_eq!(message.affected_rows, 0);
     }
 
     #[test]
-    fn it_decodes_command_complete_for_create_table() {
-        let message = CommandComplete::decode(COMMAND_COMPLETE_CREATE_TABLE).unwrap();
+    fn it_reads_command_complete_for_create_table() {
+        let message = CommandComplete::read(COMMAND_COMPLETE_CREATE_TABLE).unwrap();
 
         assert_eq!(message.affected_rows, 0);
     }

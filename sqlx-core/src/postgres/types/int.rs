@@ -5,15 +5,15 @@ use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<i16> for Postgres {
+impl Type<Postgres> for i16 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT2)
     }
 }
 
-impl HasSqlType<[i16]> for Postgres {
+impl Type<Postgres> for [i16] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT2)
     }
@@ -31,13 +31,13 @@ impl Decode<Postgres> for i16 {
     }
 }
 
-impl HasSqlType<i32> for Postgres {
+impl Type<Postgres> for i32 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT4)
     }
 }
 
-impl HasSqlType<[i32]> for Postgres {
+impl Type<Postgres> for [i32] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT4)
     }
@@ -55,13 +55,13 @@ impl Decode<Postgres> for i32 {
     }
 }
 
-impl HasSqlType<i64> for Postgres {
+impl Type<Postgres> for i64 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::INT8)
     }
 }
 
-impl HasSqlType<[i64]> for Postgres {
+impl Type<Postgres> for [i64] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT8)
     }

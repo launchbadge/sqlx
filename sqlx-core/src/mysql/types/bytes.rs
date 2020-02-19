@@ -6,9 +6,9 @@ use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<[u8]> for MySql {
+impl Type<[u8]> for MySql {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
             id: TypeId::TEXT,
@@ -19,9 +19,9 @@ impl HasSqlType<[u8]> for MySql {
     }
 }
 
-impl HasSqlType<Vec<u8>> for MySql {
+impl Type<Vec<u8>> for MySql {
     fn type_info() -> MySqlTypeInfo {
-        <Self as HasSqlType<[u8]>>::type_info()
+        <Self as Type<[u8]>>::type_info()
     }
 }
 
