@@ -409,8 +409,6 @@ impl PgConnection {
 }
 
 impl Connect for PgConnection {
-    type Connection = PgConnection;
-
     fn connect<T>(url: T) -> BoxFuture<'static, Result<PgConnection>>
     where
         T: TryInto<Url, Error = crate::Error>,

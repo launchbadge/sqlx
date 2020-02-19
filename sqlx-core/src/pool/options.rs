@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, time::Duration};
 
 use super::Pool;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connect;
 
 /// Builder for [Pool].
 pub struct Builder<C> {
@@ -102,7 +102,7 @@ impl<C> Builder<C> {
     /// opened and placed into the pool.
     pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
     where
-        C: Connection + Connect<Connection = C>,
+        C: Connect,
     {
         Pool::with_options(url, self.options).await
     }

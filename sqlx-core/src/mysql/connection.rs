@@ -603,8 +603,6 @@ impl MySqlConnection {
 }
 
 impl Connect for MySqlConnection {
-    type Connection = MySqlConnection;
-
     fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<MySqlConnection>>
     where
         T: TryInto<Url, Error = crate::Error>,
