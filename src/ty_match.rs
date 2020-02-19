@@ -44,8 +44,8 @@ impl<T, U> WrapSameExt for &'_ WrapSame<T, U> {
 pub struct MatchBorrow<T, U>(PhantomData<T>, PhantomData<U>);
 
 impl<T, U> MatchBorrow<T, U> {
-    pub fn new(_t: T, _u: &U) -> Self {
-        MatchBorrow(PhantomData, PhantomData)
+    pub fn new(t: T, _u: &U) -> (T, Self) {
+        (t, MatchBorrow(PhantomData, PhantomData))
     }
 }
 
@@ -57,32 +57,24 @@ pub trait MatchBorrowExt: Sized {
     }
 }
 
-impl<'a> MatchBorrowExt for MatchBorrow<Option<String>, Option<&'a str>> {
+impl<'a> MatchBorrowExt for MatchBorrow<Option<&'a str>, Option<String>> {
     type Matched = Option<&'a str>;
 }
 
-impl<'a> MatchBorrowExt for MatchBorrow<Option<Vec<u8>>, Option<&'a [u8]>> {
+impl<'a> MatchBorrowExt for MatchBorrow<Option<&'a str>, Option<Vec<u8>>> {
     type Matched = Option<&'a [u8]>;
 }
 
-impl<'a> MatchBorrowExt for MatchBorrow<String, &'a str> {
+impl<'a> MatchBorrowExt for MatchBorrow<&'a str, String> {
     type Matched = &'a str;
 }
 
-impl<'a> MatchBorrowExt for MatchBorrow<Vec<u8>, &'a [u8]> {
+impl<'a> MatchBorrowExt for MatchBorrow<&'a [u8], Vec<u8>> {
     type Matched = &'a [u8];
 }
 
-impl<'a, T: 'a, U: 'a> MatchBorrowExt for MatchBorrow<Option<T>, Option<&'a U>> {
-    type Matched = Option<&'a T>;
-}
-
-impl<'a, T: 'a, U: 'a> MatchBorrowExt for MatchBorrow<T, &'a U> {
-    type Matched = &'a T;
-}
-
 impl<T, U> MatchBorrowExt for &'_ MatchBorrow<T, U> {
-    type Matched = T;
+    type Matched = U;
 }
 
 pub fn conjure_value<T>() -> T {

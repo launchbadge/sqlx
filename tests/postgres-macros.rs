@@ -116,16 +116,18 @@ async fn query_by_string() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let string = "Hello, world!".to_string();
+    let ref tuple = ("Hello, world!".to_string(),);
 
     let result = sqlx::query!(
         "SELECT * from (VALUES('Hello, world!')) strings(string)\
-         where string in ($1, $2, $3, $4, $5, $6)",
+         where string in ($1, $2, $3, $4, $5, $6, $7)",
         string, // make sure we don't actually take ownership here
         &string[..],
         Some(&string),
         Some(&string[..]),
         Option::<String>::None,
-        string.clone()
+        string.clone(),
+        tuple.0 // make sure we're not trying to move out of a field expression
     )
     .fetch_one(&mut conn)
     .await?;

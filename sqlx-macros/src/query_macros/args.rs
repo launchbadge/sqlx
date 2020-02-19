@@ -49,11 +49,11 @@ pub fn quote_args<DB: DatabaseExt>(
                         let _expr = sqlx::ty_match::dupe_value(&$#name);
 
                         // if `_expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
-                        let wrapped_same = sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
+                        let ty_check = sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
                         // if `_expr` is `&str`, convert `String` to `&str`
-                        let mut ty_check = sqlx::ty_match::MatchBorrow::new(wrapped_same, &_expr).match_borrow();
+                        let (mut ty_check, match_borrow) = sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
 
-                        ty_check = _expr;
+                        ty_check = match_borrow.match_borrow();
 
                         // this causes move-analysis to effectively ignore this block
                         panic!();
