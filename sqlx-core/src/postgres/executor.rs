@@ -2,10 +2,6 @@ use std::collections::HashMap;
 use std::io;
 use std::sync::Arc;
 
-use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
-
-use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor};
 use crate::postgres::protocol::{self, Encode, Message, StatementId, TypeFormat};
 use crate::postgres::{PgArguments, PgCursor, PgRow, PgTypeInfo, Postgres};
