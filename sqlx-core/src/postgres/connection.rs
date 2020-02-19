@@ -2,19 +2,13 @@ use std::convert::TryInto;
 
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
-use hmac::{Hmac, Mac};
-use rand::Rng;
-use sha2::{Digest, Sha256};
 use std::net::Shutdown;
 
 use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::protocol::{
-    self, hi, Authentication, Decode, Encode, Message, SaslInitialResponse, SaslResponse,
-    StatementId,
-};
-use crate::postgres::PgError;
+use crate::postgres::protocol::{self, Authentication, Decode, Encode, Message, StatementId};
+use crate::postgres::{sasl, PgError};
 use crate::url::Url;
 use crate::{Postgres, Result};
 
@@ -98,47 +92,6 @@ pub struct PgConnection {
 }
 
 impl PgConnection {
-    #[cfg(feature = "tls")]
-    async fn try_ssl(
-        &mut self,
-        url: &Url,
-        invalid_certs: bool,
-        invalid_hostnames: bool,
-    ) -> crate::Result<bool> {
-        use async_native_tls::TlsConnector;
-
-        protocol::SslRequest::encode(self.stream.buffer_mut());
-
-        self.stream.flush().await?;
-
-        match self.stream.peek(1).await? {
-            Some(b"N") => return Ok(false),
-            Some(b"S") => (),
-            Some(other) => {
-                return Err(tls_err!("unexpected single-byte response: 0x{:02X}", other[0]).into())
-            }
-            None => return Err(tls_err!("server unexpectedly closed connection").into()),
-        }
-
-        let mut connector = TlsConnector::new()
-            .danger_accept_invalid_certs(invalid_certs)
-            .danger_accept_invalid_hostnames(invalid_hostnames);
-
-        if !invalid_certs {
-            match read_root_certificate(&url).await {
-                Ok(cert) => {
-                    connector = connector.add_root_certificate(cert);
-                }
-                Err(e) => log::warn!("failed to read Postgres root certificate: {}", e),
-            }
-        }
-
-        self.stream.clear_bufs();
-        self.stream.stream.upgrade(url, connector).await?;
-
-        Ok(true)
-    }
-
     // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
     async fn startup(&mut self, url: &Url) -> Result<()> {
         // Defaults to postgres@.../postgres
@@ -217,8 +170,12 @@ impl PgConnection {
 
                             if has_sasl || has_sasl_plus {
                                 // TODO: Handle -PLUS differently if we're in a TLS stream
-                                sasl_auth(self, username, &url.password().unwrap_or_default())
-                                    .await?;
+                                sasl::authenticate(
+                                    self,
+                                    username,
+                                    &url.password().unwrap_or_default(),
+                                )
+                                .await?;
                             } else {
                                 return Err(protocol_err!(
                                     "unsupported SASL auth mechanisms: {:?}",
@@ -412,165 +369,5 @@ impl Connection for PgConnection {
 
     fn close(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(self.terminate())
-    }
-}
-
-#[cfg(feature = "tls")]
-async fn read_root_certificate(url: &Url) -> crate::Result<async_native_tls::Certificate> {
-    use std::env;
-
-    let root_cert_path = if let Some(path) = url.get_param("sslrootcert") {
-        path.into()
-    } else if let Ok(cert_path) = env::var("PGSSLROOTCERT") {
-        cert_path
-    } else if cfg!(windows) {
-        let appdata = env::var("APPDATA").map_err(|_| tls_err!("APPDATA not set"))?;
-        format!("{}\\postgresql\\root.crt", appdata)
-    } else {
-        let home = env::var("HOME").map_err(|_| tls_err!("HOME not set"))?;
-        format!("{}/.postgresql/root.crt", home)
-    };
-
-    let root_cert = crate::runtime::fs::read(root_cert_path).await?;
-    Ok(async_native_tls::Certificate::from_pem(&root_cert)?)
-}
-
-static GS2_HEADER: &'static str = "n,,";
-static CHANNEL_ATTR: &'static str = "c";
-static USERNAME_ATTR: &'static str = "n";
-static CLIENT_PROOF_ATTR: &'static str = "p";
-static NONCE_ATTR: &'static str = "r";
-
-// Nonce generator
-// Nonce is a sequence of random printable bytes
-fn nonce() -> String {
-    let mut rng = rand::thread_rng();
-    let count = rng.gen_range(64, 128);
-    // printable = %x21-2B / %x2D-7E
-    // ;; Printable ASCII except ",".
-    // ;; Note that any "printable" is also
-    // ;; a valid "value".
-    let nonce: String = std::iter::repeat(())
-        .map(|()| {
-            let mut c = rng.gen_range(0x21, 0x7F) as u8;
-
-            while c == 0x2C {
-                c = rng.gen_range(0x21, 0x7F) as u8;
-            }
-
-            c
-        })
-        .take(count)
-        .map(|c| c as char)
-        .collect();
-
-    rng.gen_range(32, 128);
-    format!("{}={}", NONCE_ATTR, nonce)
-}
-
-// Performs authenticiton using Simple Authentication Security Layer (SASL) which is what
-// Postgres uses
-async fn sasl_auth<T: AsRef<str>>(conn: &mut PgConnection, username: T, password: T) -> Result<()> {
-    // channel-binding = "c=" base64
-    let channel_binding = format!("{}={}", CHANNEL_ATTR, base64::encode(GS2_HEADER));
-    // "n=" saslname ;; Usernames are prepared using SASLprep.
-    let username = format!("{}={}", USERNAME_ATTR, username.as_ref());
-    // nonce = "r=" c-nonce [s-nonce] ;; Second part provided by server.
-    let nonce = nonce();
-    let client_first_message_bare =
-        format!("{username},{nonce}", username = username, nonce = nonce);
-    // client-first-message-bare = [reserved-mext ","] username "," nonce ["," extensions]
-    let client_first_message = format!(
-        "{gs2_header}{client_first_message_bare}",
-        gs2_header = GS2_HEADER,
-        client_first_message_bare = client_first_message_bare
-    );
-
-    SaslInitialResponse(&client_first_message).encode(conn.stream.buffer_mut());
-    conn.stream.flush().await?;
-
-    let server_first_message = conn.receive().await?;
-
-    if let Some(Message::Authentication(auth)) = server_first_message {
-        if let Authentication::SaslContinue(sasl) = *auth {
-            let server_first_message = sasl.data;
-
-            // SaltedPassword := Hi(Normalize(password), salt, i)
-            let salted_password = hi(password.as_ref(), &sasl.salt, sasl.iter_count)?;
-
-            // ClientKey := HMAC(SaltedPassword, "Client Key")
-            let mut mac = Hmac::<Sha256>::new_varkey(&salted_password)
-                .map_err(|_| protocol_err!("HMAC can take key of any size"))?;
-            mac.input(b"Client Key");
-            let client_key = mac.result().code();
-
-            // StoredKey := H(ClientKey)
-            let mut hasher = Sha256::new();
-            hasher.input(client_key);
-            let stored_key = hasher.result();
-
-            // String::from_utf8_lossy should never fail because Postgres requires
-            // the nonce to be all printable characters except ','
-            let client_final_message_wo_proof = format!(
-                "{channel_binding},r={nonce}",
-                channel_binding = channel_binding,
-                nonce = String::from_utf8_lossy(&sasl.nonce)
-            );
-
-            // AuthMessage := client-first-message-bare + "," + server-first-message + "," + client-final-message-without-proof
-            let auth_message = format!("{client_first_message_bare},{server_first_message},{client_final_message_wo_proof}",
-                client_first_message_bare = client_first_message_bare,
-                server_first_message = server_first_message,
-                client_final_message_wo_proof = client_final_message_wo_proof);
-
-            // ClientSignature := HMAC(StoredKey, AuthMessage)
-            let mut mac =
-                Hmac::<Sha256>::new_varkey(&stored_key).expect("HMAC can take key of any size");
-            mac.input(&auth_message.as_bytes());
-            let client_signature = mac.result().code();
-
-            // ClientProof := ClientKey XOR ClientSignature
-            let client_proof: Vec<u8> = client_key
-                .iter()
-                .zip(client_signature.iter())
-                .map(|(&a, &b)| a ^ b)
-                .collect();
-
-            // ServerKey := HMAC(SaltedPassword, "Server Key")
-            let mut mac = Hmac::<Sha256>::new_varkey(&salted_password)
-                .map_err(|_| protocol_err!("HMAC can take key of any size"))?;
-            mac.input(b"Server Key");
-            let server_key = mac.result().code();
-
-            // ServerSignature := HMAC(ServerKey, AuthMessage)
-            let mut mac =
-                Hmac::<Sha256>::new_varkey(&server_key).expect("HMAC can take key of any size");
-            mac.input(&auth_message.as_bytes());
-            let _server_signature = mac.result().code();
-
-            // client-final-message = client-final-message-without-proof "," proof
-            let client_final_message = format!(
-                "{client_final_message_wo_proof},{client_proof_attr}={client_proof}",
-                client_final_message_wo_proof = client_final_message_wo_proof,
-                client_proof_attr = CLIENT_PROOF_ATTR,
-                client_proof = base64::encode(&client_proof)
-            );
-
-            SaslResponse(&client_final_message).encode(conn.stream.buffer_mut());
-            conn.stream.flush().await?;
-            let _server_final_response = conn.receive().await?;
-
-            Ok(())
-        } else {
-            Err(protocol_err!(
-                "Expected Authentication::SaslContinue, but received {:?}",
-                auth
-            ))?
-        }
-    } else {
-        Err(protocol_err!(
-            "Expected Message::Authentication, but received {:?}",
-            server_first_message
-        ))?
     }
 }
