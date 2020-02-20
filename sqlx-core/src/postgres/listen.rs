@@ -98,10 +98,14 @@ where
     }
 
     /// Consume this listener, returning a `Stream` of notifications.
-    pub fn into_stream(mut self) -> impl Stream<Item = Result<Option<PgNotification>>> {
+    pub fn into_stream(mut self) -> impl Stream<Item = Result<PgNotification>> {
         stream! {
             loop {
-                yield self.recv().await
+                match self.recv().await {
+                    Ok(Some(msg)) => yield Ok(msg),
+                    Ok(None) => break,
+                    Err(err) => yield Err(err),
+                }
             }
         }
     }
@@ -159,7 +163,7 @@ impl PgPoolListener {
 
 impl PgPoolListener {
     /// Receives the next notification available from any of the subscribed channels.
-    pub async fn recv(&mut self) -> Result<Option<PgNotification>> {
+    pub async fn recv(&mut self) -> Result<PgNotification> {
         loop {
             // Ensure we have an active connection to work with.
             let conn = match &mut self.connection {
@@ -186,7 +190,7 @@ impl PgPoolListener {
             match conn.receive().await? {
                 // We've received an async notification, return it.
                 Some(Message::NotificationResponse(notification)) => {
-                    return Ok(Some(notification.into()));
+                    return Ok(notification.into());
                 }
                 // Protocol error, return the error.
                 Some(msg) => {
@@ -207,7 +211,7 @@ impl PgPoolListener {
     }
 
     /// Consume this listener, returning a `Stream` of notifications.
-    pub fn into_stream(mut self) -> impl Stream<Item = Result<Option<PgNotification>>> {
+    pub fn into_stream(mut self) -> impl Stream<Item = Result<PgNotification>> {
         stream! {
             loop {
                 yield self.recv().await
