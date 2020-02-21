@@ -5,7 +5,7 @@ use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::database::Postgres;
 use crate::types::HasSqlType;
-use PhantomData;
+use std::marker::PhantomData;
 
 impl<T> Encode<Postgres> for [T]
 where
