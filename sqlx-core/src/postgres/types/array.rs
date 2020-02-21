@@ -182,15 +182,6 @@ where
 
         self.count += 1;
     }
-    fn extend<'a, I>(&mut self, items: I)
-    where
-        I: Iterator<Item = &'a T>,
-        T: 'a,
-    {
-        for item in items {
-            self.push(item);
-        }
-    }
     fn update_len(&mut self) {
         const I32_SIZE: usize = std::mem::size_of::<i32>();
 
