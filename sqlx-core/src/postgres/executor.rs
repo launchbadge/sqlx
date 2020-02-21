@@ -61,6 +61,7 @@ impl<'e> Executor<'e> for &'e mut super::PgConnection {
         PgCursor::from_connection(self, query)
     }
 
+    #[doc(hidden)]
     #[inline]
     fn execute_by_ref<'q, E>(&mut self, query: E) -> PgCursor<'_, 'q>
     where

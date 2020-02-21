@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::{postgres::PgConnection, Connect, Connection, Executor, Row};
-use sqlx_core::postgres::PgPool;
+use sqlx::{postgres::PgConnection, Connect, Connection, Cursor, Executor, Row};
+use sqlx_core::postgres::{PgPool, PgRow};
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
@@ -17,40 +17,38 @@ async fn it_connects() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn it_executes() -> anyhow::Result<()> {
-//     let mut conn = connect().await?;
-//
-//     let _ = conn
-//         .send(
-//             r#"
-// CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
-//             "#,
-//         )
-//         .await?;
-//
-//     for index in 1..=10_i32 {
-//         let cnt = sqlx::query("INSERT INTO users (id) VALUES ($1)")
-//             .bind(index)
-//             .execute(&mut conn)
-//             .await?;
-//
-//         assert_eq!(cnt, 1);
-//     }
-//
-//     let sum: i32 = sqlx::query("SELECT id FROM users")
-//         .fetch(&mut conn)
-//         .try_fold(
-//             0_i32,
-//             |acc, x| async move { Ok(acc + x.get::<i32, _>("id")) },
-//         )
-//         .await?;
-//
-//     assert_eq!(sum, 55);
-//
-//     Ok(())
-// }
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_executes() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
+            "#,
+        )
+        .await?;
+
+    for index in 1..=10_i32 {
+        let cnt = sqlx::query("INSERT INTO users (id) VALUES ($1)")
+            .bind(index)
+            .execute(&mut conn)
+            .await?;
+
+        assert_eq!(cnt, 1);
+    }
+
+    let sum: i32 = sqlx::query("SELECT id FROM users")
+        .fetch(&mut conn)
+        .map(|row| row.get::<i32, _>(0))
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
+        .await?;
+
+    assert_eq!(sum, 55);
+
+    Ok(())
+}
 
 // https://github.com/launchbadge/sqlx/issues/104
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
