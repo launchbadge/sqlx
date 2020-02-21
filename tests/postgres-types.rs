@@ -37,6 +37,12 @@ test!(postgres_double: f64: "939399419.1225182::double precision" == 939399419.1
 
 test!(postgres_text: String: "'this is foo'" == "this is foo", "''" == "");
 
+test!(postgres_int_vec: Vec<i32>: "ARRAY[1, 2, 3]::int[]" == vec![1, 2, 3i32], "ARRAY[3, 292, 15, 2, 3]::int[]" == vec![3, 292, 15, 2, 3], "ARRAY[7, 6, 5, 4, 3, 2, 1]::int[]" == vec![7, 6, 5, 4, 3, 2, 1], "ARRAY[]::int[]" == vec![] as Vec<i32>);
+test!(postgres_string_vec: Vec<String>: "ARRAY['Hello', 'world', 'friend']::text[]" == vec!["Hello", "world", "friend"]);
+test!(postgres_bool_vec: Vec<bool>: "ARRAY[true, true, false, true]::bool[]" == vec![true, true, false, true]);
+test!(postgres_real_vec: Vec<f32>: "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::real[]" == vec![0.0, 1.0, 3.14, 1.234, -0.002, 100000.0_f32]);
+test!(postgres_double_vec: Vec<f64>: "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::double precision[]" == vec![0.0, 1.0, 3.14, 1.234, -0.002, 100000.0_f64]);
+
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn postgres_bytes() -> anyhow::Result<()> {

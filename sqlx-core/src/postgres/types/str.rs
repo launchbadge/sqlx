@@ -18,11 +18,21 @@ impl HasSqlType<[&'_ str]> for Postgres {
         PgTypeInfo::new(TypeId::ARRAY_TEXT)
     }
 }
+impl HasSqlType<Vec<&'_ str>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[&'_ str]>>::type_info()
+    }
+}
 
 // TODO: Do we need [HasSqlType] on String here?
 impl HasSqlType<String> for Postgres {
     fn type_info() -> PgTypeInfo {
         <Self as HasSqlType<str>>::type_info()
+    }
+}
+impl HasSqlType<Vec<String>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<Vec<&'_ str>>>::type_info()
     }
 }
 

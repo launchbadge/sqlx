@@ -18,6 +18,11 @@ impl HasSqlType<[i16]> for Postgres {
         PgTypeInfo::new(TypeId::ARRAY_INT2)
     }
 }
+impl HasSqlType<Vec<i16>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[i16]>>::type_info()
+    }
+}
 
 impl Encode<Postgres> for i16 {
     fn encode(&self, buf: &mut Vec<u8>) {
@@ -42,6 +47,11 @@ impl HasSqlType<[i32]> for Postgres {
         PgTypeInfo::new(TypeId::ARRAY_INT4)
     }
 }
+impl HasSqlType<Vec<i32>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[i32]>>::type_info()
+    }
+}
 
 impl Encode<Postgres> for i32 {
     fn encode(&self, buf: &mut Vec<u8>) {
@@ -64,6 +74,11 @@ impl HasSqlType<i64> for Postgres {
 impl HasSqlType<[i64]> for Postgres {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_INT8)
+    }
+}
+impl HasSqlType<Vec<i64>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[i64]>>::type_info()
     }
 }
 

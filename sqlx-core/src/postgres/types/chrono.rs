@@ -55,6 +55,24 @@ impl HasSqlType<[NaiveDateTime]> for Postgres {
     }
 }
 
+impl HasSqlType<Vec<NaiveTime>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Postgres as HasSqlType<[NaiveTime]>>::type_info()
+    }
+}
+
+impl HasSqlType<Vec<NaiveDate>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Postgres as HasSqlType<[NaiveDate]>>::type_info()
+    }
+}
+
+impl HasSqlType<Vec<NaiveDateTime>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Postgres as HasSqlType<[NaiveDateTime]>>::type_info()
+    }
+}
+
 impl<Tz> HasSqlType<[DateTime<Tz>]> for Postgres
 where
     Tz: TimeZone,

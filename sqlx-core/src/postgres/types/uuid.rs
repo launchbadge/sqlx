@@ -19,6 +19,12 @@ impl HasSqlType<[Uuid]> for Postgres {
     }
 }
 
+impl HasSqlType<Vec<Uuid>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Postgres as HasSqlType<[Uuid]>>::type_info()
+    }
+}
+
 impl Encode<Postgres> for Uuid {
     fn encode(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self.as_bytes());

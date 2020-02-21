@@ -17,6 +17,12 @@ impl HasSqlType<[&'_ [u8]]> for Postgres {
     }
 }
 
+impl HasSqlType<Vec<&'_ [u8]>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Postgres as HasSqlType<[&'_ [u8]]>>::type_info()
+    }
+}
+
 // TODO: Do we need the [HasSqlType] here on the Vec?
 impl HasSqlType<Vec<u8>> for Postgres {
     fn type_info() -> PgTypeInfo {
