@@ -40,19 +40,19 @@ impl<'c> RowIndex<'c, PgRow<'c>> for usize {
     }
 }
 
-// impl<'c> RowIndex<'c, PgRow<'c>> for &'_ str {
-//     fn try_get_raw(self, row: &'r PgRow<'c>) -> crate::Result<Option<&'c [u8]>> {
-//         let index = row
-//             .columns
-//             .get(self)
-//             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-//
-//         Ok(row.data.get(
-//             row.connection.stream.buffer(),
-//             &row.connection.data_row_values_buf,
-//             *index,
-//         ))
-//     }
-// }
+impl<'c> RowIndex<'c, PgRow<'c>> for &'_ str {
+    fn try_get_raw(self, row: &'c PgRow<'c>) -> crate::Result<Option<&'c [u8]>> {
+        let index = row
+            .columns
+            .get(self)
+            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
+
+        Ok(row.data.get(
+            row.connection.stream.buffer(),
+            &row.connection.data_row_values_buf,
+            *index,
+        ))
+    }
+}
 
 // TODO: impl_from_row_for_row!(PgRow);

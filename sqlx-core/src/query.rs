@@ -45,7 +45,7 @@ where
         executor.execute(self).await
     }
 
-    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
+    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q, DB>>::Cursor
     where
         E: Executor<'e, Database = DB>,
     {
