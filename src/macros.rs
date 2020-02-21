@@ -94,14 +94,7 @@ macro_rules! query (
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*) => ({
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::query!($query, $($args),*);
-        }
-        macro_result!($($args),*)
-    });
-    ($query:literal, $($args:expr),*,) => ({
+    ($query:literal, $($args:expr),*$(,)?) => ({
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query!($query, $($args),*);
@@ -162,14 +155,7 @@ macro_rules! query_file (
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*) => (#[allow(dead_code)]{
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::query_file!($query, $($args),*);
-        }
-        macro_result!($($args),*)
-    });
-    ($query:literal, $($args:expr),*,) => (#[allow(dead_code)]{
+    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_file!($query, $($args),*);
@@ -235,14 +221,7 @@ macro_rules! query_as (
         }
         macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:expr),*) => (#[allow(dead_code)] {
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::query_as!($out_struct, $query, $($args),*);
-        }
-        macro_result!($($args),*)
-    });
-    ($out_struct:path, $query:literal, $($args:expr),*,) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_as!($out_struct, $query, $($args),*);
@@ -293,14 +272,7 @@ macro_rules! query_file_as (
         }
         macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:expr),*) => (#[allow(dead_code)] {
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
-        }
-        macro_result!($($args),*)
-    });
-    ($out_struct:path, $query:literal, $($args:expr),*,) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
