@@ -56,3 +56,14 @@ impl<'c> RowIndex<'c, PgRow<'c>> for &'_ str {
 }
 
 // TODO: impl_from_row_for_row!(PgRow);
+
+impl<O: Unpin, F> crate::query::MapRow<Postgres> for F
+where
+    F: for<'c> FnMut(PgRow<'c>) -> crate::Result<O>,
+{
+    type Mapped = O;
+
+    fn map_row(&mut self, row: PgRow) -> crate::Result<O> {
+        (self)(row)
+    }
+}

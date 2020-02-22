@@ -61,3 +61,18 @@ where
         (self, None)
     }
 }
+
+macro_rules! impl_execute_for_query {
+    ($db:ty) => {
+        impl<'q> $crate::executor::Execute<'q, $db> for $crate::query::Query<'q, $db> {
+            fn into_parts(
+                self,
+            ) -> (
+                &'q str,
+                Option<<$db as $crate::database::Database>::Arguments>,
+            ) {
+                (self.query, Some(self.arguments))
+            }
+        }
+    };
+}

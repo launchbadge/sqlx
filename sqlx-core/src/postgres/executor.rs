@@ -74,3 +74,5 @@ impl<'e> Executor<'e> for &'e mut super::PgConnection {
         self.execute(query)
     }
 }
+
+impl_execute_for_query!(Postgres);

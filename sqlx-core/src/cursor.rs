@@ -49,17 +49,4 @@ where
 
     /// Fetch the next row in the result. Returns `None` if there are no more rows.
     fn next(&mut self) -> BoxFuture<crate::Result<Option<<DB as HasRow>::Row>>>;
-
-    /// Map the `Row`s in this result to a different type, returning a [`Stream`] of the results.
-    fn map<'a, T, F>(self, f: F) -> BoxStream<'a, crate::Result<T>>
-    where
-        Self: Sized,
-        F: Send + Sync + 'static,
-        T: Send + Unpin + 'static,
-        F: for<'r> Fn(<DB as HasRow<'r>>::Row) -> T,
-    {
-        unimplemented!(
-            "Cursor::map is currently supplied by inherent methods to work around not having GATs"
-        )
-    }
 }

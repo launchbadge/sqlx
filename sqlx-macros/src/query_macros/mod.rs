@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 pub use input::{QueryAsMacroInput, QueryMacroInput};
 pub use query::expand_query;
@@ -48,14 +48,17 @@ where
     let args_tokens = args::quote_args(&input.query_input, &describe)?;
     let arg_names = &input.query_input.arg_names;
 
+    let query_args = format_ident!("query_args");
+
     let columns = output::columns_to_rust(&describe)?;
     let output = output::quote_query_as::<C::Database>(
         &input.query_input.source,
         &input.as_ty.path,
+        &query_args,
         &columns,
     );
 
-    let db_path = <C::Database as DatabaseExt>::quotable_path();
+    let db_path = <C::Database as DatabaseExt>::db_path();
     let args_count = arg_names.len();
     let arg_indices = (0..args_count).map(|i| syn::Index::from(i));
     let arg_indices_2 = arg_indices.clone();
@@ -67,14 +70,14 @@ where
 
                 #args_tokens
 
-                let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
-                query_args.reserve(
+                let mut #query_args = <#db_path as sqlx::Database>::Arguments::default();
+                #query_args.reserve(
                     #args_count,
                     0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(args.#arg_indices))*
                 );
-                #(query_args.add(args.#arg_indices_2);)*
+                #(#query_args.add(args.#arg_indices_2);)*
 
-                #output.bind_all(query_args)
+                #output
             }}
         }
     })

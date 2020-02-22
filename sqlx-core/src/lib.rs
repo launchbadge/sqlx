@@ -15,8 +15,10 @@ mod cache;
 mod connection;
 mod cursor;
 mod database;
+
+#[macro_use]
 mod executor;
-mod query;
+
 mod transaction;
 mod url;
 
@@ -32,6 +34,7 @@ pub mod decode;
 pub mod describe;
 pub mod encode;
 pub mod pool;
+pub mod query;
 pub mod types;
 
 #[macro_use]
@@ -53,7 +56,6 @@ pub use error::{Error, Result};
 pub use connection::{Connect, Connection};
 pub use cursor::Cursor;
 pub use executor::{Execute, Executor};
-pub use query::{query, Query};
 pub use transaction::Transaction;
 
 #[doc(inline)]

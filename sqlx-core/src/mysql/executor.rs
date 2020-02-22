@@ -338,3 +338,5 @@ impl Executor for MySqlConnection {
         Box::pin(self.describe(query))
     }
 }
+
+impl_execute_for_query!(MySql);
