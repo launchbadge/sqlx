@@ -1,5 +1,7 @@
 use futures::TryStreamExt;
-use sqlx::{postgres::PgConnection, Connect, Connection, Cursor, Executor, Row};
+use sqlx::{
+    postgres::PgConnection, Connect, Connection, Cursor, Database, Executor, Postgres, Row,
+};
 use sqlx_core::postgres::{PgPool, PgRow};
 use std::time::Duration;
 
@@ -10,7 +12,7 @@ async fn it_connects() -> anyhow::Result<()> {
 
     let row = sqlx::query("select 1 + 1").fetch_one(&mut conn).await?;
 
-    assert_eq!(2, row.get(0));
+    assert_eq!(2i32, row.get::<i32, _>(0));
 
     conn.close().await?;
 
@@ -39,9 +41,9 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         assert_eq!(cnt, 1);
     }
 
-    let sum: i32 = sqlx::query("SELECT id FROM users")
+    let sum: i32 = sqlx::query::<Postgres>("SELECT id FROM users")
+        .map(|row: PgRow| Ok(row.get::<i32, _>(0)))
         .fetch(&mut conn)
-        .map(|row| row.get::<i32, _>(0))
         .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
         .await?;
 

@@ -9,11 +9,16 @@ pub enum ParamChecking {
 
 pub trait DatabaseExt: Database {
     const DATABASE_PATH: &'static str;
+    const ROW_PATH: &'static str;
 
     const PARAM_CHECKING: ParamChecking;
 
-    fn quotable_path() -> syn::Path {
+    fn db_path() -> syn::Path {
         syn::parse_str(Self::DATABASE_PATH).unwrap()
+    }
+
+    fn row_path() -> syn::Path {
+        syn::parse_str(Self::ROW_PATH).unwrap()
     }
 
     fn param_type_for_id(id: &Self::TypeInfo) -> Option<&'static str>;
@@ -22,9 +27,10 @@ pub trait DatabaseExt: Database {
 }
 
 macro_rules! impl_database_ext {
-    ($database:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }, ParamChecking::$param_checking:ident) => {
+    ($database:path { $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)? }, ParamChecking::$param_checking:ident, row = $row:path) => {
         impl $crate::database::DatabaseExt for $database {
             const DATABASE_PATH: &'static str = stringify!($database);
+            const ROW_PATH: &'static str = stringify!($row);
             const PARAM_CHECKING: $crate::database::ParamChecking = $crate::database::ParamChecking::$param_checking;
 
             fn param_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {

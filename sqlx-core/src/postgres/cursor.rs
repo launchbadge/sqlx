@@ -32,24 +32,6 @@ pub struct PgCursor<'c, 'q> {
     state: State<'c, 'q>,
 }
 
-impl<'c, 'q> PgCursor<'c, 'q> {
-    #[doc(hidden)]
-    pub fn map<'a, T, F>(mut self, f: F) -> impl Stream<Item = crate::Result<T>> + 'a + 'c
-    where
-        F: Send + Sync + 'static,
-        T: Send + Unpin + 'static,
-        F: for<'r> Fn(PgRow<'r>) -> T,
-        'q: 'c,
-        'c: 'a,
-    {
-        try_stream! {
-            while let Some(row) = next(&mut self).await? {
-                yield f(row);
-            }
-        }
-    }
-}
-
 impl<'c, 'q> Cursor<'c, 'q, Postgres> for PgCursor<'c, 'q> {
     #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<PgConnection>, query: E) -> Self

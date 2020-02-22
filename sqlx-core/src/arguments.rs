@@ -18,30 +18,3 @@ pub trait Arguments: Send + Sized + Default + 'static {
         T: Type<Self::Database>,
         T: Encode<Self::Database>;
 }
-
-pub trait IntoArguments<DB>
-where
-    DB: Database,
-{
-    fn into_arguments(self) -> DB::Arguments;
-}
-
-impl<A> IntoArguments<A::Database> for A
-where
-    A: Arguments,
-    A::Database: Database<Arguments = Self> + Sized,
-{
-    #[inline]
-    fn into_arguments(self) -> Self {
-        self
-    }
-}
-
-#[doc(hidden)]
-pub struct ImmutableArguments<DB: Database>(pub DB::Arguments);
-
-impl<DB: Database> IntoArguments<DB> for ImmutableArguments<DB> {
-    fn into_arguments(self) -> <DB as Database>::Arguments {
-        self.0
-    }
-}

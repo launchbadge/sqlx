@@ -29,5 +29,6 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
     },
-    ParamChecking::Weak
+    ParamChecking::Weak,
+    row = sqlx::mysql::MySqlRow
 }

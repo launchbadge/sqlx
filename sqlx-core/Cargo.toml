@@ -33,9 +33,9 @@ crossbeam-queue = "0.2.1"
 crossbeam-utils = { version = "0.7.0", default-features = false }
 chrono = { version = "0.4.10", default-features = false, features = [ "clock" ], optional = true }
 digest = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
-futures-channel = { version = "0.3.1", default-features = false, features = [ "alloc" ] }
-futures-core = { version = "0.3.1", default-features = false }
-futures-util = { version = "0.3.1", default-features = false }
+futures-channel = { version = "0.3.4", default-features = false, features = [ "alloc" ] }
+futures-core = { version = "0.3.4", default-features = false }
+futures-util = { version = "0.3.4", default-features = false }
 # generic-array must match version that digest crates use
 generic-array = { version = "0.12.3", default-features = false, optional = true }
 log = { version = "0.4.8", default-features = false }

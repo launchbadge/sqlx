@@ -8,16 +8,16 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
 // Modules
-pub use sqlx_core::{arguments, describe, error, pool, row, types};
+pub use sqlx_core::{arguments, describe, error, pool, query, row, types};
 
 // Types
 pub use sqlx_core::{
-    Connect, Connection, Cursor, Database, Error, Execute, Executor, FromRow, Pool, Query, Result,
-    Row,
+    query::Query, Connect, Connection, Cursor, Database, Error, Execute, Executor, FromRow, Pool,
+    Result, Row,
 };
 
 // Functions
-pub use sqlx_core::query;
+pub use query::{query, query_as};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
