@@ -28,7 +28,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = [ "tls", "postgres", "mysql", "uuid", "chrono" ]
+features = [ "tls", "postgres", "mysql", "uuid", "chrono", "json" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -50,6 +50,7 @@ bigdecimal = ["sqlx-core/bigdecimal_bigint", "sqlx-macros/bigdecimal"]
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
+json = [ "sqlx-core/json" ]
 
 [dependencies]
 sqlx-core = { version = "0.3.0-alpha.1", path = "sqlx-core", default-features = false }
@@ -65,6 +66,7 @@ dotenv = "0.15.0"
 trybuild = "1.0.24"
 sqlx-test = { path = "./sqlx-test" }
 paste = "0.1.7"
+serde = { version = "1.0", features = [ "derive" ] }
 
 [[test]]
 name = "postgres-macros"

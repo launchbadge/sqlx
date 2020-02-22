@@ -80,8 +80,14 @@ mod chrono;
 #[cfg(feature = "uuid")]
 mod uuid;
 
+#[cfg(feature = "json")]
+pub mod json;
+
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
+
+#[cfg(feature = "json")]
+pub use json::{Json, Jsonb};
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
@@ -149,6 +155,7 @@ impl TypeInfo for PgTypeInfo {
             | (TypeId::INET, TypeId::CIDR)
             | (TypeId::ARRAY_CIDR, TypeId::ARRAY_INET)
             | (TypeId::ARRAY_INET, TypeId::ARRAY_CIDR) => true,
+
             _ => {
                 // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
                 self.id.0 == other.id.0

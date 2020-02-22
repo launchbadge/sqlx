@@ -9,6 +9,9 @@ pub use listen::{PgListener, PgNotification};
 pub use row::{PgRow, PgValue};
 pub use types::PgTypeInfo;
 
+#[cfg(feature = "json")]
+pub use types::{Json, Jsonb};
+
 mod arguments;
 mod connection;
 mod cursor;
