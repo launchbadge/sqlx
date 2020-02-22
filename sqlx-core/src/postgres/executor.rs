@@ -8,6 +8,10 @@ use crate::postgres::protocol::{self, Encode, StatementId, TypeFormat};
 use crate::postgres::{PgArguments, PgConnection, PgCursor, PgRow, PgTypeInfo, Postgres};
 
 impl PgConnection {
+    pub(crate) fn write_simple_query(&mut self, query: &str) {
+        self.stream.write(protocol::Query(query));
+    }
+
     pub(crate) fn write_prepare(&mut self, query: &str, args: &PgArguments) -> StatementId {
         // TODO: check query cache
 
