@@ -30,6 +30,11 @@ impl HasSqlType<String> for Postgres {
         <Self as HasSqlType<str>>::type_info()
     }
 }
+impl HasSqlType<[String]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[&'_ str]>>::type_info()
+    }
+}
 impl HasSqlType<Vec<String>> for Postgres {
     fn type_info() -> PgTypeInfo {
         <Self as HasSqlType<Vec<&'_ str>>>::type_info()

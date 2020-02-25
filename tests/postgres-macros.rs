@@ -176,6 +176,32 @@ async fn test_many_args() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_array_from_slice() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let list: &[i32] = &[1, 2, 3, 4i32];
+
+    let result = sqlx::query!("SELECT $1::int[] as my_array", *list)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(result.my_array, vec![1, 2, 3, 4]);
+
+    println!("result ID: {:?}", result.my_array);
+
+    let account = sqlx::query!("SELECT ARRAY[4,3,2,1] as my_array")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(account.my_array, vec![4, 3, 2, 1]);
+
+    println!("account ID: {:?}", account.my_array);
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<PgConnection> {
     let _ = dotenv::dotenv();
     let _ = env_logger::try_init();
