@@ -26,8 +26,14 @@ pub enum Error {
     /// More than one row was returned by a query that expected to return exactly one row.
     FoundMoreThanOne,
 
-    /// Column was not found in Row during [Row::try_get].
+    /// Column was not found by name in a Row (during [Row::try_get]).
     ColumnNotFound(Box<str>),
+
+    /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
+    ColumnIndexOutOfBounds {
+        index: usize,
+        len: usize,
+    },
 
     /// Unexpected or invalid data was encountered. This would indicate that we received
     /// data that we were not expecting or it was in a format we did not understand. This
@@ -88,6 +94,12 @@ impl Display for Error {
             Error::ColumnNotFound(ref name) => {
                 write!(f, "no column found with the name {:?}", name)
             }
+
+            Error::ColumnIndexOutOfBounds { index, len } => write!(
+                f,
+                "column index out of bounds: there are {} columns but the index is {}",
+                len, index
+            ),
 
             Error::FoundMoreThanOne => {
                 f.write_str("found more than one row when we expected exactly one")
