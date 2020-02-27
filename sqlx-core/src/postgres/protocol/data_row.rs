@@ -27,13 +27,9 @@ impl DataRow {
 }
 
 impl DataRow {
-    pub(crate) fn read<'a>(
-        connection: &mut PgConnection,
-        // buffer: &'a [u8],
-        // values: &'a mut Vec<Option<Range<u32>>>,
-    ) -> crate::Result<Self> {
+    pub(crate) fn read(connection: &mut PgConnection) -> crate::Result<Self> {
         let buffer = connection.stream.buffer();
-        let values = &mut connection.data_row_values_buf;
+        let values = &mut connection.current_row_values;
 
         values.clear();
 
@@ -62,24 +58,5 @@ impl DataRow {
         }
 
         Ok(Self { len })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{DataRow, Decode};
-
-    const DATA_ROW: &[u8] = b"\0\x03\0\0\0\x011\0\0\0\x012\0\0\0\x013";
-
-    #[test]
-    fn it_reads_data_row() {
-        let mut values = Vec::new();
-        let m = DataRow::read(DATA_ROW, &mut values).unwrap();
-
-        assert_eq!(m.len, 3);
-
-        assert_eq!(m.get(DATA_ROW, &values, 0), Some(&b"1"[..]));
-        assert_eq!(m.get(DATA_ROW, &values, 1), Some(&b"2"[..]));
-        assert_eq!(m.get(DATA_ROW, &values, 2), Some(&b"3"[..]));
     }
 }

@@ -23,9 +23,6 @@ where
     // `.await`-ing a cursor will return the affected rows from the query
     Self: Future<Output = crate::Result<u64>>,
 {
-    // Construct the [Cursor] from a [Pool]
-    // Meant for internal use only
-    // TODO: Anyone have any better ideas on how to instantiate cursors generically from a pool?
     #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<DB::Connection>, query: E) -> Self
     where
@@ -37,8 +34,6 @@ where
     where
         Self: Sized,
         DB::Connection: Connect,
-        // MaybeOwnedConnection<'c, DB::Connection>:
-        //     Connect<Database = DB>,
         C: Into<MaybeOwnedConnection<'c, DB::Connection>>,
         E: Execute<'q, DB>;
 
