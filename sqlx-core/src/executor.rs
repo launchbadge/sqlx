@@ -22,18 +22,12 @@ where
     type Database: Database;
 
     /// Executes a query that may or may not return a result set.
-    fn execute<'q, E>(
-        self,
-        query: E,
-    ) -> <Self::Database as HasCursor<'c, 'q, Self::Database>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>;
 
     #[doc(hidden)]
-    fn execute_by_ref<'b, E>(
-        &mut self,
-        query: E,
-    ) -> <Self::Database as HasCursor<'_, 'b, Self::Database>>::Cursor
+    fn execute_by_ref<'b, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_, 'b>>::Cursor
     where
         E: Execute<'b, Self::Database>;
 }

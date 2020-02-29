@@ -15,7 +15,7 @@ where
     Self: Sized + 'static,
     Self: for<'a> HasRow<'a, Database = Self>,
     Self: for<'a> HasRawValue<'a>,
-    Self: for<'c, 'q> HasCursor<'c, 'q, Self>,
+    Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connection<Database = Self>;
@@ -34,11 +34,10 @@ pub trait HasRawValue<'a> {
     type RawValue;
 }
 
-pub trait HasCursor<'c, 'q, DB>
-where
-    DB: Database,
-{
-    type Cursor: Cursor<'c, 'q, DB>;
+pub trait HasCursor<'c, 'q> {
+    type Database: Database;
+
+    type Cursor: Cursor<'c, 'q, Database = Self::Database>;
 }
 
 pub trait HasRow<'a> {

@@ -20,7 +20,9 @@ impl<'a> HasRow<'a> for Postgres {
     type Row = super::PgRow<'a>;
 }
 
-impl<'s, 'q> HasCursor<'s, 'q, Postgres> for Postgres {
+impl<'s, 'q> HasCursor<'s, 'q> for Postgres {
+    type Database = Postgres;
+
     type Cursor = super::PgCursor<'s, 'q>;
 }
 
