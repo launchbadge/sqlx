@@ -349,7 +349,7 @@ impl Connection for PgConnection {
     }
 
     fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
-        Box::pin(self.execute("SELECT 1").map_ok(|_| ()))
+        Box::pin(self.fetch("SELECT 1").map_ok(|_| ()))
     }
 
     #[doc(hidden)]

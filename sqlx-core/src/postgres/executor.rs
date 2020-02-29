@@ -58,7 +58,7 @@ impl PgConnection {
 impl<'e> Executor<'e> for &'e mut super::PgConnection {
     type Database = Postgres;
 
-    fn execute<'q, E>(self, query: E) -> PgCursor<'e, 'q>
+    fn fetch<'q, E>(self, query: E) -> PgCursor<'e, 'q>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -67,11 +67,11 @@ impl<'e> Executor<'e> for &'e mut super::PgConnection {
 
     #[doc(hidden)]
     #[inline]
-    fn execute_by_ref<'q, E>(&mut self, query: E) -> PgCursor<'_, 'q>
+    fn fetch_by_ref<'q, E>(&mut self, query: E) -> PgCursor<'_, 'q>
     where
         E: Execute<'q, Self::Database>,
     {
-        self.execute(query)
+        self.fetch(query)
     }
 }
 

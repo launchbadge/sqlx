@@ -24,7 +24,7 @@ where
 {
     type Database = DB;
 
-    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
+    fn fetch<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
     where
         E: Execute<'q, DB>,
     {
@@ -33,14 +33,14 @@ where
 
     #[doc(hidden)]
     #[inline]
-    fn execute_by_ref<'q, 'e, E>(
+    fn fetch_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
     ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, DB>,
     {
-        self.execute(query)
+        self.fetch(query)
     }
 }
 
@@ -53,7 +53,7 @@ where
 {
     type Database = C::Database;
 
-    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    fn fetch<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -62,14 +62,14 @@ where
 
     #[doc(hidden)]
     #[inline]
-    fn execute_by_ref<'q, 'e, E>(
+    fn fetch_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
     ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
-        self.execute(query)
+        self.fetch(query)
     }
 }
 
@@ -81,7 +81,7 @@ where
 {
     type Database = DB;
 
-    fn execute<'q, E>(self, query: E) -> <DB as HasCursor<'static, 'q>>::Cursor
+    fn fetch<'q, E>(self, query: E) -> <DB as HasCursor<'static, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -90,7 +90,7 @@ where
 
     #[doc(hidden)]
     #[inline]
-    fn execute_by_ref<'q, 'e, E>(&'e mut self, query: E) -> <DB as HasCursor<'_, 'q>>::Cursor
+    fn fetch_by_ref<'q, 'e, E>(&'e mut self, query: E) -> <DB as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {

@@ -118,14 +118,14 @@ where
     where
         E: Executor<'e, Database = DB>,
     {
-        executor.execute(self).await
+        executor.fetch(self).await
     }
 
     pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
     where
         E: Executor<'e, Database = DB>,
     {
-        executor.execute(self)
+        executor.fetch(self)
     }
 }
 
@@ -171,7 +171,7 @@ where
         A: 'e,
     {
         try_stream! {
-            let mut cursor = executor.execute(self.query);
+            let mut cursor = executor.fetch(self.query);
             while let Some(next) = cursor.next().await? {
                 let mapped = self.mapper.map_row(next)?;
                 yield mapped;
@@ -186,7 +186,7 @@ where
         'q: 'e,
     {
         // could be implemented in terms of `fetch()` but this avoids overhead from `try_stream!`
-        let mut cursor = executor.execute(self.query);
+        let mut cursor = executor.fetch(self.query);
         let mut mapper = self.mapper;
         let val = cursor.next().await?;
         val.map(|row| mapper.map_row(row)).transpose()
@@ -210,7 +210,7 @@ where
         E: Executor<'e, Database = DB>,
         'q: 'e,
     {
-        let mut cursor = executor.execute(self.query);
+        let mut cursor = executor.fetch(self.query);
         let mut out = vec![];
 
         while let Some(row) = cursor.next().await? {

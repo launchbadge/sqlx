@@ -315,7 +315,7 @@ impl Executor for MySqlConnection {
         Box::pin(self.execute_raw(query))
     }
 
-    fn execute<'e, 'q: 'e>(
+    fn fetch<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
         args: MySqlArguments,
