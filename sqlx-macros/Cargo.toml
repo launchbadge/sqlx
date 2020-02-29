@@ -27,6 +27,7 @@ postgres = [ "sqlx/postgres" ]
 
 # type
 chrono = [ "sqlx/chrono" ]
+time = [ "sqlx/time" ]
 uuid = [ "sqlx/uuid" ]
 
 [dependencies]

@@ -26,11 +26,11 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = [ "tls", "postgres", "mysql", "uuid", "chrono" ]
+features = [ "tls", "postgres", "mysql", "uuid", "chrono", "time" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ "macros", "runtime-async-std" ]
+default = [ "macros", "runtime-async-std", "time", "postgres" ]
 macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
@@ -44,6 +44,7 @@ mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 
 # types
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
+time = [ "sqlx-core/time", "sqlx-macros/time" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]
@@ -84,12 +85,20 @@ name = "postgres-types-chrono"
 required-features = [ "postgres", "chrono" ]
 
 [[test]]
+name = "postgres-types-time"
+required-features = [ "postgres", "time" ]
+
+[[test]]
 name = "mysql-types"
 required-features = [ "mysql" ]
 
 [[test]]
 name = "mysql-types-chrono"
 required-features = [ "mysql", "chrono", "macros" ]
+
+[[test]]
+name = "mysql-types-time"
+required-features = [ "mysql", "time", "macros" ]
 
 [[test]]
 name = "derives"

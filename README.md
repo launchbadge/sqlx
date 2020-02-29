@@ -43,11 +43,11 @@ SQLx is an async, pure Rust SQL crate featuring compile-time checked queries wit
 
  * **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
- * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at 
+ * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
  compile time. (You can still use dynamic SQL queries if you like.)
 
  * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe code.
- 
+
  * **Runtime Agnostic**. Works on [async-std](https://crates.io/crates/async-std) or [tokio](https://crates.io/crates/tokio) with the `runtime-async-std` or `runtime-tokio` cargo feature flag.
 
 ## Install
@@ -71,17 +71,19 @@ sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio"
 #### Cargo Feature Flags
 
  * `runtime-async-std` (on by default): Use the `async-std` runtime.
- 
+
  * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive with the `runtime-async-std` feature.
- 
+
  * `postgres`: Add support for the Postgres database server.
- 
+
  * `mysql`: Add support for the MySQL (and MariaDB) database server.
- 
+
  * `uuid`: Add support for UUID (in Postgres).
- 
+
  * `chrono`: Add support for date and time types from `chrono`.
- 
+
+ * `time`: Add support for date and time types from `time` crate (simpler than `chrono`)
+
  * `tls`: Add support for TLS connections.
 
 ## Examples
@@ -97,7 +99,7 @@ let pool = sqlx::PgPool::new("postgres://localhost/database").await?;
 
 #### Dynamic
 
-The `sqlx::query` function provides general-purpose prepared statement execution. 
+The `sqlx::query` function provides general-purpose prepared statement execution.
 The result is an implementation of the `Row` trait. Values can be efficiently accessed by index or name.
 
 ```rust
@@ -105,18 +107,18 @@ let row = sqlx::query("SELECT is_active FROM users WHERE id = ?")
     .bind(some_user_id)
     .fetch_one(&mut &pool)
     .await?;
-    
+
 let is_active: bool = row.get("is_active");
 ```
 
 #### Static
 
-The `sqlx::query!` macro prepares the SQL query at compile time and interprets the result in order to constrain input types and 
+The `sqlx::query!` macro prepares the SQL query at compile time and interprets the result in order to constrain input types and
 infer output types. The result of `query!` is an anonymous struct (or named tuple).
 
 ```rust
 let countries = sqlx::query!(
-        "SELECT country, COUNT(*) FROM users GROUP BY country WHERE organization = ?", 
+        "SELECT country, COUNT(*) FROM users GROUP BY country WHERE organization = ?",
         organization
     )
     .fetch(&mut &pool) // -> impl Stream<Item = { country: String, count: i64 }>

@@ -14,6 +14,12 @@ pub mod chrono {
     pub use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 }
 
+#[cfg(feature = "time")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time")))]
+pub mod time {
+    pub use time::{Date, Time, PrimitiveDateTime, OffsetDateTime, UtcOffset};
+}
+
 pub trait TypeInfo: Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.

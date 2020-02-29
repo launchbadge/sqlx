@@ -7,6 +7,9 @@ mod str;
 #[cfg(feature = "chrono")]
 mod chrono;
 
+#[cfg(feature = "time")]
+mod time;
+
 #[cfg(feature = "uuid")]
 mod uuid;
 
