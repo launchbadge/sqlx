@@ -1,4 +1,4 @@
-use sqlx::types::time::{OffsetDateTime, Date, Time, UtcOffset};
+use sqlx::types::time::{Date, OffsetDateTime, Time, UtcOffset};
 use sqlx::{mysql::MySqlConnection, Connection, Row};
 
 async fn connect() -> anyhow::Result<MySqlConnection> {

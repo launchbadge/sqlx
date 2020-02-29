@@ -17,7 +17,7 @@ pub mod chrono {
 #[cfg(feature = "time")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time {
-    pub use time::{Date, Time, PrimitiveDateTime, OffsetDateTime, UtcOffset};
+    pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 }
 
 pub trait TypeInfo: Debug + Display + Clone {

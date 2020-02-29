@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};
-use time::{Date, Time, PrimitiveDateTime, OffsetDateTime, UtcOffset};
+use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 use crate::decode::{Decode, DecodeError};
 use crate::encode::Encode;
@@ -127,12 +127,7 @@ impl Encode<MySql> for PrimitiveDateTime {
 
     fn size_hint(&self) -> usize {
         // to save space the packet can be compressed:
-        match (
-            self.hour(),
-            self.minute(),
-            self.second(),
-            self.nanosecond(),
-        ) {
+        match (self.hour(), self.minute(), self.second(), self.nanosecond()) {
             // if hour, minutes, seconds and micro_seconds are all 0,
             // length is 4 and no other field is sent
             (0, 0, 0, 0) => 5,
@@ -177,7 +172,8 @@ fn decode_date(buf: &[u8]) -> Result<Date, DecodeError> {
         LittleEndian::read_u16(buf) as i32,
         buf[2] as u8,
         buf[3] as u8,
-    ).map_err(|e| DecodeError::Message(Box::new(format!("Error while decoding Date: {}", e))))
+    )
+    .map_err(|e| DecodeError::Message(Box::new(format!("Error while decoding Date: {}", e))))
 }
 
 fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
@@ -202,12 +198,8 @@ fn decode_time(len: u8, mut buf: &[u8]) -> Result<Time, DecodeError> {
         0
     };
 
-    Time::try_from_hms_micro(
-        hour,
-        minute,
-        seconds,
-        micros as u32,
-    ).map_err(|e| DecodeError::Message(Box::new(format!("Time out of range for MySQL: {}", e))))
+    Time::try_from_hms_micro(hour, minute, seconds, micros as u32)
+        .map_err(|e| DecodeError::Message(Box::new(format!("Time out of range for MySQL: {}", e))))
 }
 
 #[cfg(test)]
@@ -218,28 +210,19 @@ fn test_encode_date_time() {
     let mut buf = Vec::new();
 
     // test values from https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
-    let date = PrimitiveDateTime::new(
-        date!(2010-10-17),
-        time!(19:27:30.000001),
-    );
+    let date = PrimitiveDateTime::new(date!(2010 - 10 - 17), time!(19:27:30.000001));
     Encode::<MySql>::encode(&date, &mut buf);
     assert_eq!(*buf, [11, 218, 7, 10, 17, 19, 27, 30, 1, 0, 0, 0]);
 
     buf.clear();
 
-    let date = PrimitiveDateTime::new(
-        date!(2010-10-17),
-        time!(19:27:30),
-    );
+    let date = PrimitiveDateTime::new(date!(2010 - 10 - 17), time!(19:27:30));
     Encode::<MySql>::encode(&date, &mut buf);
     assert_eq!(*buf, [7, 218, 7, 10, 17, 19, 27, 30]);
 
     buf.clear();
 
-    let date = PrimitiveDateTime::new(
-        date!(2010-10-17),
-        time!(00:00:00),
-    );
+    let date = PrimitiveDateTime::new(date!(2010 - 10 - 17), time!(00:00:00));
     Encode::<MySql>::encode(&date, &mut buf);
     assert_eq!(*buf, [4, 218, 7, 10, 17]);
 }
@@ -263,7 +246,7 @@ fn test_decode_date_time() {
 #[test]
 fn test_encode_date() {
     let mut buf = Vec::new();
-    let date: Date = date!(2010-10-17);
+    let date: Date = date!(2010 - 10 - 17);
     Encode::<MySql>::encode(&date, &mut buf);
     assert_eq!(*buf, [4, 218, 7, 10, 17]);
 }
@@ -272,5 +255,5 @@ fn test_encode_date() {
 fn test_decode_date() {
     let buf = [4, 218, 7, 10, 17];
     let date = <Date as Decode<MySql>>::decode(&buf).unwrap();
-    assert_eq!(date, date!(2010-10-17));
+    assert_eq!(date, date!(2010 - 10 - 17));
 }
