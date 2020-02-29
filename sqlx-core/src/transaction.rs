@@ -28,11 +28,11 @@ where
 {
     pub(crate) async fn new(depth: u32, mut inner: T) -> crate::Result<Self> {
         if depth == 0 {
-            inner.execute_by_ref("BEGIN").await?;
+            inner.fetch_by_ref("BEGIN").await?;
         } else {
             let stmt = format!("SAVEPOINT _sqlx_savepoint_{}", depth);
 
-            inner.execute_by_ref(&*stmt).await?;
+            inner.fetch_by_ref(&*stmt).await?;
         }
 
         Ok(Self {
@@ -50,11 +50,11 @@ where
         let depth = self.depth;
 
         if depth == 1 {
-            inner.execute_by_ref("COMMIT").await?;
+            inner.fetch_by_ref("COMMIT").await?;
         } else {
             let stmt = format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner.execute_by_ref(&*stmt).await?;
+            inner.fetch_by_ref(&*stmt).await?;
         }
 
         Ok(inner)
@@ -65,11 +65,11 @@ where
         let depth = self.depth;
 
         if depth == 1 {
-            inner.execute_by_ref("ROLLBACK").await?;
+            inner.fetch_by_ref("ROLLBACK").await?;
         } else {
             let stmt = format!("ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}", depth - 1);
 
-            inner.execute_by_ref(&*stmt).await?;
+            inner.fetch_by_ref(&*stmt).await?;
         }
 
         Ok(inner)
@@ -136,22 +136,22 @@ where
 {
     type Database = <T as Connection>::Database;
 
-    fn execute<'q, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'c, 'q>>::Cursor
+    fn fetch<'q, E>(self, query: E) -> <<T as Connection>::Database as HasCursor<'c, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
-        (**self).execute_by_ref(query)
+        (**self).fetch_by_ref(query)
     }
 
     #[doc(hidden)]
-    fn execute_by_ref<'q, 'e, E>(
+    fn fetch_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
     ) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
-        (**self).execute_by_ref(query)
+        (**self).fetch_by_ref(query)
     }
 }
 
@@ -164,7 +164,7 @@ where
         if self.depth > 0 {
             if let Some(mut inner) = self.inner.take() {
                 spawn(async move {
-                    let res = inner.execute_by_ref("ROLLBACK").await;
+                    let res = inner.fetch_by_ref("ROLLBACK").await;
 
                     // If the rollback failed we need to close the inner connection
                     if res.is_err() {
