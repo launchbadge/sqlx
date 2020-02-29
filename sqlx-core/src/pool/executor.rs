@@ -19,12 +19,12 @@ impl<'p, C, DB> Executor<'p> for &'p Pool<C>
 where
     C: Connect<Database = DB>,
     DB: Database<Connection = C>,
-    DB: for<'c, 'q> HasCursor<'c, 'q, DB>,
+    DB: for<'c, 'q> HasCursor<'c, 'q, Database = DB>,
     for<'con> &'con mut C: Executor<'con>,
 {
     type Database = DB;
 
-    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q, DB>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
     where
         E: Execute<'q, DB>,
     {
@@ -36,7 +36,7 @@ where
     fn execute_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
-    ) -> <Self::Database as HasCursor<'_, 'q, DB>>::Cursor
+    ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, DB>,
     {
@@ -48,12 +48,12 @@ impl<'c, C, DB> Executor<'c> for &'c mut PoolConnection<C>
 where
     C: Connect<Database = DB>,
     DB: Database<Connection = C>,
-    DB: for<'c2, 'q> HasCursor<'c2, 'q, DB>,
+    DB: for<'c2, 'q> HasCursor<'c2, 'q, Database = DB>,
     for<'con> &'con mut C: Executor<'con>,
 {
     type Database = C::Database;
 
-    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q, DB>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -65,7 +65,7 @@ where
     fn execute_by_ref<'q, 'e, E>(
         &'e mut self,
         query: E,
-    ) -> <Self::Database as HasCursor<'_, 'q, DB>>::Cursor
+    ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -77,11 +77,11 @@ impl<C, DB> Executor<'static> for PoolConnection<C>
 where
     C: Connect<Database = DB>,
     DB: Database<Connection = C>,
-    DB: for<'c, 'q> HasCursor<'c, 'q, DB>,
+    DB: for<'c, 'q> HasCursor<'c, 'q, Database = DB>,
 {
     type Database = DB;
 
-    fn execute<'q, E>(self, query: E) -> <DB as HasCursor<'static, 'q, DB>>::Cursor
+    fn execute<'q, E>(self, query: E) -> <DB as HasCursor<'static, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -90,7 +90,7 @@ where
 
     #[doc(hidden)]
     #[inline]
-    fn execute_by_ref<'q, 'e, E>(&'e mut self, query: E) -> <DB as HasCursor<'_, 'q, DB>>::Cursor
+    fn execute_by_ref<'q, 'e, E>(&'e mut self, query: E) -> <DB as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {

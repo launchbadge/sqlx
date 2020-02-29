@@ -121,35 +121,11 @@ where
         executor.execute(self).await
     }
 
-    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q, DB>>::Cursor
+    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
     where
         E: Executor<'e, Database = DB>,
     {
         executor.execute(self)
-    }
-
-    pub async fn fetch_optional<'e, E>(
-        self,
-        executor: E,
-    ) -> crate::Result<Option<<DB as HasRow<'e>>::Row>>
-    where
-        E: Executor<'e, Database = DB>,
-        'q: 'e,
-    {
-        executor.execute(self).first().await
-    }
-
-    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<<DB as HasRow<'e>>::Row>
-    where
-        E: Executor<'e, Database = DB>,
-        'q: 'e,
-    {
-        self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => ready(Ok(row)),
-                None => ready(Err(crate::Error::NotFound)),
-            })
-            .await
     }
 }
 

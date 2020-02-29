@@ -16,32 +16,28 @@ use crate::{Connect, Pool, Row};
 /// Initially the `Cursor` is positioned before the first row. The `next` method moves the cursor
 /// to the next row, and because it returns `None` when there are no more rows, it can be used
 /// in a `while` loop to iterate through all returned rows.
-pub trait Cursor<'c, 'q, DB>
+pub trait Cursor<'c, 'q>
 where
     Self: Send,
-    DB: Database,
     // `.await`-ing a cursor will return the affected rows from the query
     Self: Future<Output = crate::Result<u64>>,
 {
+    type Database: Database;
+
     #[doc(hidden)]
-    fn from_pool<E>(pool: &Pool<DB::Connection>, query: E) -> Self
+    fn from_pool<E>(pool: &Pool<<Self::Database as Database>::Connection>, query: E) -> Self
     where
         Self: Sized,
-        E: Execute<'q, DB>;
+        E: Execute<'q, Self::Database>;
 
     #[doc(hidden)]
     fn from_connection<E, C>(conn: C, query: E) -> Self
     where
         Self: Sized,
-        DB::Connection: Connect,
-        C: Into<MaybeOwnedConnection<'c, DB::Connection>>,
-        E: Execute<'q, DB>;
-
-    #[doc(hidden)]
-    fn first(self) -> BoxFuture<'c, crate::Result<Option<<DB as HasRow<'c>>::Row>>>
-    where
-        'q: 'c;
+        <Self::Database as Database>::Connection: Connect,
+        C: Into<MaybeOwnedConnection<'c, <Self::Database as Database>::Connection>>,
+        E: Execute<'q, Self::Database>;
 
     /// Fetch the next row in the result. Returns `None` if there are no more rows.
-    fn next(&mut self) -> BoxFuture<crate::Result<Option<<DB as HasRow>::Row>>>;
+    fn next(&mut self) -> BoxFuture<crate::Result<Option<<Self::Database as HasRow>::Row>>>;
 }

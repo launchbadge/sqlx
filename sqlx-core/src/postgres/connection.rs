@@ -87,8 +87,9 @@ pub struct PgConnection {
     pub(super) next_statement_id: u32,
     pub(super) is_ready: bool,
 
-    // TODO: Think of a better way to do this, better name perhaps?
-    pub(super) data_row_values_buf: Vec<Option<Range<u32>>>,
+    // Work buffer for the value ranges of the current row
+    // This is used as the backing memory for each Row's value indexes
+    pub(super) current_row_values: Vec<Option<Range<u32>>>,
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
@@ -234,7 +235,7 @@ impl PgConnection {
 
         Ok(Self {
             stream,
-            data_row_values_buf: Vec::new(),
+            current_row_values: Vec::with_capacity(10),
             next_statement_id: 1,
             is_ready: true,
         })

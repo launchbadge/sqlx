@@ -32,7 +32,9 @@ pub struct PgCursor<'c, 'q> {
     state: State<'c, 'q>,
 }
 
-impl<'c, 'q> Cursor<'c, 'q, Postgres> for PgCursor<'c, 'q> {
+impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
+    type Database = Postgres;
+
     #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<PgConnection>, query: E) -> Self
     where
@@ -62,14 +64,6 @@ impl<'c, 'q> Cursor<'c, 'q, Postgres> for PgCursor<'c, 'q> {
             source: ConnectionSource::Connection(conn.into()),
             state: State::Query(query, arguments),
         }
-    }
-
-    #[doc(hidden)]
-    fn first(self) -> BoxFuture<'c, crate::Result<Option<PgRow<'c>>>>
-    where
-        'q: 'c,
-    {
-        Box::pin(first(self))
     }
 
     fn next(&mut self) -> BoxFuture<crate::Result<Option<PgRow<'_>>>> {
@@ -260,54 +254,6 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
             message => {
                 return Err(protocol_err!("next: unexpected message: {:?}", message).into());
-            }
-        }
-    }
-
-    Ok(None)
-}
-
-async fn first<'c, 'q>(mut cursor: PgCursor<'c, 'q>) -> crate::Result<Option<PgRow<'c>>> {
-    let mut conn = cursor.source.resolve().await?;
-
-    match cursor.state {
-        State::Query(q, ref mut arguments) => {
-            // write out the query to the connection
-            write(&mut conn, q, arguments.take()).await?;
-        }
-
-        State::NextRow => {
-            // just grab the next row as the first
-        }
-
-        State::Resolve(_) | State::AffectedRows(_) => {
-            panic!("`PgCursor` must not be used after being polled");
-        }
-    }
-
-    loop {
-        match conn.stream.read().await? {
-            Message::ParseComplete | Message::BindComplete => {
-                // ignore x_complete messages
-            }
-
-            Message::CommandComplete => {
-                // no more rows
-                break;
-            }
-
-            Message::DataRow => {
-                let data = DataRow::read(&mut conn)?;
-
-                return Ok(Some(PgRow {
-                    connection: conn,
-                    columns: Arc::default(),
-                    data,
-                }));
-            }
-
-            message => {
-                return Err(protocol_err!("first: unexpected message: {:?}", message).into());
             }
         }
     }
