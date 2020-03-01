@@ -254,9 +254,9 @@ fn is_beyond_idle<C>(idle: &Idle<C>, options: &Options) -> bool {
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
-async fn check_conn<'s, C>(
+async fn check_conn<'s: 'p, 'p, C>(
     mut conn: Floating<'s, Idle<C>>,
-    options: &Options,
+    options: &'p Options,
 ) -> Option<Floating<'s, Live<C>>>
 where
     C: Connection,

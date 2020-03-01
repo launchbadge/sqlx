@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn it_decodes_response() {
-        let message = Response::decode(RESPONSE).unwrap();
+        let message = Response::read(RESPONSE).unwrap();
 
         assert_matches!(message.severity, Severity::Notice);
         assert_eq!(&*message.code, "42710");

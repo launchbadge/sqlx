@@ -48,7 +48,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 ref type_,
                 ..
             },
-        )| { quote!( #ident: row.try_get::<#type_, _>(#i).try_unwrap_optional()? ) },
+        )| { quote!( #ident: row.get::<#type_, _>(#i).try_unwrap_optional()? ) },
     );
 
     let db_path = DB::db_path();
@@ -58,6 +58,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
         sqlx::query::<#db_path>(#sql).bind_all(#bind_args).map(|row: #row_path| {
             use sqlx::row::Row as _;
             use sqlx::result_ext::ResultExt as _;
+
             Ok(#out_ty { #(#instantiations),* })
         })
     }

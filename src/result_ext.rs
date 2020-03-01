@@ -1,5 +1,4 @@
-use crate::decode::UnexpectedNullError;
-use crate::Error;
+use crate::error::{Error, UnexpectedNullError};
 
 pub trait ResultExt<T>: Sized {
     fn try_unwrap_optional(self) -> crate::Result<T>;

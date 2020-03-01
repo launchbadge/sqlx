@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::{
-    postgres::PgConnection, Connect, Connection, Cursor, Database, Executor, Postgres, Row,
+    postgres::PgConnection, Connect, Executor, Row,
 };
 use sqlx_core::postgres::{PgPool, PgRow};
 use std::time::Duration;
@@ -10,11 +10,12 @@ use std::time::Duration;
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let row = sqlx::query("select 1 + 1").fetch_one(&mut conn).await?;
+    let value = sqlx::query("select 1 + 1")
+        .map(|row: PgRow| row.get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
 
-    assert_eq!(2i32, row.get::<i32, _>(0));
-
-    conn.close().await?;
+    assert_eq!(2i32, value);
 
     Ok(())
 }
@@ -41,8 +42,8 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         assert_eq!(cnt, 1);
     }
 
-    let sum: i32 = sqlx::query::<Postgres>("SELECT id FROM users")
-        .map(|row: PgRow| Ok(row.get::<i32, _>(0)))
+    let sum: i32 = sqlx::query("SELECT id FROM users")
+        .map(|row: PgRow| row.get::<i32, _>(0))
         .fetch(&mut conn)
         .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
         .await?;
@@ -58,27 +59,31 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let row = sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-        .fetch_one(&mut conn)
-        .await?;
+    let tuple =
+        sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
+            .map(|row: PgRow| {
+                Ok((
+                    row.get::<Option<i32>, _>(0)?,
+                    row.get::<Option<i32>, _>(1)?,
+                    row.get::<Option<i32>, _>(2)?,
+                    row.get::<Option<i32>, _>(3)?,
+                    row.get::<Option<i32>, _>(4)?,
+                    row.get::<Option<i32>, _>(5)?,
+                    row.get::<Option<i32>, _>(6)?,
+                    row.get::<Option<i32>, _>(7)?,
+                ))
+            })
+            .fetch_one(&mut conn)
+            .await?;
 
-    let _1: Option<i32> = row.get(0);
-    let _2: Option<i32> = row.get(1);
-    let _3: Option<i32> = row.get(2);
-    let _4: Option<i32> = row.get(3);
-    let _5: Option<i32> = row.get(4);
-    let _6: Option<i32> = row.get(5);
-    let _7: Option<i32> = row.get(6);
-    let _8: Option<i32> = row.get(7);
-
-    assert_eq!(_1, None);
-    assert_eq!(_2, Some(10));
-    assert_eq!(_3, None);
-    assert_eq!(_4, Some(20));
-    assert_eq!(_5, None);
-    assert_eq!(_6, Some(40));
-    assert_eq!(_7, None);
-    assert_eq!(_8, Some(80));
+    assert_eq!(tuple.0, None);
+    assert_eq!(tuple.1, Some(10));
+    assert_eq!(tuple.2, None);
+    assert_eq!(tuple.3, Some(20));
+    assert_eq!(tuple.4, None);
+    assert_eq!(tuple.5, Some(40));
+    assert_eq!(tuple.6, None);
+    assert_eq!(tuple.7, Some(80));
 
     Ok(())
 }
@@ -104,7 +109,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         spawn(async move {
             loop {
-                if let Err(e) = sqlx::query("select 1 + 1").fetch_one(&pool).await {
+                if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     eprintln!("pool task {} dying due to {}", i, e);
                     break;
                 }
@@ -141,5 +146,6 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 async fn connect() -> anyhow::Result<PgConnection> {
     let _ = dotenv::dotenv();
     let _ = env_logger::try_init();
+
     Ok(PgConnection::connect(dotenv::var("DATABASE_URL")?).await?)
 }

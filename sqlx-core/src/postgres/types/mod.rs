@@ -1,3 +1,11 @@
+use std::fmt::{self, Debug, Display};
+
+use crate::decode::Decode;
+use crate::postgres::protocol::TypeId;
+use crate::postgres::PgValue;
+use crate::types::TypeInfo;
+use crate::Postgres;
+
 mod bool;
 mod bytes;
 mod float;
@@ -9,11 +17,6 @@ mod chrono;
 
 #[cfg(feature = "uuid")]
 mod uuid;
-
-use std::fmt::{self, Debug, Display};
-
-use crate::postgres::protocol::TypeId;
-use crate::types::TypeInfo;
 
 #[derive(Debug, Clone)]
 pub struct PgTypeInfo {
@@ -45,5 +48,16 @@ impl TypeInfo for PgTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
         // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
         self.id.0 == other.id.0
+    }
+}
+
+impl<'de, T> Decode<'de, Postgres> for Option<T>
+where
+    T: Decode<'de, Postgres>,
+{
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        value
+            .map(|value| <T as Decode<Postgres>>::decode(Some(value)))
+            .transpose()
     }
 }

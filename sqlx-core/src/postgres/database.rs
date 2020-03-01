@@ -1,4 +1,5 @@
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
+use crate::postgres::row::PgValue;
 
 /// **Postgres** database driver.
 pub struct Postgres;
@@ -27,5 +28,5 @@ impl<'s, 'q> HasCursor<'s, 'q> for Postgres {
 }
 
 impl<'a> HasRawValue<'a> for Postgres {
-    type RawValue = Option<&'a [u8]>;
+    type RawValue = Option<PgValue<'a>>;
 }

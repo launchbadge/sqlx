@@ -1,6 +1,9 @@
+use std::convert::TryInto;
+
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::Type;
@@ -24,7 +27,18 @@ impl Encode<Postgres> for bool {
 }
 
 impl<'de> Decode<'de, Postgres> for bool {
-    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
-        Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default())
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
+
+            PgValue::Text("t") => Ok(true),
+            PgValue::Text("f") => Ok(false),
+
+            PgValue::Text(s) => {
+                return Err(crate::Error::Decode(
+                    format!("unexpected value {:?} for boolean", s).into(),
+                ));
+            }
+        }
     }
 }

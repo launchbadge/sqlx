@@ -12,9 +12,10 @@ pub use sqlx_core::{arguments, describe, error, pool, query, row, types};
 
 // Types
 pub use sqlx_core::{
-    query::Query, Connect, Connection, Cursor, Database, Error, Execute, Executor, FromRow, Pool,
-    Result, Row,
+    query::Query, Connect, Connection, Cursor, Error, Execute, Executor, FromRow, Pool, Result, Row,
 };
+
+pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
 
 // Functions
 pub use query::{query, query_as};
@@ -43,6 +44,16 @@ pub mod ty_cons;
 #[doc(hidden)]
 pub mod result_ext;
 
-pub mod encode;
+pub mod encode {
+    pub use sqlx_core::encode::{Encode, IsNull};
 
-pub mod decode;
+    #[cfg(feature = "macros")]
+    pub use sqlx_macros::Encode;
+}
+
+pub mod decode {
+    pub use sqlx_core::decode::Decode;
+
+    #[cfg(feature = "macros")]
+    pub use sqlx_macros::Decode;
+}

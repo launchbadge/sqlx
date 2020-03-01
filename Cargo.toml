@@ -3,7 +3,6 @@ members = [
     ".",
     "sqlx-core",
     "sqlx-macros",
-    "examples/postgres/basic",
     "examples/realworld-postgres",
     "examples/todos-postgres",
 ]
@@ -74,6 +73,10 @@ required-features = [ "mysql" ]
 
 [[test]]
 name = "postgres"
+required-features = [ "postgres" ]
+
+[[test]]
+name = "postgres-unprepared"
 required-features = [ "postgres" ]
 
 [[test]]
