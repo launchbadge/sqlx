@@ -207,7 +207,7 @@ where
         self.fetch_optional(executor)
             .and_then(|row| match row {
                 Some(row) => ready(Ok(row)),
-                None => ready(Err(crate::Error::NotFound)),
+                None => ready(Err(crate::Error::RowNotFound)),
             })
             .await
     }

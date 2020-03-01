@@ -21,13 +21,10 @@ pub enum Error {
     /// An error was returned by the database.
     Database(Box<dyn DatabaseError + Send + Sync>),
 
-    /// No rows were returned by a query that expected to return at least one row.
-    NotFound,
+    /// No row was returned during [`Map::fetch_one`] or [`QueryAs::fetch_one`].
+    RowNotFound,
 
-    /// More than one row was returned by a query that expected to return exactly one row.
-    FoundMoreThanOne,
-
-    /// Column was not found by name in a Row (during [Row::try_get]).
+    /// Column was not found by name in a Row (during [`Row::try_get`]).
     ColumnNotFound(Box<str>),
 
     /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
@@ -61,13 +58,9 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::Io(error) => Some(error),
-
             Error::UrlParse(error) => Some(error),
-
             Error::PoolTimedOut(Some(error)) => Some(&**error),
-
             Error::Decode(DecodeError::Other(error)) => Some(&**error),
-
             Error::TlsUpgrade(error) => Some(&**error),
 
             _ => None,
@@ -76,6 +69,8 @@ impl StdError for Error {
 }
 
 impl Display for Error {
+    // IntellijRust does not understand that [non_exhaustive] applies only for downstream crates
+    // noinspection RsMatchCheck
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(error) => write!(f, "{}", error),
@@ -86,7 +81,7 @@ impl Display for Error {
 
             Error::Database(error) => Display::fmt(error, f),
 
-            Error::NotFound => f.write_str("found no rows when we expected at least one"),
+            Error::RowNotFound => f.write_str("found no row when we expected at least one"),
 
             Error::ColumnNotFound(ref name) => {
                 write!(f, "no column found with the name {:?}", name)
@@ -97,10 +92,6 @@ impl Display for Error {
                 "column index out of bounds: there are {} columns but the index is {}",
                 len, index
             ),
-
-            Error::FoundMoreThanOne => {
-                f.write_str("found more than one row when we expected exactly one")
-            }
 
             Error::Protocol(ref err) => f.write_str(err),
 
