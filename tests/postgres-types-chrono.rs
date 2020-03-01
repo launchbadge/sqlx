@@ -50,7 +50,8 @@ async fn postgres_chrono_time() -> anyhow::Result<()> {
     let value = NaiveTime::from_hms_micro(5, 10, 20, 115100);
 
     let row = sqlx::query!(
-        "SELECT TIME '05:10:20.115100' = $1 AS equality, TIME '05:10:20.115100' AS time"
+        "SELECT TIME '05:10:20.115100' = $1 AS equality, TIME '05:10:20.115100' AS time",
+        value,
     )
     .fetch_one(&mut conn)
     .await?;
