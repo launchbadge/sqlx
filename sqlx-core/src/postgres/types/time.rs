@@ -93,7 +93,7 @@ impl Encode<Postgres> for Time {
     fn encode(&self, buf: &mut Vec<u8>) {
         let micros = microseconds_since_midnight(*self);
 
-        Encode::<Postgres>::encode(&(micros), buf);
+        Encode::<Postgres>::encode(&micros, buf);
     }
 
     fn size_hint(&self) -> usize {
@@ -105,7 +105,7 @@ impl Decode<Postgres> for Date {
     fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
         let n: i32 = Decode::<Postgres>::decode(raw)?;
 
-        Ok(date!(2000 - 1 - 1) + (n as i64).days())
+        Ok(date!(2000 - 1 - 1) + n.days())
     }
 }
 

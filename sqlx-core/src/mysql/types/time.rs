@@ -45,7 +45,7 @@ impl Encode<MySql> for Time {
         let len = Encode::<MySql>::size_hint(self) - 1;
         buf.push(len as u8);
 
-        // NaiveTime is not negative
+        // Time is not negative
         buf.push(0);
 
         // "date on 4 bytes little-endian format" (?)
@@ -160,7 +160,7 @@ impl Decode<MySql> for PrimitiveDateTime {
 fn encode_date(date: &Date, buf: &mut Vec<u8>) {
     // MySQL supports years from 1000 - 9999
     let year = u16::try_from(date.year())
-        .unwrap_or_else(|_| panic!("NaiveDateTime out of range for Mysql: {}", date));
+        .unwrap_or_else(|_| panic!("Date out of range for Mysql: {}", date));
 
     buf.extend_from_slice(&year.to_le_bytes());
     buf.push(date.month());
