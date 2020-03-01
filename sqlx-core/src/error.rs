@@ -10,6 +10,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error communicating with the database.
     Io(io::Error),
@@ -54,10 +55,6 @@ pub enum Error {
     TlsUpgrade(Box<dyn StdError + Send + Sync>),
 
     Decode(DecodeError),
-
-    // TODO: Remove and replace with `#[non_exhaustive]` when possible
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl StdError for Error {
@@ -118,8 +115,6 @@ impl Display for Error {
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
             Error::TlsUpgrade(ref err) => write!(f, "error during TLS upgrade: {}", err),
-
-            Error::__Nonexhaustive => unreachable!(),
         }
     }
 }
