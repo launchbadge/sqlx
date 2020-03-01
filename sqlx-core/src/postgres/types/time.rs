@@ -60,14 +60,14 @@ impl HasSqlType<[OffsetDateTime]> for Postgres {
     }
 }
 
-const fn microseconds_since_midnight(time: &Time) -> u64 {
-    time.hour() as u64 * 60 * 60 * 1_000_000
-        + time.minute() as u64 * 60 * 1_000_000
-        + time.second() as u64 * 1_000_000
-        + time.microsecond() as u64
+fn microseconds_since_midnight(time: Time) -> i64 {
+    time.hour() as i64 * 60 * 60 * 1_000_000
+        + time.minute() as i64 * 60 * 1_000_000
+        + time.second() as i64 * 1_000_000
+        + time.microsecond() as i64
 }
 
-fn from_nanoseconds_since_midnight(mut microsecond: u64) -> Result<Time, DecodeError> {
+fn from_microseconds_since_midnight(mut microsecond: u64) -> Result<Time, DecodeError> {
     #![allow(clippy::cast_possible_truncation)]
 
     microsecond %= 86_400 * 1_000_000;
@@ -85,15 +85,15 @@ impl Decode<Postgres> for Time {
     fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
         let micros: i64 = Decode::<Postgres>::decode(raw)?;
 
-        from_nanoseconds_since_midnight(micros as u64)
+        from_microseconds_since_midnight(micros as u64)
     }
 }
 
 impl Encode<Postgres> for Time {
     fn encode(&self, buf: &mut Vec<u8>) {
-        let micros = microseconds_since_midnight(&self) / 1000;
+        let micros = microseconds_since_midnight(*self);
 
-        Encode::<Postgres>::encode(&(micros as i64), buf);
+        Encode::<Postgres>::encode(&(micros), buf);
     }
 
     fn size_hint(&self) -> usize {
@@ -170,6 +170,69 @@ impl Encode<Postgres> for OffsetDateTime {
 
 #[cfg(test)]
 use time::time;
+
+#[test]
+fn test_encode_time() {
+    let mut buf = Vec::new();
+
+    Encode::<Postgres>::encode(&time!(0:00), &mut buf);
+    assert_eq!(buf, [0; 8]);
+    buf.clear();
+
+    // one second
+    Encode::<Postgres>::encode(&time!(0:00:01), &mut buf);
+    assert_eq!(buf, 1_000_000i64.to_be_bytes());
+    buf.clear();
+
+    // two hours
+    Encode::<Postgres>::encode(&time!(2:00), &mut buf);
+    let expected = 1_000_000i64 * 60 * 60 * 2;
+    assert_eq!(buf, expected.to_be_bytes());
+    buf.clear();
+
+    // 3:14:15.000001
+    Encode::<Postgres>::encode(&time!(3:14:15.000001), &mut buf);
+    let expected =
+        1_000_000i64 * 60 * 60 * 3 +
+        1_000_000i64 * 60 * 14 +
+        1_000_000i64 * 15 +
+        1
+    ;
+    assert_eq!(buf, expected.to_be_bytes());
+    buf.clear();
+}
+
+
+#[test]
+fn test_decode_time() {
+    let buf = [0u8; 8];
+    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        time!(0:00),
+    );
+
+    // half an hour
+    let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
+    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        time!(0:30),
+    );
+
+    // 12:53:05.125305
+    let buf = (
+        1_000_000i64 * 60 * 60 * 12 +
+        1_000_000i64 * 60 * 53 +
+        1_000_000i64 * 5 +
+        125305
+    ).to_be_bytes();
+    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        time!(12:53:05.125305),
+    );
+}
 
 #[test]
 fn test_encode_datetime() {

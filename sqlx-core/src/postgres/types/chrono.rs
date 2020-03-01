@@ -174,6 +174,67 @@ fn postgres_epoch() -> DateTime<Utc> {
 }
 
 #[test]
+fn test_encode_time() {
+    let mut buf = Vec::new();
+
+    Encode::<Postgres>::encode(&NaiveTime::from_hms(0, 0, 0), &mut buf);
+    assert_eq!(buf, [0; 8]);
+    buf.clear();
+
+    // one second
+    Encode::<Postgres>::encode(&NaiveTime::from_hms(0, 0, 1), &mut buf);
+    assert_eq!(buf, 1_000_000i64.to_be_bytes());
+    buf.clear();
+
+    // two hours
+    Encode::<Postgres>::encode(&NaiveTime::from_hms(2, 0, 0), &mut buf);
+    let expected = 1_000_000i64 * 60 * 60 * 2;
+    assert_eq!(buf, expected.to_be_bytes());
+    buf.clear();
+
+    // 3:14:15.000001
+    Encode::<Postgres>::encode(&NaiveTime::from_hms_micro(3, 14, 15, 1), &mut buf);
+    let expected =
+        1_000_000i64 * 60 * 60 * 3 +
+        1_000_000i64 * 60 * 14 +
+        1_000_000i64 * 15 +
+        1
+    ;
+    assert_eq!(buf, expected.to_be_bytes());
+    buf.clear();
+}
+#[test]
+fn test_decode_time() {
+    let buf = [0u8; 8];
+    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        NaiveTime::from_hms(0, 0, 0),
+    );
+
+    // half an hour
+    let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
+    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        NaiveTime::from_hms(0, 30, 0),
+    );
+
+    // 12:53:05.125305
+    let buf = (
+        1_000_000i64 * 60 * 60 * 12 +
+        1_000_000i64 * 60 * 53 +
+        1_000_000i64 * 5 +
+        125305
+    ).to_be_bytes();
+    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    assert_eq!(
+        time,
+        NaiveTime::from_hms_micro(12, 53, 5, 125305),
+    );
+}
+
+#[test]
 fn test_encode_datetime() {
     let mut buf = Vec::new();
 

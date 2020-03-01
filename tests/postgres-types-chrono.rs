@@ -5,7 +5,6 @@ async fn connect() -> anyhow::Result<PgConnection> {
     Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn postgres_chrono_date() -> anyhow::Result<()> {
@@ -24,7 +23,6 @@ async fn postgres_chrono_date() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_date_time() -> anyhow::Result<()> {
@@ -51,18 +49,18 @@ async fn postgres_chrono_time() -> anyhow::Result<()> {
 
     let value = NaiveTime::from_hms_micro(5, 10, 20, 115100);
 
-    let row = sqlx::query("SELECT TIME '05:10:20.115100' = $1, TIME '05:10:20.115100'")
-        .bind(&value)
-        .fetch_one(&mut conn)
-        .await?;
+    let row = sqlx::query!(
+        "SELECT TIME '05:10:20.115100' = $1 AS equality, TIME '05:10:20.115100' AS time"
+    )
+    .fetch_one(&mut conn)
+    .await?;
 
-    assert!(row.get::<bool, _>(0));
-    assert_eq!(value, row.get(1));
+    assert!(row.equality);
+    assert_eq!(value, row.time);
 
     Ok(())
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn postgres_chrono_timestamp_tz() -> anyhow::Result<()> {

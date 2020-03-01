@@ -27,7 +27,6 @@ async fn mysql_chrono_date() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_date_time() -> anyhow::Result<()> {
@@ -47,7 +46,6 @@ async fn mysql_chrono_date_time() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_time() -> anyhow::Result<()> {
@@ -66,7 +64,6 @@ async fn mysql_chrono_time() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "chrono", not(feature = "time")))]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn mysql_chrono_timestamp() -> anyhow::Result<()> {
