@@ -1,5 +1,8 @@
-use sqlx::types::chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use sqlx::types::chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{Connection, PgConnection, Row};
+
+#[cfg(all(feature = "chrono", not(feature = "time")))]
+use sqlx::types::chrono::NaiveTime;
 
 async fn connect() -> anyhow::Result<PgConnection> {
     Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
