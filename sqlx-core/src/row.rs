@@ -1,6 +1,6 @@
 //! Contains the Row and FromRow traits.
 
-use crate::database::Database;
+use crate::database::{Database, HasRawValue};
 use crate::decode::Decode;
 use crate::types::Type;
 
@@ -38,10 +38,13 @@ pub trait Row<'c>: Unpin + Send {
         I: ColumnIndex<'c, Self>,
         T: Decode<'c, Self::Database>,
     {
-        Ok(Decode::decode_nullable(self.try_get_raw(index)?)?)
+        Ok(Decode::decode(self.try_get_raw(index)?)?)
     }
 
-    fn try_get_raw<'i, I>(&'c self, index: I) -> crate::Result<Option<&'c [u8]>>
+    fn try_get_raw<'i, I>(
+        &'c self,
+        index: I,
+    ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
     where
         I: ColumnIndex<'c, Self> + 'i;
 }
