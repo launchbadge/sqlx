@@ -25,7 +25,7 @@ async fn postgres_chrono_date() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn mysql_chrono_date_time() -> anyhow::Result<()> {
+async fn postgres_chrono_date_time() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let value = NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20);

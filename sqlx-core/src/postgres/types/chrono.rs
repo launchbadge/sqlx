@@ -7,6 +7,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
+use crate::postgres::row::PgValue;
 use crate::postgres::Postgres;
 use crate::types::Type;
 
@@ -65,8 +66,8 @@ where
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveTime {
-    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
-        let micros: i64 = Decode::<Postgres>::decode(raw)?;
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        let micros: i64 = Decode::<Postgres>::decode(value)?;
 
         Ok(NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(micros))
     }
@@ -87,8 +88,8 @@ impl Encode<Postgres> for NaiveTime {
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveDate {
-    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
-        let days: i32 = Decode::<Postgres>::decode(raw)?;
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        let days: i32 = Decode::<Postgres>::decode(value)?;
 
         Ok(NaiveDate::from_ymd(2000, 1, 1) + Duration::days(days as i64))
     }
@@ -112,8 +113,8 @@ impl Encode<Postgres> for NaiveDate {
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveDateTime {
-    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
-        let micros: i64 = Decode::<Postgres>::decode(raw)?;
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        let micros: i64 = Decode::<Postgres>::decode(value)?;
 
         postgres_epoch()
             .naive_utc()
@@ -146,15 +147,15 @@ impl Encode<Postgres> for NaiveDateTime {
 }
 
 impl<'de> Decode<'de, Postgres> for DateTime<Utc> {
-    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
-        let date_time = Decode::<Postgres>::decode(raw)?;
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        let date_time = Decode::<Postgres>::decode(value)?;
         Ok(DateTime::from_utc(date_time, Utc))
     }
 }
 
 impl<'de> Decode<'de, Postgres> for DateTime<Local> {
-    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
-        let date_time = Decode::<Postgres>::decode(raw)?;
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        let date_time = Decode::<Postgres>::decode(value)?;
         Ok(Local.from_utc_datetime(&date_time))
     }
 }
