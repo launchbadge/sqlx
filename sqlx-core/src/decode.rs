@@ -6,30 +6,22 @@ use std::fmt::{self, Display};
 use crate::database::Database;
 use crate::types::Type;
 
-pub enum DecodeError {
-    /// An unexpected `NULL` was encountered while decoding.
-    UnexpectedNull,
-
-    Message(Box<dyn Display + Send + Sync>),
-
-    Other(Box<dyn StdError + Send + Sync>),
-}
-
 /// Decode a single value from the database.
-pub trait Decode<DB>: Sized
+pub trait Decode<'de, DB>
 where
-    DB: Database + ?Sized,
+    Self: Sized,
+    DB: Database,
 {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError>;
+    fn decode(raw: &'de [u8]) -> crate::Result<Self>;
 
     /// Creates a new value of this type from a `NULL` SQL value.
     ///
     /// The default implementation returns [DecodeError::UnexpectedNull].
-    fn decode_null() -> Result<Self, DecodeError> {
-        Err(DecodeError::UnexpectedNull)
+    fn decode_null() -> crate::Result<Self> {
+        Err(crate::Error::Decode(UnexpectedNullError.into()))
     }
 
-    fn decode_nullable(raw: Option<&[u8]>) -> Result<Self, DecodeError> {
+    fn decode_nullable(raw: Option<&'de [u8]>) -> crate::Result<Self> {
         if let Some(raw) = raw {
             Self::decode(raw)
         } else {
@@ -38,50 +30,32 @@ where
     }
 }
 
-impl<T, DB> Decode<DB> for Option<T>
+impl<'de, T, DB> Decode<'de, DB> for Option<T>
 where
     DB: Database,
     T: Type<DB>,
-    T: Decode<DB>,
+    T: Decode<'de, DB>,
 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         T::decode(buf).map(Some)
     }
 
-    fn decode_null() -> Result<Self, DecodeError> {
+    fn decode_null() -> crate::Result<Self> {
         Ok(None)
     }
 }
 
-impl fmt::Debug for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("DecodeError(")?;
+/// An unexpected `NULL` was encountered during decoding.
+///
+/// Returned from `Row::try_get` if the value from the database is `NULL`
+/// and you are not decoding into an `Option`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnexpectedNullError;
 
-        match self {
-            DecodeError::UnexpectedNull => write!(f, "unexpected null for non-null column")?,
-            DecodeError::Message(err) => write!(f, "{}", err)?,
-            DecodeError::Other(err) => write!(f, "{:?}", err)?,
-        }
-
-        f.write_str(")")
+impl Display for UnexpectedNullError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("unexpected null; try decoding as an `Option`")
     }
 }
 
-impl fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DecodeError::UnexpectedNull => f.write_str("unexpected null for non-null column"),
-            DecodeError::Message(err) => write!(f, "{}", err),
-            DecodeError::Other(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl<E> From<E> for DecodeError
-where
-    E: StdError + Send + Sync + 'static,
-{
-    fn from(err: E) -> DecodeError {
-        DecodeError::Other(Box::new(err))
-    }
-}
+impl StdError for UnexpectedNullError {}

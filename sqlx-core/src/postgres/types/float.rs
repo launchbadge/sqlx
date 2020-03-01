@@ -1,4 +1,4 @@
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
@@ -23,8 +23,8 @@ impl Encode<Postgres> for f32 {
     }
 }
 
-impl Decode<Postgres> for f32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for f32 {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(f32::from_bits(
             <i32 as Decode<Postgres>>::decode(buf)? as u32
         ))
@@ -49,8 +49,8 @@ impl Encode<Postgres> for f64 {
     }
 }
 
-impl Decode<Postgres> for f64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for f64 {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(f64::from_bits(
             <i64 as Decode<Postgres>>::decode(buf)? as u64
         ))

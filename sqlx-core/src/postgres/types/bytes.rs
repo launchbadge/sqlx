@@ -1,4 +1,4 @@
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
@@ -17,7 +17,6 @@ impl Type<Postgres> for [&'_ [u8]] {
     }
 }
 
-// TODO: Do we need the [HasSqlType] here on the Vec?
 impl Type<Postgres> for Vec<u8> {
     fn type_info() -> PgTypeInfo {
         <[u8] as Type<Postgres>>::type_info()
@@ -36,8 +35,14 @@ impl Encode<Postgres> for Vec<u8> {
     }
 }
 
-impl Decode<Postgres> for Vec<u8> {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for Vec<u8> {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(buf.to_vec())
+    }
+}
+
+impl<'de> Decode<'de, Postgres> for &'de [u8] {
+    fn decode(buf: &'de [u8]) -> crate::Result<&'de [u8]> {
+        Ok(buf)
     }
 }

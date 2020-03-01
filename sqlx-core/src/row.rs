@@ -27,9 +27,8 @@ pub trait Row<'c>: Unpin + Send {
     where
         T: Type<Self::Database>,
         I: ColumnIndex<'c, Self>,
-        T: Decode<Self::Database>,
+        T: Decode<'c, Self::Database>,
     {
-        // todo: use expect with a proper message
         self.try_get(index).unwrap()
     }
 
@@ -37,7 +36,7 @@ pub trait Row<'c>: Unpin + Send {
     where
         T: Type<Self::Database>,
         I: ColumnIndex<'c, Self>,
-        T: Decode<Self::Database>,
+        T: Decode<'c, Self::Database>,
     {
         Ok(Decode::decode_nullable(self.try_get_raw(index)?)?)
     }

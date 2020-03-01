@@ -3,7 +3,7 @@ use std::mem;
 
 use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
@@ -28,7 +28,7 @@ impl Type<Postgres> for NaiveDateTime {
     }
 }
 
-impl<Tz> Type<DateTime<Tz>> for Postgres
+impl<Tz> Type<Postgres> for DateTime<Tz>
 where
     Tz: TimeZone,
 {
@@ -55,7 +55,7 @@ impl Type<Postgres> for [NaiveDateTime] {
     }
 }
 
-impl<Tz> Type<[DateTime<Tz>]> for Postgres
+impl<Tz> Type<Postgres> for [DateTime<Tz>]
 where
     Tz: TimeZone,
 {
@@ -64,8 +64,8 @@ where
     }
 }
 
-impl Decode<Postgres> for NaiveTime {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for NaiveTime {
+    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
         let micros: i64 = Decode::<Postgres>::decode(raw)?;
 
         Ok(NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(micros))
@@ -86,8 +86,8 @@ impl Encode<Postgres> for NaiveTime {
     }
 }
 
-impl Decode<Postgres> for NaiveDate {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for NaiveDate {
+    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
         let days: i32 = Decode::<Postgres>::decode(raw)?;
 
         Ok(NaiveDate::from_ymd(2000, 1, 1) + Duration::days(days as i64))
@@ -111,18 +111,21 @@ impl Encode<Postgres> for NaiveDate {
     }
 }
 
-impl Decode<Postgres> for NaiveDateTime {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for NaiveDateTime {
+    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
         let micros: i64 = Decode::<Postgres>::decode(raw)?;
 
         postgres_epoch()
             .naive_utc()
             .checked_add_signed(Duration::microseconds(micros))
             .ok_or_else(|| {
-                DecodeError::Message(Box::new(format!(
-                    "Postgres timestamp out of range for NaiveDateTime: {:?}",
-                    micros
-                )))
+                crate::Error::Decode(
+                    format!(
+                        "Postgres timestamp out of range for NaiveDateTime: {:?}",
+                        micros
+                    )
+                    .into(),
+                )
             })
     }
 }
@@ -142,15 +145,15 @@ impl Encode<Postgres> for NaiveDateTime {
     }
 }
 
-impl Decode<Postgres> for DateTime<Utc> {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for DateTime<Utc> {
+    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
         let date_time = Decode::<Postgres>::decode(raw)?;
         Ok(DateTime::from_utc(date_time, Utc))
     }
 }
 
-impl Decode<Postgres> for DateTime<Local> {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for DateTime<Local> {
+    fn decode(raw: &'de [u8]) -> crate::Result<Self> {
         let date_time = Decode::<Postgres>::decode(raw)?;
         Ok(Local.from_utc_datetime(&date_time))
     }

@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
@@ -25,8 +25,8 @@ impl Encode<Postgres> for Uuid {
     }
 }
 
-impl Decode<Postgres> for Uuid {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Uuid::from_slice(buf).map_err(|err| DecodeError::Message(Box::new(err)))
+impl<'de> Decode<'de, Postgres> for Uuid {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
+        Uuid::from_slice(buf).map_err(|err| crate::Error::Decode(Box::new(err)))
     }
 }
