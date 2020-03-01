@@ -83,7 +83,7 @@ impl QueryMacroInput {
         conn: &mut C,
     ) -> crate::Result<Describe<C::Database>> {
         let describe = conn
-            .describe(&self.source)
+            .describe(&*self.source)
             .await
             .map_err(|e| syn::Error::new(self.source_span, e))?;
 
