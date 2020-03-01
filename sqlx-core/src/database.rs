@@ -12,7 +12,7 @@ use crate::types::TypeInfo;
 /// database (e.g., MySQL, Postgres).
 pub trait Database
 where
-    Self: Sized + 'static,
+    Self: Sized + Send + 'static,
     Self: for<'a> HasRow<'a, Database = Self>,
     Self: for<'a> HasRawValue<'a>,
     Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,

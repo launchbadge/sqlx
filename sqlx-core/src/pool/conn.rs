@@ -60,8 +60,6 @@ impl<C> Connection for PoolConnection<C>
 where
     C: Connect,
 {
-    type Database = C::Database;
-
     /// Detach the connection from the pool and close it nicely.
     fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move {
@@ -73,15 +71,6 @@ where
     #[inline]
     fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         Box::pin(self.deref_mut().ping())
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        Box::pin(self.deref_mut().describe(query))
     }
 }
 
