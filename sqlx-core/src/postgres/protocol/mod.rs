@@ -71,5 +71,5 @@ pub use notification_response::NotificationResponse;
 pub use parameter_description::ParameterDescription;
 pub use parameter_status::ParameterStatus;
 pub use ready_for_query::ReadyForQuery;
-pub use response::Response;
+pub use response::{Response, Severity};
 pub use row_description::{Field, RowDescription};
