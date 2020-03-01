@@ -76,7 +76,7 @@ name = "postgres"
 required-features = [ "postgres" ]
 
 [[test]]
-name = "postgres-unprepared"
+name = "postgres-simple"
 required-features = [ "postgres" ]
 
 [[test]]

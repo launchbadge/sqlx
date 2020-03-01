@@ -49,6 +49,6 @@ impl Encode<Postgres> for f64 {
 
 impl<'de> Decode<'de, Postgres> for f64 {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        <i32 as Decode<Postgres>>::decode(value).map(|value| f64::from_bits(value as u64))
+        <i64 as Decode<Postgres>>::decode(value).map(|value| f64::from_bits(value as u64))
     }
 }
