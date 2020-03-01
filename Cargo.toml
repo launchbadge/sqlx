@@ -30,7 +30,7 @@ features = [ "tls", "postgres", "mysql", "uuid", "chrono", "time" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ "macros", "runtime-async-std", "time", "postgres" ]
+default = [ "macros", "runtime-async-std" ]
 macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
