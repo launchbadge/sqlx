@@ -13,8 +13,8 @@ use crate::types::TypeInfo;
 pub trait Database
 where
     Self: Sized + Send + 'static,
-    Self: for<'a> HasRow<'a, Database = Self>,
-    Self: for<'a> HasRawValue<'a>,
+    Self: for<'c> HasRow<'c, Database = Self>,
+    Self: for<'c> HasRawValue<'c>,
     Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,
 {
     /// The concrete `Connection` implementation for this database.
@@ -30,7 +30,7 @@ where
     type TableId: Display + Clone;
 }
 
-pub trait HasRawValue<'a> {
+pub trait HasRawValue<'c> {
     type RawValue;
 }
 
@@ -40,8 +40,8 @@ pub trait HasCursor<'c, 'q> {
     type Cursor: Cursor<'c, 'q, Database = Self::Database>;
 }
 
-pub trait HasRow<'a> {
+pub trait HasRow<'c> {
     type Database: Database;
 
-    type Row: Row<'a, Database = Self::Database>;
+    type Row: Row<'c, Database = Self::Database>;
 }
