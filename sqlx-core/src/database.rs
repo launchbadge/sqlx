@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::arguments::Arguments;
-use crate::connection::Connection;
+use crate::connection::{Connect, Connection};
 use crate::cursor::Cursor;
 use crate::row::Row;
 use crate::types::TypeInfo;
@@ -18,7 +18,7 @@ where
     Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,
 {
     /// The concrete `Connection` implementation for this database.
-    type Connection: Connection<Database = Self>;
+    type Connection: Connect<Database = Self>;
 
     /// The concrete `Arguments` implementation for this database.
     type Arguments: Arguments<Database = Self>;
