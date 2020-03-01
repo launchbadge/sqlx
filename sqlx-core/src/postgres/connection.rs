@@ -1,18 +1,20 @@
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ops::Range;
+use std::sync::Arc;
 
 use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
 use futures_core::Future;
 use futures_util::TryFutureExt;
 
-use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::describe::{Column, Describe};
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{
     self, Authentication, AuthenticationMd5, AuthenticationSasl, Decode, Encode, Message,
     ParameterDescription, PasswordMessage, RowDescription, StartupMessage, StatementId, Terminate,
+    TypeFormat,
 };
 use crate::postgres::sasl;
 use crate::postgres::stream::PgStream;
@@ -86,6 +88,10 @@ pub struct PgConnection {
     pub(super) stream: PgStream,
     pub(super) next_statement_id: u32,
     pub(super) is_ready: bool,
+
+    pub(super) cache_statement: HashMap<Box<str>, StatementId>,
+    pub(super) cache_statement_columns: HashMap<StatementId, Arc<HashMap<Box<str>, usize>>>,
+    pub(super) cache_statement_formats: HashMap<StatementId, Arc<[TypeFormat]>>,
 
     // Work buffer for the value ranges of the current row
     // This is used as the backing memory for each Row's value indexes
@@ -238,6 +244,9 @@ impl PgConnection {
             current_row_values: Vec::with_capacity(10),
             next_statement_id: 1,
             is_ready: true,
+            cache_statement: HashMap::new(),
+            cache_statement_columns: HashMap::new(),
+            cache_statement_formats: HashMap::new(),
         })
     }
 }

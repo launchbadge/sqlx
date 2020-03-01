@@ -8,7 +8,7 @@ pub trait ColumnIndex<'c, R: ?Sized>
 where
     R: Row<'c>,
 {
-    fn try_resolve(self, row: &'c R) -> crate::Result<usize>;
+    fn resolve(self, row: &'c R) -> crate::Result<usize>;
 }
 
 /// Represents a single row of the result set.
@@ -23,25 +23,16 @@ pub trait Row<'c>: Unpin + Send {
     /// Returns the number of values in the row.
     fn len(&self) -> usize;
 
-    fn get<T, I>(&'c self, index: I) -> T
+    fn get<T, I>(&'c self, index: I) -> crate::Result<T>
     where
         T: Type<Self::Database>,
         I: ColumnIndex<'c, Self>,
         T: Decode<'c, Self::Database>,
     {
-        self.try_get(index).unwrap()
+        Ok(Decode::decode(self.get_raw(index)?)?)
     }
 
-    fn try_get<T, I>(&'c self, index: I) -> crate::Result<T>
-    where
-        T: Type<Self::Database>,
-        I: ColumnIndex<'c, Self>,
-        T: Decode<'c, Self::Database>,
-    {
-        Ok(Decode::decode(self.try_get_raw(index)?)?)
-    }
-
-    fn try_get_raw<'i, I>(
+    fn get_raw<'i, I>(
         &'c self,
         index: I,
     ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
@@ -52,12 +43,14 @@ pub trait Row<'c>: Unpin + Send {
 /// A **record** that can be built from a row returned from by the database.
 pub trait FromRow<'a, R>
 where
+    Self: Sized,
     R: Row<'a>,
 {
-    fn from_row(row: R) -> Self;
+    fn from_row(row: R) -> crate::Result<Self>;
 }
 
-// Macros to help unify the internal implementations as a good chunk is very similar
+// Macros to help unify the internal implementations as a good chunk
+// is very similar
 
 #[allow(unused_macros)]
 macro_rules! impl_map_row_for_row {
@@ -79,7 +72,7 @@ macro_rules! impl_map_row_for_row {
 macro_rules! impl_column_index_for_row {
     ($R:ident) => {
         impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for usize {
-            fn try_resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
+            fn resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
                 if self >= row.len() {
                     return Err(crate::Error::ColumnIndexOutOfBounds {
                         len: row.len(),
@@ -92,7 +85,7 @@ macro_rules! impl_column_index_for_row {
         }
 
         impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for &'_ str {
-            fn try_resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
+            fn resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
                 row.columns
                     .get(self)
                     .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
@@ -107,8 +100,8 @@ macro_rules! impl_from_row_for_row {
     ($R:ident) => {
         impl<'c> crate::row::FromRow<'c, $R<'c>> for $R<'c> {
             #[inline]
-            fn from_row(row: $R<'c>) -> Self {
-                row
+            fn from_row(row: $R<'c>) -> crate::Result<Self> {
+                Ok(row)
             }
         }
     };

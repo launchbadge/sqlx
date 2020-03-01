@@ -36,7 +36,7 @@ where
 ///
 /// Returned by [Query::map], `query!()`, etc. Has most of the same methods as [Query] but
 /// the return types are changed to reflect the mapping. However, there is no equivalent of
-/// [Query::execute] as it doesn't make much sense to map the result type and then ignore it.
+/// [Query::execute] as it doesn't make sense to map the result type and then ignore it.
 pub struct Map<'q, DB, F, A = <DB as Database>::Arguments>
 where
     DB: Database,
@@ -98,8 +98,6 @@ where
     /// Map each row in the result to another type.
     ///
     /// The returned type has most of the same methods but does not have [`.execute()`][Query::execute].
-    ///
-    /// The mapping function returns [`crate::Result`] so [`Row::try_get`] can be used.
     ///
     /// Stylistically, we recommend placing this call after any [`.bind()`][Query::bind]
     /// calls, just before [`.fetch()`][Query::fetch], etc.
@@ -268,5 +266,5 @@ where
     DB: Database,
     T: Unpin + for<'c> FromRow<'c, <DB as HasRow<'c>>::Row>,
 {
-    query(sql).map(|row| Ok(T::from_row(row)))
+    query(sql).map(|row| T::from_row(row))
 }

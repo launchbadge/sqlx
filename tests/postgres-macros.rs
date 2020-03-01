@@ -1,4 +1,4 @@
-use sqlx::{Connect, Executor, PgConnection};
+use sqlx::{Connect, PgConnection};
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -148,11 +148,13 @@ async fn test_nullable_err() -> anyhow::Result<()> {
     .await
     .unwrap_err();
 
-    if let sqlx::Error::Decode(sqlx::decode::DecodeError::UnexpectedNull) = err {
-        Ok(())
-    } else {
-        panic!("expected `UnexpectedNull`, got {}", err)
+    if let sqlx::Error::Decode(err) = &err {
+        if let Some(sqlx::error::UnexpectedNullError) = err.downcast_ref() {
+            return Ok(());
+        }
     }
+
+    panic!("expected `UnexpectedNullError`, got {}", err)
 }
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]

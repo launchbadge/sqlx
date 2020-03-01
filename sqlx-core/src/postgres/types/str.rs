@@ -1,11 +1,13 @@
-use std::str;
+use std::convert::TryInto;
+use std::str::from_utf8;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
 use crate::types::Type;
-use crate::Postgres;
+use crate::{Error, Postgres};
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
@@ -19,7 +21,6 @@ impl Type<Postgres> for [&'_ str] {
     }
 }
 
-// TODO: Do we need [Type] on String here?
 impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
         <str as Type<Postgres>>::type_info()
@@ -47,13 +48,16 @@ impl Encode<Postgres> for String {
 }
 
 impl<'de> Decode<'de, Postgres> for String {
-    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
+    fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Self> {
         <&'de str>::decode(buf).map(ToOwned::to_owned)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for &'de str {
-    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
-        str::from_utf8(buf).map_err(|err| crate::Error::Decode(Box::new(err)))
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => from_utf8(buf).map_err(Error::decode),
+            PgValue::Text(s) => Ok(s),
+        }
     }
 }

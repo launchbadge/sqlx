@@ -14,15 +14,16 @@ pub enum Message {
     CloseComplete,
     CommandComplete,
     DataRow,
+    EmptyQueryResponse,
+    ErrorResponse,
     NoData,
+    NoticeResponse,
     NotificationResponse,
     ParameterDescription,
     ParameterStatus,
     ParseComplete,
     PortalSuspended,
     ReadyForQuery,
-    NoticeResponse,
-    ErrorResponse,
     RowDescription,
 }
 
@@ -48,6 +49,7 @@ impl TryFrom<u8> for Message {
             b's' => Message::PortalSuspended,
             b't' => Message::ParameterDescription,
             b'T' => Message::RowDescription,
+            b'I' => Message::EmptyQueryResponse,
 
             id => {
                 return Err(protocol_err!("unknown message: {:?}", id).into());

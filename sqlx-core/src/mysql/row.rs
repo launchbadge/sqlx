@@ -25,12 +25,12 @@ impl Row for MySqlRow {
         I: RowIndex<Self>,
         T: Decode<Self::Database>,
     {
-        index.try_get(self).unwrap()
+        index.get(self).unwrap()
     }
 }
 
 impl RowIndex<MySqlRow> for usize {
-    fn try_get<T>(&self, row: &MySqlRow) -> crate::Result<T>
+    fn get<T>(&self, row: &MySqlRow) -> crate::Result<T>
     where
         <MySqlRow as Row>::Database: Type<T>,
         T: Decode<<MySqlRow as Row>::Database>,
@@ -40,7 +40,7 @@ impl RowIndex<MySqlRow> for usize {
 }
 
 impl RowIndex<MySqlRow> for &'_ str {
-    fn try_get<T>(&self, row: &MySqlRow) -> crate::Result<T>
+    fn get<T>(&self, row: &MySqlRow) -> crate::Result<T>
     where
         <MySqlRow as Row>::Database: Type<T>,
         T: Decode<<MySqlRow as Row>::Database>,

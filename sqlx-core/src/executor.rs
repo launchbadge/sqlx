@@ -69,7 +69,6 @@ where
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    #[doc(hidden)]
     fn into_parts(self) -> (&'q str, Option<DB::Arguments>);
 }
 

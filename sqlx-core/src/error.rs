@@ -23,7 +23,7 @@ pub enum Error {
     /// No row was returned during [`Map::fetch_one`] or [`QueryAs::fetch_one`].
     RowNotFound,
 
-    /// Column was not found by name in a Row (during [`Row::try_get`]).
+    /// Column was not found by name in a Row (during [`Row::get`]).
     ColumnNotFound(Box<str>),
 
     /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
@@ -49,6 +49,15 @@ pub enum Error {
 
     /// An error occurred decoding data received from the database.
     Decode(Box<dyn StdError + Send + Sync>),
+}
+
+impl Error {
+    pub(crate) fn decode<E>(err: E) -> Self
+    where
+        E: StdError + Send + Sync + 'static,
+    {
+        Error::Decode(err.into())
+    }
 }
 
 impl StdError for Error {
@@ -232,3 +241,18 @@ macro_rules! impl_fmt_error {
         }
     };
 }
+
+/// An unexpected `NULL` was encountered during decoding.
+///
+/// Returned from `Row::get` if the value from the database is `NULL`
+/// and you are not decoding into an `Option`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnexpectedNullError;
+
+impl Display for UnexpectedNullError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("unexpected null; try decoding as an `Option`")
+    }
+}
+
+impl StdError for UnexpectedNullError {}
