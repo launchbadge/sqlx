@@ -1,5 +1,5 @@
-use sqlx::{PgConnection, Connect, Row};
 use sqlx::postgres::PgRow;
+use sqlx::{Connect, PgConnection, Row};
 
 async fn connect() -> anyhow::Result<PgConnection> {
     Ok(PgConnection::connect(dotenv::var("DATABASE_URL")?).await?)

@@ -62,7 +62,8 @@ pub(crate) fn expand_derive_decode(input: DeriveInput) -> syn::Result<proc_macro
             if cfg!(feature = "postgres") {
                 let mut generics = generics.clone();
                 generics.params.insert(0, parse_quote!('de));
-                generics.make_where_clause()
+                generics
+                    .make_where_clause()
                     .predicates
                     .push(parse_quote!(#ty: sqlx::decode::Decode<'de, sqlx::Postgres>));
 

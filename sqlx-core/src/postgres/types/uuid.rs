@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::row::PgValue;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::Type;

@@ -1,9 +1,7 @@
 use futures::TryStreamExt;
-use sqlx::{
-    postgres::PgConnection, Connect, Executor, Row,
-};
-use std::time::Duration;
 use sqlx::postgres::{PgPool, PgRow};
+use sqlx::{postgres::PgConnection, Connect, Executor, Row};
+use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]

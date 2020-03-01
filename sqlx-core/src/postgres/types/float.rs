@@ -1,5 +1,11 @@
+use std::convert::TryInto;
+use std::str::FromStr;
+
+use byteorder::{ReadBytesExt, NetworkEndian};
+
 use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::error::Error;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::{PgValue, Postgres};
@@ -25,7 +31,14 @@ impl Encode<Postgres> for f32 {
 
 impl<'de> Decode<'de, Postgres> for f32 {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        <i32 as Decode<Postgres>>::decode(value).map(|value| f32::from_bits(value as u32))
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf
+                .read_i32::<NetworkEndian>()
+                .map_err(Error::decode)
+                .map(|value| f32::from_bits(value as u32)),
+
+            PgValue::Text(s) => f32::from_str(s).map_err(Error::decode),
+        }
     }
 }
 
@@ -49,6 +62,13 @@ impl Encode<Postgres> for f64 {
 
 impl<'de> Decode<'de, Postgres> for f64 {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        <i64 as Decode<Postgres>>::decode(value).map(|value| f64::from_bits(value as u64))
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf
+                .read_i64::<NetworkEndian>()
+                .map_err(Error::decode)
+                .map(|value| f64::from_bits(value as u64)),
+
+            PgValue::Text(s) => f64::from_str(s).map_err(Error::decode),
+        }
     }
 }

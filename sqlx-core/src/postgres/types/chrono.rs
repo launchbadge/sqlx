@@ -6,8 +6,8 @@ use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, Tim
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
 use crate::postgres::row::PgValue;
+use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::Type;
 
