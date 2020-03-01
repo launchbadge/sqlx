@@ -52,7 +52,8 @@ async fn postgres_timers_time() -> anyhow::Result<()> {
     let value = Time::try_from_hms_micro(5, 10, 20, 115100).unwrap();
 
     let row = sqlx::query!(
-        "SELECT TIME '05:10:20.115100' = $1 AS equality, TIME '05:10:20.115100' AS time", value
+        "SELECT TIME '05:10:20.115100' = $1 AS equality, TIME '05:10:20.115100' AS time",
+        value
     )
     .fetch_one(&mut conn)
     .await?;

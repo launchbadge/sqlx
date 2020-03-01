@@ -192,46 +192,27 @@ fn test_encode_time() {
 
     // 3:14:15.000001
     Encode::<Postgres>::encode(&time!(3:14:15.000001), &mut buf);
-    let expected =
-        1_000_000i64 * 60 * 60 * 3 +
-        1_000_000i64 * 60 * 14 +
-        1_000_000i64 * 15 +
-        1
-    ;
+    let expected = 1_000_000i64 * 60 * 60 * 3 + 1_000_000i64 * 60 * 14 + 1_000_000i64 * 15 + 1;
     assert_eq!(buf, expected.to_be_bytes());
     buf.clear();
 }
-
 
 #[test]
 fn test_decode_time() {
     let buf = [0u8; 8];
     let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
-    assert_eq!(
-        time,
-        time!(0:00),
-    );
+    assert_eq!(time, time!(0:00));
 
     // half an hour
     let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
     let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
-    assert_eq!(
-        time,
-        time!(0:30),
-    );
+    assert_eq!(time, time!(0:30));
 
     // 12:53:05.125305
-    let buf = (
-        1_000_000i64 * 60 * 60 * 12 +
-        1_000_000i64 * 60 * 53 +
-        1_000_000i64 * 5 +
-        125305
-    ).to_be_bytes();
+    let buf = (1_000_000i64 * 60 * 60 * 12 + 1_000_000i64 * 60 * 53 + 1_000_000i64 * 5 + 125305)
+        .to_be_bytes();
     let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
-    assert_eq!(
-        time,
-        time!(12:53:05.125305),
-    );
+    assert_eq!(time, time!(12:53:05.125305));
 }
 
 #[test]
