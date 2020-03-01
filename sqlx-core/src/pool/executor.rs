@@ -6,7 +6,7 @@ use futures_util::StreamExt;
 use crate::{
     connection::{Connect, Connection},
     describe::Describe,
-    executor::Executor,
+    executor::{Executor, RefExecutor},
     pool::Pool,
     Cursor, Database,
 };
@@ -15,85 +15,100 @@ use super::PoolConnection;
 use crate::database::HasCursor;
 use crate::executor::Execute;
 
-impl<'p, C, DB> Executor<'p> for &'p Pool<C>
+impl<'p, C, DB> Executor for &'p Pool<C>
 where
     C: Connect<Database = DB>,
     DB: Database<Connection = C>,
     DB: for<'c, 'q> HasCursor<'c, 'q, Database = DB>,
-    for<'con> &'con mut C: Executor<'con>,
 {
     type Database = DB;
 
-    fn fetch<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
+    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        Box::pin(async move { self.acquire().await?.execute(query).await })
+    }
+
+    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
     where
         E: Execute<'q, DB>,
     {
         DB::Cursor::from_pool(self, query)
     }
 
-    #[doc(hidden)]
-    #[inline]
-    fn fetch_by_ref<'q, 'e, E>(
+    fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
     where
-        E: Execute<'q, DB>,
+        E: Execute<'q, Self::Database>,
     {
-        self.fetch(query)
+        Box::pin(async move { self.acquire().await?.describe(query).await })
     }
 }
 
-impl<'c, C, DB> Executor<'c> for &'c mut PoolConnection<C>
+impl<'p, C, DB> RefExecutor<'p> for &'p Pool<C>
+where
+    C: Connect<Database = DB>,
+    DB: Database<Connection = C>,
+    DB: for<'c, 'q> HasCursor<'c, 'q>,
+    for<'c> &'c mut C: RefExecutor<'c>,
+{
+    type Database = DB;
+
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
+    where
+        E: Execute<'q, DB>,
+    {
+        DB::Cursor::from_pool(self, query)
+    }
+}
+
+impl<C> Executor for PoolConnection<C>
+where
+    C: Connect,
+{
+    type Database = C::Database;
+
+    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).execute(query)
+    }
+
+    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <C::Database as HasCursor<'_, 'q>>::Cursor
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).fetch(query)
+    }
+
+    fn describe<'e, 'q, E: 'e>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).describe(query)
+    }
+}
+
+impl<'c, C, DB> RefExecutor<'c> for &'c mut PoolConnection<C>
 where
     C: Connect<Database = DB>,
     DB: Database<Connection = C>,
     DB: for<'c2, 'q> HasCursor<'c2, 'q, Database = DB>,
-    for<'con> &'con mut C: Executor<'con>,
-{
-    type Database = C::Database;
-
-    fn fetch<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        DB::Cursor::from_connection(&mut **self, query)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn fetch_by_ref<'q, 'e, E>(
-        &'e mut self,
-        query: E,
-    ) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        self.fetch(query)
-    }
-}
-
-impl<C, DB> Executor<'static> for PoolConnection<C>
-where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
-    DB: for<'c, 'q> HasCursor<'c, 'q, Database = DB>,
+    &'c mut C: RefExecutor<'c, Database = DB>,
 {
     type Database = DB;
 
-    fn fetch<'q, E>(self, query: E) -> <DB as HasCursor<'static, 'q>>::Cursor
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
-        DB::Cursor::from_connection(self, query)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn fetch_by_ref<'q, 'e, E>(&'e mut self, query: E) -> <DB as HasCursor<'_, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        DB::Cursor::from_connection(&mut **self, query)
+        (**self).fetch(query)
     }
 }

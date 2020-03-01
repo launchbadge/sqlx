@@ -17,20 +17,13 @@ use crate::url::Url;
 pub trait Connection
 where
     Self: Send + 'static,
+    Self: Executor,
 {
-    type Database: Database;
-
     /// Close this database connection.
     fn close(self) -> BoxFuture<'static, crate::Result<()>>;
 
     /// Verifies a connection to the database is still alive.
     fn ping(&mut self) -> BoxFuture<crate::Result<()>>;
-
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>;
 }
 
 /// Represents a type that can directly establish a new connection.
@@ -75,10 +68,9 @@ where
     }
 }
 
-impl<'c, C, DB> ConnectionSource<'c, C>
+impl<'c, C> ConnectionSource<'c, C>
 where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
+    C: Connect,
 {
     pub(crate) async fn resolve_by_ref(&mut self) -> crate::Result<MaybeOwnedConnection<'_, C>> {
         if let ConnectionSource::Pool(pool) = self {

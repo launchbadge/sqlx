@@ -10,10 +10,9 @@ pub struct Builder<C> {
     options: Options,
 }
 
-impl<C, DB> Builder<C>
+impl<C> Builder<C>
 where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
+    C: Connect,
 {
     /// Get a new builder with default options.
     ///

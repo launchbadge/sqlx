@@ -18,18 +18,9 @@ use crate::postgres::{PgArguments, PgConnection, PgRow};
 use crate::{Database, Postgres};
 use futures_core::Stream;
 
-enum State<'c, 'q> {
-    Query(&'q str, Option<PgArguments>),
-    NextRow,
-
-    // Used for `impl Future`
-    Resolve(BoxFuture<'c, crate::Result<MaybeOwnedConnection<'c, PgConnection>>>),
-    AffectedRows(BoxFuture<'c, crate::Result<u64>>),
-}
-
 pub struct PgCursor<'c, 'q> {
     source: ConnectionSource<'c, PgConnection>,
-    state: State<'c, 'q>,
+    query: Option<(&'q str, Option<PgArguments>)>,
 }
 
 impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
@@ -41,12 +32,9 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         Self: Sized,
         E: Execute<'q, Postgres>,
     {
-        let (query, arguments) = query.into_parts();
-
         Self {
-            // note: pool is internally reference counted
             source: ConnectionSource::Pool(pool.clone()),
-            state: State::Query(query, arguments),
+            query: Some(query.into_parts()),
         }
     }
 
@@ -57,12 +45,9 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         C: Into<MaybeOwnedConnection<'c, PgConnection>>,
         E: Execute<'q, Postgres>,
     {
-        let (query, arguments) = query.into_parts();
-
         Self {
-            // note: pool is internally reference counted
             source: ConnectionSource::Connection(conn.into()),
-            state: State::Query(query, arguments),
+            query: Some(query.into_parts()),
         }
     }
 
@@ -71,164 +56,16 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     }
 }
 
-impl<'s, 'q> Future for PgCursor<'s, 'q> {
-    type Output = crate::Result<u64>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        loop {
-            match &mut self.state {
-                State::Query(q, arguments) => {
-                    // todo: existential types can remove both the boxed futures
-                    //       and this allocation
-                    let query = q.to_owned();
-                    let arguments = mem::take(arguments);
-
-                    self.state = State::Resolve(Box::pin(resolve(
-                        mem::take(&mut self.source),
-                        query,
-                        arguments,
-                    )));
-                }
-
-                State::Resolve(fut) => {
-                    match fut.as_mut().poll(cx) {
-                        Poll::Pending => {
-                            return Poll::Pending;
-                        }
-
-                        Poll::Ready(conn) => {
-                            let conn = conn?;
-
-                            self.state = State::AffectedRows(Box::pin(affected_rows(conn)));
-
-                            // continue
-                        }
-                    }
-                }
-
-                State::NextRow => {
-                    panic!("PgCursor must not be polled after being used");
-                }
-
-                State::AffectedRows(fut) => {
-                    return fut.as_mut().poll(cx);
-                }
-            }
-        }
-    }
-}
-
-// write out query to the connection stream
-async fn write(
-    conn: &mut PgConnection,
-    query: &str,
-    arguments: Option<PgArguments>,
-) -> crate::Result<()> {
-    if let Some(arguments) = arguments {
-        // Check the statement cache for a statement ID that matches the given query
-        // If it doesn't exist, we generate a new statement ID and write out [Parse] to the
-        // connection command buffer
-        let statement = conn.write_prepare(query, &arguments);
-
-        // Next, [Bind] attaches the arguments to the statement and creates a named portal
-        conn.write_bind("", statement, &arguments);
-
-        // Next, [Describe] will return the expected result columns and types
-        // Conditionally run [Describe] only if the results have not been cached
-        // if !self.statement_cache.has_columns(statement) {
-        //     self.write_describe(protocol::Describe::Portal(""));
-        // }
-
-        // Next, [Execute] then executes the named portal
-        conn.write_execute("", 0);
-
-        // Finally, [Sync] asks postgres to process the messages that we sent and respond with
-        // a [ReadyForQuery] message when it's completely done. Theoretically, we could send
-        // dozens of queries before a [Sync] and postgres can handle that. Execution on the server
-        // is still serial but it would reduce round-trips. Some kind of builder pattern that is
-        // termed batching might suit this.
-        conn.write_sync();
-    } else {
-        // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.4
-        conn.write_simple_query(query);
-    }
-
-    conn.wait_until_ready().await?;
-
-    conn.stream.flush().await?;
-    conn.is_ready = false;
-
-    Ok(())
-}
-
-async fn resolve(
-    mut source: ConnectionSource<'_, PgConnection>,
-    query: String,
-    arguments: Option<PgArguments>,
-) -> crate::Result<MaybeOwnedConnection<'_, PgConnection>> {
-    let mut conn = source.resolve_by_ref().await?;
-
-    write(&mut *conn, &query, arguments).await?;
-
-    Ok(source.into_connection())
-}
-
-async fn affected_rows(mut conn: MaybeOwnedConnection<'_, PgConnection>) -> crate::Result<u64> {
-    let mut rows = 0;
-
-    loop {
-        match conn.stream.read().await? {
-            Message::ParseComplete | Message::BindComplete => {
-                // ignore x_complete messages
-            }
-
-            Message::DataRow => {
-                // ignore rows
-                // TODO: should we log or something?
-            }
-
-            Message::CommandComplete => {
-                rows += CommandComplete::read(conn.stream.buffer())?.affected_rows;
-            }
-
-            Message::ReadyForQuery => {
-                // done
-                conn.is_ready = true;
-                break;
-            }
-
-            message => {
-                return Err(
-                    protocol_err!("affected_rows: unexpected message: {:?}", message).into(),
-                );
-            }
-        }
-    }
-
-    Ok(rows)
-}
-
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut PgCursor<'c, 'q>,
 ) -> crate::Result<Option<PgRow<'a>>> {
     let mut conn = cursor.source.resolve_by_ref().await?;
 
-    match cursor.state {
-        State::Query(q, ref mut arguments) => {
-            // write out the query to the connection
-            write(&mut *conn, q, arguments.take()).await?;
-
-            // next time we come through here, skip this block
-            cursor.state = State::NextRow;
-        }
-
-        State::Resolve(_) | State::AffectedRows(_) => {
-            panic!("`PgCursor` must not be used after being polled");
-        }
-
-        State::NextRow => {
-            // grab the next row
-        }
+    // The first time [next] is called we need to actually execute our
+    // contained query. We guard against this happening on _all_ next calls
+    // by using [Option::take] which replaces the potential value in the Option with `None
+    if let Some((query, arguments)) = cursor.query.take() {
+        conn.execute(query, arguments).await?;
     }
 
     loop {

@@ -240,95 +240,6 @@ impl PgConnection {
             is_ready: true,
         })
     }
-
-    pub(super) async fn wait_until_ready(&mut self) -> crate::Result<()> {
-        // depending on how the previous query finished we may need to continue
-        // pulling messages from the stream until we receive a [ReadyForQuery] message
-
-        // postgres sends the [ReadyForQuery] message when it's fully complete with processing
-        // the previous query
-
-        if !self.is_ready {
-            loop {
-                if let Message::ReadyForQuery = self.stream.read().await? {
-                    // we are now ready to go
-                    self.is_ready = true;
-                    break;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> crate::Result<Describe<Postgres>> {
-        let statement = self.write_prepare(query, &Default::default());
-
-        self.write_describe(protocol::Describe::Statement(statement));
-        self.write_sync();
-
-        self.stream.flush().await?;
-        self.wait_until_ready().await?;
-
-        let params = loop {
-            match self.stream.read().await? {
-                Message::ParseComplete => {
-                    // ignore complete messsage
-                    // continue
-                }
-
-                Message::ParameterDescription => {
-                    break ParameterDescription::read(self.stream.buffer())?;
-                }
-
-                message => {
-                    return Err(protocol_err!(
-                        "expected ParameterDescription; received {:?}",
-                        message
-                    )
-                    .into());
-                }
-            };
-        };
-
-        let result = match self.stream.read().await? {
-            Message::NoData => None,
-            Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
-
-            message => {
-                return Err(protocol_err!(
-                    "expected RowDescription or NoData; received {:?}",
-                    message
-                )
-                .into());
-            }
-        };
-
-        Ok(Describe {
-            param_types: params
-                .ids
-                .iter()
-                .map(|id| PgTypeInfo::new(*id))
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-            result_columns: result
-                .map(|r| r.fields)
-                .unwrap_or_default()
-                .into_vec()
-                .into_iter()
-                // TODO: Should [Column] just wrap [protocol::Field] ?
-                .map(|field| Column {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_info: PgTypeInfo::new(field.type_id),
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        })
-    }
 }
 
 impl Connect for PgConnection {
@@ -342,21 +253,11 @@ impl Connect for PgConnection {
 }
 
 impl Connection for PgConnection {
-    type Database = Postgres;
-
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(terminate(self.stream))
     }
 
     fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
-        Box::pin(self.fetch("SELECT 1").map_ok(|_| ()))
-    }
-
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        Box::pin(self.describe(query))
+        Box::pin(Executor::execute(self, "SELECT 1").map_ok(|_| ()))
     }
 }

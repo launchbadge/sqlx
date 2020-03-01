@@ -19,8 +19,6 @@ use crate::{Connect, Pool, Row};
 pub trait Cursor<'c, 'q>
 where
     Self: Send,
-    // `.await`-ing a cursor will return the affected rows from the query
-    Self: Future<Output = crate::Result<u64>>,
 {
     type Database: Database;
 

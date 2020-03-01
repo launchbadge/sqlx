@@ -14,27 +14,54 @@ use futures_util::TryStreamExt;
 /// Implementations are provided for [`&Pool`](struct.Pool.html),
 /// [`&mut PoolConnection`](struct.PoolConnection.html),
 /// and [`&mut Connection`](trait.Connection.html).
-pub trait Executor<'c>
+pub trait Executor
 where
     Self: Send,
 {
     /// The specific database that this type is implemented for.
     type Database: Database;
 
-    /// Executes a query that may or may not return a result set.
-    fn fetch<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    /// Executes the query for its side-effects and
+    /// discarding any potential result rows.
+    ///
+    /// Returns the number of rows affected, or 0 if not applicable.
+    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>;
 
-    #[doc(hidden)]
-    fn fetch_by_ref<'b, E>(&mut self, query: E) -> <Self::Database as HasCursor<'_, 'b>>::Cursor
+    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
-        E: Execute<'b, Self::Database>;
+        E: Execute<'q, Self::Database>;
+
+    /// Prepare the SQL query and return type information about its parameters
+    /// and results.
+    ///
+    /// This is used by the query macros ( [`query!`] ) during compilation to
+    /// power their type inference.
+    fn describe<'e, 'q, E: 'e>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    where
+        E: Execute<'q, Self::Database>;
+}
+
+pub trait RefExecutor<'c> {
+    type Database: Database;
+
+    /// Executes a query for its result.
+    ///
+    /// Returns a [`Cursor`] that can be used to iterate through the [`Row`]s
+    /// of the result.
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    where
+        E: Execute<'q, Self::Database>;
 }
 
 /// A type that may be executed against a database connection.
 pub trait Execute<'q, DB>
 where
+    Self: Send,
     DB: Database,
 {
     /// Returns the query to be executed and the arguments to bind against the query, if any.
@@ -69,4 +96,35 @@ macro_rules! impl_execute_for_query {
             }
         }
     };
+}
+
+impl<T> Executor for &'_ mut T
+where
+    T: Executor,
+{
+    type Database = T::Database;
+
+    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).execute(query)
+    }
+
+    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).fetch(query)
+    }
+
+    fn describe<'e, 'q, E: 'e>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).describe(query)
+    }
 }

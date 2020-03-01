@@ -17,7 +17,7 @@ use crate::arguments::Arguments;
 use crate::cursor::Cursor;
 use crate::database::{Database, HasCursor, HasRow};
 use crate::encode::Encode;
-use crate::executor::{Execute, Executor};
+use crate::executor::{Execute, Executor, RefExecutor};
 use crate::types::Type;
 use crate::{Error, FromRow};
 use futures_core::future::BoxFuture;
@@ -114,18 +114,18 @@ where
     DB: Database,
     Self: Execute<'q, DB>,
 {
-    pub async fn execute<'e, E>(self, executor: E) -> crate::Result<u64>
+    pub async fn execute<E>(self, mut executor: E) -> crate::Result<u64>
     where
-        E: Executor<'e, Database = DB>,
+        E: Executor<Database = DB>,
     {
-        executor.fetch(self).await
+        executor.execute(self).await
     }
 
     pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
     where
-        E: Executor<'e, Database = DB>,
+        E: RefExecutor<'e, Database = DB>,
     {
-        executor.fetch(self)
+        executor.fetch_by_ref(self)
     }
 }
 
@@ -165,13 +165,13 @@ where
     ) -> impl Stream<Item = crate::Result<F::Mapped>> + 'e
     where
         'q: 'e,
-        E: Executor<'e, Database = DB> + 'e,
+        E: RefExecutor<'e, Database = DB> + 'e,
         F: 'e,
         F::Mapped: 'e,
         A: 'e,
     {
         try_stream! {
-            let mut cursor = executor.fetch(self.query);
+            let mut cursor = executor.fetch_by_ref(self.query);
             while let Some(next) = cursor.next().await? {
                 let mapped = self.mapper.map_row(next)?;
                 yield mapped;
@@ -182,11 +182,11 @@ where
     /// Get the first row in the result
     pub async fn fetch_optional<'e, E>(mut self, executor: E) -> crate::Result<Option<F::Mapped>>
     where
-        E: Executor<'e, Database = DB>,
+        E: RefExecutor<'e, Database = DB>,
         'q: 'e,
     {
         // could be implemented in terms of `fetch()` but this avoids overhead from `try_stream!`
-        let mut cursor = executor.fetch(self.query);
+        let mut cursor = executor.fetch_by_ref(self.query);
         let mut mapper = self.mapper;
         let val = cursor.next().await?;
         val.map(|row| mapper.map_row(row)).transpose()
@@ -194,7 +194,7 @@ where
 
     pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Mapped>
     where
-        E: Executor<'e, Database = DB>,
+        E: RefExecutor<'e, Database = DB>,
         'q: 'e,
     {
         self.fetch_optional(executor)
@@ -207,10 +207,10 @@ where
 
     pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Mapped>>
     where
-        E: Executor<'e, Database = DB>,
+        E: RefExecutor<'e, Database = DB>,
         'q: 'e,
     {
-        let mut cursor = executor.fetch(self.query);
+        let mut cursor = executor.fetch_by_ref(self.query);
         let mut out = vec![];
 
         while let Some(row) = cursor.next().await? {

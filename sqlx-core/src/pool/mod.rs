@@ -25,10 +25,9 @@ use crate::Database;
 /// A pool of database connections.
 pub struct Pool<C>(Arc<SharedPool<C>>);
 
-impl<C, DB> Pool<C>
+impl<C> Pool<C>
 where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
+    C: Connect,
 {
     /// Creates a connection pool with the default configuration.
     ///
