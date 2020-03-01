@@ -47,7 +47,7 @@ rand = { version = "0.7.3", default-features = false, optional = true, features 
 sha-1 = { version = "0.8.2", default-features = false, optional = true }
 sha2 = { version = "0.8.1", default-features = false, optional = true }
 url = { version = "2.1.1", default-features = false }
-uuid = { version = "0.8.1", default-features = false, optional = true }
+uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
 hmac = { version = "0.7.1", default-features = false, optional = true }
 
 [dev-dependencies]

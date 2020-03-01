@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
@@ -25,8 +25,8 @@ impl Encode<Postgres> for i16 {
     }
 }
 
-impl Decode<Postgres> for i16 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for i16 {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(NetworkEndian::read_i16(buf))
     }
 }
@@ -49,8 +49,8 @@ impl Encode<Postgres> for i32 {
     }
 }
 
-impl Decode<Postgres> for i32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for i32 {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(NetworkEndian::read_i32(buf))
     }
 }
@@ -73,8 +73,8 @@ impl Encode<Postgres> for i64 {
     }
 }
 
-impl Decode<Postgres> for i64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
+impl<'de> Decode<'de, Postgres> for i64 {
+    fn decode(buf: &'de [u8]) -> crate::Result<Self> {
         Ok(NetworkEndian::read_i64(buf))
     }
 }

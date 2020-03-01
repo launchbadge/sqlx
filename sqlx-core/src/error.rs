@@ -1,6 +1,5 @@
 //! Error and Result types.
 
-use crate::decode::DecodeError;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display};
 use std::io;
@@ -28,10 +27,7 @@ pub enum Error {
     ColumnNotFound(Box<str>),
 
     /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
-    ColumnIndexOutOfBounds {
-        index: usize,
-        len: usize,
-    },
+    ColumnIndexOutOfBounds { index: usize, len: usize },
 
     /// Unexpected or invalid data was encountered. This would indicate that we received
     /// data that we were not expecting or it was in a format we did not understand. This
@@ -51,7 +47,8 @@ pub enum Error {
     /// An error occurred during a TLS upgrade.
     TlsUpgrade(Box<dyn StdError + Send + Sync>),
 
-    Decode(DecodeError),
+    /// An error occurred decoding data received from the database.
+    Decode(Box<dyn StdError + Send + Sync>),
 }
 
 impl StdError for Error {
@@ -60,7 +57,7 @@ impl StdError for Error {
             Error::Io(error) => Some(error),
             Error::UrlParse(error) => Some(error),
             Error::PoolTimedOut(Some(error)) => Some(&**error),
-            Error::Decode(DecodeError::Other(error)) => Some(&**error),
+            Error::Decode(error) => Some(&**error),
             Error::TlsUpgrade(error) => Some(&**error),
 
             _ => None,
@@ -121,13 +118,6 @@ impl From<io::ErrorKind> for Error {
     #[inline]
     fn from(err: io::ErrorKind) -> Self {
         Error::Io(err.into())
-    }
-}
-
-impl From<DecodeError> for Error {
-    #[inline]
-    fn from(err: DecodeError) -> Self {
-        Error::Decode(err)
     }
 }
 
