@@ -48,25 +48,12 @@ mod internal {
     where
         C: super::Connect,
     {
-        Empty,
         Connection(MaybeOwnedConnection<'c, C>),
         Pool(super::Pool<C>),
     }
 }
 
 pub(crate) use self::internal::{ConnectionSource, MaybeOwnedConnection};
-
-impl<'c, C> MaybeOwnedConnection<'c, C>
-where
-    C: Connect,
-{
-    pub(crate) fn borrow(&mut self) -> &'_ mut C {
-        match self {
-            MaybeOwnedConnection::Borrowed(conn) => &mut *conn,
-            MaybeOwnedConnection::Owned(ref mut conn) => conn,
-        }
-    }
-}
 
 impl<'c, C> ConnectionSource<'c, C>
 where
@@ -79,36 +66,12 @@ where
         }
 
         Ok(match self {
-            ConnectionSource::Empty => panic!("`PgCursor` must not be used after being polled"),
-            ConnectionSource::Connection(conn) => conn.borrow(),
+            ConnectionSource::Connection(conn) => match conn {
+                MaybeOwnedConnection::Borrowed(conn) => &mut *conn,
+                MaybeOwnedConnection::Owned(ref mut conn) => conn,
+            },
             ConnectionSource::Pool(_) => unreachable!(),
         })
-    }
-
-    pub(crate) async fn resolve(mut self) -> crate::Result<MaybeOwnedConnection<'c, C>> {
-        if let ConnectionSource::Pool(pool) = self {
-            self = ConnectionSource::Connection(MaybeOwnedConnection::Owned(pool.acquire().await?));
-        }
-
-        Ok(self.into_connection())
-    }
-
-    pub(crate) fn into_connection(self) -> MaybeOwnedConnection<'c, C> {
-        match self {
-            ConnectionSource::Connection(conn) => conn,
-            ConnectionSource::Empty | ConnectionSource::Pool(_) => {
-                panic!("`PgCursor` must not be used after being polled");
-            }
-        }
-    }
-}
-
-impl<C> Default for ConnectionSource<'_, C>
-where
-    C: Connect,
-{
-    fn default() -> Self {
-        ConnectionSource::Empty
     }
 }
 
@@ -127,31 +90,5 @@ where
 {
     fn from(conn: PoolConnection<C>) -> Self {
         MaybeOwnedConnection::Owned(conn)
-    }
-}
-
-impl<'c, C> Deref for MaybeOwnedConnection<'c, C>
-where
-    C: Connect,
-{
-    type Target = C;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            MaybeOwnedConnection::Borrowed(conn) => conn,
-            MaybeOwnedConnection::Owned(conn) => conn,
-        }
-    }
-}
-
-impl<'c, C> DerefMut for MaybeOwnedConnection<'c, C>
-where
-    C: Connect,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            MaybeOwnedConnection::Borrowed(conn) => conn,
-            MaybeOwnedConnection::Owned(conn) => conn,
-        }
     }
 }
