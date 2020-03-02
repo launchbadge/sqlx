@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::mem;
 
+use byteorder::{NetworkEndian, ReadBytesExt};
 use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 
 use crate::decode::Decode;
@@ -10,6 +11,7 @@ use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
 use crate::types::Type;
+use crate::Error;
 
 impl Type<Postgres> for NaiveTime {
     fn type_info() -> PgTypeInfo {
@@ -67,9 +69,15 @@ where
 
 impl<'de> Decode<'de, Postgres> for NaiveTime {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        let micros: i64 = Decode::<Postgres>::decode(value)?;
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let micros = buf.read_i64::<NetworkEndian>().map_err(Error::decode)?;
 
-        Ok(NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(micros))
+                Ok(NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(micros))
+            }
+
+            PgValue::Text(s) => NaiveTime::parse_from_str(s, "%H:%M:%S%.f").map_err(Error::decode),
+        }
     }
 }
 
@@ -89,9 +97,15 @@ impl Encode<Postgres> for NaiveTime {
 
 impl<'de> Decode<'de, Postgres> for NaiveDate {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        let days: i32 = Decode::<Postgres>::decode(value)?;
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let days: i32 = buf.read_i32::<NetworkEndian>().map_err(Error::decode)?;
 
-        Ok(NaiveDate::from_ymd(2000, 1, 1) + Duration::days(days as i64))
+                Ok(NaiveDate::from_ymd(2000, 1, 1) + Duration::days(days as i64))
+            }
+
+            PgValue::Text(s) => NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(Error::decode),
+        }
     }
 }
 
@@ -114,20 +128,39 @@ impl Encode<Postgres> for NaiveDate {
 
 impl<'de> Decode<'de, Postgres> for NaiveDateTime {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
-        let micros: i64 = Decode::<Postgres>::decode(value)?;
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let micros = buf.read_i64::<NetworkEndian>().map_err(Error::decode)?;
 
-        postgres_epoch()
-            .naive_utc()
-            .checked_add_signed(Duration::microseconds(micros))
-            .ok_or_else(|| {
-                crate::Error::Decode(
-                    format!(
-                        "Postgres timestamp out of range for NaiveDateTime: {:?}",
-                        micros
-                    )
-                    .into(),
+                postgres_epoch()
+                    .naive_utc()
+                    .checked_add_signed(Duration::microseconds(micros))
+                    .ok_or_else(|| {
+                        crate::Error::Decode(
+                            format!(
+                                "Postgres timestamp out of range for NaiveDateTime: {:?}",
+                                micros
+                            )
+                            .into(),
+                        )
+                    })
+            }
+
+            PgValue::Text(s) => {
+                NaiveDateTime::parse_from_str(
+                    s,
+                    if s.contains('+') {
+                        // Contains a time-zone specifier
+                        // This is given for timestamptz for some reason
+                        // Postgres already guarantees this to always be UTC
+                        "%Y-%m-%d %H:%M:%S%.f%#z"
+                    } else {
+                        "%Y-%m-%d %H:%M:%S%.f"
+                    },
                 )
-            })
+                .map_err(Error::decode)
+            }
+        }
     }
 }
 
@@ -205,15 +238,15 @@ fn test_encode_datetime() {
 #[test]
 fn test_decode_datetime() {
     let buf = [0u8; 8];
-    let date: NaiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2000-01-01 00:00:00");
 
     let buf = 3_600_000_000i64.to_be_bytes();
-    let date: NaiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2000-01-01 01:00:00");
 
     let buf = 629_377_265_000_000i64.to_be_bytes();
-    let date: NaiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2019-12-11 11:01:05");
 }
 
@@ -241,14 +274,14 @@ fn test_encode_date() {
 #[test]
 fn test_decode_date() {
     let buf = [0; 4];
-    let date: NaiveDate = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2000-01-01");
 
     let buf = 366i32.to_be_bytes();
-    let date: NaiveDate = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2001-01-01");
 
     let buf = 7284i32.to_be_bytes();
-    let date: NaiveDate = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2019-12-11");
 }

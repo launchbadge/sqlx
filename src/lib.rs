@@ -59,6 +59,13 @@ pub mod decode {
 }
 
 pub mod prelude {
+    pub use super::Connect as _;
+    pub use super::Connection as _;
+    pub use super::Cursor as _;
+    pub use super::Executor as _;
+    pub use super::FromRow as _;
+    pub use super::Row as _;
+
     #[cfg(feature = "postgres")]
     pub use super::postgres::PgQueryAs as _;
 }

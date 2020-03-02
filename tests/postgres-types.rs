@@ -26,25 +26,83 @@ test_type!(string(
     "''" == ""
 ));
 
-// TODO: BYTEA
-// TODO: UUID
-// TODO: CHRONO
+test_type!(bytea(
+    Postgres,
+    Vec<u8>,
+    "E'\\\\xDEADBEEF'::bytea"
+        == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
+    "E'\\\\x'::bytea"
+        == Vec::<u8>::new(),
+    "E'\\\\x0000000052'::bytea"
+        == vec![0_u8, 0, 0, 0, 0x52]
+));
+
+#[cfg(feature = "uuid")]
+test_type!(uuid(
+    Postgres,
+    sqlx::types::Uuid,
+    "'b731678f-636f-4135-bc6f-19440c13bd19'::uuid"
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+    "'00000000-0000-0000-0000-000000000000'::uuid"
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+));
+
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
+    test_type!(chrono_date(
+        Postgres,
+        NaiveDate,
+        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+    ));
+
+    test_type!(chrono_time(
+        Postgres,
+        NaiveTime,
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+    ));
+
+    test_type!(chrono_date_time(
+        Postgres,
+        NaiveDateTime,
+        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+    ));
+
+    test_type!(chrono_date_time_tz(
+        Postgres,
+        DateTime::<Utc>,
+        "TIMESTAMPTZ '2019-01-02 05:10:20.115100'"
+            == DateTime::<Utc>::from_utc(
+                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+                Utc,
+            )
+    ));
+}
 
 // #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 // #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn postgres_bytes() -> anyhow::Result<()> {
+// async fn postgres_chrono_timestamp_tz() -> anyhow::Result<()> {
 //     let mut conn = connect().await?;
 //
-//     let value = b"Hello, World";
+//     let value = DateTime::<Utc>::from_utc(
+//         NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+//         Utc,
+//     );
 //
-//     let rec: (bool, Vec<u8>) = sqlx::query("SELECT E'\\\\x48656c6c6f2c20576f726c64' = $1, $1")
-//         .bind(&value[..])
-//         .map(|row: PgRow| Ok((row.get(0)?, row.get(1)?)))
-//         .fetch_one(&mut conn)
-//         .await?;
+//     let row = sqlx::query(
+//         "SELECT TIMESTAMPTZ '2019-01-02 05:10:20.115100' = $1, TIMESTAMPTZ '2019-01-02 05:10:20.115100'",
+//     )
+//     .bind(&value)
+//     .fetch_one(&mut conn)
+//     .await?;
 //
-//     assert!(rec.0);
-//     assert_eq!(&value[..], &*rec.1);
+//     assert!(row.get::<bool, _>(0));
+//
+//     let out: DateTime<Utc> = row.get(1);
+//     assert_eq!(value, out);
 //
 //     Ok(())
 // }
