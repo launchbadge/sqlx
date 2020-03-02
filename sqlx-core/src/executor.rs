@@ -127,3 +127,22 @@ where
         (**self).describe(query)
     }
 }
+
+// The following impl lets `&mut &Pool` continue to work
+// This pattern was required in SQLx < 0.3
+// Going forward users will likely naturally use `&Pool` instead
+
+impl<'c, T> RefExecutor<'c> for &'c mut T
+where
+    T: Copy + RefExecutor<'c>,
+{
+    type Database = T::Database;
+
+    #[inline]
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (*self).fetch_by_ref(query)
+    }
+}
