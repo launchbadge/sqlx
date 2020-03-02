@@ -81,28 +81,3 @@ mod chrono {
             )
     ));
 }
-
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn postgres_chrono_timestamp_tz() -> anyhow::Result<()> {
-//     let mut conn = connect().await?;
-//
-//     let value = DateTime::<Utc>::from_utc(
-//         NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
-//         Utc,
-//     );
-//
-//     let row = sqlx::query(
-//         "SELECT TIMESTAMPTZ '2019-01-02 05:10:20.115100' = $1, TIMESTAMPTZ '2019-01-02 05:10:20.115100'",
-//     )
-//     .bind(&value)
-//     .fetch_one(&mut conn)
-//     .await?;
-//
-//     assert!(row.get::<bool, _>(0));
-//
-//     let out: DateTime<Utc> = row.get(1);
-//     assert_eq!(value, out);
-//
-//     Ok(())
-// }
