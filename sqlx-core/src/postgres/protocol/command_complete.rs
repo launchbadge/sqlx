@@ -26,7 +26,7 @@ impl CommandComplete {
 
 #[cfg(test)]
 mod tests {
-    use super::{CommandComplete, Decode};
+    use super::CommandComplete;
 
     const COMMAND_COMPLETE_INSERT: &[u8] = b"INSERT 0 1\0";
     const COMMAND_COMPLETE_UPDATE: &[u8] = b"UPDATE 512\0";

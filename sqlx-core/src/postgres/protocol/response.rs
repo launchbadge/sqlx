@@ -225,7 +225,7 @@ impl Response {
 
 #[cfg(test)]
 mod tests {
-    use super::{Decode, Response, Severity};
+    use super::{Response, Severity};
     use matches::assert_matches;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \

@@ -68,6 +68,7 @@ where
 // rust, please open up a 100 issues and shout as loud as you can to remove
 // this unseemly hack.
 
+#[allow(unused_macros)]
 macro_rules! make_query_as {
     ($name:ident, $db:ident, $row:ident) => {
         pub trait $name<'q, O> {

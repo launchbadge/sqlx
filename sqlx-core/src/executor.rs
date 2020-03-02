@@ -81,6 +81,7 @@ where
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! impl_execute_for_query {
     ($db:ty) => {
         impl<'q> $crate::executor::Execute<'q, $db> for $crate::query::Query<'q, $db> {

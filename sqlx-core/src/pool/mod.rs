@@ -149,6 +149,7 @@ fn deadline_as_timeout(deadline: Instant) -> crate::Result<Duration> {
 }
 
 #[test]
+#[allow(dead_code)]
 fn assert_pool_traits() {
     fn assert_send_sync<T: Send + Sync>() {}
     fn assert_clone<T: Clone>() {}

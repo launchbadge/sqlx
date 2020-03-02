@@ -24,7 +24,7 @@ impl ParameterDescription {
 
 #[cfg(test)]
 mod test {
-    use super::{Decode, ParameterDescription};
+    use super::ParameterDescription;
 
     #[test]
     fn it_reads_parameter_description() {
