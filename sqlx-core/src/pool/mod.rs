@@ -7,20 +7,19 @@ use std::{
 };
 
 use crate::connection::Connect;
+use crate::database::Database;
 use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
 use self::options::Options;
 
-pub use self::conn::PoolConnection;
-
-mod conn;
+mod connection;
 mod executor;
 mod inner;
 mod options;
 
+pub use self::connection::PoolConnection;
 pub use self::options::Builder;
-use crate::Database;
 
 /// A pool of database connections.
 pub struct Pool<C>(Arc<SharedPool<C>>);

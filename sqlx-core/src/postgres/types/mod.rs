@@ -2,9 +2,8 @@ use std::fmt::{self, Debug, Display};
 
 use crate::decode::Decode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::PgValue;
+use crate::postgres::{PgValue, Postgres};
 use crate::types::TypeInfo;
-use crate::Postgres;
 
 mod bool;
 mod bytes;

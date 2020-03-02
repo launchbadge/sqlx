@@ -1,4 +1,4 @@
-use sqlx::Database;
+use sqlx::database::Database;
 
 #[derive(PartialEq, Eq)]
 #[allow(dead_code)]

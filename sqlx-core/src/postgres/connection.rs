@@ -11,17 +11,17 @@ use futures_util::TryFutureExt;
 
 use crate::connection::{Connect, Connection};
 use crate::describe::{Column, Describe};
+use crate::executor::Executor;
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{
     self, Authentication, AuthenticationMd5, AuthenticationSasl, Decode, Encode, Message,
     ParameterDescription, PasswordMessage, RowDescription, StartupMessage, StatementId, Terminate,
     TypeFormat,
 };
-use crate::postgres::sasl;
 use crate::postgres::stream::PgStream;
-use crate::postgres::{tls, PgError, PgTypeInfo};
+use crate::postgres::{sasl, tls, PgError, PgTypeInfo, Postgres};
 use crate::url::Url;
-use crate::{Error, Executor, Postgres};
+use crate::Error;
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///

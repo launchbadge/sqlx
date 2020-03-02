@@ -3,8 +3,8 @@ use byteorder::{ByteOrder, NetworkEndian};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::io::BufMut;
+use crate::postgres::Postgres;
 use crate::types::Type;
-use crate::Postgres;
 
 #[derive(Default)]
 pub struct PgArguments {

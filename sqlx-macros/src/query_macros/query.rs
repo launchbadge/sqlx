@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use syn::{Ident, Path};
 
 use quote::{format_ident, quote};
-use sqlx::{Connection, Database};
+use sqlx::{connection::Connection, database::Database};
 
 use super::{args, output, QueryMacroInput};
 use crate::database::DatabaseExt;

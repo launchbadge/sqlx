@@ -7,17 +7,22 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 #[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
-// Modules
-pub use sqlx_core::{arguments, describe, error, pool, row, types};
-
-// Types
-pub use sqlx_core::{
-    Connect, Connection, Cursor, Error, Execute, Executor, FromRow, Pool, Result, Row,
-};
-
+pub use sqlx_core::arguments;
+pub use sqlx_core::connection::{Connect, Connection};
+pub use sqlx_core::cursor::Cursor;
 pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
+pub use sqlx_core::describe;
+pub use sqlx_core::executor::Executor;
+pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
+pub use sqlx_core::row::{FromRow, Row};
+
+#[doc(inline)]
+pub use sqlx_core::types::{self, Type};
+
+#[doc(inline)]
+pub use sqlx_core::error::{self, Error, Result};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
@@ -58,13 +63,13 @@ pub mod decode {
 }
 
 pub mod prelude {
-    pub use super::Connect as _;
-    pub use super::Connection as _;
-    pub use super::Cursor as _;
-    pub use super::Executor as _;
-    pub use super::FromRow as _;
-    pub use super::Row as _;
+    pub use super::Connect;
+    pub use super::Connection;
+    pub use super::Cursor;
+    pub use super::Executor;
+    pub use super::FromRow;
+    pub use super::Row;
 
     #[cfg(feature = "postgres")]
-    pub use super::postgres::PgQueryAs as _;
+    pub use super::postgres::PgQueryAs;
 }

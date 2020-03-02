@@ -2,7 +2,7 @@ use std::{marker::PhantomData, time::Duration};
 
 use super::Pool;
 use crate::connection::Connect;
-use crate::Database;
+use crate::database::Database;
 
 /// Builder for [Pool].
 pub struct Builder<C> {

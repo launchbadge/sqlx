@@ -16,7 +16,7 @@ use crate::{
     error::Error,
 };
 
-use super::conn::{Floating, Idle, Live};
+use super::connection::{Floating, Idle, Live};
 use super::Options;
 
 pub(super) struct SharedPool<C> {
