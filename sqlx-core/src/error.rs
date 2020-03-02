@@ -44,8 +44,9 @@ pub enum Error {
     /// [Pool::close] was called while we were waiting in [Pool::acquire].
     PoolClosed,
 
-    /// An error occurred during a TLS upgrade.
-    TlsUpgrade(Box<dyn StdError + Send + Sync>),
+    /// An error occurred while attempting to setup TLS.
+    /// This should only be returned from an explicit ask for TLS.
+    Tls(Box<dyn StdError + Send + Sync>),
 
     /// An error occurred decoding data received from the database.
     Decode(Box<dyn StdError + Send + Sync>),
@@ -67,7 +68,7 @@ impl StdError for Error {
             Error::UrlParse(error) => Some(error),
             Error::PoolTimedOut(Some(error)) => Some(&**error),
             Error::Decode(error) => Some(&**error),
-            Error::TlsUpgrade(error) => Some(&**error),
+            Error::Tls(error) => Some(&**error),
 
             _ => None,
         }
@@ -111,7 +112,7 @@ impl Display for Error {
 
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
-            Error::TlsUpgrade(ref err) => write!(f, "error during TLS upgrade: {}", err),
+            Error::Tls(ref err) => write!(f, "error during TLS upgrade: {}", err),
         }
     }
 }
@@ -149,14 +150,14 @@ impl From<ProtocolError<'_>> for Error {
 impl From<async_native_tls::Error> for Error {
     #[inline]
     fn from(err: async_native_tls::Error) -> Self {
-        Error::TlsUpgrade(err.into())
+        Error::Tls(err.into())
     }
 }
 
 impl From<TlsError<'_>> for Error {
     #[inline]
     fn from(err: TlsError<'_>) -> Self {
-        Error::TlsUpgrade(err.args.to_string().into())
+        Error::Tls(err.args.to_string().into())
     }
 }
 

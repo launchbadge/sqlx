@@ -18,7 +18,7 @@ mod protocol;
 mod row;
 mod sasl;
 mod stream;
-// mod tls;
+mod tls;
 mod types;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.

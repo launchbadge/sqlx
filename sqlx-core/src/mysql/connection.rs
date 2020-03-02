@@ -485,9 +485,9 @@ impl MySqlConnection {
         // On connect, server immediately sends the handshake
         let mut handshake = self_.receive_handshake(&url).await?;
 
-        let ca_file = url.get_param("ssl-ca");
+        let ca_file = url.param("ssl-ca");
 
-        let ssl_mode = url.get_param("ssl-mode").unwrap_or(
+        let ssl_mode = url.param("ssl-mode").unwrap_or(
             if ca_file.is_some() {
                 "VERIFY_CA"
             } else {
