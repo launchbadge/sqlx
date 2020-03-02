@@ -183,10 +183,9 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
             }
 
             Message::DataRow => {
-                let data = DataRow::read(&mut *conn)?;
+                let data = DataRow::read(conn.stream.buffer(), &mut conn.current_row_values)?;
 
                 return Ok(Some(PgRow {
-                    connection: conn,
                     columns: Arc::clone(&cursor.columns),
                     formats: Arc::clone(&cursor.formats),
                     data,

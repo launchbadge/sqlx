@@ -60,10 +60,10 @@ impl<'c, C> MaybeOwnedConnection<'c, C>
 where
     C: Connect,
 {
-    pub(crate) fn borrow(&mut self) -> MaybeOwnedConnection<'_, C> {
+    pub(crate) fn borrow(&mut self) -> &'_ mut C {
         match self {
-            MaybeOwnedConnection::Borrowed(conn) => MaybeOwnedConnection::Borrowed(&mut *conn),
-            MaybeOwnedConnection::Owned(ref mut conn) => MaybeOwnedConnection::Borrowed(conn),
+            MaybeOwnedConnection::Borrowed(conn) => &mut *conn,
+            MaybeOwnedConnection::Owned(ref mut conn) => conn,
         }
     }
 }
@@ -72,7 +72,7 @@ impl<'c, C> ConnectionSource<'c, C>
 where
     C: Connect,
 {
-    pub(crate) async fn resolve_by_ref(&mut self) -> crate::Result<MaybeOwnedConnection<'_, C>> {
+    pub(crate) async fn resolve_by_ref(&mut self) -> crate::Result<&'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
             *self =
                 ConnectionSource::Connection(MaybeOwnedConnection::Owned(pool.acquire().await?));

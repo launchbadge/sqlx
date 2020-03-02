@@ -134,29 +134,6 @@ where
     }
 }
 
-impl<'q, DB, F> Map<'q, DB, F>
-where
-    DB: Database,
-{
-    /// Bind a value for use with this SQL query.
-    pub fn bind<T>(mut self, value: T) -> Self
-    where
-        T: Type<DB>,
-        T: Encode<DB>,
-    {
-        self.query.arguments.add(value);
-        self
-    }
-
-    #[doc(hidden)]
-    pub fn bind_all(self, arguments: DB::Arguments) -> Map<'q, DB, F, ImmutableArguments<DB>> {
-        Map {
-            query: self.query.bind_all(arguments),
-            mapper: self.mapper,
-        }
-    }
-}
-
 impl<'q, DB, F, A> Map<'q, DB, F, A>
 where
     DB: Database,
@@ -257,14 +234,4 @@ where
         arguments: Default::default(),
         query: sql,
     }
-}
-
-pub fn query_as<T, DB>(
-    sql: &str,
-) -> Map<DB, for<'c> fn(<DB as HasRow<'c>>::Row) -> crate::Result<T>>
-where
-    DB: Database,
-    T: Unpin + for<'c> FromRow<'c, <DB as HasRow<'c>>::Row>,
-{
-    query(sql).map(|row| T::from_row(row))
 }

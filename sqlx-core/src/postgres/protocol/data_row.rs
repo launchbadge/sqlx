@@ -5,31 +5,36 @@ use byteorder::NetworkEndian;
 use std::fmt::{self, Debug};
 use std::ops::Range;
 
-pub struct DataRow {
+pub struct DataRow<'c> {
     len: u16,
+    buffer: &'c [u8],
+    values: &'c [Option<Range<u32>>],
 }
 
-impl DataRow {
+impl<'c> DataRow<'c> {
     pub fn len(&self) -> usize {
         self.len as usize
     }
 
-    pub fn get<'a>(
+    pub fn get(
         &self,
-        buffer: &'a [u8],
-        values: &[Option<Range<u32>>],
+        // buffer: &'c [u8],
+        // values: &[Option<Range<u32>>],
         index: usize,
-    ) -> Option<&'a [u8]> {
-        let range = values[index].as_ref()?;
+    ) -> Option<&'c [u8]> {
+        let range = self.values[index].as_ref()?;
 
-        Some(&buffer[(range.start as usize)..(range.end as usize)])
+        Some(&self.buffer[(range.start as usize)..(range.end as usize)])
     }
 }
 
-impl DataRow {
-    pub(crate) fn read(connection: &mut PgConnection) -> crate::Result<Self> {
-        let buffer = connection.stream.buffer();
-        let values = &mut connection.current_row_values;
+impl<'c> DataRow<'c> {
+    pub(crate) fn read(
+        buffer: &'c [u8],
+        values: &'c mut Vec<Option<Range<u32>>>,
+    ) -> crate::Result<Self> {
+        // let buffer = connection.stream.buffer();
+        // let values = &mut connection.current_row_values;
 
         values.clear();
 
@@ -57,6 +62,10 @@ impl DataRow {
             }
         }
 
-        Ok(Self { len })
+        Ok(Self {
+            len,
+            buffer,
+            values,
+        })
     }
 }

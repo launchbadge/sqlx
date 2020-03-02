@@ -1,14 +1,15 @@
 //! Contains the Row and FromRow traits.
 
-use crate::database::{Database, HasRawValue};
+use crate::database::{Database, HasRawValue, HasRow};
 use crate::decode::Decode;
 use crate::types::Type;
 
-pub trait ColumnIndex<'c, R: ?Sized>
+pub trait ColumnIndex<DB>
 where
-    R: Row<'c>,
+    DB: Database,
+    DB: for<'c> HasRow<'c, Database = DB>,
 {
-    fn resolve(self, row: &'c R) -> crate::Result<usize>;
+    fn resolve<'c>(self, row: &<DB as HasRow<'c>>::Row) -> crate::Result<usize>;
 }
 
 /// Represents a single row of the result set.
@@ -23,34 +24,129 @@ pub trait Row<'c>: Unpin + Send {
     /// Returns the number of values in the row.
     fn len(&self) -> usize;
 
-    fn get<T, I>(&'c self, index: I) -> crate::Result<T>
+    fn get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
     where
         T: Type<Self::Database>,
-        I: ColumnIndex<'c, Self>,
+        I: ColumnIndex<Self::Database>,
         T: Decode<'c, Self::Database>,
     {
         Ok(Decode::decode(self.get_raw(index)?)?)
     }
 
-    fn get_raw<'i, I>(
-        &'c self,
+    fn get_raw<'r, I>(
+        &self,
         index: I,
     ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
     where
-        I: ColumnIndex<'c, Self> + 'i;
+        I: ColumnIndex<Self::Database>;
 }
 
 /// A **record** that can be built from a row returned from by the database.
-pub trait FromRow<'a, R>
+pub trait FromRow<'c, R>
 where
     Self: Sized,
-    R: Row<'a>,
+    R: Row<'c>,
 {
     fn from_row(row: R) -> crate::Result<Self>;
 }
 
 // Macros to help unify the internal implementations as a good chunk
 // is very similar
+
+#[allow(unused_macros)]
+macro_rules! impl_from_row_for_tuple {
+    ($db:ident, $r:ident; $( ($idx:tt) -> $T:ident );+;) => {
+        impl<'c, $($T,)+> crate::row::FromRow<'c, $r<'c>> for ($($T,)+)
+        where
+            $($T: crate::types::Type<$db>,)+
+            $($T: crate::decode::Decode<'c, $db>,)+
+        {
+            #[inline]
+            fn from_row(row: $r<'c>) -> crate::Result<Self> {
+                use crate::row::Row;
+
+                Ok(($(row.get($idx as usize)?,)+))
+            }
+        }
+    };
+}
+
+#[allow(unused_macros)]
+macro_rules! impl_from_row_for_tuples {
+    ($db:ident, $r:ident) => {
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
+            (7) -> T8;
+        );
+
+        impl_from_row_for_tuple!($db, $r;
+            (0) -> T1;
+            (1) -> T2;
+            (2) -> T3;
+            (3) -> T4;
+            (4) -> T5;
+            (5) -> T6;
+            (6) -> T7;
+            (7) -> T8;
+            (8) -> T9;
+        );
+    };
+}
 
 #[allow(unused_macros)]
 macro_rules! impl_map_row_for_row {
@@ -70,22 +166,27 @@ macro_rules! impl_map_row_for_row {
 
 #[allow(unused_macros)]
 macro_rules! impl_column_index_for_row {
-    ($R:ident) => {
-        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for usize {
-            fn resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
-                if self >= row.len() {
-                    return Err(crate::Error::ColumnIndexOutOfBounds {
-                        len: row.len(),
-                        index: self,
-                    });
+    ($DB:ident) => {
+        impl crate::row::ColumnIndex<$DB> for usize {
+            fn resolve<'c>(
+                self,
+                row: &<$DB as crate::database::HasRow<'c>>::Row,
+            ) -> crate::Result<usize> {
+                let len = crate::row::Row::len(row);
+
+                if self >= len {
+                    return Err(crate::Error::ColumnIndexOutOfBounds { len, index: self });
                 }
 
                 Ok(self)
             }
         }
 
-        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for &'_ str {
-            fn resolve(self, row: &'c $R<'c>) -> crate::Result<usize> {
+        impl crate::row::ColumnIndex<$DB> for &'_ str {
+            fn resolve<'c>(
+                self,
+                row: &<$DB as crate::database::HasRow<'c>>::Row,
+            ) -> crate::Result<usize> {
                 row.columns
                     .get(self)
                     .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))

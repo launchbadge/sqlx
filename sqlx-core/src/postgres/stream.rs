@@ -9,12 +9,12 @@ use crate::postgres::PgError;
 use crate::url::Url;
 
 pub struct PgStream {
-    stream: BufStream<MaybeTlsStream>,
+    pub(super) stream: BufStream<MaybeTlsStream>,
 
     // Most recently received message
     // Is referenced by our buffered stream
     // Is initialized to ReadyForQuery/0 at the start
-    message: (Message, u32),
+    pub(super) message: (Message, u32),
 }
 
 impl PgStream {

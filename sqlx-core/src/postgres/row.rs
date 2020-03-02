@@ -33,8 +33,7 @@ impl<'c> TryFrom<Option<PgValue<'c>>> for PgValue<'c> {
 }
 
 pub struct PgRow<'c> {
-    pub(super) connection: MaybeOwnedConnection<'c, PgConnection>,
-    pub(super) data: DataRow,
+    pub(super) data: DataRow<'c>,
     pub(super) columns: Arc<HashMap<Box<str>, usize>>,
     pub(super) formats: Arc<[TypeFormat]>,
 }
@@ -46,18 +45,14 @@ impl<'c> Row<'c> for PgRow<'c> {
         self.data.len()
     }
 
-    fn get_raw<'i, I>(&'c self, index: I) -> crate::Result<Option<PgValue<'c>>>
+    fn get_raw<'r, I>(&'r self, index: I) -> crate::Result<Option<PgValue<'c>>>
     where
-        I: ColumnIndex<'c, Self> + 'i,
+        I: ColumnIndex<Self::Database>,
     {
         let index = index.resolve(self)?;
+        let buffer = self.data.get(index);
 
-        self.data
-            .get(
-                self.connection.stream.buffer(),
-                &self.connection.current_row_values,
-                index,
-            )
+        buffer
             .map(|buf| match self.formats[index] {
                 TypeFormat::Binary => Ok(PgValue::Binary(buf)),
                 TypeFormat::Text => Ok(PgValue::Text(from_utf8(buf)?)),
@@ -66,7 +61,3 @@ impl<'c> Row<'c> for PgRow<'c> {
             .map_err(|err: Utf8Error| crate::Error::Decode(Box::new(err)))
     }
 }
-
-impl_map_row_for_row!(Postgres, PgRow);
-impl_column_index_for_row!(PgRow);
-impl_from_row_for_row!(PgRow);
