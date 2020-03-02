@@ -6,7 +6,7 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::database::HasCursor;
 use crate::describe::Describe;
-use crate::executor::{Execute, Executor};
+use crate::executor::{Execute, Executor, RefExecutor};
 use crate::runtime::spawn;
 
 // Transaction<PoolConnection<PgConnection>>
@@ -124,6 +124,21 @@ where
         E: Execute<'q, Self::Database>,
     {
         (**self).describe(query)
+    }
+}
+
+impl<'c, DB, T> RefExecutor<'c> for &'c mut Transaction<T>
+where
+    DB: Database,
+    T: Connection<Database = DB>,
+{
+    type Database = DB;
+
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        (**self).fetch(query)
     }
 }
 
