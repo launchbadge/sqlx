@@ -2,7 +2,7 @@
 
 use std::fmt::{Debug, Display};
 
-use crate::Database;
+use crate::database::Database;
 
 #[cfg(feature = "uuid")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]

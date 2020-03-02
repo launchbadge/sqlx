@@ -1,5 +1,5 @@
 impl_database_ext! {
-    sqlx::Postgres {
+    sqlx::postgres::Postgres {
         bool,
         String,
         i16,

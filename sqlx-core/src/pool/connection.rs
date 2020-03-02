@@ -1,11 +1,12 @@
-use crate::{Connect, Connection, Executor};
 use futures_core::future::BoxFuture;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
 use super::inner::{DecrementSizeGuard, SharedPool};
+use crate::connection::{Connect, Connection};
 use crate::describe::Describe;
+use crate::executor::Executor;
 
 /// A connection checked out from [`Pool`][crate::Pool].
 ///

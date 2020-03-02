@@ -3,11 +3,11 @@ use std::ops::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 
 use crate::connection::Connection;
+use crate::database::Database;
 use crate::database::HasCursor;
 use crate::describe::Describe;
 use crate::executor::{Execute, Executor};
 use crate::runtime::spawn;
-use crate::Database;
 
 // Transaction<PoolConnection<PgConnection>>
 // Transaction<PgConnection>

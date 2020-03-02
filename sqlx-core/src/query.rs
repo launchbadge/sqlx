@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use async_stream::try_stream;
+use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::future::ready;
@@ -18,9 +19,9 @@ use crate::cursor::Cursor;
 use crate::database::{Database, HasCursor, HasRow};
 use crate::encode::Encode;
 use crate::executor::{Execute, Executor, RefExecutor};
+use crate::row::FromRow;
 use crate::types::Type;
-use crate::{Error, FromRow};
-use futures_core::future::BoxFuture;
+use crate::Error;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 pub struct Query<'q, DB, A = <DB as Database>::Arguments>

@@ -3,17 +3,14 @@ use std::ops::DerefMut;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::StreamExt;
 
-use crate::{
-    connection::{Connect, Connection},
-    describe::Describe,
-    executor::{Executor, RefExecutor},
-    pool::Pool,
-    Cursor, Database,
-};
-
 use super::PoolConnection;
-use crate::database::HasCursor;
+use crate::connection::{Connect, Connection};
+use crate::cursor::Cursor;
+use crate::database::{Database, HasCursor};
+use crate::describe::Describe;
 use crate::executor::Execute;
+use crate::executor::{Executor, RefExecutor};
+use crate::pool::Pool;
 
 impl<'p, C, DB> Executor for &'p Pool<C>
 where

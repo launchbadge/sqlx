@@ -22,7 +22,7 @@ mod tls;
 mod types;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.
-pub type PgPool = super::Pool<PgConnection>;
+pub type PgPool = crate::pool::Pool<PgConnection>;
 
 make_query_as!(PgQueryAs, Postgres, PgRow);
 impl_map_row_for_row!(Postgres, PgRow);

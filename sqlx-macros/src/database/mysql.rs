@@ -1,5 +1,5 @@
 impl_database_ext! {
-    sqlx::MySql {
+    sqlx::mysql::MySql {
         u8,
         u16,
         u32,

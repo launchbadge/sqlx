@@ -6,8 +6,9 @@ use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
+use crate::postgres::Postgres;
 use crate::types::Type;
-use crate::{Error, Postgres};
+use crate::Error;
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {

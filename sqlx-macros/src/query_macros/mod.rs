@@ -8,8 +8,8 @@ pub use query::expand_query;
 
 use crate::database::DatabaseExt;
 
-use sqlx::Connection;
-use sqlx::Database;
+use sqlx::connection::Connection;
+use sqlx::database::Database;
 
 mod args;
 mod input;

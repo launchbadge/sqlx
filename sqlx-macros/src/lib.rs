@@ -59,7 +59,7 @@ macro_rules! async_macro (
         };
 
         let res: Result<proc_macro2::TokenStream> = block_on(async {
-            use sqlx::Connect;
+            use sqlx::connection::Connect;
 
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
 

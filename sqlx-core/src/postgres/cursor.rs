@@ -11,14 +11,14 @@ use futures_core::stream::BoxStream;
 
 use crate::connection::{ConnectionSource, MaybeOwnedConnection};
 use crate::cursor::Cursor;
+use crate::database::Database;
 use crate::database::HasRow;
 use crate::executor::Execute;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::protocol::{
     CommandComplete, DataRow, Message, RowDescription, StatementId, TypeFormat,
 };
-use crate::postgres::{PgArguments, PgConnection, PgRow};
-use crate::{Database, Postgres};
+use crate::postgres::{PgArguments, PgConnection, PgRow, Postgres};
 use futures_core::Stream;
 
 pub struct PgCursor<'c, 'q> {
