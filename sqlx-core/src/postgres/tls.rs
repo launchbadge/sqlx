@@ -1,7 +1,7 @@
-use crate::postgres::protocol::SslRequest;
 use crate::postgres::stream::PgStream;
 use crate::url::Url;
 
+#[cfg_attr(not(feature = "tls"), allow(unused_variables))]
 pub(crate) async fn request_if_needed(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
     // https://www.postgresql.org/docs/12/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
     match url.param("sslmode").as_deref() {
@@ -70,7 +70,7 @@ async fn try_upgrade(
 ) -> crate::Result<bool> {
     use async_native_tls::TlsConnector;
 
-    stream.write(SslRequest);
+    stream.write(crate::postgres::protocol::SslRequest);
     stream.flush().await?;
 
     // The server then responds with a single byte containing S or N,
