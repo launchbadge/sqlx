@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ops::Range;
@@ -18,11 +19,9 @@ use crate::postgres::protocol::{
 };
 use crate::postgres::sasl;
 use crate::postgres::stream::PgStream;
-use crate::postgres::{PgError, PgTypeInfo};
+use crate::postgres::{tls, PgError, PgTypeInfo};
 use crate::url::Url;
 use crate::{Error, Executor, Postgres};
-
-// TODO: TLS
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///
@@ -237,6 +236,7 @@ impl PgConnection {
         let url = url?;
         let mut stream = PgStream::new(&url).await?;
 
+        tls::request_if_needed(&mut stream, &url).await?;
         startup(&mut stream, &url).await?;
 
         Ok(Self {
