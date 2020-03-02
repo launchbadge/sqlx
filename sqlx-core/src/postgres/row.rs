@@ -4,14 +4,10 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-use crate::connection::MaybeOwnedConnection;
-use crate::decode::Decode;
 use crate::error::UnexpectedNullError;
-use crate::pool::PoolConnection;
 use crate::postgres::protocol::{DataRow, TypeFormat};
-use crate::postgres::{PgConnection, Postgres};
+use crate::postgres::Postgres;
 use crate::row::{ColumnIndex, Row};
-use crate::types::Type;
 
 /// A value from Postgres. This may be in a BINARY or TEXT format depending
 /// on the data type and if the query was prepared or not.

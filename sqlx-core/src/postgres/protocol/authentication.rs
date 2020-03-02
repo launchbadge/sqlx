@@ -1,5 +1,4 @@
 use crate::io::Buf;
-use crate::postgres::protocol::Decode;
 use byteorder::NetworkEndian;
 use std::str;
 
@@ -82,7 +81,7 @@ pub struct AuthenticationMd5 {
 }
 
 impl AuthenticationMd5 {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub fn read(buf: &[u8]) -> crate::Result<Self> {
         let mut salt = [0_u8; 4];
         salt.copy_from_slice(buf);
 
@@ -118,7 +117,7 @@ pub struct AuthenticationSaslContinue {
 }
 
 impl AuthenticationSaslContinue {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub fn read(buf: &[u8]) -> crate::Result<Self> {
         let mut salt: Vec<u8> = Vec::new();
         let mut nonce: Vec<u8> = Vec::new();
         let mut iter_count: u32 = 0;
@@ -159,22 +158,6 @@ impl AuthenticationSaslContinue {
             data: str::from_utf8(buf)
                 .map_err(|_| protocol_err!("SaslContinue response was not a valid utf8 string"))?
                 .to_string(),
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct AuthenticationSaslFinal {
-    pub data: Box<[u8]>,
-}
-
-impl AuthenticationSaslFinal {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
-        let mut data = Vec::with_capacity(buf.len());
-        data.extend_from_slice(buf);
-
-        Ok(Self {
-            data: data.into_boxed_slice(),
         })
     }
 }

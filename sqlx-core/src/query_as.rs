@@ -1,17 +1,9 @@
 use core::marker::PhantomData;
 
-use async_stream::try_stream;
-use futures_core::future::BoxFuture;
-use futures_core::stream::Stream;
-use futures_util::future::ready;
-use futures_util::future::TryFutureExt;
-
 use crate::arguments::Arguments;
-use crate::cursor::Cursor;
-use crate::database::{Database, HasRow};
+use crate::database::Database;
 use crate::encode::Encode;
-use crate::executor::{Execute, RefExecutor};
-use crate::row::FromRow;
+use crate::executor::Execute;
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters, mapped to a concrete type
@@ -118,7 +110,7 @@ macro_rules! make_query_as {
 
         impl<'q, O> $name<'q, O> for crate::query_as::QueryAs<'q, $db, O> {
             fn fetch<'e, E>(
-                mut self,
+                self,
                 executor: E,
             ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
             where
@@ -140,7 +132,7 @@ macro_rules! make_query_as {
             }
 
             fn fetch_optional<'e, E>(
-                mut self,
+                self,
                 executor: E,
             ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
             where
@@ -159,7 +151,7 @@ macro_rules! make_query_as {
             }
 
             fn fetch_one<'e, E>(
-                mut self,
+                self,
                 executor: E,
             ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
             where
@@ -176,7 +168,7 @@ macro_rules! make_query_as {
             }
 
             fn fetch_all<'e, E>(
-                mut self,
+                self,
                 executor: E,
             ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
             where

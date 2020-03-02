@@ -40,7 +40,7 @@ impl Encode<Postgres> for Vec<u8> {
 impl<'de> Decode<'de, Postgres> for Vec<u8> {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
-            PgValue::Binary(mut buf) => Ok(buf.to_vec()),
+            PgValue::Binary(buf) => Ok(buf.to_vec()),
             PgValue::Text(s) => {
                 // BYTEA is formatted as \x followed by hex characters
                 hex::decode(&s[2..]).map_err(crate::Error::decode)
@@ -52,8 +52,8 @@ impl<'de> Decode<'de, Postgres> for Vec<u8> {
 impl<'de> Decode<'de, Postgres> for &'de [u8] {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
-            PgValue::Binary(mut buf) => Ok(buf),
-            PgValue::Text(s) => Err(crate::Error::Decode(
+            PgValue::Binary(buf) => Ok(buf),
+            PgValue::Text(_s) => Err(crate::Error::Decode(
                 "unsupported decode to `&[u8]` of BYTEA in a simple query; \
                     use a prepared query or decode to `Vec<u8>`"
                     .into(),

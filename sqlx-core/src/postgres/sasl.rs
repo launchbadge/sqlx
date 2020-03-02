@@ -3,11 +3,9 @@ use rand::Rng;
 use sha2::{Digest, Sha256};
 
 use crate::postgres::protocol::{
-    hi, Authentication, AuthenticationSaslContinue, Encode, Message, SaslInitialResponse,
-    SaslResponse,
+    hi, Authentication, AuthenticationSaslContinue, Message, SaslInitialResponse, SaslResponse,
 };
 use crate::postgres::stream::PgStream;
-use crate::postgres::PgConnection;
 
 static GS2_HEADER: &'static str = "n,,";
 static CHANNEL_ATTR: &'static str = "c";

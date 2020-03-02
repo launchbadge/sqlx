@@ -1,27 +1,20 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ops::Range;
 use std::sync::Arc;
 
-use byteorder::NetworkEndian;
 use futures_core::future::BoxFuture;
-use futures_core::Future;
 use futures_util::TryFutureExt;
 
 use crate::connection::{Connect, Connection};
-use crate::describe::{Column, Describe};
 use crate::executor::Executor;
-use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{
-    self, Authentication, AuthenticationMd5, AuthenticationSasl, Decode, Encode, Message,
-    ParameterDescription, PasswordMessage, RowDescription, StartupMessage, StatementId, Terminate,
-    TypeFormat,
+    Authentication, AuthenticationMd5, AuthenticationSasl, Message, PasswordMessage,
+    StartupMessage, StatementId, Terminate, TypeFormat,
 };
 use crate::postgres::stream::PgStream;
-use crate::postgres::{sasl, tls, PgError, PgTypeInfo, Postgres};
+use crate::postgres::{sasl, tls};
 use crate::url::Url;
-use crate::Error;
 
 /// An asynchronous connection to a [Postgres][super::Postgres] database.
 ///

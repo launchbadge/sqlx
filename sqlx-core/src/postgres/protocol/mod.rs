@@ -10,7 +10,6 @@ pub use type_id::TypeId;
 // REQUESTS
 mod bind;
 mod cancel_request;
-mod close;
 mod describe;
 mod encode;
 mod execute;
@@ -28,7 +27,6 @@ mod terminate;
 
 pub use bind::Bind;
 pub use cancel_request::CancelRequest;
-pub use close::Close;
 pub use describe::Describe;
 pub use encode::Encode;
 pub use execute::Execute;
@@ -60,7 +58,6 @@ mod message;
 
 pub use authentication::{
     Authentication, AuthenticationMd5, AuthenticationSasl, AuthenticationSaslContinue,
-    AuthenticationSaslFinal,
 };
 pub use backend_key_data::BackendKeyData;
 pub use command_complete::CommandComplete;

@@ -5,8 +5,6 @@ use std::time::Instant;
 
 use super::inner::{DecrementSizeGuard, SharedPool};
 use crate::connection::{Connect, Connection};
-use crate::describe::Describe;
-use crate::executor::Executor;
 
 /// A connection checked out from [`Pool`][crate::Pool].
 ///

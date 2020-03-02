@@ -1,7 +1,6 @@
 //! Core of SQLx, the rust SQL toolkit. Not intended to be used directly.
 
 #![forbid(unsafe_code)]
-#![allow(unused)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]

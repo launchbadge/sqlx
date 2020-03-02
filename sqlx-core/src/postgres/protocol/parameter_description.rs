@@ -1,5 +1,5 @@
 use crate::io::Buf;
-use crate::postgres::protocol::{Decode, TypeId};
+use crate::postgres::protocol::TypeId;
 use byteorder::NetworkEndian;
 
 #[derive(Debug)]

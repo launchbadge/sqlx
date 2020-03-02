@@ -7,7 +7,6 @@ use std::{
 };
 
 use crate::connection::Connect;
-use crate::database::Database;
 use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
