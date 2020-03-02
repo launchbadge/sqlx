@@ -21,7 +21,7 @@ where
 macro_rules! test_type {
     ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
         $crate::test_prepared_type!($name($db, $ty, $($text == $value),+));
-        // $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
+        $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
     }
 }
 
@@ -33,6 +33,8 @@ macro_rules! test_unprepared_type {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
+                use sqlx::prelude::*;
+
                 let mut conn = sqlx_test::new::<$db>().await?;
 
                 $(

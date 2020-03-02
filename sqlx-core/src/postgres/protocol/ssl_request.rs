@@ -21,7 +21,7 @@ fn test_ssl_request() {
     use crate::io::Buf;
 
     let mut buf = Vec::new();
-    SslRequest::encode(&mut buf);
+    SslRequest.encode(&mut buf);
 
     assert_eq!(&buf, b"\x00\x00\x00\x08\x04\xd2\x16/");
 }
