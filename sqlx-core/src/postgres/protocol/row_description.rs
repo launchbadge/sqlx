@@ -54,7 +54,7 @@ impl RowDescription {
 
 #[cfg(test)]
 mod test {
-    use super::{Decode, RowDescription};
+    use super::RowDescription;
 
     #[test]
     fn it_reads_row_description() {

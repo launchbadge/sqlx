@@ -164,7 +164,7 @@ impl AuthenticationSaslContinue {
 
 #[cfg(test)]
 mod tests {
-    use super::{Authentication, Decode};
+    use super::Authentication;
     use crate::postgres::protocol::authentication::AuthenticationMd5;
     use matches::assert_matches;
 
