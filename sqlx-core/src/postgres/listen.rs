@@ -9,7 +9,6 @@ use crate::executor::Executor;
 use crate::pool::PoolConnection;
 use crate::postgres::protocol::{Message, NotificationResponse};
 use crate::postgres::{PgConnection, PgPool};
-use crate::runtime::spawn;
 use crate::Result;
 
 type PgPoolConnection = PoolConnection<PgConnection>;
@@ -229,16 +228,6 @@ impl PgPoolListener {
     /// Close this pool listener's current connection & drop the connection.
     pub async fn close(mut self) {
         self.close_conn().await
-    }
-}
-
-impl Drop for PgPoolListener {
-    fn drop(&mut self) {
-        if let Some(conn) = self.connection.take() {
-            spawn(async move {
-                let _ = conn.close().await;
-            });
-        }
     }
 }
 
