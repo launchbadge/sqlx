@@ -4,7 +4,7 @@ use std::net::Shutdown;
 use byteorder::NetworkEndian;
 
 use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::protocol::{Encode, Message, Response, Severity};
+use crate::postgres::protocol::{Encode, Message, Response};
 use crate::postgres::PgError;
 use crate::url::Url;
 
@@ -73,13 +73,10 @@ impl PgStream {
             match type_ {
                 Message::ErrorResponse | Message::NoticeResponse => {
                     let response = Response::read(self.stream.buffer())?;
-                    match response.severity {
-                        Severity::Error | Severity::Panic | Severity::Fatal => {
-                            // This is an error, bubble up as one immediately
-                            return Err(crate::Error::Database(Box::new(PgError(response))));
-                        }
 
-                        _ => {}
+                    if response.severity.is_error() {
+                        // This is an error, bubble up as one immediately
+                        return Err(crate::Error::Database(Box::new(PgError(response))));
                     }
 
                     // TODO: Provide some way of receiving these non-critical

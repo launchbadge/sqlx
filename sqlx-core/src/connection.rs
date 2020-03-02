@@ -1,11 +1,7 @@
 use std::convert::TryInto;
-use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
-use futures_util::TryFutureExt;
 
-use crate::database::Database;
-use crate::describe::Describe;
 use crate::executor::Executor;
 use crate::pool::{Pool, PoolConnection};
 use crate::url::Url;

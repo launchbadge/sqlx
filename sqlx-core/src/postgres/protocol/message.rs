@@ -1,10 +1,5 @@
 use std::convert::TryFrom;
 
-use crate::postgres::protocol::{
-    Authentication, BackendKeyData, CommandComplete, DataRow, NotificationResponse,
-    ParameterDescription, ParameterStatus, ReadyForQuery, Response, RowDescription,
-};
-
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum Message {

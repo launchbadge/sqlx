@@ -1,27 +1,16 @@
-use std::future::Future;
 use std::marker::PhantomData;
-use std::mem;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 use async_stream::try_stream;
-use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::future::ready;
-use futures_util::ready;
-use futures_util::stream::try_unfold;
 use futures_util::TryFutureExt;
-use futures_util::TryStreamExt;
 
 use crate::arguments::Arguments;
 use crate::cursor::Cursor;
 use crate::database::{Database, HasCursor, HasRow};
 use crate::encode::Encode;
 use crate::executor::{Execute, Executor, RefExecutor};
-use crate::row::FromRow;
 use crate::types::Type;
-use crate::Error;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 pub struct Query<'q, DB, A = <DB as Database>::Arguments>
@@ -163,7 +152,7 @@ where
     }
 
     /// Get the first row in the result
-    pub async fn fetch_optional<'e, E>(mut self, executor: E) -> crate::Result<Option<F::Mapped>>
+    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<Option<F::Mapped>>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,

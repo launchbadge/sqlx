@@ -1,10 +1,7 @@
-use std::ops::DerefMut;
-
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::StreamExt;
+use futures_core::future::BoxFuture;
 
 use super::PoolConnection;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connect;
 use crate::cursor::Cursor;
 use crate::database::{Database, HasCursor};
 use crate::describe::Describe;

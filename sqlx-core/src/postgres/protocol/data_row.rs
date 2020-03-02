@@ -1,8 +1,5 @@
-use crate::io::{Buf, ByteStr};
-use crate::postgres::protocol::Decode;
-use crate::postgres::PgConnection;
+use crate::io::Buf;
 use byteorder::NetworkEndian;
-use std::fmt::{self, Debug};
 use std::ops::Range;
 
 pub struct DataRow<'c> {

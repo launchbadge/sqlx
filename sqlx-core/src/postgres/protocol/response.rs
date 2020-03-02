@@ -1,5 +1,4 @@
 use crate::io::Buf;
-use crate::postgres::protocol::Decode;
 use std::str::{self, FromStr};
 
 #[derive(Debug, Copy, Clone)]

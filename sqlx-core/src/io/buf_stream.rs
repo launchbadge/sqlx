@@ -55,12 +55,6 @@ where
         Ok(())
     }
 
-    pub fn clear_bufs(&mut self) {
-        self.rbuf_rindex = 0;
-        self.rbuf_windex = 0;
-        self.wbuf.clear();
-    }
-
     #[inline]
     pub fn consume(&mut self, cnt: usize) {
         self.rbuf_rindex += cnt;

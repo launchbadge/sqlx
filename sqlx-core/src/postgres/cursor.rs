@@ -1,25 +1,14 @@
 use std::collections::HashMap;
-use std::future::Future;
-use std::mem;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use async_stream::try_stream;
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
 
 use crate::connection::{ConnectionSource, MaybeOwnedConnection};
 use crate::cursor::Cursor;
-use crate::database::Database;
-use crate::database::HasRow;
 use crate::executor::Execute;
-use crate::pool::{Pool, PoolConnection};
-use crate::postgres::protocol::{
-    CommandComplete, DataRow, Message, RowDescription, StatementId, TypeFormat,
-};
+use crate::pool::Pool;
+use crate::postgres::protocol::{DataRow, Message, RowDescription, StatementId, TypeFormat};
 use crate::postgres::{PgArguments, PgConnection, PgRow, Postgres};
-use futures_core::Stream;
 
 pub struct PgCursor<'c, 'q> {
     source: ConnectionSource<'c, PgConnection>,

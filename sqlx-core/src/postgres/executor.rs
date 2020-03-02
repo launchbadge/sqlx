@@ -1,17 +1,12 @@
-use std::collections::HashMap;
-use std::io;
-use std::sync::Arc;
-
 use futures_core::future::BoxFuture;
 
 use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::postgres::protocol::{
-    self, CommandComplete, Encode, Message, ParameterDescription, RowDescription, StatementId,
-    TypeFormat,
+    self, CommandComplete, Message, ParameterDescription, RowDescription, StatementId, TypeFormat,
 };
-use crate::postgres::{PgArguments, PgConnection, PgCursor, PgRow, PgTypeInfo, Postgres};
+use crate::postgres::{PgArguments, PgConnection, PgCursor, PgTypeInfo, Postgres};
 
 impl PgConnection {
     pub(crate) fn write_simple_query(&mut self, query: &str) {

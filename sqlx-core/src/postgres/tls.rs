@@ -1,9 +1,6 @@
 use crate::postgres::protocol::SslRequest;
 use crate::postgres::stream::PgStream;
-use crate::postgres::PgConnection;
 use crate::url::Url;
-use std::borrow::Cow;
-use std::fs::read;
 
 pub(crate) async fn request_if_needed(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
     // https://www.postgresql.org/docs/12/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS

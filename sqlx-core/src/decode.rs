@@ -1,9 +1,6 @@
 //! Types and traits for decoding values from the database.
 
-use std::error::Error as StdError;
-use std::fmt::{self, Display};
-
-use crate::database::{Database, HasRawValue};
+use crate::database::HasRawValue;
 
 /// Decode a single value from the database.
 pub trait Decode<'de, DB>
