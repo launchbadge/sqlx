@@ -8,18 +8,17 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
 // Modules
-pub use sqlx_core::{arguments, describe, error, pool, query, row, types};
+pub use sqlx_core::{arguments, describe, error, pool, row, types};
 
 // Types
 pub use sqlx_core::{
-    query::Query, Connect, Connection, Cursor, Error, Execute, Executor, FromRow, Pool, Result, Row,
+    Connect, Connection, Cursor, Error, Execute, Executor, FromRow, Pool, Result, Row,
     Transaction
 };
 
 pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
-
-// Functions
-pub use query::{query, query_as};
+pub use sqlx_core::query::{self, query, Query};
+pub use sqlx_core::query_as::{query_as, QueryAs};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
@@ -57,4 +56,9 @@ pub mod decode {
 
     #[cfg(feature = "macros")]
     pub use sqlx_macros::Decode;
+}
+
+pub mod prelude {
+    #[cfg(feature = "postgres")]
+    pub use super::postgres::PgQueryAs as _;
 }

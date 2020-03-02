@@ -36,7 +36,7 @@ where
     }
 
     #[inline]
-    pub fn buffer(&self) -> &[u8] {
+    pub fn buffer<'c>(&'c self) -> &'c [u8] {
         &self.rbuf[self.rbuf_rindex..]
     }
 

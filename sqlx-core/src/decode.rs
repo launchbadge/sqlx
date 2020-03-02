@@ -8,7 +8,7 @@ use crate::database::{Database, HasRawValue};
 /// Decode a single value from the database.
 pub trait Decode<'de, DB>
 where
-    Self: Sized,
+    Self: Sized + 'de,
     DB: HasRawValue<'de>,
 {
     fn decode(value: DB::RawValue) -> crate::Result<Self>;

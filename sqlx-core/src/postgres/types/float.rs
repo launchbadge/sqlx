@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::str::FromStr;
 
-use byteorder::{ReadBytesExt, NetworkEndian};
+use byteorder::{NetworkEndian, ReadBytesExt};
 
 use crate::decode::Decode;
 use crate::encode::Encode;

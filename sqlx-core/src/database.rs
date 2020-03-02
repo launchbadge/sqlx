@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::arguments::Arguments;
 use crate::connection::{Connect, Connection};
 use crate::cursor::Cursor;
+use crate::query_as::QueryAs;
 use crate::row::Row;
 use crate::types::TypeInfo;
 
