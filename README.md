@@ -82,7 +82,7 @@ sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio"
 
  * `chrono`: Add support for date and time types from `chrono`.
 
- * `time`: Add support for date and time types from `time` crate (simpler than `chrono`)
+ * `time`: Add support for date and time types from `time` crate (alternative to `chrono`, prefered by `query!` macro, if both enabled)
 
  * `tls`: Add support for TLS connections.
 
