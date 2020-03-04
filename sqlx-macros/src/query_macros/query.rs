@@ -44,9 +44,6 @@ where
 
     let columns = output::columns_to_rust(&describe)?;
 
-    // record_type will be wrapped in parens which the compiler ignores without a trailing comma
-    // e.g. (Foo) == Foo but (Foo,) = one-element tuple
-    // and giving an empty stream for record_type makes it unit `()`
     let record_type: Path = Ident::new("Record", Span::call_site()).into();
 
     let record_fields = columns
