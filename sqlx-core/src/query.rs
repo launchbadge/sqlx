@@ -13,40 +13,40 @@ use crate::executor::{Execute, Executor, RefExecutor};
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
-pub struct Query<'q, DB, A = <DB as Database>::Arguments>
+pub struct Query<'q, DB>
 where
     DB: Database,
 {
     pub(crate) query: &'q str,
-    pub(crate) arguments: A,
+    pub(crate) arguments: DB::Arguments,
     database: PhantomData<DB>,
 }
 
 /// SQL query that will map its results to owned Rust types.
 ///
-/// Returned by [Query::map], `query!()`, etc. Has most of the same methods as [Query] but
+/// Returned by [Query::try_map], `query!()`, etc. Has most of the same methods as [Query] but
 /// the return types are changed to reflect the mapping. However, there is no equivalent of
 /// [Query::execute] as it doesn't make sense to map the result type and then ignore it.
-pub struct Map<'q, DB, F, A = <DB as Database>::Arguments>
+///
+/// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
+/// before `.try_map()` anyway.
+pub struct TryMap<'q, DB, F>
 where
     DB: Database,
 {
-    query: Query<'q, DB, A>,
+    query: Query<'q, DB>,
     mapper: F,
 }
-
-#[doc(hidden)]
-pub struct ImmutableArguments<DB: Database>(DB::Arguments);
 
 // necessary because we can't have a blanket impl for `Query<'q, DB>`
 // the compiler thinks that `ImmutableArguments<DB>` could be `DB::Arguments` even though
 // that would be an infinitely recursive type
-impl<'q, DB> Execute<'q, DB> for Query<'q, DB, ImmutableArguments<DB>>
+impl<'q, DB> Execute<'q, DB> for Query<'q, DB>
 where
     DB: Database,
 {
-    fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
-        (self.query, Some(self.arguments.0))
+    fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
+        (self.query, Some(self.arguments))
     }
 }
 
@@ -72,39 +72,51 @@ where
     }
 
     #[doc(hidden)]
-    pub fn bind_all(self, arguments: DB::Arguments) -> Query<'q, DB, ImmutableArguments<DB>> {
+    pub fn bind_all(self, arguments: DB::Arguments) -> Query<'q, DB> {
         Query {
             query: self.query,
-            arguments: ImmutableArguments(arguments),
+            arguments,
             database: PhantomData,
         }
     }
 }
 
-impl<'q, DB, A> Query<'q, DB, A>
+impl<'q, DB> Query<'q, DB>
 where
     DB: Database,
 {
+    /*
+    FIXME: how do we implement this without another adapter type (and trait)
+    probably requires lazy normalization: https://github.com/rust-lang/rust/issues/60471
+    pub fn map<F>(self, mapper: F) -> Map<'q, DB, F, A>
+    where
+        F: for<'c> FnMut(<DB as HasRow<'c>>::Row) -> T
+    {
+        ...
+    }
+    */
+
     /// Map each row in the result to another type.
     ///
-    /// The returned type has most of the same methods but does not have [`.execute()`][Query::execute].
+    /// The returned type has most of the same methods but does not have
+    /// [`.execute()`][Query::execute] or [`.bind()][Query::bind].
     ///
     /// Stylistically, we recommend placing this call after any [`.bind()`][Query::bind]
     /// calls, just before [`.fetch()`][Query::fetch], etc.
     ///
-    /// See also: [query_as].
-    pub fn map<F>(self, mapper: F) -> Map<'q, DB, F, A>
+    /// See also: [query_as][crate::query_as::query_as].
+    pub fn try_map<F>(self, mapper: F) -> TryMap<'q, DB, F>
     where
         F: MapRow<DB>,
     {
-        Map {
+        TryMap {
             query: self,
             mapper,
         }
     }
 }
 
-impl<'q, DB, A> Query<'q, DB, A>
+impl<'q, DB> Query<'q, DB>
 where
     DB: Database,
     Self: Execute<'q, DB>,
@@ -124,10 +136,10 @@ where
     }
 }
 
-impl<'q, DB, F, A> Map<'q, DB, F, A>
+impl<'q, DB, F> TryMap<'q, DB, F>
 where
     DB: Database,
-    Query<'q, DB, A>: Execute<'q, DB>,
+    Query<'q, DB>: Execute<'q, DB>,
     F: MapRow<DB>,
 {
     /// Execute the query and get a [Stream] of the results, returning our mapped type.
@@ -140,7 +152,6 @@ where
         E: RefExecutor<'e, Database = DB> + 'e,
         F: 'e,
         F::Mapped: 'e,
-        A: 'e,
     {
         try_stream! {
             let mut cursor = executor.fetch_by_ref(self.query);
