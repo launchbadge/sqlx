@@ -98,7 +98,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
     let row_path = DB::row_path();
 
     quote! {
-        sqlx::query::<#db_path>(#sql).bind_all(#bind_args).map(|row: #row_path| {
+        sqlx::query::<#db_path>(#sql).bind_all(#bind_args).try_map(|row: #row_path| {
             use sqlx::Row as _;
             use sqlx::result_ext::ResultExt as _;
 

@@ -9,7 +9,7 @@ async fn it_connects() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let value = sqlx::query("select 1 + 1")
-        .map(|row: PgRow| row.get::<i32, _>(0))
+        .try_map(|row: PgRow| row.get::<i32, _>(0))
         .fetch_one(&mut conn)
         .await?;
 
@@ -41,7 +41,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM users")
-        .map(|row: PgRow| row.get::<i32, _>(0))
+        .try_map(|row: PgRow| row.get::<i32, _>(0))
         .fetch(&mut conn)
         .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
         .await?;
@@ -59,7 +59,7 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
 
     let tuple =
         sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-            .map(|row: PgRow| {
+            .try_map(|row: PgRow| {
                 Ok((
                     row.get::<Option<i32>, _>(0)?,
                     row.get::<Option<i32>, _>(1)?,

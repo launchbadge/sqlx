@@ -7,7 +7,7 @@ async fn test_query() -> anyhow::Result<()> {
 
     let account = sqlx::query!(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
-        1i32,
+        1i32
     )
     .fetch_one(&mut conn)
     .await?;

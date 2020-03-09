@@ -244,7 +244,7 @@ impl PgConnection {
 
         crate::query::query(&query)
             .bind_all(args)
-            .map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
+            .try_map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
                 Ok((
                     row.get::<i32, _>(0)? as u32,
                     row.get::<String, _>(1)?.into(),
@@ -295,7 +295,7 @@ impl PgConnection {
 
         crate::query::query(&query)
             .bind_all(args)
-            .map(|row: PgRow| {
+            .try_map(|row: PgRow| {
                 let idx = row.get::<i32, _>(0)?;
                 let non_null = row.get::<Option<bool>, _>(1)?;
 
@@ -405,5 +405,3 @@ impl<'c> RefExecutor<'c> for &'c mut super::PgConnection {
         PgCursor::from_connection(self, query)
     }
 }
-
-impl_execute_for_query!(Postgres);

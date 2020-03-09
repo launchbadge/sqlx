@@ -5,8 +5,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_util::ready;
+use pin_project::{pin_project, pinned_drop};
 
-use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 const RBUF_SIZE: usize = 8 * 1024;
 
@@ -25,7 +26,9 @@ pub struct BufStream<S> {
     rbuf_windex: usize,
 }
 
+#[pin_project(PinnedDrop)]
 pub struct GuardedFlush<'a, S: 'a> {
+    #[pin]
     stream: &'a mut S,
     buf: io::Cursor<&'a mut Vec<u8>>,
 }
@@ -170,23 +173,26 @@ impl<'a, S: AsyncWrite + Unpin> Future for GuardedFlush<'a, S> {
     type Output = io::Result<()>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+
         loop {
-            let buf = self.buf.fill_buf()?;
+            let buf = this.buf.fill_buf()?;
 
             if !buf.is_empty() {
-                let written = ready!(self.stream.poll_write(cx)?);
-                self.buf.consume(written);
+                let written = ready!(this.stream.as_mut().poll_write(cx, buf)?);
+                this.buf.consume(written);
             } else {
                 break;
             }
         }
 
-        self.stream.poll_flush(cx)
+        this.stream.poll_flush(cx)
     }
 }
 
-impl<'a, S> Drop for GuardedFlush<'a, S> {
-    fn drop(&mut self) {
+#[pinned_drop]
+impl<'a, S> PinnedDrop for GuardedFlush<'a, S> {
+    fn drop(mut self: Pin<&mut Self>) {
         // clear the buffer regardless of whether the flush succeeded or not
         self.buf.get_mut().clear();
     }
