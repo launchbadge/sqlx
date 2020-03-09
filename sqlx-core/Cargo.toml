@@ -49,7 +49,6 @@ sha2 = { version = "0.8.1", default-features = false, optional = true }
 tokio = { version = "0.2.13", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true }
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
-pin-project = "0.4"
 
 [dev-dependencies]
 matches = "0.1.8"
