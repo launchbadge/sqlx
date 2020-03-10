@@ -5,11 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## 0.2.6 - 2020-03-10
 
 ### Added
 
-- Export sqlx_core::Transaction.
+ - [[#114]] Export `sqlx_core::Transaction` [[@thedodd]]
+
+### Fixed
+
+ - [[#125]] [[#126]] Fix statement execution in MySQL if it contains NULL statement values [[@repnop]]
+
+ - [[#105]] [[#109]] Allow trailing commas in query macros [[@timmythetiny]]
+
+[#105]: https://github.com/launchbadge/sqlx/pull/105
+[#109]: https://github.com/launchbadge/sqlx/pull/109
+[#114]: https://github.com/launchbadge/sqlx/pull/114
+[#125]: https://github.com/launchbadge/sqlx/pull/125
+[#126]: https://github.com/launchbadge/sqlx/pull/126
+
+[@timmythetiny]: https://github.com/timmythetiny
+[@thedodd]: https://github.com/thedodd
 
 ## 0.2.5 - 2020-02-01
 
@@ -41,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    using raw identifiers [[@yaahc]]
 
  - [[#71]] Implement derives for `Encode` and `Decode`. This is the first step to supporting custom types in SQLx. [[@Freax13]]
+
+[#72]: https://github.com/launchbadge/sqlx/issues/72
+[#96]: https://github.com/launchbadge/sqlx/issues/96
+[#71]: https://github.com/launchbadge/sqlx/issues/71
 
 [@jplatte]: https://github.com/jplatte
 [@yaahc]: https://github.com/yaahc
