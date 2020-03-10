@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::{PgPool, PgQueryAs, PgRow};
-use sqlx::{Connection, Executor, Postgres, Row};
+use sqlx::{Connection, Cursor, Executor, Postgres, Row};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -302,6 +302,23 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     timeout(Duration::from_secs(30), pool.close()).await?;
 
     eprintln!("pool closed successfully");
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_invalid_query() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("definitely not a correct query")
+        .await
+        .unwrap_err();
+
+    let mut cursor = conn.fetch("select 1");
+    let row = cursor.next().await?.unwrap();
+
+    assert_eq!(row.get::<i32, _>(0), 1i32);
 
     Ok(())
 }

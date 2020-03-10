@@ -56,8 +56,6 @@ impl PgConnection {
                 query,
             });
 
-            self.cache_statement_id.insert(query.into(), id);
-
             Ok(id)
         }
     }
@@ -163,6 +161,24 @@ impl PgConnection {
         self.stream.flush().await?;
         self.is_ready = false;
 
+        // only cache
+        if let Some(statement) = statement {
+            // prefer redundant lookup to copying the query string
+            if !self.cache_statement_id.contains_key(query) {
+                // wait for `ParseComplete` on the stream or the
+                // error before we cache the statement
+                match self.stream.read().await? {
+                    Message::ParseComplete => {
+                        self.cache_statement_id.insert(query.into(), statement);
+                    }
+
+                    message => {
+                        return Err(protocol_err!("run: unexpected message: {:?}", message).into());
+                    }
+                }
+            }
+        }
+
         Ok(statement)
     }
 
@@ -214,7 +230,6 @@ impl PgConnection {
 
         let result_fields = result.map_or_else(Default::default, |r| r.fields);
 
-        // TODO: cache this result
         let type_names = self
             .get_type_names(
                 params
