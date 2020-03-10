@@ -1454,15 +1454,15 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "anyhow 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "sqlx-core 0.2.5",
- "sqlx-macros 0.2.4",
+ "sqlx-core 0.2.6",
+ "sqlx-macros 0.2.5",
  "tokio 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "trybuild 1.0.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1495,7 +1495,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "async-native-tls 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1539,7 +1539,7 @@ dependencies = [
  "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-argon2 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
- "sqlx 0.2.5",
+ "sqlx 0.2.6",
  "tide 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1560,7 +1560,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "async-std 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1568,7 +1568,7 @@ dependencies = [
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "sqlx-core 0.2.5",
+ "sqlx-core 0.2.6",
  "syn 1.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
