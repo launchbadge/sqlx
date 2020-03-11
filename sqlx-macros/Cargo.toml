@@ -24,6 +24,7 @@ runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
 # database
 mysql = [ "sqlx/mysql" ]
 postgres = [ "sqlx/postgres" ]
+sqlite = [ "sqlx/sqlite" ]
 
 # type
 chrono = [ "sqlx/chrono" ]

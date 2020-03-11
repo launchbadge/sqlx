@@ -42,6 +42,7 @@ runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 # database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
+sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
 
 # types
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]

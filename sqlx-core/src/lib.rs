@@ -1,6 +1,10 @@
 //! Core of SQLx, the rust SQL toolkit. Not intended to be used directly.
 
-#![forbid(unsafe_code)]
+// When compiling with support for SQLite we must allow some unsafe code in order to
+// interface with the inherently unsafe C module. This unsafe code is contained
+// to the sqlite module.
+#![cfg_attr(feature = "sqlite", deny(unsafe_code))]
+#![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
 #![recursion_limit = "512"]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -47,6 +51,10 @@ pub mod mysql;
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub mod postgres;
+
+#[cfg(feature = "sqlite")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+pub mod sqlite;
 
 pub use error::{Error, Result};
 
