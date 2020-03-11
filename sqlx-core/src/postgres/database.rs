@@ -15,7 +15,6 @@ impl Database for Postgres {
 }
 
 impl<'a> HasRow<'a> for Postgres {
-    // TODO: Can we drop the `type Database = _`
     type Database = Postgres;
 
     type Row = super::PgRow<'a>;

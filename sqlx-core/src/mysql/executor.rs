@@ -4,8 +4,8 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::mysql::protocol::{
-    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk,
-    FieldFlags, Status,
+    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, FieldFlags,
+    Status,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo};
 

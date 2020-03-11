@@ -24,7 +24,7 @@ impl BackendKeyData {
 
 #[cfg(test)]
 mod tests {
-    use super::{BackendKeyData, };
+    use super::BackendKeyData;
 
     const BACKEND_KEY_DATA: &[u8] = b"\0\0'\xc6\x89R\xc5+";
 

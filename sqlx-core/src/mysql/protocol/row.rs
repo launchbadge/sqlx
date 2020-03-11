@@ -3,7 +3,7 @@ use std::ops::Range;
 use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
-use crate::mysql::protocol::{TypeId};
+use crate::mysql::protocol::TypeId;
 
 pub(crate) struct Row<'c> {
     buffer: &'c [u8],
