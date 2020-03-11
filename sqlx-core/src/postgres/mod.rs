@@ -28,3 +28,4 @@ make_query_as!(PgQueryAs, Postgres, PgRow);
 impl_map_row_for_row!(Postgres, PgRow);
 impl_column_index_for_row!(Postgres);
 impl_from_row_for_tuples!(Postgres, PgRow);
+impl_execute_for_query!(Postgres);

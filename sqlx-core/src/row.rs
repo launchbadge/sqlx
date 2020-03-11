@@ -190,7 +190,7 @@ macro_rules! impl_column_index_for_row {
                 row.columns
                     .get(self)
                     .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
-                    .map(|&index| index)
+                    .map(|&index| index as usize)
             }
         }
     };

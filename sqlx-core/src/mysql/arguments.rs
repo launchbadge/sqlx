@@ -27,10 +27,10 @@ impl Arguments for MySqlArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        Self::Database: Type<T>,
+        T: Type<Self::Database>,
         T: Encode<Self::Database>,
     {
-        let type_id = <MySql as Type<T>>::type_info();
+        let type_id = <T as Type<MySql>>::type_info();
         let index = self.param_types.len();
 
         self.param_types.push(type_id);

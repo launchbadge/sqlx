@@ -10,8 +10,10 @@ mod chrono;
 
 use std::fmt::{self, Debug, Display};
 
+use crate::decode::Decode;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::protocol::{ColumnDefinition, FieldFlags};
+use crate::mysql::{MySql, MySqlValue};
 use crate::types::TypeInfo;
 
 #[derive(Clone, Debug, Default)]
@@ -101,5 +103,16 @@ impl TypeInfo for MySqlTypeInfo {
             // Fallback to equality of only [id] and [is_unsigned]
             _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
         }
+    }
+}
+
+impl<'de, T> Decode<'de, MySql> for Option<T>
+where
+    T: Decode<'de, MySql>,
+{
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        value
+            .map(|value| <T as Decode<MySql>>::decode(Some(value)))
+            .transpose()
     }
 }

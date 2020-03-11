@@ -9,7 +9,8 @@ use crate::mysql::protocol::Decode;
 pub struct ComStmtPrepareOk {
     pub statement_id: u32,
 
-    /// Number of columns in the returned result set (or 0 if statement does not return result set).
+    /// Number of columns in the returned result set (or 0 if statement
+    /// does not return result set).
     pub columns: u16,
 
     /// Number of prepared statement parameters ('?' placeholders).

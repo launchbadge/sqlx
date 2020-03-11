@@ -13,18 +13,18 @@ impl Database for MySql {
     type TableId = Box<str>;
 }
 
-impl HasRow for MySql {
+impl<'c> HasRow<'c> for MySql {
     type Database = MySql;
 
-    type Row = super::MySqlRow;
+    type Row = super::MySqlRow<'c>;
 }
 
-impl<'a> HasCursor<'a> for MySql {
+impl<'c, 'q> HasCursor<'c, 'q> for MySql {
     type Database = MySql;
 
-    type Cursor = super::MySqlCursor<'a>;
+    type Cursor = super::MySqlCursor<'c, 'q>;
 }
 
-impl<'a> HasRawValue<'a> for MySql {
-    type RawValue = Option<&'a [u8]>;
+impl<'c> HasRawValue<'c> for MySql {
+    type RawValue = Option<super::MySqlValue<'c>>;
 }

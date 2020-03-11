@@ -75,6 +75,10 @@ name = "mysql"
 required-features = [ "mysql" ]
 
 [[test]]
+name = "mysql-raw"
+required-features = [ "mysql" ]
+
+[[test]]
 name = "postgres"
 required-features = [ "postgres" ]
 

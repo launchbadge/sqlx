@@ -27,6 +27,12 @@ pub struct ColumnDefinition {
     pub decimals: u8,
 }
 
+impl ColumnDefinition {
+    pub fn name(&self) -> Option<&str> {
+        self.column_alias.as_deref().or(self.column.as_deref())
+    }
+}
+
 impl Decode for ColumnDefinition {
     fn decode(mut buf: &[u8]) -> crate::Result<Self> {
         // catalog : string<lenenc>

@@ -1,22 +1,25 @@
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
+use std::sync::Arc;
 
 use byteorder::{ByteOrder, LittleEndian};
 use futures_core::future::BoxFuture;
 use sha1::Sha1;
 use std::net::Shutdown;
 
-use crate::cache::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, Decode, Encode, EofPacket, ErrPacket, Handshake,
+    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Encode, EofPacket, ErrPacket, Handshake,
     HandshakeResponse, OkPacket, SslRequest,
 };
-use crate::mysql::rsa;
+use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
+use crate::mysql::{rsa, tls};
 use crate::url::Url;
+use std::ops::Range;
 
 // Size before a packet is split
 const MAX_PACKET_SIZE: u32 = 1024;
@@ -85,520 +88,205 @@ const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 /// against the hostname in the server certificate, so they must be the same for the TLS
 /// upgrade to succeed. `ssl-ca` must still be specified.
 pub struct MySqlConnection {
-    pub(super) stream: BufStream<MaybeTlsStream>,
+    pub(super) stream: MySqlStream,
+    pub(super) is_ready: bool,
+    pub(super) cache_statement: HashMap<Box<str>, u32>,
 
-    // Active capabilities of the client _&_ the server
-    pub(super) capabilities: Capabilities,
-
-    // Cache of prepared statements
-    //  Query (String) to StatementId to ColumnMap
-    pub(super) statement_cache: StatementCache<u32>,
-
-    // Packets are buffered into a second buffer from the stream
-    // as we may have compressed or split packets to figure out before
-    // decoding
-    pub(super) packet: Vec<u8>,
-    packet_len: usize,
-
-    // Packets in a command sequence have an incrementing sequence number
-    // This number must be 0 at the start of each command
-    pub(super) next_seq_no: u8,
+    // Work buffer for the value ranges of the current row
+    // This is used as the backing memory for each Row's value indexes
+    pub(super) current_row_values: Vec<Option<Range<usize>>>,
 }
 
-impl MySqlConnection {
-    /// Write the packet to the stream ( do not send to the server )
-    pub(crate) fn write(&mut self, packet: impl Encode) {
-        let buf = self.stream.buffer_mut();
+fn to_asciz(s: &str) -> Vec<u8> {
+    let mut z = String::with_capacity(s.len() + 1);
+    z.push_str(s);
+    z.push('\0');
 
-        // Allocate room for the header that we write after the packet;
-        // so, we can get an accurate and cheap measure of packet length
+    z.into_bytes()
+}
 
-        let header_offset = buf.len();
-        buf.advance(4);
+async fn rsa_encrypt_with_nonce(
+    stream: &mut MySqlStream,
+    public_key_request_id: u8,
+    password: &str,
+    nonce: &[u8],
+) -> crate::Result<Vec<u8>> {
+    // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
-        packet.encode(buf, self.capabilities);
-
-        // Determine length of encoded packet
-        // and write to allocated header
-
-        let len = buf.len() - header_offset - 4;
-        let mut header = &mut buf[header_offset..];
-
-        LittleEndian::write_u32(&mut header, len as u32); // len
-
-        // Take the last sequence number received, if any, and increment by 1
-        // If there was no sequence number, we only increment if we split packets
-        header[3] = self.next_seq_no;
-        self.next_seq_no = self.next_seq_no.wrapping_add(1);
+    if stream.is_tls() {
+        // If in a TLS stream, send the password directly in clear text
+        return Ok(to_asciz(password));
     }
 
-    /// Send the packet to the database server
-    pub(crate) async fn send(&mut self, packet: impl Encode) -> crate::Result<()> {
-        self.write(packet);
-        self.stream.flush().await?;
+    // client sends a public key request
+    stream.send(&[public_key_request_id][..], false).await?;
 
-        Ok(())
-    }
+    // server sends a public key response
+    let packet = stream.receive().await?;
+    let rsa_pub_key = &packet[1..];
 
-    /// Send a [HandshakeResponse] packet to the database server
-    pub(crate) async fn send_handshake_response(
-        &mut self,
-        url: &Url,
-        auth_plugin: &AuthPlugin,
-        auth_response: &[u8],
-    ) -> crate::Result<()> {
-        self.send(HandshakeResponse {
-            client_collation: COLLATE_UTF8MB4_UNICODE_CI,
-            max_packet_size: MAX_PACKET_SIZE,
-            username: url.username().unwrap_or("root"),
-            database: url.database(),
-            auth_plugin,
-            auth_response,
-        })
-        .await
-    }
+    // xor the password with the given nonce
+    let mut pass = to_asciz(password);
+    xor_eq(&mut pass, nonce);
 
-    /// Try to receive a packet from the database server. Returns `None` if the server has sent
-    /// no data.
-    pub(crate) async fn try_receive(&mut self) -> crate::Result<Option<()>> {
-        self.packet.clear();
+    // client sends an RSA encrypted password
+    rsa::encrypt::<Sha1>(rsa_pub_key, &pass)
+}
 
-        // Read the packet header which contains the length and the sequence number
-        // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
-        // https://mariadb.com/kb/en/library/0-packet/#standard-packet
-        let mut header = ret_if_none!(self.stream.peek(4).await?);
-        self.packet_len = header.get_uint::<LittleEndian>(3)? as usize;
-        self.next_seq_no = header.get_u8()?.wrapping_add(1);
-        self.stream.consume(4);
-
-        // Read the packet body and copy it into our internal buf
-        // We must have a separate buffer around the stream as we can't operate directly
-        // on bytes returned from the stream. We have various kinds of payload manipulation
-        // that must be handled before decoding.
-        let payload = ret_if_none!(self.stream.peek(self.packet_len).await?);
-        self.packet.extend_from_slice(payload);
-        self.stream.consume(self.packet_len);
-
-        // TODO: Implement packet compression
-        // TODO: Implement packet joining
-
-        Ok(Some(()))
-    }
-
-    /// Receive a complete packet from the database server.
-    pub(crate) async fn receive(&mut self) -> crate::Result<&mut Self> {
-        self.try_receive()
-            .await?
-            .ok_or(io::ErrorKind::ConnectionAborted)?;
-
-        Ok(self)
-    }
-
-    /// Returns a reference to the most recently received packet data
-    #[inline]
-    pub(crate) fn packet(&self) -> &[u8] {
-        &self.packet[..self.packet_len]
-    }
-
-    /// Receive an [EofPacket] if we are supposed to receive them at all.
-    pub(crate) async fn receive_eof(&mut self) -> crate::Result<()> {
-        // When (legacy) EOFs are enabled, many things are terminated by an EOF packet
-        if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) {
-            let _eof = EofPacket::decode(self.receive().await?.packet())?;
+async fn make_auth_response(
+    stream: &mut MySqlStream,
+    plugin: &AuthPlugin,
+    password: &str,
+    nonce: &[u8],
+) -> crate::Result<Vec<u8>> {
+    match plugin {
+        AuthPlugin::CachingSha2Password | AuthPlugin::MySqlNativePassword => {
+            Ok(plugin.scramble(password, nonce))
         }
 
-        Ok(())
-    }
-
-    /// Receive a [Handshake] packet. When connecting to the database server, this is immediately
-    /// received from the database server.
-    pub(crate) async fn receive_handshake(&mut self, url: &Url) -> crate::Result<Handshake> {
-        let handshake = Handshake::decode(self.receive().await?.packet())?;
-
-        let mut client_capabilities = Capabilities::PROTOCOL_41
-            | Capabilities::IGNORE_SPACE
-            | Capabilities::FOUND_ROWS
-            | Capabilities::TRANSACTIONS
-            | Capabilities::SECURE_CONNECTION
-            | Capabilities::PLUGIN_AUTH_LENENC_DATA
-            | Capabilities::PLUGIN_AUTH;
-
-        if url.database().is_some() {
-            client_capabilities |= Capabilities::CONNECT_WITH_DB;
-        }
-
-        if cfg!(feature = "tls") {
-            client_capabilities |= Capabilities::SSL;
-        }
-
-        self.capabilities =
-            (client_capabilities & handshake.server_capabilities) | Capabilities::PROTOCOL_41;
-
-        Ok(handshake)
-    }
-
-    /// Receives an [OkPacket] from the database server. This is called at the end of
-    /// authentication to confirm the established connection.
-    pub(crate) fn receive_auth_ok<'a>(
-        &'a mut self,
-        plugin: &'a AuthPlugin,
-        password: &'a str,
-        nonce: &'a [u8],
-    ) -> BoxFuture<'a, crate::Result<()>> {
-        Box::pin(async move {
-            self.receive().await?;
-
-            match self.packet[0] {
-                0x00 => self.handle_ok().map(drop),
-                0xfe => self.handle_auth_switch(password).await,
-                0xff => self.handle_err(),
-
-                _ => self.handle_auth_continue(plugin, password, nonce).await,
-            }
-        })
-    }
-
-    pub(crate) fn handle_ok(&mut self) -> crate::Result<OkPacket> {
-        let ok = OkPacket::decode(self.packet())?;
-
-        // An OK signifies the end of the current command sequence
-        self.next_seq_no = 0;
-
-        Ok(ok)
-    }
-
-    pub(crate) fn handle_err<T>(&mut self) -> crate::Result<T> {
-        let err = ErrPacket::decode(self.packet())?;
-
-        // An ERR signifies the end of the current command sequence
-        self.next_seq_no = 0;
-
-        Err(MySqlError(err).into())
-    }
-
-    pub(crate) fn handle_unexpected_packet<T>(&self, id: u8) -> crate::Result<T> {
-        Err(protocol_err!("unexpected packet identifier 0x{:X?}", id).into())
-    }
-
-    pub(crate) async fn handle_auth_continue(
-        &mut self,
-        plugin: &AuthPlugin,
-        password: &str,
-        nonce: &[u8],
-    ) -> crate::Result<()> {
-        match plugin {
-            AuthPlugin::CachingSha2Password => {
-                if self.packet[0] == 1 {
-                    match self.packet[1] {
-                        // AUTH_OK
-                        0x03 => {}
-
-                        // AUTH_CONTINUE
-                        0x04 => {
-                            // client sends an RSA encrypted password
-                            let ct = self.rsa_encrypt(0x02, password, nonce).await?;
-
-                            self.send(&*ct).await?;
-                        }
-
-                        auth => {
-                            return Err(protocol_err!("unexpected result from 'fast' authentication 0x{:x} when expecting OK (0x03) or CONTINUE (0x04)", auth).into());
-                        }
-                    }
-
-                    // ends with server sending either OK_Packet or ERR_Packet
-                    self.receive_auth_ok(plugin, password, nonce)
-                        .await
-                        .map(drop)
-                } else {
-                    return self.handle_unexpected_packet(self.packet[0]);
-                }
-            }
-
-            // No other supported auth methods will be called through continue
-            _ => unreachable!(),
-        }
-    }
-
-    pub(crate) async fn handle_auth_switch(&mut self, password: &str) -> crate::Result<()> {
-        let auth = AuthSwitch::decode(self.packet())?;
-
-        let auth_response = self
-            .make_auth_initial_response(&auth.auth_plugin, password, &auth.auth_plugin_data)
-            .await?;
-
-        self.send(&*auth_response).await?;
-
-        self.receive_auth_ok(&auth.auth_plugin, password, &auth.auth_plugin_data)
-            .await
-    }
-
-    pub(crate) async fn make_auth_initial_response(
-        &mut self,
-        plugin: &AuthPlugin,
-        password: &str,
-        nonce: &[u8],
-    ) -> crate::Result<Vec<u8>> {
-        match plugin {
-            AuthPlugin::CachingSha2Password | AuthPlugin::MySqlNativePassword => {
-                Ok(plugin.scramble(password, nonce))
-            }
-
-            AuthPlugin::Sha256Password => {
-                // Full RSA exchange and password encrypt up front with no "cache"
-                Ok(self.rsa_encrypt(0x01, password, nonce).await?.into_vec())
-            }
-        }
-    }
-
-    pub(crate) async fn rsa_encrypt(
-        &mut self,
-        public_key_request_id: u8,
-        password: &str,
-        nonce: &[u8],
-    ) -> crate::Result<Box<[u8]>> {
-        // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
-
-        if self.stream.is_tls() {
-            // If in a TLS stream, send the password directly in clear text
-            let mut clear_text = String::with_capacity(password.len() + 1);
-            clear_text.push_str(password);
-            clear_text.push('\0');
-
-            return Ok(clear_text.into_bytes().into_boxed_slice());
-        }
-
-        // client sends a public key request
-        self.send(&[public_key_request_id][..]).await?;
-
-        // server sends a public key response
-        let packet = self.receive().await?.packet();
-        let rsa_pub_key = &packet[1..];
-
-        // The password string data must be NUL terminated
-        // Note: This is not in the documentation that I could find
-        let mut pass = password.as_bytes().to_vec();
-        pass.push(0);
-
-        xor_eq(&mut pass, nonce);
-
-        // client sends an RSA encrypted password
-        rsa::encrypt::<Sha1>(rsa_pub_key, &pass)
+        AuthPlugin::Sha256Password => rsa_encrypt_with_nonce(stream, 0x01, password, nonce).await,
     }
 }
 
-impl MySqlConnection {
-    async fn new(url: &Url) -> crate::Result<Self> {
-        let stream = MaybeTlsStream::connect(url, 3306).await?;
+async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
+    // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase.html
+    // https://mariadb.com/kb/en/connection/
 
-        let mut capabilities = Capabilities::empty();
+    // Read a [Handshake] packet. When connecting to the database server, this is immediately
+    // received from the database server.
 
-        if cfg!(feature = "tls") {
-            capabilities |= Capabilities::SSL;
-        }
+    let handshake = Handshake::decode(stream.receive().await?)?;
+    let mut auth_plugin = handshake.auth_plugin;
+    let mut auth_plugin_data = handshake.auth_plugin_data;
 
-        Ok(Self {
-            stream: BufStream::new(stream),
-            capabilities,
-            packet: Vec::with_capacity(8192),
-            packet_len: 0,
-            next_seq_no: 0,
-            statement_cache: StatementCache::new(),
-        })
-    }
+    stream.capabilities &= handshake.server_capabilities;
+    stream.capabilities |= Capabilities::PROTOCOL_41;
 
-    async fn initialize(&mut self) -> crate::Result<()> {
-        // On connect, we want to establish a modern, Rust-compatible baseline so we
-        // tweak connection options to enable UTC for TIMESTAMP, UTF-8 for character types, etc.
+    // Depending on the ssl-mode and capabilities we should upgrade
+    // our connection to TLS
 
-        // TODO: Use batch support when we have it to handle the following in one execution
+    tls::upgrade_if_needed(stream, url).await?;
 
-        // https://mariadb.com/kb/en/sql-mode/
+    // Send a [HandshakeResponse] packet. This is returned in response to the [Handshake] packet
+    // that is immediately received.
 
-        // PIPES_AS_CONCAT - Allows using the pipe character (ASCII 124) as string concatenation operator.
-        //                   This means that "A" || "B" can be used in place of CONCAT("A", "B").
+    let password = &*url.password().unwrap_or_default();
+    let auth_response =
+        make_auth_response(stream, &auth_plugin, password, &auth_plugin_data).await?;
 
-        // NO_ENGINE_SUBSTITUTION - If not set, if the available storage engine specified by a CREATE TABLE is
-        //                          not available, a warning is given and the default storage
-        //                          engine is used instead.
-
-        // NO_ZERO_DATE - Don't allow '0000-00-00'. This is invalid in Rust.
-
-        // NO_ZERO_IN_DATE - Don't allow 'YYYY-00-00'. This is invalid in Rust.
-
-        // language=MySQL
-        self.execute_raw("SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'))")
-            .await?;
-
-        // This allows us to assume that the output from a TIMESTAMP field is UTC
-
-        // language=MySQL
-        self.execute_raw("SET time_zone = '+00:00'").await?;
-
-        // https://mathiasbynens.be/notes/mysql-utf8mb4
-
-        // language=MySQL
-        self.execute_raw("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
-            .await?;
-
-        Ok(())
-    }
-
-    #[cfg(feature = "tls")]
-    async fn try_ssl(
-        &mut self,
-        url: &Url,
-        ca_file: Option<&str>,
-        invalid_hostnames: bool,
-    ) -> crate::Result<()> {
-        use crate::runtime::fs;
-        use async_native_tls::{Certificate, TlsConnector};
-
-        let mut connector = TlsConnector::new()
-            .danger_accept_invalid_certs(ca_file.is_none())
-            .danger_accept_invalid_hostnames(invalid_hostnames);
-
-        if let Some(ca_file) = ca_file {
-            let root_cert = fs::read(ca_file).await?;
-            connector = connector.add_root_certificate(Certificate::from_pem(&root_cert)?);
-        }
-
-        // send upgrade request and then immediately try TLS handshake
-        self.send(SslRequest {
-            client_collation: COLLATE_UTF8MB4_UNICODE_CI,
-            max_packet_size: MAX_PACKET_SIZE,
-        })
+    stream
+        .send(
+            HandshakeResponse {
+                client_collation: COLLATE_UTF8MB4_UNICODE_CI,
+                max_packet_size: MAX_PACKET_SIZE,
+                username: url.username().unwrap_or("root"),
+                database: url.database(),
+                auth_plugin: &auth_plugin,
+                auth_response: &auth_response,
+            },
+            false,
+        )
         .await?;
 
-        self.stream.stream.upgrade(url, connector).await
+    loop {
+        // After sending the handshake response with our assumed auth method the server
+        // will send OK, fail, or tell us to change auth methods
+        let capabilities = stream.capabilities;
+        let packet = stream.receive().await?;
+
+        match packet[0] {
+            // OK
+            0x00 => {
+                break;
+            }
+
+            // ERROR
+            0xFF => {
+                return stream.handle_err();
+            }
+
+            // AUTH_SWITCH
+            0xFE => {
+                let auth = AuthSwitch::decode(packet)?;
+                auth_plugin = auth.auth_plugin;
+                auth_plugin_data = auth.auth_plugin_data;
+
+                let auth_response =
+                    make_auth_response(stream, &auth_plugin, password, &auth_plugin_data).await?;
+
+                stream.send(&*auth_response, false).await?;
+            }
+
+            0x01 if auth_plugin == AuthPlugin::CachingSha2Password => {
+                match packet[1] {
+                    // AUTH_OK
+                    0x03 => {}
+
+                    // AUTH_CONTINUE
+                    0x04 => {
+                        // The specific password is _not_ cached on the server
+                        // We need to send a normal RSA-encrypted password for this
+                        let enc = rsa_encrypt_with_nonce(stream, 0x02, password, &auth_plugin_data)
+                            .await?;
+
+                        stream.send(&*enc, false).await?;
+                    }
+
+                    unk => {
+                        return Err(protocol_err!("unexpected result from 'fast' authentication 0x{:x} when expecting OK (0x03) or CONTINUE (0x04)", unk).into());
+                    }
+                }
+            }
+
+            unk => {
+                return stream.handle_unexpected();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn close(mut stream: MySqlStream) -> crate::Result<()> {
+    // TODO: Actually tell MySQL that we're closing
+
+    stream.flush().await?;
+    stream.shutdown()?;
+
+    Ok(())
+}
+
+async fn ping(stream: &mut MySqlStream) -> crate::Result<()> {
+    stream.send(ComPing, true).await?;
+
+    match stream.receive().await?[0] {
+        0x00 | 0xFE => Ok(()),
+
+        0xFF => stream.handle_err(),
+
+        _ => stream.handle_unexpected(),
     }
 }
 
 impl MySqlConnection {
-    pub(super) async fn establish(url: crate::Result<Url>) -> crate::Result<Self> {
+    pub(super) async fn new(url: crate::Result<Url>) -> crate::Result<Self> {
         let url = url?;
-        let mut self_ = Self::new(&url).await?;
+        let mut stream = MySqlStream::new(&url).await?;
 
-        // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase.html
-        // https://mariadb.com/kb/en/connection/
+        establish(&mut stream, &url).await?;
 
-        // On connect, server immediately sends the handshake
-        let mut handshake = self_.receive_handshake(&url).await?;
-
-        let ca_file = url.param("ssl-ca");
-
-        let ssl_mode = url.param("ssl-mode").unwrap_or(
-            if ca_file.is_some() {
-                "VERIFY_CA"
-            } else {
-                "PREFERRED"
-            }
-            .into(),
-        );
-
-        let supports_ssl = handshake.server_capabilities.contains(Capabilities::SSL);
-
-        match &*ssl_mode {
-            "DISABLED" => (),
-
-            // don't try upgrade
-            #[cfg(feature = "tls")]
-            "PREFERRED" if !supports_ssl => {
-                log::warn!("server does not support TLS; using unencrypted connection")
-            }
-
-            // try to upgrade
-            #[cfg(feature = "tls")]
-            "PREFERRED" => {
-                if let Err(e) = self_.try_ssl(&url, None, true).await {
-                    log::warn!("TLS handshake failed, falling back to insecure: {}", e);
-                    // fallback, redo connection
-                    self_ = Self::new(&url).await?;
-                    handshake = self_.receive_handshake(&url).await?;
-                }
-            }
-
-            #[cfg(not(feature = "tls"))]
-            "PREFERRED" => log::info!("compiled without TLS, skipping upgrade"),
-
-            #[cfg(feature = "tls")]
-            "REQUIRED" if !supports_ssl => {
-                return Err(tls_err!("server does not support TLS").into())
-            }
-
-            #[cfg(feature = "tls")]
-            "REQUIRED" => self_.try_ssl(&url, None, true).await?,
-
-            #[cfg(feature = "tls")]
-            "VERIFY_CA" | "VERIFY_FULL" if ca_file.is_none() => {
-                return Err(
-                    tls_err!("`ssl-mode` of {:?} requires `ssl-ca` to be set", ssl_mode).into(),
-                )
-            }
-
-            #[cfg(feature = "tls")]
-            "VERIFY_CA" | "VERIFY_FULL" => {
-                self_
-                    .try_ssl(&url, ca_file.as_deref(), ssl_mode != "VERIFY_FULL")
-                    .await?
-            }
-
-            #[cfg(not(feature = "tls"))]
-            "REQUIRED" | "VERIFY_CA" | "VERIFY_FULL" => {
-                return Err(tls_err!("compiled without TLS").into())
-            }
-            _ => return Err(tls_err!("unknown `ssl-mode` value: {:?}", ssl_mode).into()),
-        }
-
-        // Pre-generate an auth response by using the auth method in the [Handshake]
-        let password = url.password().unwrap_or_default();
-        let auth_response = self_
-            .make_auth_initial_response(
-                &handshake.auth_plugin,
-                &password,
-                &handshake.auth_plugin_data,
-            )
-            .await?;
-
-        self_
-            .send_handshake_response(&url, &handshake.auth_plugin, &auth_response)
-            .await?;
-
-        // After sending the handshake response with our assumed auth method the server
-        // will send OK, fail, or tell us to change auth methods
-        self_
-            .receive_auth_ok(
-                &handshake.auth_plugin,
-                &password,
-                &handshake.auth_plugin_data,
-            )
-            .await?;
+        let mut self_ = Self {
+            stream,
+            current_row_values: Vec::with_capacity(10),
+            is_ready: true,
+            cache_statement: HashMap::new(),
+        };
 
         // After the connection is established, we initialize by configuring a few
         // connection parameters
-        self_.initialize().await?;
+        // initialize().await?;
 
         Ok(self_)
-    }
-
-    async fn close(mut self) -> crate::Result<()> {
-        // TODO: Actually tell MySQL that we're closing
-
-        self.stream.flush().await?;
-        self.stream.stream.shutdown(Shutdown::Both)?;
-
-        Ok(())
-    }
-}
-
-impl MySqlConnection {
-    #[deprecated(note = "please use 'connect' instead")]
-    pub fn open<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
-    where
-        T: TryInto<Url, Error = crate::Error>,
-        Self: Sized,
-    {
-        Box::pin(MySqlConnection::establish(url.try_into()))
     }
 }
 
@@ -608,12 +296,16 @@ impl Connect for MySqlConnection {
         T: TryInto<Url, Error = crate::Error>,
         Self: Sized,
     {
-        Box::pin(MySqlConnection::establish(url.try_into()))
+        Box::pin(MySqlConnection::new(url.try_into()))
     }
 }
 
 impl Connection for MySqlConnection {
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        Box::pin(self.close())
+        Box::pin(close(self.stream))
+    }
+
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+        Box::pin(ping(&mut self.stream))
     }
 }

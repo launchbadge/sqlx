@@ -58,3 +58,17 @@ where
     let decoded = Foo::decode(Some(sqlx::postgres::PgValue::Binary(&encoded))).unwrap();
     assert_eq!(example, decoded);
 }
+
+#[cfg(feature = "mysql")]
+fn decode_with_db()
+where
+    Foo: for<'de> Decode<'de, sqlx::MySql> + Encode<sqlx::MySql>,
+{
+    let example = Foo(0x1122_3344);
+
+    let mut encoded = Vec::new();
+    Encode::<sqlx::MySql>::encode(&example, &mut encoded);
+
+    let decoded = Foo::decode(Some(sqlx::mysql::MySqlValue::Binary(&encoded))).unwrap();
+    assert_eq!(example, decoded);
+}

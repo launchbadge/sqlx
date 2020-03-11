@@ -70,4 +70,7 @@ pub mod prelude {
 
     #[cfg(feature = "postgres")]
     pub use super::postgres::PgQueryAs;
+
+    #[cfg(feature = "mysql")]
+    pub use super::mysql::MySqlQueryAs;
 }

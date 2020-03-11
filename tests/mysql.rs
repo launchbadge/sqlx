@@ -1,17 +1,24 @@
 use futures::TryStreamExt;
-use sqlx::{Connection as _, Executor as _, MySqlConnection, MySqlPool, Row as _};
+use sqlx::{mysql::MySqlQueryAs, Connection, Executor, MySql, MySqlPool};
+use sqlx_test::new;
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_connects() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    Ok(new::<MySql>().await?.ping().await?)
+}
 
-    let row = sqlx::query("select 1 + 1").fetch_one(&mut conn).await?;
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_drops_results_in_affected_rows() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
 
-    assert_eq!(2, row.get(0));
+    // ~1800 rows should be iterated and dropped
+    let affected = conn.execute("select * from mysql.time_zone").await?;
 
-    conn.close().await?;
+    // In MySQL, rows being returned isn't enough to flag it as an _affected_ row
+    assert_eq!(0, affected);
 
     Ok(())
 }
@@ -19,10 +26,10 @@ async fn it_connects() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
 
     let _ = conn
-        .send(
+        .execute(
             r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
             "#,
@@ -38,12 +45,9 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
         assert_eq!(cnt, 1);
     }
 
-    let sum: i32 = sqlx::query("SELECT id FROM users")
+    let sum: i32 = sqlx::query_as("SELECT id FROM users")
         .fetch(&mut conn)
-        .try_fold(
-            0_i32,
-            |acc, x| async move { Ok(acc + x.get::<i32, _>("id")) },
-        )
+        .try_fold(0_i32, |acc, (x,): (i32,)| async move { Ok(acc + x) })
         .await?;
 
     assert_eq!(sum, 55);
@@ -54,11 +58,9 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_selects_null() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
 
-    let row = sqlx::query("SELECT NULL").fetch_one(&mut conn).await?;
-
-    let val: Option<i32> = row.get(0);
+    let (val,): (Option<i32>,) = sqlx::query_as("SELECT NULL").fetch_one(&mut conn).await?;
 
     assert!(val.is_none());
 
@@ -68,12 +70,10 @@ async fn it_selects_null() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_describe() -> anyhow::Result<()> {
-    use sqlx::describe::Nullability::*;
-
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
 
     let _ = conn
-        .send(
+        .execute(
             r#"
         CREATE TEMPORARY TABLE describe_test (
             id int primary key auto_increment,
@@ -88,13 +88,13 @@ async fn test_describe() -> anyhow::Result<()> {
         .describe("select nt.*, false from describe_test nt")
         .await?;
 
-    assert_eq!(describe.result_columns[0].nullability, NonNull);
+    assert_eq!(describe.result_columns[0].non_null, Some(true));
     assert_eq!(describe.result_columns[0].type_info.type_name(), "INT");
-    assert_eq!(describe.result_columns[1].nullability, NonNull);
+    assert_eq!(describe.result_columns[1].non_null, Some(true));
     assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
-    assert_eq!(describe.result_columns[2].nullability, Nullable);
+    assert_eq!(describe.result_columns[2].non_null, Some(false));
     assert_eq!(describe.result_columns[2].type_info.type_name(), "TEXT");
-    assert_eq!(describe.result_columns[3].nullability, NonNull);
+    assert_eq!(describe.result_columns[3].non_null, Some(true));
 
     let bool_ty_name = describe.result_columns[3].type_info.type_name();
 
@@ -112,7 +112,7 @@ async fn test_describe() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
     // Malform the database url by changing the password
-    let url = url()?.replace("password", "not-the-password");
+    let url = dotenv::var("DATABASE_URL")?.replace("password", "not-the-password");
 
     let pool = MySqlPool::new(&url).await?;
 
@@ -152,7 +152,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         spawn(async move {
             loop {
-                if let Err(e) = sqlx::query("select 1 + 1").fetch_one(&mut &pool).await {
+                if let Err(e) = sqlx::query("select 1 + 1").execute(&mut &pool).await {
                     eprintln!("pool task {} dying due to {}", i, e);
                     break;
                 }
@@ -184,12 +184,4 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     eprintln!("pool closed successfully");
 
     Ok(())
-}
-
-fn url() -> anyhow::Result<String> {
-    Ok(dotenv::var("DATABASE_URL")?)
-}
-
-async fn connect() -> anyhow::Result<MySqlConnection> {
-    Ok(MySqlConnection::open(url()?).await?)
 }

@@ -65,14 +65,15 @@ macro_rules! test_prepared_type {
                 let mut conn = sqlx_test::new::<$db>().await?;
 
                 $(
-                    let query = format!("SELECT {} = $1, $1 as _1", $text);
+                    let query = format!($crate::[< $db _query_for_test_prepared_type >]!(), $text);
 
                     let rec: (bool, $ty) = sqlx::query_as(&query)
+                        .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)
                         .await?;
 
-                    assert!(rec.0);
+                    assert!(rec.0, "value returned from server: {:?}", rec.1);
                     assert!($value == rec.1);
                 )+
 
@@ -80,4 +81,18 @@ macro_rules! test_prepared_type {
             }
         }
     }
+}
+
+#[macro_export]
+macro_rules! MySql_query_for_test_prepared_type {
+    () => {
+        "SELECT {} <=> ?, ? as _1"
+    };
+}
+
+#[macro_export]
+macro_rules! Postgres_query_for_test_prepared_type {
+    () => {
+        "SELECT {} is not distinct form $1, $2 as _1"
+    };
 }

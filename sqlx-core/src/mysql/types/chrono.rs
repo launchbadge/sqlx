@@ -1,17 +1,19 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use byteorder::{ByteOrder, LittleEndian};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::MySql;
+use crate::mysql::{MySql, MySqlValue};
 use crate::types::Type;
+use crate::Error;
+use bitflags::_core::str::from_utf8;
 
-impl Type<DateTime<Utc>> for MySql {
+impl Type<MySql> for DateTime<Utc> {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIMESTAMP)
     }
@@ -23,15 +25,15 @@ impl Encode<MySql> for DateTime<Utc> {
     }
 }
 
-impl Decode<MySql> for DateTime<Utc> {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let naive: NaiveDateTime = Decode::<MySql>::decode(buf)?;
+impl<'de> Decode<'de, MySql> for DateTime<Utc> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(DateTime::from_utc(naive, Utc))
     }
 }
 
-impl Type<NaiveTime> for MySql {
+impl Type<MySql> for NaiveTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIME)
     }
@@ -63,24 +65,33 @@ impl Encode<MySql> for NaiveTime {
     }
 }
 
-impl Decode<MySql> for NaiveTime {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        // data length, expecting 8 or 12 (fractional seconds)
-        let len = buf.get_u8()?;
+impl<'de> Decode<'de, MySql> for NaiveTime {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match buf.try_into()? {
+            MySqlValue::Binary(mut buf) => {
+                // data length, expecting 8 or 12 (fractional seconds)
+                let len = buf.get_u8()?;
 
-        // is negative : int<1>
-        let is_negative = buf.get_u8()?;
-        assert_eq!(is_negative, 0, "Negative dates/times are not supported");
+                // is negative : int<1>
+                let is_negative = buf.get_u8()?;
+                assert_eq!(is_negative, 0, "Negative dates/times are not supported");
 
-        // "date on 4 bytes little-endian format" (?)
-        // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
-        buf.advance(4);
+                // "date on 4 bytes little-endian format" (?)
+                // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
+                buf.advance(4);
 
-        decode_time(len - 5, buf)
+                decode_time(len - 5, buf)
+            }
+
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(Error::decode)?;
+                NaiveTime::parse_from_str(s, "%H:%M:%S%.f").map_err(Error::decode)
+            }
+        }
     }
 }
 
-impl Type<NaiveDate> for MySql {
+impl Type<MySql> for NaiveDate {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATE)
     }
@@ -98,13 +109,20 @@ impl Encode<MySql> for NaiveDate {
     }
 }
 
-impl Decode<MySql> for NaiveDate {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(decode_date(&buf[1..]))
+impl<'de> Decode<'de, MySql> for NaiveDate {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match buf.try_into()? {
+            MySqlValue::Binary(buf) => Ok(decode_date(&buf[1..])),
+
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(Error::decode)?;
+                NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(Error::decode)
+            }
+        }
     }
 }
 
-impl Type<NaiveDateTime> for MySql {
+impl Type<MySql> for NaiveDateTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATETIME)
     }
@@ -144,18 +162,27 @@ impl Encode<MySql> for NaiveDateTime {
     }
 }
 
-impl Decode<MySql> for NaiveDateTime {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let len = buf[0];
-        let date = decode_date(&buf[1..]);
+impl<'de> Decode<'de, MySql> for NaiveDateTime {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match buf.try_into()? {
+            MySqlValue::Binary(buf) => {
+                let len = buf[0];
+                let date = decode_date(&buf[1..]);
 
-        let dt = if len > 4 {
-            date.and_time(decode_time(len - 4, &buf[5..])?)
-        } else {
-            date.and_hms(0, 0, 0)
-        };
+                let dt = if len > 4 {
+                    date.and_time(decode_time(len - 4, &buf[5..])?)
+                } else {
+                    date.and_hms(0, 0, 0)
+                };
 
-        Ok(dt)
+                Ok(dt)
+            },
+
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(Error::decode)?;
+                NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").map_err(Error::decode)
+            }
+        }
     }
 }
 
@@ -187,7 +214,7 @@ fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
     }
 }
 
-fn decode_time(len: u8, mut buf: &[u8]) -> Result<NaiveTime, DecodeError> {
+fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<NaiveTime> {
     let hour = buf.get_u8()?;
     let minute = buf.get_u8()?;
     let seconds = buf.get_u8()?;

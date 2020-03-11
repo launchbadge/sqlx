@@ -1,9 +1,16 @@
-use crate::decode::{Decode, DecodeError};
+use std::convert::TryInto;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::error::UnexpectedNullError;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::MySql;
+use crate::mysql::{MySql, MySqlValue};
 use crate::types::Type;
+use crate::Error;
+use std::str::from_utf8;
 
 /// The equivalent MySQL type for `f32` is `FLOAT`.
 ///
@@ -18,7 +25,7 @@ use crate::types::Type;
 /// // (This is expected behavior for floating points and happens both in Rust and in MySQL)
 /// assert_ne!(10.2f32 as f64, 10.2f64);
 /// ```
-impl Type<f32> for MySql {
+impl Type<MySql> for f32 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::FLOAT)
     }
@@ -30,9 +37,19 @@ impl Encode<MySql> for f32 {
     }
 }
 
-impl Decode<MySql> for f32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(f32::from_bits(<i32 as Decode<MySql>>::decode(buf)? as u32))
+impl<'de> Decode<'de, MySql> for f32 {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(mut buf) => buf
+                .read_i32::<LittleEndian>()
+                .map_err(crate::Error::decode)
+                .map(|value| f32::from_bits(value as u32)),
+
+            MySqlValue::Text(s) => from_utf8(s)
+                .map_err(Error::decode)?
+                .parse()
+                .map_err(Error::decode),
+        }
     }
 }
 
@@ -40,7 +57,7 @@ impl Decode<MySql> for f32 {
 ///
 /// Note that `DOUBLE` is a floating-point type and cannot represent some fractional values
 /// exactly.
-impl Type<f64> for MySql {
+impl Type<MySql> for f64 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DOUBLE)
     }
@@ -52,8 +69,18 @@ impl Encode<MySql> for f64 {
     }
 }
 
-impl Decode<MySql> for f64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(f64::from_bits(<i64 as Decode<MySql>>::decode(buf)? as u64))
+impl<'de> Decode<'de, MySql> for f64 {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(mut buf) => buf
+                .read_i64::<LittleEndian>()
+                .map_err(crate::Error::decode)
+                .map(|value| f64::from_bits(value as u64)),
+
+            MySqlValue::Text(s) => from_utf8(s)
+                .map_err(Error::decode)?
+                .parse()
+                .map_err(Error::decode),
+        }
     }
 }

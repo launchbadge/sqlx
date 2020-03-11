@@ -1,94 +1,86 @@
-use sqlx::{mysql::MySqlConnection, Connection, Row};
+use sqlx::MySql;
+use sqlx_test::test_type;
 
-async fn connect() -> anyhow::Result<MySqlConnection> {
-    Ok(MySqlConnection::open(dotenv::var("DATABASE_URL")?).await?)
-}
+test_type!(null(
+    MySql,
+    Option<i16>,
+    "NULL" == None::<i16>
+));
 
-macro_rules! test {
-    ($name:ident: $ty:ty: $($text:literal == $value:expr),+) => {
-        #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-        #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-        async fn $name () -> anyhow::Result<()> {
-            let mut conn = connect().await?;
+test_type!(bool(MySql, bool, "false" == false, "true" == true));
 
-            $(
-                let row = sqlx::query(&format!("SELECT {} = ?, ? as _1", $text))
-                    .bind($value)
-                    .bind($value)
-                    .fetch_one(&mut conn)
-                    .await?;
+test_type!(u8(MySql, u8, "253" == 253_u8));
+test_type!(i8(MySql, i8, "5" == 5_i8, "0" == 0_i8));
 
-                let value = row.get::<$ty, _>("_1");
+test_type!(u16(MySql, u16, "21415" == 21415_u16));
+test_type!(i16(MySql, i16, "21415" == 21415_i16));
 
-                assert_eq!(row.get::<i32, _>(0), 1, "value returned from server: {:?}", value);
+test_type!(u32(MySql, u32, "2141512" == 2141512_u32));
+test_type!(i32(MySql, i32, "2141512" == 2141512_i32));
 
-                assert_eq!($value, value);
-            )+
+test_type!(u64(MySql, u64, "2141512" == 2141512_u64));
+test_type!(i64(MySql, i64, "2141512" == 2141512_i64));
 
-            Ok(())
-        }
-    }
-}
+test_type!(double(MySql, f64, "3.14159265" == 3.14159265f64));
 
-test!(mysql_bool: bool: "false" == false, "true" == true);
+// NOTE: This behavior can be very surprising. MySQL implicitly widens FLOAT bind parameters
+//       to DOUBLE. This results in the weirdness you see below. MySQL generally recommends to stay
+//       away from FLOATs.
+test_type!(float(
+    MySql,
+    f32,
+    "3.1410000324249268" == 3.141f32 as f64 as f32
+));
 
-test!(mysql_tiny_unsigned: u8: "253" == 253_u8);
-test!(mysql_tiny: i8: "5" == 5_i8);
+test_type!(string(
+    MySql,
+    String,
+    "'helloworld'" == "helloworld",
+    "''" == ""
+));
 
-test!(mysql_medium_unsigned: u16: "21415" == 21415_u16);
-test!(mysql_short: i16: "21415" == 21415_i16);
+test_type!(bytes(
+    MySql,
+    Vec<u8>,
+    "X'DEADBEEF'"
+        == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
+    "X''"
+        == Vec::<u8>::new(),
+    "X'0000000052'"
+        == vec![0_u8, 0, 0, 0, 0x52]
+));
 
-test!(mysql_long_unsigned: u32: "2141512" == 2141512_u32);
-test!(mysql_long: i32: "2141512" == 2141512_i32);
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
-test!(mysql_longlong_unsigned: u64: "2141512" == 2141512_u64);
-test!(mysql_longlong: i64: "2141512" == 2141512_i64);
+    test_type!(chrono_date(
+        MySql,
+        NaiveDate,
+        "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
+        "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
+    ));
 
-// `DOUBLE` can be compared with decimal literals just fine but the same can't be said for `FLOAT`
-test!(mysql_double: f64: "3.14159265" == 3.14159265f64);
+    test_type!(chrono_time(
+        MySql,
+        NaiveTime,
+        "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
+    ));
 
-test!(mysql_string: String: "'helloworld'" == "helloworld");
+    test_type!(chrono_date_time(
+        MySql,
+        NaiveDateTime,
+        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+    ));
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn mysql_bytes() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
-
-    let value = &b"Hello, World"[..];
-
-    let rec = sqlx::query!(
-        "SELECT (X'48656c6c6f2c20576f726c64' = ?) as _1, CAST(? as BINARY) as _2",
-        value,
-        value
-    )
-    .fetch_one(&mut conn)
-    .await?;
-
-    assert!(rec._1 != 0);
-
-    let output: Vec<u8> = rec._2;
-
-    assert_eq!(&value[..], &*output);
-
-    Ok(())
-}
-
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn mysql_float() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
-
-    let value = 10.2f32;
-    let row = sqlx::query("SELECT ? as _1")
-        .bind(value)
-        .fetch_one(&mut conn)
-        .await?;
-
-    // comparison between FLOAT and literal doesn't work as expected
-    // we get implicit widening to DOUBLE which gives a slightly different value
-    // however, round-trip does work as expected
-    let ret = row.get::<f32, _>("_1");
-    assert_eq!(value, ret);
-
-    Ok(())
+    test_type!(chrono_date_time_tz(
+        MySql,
+        DateTime::<Utc>,
+        "TIMESTAMP '2019-01-02 05:10:20.115100'"
+            == DateTime::<Utc>::from_utc(
+                NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+                Utc,
+            )
+    ));
 }

@@ -78,6 +78,25 @@ pub(crate) fn expand_derive_decode(input: DeriveInput) -> syn::Result<proc_macro
                 ));
             }
 
+            if cfg!(feature = "mysql") {
+                let mut generics = generics.clone();
+                generics.params.insert(0, parse_quote!('de));
+                generics
+                    .make_where_clause()
+                    .predicates
+                    .push(parse_quote!(#ty: sqlx::decode::Decode<'de, sqlx::MySql>));
+
+                let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+                impls.push(quote!(
+                    impl #impl_generics sqlx::decode::Decode<'de, sqlx::MySql> for #ident #ty_generics #where_clause {
+                        fn decode(value: <sqlx::MySql as sqlx::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
+                            <#ty as sqlx::decode::Decode<'de, sqlx::MySql>>::decode(value).map(Self)
+                        }
+                    }
+                ));
+            }
+
             // panic!("{}", q)
             Ok(quote!(#(#impls)*))
         }

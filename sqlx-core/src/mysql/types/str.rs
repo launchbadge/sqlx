@@ -2,15 +2,18 @@ use std::str;
 
 use byteorder::LittleEndian;
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::error::UnexpectedNullError;
 use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::MySql;
+use crate::mysql::{MySql, MySqlValue};
 use crate::types::Type;
+use std::convert::TryInto;
+use std::str::from_utf8;
 
-impl Type<str> for MySql {
+impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
             id: TypeId::TEXT,
@@ -27,10 +30,9 @@ impl Encode<MySql> for str {
     }
 }
 
-// TODO: Do we need the [HasSqlType] for String
-impl Type<String> for MySql {
+impl Type<MySql> for String {
     fn type_info() -> MySqlTypeInfo {
-        <Self as Type<&str>>::type_info()
+        <str as Type<MySql>>::type_info()
     }
 }
 
@@ -40,11 +42,25 @@ impl Encode<MySql> for String {
     }
 }
 
-impl Decode<MySql> for String {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(buf
-            .get_str_lenenc::<LittleEndian>()?
-            .unwrap_or_default()
-            .to_owned())
+impl<'de> Decode<'de, MySql> for &'de str {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(mut buf) => {
+                let len = buf
+                    .get_uint_lenenc::<LittleEndian>()
+                    .map_err(crate::Error::decode)?
+                    .unwrap_or_default();
+
+                from_utf8(&buf[..(len as usize)]).map_err(crate::Error::decode)
+            }
+
+            MySqlValue::Text(s) => from_utf8(s).map_err(crate::Error::decode),
+        }
+    }
+}
+
+impl<'de> Decode<'de, MySql> for String {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        <&'de str>::decode(buf).map(ToOwned::to_owned)
     }
 }
