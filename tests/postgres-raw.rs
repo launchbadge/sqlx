@@ -27,7 +27,7 @@ async fn test_select_expression() -> anyhow::Result<()> {
     let mut cursor = conn.fetch("SELECT 5");
     let row = cursor.next().await?.unwrap();
 
-    assert!(5i32 == row.get::<i32, _>(0)?);
+    assert!(5i32 == row.try_get::<i32, _>(0)?);
 
     Ok(())
 }
@@ -57,12 +57,12 @@ SELECT id, text FROM _sqlx_test_postgres_5112;
 
     let row = cursor.next().await?.unwrap();
 
-    assert!("Hello World" == row.get::<&str, _>("_1")?);
+    assert!("Hello World" == row.try_get::<&str, _>("_1")?);
 
     let row = cursor.next().await?.unwrap();
 
-    let id: i64 = row.get("id")?;
-    let text: &str = row.get("text")?;
+    let id: i64 = row.try_get("id")?;
+    let text: &str = row.try_get("text")?;
 
     assert_eq!(1_i64, id);
     assert_eq!("this is a test", text);

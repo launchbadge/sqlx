@@ -30,7 +30,7 @@ where
 ///
 /// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
 /// before `.try_map()` anyway.
-pub struct TryMap<'q, DB, F>
+pub struct Map<'q, DB, F>
 where
     DB: Database,
 {
@@ -85,31 +85,28 @@ impl<'q, DB> Query<'q, DB>
 where
     DB: Database,
 {
-    /*
-    FIXME: how do we implement this without another adapter type (and trait)
-    probably requires lazy normalization: https://github.com/rust-lang/rust/issues/60471
-    pub fn map<F>(self, mapper: F) -> Map<'q, DB, F, A>
-    where
-        F: for<'c> FnMut(<DB as HasRow<'c>>::Row) -> T
-    {
-        ...
-    }
-    */
-
     /// Map each row in the result to another type.
     ///
     /// The returned type has most of the same methods but does not have
     /// [`.execute()`][Query::execute] or [`.bind()][Query::bind].
     ///
-    /// Stylistically, we recommend placing this call after any [`.bind()`][Query::bind]
-    /// calls, just before [`.fetch()`][Query::fetch], etc.
+    /// See also: [query_as][crate::query_as::query_as].
+    pub fn map<F, O>(self, mapper: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>>
+    where
+        O: Unpin,
+        F: MapRow<DB, Output = O>
+    {
+        self.try_map(MapRowAdapter(mapper))
+    }
+
+    /// Map each row in the result to another type.
     ///
     /// See also: [query_as][crate::query_as::query_as].
-    pub fn try_map<F>(self, mapper: F) -> TryMap<'q, DB, F>
+    pub fn try_map<F>(self, mapper: F) -> Map<'q, DB, F>
     where
-        F: MapRow<DB>,
+        F: TryMapRow<DB>,
     {
-        TryMap {
+        Map {
             query: self,
             mapper,
         }
@@ -136,34 +133,34 @@ where
     }
 }
 
-impl<'q, DB, F> TryMap<'q, DB, F>
+impl<'q, DB, F> Map<'q, DB, F>
 where
     DB: Database,
     Query<'q, DB>: Execute<'q, DB>,
-    F: MapRow<DB>,
+    F: TryMapRow<DB>,
 {
     /// Execute the query and get a [Stream] of the results, returning our mapped type.
     pub fn fetch<'e: 'q, E>(
         mut self,
         executor: E,
-    ) -> impl Stream<Item = crate::Result<F::Mapped>> + 'e
+    ) -> impl Stream<Item = crate::Result<F::Output>> + 'e
     where
         'q: 'e,
         E: RefExecutor<'e, Database = DB> + 'e,
         F: 'e,
-        F::Mapped: 'e,
+        F::Output: 'e,
     {
         try_stream! {
             let mut cursor = executor.fetch_by_ref(self.query);
             while let Some(next) = cursor.next().await? {
-                let mapped = self.mapper.map_row(next)?;
+                let mapped = self.mapper.try_map_row(next)?;
                 yield mapped;
             }
         }
     }
 
     /// Get the first row in the result
-    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<Option<F::Mapped>>
+    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<Option<F::Output>>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -172,10 +169,10 @@ where
         let mut cursor = executor.fetch_by_ref(self.query);
         let mut mapper = self.mapper;
         let val = cursor.next().await?;
-        val.map(|row| mapper.map_row(row)).transpose()
+        val.map(|row| mapper.try_map_row(row)).transpose()
     }
 
-    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Mapped>
+    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Output>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -188,7 +185,7 @@ where
             .await
     }
 
-    pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Mapped>>
+    pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Output>>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -197,31 +194,44 @@ where
         let mut out = vec![];
 
         while let Some(row) = cursor.next().await? {
-            out.push(self.mapper.map_row(row)?);
+            out.push(self.mapper.try_map_row(row)?);
         }
 
         Ok(out)
     }
 }
 
-/// A (hopefully) temporary workaround for an internal compiler error (ICE) involving higher-ranked
-/// trait bounds (HRTBs), associated types and closures.
-///
-/// See https://github.com/rust-lang/rust/issues/62529
-pub trait MapRow<DB: Database> {
-    type Mapped: Unpin;
+// A (hopefully) temporary workaround for an internal compiler error (ICE) involving higher-ranked
+// trait bounds (HRTBs), associated types and closures.
+//
+// See https://github.com/rust-lang/rust/issues/62529
 
-    fn map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Mapped>;
+pub trait TryMapRow<DB: Database> {
+    type Output: Unpin;
+
+    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output>;
 }
 
-impl<O: Unpin, DB> MapRow<DB> for for<'c> fn(<DB as HasRow<'c>>::Row) -> crate::Result<O>
-where
-    DB: Database,
-{
-    type Mapped = O;
+pub trait MapRow<DB: Database> {
+    type Output: Unpin;
 
-    fn map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<O> {
-        (self)(row)
+    fn map_row(&mut self, row: <DB as HasRow>::Row) -> Self::Output;
+}
+
+// An adapter that implements [MapRow] in terms of [TryMapRow]
+// Just ends up Ok wrapping it
+
+struct MapRowAdapter<F>(F);
+
+impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
+    where
+        O: Unpin,
+        F: MapRow<DB, Output = O>,
+{
+    type Output = O;
+
+    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output> {
+        Ok(self.0.map_row(row))
     }
 }
 

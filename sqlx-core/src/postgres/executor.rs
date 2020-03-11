@@ -246,8 +246,8 @@ impl PgConnection {
             .bind_all(args)
             .try_map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
                 Ok((
-                    row.get::<i32, _>(0)? as u32,
-                    row.get::<String, _>(1)?.into(),
+                    row.try_get::<i32, _>(0)? as u32,
+                    row.try_get::<String, _>(1)?.into(),
                 ))
             })
             .fetch(self)
@@ -296,8 +296,8 @@ impl PgConnection {
         crate::query::query(&query)
             .bind_all(args)
             .try_map(|row: PgRow| {
-                let idx = row.get::<i32, _>(0)?;
-                let non_null = row.get::<Option<bool>, _>(1)?;
+                let idx = row.try_get::<i32, _>(0)?;
+                let non_null = row.try_get::<Option<bool>, _>(1)?;
 
                 Ok((idx, non_null))
             })

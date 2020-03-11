@@ -91,7 +91,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 ref type_,
                 ..
             },
-        )| { quote!( #ident: row.get::<#type_, _>(#i).try_unwrap_optional()? ) },
+        )| { quote!( #ident: row.try_get::<#type_, _>(#i).try_unwrap_optional()? ) },
     );
 
     let db_path = DB::db_path();

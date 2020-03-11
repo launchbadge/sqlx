@@ -24,16 +24,25 @@ pub trait Row<'c>: Unpin + Send {
     /// Returns the number of values in the row.
     fn len(&self) -> usize;
 
-    fn get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
+    fn get<'r, T, I>(&'r self, index: I) -> T
+        where
+            T: Type<Self::Database>,
+            I: ColumnIndex<Self::Database>,
+            T: Decode<'c, Self::Database>,
+    {
+        self.try_get::<T, I>(index).unwrap()
+    }
+
+    fn try_get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
     where
         T: Type<Self::Database>,
         I: ColumnIndex<Self::Database>,
         T: Decode<'c, Self::Database>,
     {
-        Ok(Decode::decode(self.get_raw(index)?)?)
+        Ok(Decode::decode(self.try_get_raw(index)?)?)
     }
 
-    fn get_raw<'r, I>(
+    fn try_get_raw<'r, I>(
         &self,
         index: I,
     ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
@@ -65,7 +74,7 @@ macro_rules! impl_from_row_for_tuple {
             fn from_row(row: $r<'c>) -> crate::Result<Self> {
                 use crate::row::Row;
 
-                Ok(($(row.get($idx as usize)?,)+))
+                Ok(($(row.try_get($idx as usize)?,)+))
             }
         }
     };
@@ -151,13 +160,13 @@ macro_rules! impl_from_row_for_tuples {
 #[allow(unused_macros)]
 macro_rules! impl_map_row_for_row {
     ($DB:ident, $R:ident) => {
-        impl<O: Unpin, F> crate::query::MapRow<$DB> for F
+        impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
         where
             F: for<'c> FnMut($R<'c>) -> crate::Result<O>,
         {
-            type Mapped = O;
+            type Output = O;
 
-            fn map_row(&mut self, row: $R) -> crate::Result<O> {
+            fn try_map_row(&mut self, row: $R) -> crate::Result<O> {
                 (self)(row)
             }
         }
