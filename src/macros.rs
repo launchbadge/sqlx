@@ -4,13 +4,14 @@
 /// if the query has output columns, or `()` (unit) otherwise:
 ///
 /// ```rust
+/// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
 /// // let mut conn = <impl sqlx::Executor>;
 /// let account = sqlx::query!("select (1) as id, 'Herp Derpinson' as name")
 ///     .fetch_one(&mut conn)
@@ -32,13 +33,14 @@
 /// and this macro will typecheck passed arguments and error on missing ones:
 ///
 /// ```rust
+/// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::mysql::MySqlConnection::open(db_url).await?;
+/// # let mut conn = sqlx::mysql::MySqlConnection::connect(db_url).await?;
 /// // let mut conn = <impl sqlx::Executor>;
 /// let account = sqlx::query!(
 ///         // just pretend "accounts" is a real table
@@ -124,15 +126,15 @@ macro_rules! query (
 ///
 /// `src/my_query.rs`:
 /// ```rust
+/// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
-/// // let mut conn = <impl sqlx::Executor>;
-/// let account = sqlx::query_file!("examples/queries/account-by-id.sql", 1i32)
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
+/// let account = sqlx::query_file!("tests/test-query-account-by-id.sql", 1i32)
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
@@ -180,13 +182,14 @@ macro_rules! query_file (
 ///
 /// The only modification to the syntax is that the struct name is given before the SQL string:
 /// ```rust
+/// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
 /// #[derive(Debug)]
 /// struct Account {
 ///     id: i32,
@@ -235,13 +238,14 @@ macro_rules! query_as (
 /// Enforces requirements of both macros; see them for details.
 ///
 /// ```rust
+/// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
-/// # let mut conn = sqlx::MySqlConnection::open(db_url).await?;
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
 /// #[derive(Debug)]
 /// struct Account {
 ///     id: i32,
@@ -249,7 +253,7 @@ macro_rules! query_as (
 /// }
 ///
 /// // let mut conn = <impl sqlx::Executor>;
-/// let account = sqlx::query_file_as!(Account, "examples/queries/account-by-id.sql", 1i32)
+/// let account = sqlx::query_file_as!(Account, "tests/test-query-account-by-id.sql", 1i32)
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
