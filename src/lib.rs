@@ -7,6 +7,7 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 #[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
+pub use sqlx_core::arguments;
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::cursor::Cursor;
 pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
