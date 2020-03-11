@@ -6,7 +6,7 @@ use futures_core::future::BoxFuture;
 use crate::connection::{ConnectionSource, MaybeOwnedConnection};
 use crate::cursor::Cursor;
 use crate::executor::Execute;
-use crate::mysql::protocol::{ColumnCount, ColumnDefinition, Decode, Row, Status, TypeId};
+use crate::mysql::protocol::{ColumnCount, ColumnDefinition, Row, Status, TypeId};
 use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
 use crate::pool::Pool;
 
@@ -109,7 +109,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                 // At the start of the results we expect to see a
                 // COLUMN_COUNT followed by N COLUMN_DEF
 
-                let cc = ColumnCount::decode(conn.stream.packet())?;
+                let cc = ColumnCount::read(conn.stream.packet())?;
 
                 // We use these definitions to get the actual column types that is critical
                 // in parsing the rows coming back soon
@@ -120,7 +120,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                 let mut column_names = HashMap::with_capacity(cc.columns as usize);
 
                 for i in 0..cc.columns {
-                    let column = ColumnDefinition::decode(conn.stream.receive().await?)?;
+                    let column = ColumnDefinition::read(conn.stream.receive().await?)?;
 
                     cursor.column_types.push(column.type_id);
 
@@ -142,15 +142,12 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                     conn.stream.packet(),
                     &cursor.column_types,
                     &mut conn.current_row_values,
-                    // TODO: Text mode
                     cursor.binary,
                 )?;
 
                 let row = MySqlRow {
                     row,
                     columns: Arc::clone(&cursor.column_names),
-                    // TODO: Text mode
-                    binary: cursor.binary,
                 };
 
                 return Ok(Some(row));

@@ -1,7 +1,6 @@
 use byteorder::LittleEndian;
 
 use crate::io::BufMut;
-use crate::mysql::io::BufMutExt;
 use crate::mysql::protocol::{Capabilities, Encode};
 use crate::mysql::types::MySqlTypeInfo;
 
@@ -27,7 +26,7 @@ pub struct ComStmtExecute<'a> {
 }
 
 impl Encode for ComStmtExecute<'_> {
-    fn encode(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
+    fn encode(&self, buf: &mut Vec<u8>, _: Capabilities) {
         // COM_STMT_EXECUTE : int<1>
         buf.put_u8(0x17);
 

@@ -28,7 +28,6 @@ impl<'c> TryFrom<Option<MySqlValue<'c>>> for MySqlValue<'c> {
 pub struct MySqlRow<'c> {
     pub(super) row: protocol::Row<'c>,
     pub(super) columns: Arc<HashMap<Box<str>, u16>>,
-    pub(super) binary: bool,
 }
 
 impl<'c> Row<'c> for MySqlRow<'c> {
@@ -45,7 +44,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         let index = index.resolve(self)?;
 
         Ok(self.row.get(index).map(|buf| {
-            if self.binary {
+            if self.row.binary {
                 MySqlValue::Binary(buf)
             } else {
                 MySqlValue::Text(buf)

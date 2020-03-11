@@ -2,21 +2,21 @@ use byteorder::LittleEndian;
 
 use crate::io::Buf;
 use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Capabilities, Decode, Status};
+use crate::mysql::protocol::{Status};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_ok_packet.html
 // https://mariadb.com/kb/en/ok_packet/
 #[derive(Debug)]
-pub struct OkPacket {
-    pub affected_rows: u64,
-    pub last_insert_id: u64,
-    pub status: Status,
-    pub warnings: u16,
-    pub info: Box<str>,
+pub(crate) struct OkPacket {
+    pub(crate) affected_rows: u64,
+    pub(crate) last_insert_id: u64,
+    pub(crate) status: Status,
+    pub(crate) warnings: u16,
+    pub(crate) info: Box<str>,
 }
 
-impl Decode for OkPacket {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self>
+impl OkPacket {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {
@@ -46,13 +46,13 @@ impl Decode for OkPacket {
 
 #[cfg(test)]
 mod tests {
-    use super::{Capabilities, Decode, OkPacket, Status};
+    use super::{OkPacket, Status};
 
     const OK_HANDSHAKE: &[u8] = b"\x00\x00\x00\x02@\x00\x00";
 
     #[test]
     fn it_decodes_ok_handshake() {
-        let mut p = OkPacket::decode(OK_HANDSHAKE).unwrap();
+        let p = OkPacket::read(OK_HANDSHAKE).unwrap();
 
         assert_eq!(p.affected_rows, 0);
         assert_eq!(p.last_insert_id, 0);

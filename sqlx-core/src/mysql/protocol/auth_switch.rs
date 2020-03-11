@@ -1,17 +1,15 @@
-use byteorder::LittleEndian;
-
 use crate::io::Buf;
-use crate::mysql::protocol::{AuthPlugin, Capabilities, Decode, Status};
+use crate::mysql::protocol::{AuthPlugin};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_auth_switch_request.html
 #[derive(Debug)]
-pub struct AuthSwitch {
-    pub auth_plugin: AuthPlugin,
-    pub auth_plugin_data: Box<[u8]>,
+pub(crate) struct AuthSwitch {
+    pub(crate) auth_plugin: AuthPlugin,
+    pub(crate) auth_plugin_data: Box<[u8]>,
 }
 
-impl Decode for AuthSwitch {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self>
+impl AuthSwitch {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

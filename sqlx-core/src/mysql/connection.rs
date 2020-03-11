@@ -8,7 +8,7 @@ use sha1::Sha1;
 use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
 use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Handshake, HandshakeResponse,
+    AuthPlugin, AuthSwitch, Capabilities, ComPing, Handshake, HandshakeResponse,
 };
 use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
@@ -149,7 +149,7 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
     // Read a [Handshake] packet. When connecting to the database server, this is immediately
     // received from the database server.
 
-    let handshake = Handshake::decode(stream.receive().await?)?;
+    let handshake = Handshake::read(stream.receive().await?)?;
     let mut auth_plugin = handshake.auth_plugin;
     let mut auth_plugin_data = handshake.auth_plugin_data;
 
@@ -202,7 +202,7 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
 
             // AUTH_SWITCH
             0xFE => {
-                let auth = AuthSwitch::decode(packet)?;
+                let auth = AuthSwitch::read(packet)?;
                 auth_plugin = auth.auth_plugin;
                 auth_plugin_data = auth.auth_plugin_data;
 

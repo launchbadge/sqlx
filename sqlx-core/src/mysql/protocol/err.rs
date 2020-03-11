@@ -1,8 +1,7 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Capabilities, Decode, Status};
+use crate::mysql::protocol::{Capabilities};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_err_packet.html
 // https://mariadb.com/kb/en/err_packet/
@@ -14,7 +13,7 @@ pub struct ErrPacket {
 }
 
 impl ErrPacket {
-    pub(crate) fn decode(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<Self>
+    pub(crate) fn read(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<Self>
     where
         Self: Sized,
     {
@@ -50,7 +49,7 @@ impl ErrPacket {
 
 #[cfg(test)]
 mod tests {
-    use super::{Capabilities, Decode, ErrPacket, Status};
+    use super::{Capabilities, ErrPacket};
 
     const ERR_PACKETS_OUT_OF_ORDER: &[u8] = b"\xff\x84\x04Got packets out of order";
 
@@ -58,7 +57,7 @@ mod tests {
 
     #[test]
     fn it_decodes_packets_out_of_order() {
-        let mut p = ErrPacket::decode(ERR_PACKETS_OUT_OF_ORDER, Capabilities::PROTOCOL_41).unwrap();
+        let p = ErrPacket::read(ERR_PACKETS_OUT_OF_ORDER, Capabilities::PROTOCOL_41).unwrap();
 
         assert_eq!(&*p.error_message, "Got packets out of order");
         assert_eq!(p.error_code, 1156);
@@ -67,7 +66,7 @@ mod tests {
 
     #[test]
     fn it_decodes_ok_handshake() {
-        let mut p = ErrPacket::decode(ERR_HANDSHAKE_UNKNOWN_DB, Capabilities::PROTOCOL_41).unwrap();
+        let p = ErrPacket::read(ERR_HANDSHAKE_UNKNOWN_DB, Capabilities::PROTOCOL_41).unwrap();
 
         assert_eq!(p.error_code, 1049);
         assert_eq!(p.sql_state.as_deref(), Some("42000"));

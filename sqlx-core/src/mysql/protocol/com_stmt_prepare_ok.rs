@@ -1,27 +1,25 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::io::BufExt;
-use crate::mysql::protocol::Decode;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response_ok
 #[derive(Debug)]
-pub struct ComStmtPrepareOk {
-    pub statement_id: u32,
+pub(crate) struct ComStmtPrepareOk {
+    pub(crate) statement_id: u32,
 
     /// Number of columns in the returned result set (or 0 if statement
     /// does not return result set).
-    pub columns: u16,
+    pub(crate) columns: u16,
 
     /// Number of prepared statement parameters ('?' placeholders).
-    pub params: u16,
+    pub(crate) params: u16,
 
     /// Number of warnings.
-    pub warnings: u16,
+    pub(crate) warnings: u16,
 }
 
-impl Decode for ComStmtPrepareOk {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl ComStmtPrepareOk {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let header = buf.get_u8()?;
 
         if header != 0x00 {

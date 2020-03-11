@@ -1,7 +1,4 @@
-use byteorder::LittleEndian;
-
 use crate::io::BufMut;
-use crate::mysql::io::BufMutExt;
 use crate::mysql::protocol::{Capabilities, Encode};
 
 // https://dev.mysql.com/doc/internals/en/com-ping.html

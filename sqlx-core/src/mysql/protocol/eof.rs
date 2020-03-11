@@ -1,8 +1,7 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Capabilities, Decode, Status};
+use crate::mysql::protocol::{Status};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_eof_packet.html
 // https://mariadb.com/kb/en/eof_packet/
@@ -12,8 +11,8 @@ pub struct EofPacket {
     pub status: Status,
 }
 
-impl Decode for EofPacket {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self>
+impl EofPacket {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

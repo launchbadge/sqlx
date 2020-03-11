@@ -1,24 +1,24 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::protocol::{AuthPlugin, Capabilities, Decode, Status};
+use crate::mysql::protocol::{AuthPlugin, Capabilities, Status};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_handshake_v10.html
 // https://mariadb.com/kb/en/connection/#initial-handshake-packet
 #[derive(Debug)]
-pub struct Handshake {
-    pub protocol_version: u8,
-    pub server_version: Box<str>,
-    pub connection_id: u32,
-    pub server_capabilities: Capabilities,
-    pub server_default_collation: u8,
-    pub status: Status,
-    pub auth_plugin: AuthPlugin,
-    pub auth_plugin_data: Box<[u8]>,
+pub(crate) struct Handshake {
+    pub(crate) protocol_version: u8,
+    pub(crate) server_version: Box<str>,
+    pub(crate) connection_id: u32,
+    pub(crate) server_capabilities: Capabilities,
+    pub(crate) server_default_collation: u8,
+    pub(crate) status: Status,
+    pub(crate) auth_plugin: AuthPlugin,
+    pub(crate) auth_plugin_data: Box<[u8]>,
 }
 
-impl Decode for Handshake {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self>
+impl Handshake {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {
@@ -68,7 +68,7 @@ impl Decode for Handshake {
         } else {
             // capability_flags_3 : int<4>
             let capabilities_3 = buf.get_u32::<LittleEndian>()?;
-            capabilities |= Capabilities::from_bits_truncate((capabilities_2 as u64) << 32);
+            capabilities |= Capabilities::from_bits_truncate((capabilities_3 as u64) << 32);
         }
 
         if capabilities.contains(Capabilities::SECURE_CONNECTION) {
@@ -102,15 +102,15 @@ impl Decode for Handshake {
 
 #[cfg(test)]
 mod tests {
-    use super::{AuthPlugin, Capabilities, Decode, Handshake, Status};
+    use super::{AuthPlugin, Capabilities, Handshake, Status};
     use matches::assert_matches;
 
     const HANDSHAKE_MARIA_DB_10_4_7: &[u8] = b"\n5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic\x00\x0b\x00\x00\x00t6L\\j\"dS\x00\xfe\xf7\x08\x02\x00\xff\x81\x15\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00U14Oph9\"<H5n\x00mysql_native_password\x00";
     const HANDSHAKE_MYSQL_8_0_18: &[u8] = b"\n8.0.18\x00\x19\x00\x00\x00\x114aB0c\x06g\x00\xff\xff\xff\x02\x00\xff\xc7\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00tL\x03s\x0f[4\rl4. \x00caching_sha2_password\x00";
 
     #[test]
-    fn it_decodes_handshake_mysql_8_0_18() {
-        let mut p = Handshake::decode(HANDSHAKE_MYSQL_8_0_18).unwrap();
+    fn it_reads_handshake_mysql_8_0_18() {
+        let mut p = Handshake::read(HANDSHAKE_MYSQL_8_0_18).unwrap();
 
         assert_eq!(p.protocol_version, 10);
 
@@ -157,8 +157,8 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_handshake_mariadb_10_4_7() {
-        let mut p = Handshake::decode(HANDSHAKE_MARIA_DB_10_4_7).unwrap();
+    fn it_reads_handshake_mariadb_10_4_7() {
+        let mut p = Handshake::read(HANDSHAKE_MARIA_DB_10_4_7).unwrap();
 
         assert_eq!(p.protocol_version, 10);
 

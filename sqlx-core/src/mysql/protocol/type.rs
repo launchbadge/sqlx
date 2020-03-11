@@ -49,7 +49,7 @@ type_id_consts! {
     pub const SMALL_INT: TypeId = TypeId(2);
     pub const INT: TypeId = TypeId(3);
     pub const BIG_INT: TypeId = TypeId(8);
-    pub const MEDIUM_INT: TypeId = TypeId(9);
+    // pub const MEDIUM_INT: TypeId = TypeId(9);
 
     // Numeric: FLOAT, DOUBLE
     pub const FLOAT: TypeId = TypeId(4);

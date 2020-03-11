@@ -1,8 +1,7 @@
 use byteorder::LittleEndian;
 
 use crate::io::BufMut;
-use crate::mysql::io::BufMutExt;
-use crate::mysql::protocol::{AuthPlugin, Capabilities, Encode};
+use crate::mysql::protocol::{Capabilities, Encode};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_handshake_response.html
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::SSLRequest

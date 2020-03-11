@@ -3,7 +3,7 @@ use std::net::Shutdown;
 use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
-use crate::mysql::protocol::{Capabilities, Decode, Encode, EofPacket, ErrPacket, OkPacket};
+use crate::mysql::protocol::{Capabilities, Encode, EofPacket, ErrPacket, OkPacket};
 use crate::mysql::MySqlError;
 use crate::url::Url;
 
@@ -163,7 +163,7 @@ impl MySqlStream {
 impl MySqlStream {
     pub(crate) async fn maybe_receive_eof(&mut self) -> crate::Result<()> {
         if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) {
-            let _eof = EofPacket::decode(self.receive().await?)?;
+            let _eof = EofPacket::read(self.receive().await?)?;
         }
 
         Ok(())
@@ -171,7 +171,7 @@ impl MySqlStream {
 
     pub(crate) fn maybe_handle_eof(&mut self) -> crate::Result<Option<EofPacket>> {
         if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) && self.packet()[0] == 0xFE {
-            Ok(Some(EofPacket::decode(self.packet())?))
+            Ok(Some(EofPacket::read(self.packet())?))
         } else {
             Ok(None)
         }
@@ -182,10 +182,10 @@ impl MySqlStream {
     }
 
     pub(crate) fn handle_err<T>(&mut self) -> crate::Result<T> {
-        Err(MySqlError(ErrPacket::decode(self.packet(), self.capabilities)?).into())
+        Err(MySqlError(ErrPacket::read(self.packet(), self.capabilities)?).into())
     }
 
     pub(crate) fn handle_ok(&mut self) -> crate::Result<OkPacket> {
-        OkPacket::decode(self.packet())
+        OkPacket::read(self.packet())
     }
 }

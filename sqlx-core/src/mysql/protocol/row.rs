@@ -3,21 +3,20 @@ use std::ops::Range;
 use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
-use crate::mysql::io::BufExt;
-use crate::mysql::protocol::{Decode, TypeId};
+use crate::mysql::protocol::{TypeId};
 
-pub struct Row<'c> {
+pub(crate) struct Row<'c> {
     buffer: &'c [u8],
     values: &'c [Option<Range<usize>>],
-    binary: bool,
+    pub(crate) binary: bool,
 }
 
 impl<'c> Row<'c> {
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.values.len()
     }
 
-    pub fn get(&self, index: usize) -> Option<&'c [u8]> {
+    pub(crate) fn get(&self, index: usize) -> Option<&'c [u8]> {
         let range = self.values[index].as_ref()?;
 
         Some(&self.buffer[(range.start as usize)..(range.end as usize)])
@@ -54,13 +53,13 @@ fn get_lenenc(buf: &[u8]) -> (usize, Option<usize>) {
 }
 
 impl<'c> Row<'c> {
-    pub fn read(
+    pub(crate) fn read(
         mut buf: &'c [u8],
         columns: &[TypeId],
         values: &'c mut Vec<Option<Range<usize>>>,
         binary: bool,
     ) -> crate::Result<Self> {
-        let mut buffer = &*buf;
+        let buffer = &*buf;
 
         values.clear();
         values.reserve(columns.len());
@@ -68,7 +67,7 @@ impl<'c> Row<'c> {
         if !binary {
             let mut index = 0;
 
-            for column_idx in 0..columns.len() {
+            for _ in 0..columns.len() {
                 let (len_size, size) = get_lenenc(&buf[index..]);
 
                 if let Some(size) = size {
@@ -77,7 +76,7 @@ impl<'c> Row<'c> {
                     values.push(None);
                 }
 
-                index += (len_size + size.unwrap_or_default());
+                index += len_size + size.unwrap_or_default();
             }
 
             return Ok(Self {

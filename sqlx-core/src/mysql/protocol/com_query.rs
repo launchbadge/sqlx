@@ -1,7 +1,4 @@
-use byteorder::LittleEndian;
-
 use crate::io::BufMut;
-use crate::mysql::io::BufMutExt;
 use crate::mysql::protocol::{Capabilities, Encode};
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_query.html

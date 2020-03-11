@@ -4,7 +4,7 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::mysql::protocol::{
-    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Decode,
+    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk,
     FieldFlags, Status,
 };
 use crate::mysql::{MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo};
@@ -49,12 +49,12 @@ impl super::MySqlConnection {
             return self.stream.handle_err();
         }
 
-        ComStmtPrepareOk::decode(packet)
+        ComStmtPrepareOk::read(packet)
     }
 
     async fn drop_column_defs(&mut self, count: usize) -> crate::Result<()> {
         for _ in 0..count {
-            let _column = ColumnDefinition::decode(self.stream.receive().await?)?;
+            let _column = ColumnDefinition::read(self.stream.receive().await?)?;
         }
 
         if count > 0 {
@@ -168,7 +168,7 @@ impl super::MySqlConnection {
         let mut result_columns = Vec::with_capacity(stmt.columns as usize);
 
         for _ in 0..stmt.params {
-            let param = ColumnDefinition::decode(self.stream.receive().await?)?;
+            let param = ColumnDefinition::read(self.stream.receive().await?)?;
             param_types.push(MySqlTypeInfo::from_column_def(&param));
         }
 
@@ -177,7 +177,7 @@ impl super::MySqlConnection {
         }
 
         for _ in 0..stmt.columns {
-            let column = ColumnDefinition::decode(self.stream.receive().await?)?;
+            let column = ColumnDefinition::read(self.stream.receive().await?)?;
 
             result_columns.push(Column::<MySql> {
                 type_info: MySqlTypeInfo::from_column_def(&column),
