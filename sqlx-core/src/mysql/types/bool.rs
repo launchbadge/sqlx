@@ -2,7 +2,6 @@ use std::convert::TryInto;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::error::UnexpectedNullError;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValue};

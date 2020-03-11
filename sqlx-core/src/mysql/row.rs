@@ -1,16 +1,11 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::str::{from_utf8, Utf8Error};
 use std::sync::Arc;
 
-use crate::decode::Decode;
 use crate::error::UnexpectedNullError;
-use crate::mysql::io::BufExt;
 use crate::mysql::protocol;
 use crate::mysql::MySql;
 use crate::row::{ColumnIndex, Row};
-use crate::types::Type;
-use byteorder::LittleEndian;
 
 #[derive(Debug)]
 pub enum MySqlValue<'c> {
@@ -49,7 +44,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
     {
         let index = index.resolve(self)?;
 
-        Ok(self.row.get(index).map(|mut buf| {
+        Ok(self.row.get(index).map(|buf| {
             if self.binary {
                 MySqlValue::Binary(buf)
             } else {

@@ -3,7 +3,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![allow(unused)]
 
 #[macro_use]
 pub mod error;

@@ -169,13 +169,11 @@ impl MySqlStream {
         Ok(())
     }
 
-    pub(crate) fn maybe_handle_eof(&mut self) -> crate::Result<bool> {
+    pub(crate) fn maybe_handle_eof(&mut self) -> crate::Result<Option<EofPacket>> {
         if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) {
-            let _eof = EofPacket::decode(self.packet())?;
-
-            Ok(true)
+            Ok(Some(EofPacket::decode(self.packet())?))
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 

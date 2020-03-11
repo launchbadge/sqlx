@@ -5,7 +5,6 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::error::UnexpectedNullError;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValue};
@@ -20,7 +19,7 @@ impl Type<MySql> for u8 {
 
 impl Encode<MySql> for u8 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.write_u8(*self);
+        let _ = buf.write_u8(*self);
     }
 }
 
@@ -45,7 +44,7 @@ impl Type<MySql> for u16 {
 
 impl Encode<MySql> for u16 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.write_u16::<LittleEndian>(*self);
+        let _ = buf.write_u16::<LittleEndian>(*self);
     }
 }
 
@@ -70,7 +69,7 @@ impl Type<MySql> for u32 {
 
 impl Encode<MySql> for u32 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.write_u32::<LittleEndian>(*self);
+        let _ = buf.write_u32::<LittleEndian>(*self);
     }
 }
 
@@ -95,7 +94,7 @@ impl Type<MySql> for u64 {
 
 impl Encode<MySql> for u64 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        buf.write_u64::<LittleEndian>(*self);
+        let _ = buf.write_u64::<LittleEndian>(*self);
     }
 }
 

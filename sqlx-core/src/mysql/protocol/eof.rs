@@ -8,8 +8,8 @@ use crate::mysql::protocol::{Capabilities, Decode, Status};
 // https://mariadb.com/kb/en/eof_packet/
 #[derive(Debug)]
 pub struct EofPacket {
-    warnings: u16,
-    status: Status,
+    pub warnings: u16,
+    pub status: Status,
 }
 
 impl Decode for EofPacket {

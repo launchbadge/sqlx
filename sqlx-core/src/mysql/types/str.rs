@@ -4,7 +4,6 @@ use byteorder::LittleEndian;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::error::UnexpectedNullError;
 use crate::mysql::io::{BufExt, BufMutExt};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;

@@ -60,8 +60,6 @@ impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut MySqlCursor<'c, 'q>,
 ) -> crate::Result<Option<MySqlRow<'a>>> {
-    println!("[cursor::next]");
-
     let mut conn = cursor.source.resolve_by_ref().await?;
 
     // The first time [next] is called we need to actually execute our
@@ -79,8 +77,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
     };
 
     loop {
-        let mut packet_id = conn.stream.receive().await?[0];
-        println!("[cursor::next/iter] {:x}", packet_id);
+        let packet_id = conn.stream.receive().await?[0];
         match packet_id {
             // OK or EOF packet
             0x00 | 0xFE

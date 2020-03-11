@@ -1,26 +1,22 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
 
 use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::mysql::protocol::{
     Status,
-    self, Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
-    ComStmtPrepareOk, Decode, EofPacket, ErrPacket, FieldFlags, OkPacket, Row, TypeId,
+    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
+    ComStmtPrepareOk, Decode, FieldFlags,
 };
 use crate::mysql::{
-    MySql, MySqlArguments, MySqlConnection, MySqlCursor, MySqlError, MySqlRow, MySqlTypeInfo,
+    MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo,
 };
 
 impl super::MySqlConnection {
     async fn wait_until_ready(&mut self) -> crate::Result<()> {
         if !self.is_ready {
             loop {
-                let mut packet_id = self.stream.receive().await?[0];
+                let packet_id = self.stream.receive().await?[0];
                 match packet_id {
                     0xFE if self.stream.packet().len() < 0xFF_FF_FF => {
                         // OK or EOF packet

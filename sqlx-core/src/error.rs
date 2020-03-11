@@ -53,6 +53,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[allow(dead_code)]
     pub(crate) fn decode<E>(err: E) -> Self
     where
         E: StdError + Send + Sync + 'static,

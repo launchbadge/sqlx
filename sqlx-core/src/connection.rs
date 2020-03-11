@@ -32,6 +32,7 @@ pub trait Connect: Connection {
 }
 
 mod internal {
+    #[allow(dead_code)]
     pub enum MaybeOwnedConnection<'c, C>
     where
         C: super::Connect,
@@ -40,6 +41,7 @@ mod internal {
         Owned(super::PoolConnection<C>),
     }
 
+    #[allow(dead_code)]
     pub enum ConnectionSource<'c, C>
     where
         C: super::Connect,
@@ -55,6 +57,7 @@ impl<'c, C> ConnectionSource<'c, C>
 where
     C: Connect,
 {
+    #[allow(dead_code)]
     pub(crate) async fn resolve_by_ref(&mut self) -> crate::Result<&'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
             *self =

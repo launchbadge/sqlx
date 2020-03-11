@@ -1,25 +1,20 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::io;
-use std::sync::Arc;
+use std::ops::Range;
 
-use byteorder::{ByteOrder, LittleEndian};
 use futures_core::future::BoxFuture;
 use sha1::Sha1;
-use std::net::Shutdown;
 
 use crate::connection::{Connect, Connection};
-use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
-use crate::mysql::error::MySqlError;
 use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Encode, EofPacket, ErrPacket, Handshake,
-    HandshakeResponse, OkPacket, SslRequest,
+    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Handshake,
+    HandshakeResponse,
 };
 use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
 use crate::mysql::{rsa, tls};
+use crate::executor::Executor;
 use crate::url::Url;
-use std::ops::Range;
 
 // Size before a packet is split
 pub(super) const MAX_PACKET_SIZE: u32 = 1024;
@@ -191,7 +186,6 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
     loop {
         // After sending the handshake response with our assumed auth method the server
         // will send OK, fail, or tell us to change auth methods
-        let capabilities = stream.capabilities;
         let packet = stream.receive().await?;
 
         match packet[0] {
@@ -238,7 +232,7 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
                 }
             }
 
-            unk => {
+            _ => {
                 return stream.handle_unexpected();
             }
         }

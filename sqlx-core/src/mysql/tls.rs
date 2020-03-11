@@ -1,47 +1,44 @@
-use std::borrow::Cow;
-use std::str::FromStr;
-
-use crate::mysql::protocol::{Capabilities, SslRequest};
 use crate::mysql::stream::MySqlStream;
 use crate::url::Url;
 
+#[cfg_attr(not(feature = "tls"), allow(unused_variables))]
 pub(super) async fn upgrade_if_needed(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
+    #[cfg_attr(not(feature = "tls"), allow(unused_imports))]
+    use crate::mysql::protocol::Capabilities;
+
     let ca_file = url.param("ssl-ca");
-
     let ssl_mode = url.param("ssl-mode");
-
-    let supports_tls = stream.capabilities.contains(Capabilities::SSL);
 
     // https://dev.mysql.com/doc/refman/5.7/en/connection-options.html#option_general_ssl-mode
     match ssl_mode.as_deref() {
         Some("DISABLED") => {}
 
         #[cfg(feature = "tls")]
-        Some("PREFERRED") | None if !supports_tls => {}
+        Some("PREFERRED") | None if !stream.capabilities.contains(Capabilities::SSL) => {}
 
         #[cfg(feature = "tls")]
         Some("PREFERRED") => {
-            if let Err(error) = try_upgrade(stream, &url, None, true).await {
+            if let Err(_error) = try_upgrade(stream, &url, None, true).await {
                 // TLS upgrade failed; fall back to a normal connection
             }
         }
 
         #[cfg(feature = "tls")]
         None => {
-            if let Err(error) = try_upgrade(stream, &url, ca_file.as_deref(), true).await {
+            if let Err(_error) = try_upgrade(stream, &url, ca_file.as_deref(), true).await {
                 // TLS upgrade failed; fall back to a normal connection
             }
         }
 
         #[cfg(feature = "tls")]
-        Some(mode @ "REQUIRED") | Some(mode @ "VERIFY_CA") | Some(mode @ "VERIFY_IDENTITY")
-            if !supports_tls =>
+        Some("REQUIRED") | Some("VERIFY_CA") | Some("VERIFY_IDENTITY")
+            if !stream.capabilities.contains(Capabilities::SSL) =>
         {
             return Err(tls_err!("server does not support TLS").into());
         }
 
         #[cfg(feature = "tls")]
-        Some(mode @ "VERIFY_CA") | Some(mode @ "VERIFY_IDENTITY") if ca_file.is_none() => {
+        Some("VERIFY_CA") | Some("VERIFY_IDENTITY") if ca_file.is_none() => {
             return Err(
                 tls_err!("`ssl-mode` of {:?} requires `ssl-ca` to be set", ssl_mode).into(),
             );
@@ -93,6 +90,7 @@ async fn try_upgrade(
     ca_file: Option<&str>,
     accept_invalid_hostnames: bool,
 ) -> crate::Result<()> {
+    use crate::mysql::protocol::{SslRequest};
     use crate::runtime::fs;
 
     use async_native_tls::{Certificate, TlsConnector};
