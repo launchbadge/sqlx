@@ -27,6 +27,13 @@ pub(super) async fn upgrade_if_needed(stream: &mut MySqlStream, url: &Url) -> cr
         }
 
         #[cfg(feature = "tls")]
+        None => {
+            if let Err(error) = try_upgrade(stream, &url, ca_file.as_deref(), true).await {
+                // TLS upgrade failed; fall back to a normal connection
+            }
+        }
+
+        #[cfg(feature = "tls")]
         Some(mode @ "REQUIRED") | Some(mode @ "VERIFY_CA") | Some(mode @ "VERIFY_IDENTITY")
             if !supports_tls =>
         {
@@ -104,8 +111,8 @@ async fn try_upgrade(
     stream
         .send(
             SslRequest {
-                client_collation: COLLATE_UTF8MB4_UNICODE_CI,
-                max_packet_size: MAX_PACKET_SIZE,
+                client_collation: super::connection::COLLATE_UTF8MB4_UNICODE_CI,
+                max_packet_size: super::connection::MAX_PACKET_SIZE,
             },
             false,
         )

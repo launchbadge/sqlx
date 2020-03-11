@@ -22,9 +22,9 @@ use crate::url::Url;
 use std::ops::Range;
 
 // Size before a packet is split
-const MAX_PACKET_SIZE: u32 = 1024;
+pub(super) const MAX_PACKET_SIZE: u32 = 1024;
 
-const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
+pub(super) const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 
 /// An asynchronous connection to a [MySql] database.
 ///
