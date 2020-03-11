@@ -176,7 +176,7 @@ impl<'de> Decode<'de, MySql> for NaiveDateTime {
                 };
 
                 Ok(dt)
-            },
+            }
 
             MySqlValue::Text(buf) => {
                 let s = from_utf8(buf).map_err(Error::decode)?;

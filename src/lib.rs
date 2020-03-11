@@ -7,16 +7,16 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 #[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
+pub use sqlx_core::connection::{Connect, Connection};
+pub use sqlx_core::cursor::Cursor;
 pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
 pub use sqlx_core::describe;
-pub use sqlx_core::executor::{Executor, Execute};
+pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
 pub use sqlx_core::row::{FromRow, Row};
 pub use sqlx_core::transaction::Transaction;
-pub use sqlx_core::connection::{Connection, Connect};
-pub use sqlx_core::cursor::Cursor;
 
 #[doc(inline)]
 pub use sqlx_core::types::{self, Type};
