@@ -94,7 +94,7 @@ where
     pub fn map<F, O>(self, mapper: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>>
     where
         O: Unpin,
-        F: MapRow<DB, Output = O>
+        F: MapRow<DB, Output = O>,
     {
         self.try_map(MapRowAdapter(mapper))
     }
@@ -224,9 +224,9 @@ pub trait MapRow<DB: Database> {
 struct MapRowAdapter<F>(F);
 
 impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
-    where
-        O: Unpin,
-        F: MapRow<DB, Output = O>,
+where
+    O: Unpin,
+    F: MapRow<DB, Output = O>,
 {
     type Output = O;
 

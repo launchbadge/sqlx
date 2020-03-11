@@ -25,10 +25,10 @@ pub trait Row<'c>: Unpin + Send {
     fn len(&self) -> usize;
 
     fn get<'r, T, I>(&'r self, index: I) -> T
-        where
-            T: Type<Self::Database>,
-            I: ColumnIndex<Self::Database>,
-            T: Decode<'c, Self::Database>,
+    where
+        T: Type<Self::Database>,
+        I: ColumnIndex<Self::Database>,
+        T: Decode<'c, Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
