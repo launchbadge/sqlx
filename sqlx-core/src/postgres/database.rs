@@ -12,6 +12,8 @@ impl Database for Postgres {
     type TypeInfo = super::PgTypeInfo;
 
     type TableId = u32;
+
+    type RawBuffer = Vec<u8>;
 }
 
 impl<'a> HasRow<'a> for Postgres {

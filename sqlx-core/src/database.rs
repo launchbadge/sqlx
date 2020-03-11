@@ -28,6 +28,8 @@ where
 
     /// The Rust type of table identifiers for this database.
     type TableId: Display + Clone;
+
+    type RawBuffer;
 }
 
 pub trait HasRawValue<'c> {

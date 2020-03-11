@@ -11,6 +11,8 @@ impl Database for MySql {
     type TypeInfo = super::MySqlTypeInfo;
 
     type TableId = Box<str>;
+
+    type RawBuffer = Vec<u8>;
 }
 
 impl<'c> HasRow<'c> for MySql {
