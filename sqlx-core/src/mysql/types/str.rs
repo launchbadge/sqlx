@@ -61,6 +61,6 @@ impl<'de> Decode<'de, MySql> for &'de str {
 
 impl<'de> Decode<'de, MySql> for String {
     fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
-        <&'de str>::decode(buf).map(ToOwned::to_owned)
+        <&'de str as Decode<MySql>>::decode(buf).map(ToOwned::to_owned)
     }
 }

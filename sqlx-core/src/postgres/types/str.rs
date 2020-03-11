@@ -50,7 +50,7 @@ impl Encode<Postgres> for String {
 
 impl<'de> Decode<'de, Postgres> for String {
     fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Self> {
-        <&'de str>::decode(buf).map(ToOwned::to_owned)
+        <&'de str as Decode<Postgres>>::decode(buf).map(ToOwned::to_owned)
     }
 }
 
