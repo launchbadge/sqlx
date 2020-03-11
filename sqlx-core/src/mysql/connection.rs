@@ -6,14 +6,13 @@ use futures_core::future::BoxFuture;
 use sha1::Sha1;
 
 use crate::connection::{Connect, Connection};
+use crate::executor::Executor;
 use crate::mysql::protocol::{
-    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Handshake,
-    HandshakeResponse,
+    AuthPlugin, AuthSwitch, Capabilities, ComPing, Decode, Handshake, HandshakeResponse,
 };
 use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
 use crate::mysql::{rsa, tls};
-use crate::executor::Executor;
 use crate::url::Url;
 
 // Size before a packet is split

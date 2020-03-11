@@ -90,7 +90,7 @@ async fn try_upgrade(
     ca_file: Option<&str>,
     accept_invalid_hostnames: bool,
 ) -> crate::Result<()> {
-    use crate::mysql::protocol::{SslRequest};
+    use crate::mysql::protocol::SslRequest;
     use crate::runtime::fs;
 
     use async_native_tls::{Certificate, TlsConnector};

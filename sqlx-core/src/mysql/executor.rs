@@ -4,13 +4,10 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::mysql::protocol::{
-    Status,
-    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
-    ComStmtPrepareOk, Decode, FieldFlags,
+    self, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare, ComStmtPrepareOk, Decode,
+    FieldFlags, Status,
 };
-use crate::mysql::{
-    MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo,
-};
+use crate::mysql::{MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo};
 
 impl super::MySqlConnection {
     async fn wait_until_ready(&mut self) -> crate::Result<()> {
