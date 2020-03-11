@@ -2,6 +2,12 @@ use std::fmt::{self, Display};
 
 use crate::types::TypeInfo;
 
+// mod bool;
+// mod bytes;
+// mod float;
+mod int;
+// mod str;
+
 #[derive(Debug, Clone)]
 pub struct SqliteTypeInfo {}
 

@@ -72,6 +72,10 @@ name = "mysql-macros"
 required-features = [ "mysql", "macros" ]
 
 [[test]]
+name = "sqlite"
+required-features = [ "sqlite" ]
+
+[[test]]
 name = "mysql"
 required-features = [ "mysql" ]
 

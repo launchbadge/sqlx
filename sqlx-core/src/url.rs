@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::convert::{TryFrom, TryInto};
 
+#[derive(Debug)]
 pub struct Url(url::Url);
 
 impl TryFrom<String> for Url {
@@ -28,6 +29,10 @@ impl<'s> TryFrom<&'s String> for Url {
 }
 
 impl Url {
+    pub(crate) fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn host(&self) -> &str {
         let host = self.0.host_str();
 

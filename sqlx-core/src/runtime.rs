@@ -6,7 +6,7 @@ pub use async_std::{
     io::{Read as AsyncRead, Write as AsyncWrite},
     net::TcpStream,
     task::sleep,
-    task::spawn,
+    task::{spawn, spawn_blocking},
     task::yield_now,
 };
 
@@ -15,7 +15,7 @@ pub use tokio::{
     fs,
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpStream,
-    task::spawn,
+    task::{spawn, spawn_blocking},
     task::yield_now,
     time::delay_for as sleep,
     time::timeout,

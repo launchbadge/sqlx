@@ -32,6 +32,10 @@ pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 
+#[cfg(feature = "sqlite")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+pub use sqlx_core::sqlite::{self, SqliteConnection, SqlitePool, Sqlite};
+
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub extern crate sqlx_macros;
@@ -75,4 +79,7 @@ pub mod prelude {
 
     #[cfg(feature = "mysql")]
     pub use super::mysql::MySqlQueryAs;
+
+    #[cfg(feature = "sqlite")]
+    pub use super::sqlite::SqliteQueryAs;
 }
