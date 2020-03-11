@@ -284,7 +284,34 @@ impl MySqlConnection {
 
         // After the connection is established, we initialize by configuring a few
         // connection parameters
-        // initialize().await?;
+
+        // https://mariadb.com/kb/en/sql-mode/
+
+        // PIPES_AS_CONCAT - Allows using the pipe character (ASCII 124) as string concatenation operator.
+        //                   This means that "A" || "B" can be used in place of CONCAT("A", "B").
+
+        // NO_ENGINE_SUBSTITUTION - If not set, if the available storage engine specified by a CREATE TABLE is
+        //                          not available, a warning is given and the default storage
+        //                          engine is used instead.
+
+        // NO_ZERO_DATE - Don't allow '0000-00-00'. This is invalid in Rust.
+
+        // NO_ZERO_IN_DATE - Don't allow 'YYYY-00-00'. This is invalid in Rust.
+
+        // --
+
+        // Setting the time zone allows us to assume that the output
+        // from a TIMESTAMP field is UTC
+
+        // --
+
+        // https://mathiasbynens.be/notes/mysql-utf8mb4
+
+        self_.execute(r#"
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'));
+SET time_zone = '+00:00';
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+        "#).await?;
 
         Ok(self_)
     }
