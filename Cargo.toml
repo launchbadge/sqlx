@@ -95,10 +95,6 @@ name = "mysql-types"
 required-features = [ "mysql" ]
 
 [[test]]
-name = "mysql-types-chrono"
-required-features = [ "mysql", "chrono", "macros" ]
-
-[[test]]
 name = "derives"
 required-features = [ "macros" ]
 
