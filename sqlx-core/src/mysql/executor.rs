@@ -8,6 +8,7 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::mysql::protocol::{
+    Status,
     self, Capabilities, ColumnCount, ColumnDefinition, ComQuery, ComStmtExecute, ComStmtPrepare,
     ComStmtPrepareOk, Decode, EofPacket, ErrPacket, FieldFlags, OkPacket, Row, TypeId,
 };
@@ -137,16 +138,19 @@ impl super::MySqlConnection {
                     // ResultSet row can begin with 0xfe byte (when using text protocol
                     // with a field length > 0xffffff)
 
-                    if !self.stream.maybe_handle_eof()? {
-                        rows += self.stream.handle_ok()?.affected_rows;
+                    let status = if let Some(eof) = self.stream.maybe_handle_eof()? {
+                        eof.status
+                    } else {
+                        let ok = self.stream.handle_ok()?;
+
+                        rows += ok.affected_rows;
+                        ok.status
+                    };
+
+                    if !status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
+                        self.is_ready = true;
+                        break;
                     }
-
-                    // EOF packets do not have affected rows
-                    // So this function is actually useless if the server doesn't support
-                    // proper OK packets
-
-                    self.is_ready = true;
-                    break;
                 }
 
                 0xFF => {
