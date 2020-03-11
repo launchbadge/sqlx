@@ -101,7 +101,7 @@ macro_rules! query (
         mod _macro_result {
             $crate::sqlx_macros::query!($query, $($args),*);
         }
-        macro_result!($($args)*)
+        macro_result!($($args),*)
     })
 );
 
@@ -162,7 +162,7 @@ macro_rules! query_file (
         mod _macro_result {
             $crate::sqlx_macros::query_file!($query, $($args),*);
         }
-        macro_result!($($args)*)
+        macro_result!($($args),*)
     })
 );
 
@@ -276,7 +276,7 @@ macro_rules! query_file_as (
         }
         macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
+    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
