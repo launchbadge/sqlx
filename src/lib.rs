@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
