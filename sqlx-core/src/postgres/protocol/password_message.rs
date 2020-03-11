@@ -1,9 +1,9 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::Encode;
+use crate::postgres::protocol::Write;
 use byteorder::NetworkEndian;
 use md5::{Digest, Md5};
 
-pub enum PasswordMessage<'a> {
+pub(crate) enum PasswordMessage<'a> {
     ClearText(&'a str),
 
     Md5 {
@@ -13,8 +13,8 @@ pub enum PasswordMessage<'a> {
     },
 }
 
-impl Encode for PasswordMessage<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for PasswordMessage<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'p');
 
         match self {
@@ -54,23 +54,23 @@ impl Encode for PasswordMessage<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Encode, PasswordMessage};
+    use super::{PasswordMessage, Write};
 
     const PASSWORD_CLEAR: &[u8] = b"p\0\0\0\rpassword\0";
     const PASSWORD_MD5: &[u8] = b"p\0\0\0(md53e2c9d99d49b201ef867a36f3f9ed62c\0";
 
     #[test]
-    fn it_encodes_password_clear() {
+    fn it_writes_password_clear() {
         let mut buf = Vec::new();
         let m = PasswordMessage::ClearText("password");
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, PASSWORD_CLEAR);
     }
 
     #[test]
-    fn it_encodes_password_md5() {
+    fn it_writes_password_md5() {
         let mut buf = Vec::new();
         let m = PasswordMessage::Md5 {
             password: "password",
@@ -78,7 +78,7 @@ mod tests {
             salt: [147, 24, 57, 152],
         };
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, PASSWORD_MD5);
     }

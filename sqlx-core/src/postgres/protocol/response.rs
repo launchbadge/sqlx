@@ -2,7 +2,7 @@ use crate::io::Buf;
 use std::str::{self, FromStr};
 
 #[derive(Debug, Copy, Clone)]
-pub enum Severity {
+pub(crate) enum Severity {
     Panic,
     Fatal,
     Error,
@@ -14,7 +14,7 @@ pub enum Severity {
 }
 
 impl Severity {
-    pub fn is_error(self) -> bool {
+    pub(crate) fn is_error(self) -> bool {
         match self {
             Severity::Panic | Severity::Fatal | Severity::Error => true,
             _ => false,
@@ -44,28 +44,28 @@ impl FromStr for Severity {
 }
 
 #[derive(Debug)]
-pub struct Response {
-    pub severity: Severity,
-    pub code: Box<str>,
-    pub message: Box<str>,
-    pub detail: Option<Box<str>>,
-    pub hint: Option<Box<str>>,
-    pub position: Option<usize>,
-    pub internal_position: Option<usize>,
-    pub internal_query: Option<Box<str>>,
-    pub where_: Option<Box<str>>,
-    pub schema: Option<Box<str>>,
-    pub table: Option<Box<str>>,
-    pub column: Option<Box<str>>,
-    pub data_type: Option<Box<str>>,
-    pub constraint: Option<Box<str>>,
-    pub file: Option<Box<str>>,
-    pub line: Option<usize>,
-    pub routine: Option<Box<str>>,
+pub(crate) struct Response {
+    pub(crate) severity: Severity,
+    pub(crate) code: Box<str>,
+    pub(crate) message: Box<str>,
+    pub(crate) detail: Option<Box<str>>,
+    pub(crate) hint: Option<Box<str>>,
+    pub(crate) position: Option<usize>,
+    pub(crate) internal_position: Option<usize>,
+    pub(crate) internal_query: Option<Box<str>>,
+    pub(crate) where_: Option<Box<str>>,
+    pub(crate) schema: Option<Box<str>>,
+    pub(crate) table: Option<Box<str>>,
+    pub(crate) column: Option<Box<str>>,
+    pub(crate) data_type: Option<Box<str>>,
+    pub(crate) constraint: Option<Box<str>>,
+    pub(crate) file: Option<Box<str>>,
+    pub(crate) line: Option<usize>,
+    pub(crate) routine: Option<Box<str>>,
 }
 
 impl Response {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let mut code = None::<Box<str>>;
         let mut message = None::<Box<str>>;
         let mut severity = None::<Box<str>>;

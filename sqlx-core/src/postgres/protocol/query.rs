@@ -1,11 +1,11 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::Encode;
+use crate::postgres::protocol::Write;
 use byteorder::NetworkEndian;
 
 pub struct Query<'a>(pub &'a str);
 
-impl Encode for Query<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for Query<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'Q');
 
         // len + query + nul
@@ -17,16 +17,16 @@ impl Encode for Query<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Encode, Query};
+    use super::{Query, Write};
 
     const QUERY_SELECT_1: &[u8] = b"Q\0\0\0\rSELECT 1\0";
 
     #[test]
-    fn it_encodes_query() {
+    fn it_writes_query() {
         let mut buf = Vec::new();
         let m = Query("SELECT 1");
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, QUERY_SELECT_1);
     }

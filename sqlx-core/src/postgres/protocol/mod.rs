@@ -9,11 +9,8 @@ pub use type_id::TypeId;
 
 // REQUESTS
 mod bind;
-mod cancel_request;
 mod describe;
-mod encode;
 mod execute;
-mod flush;
 mod parse;
 mod password_message;
 mod query;
@@ -25,48 +22,46 @@ mod statement;
 mod sync;
 mod terminate;
 
-pub use bind::Bind;
-pub use cancel_request::CancelRequest;
-pub use describe::Describe;
-pub use encode::Encode;
-pub use execute::Execute;
-pub use flush::Flush;
-pub use parse::Parse;
-pub use password_message::PasswordMessage;
-pub use query::Query;
-pub use sasl::{hi, SaslInitialResponse, SaslResponse};
-pub use ssl_request::SslRequest;
-pub use startup_message::StartupMessage;
-pub use statement::StatementId;
-pub use sync::Sync;
-pub use terminate::Terminate;
+pub(crate) use bind::Bind;
+pub(crate) use describe::Describe;
+pub(crate) use execute::Execute;
+pub(crate) use parse::Parse;
+pub(crate) use password_message::PasswordMessage;
+pub(crate) use query::Query;
+pub(crate) use sasl::{hi, SaslInitialResponse, SaslResponse};
+#[cfg_attr(not(feature = "tls"), allow(unused_imports, dead_code))]
+pub(crate) use ssl_request::SslRequest;
+pub(crate) use startup_message::StartupMessage;
+pub(crate) use statement::StatementId;
+pub(crate) use sync::Sync;
+pub(crate) use terminate::Terminate;
 
 // RESPONSES
 mod authentication;
 mod backend_key_data;
 mod command_complete;
 mod data_row;
-mod decode;
 mod notification_response;
 mod parameter_description;
-mod parameter_status;
 mod ready_for_query;
 mod response;
 mod row_description;
 
 mod message;
 
-pub use authentication::{
+pub(crate) use authentication::{
     Authentication, AuthenticationMd5, AuthenticationSasl, AuthenticationSaslContinue,
 };
-pub use backend_key_data::BackendKeyData;
-pub use command_complete::CommandComplete;
-pub use data_row::DataRow;
-pub use decode::Decode;
-pub use message::Message;
-pub use notification_response::NotificationResponse;
-pub use parameter_description::ParameterDescription;
-pub use parameter_status::ParameterStatus;
-pub use ready_for_query::ReadyForQuery;
-pub use response::{Response, Severity};
-pub use row_description::{Field, RowDescription};
+pub(crate) use backend_key_data::BackendKeyData;
+pub(crate) use command_complete::CommandComplete;
+pub(crate) use data_row::DataRow;
+pub(crate) use message::Message;
+pub(crate) use notification_response::NotificationResponse;
+pub(crate) use parameter_description::ParameterDescription;
+pub(crate) use ready_for_query::ReadyForQuery;
+pub(crate) use response::Response;
+pub(crate) use row_description::{Field, RowDescription};
+
+pub(crate) trait Write {
+    fn write(&self, buf: &mut Vec<u8>);
+}

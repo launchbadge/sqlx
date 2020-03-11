@@ -1,5 +1,5 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::{Encode, StatementId};
+use crate::postgres::protocol::{StatementId, Write};
 use byteorder::{ByteOrder, NetworkEndian};
 
 pub struct Parse<'a> {
@@ -8,14 +8,14 @@ pub struct Parse<'a> {
     pub param_types: &'a [u32],
 }
 
-impl Encode for Parse<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for Parse<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'P');
 
         let pos = buf.len();
         buf.put_i32::<NetworkEndian>(0); // skip over len
 
-        self.statement.encode(buf);
+        self.statement.write(buf);
 
         buf.put_str_nul(self.query);
 

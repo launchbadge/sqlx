@@ -2,23 +2,18 @@ use crate::io::Buf;
 use byteorder::NetworkEndian;
 use std::ops::Range;
 
-pub struct DataRow<'c> {
+pub(crate) struct DataRow<'c> {
     len: u16,
     buffer: &'c [u8],
     values: &'c [Option<Range<u32>>],
 }
 
 impl<'c> DataRow<'c> {
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.len as usize
     }
 
-    pub fn get(
-        &self,
-        // buffer: &'c [u8],
-        // values: &[Option<Range<u32>>],
-        index: usize,
-    ) -> Option<&'c [u8]> {
+    pub(crate) fn get(&self, index: usize) -> Option<&'c [u8]> {
         let range = self.values[index].as_ref()?;
 
         Some(&self.buffer[(range.start as usize)..(range.end as usize)])

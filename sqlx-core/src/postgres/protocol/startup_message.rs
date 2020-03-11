@@ -1,13 +1,13 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::Encode;
+use crate::postgres::protocol::Write;
 use byteorder::{BigEndian, ByteOrder, NetworkEndian};
 
 pub struct StartupMessage<'a> {
     pub params: &'a [(&'a str, &'a str)],
 }
 
-impl Encode for StartupMessage<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for StartupMessage<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         let pos = buf.len();
         buf.put_i32::<NetworkEndian>(0); // skip over len
 
@@ -29,7 +29,7 @@ impl Encode for StartupMessage<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Encode, StartupMessage};
+    use super::{StartupMessage, Write};
 
     const STARTUP_MESSAGE: &[u8] = b"\0\0\0)\0\x03\0\0user\0postgres\0database\0postgres\0\0";
 
@@ -40,7 +40,7 @@ mod tests {
             params: &[("user", "postgres"), ("database", "postgres")],
         };
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, STARTUP_MESSAGE);
     }

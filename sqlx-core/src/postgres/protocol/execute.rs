@@ -1,5 +1,5 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::Encode;
+use crate::postgres::protocol::Write;
 use byteorder::NetworkEndian;
 
 pub struct Execute<'a> {
@@ -11,8 +11,8 @@ pub struct Execute<'a> {
     pub limit: i32,
 }
 
-impl Encode for Execute<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for Execute<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'E');
 
         // len + nul + len(string) + limit

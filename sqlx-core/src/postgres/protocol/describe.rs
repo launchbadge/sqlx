@@ -1,5 +1,5 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::{Encode, StatementId};
+use crate::postgres::protocol::{StatementId, Write};
 use byteorder::{ByteOrder, NetworkEndian};
 
 pub enum Describe<'a> {
@@ -7,8 +7,8 @@ pub enum Describe<'a> {
     Portal(&'a str),
 }
 
-impl Encode for Describe<'_> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl Write for Describe<'_> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'D');
 
         let pos = buf.len();
@@ -17,7 +17,7 @@ impl Encode for Describe<'_> {
         match self {
             Describe::Statement(id) => {
                 buf.push(b'S');
-                id.encode(buf);
+                id.write(buf);
             }
 
             Describe::Portal(name) => {
@@ -34,25 +34,25 @@ impl Encode for Describe<'_> {
 
 #[cfg(test)]
 mod test {
-    use super::{Describe, Encode};
+    use super::{Describe, Write};
     use crate::postgres::protocol::StatementId;
 
     #[test]
-    fn it_encodes_describe_portal() {
+    fn it_writes_describe_portal() {
         let mut buf = Vec::new();
         let m = Describe::Portal("__sqlx_p_1");
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, b"D\0\0\0\x10P__sqlx_p_1\0");
     }
 
     #[test]
-    fn it_encodes_describe_statement() {
+    fn it_writes_describe_statement() {
         let mut buf = Vec::new();
         let m = Describe::Statement(StatementId(1));
 
-        m.encode(&mut buf);
+        m.write(&mut buf);
 
         assert_eq!(buf, b"D\x00\x00\x00\x18S__sqlx_statement_1\x00");
     }

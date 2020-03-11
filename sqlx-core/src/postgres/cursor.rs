@@ -7,7 +7,9 @@ use crate::connection::{ConnectionSource, MaybeOwnedConnection};
 use crate::cursor::Cursor;
 use crate::executor::Execute;
 use crate::pool::Pool;
-use crate::postgres::protocol::{DataRow, Message, RowDescription, StatementId, TypeFormat};
+use crate::postgres::protocol::{
+    DataRow, Message, ReadyForQuery, RowDescription, StatementId, TypeFormat,
+};
 use crate::postgres::{PgArguments, PgConnection, PgRow, Postgres};
 
 pub struct PgCursor<'c, 'q> {
@@ -159,6 +161,9 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
             // Indicates that all queries have finished executing
             Message::ReadyForQuery => {
+                // TODO: How should we handle an ERROR status form ReadyForQuery
+                let _ready = ReadyForQuery::read(conn.stream.buffer())?;
+
                 conn.is_ready = true;
                 break;
             }

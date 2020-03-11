@@ -1,5 +1,3 @@
-use crate::postgres::protocol::Decode;
-
 #[derive(Debug)]
 #[repr(u8)]
 pub enum TransactionStatus {
@@ -19,8 +17,8 @@ pub struct ReadyForQuery {
     status: TransactionStatus,
 }
 
-impl Decode for ReadyForQuery {
-    fn decode(buf: &[u8]) -> crate::Result<Self> {
+impl ReadyForQuery {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
         Ok(Self {
             status: match buf[0] {
                 b'I' => TransactionStatus::Idle,
@@ -41,14 +39,14 @@ impl Decode for ReadyForQuery {
 
 #[cfg(test)]
 mod tests {
-    use super::{Decode, ReadyForQuery, TransactionStatus};
+    use super::{ReadyForQuery, TransactionStatus};
     use matches::assert_matches;
 
     const READY_FOR_QUERY: &[u8] = b"E";
 
     #[test]
     fn it_decodes_ready_for_query() {
-        let message = ReadyForQuery::decode(READY_FOR_QUERY).unwrap();
+        let message = ReadyForQuery::read(READY_FOR_QUERY).unwrap();
 
         assert_matches!(message.status, TransactionStatus::Error);
     }

@@ -1,14 +1,14 @@
 use crate::io::BufMut;
-use crate::postgres::protocol::Encode;
+use crate::postgres::protocol::Write;
 use crate::Result;
 use byteorder::NetworkEndian;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-pub struct SaslInitialResponse<'a>(pub &'a str);
+pub(crate) struct SaslInitialResponse<'a>(pub(crate) &'a str);
 
-impl<'a> Encode for SaslInitialResponse<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl<'a> Write for SaslInitialResponse<'a> {
+    fn write(&self, buf: &mut Vec<u8>) {
         let len = self.0.as_bytes().len() as u32;
         buf.push(b'p');
         buf.put_u32::<NetworkEndian>(4u32 + len + 14u32 + 4u32);
@@ -18,10 +18,10 @@ impl<'a> Encode for SaslInitialResponse<'a> {
     }
 }
 
-pub struct SaslResponse<'a>(pub &'a str);
+pub(crate) struct SaslResponse<'a>(pub(crate) &'a str);
 
-impl<'a> Encode for SaslResponse<'a> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+impl<'a> Write for SaslResponse<'a> {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'p');
         buf.put_u32::<NetworkEndian>(4u32 + self.0.as_bytes().len() as u32);
         buf.extend_from_slice(self.0.as_bytes());
@@ -29,7 +29,7 @@ impl<'a> Encode for SaslResponse<'a> {
 }
 
 // Hi(str, salt, i):
-pub fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32]> {
+pub(crate) fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32]> {
     let mut mac = Hmac::<Sha256>::new_varkey(s.as_bytes())
         .map_err(|_| protocol_err!("HMAC can take key of any size"))?;
 

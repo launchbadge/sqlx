@@ -4,7 +4,7 @@ use std::net::Shutdown;
 use byteorder::NetworkEndian;
 
 use crate::io::{Buf, BufStream, MaybeTlsStream};
-use crate::postgres::protocol::{Encode, Message, Response};
+use crate::postgres::protocol::{Message, Response, Write};
 use crate::postgres::PgError;
 use crate::url::Url;
 
@@ -34,9 +34,9 @@ impl PgStream {
     #[inline]
     pub(super) fn write<M>(&mut self, message: M)
     where
-        M: Encode,
+        M: Write,
     {
-        message.encode(self.stream.buffer_mut());
+        message.write(self.stream.buffer_mut());
     }
 
     #[inline]

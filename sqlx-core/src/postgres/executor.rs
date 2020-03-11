@@ -9,8 +9,8 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::postgres::protocol::{
-    self, CommandComplete, Field, Message, ParameterDescription, RowDescription, StatementId,
-    TypeFormat, TypeId,
+    self, CommandComplete, Field, Message, ParameterDescription, ReadyForQuery, RowDescription,
+    StatementId, TypeFormat, TypeId,
 };
 use crate::postgres::types::SharedStr;
 use crate::postgres::{PgArguments, PgConnection, PgCursor, PgRow, PgTypeInfo, Postgres};
@@ -346,6 +346,9 @@ impl PgConnection {
                 }
 
                 Message::ReadyForQuery => {
+                    // TODO: How should we handle an ERROR status form ReadyForQuery
+                    let _ready = ReadyForQuery::read(self.stream.buffer())?;
+
                     self.is_ready = true;
                     break;
                 }

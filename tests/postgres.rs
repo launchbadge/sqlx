@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::postgres::{PgPool, PgRow, PgQueryAs};
-use sqlx::{postgres::PgConnection, Connect, Executor, Connection, Row};
+use sqlx::postgres::{PgPool, PgQueryAs, PgRow};
+use sqlx::{postgres::PgConnection, Connect, Connection, Executor, Row};
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
@@ -94,8 +94,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
         .await?;
 
-    conn.execute("TRUNCATE _sqlx_users_1922")
-        .await?;
+    conn.execute("TRUNCATE _sqlx_users_1922").await?;
 
     // begin .. rollback
 

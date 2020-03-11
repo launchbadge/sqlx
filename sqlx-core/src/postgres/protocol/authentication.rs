@@ -3,7 +3,7 @@ use byteorder::NetworkEndian;
 use std::str;
 
 #[derive(Debug)]
-pub enum Authentication {
+pub(crate) enum Authentication {
     /// The authentication exchange is successfully completed.
     Ok,
 
@@ -54,7 +54,7 @@ pub enum Authentication {
 }
 
 impl Authentication {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         Ok(match buf.get_u32::<NetworkEndian>()? {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,
@@ -76,12 +76,12 @@ impl Authentication {
 }
 
 #[derive(Debug)]
-pub struct AuthenticationMd5 {
-    pub salt: [u8; 4],
+pub(crate) struct AuthenticationMd5 {
+    pub(crate) salt: [u8; 4],
 }
 
 impl AuthenticationMd5 {
-    pub fn read(buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
         let mut salt = [0_u8; 4];
         salt.copy_from_slice(buf);
 
@@ -90,12 +90,12 @@ impl AuthenticationMd5 {
 }
 
 #[derive(Debug)]
-pub struct AuthenticationSasl {
-    pub mechanisms: Box<[Box<str>]>,
+pub(crate) struct AuthenticationSasl {
+    pub(crate) mechanisms: Box<[Box<str>]>,
 }
 
 impl AuthenticationSasl {
-    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let mut mechanisms = Vec::new();
 
         while buf[0] != 0 {
@@ -109,15 +109,15 @@ impl AuthenticationSasl {
 }
 
 #[derive(Debug)]
-pub struct AuthenticationSaslContinue {
-    pub salt: Vec<u8>,
-    pub iter_count: u32,
-    pub nonce: Vec<u8>,
-    pub data: String,
+pub(crate) struct AuthenticationSaslContinue {
+    pub(crate) salt: Vec<u8>,
+    pub(crate) iter_count: u32,
+    pub(crate) nonce: Vec<u8>,
+    pub(crate) data: String,
 }
 
 impl AuthenticationSaslContinue {
-    pub fn read(buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
         let mut salt: Vec<u8> = Vec::new();
         let mut nonce: Vec<u8> = Vec::new();
         let mut iter_count: u32 = 0;

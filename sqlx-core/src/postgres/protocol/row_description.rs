@@ -3,19 +3,19 @@ use crate::postgres::protocol::{TypeFormat, TypeId};
 use byteorder::NetworkEndian;
 
 #[derive(Debug)]
-pub struct RowDescription {
-    pub fields: Box<[Field]>,
+pub(crate) struct RowDescription {
+    pub(crate) fields: Box<[Field]>,
 }
 
 #[derive(Debug)]
-pub struct Field {
-    pub name: Option<Box<str>>,
-    pub table_id: Option<u32>,
-    pub column_id: i16,
-    pub type_id: TypeId,
-    pub type_size: i16,
-    pub type_mod: i32,
-    pub type_format: TypeFormat,
+pub(crate) struct Field {
+    pub(crate) name: Option<Box<str>>,
+    pub(crate) table_id: Option<u32>,
+    pub(crate) column_id: i16,
+    pub(crate) type_id: TypeId,
+    pub(crate) type_size: i16,
+    pub(crate) type_mod: i32,
+    pub(crate) type_format: TypeFormat,
 }
 
 impl RowDescription {

@@ -1,8 +1,8 @@
 use crate::io::Buf;
 
 #[derive(Debug)]
-pub struct CommandComplete {
-    pub affected_rows: u64,
+pub(crate) struct CommandComplete {
+    pub(crate) affected_rows: u64,
 }
 
 impl CommandComplete {

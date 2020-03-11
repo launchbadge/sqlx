@@ -9,8 +9,8 @@ use futures_util::TryFutureExt;
 use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
 use crate::postgres::protocol::{
-    Authentication, AuthenticationMd5, AuthenticationSasl, Message, PasswordMessage,
-    StartupMessage, StatementId, Terminate, TypeFormat,
+    Authentication, AuthenticationMd5, AuthenticationSasl, BackendKeyData, Message,
+    PasswordMessage, StartupMessage, StatementId, Terminate, TypeFormat,
 };
 use crate::postgres::stream::PgStream;
 use crate::postgres::{sasl, tls};
@@ -88,10 +88,17 @@ pub struct PgConnection {
     // Work buffer for the value ranges of the current row
     // This is used as the backing memory for each Row's value indexes
     pub(super) current_row_values: Vec<Option<Range<u32>>>,
+
+    // TODO: Find a use for these values. Perhaps in a debug impl of PgConnection?
+    #[allow(dead_code)]
+    process_id: u32,
+
+    #[allow(dead_code)]
+    secret_key: u32,
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
-async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
+async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyData> {
     // Defaults to postgres@.../postgres
     let username = url.username().unwrap_or("postgres");
     let database = url.database().unwrap_or("postgres");
@@ -117,6 +124,11 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
 
     stream.write(StartupMessage { params });
     stream.flush().await?;
+
+    let mut key_data = BackendKeyData {
+        process_id: 0,
+        secret_key: 0,
+    };
 
     loop {
         match stream.read().await? {
@@ -193,7 +205,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
 
             Message::BackendKeyData => {
                 // do nothing. we do not care about the server values here.
-                // todo: we should care and store these on the connection
+                key_data = BackendKeyData::read(stream.buffer())?;
             }
 
             Message::ParameterStatus => {
@@ -212,7 +224,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
         }
     }
 
-    Ok(())
+    Ok(key_data)
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.10
@@ -230,7 +242,7 @@ impl PgConnection {
         let mut stream = PgStream::new(&url).await?;
 
         tls::request_if_needed(&mut stream, &url).await?;
-        startup(&mut stream, &url).await?;
+        let key_data = startup(&mut stream, &url).await?;
 
         Ok(Self {
             stream,
@@ -240,6 +252,8 @@ impl PgConnection {
             cache_statement: HashMap::new(),
             cache_statement_columns: HashMap::new(),
             cache_statement_formats: HashMap::new(),
+            process_id: key_data.process_id,
+            secret_key: key_data.secret_key,
         })
     }
 }
