@@ -5,6 +5,7 @@ use futures_core::future::BoxFuture;
 use crate::executor::Executor;
 use crate::pool::{Pool, PoolConnection};
 use crate::url::Url;
+use crate::transaction::Transaction;
 
 /// Represents a single database connection rather than a pool of database connections.
 ///
@@ -15,6 +16,13 @@ where
     Self: Send + 'static,
     Self: Executor,
 {
+    /// Starts a transaction.
+    ///
+    /// Returns [`Transaction`](struct.Transaction.html).
+    fn begin(self) -> BoxFuture<'static, crate::Result<Transaction<Self>>> where Self: Sized {
+        Box::pin(Transaction::new(0, self))
+    }
+
     /// Close this database connection.
     fn close(self) -> BoxFuture<'static, crate::Result<()>>;
 

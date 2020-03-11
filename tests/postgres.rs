@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::postgres::{PgPool, PgRow};
-use sqlx::{postgres::PgConnection, Connect, Executor, Row};
+use sqlx::postgres::{PgPool, PgRow, PgQueryAs};
+use sqlx::{postgres::PgConnection, Connect, Executor, Connection, Row};
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
@@ -82,6 +82,73 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     assert_eq!(tuple.5, Some(40));
     assert_eq!(tuple.6, None);
     assert_eq!(tuple.7, Some(80));
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_can_work_with_transactions() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
+        .await?;
+
+    conn.execute("TRUNCATE _sqlx_users_1922")
+        .await?;
+
+    // begin .. rollback
+
+    let mut tx = conn.begin().await?;
+
+    sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+        .bind(10_i32)
+        .execute(&mut tx)
+        .await?;
+
+    conn = tx.rollback().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 0);
+
+    // begin .. commit
+
+    let mut tx = conn.begin().await?;
+
+    sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+        .bind(10_i32)
+        .execute(&mut tx)
+        .await?;
+
+    conn = tx.commit().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 1);
+
+    // begin .. (drop)
+
+    {
+        let mut tx = conn.begin().await?;
+
+        sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+            .bind(20_i32)
+            .execute(&mut tx)
+            .await?;
+    }
+
+    conn = connect().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 1);
 
     Ok(())
 }
