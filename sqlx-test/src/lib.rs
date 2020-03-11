@@ -93,6 +93,6 @@ macro_rules! MySql_query_for_test_prepared_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
-        "SELECT {} is not distinct form $1, $2 as _1"
+        "SELECT {} is not distinct from $1, $2 as _1"
     };
 }
