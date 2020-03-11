@@ -1,6 +1,12 @@
 use sqlx::Postgres;
 use sqlx_test::test_type;
 
+test_type!(null(
+    Postgres,
+    Option<i16>,
+    "NULL" == None::<i16>
+));
+
 test_type!(bool(
     Postgres,
     bool,
