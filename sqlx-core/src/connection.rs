@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use futures_core::future::BoxFuture;
 
 use crate::executor::Executor;
+use crate::maybe_owned::MaybeOwned;
 use crate::pool::{Pool, PoolConnection};
 use crate::transaction::Transaction;
 use crate::url::Url;
@@ -42,63 +43,32 @@ pub trait Connect: Connection {
         Self: Sized;
 }
 
-mod internal {
-    #[allow(dead_code)]
-    pub enum MaybeOwnedConnection<'c, C>
-    where
-        C: super::Connect,
-    {
-        Borrowed(&'c mut C),
-        Owned(super::PoolConnection<C>),
-    }
+pub(crate) enum ConnectionSource<'c, C>
+where
+    C: Connect,
+{
+    Connection(MaybeOwned<'c, PoolConnection<C>, C>),
 
     #[allow(dead_code)]
-    pub enum ConnectionSource<'c, C>
-    where
-        C: super::Connect,
-    {
-        Connection(MaybeOwnedConnection<'c, C>),
-        Pool(super::Pool<C>),
-    }
+    Pool(Pool<C>),
 }
-
-pub(crate) use self::internal::{ConnectionSource, MaybeOwnedConnection};
 
 impl<'c, C> ConnectionSource<'c, C>
 where
     C: Connect,
 {
     #[allow(dead_code)]
-    pub(crate) async fn resolve_by_ref(&mut self) -> crate::Result<&'_ mut C> {
+    pub(crate) async fn resolve(&mut self) -> crate::Result<&'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
-            *self =
-                ConnectionSource::Connection(MaybeOwnedConnection::Owned(pool.acquire().await?));
+            *self = ConnectionSource::Connection(MaybeOwned::Owned(pool.acquire().await?));
         }
 
         Ok(match self {
             ConnectionSource::Connection(conn) => match conn {
-                MaybeOwnedConnection::Borrowed(conn) => &mut *conn,
-                MaybeOwnedConnection::Owned(ref mut conn) => conn,
+                MaybeOwned::Borrowed(conn) => &mut *conn,
+                MaybeOwned::Owned(ref mut conn) => conn,
             },
             ConnectionSource::Pool(_) => unreachable!(),
         })
-    }
-}
-
-impl<'c, C> From<&'c mut C> for MaybeOwnedConnection<'c, C>
-where
-    C: Connect,
-{
-    fn from(conn: &'c mut C) -> Self {
-        MaybeOwnedConnection::Borrowed(conn)
-    }
-}
-
-impl<'c, C> From<PoolConnection<C>> for MaybeOwnedConnection<'c, C>
-where
-    C: Connect,
-{
-    fn from(conn: PoolConnection<C>) -> Self {
-        MaybeOwnedConnection::Owned(conn)
     }
 }

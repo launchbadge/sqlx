@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 
-use crate::connection::{ConnectionSource, MaybeOwnedConnection};
+use crate::connection::ConnectionSource;
 use crate::cursor::Cursor;
 use crate::executor::Execute;
 use crate::pool::Pool;
@@ -22,7 +22,6 @@ pub struct PgCursor<'c, 'q> {
 impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     type Database = Postgres;
 
-    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<PgConnection>, query: E) -> Self
     where
         Self: Sized,
@@ -36,11 +35,9 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         }
     }
 
-    #[doc(hidden)]
-    fn from_connection<E, C>(conn: C, query: E) -> Self
+    fn from_connection<E>(conn: &'c mut PgConnection, query: E) -> Self
     where
         Self: Sized,
-        C: Into<MaybeOwnedConnection<'c, PgConnection>>,
         E: Execute<'q, Postgres>,
     {
         Self {
@@ -128,7 +125,7 @@ async fn get_or_describe(
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut PgCursor<'c, 'q>,
 ) -> crate::Result<Option<PgRow<'a>>> {
-    let mut conn = cursor.source.resolve_by_ref().await?;
+    let mut conn = cursor.source.resolve().await?;
 
     // The first time [next] is called we need to actually execute our
     // contained query. We guard against this happening on _all_ next calls

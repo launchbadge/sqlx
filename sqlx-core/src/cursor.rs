@@ -1,6 +1,5 @@
 use futures_core::future::BoxFuture;
 
-use crate::connection::{Connect, MaybeOwnedConnection};
 use crate::database::{Database, HasRow};
 use crate::executor::Execute;
 use crate::pool::Pool;
@@ -19,18 +18,17 @@ where
 {
     type Database: Database;
 
-    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<<Self::Database as Database>::Connection>, query: E) -> Self
     where
         Self: Sized,
         E: Execute<'q, Self::Database>;
 
-    #[doc(hidden)]
-    fn from_connection<E, C>(conn: C, query: E) -> Self
+    fn from_connection<E>(
+        connection: &'c mut <Self::Database as Database>::Connection,
+        query: E,
+    ) -> Self
     where
         Self: Sized,
-        <Self::Database as Database>::Connection: Connect,
-        C: Into<MaybeOwnedConnection<'c, <Self::Database as Database>::Connection>>,
         E: Execute<'q, Self::Database>;
 
     /// Fetch the next row in the result. Returns `None` if there are no more rows.

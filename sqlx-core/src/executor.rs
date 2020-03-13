@@ -24,7 +24,10 @@ where
     /// discarding any potential result rows.
     ///
     /// Returns the number of rows affected, or 0 if not applicable.
-    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>;
 
@@ -89,7 +92,10 @@ where
 {
     type Database = T::Database;
 
-    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {

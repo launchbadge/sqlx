@@ -17,7 +17,10 @@ where
 {
     type Database = DB;
 
-    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -65,7 +68,10 @@ where
 {
     type Database = C::Database;
 
-    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {

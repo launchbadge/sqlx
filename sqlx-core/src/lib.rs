@@ -15,6 +15,8 @@ pub mod error;
 #[macro_use]
 mod io;
 
+mod maybe_owned;
+
 pub mod connection;
 pub mod cursor;
 pub mod database;

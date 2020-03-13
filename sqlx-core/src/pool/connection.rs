@@ -1,4 +1,5 @@
 use futures_core::future::BoxFuture;
+use std::borrow::{Borrow, BorrowMut};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
@@ -34,6 +35,24 @@ pub(super) struct Floating<'p, C> {
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
+
+impl<C> Borrow<C> for PoolConnection<C>
+where
+    C: Connect,
+{
+    fn borrow(&self) -> &C {
+        &*self
+    }
+}
+
+impl<C> BorrowMut<C> for PoolConnection<C>
+where
+    C: Connect,
+{
+    fn borrow_mut(&mut self) -> &mut C {
+        &mut *self
+    }
+}
 
 impl<C> Deref for PoolConnection<C>
 where

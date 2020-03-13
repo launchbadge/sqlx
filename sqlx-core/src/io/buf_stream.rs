@@ -45,6 +45,7 @@ where
         }
     }
 
+    #[cfg(feature = "postgres")]
     #[inline]
     pub fn buffer<'c>(&'c self) -> &'c [u8] {
         &self.rbuf[self.rbuf_rindex..]

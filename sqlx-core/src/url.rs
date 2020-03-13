@@ -29,6 +29,7 @@ impl<'s> TryFrom<&'s String> for Url {
 }
 
 impl Url {
+    #[allow(dead_code)]
     pub(crate) fn as_str(&self) -> &str {
         self.0.as_str()
     }
