@@ -76,6 +76,14 @@ name = "sqlite"
 required-features = [ "sqlite" ]
 
 [[test]]
+name = "sqlite-raw"
+required-features = [ "sqlite" ]
+
+[[test]]
+name = "sqlite-types"
+required-features = [ "sqlite" ]
+
+[[test]]
 name = "mysql"
 required-features = [ "mysql" ]
 

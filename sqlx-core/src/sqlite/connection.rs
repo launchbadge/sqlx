@@ -1,10 +1,11 @@
 use core::ptr::{null, null_mut, NonNull};
 
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::CString;
-use std::fmt::{self, Debug};
 
 use futures_core::future::BoxFuture;
+use futures_util::future;
 use libsqlite3_sys::{
     sqlite3, sqlite3_open_v2, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
@@ -12,13 +13,13 @@ use libsqlite3_sys::{
 
 use crate::connection::{Connect, Connection};
 use crate::runtime::spawn_blocking;
+use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::SqliteError;
 use crate::url::Url;
-use futures_util::future;
 
-#[derive(Debug)]
 pub struct SqliteConnection {
     pub(super) handle: NonNull<sqlite3>,
+    pub(super) cache_statement: HashMap<String, SqliteStatement>,
 }
 
 // SAFE: A sqlite3 handle is safe to access from multiple threads provided
@@ -30,8 +31,10 @@ pub struct SqliteConnection {
 //
 // <https://www.sqlite.org/c3ref/threadsafe.html>
 // <https://www.sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmultithread>
+
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteConnection {}
+
 #[allow(unsafe_code)]
 unsafe impl Sync for SqliteConnection {}
 
@@ -59,6 +62,7 @@ fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
 
     Ok(SqliteConnection {
         handle: NonNull::new(handle).unwrap(),
+        cache_statement: HashMap::new(),
     })
 }
 

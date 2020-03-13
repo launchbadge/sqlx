@@ -1,6 +1,6 @@
 use crate::error::DatabaseError;
 use libc::c_int;
-use libsqlite3_sys::{sqlite3, sqlite3_errstr};
+use libsqlite3_sys::sqlite3_errstr;
 use std::ffi::CStr;
 
 pub struct SqliteError {

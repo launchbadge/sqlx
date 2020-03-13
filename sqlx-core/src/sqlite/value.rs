@@ -1,17 +1,68 @@
-#[derive(Debug, Clone)]
-pub enum SqliteArgumentValue {
-    // TODO: Take by reference to remove the allocation
-    Text(String),
+use std::ffi::CStr;
 
-    // TODO: Take by reference to remove the allocation
-    Blob(Vec<u8>),
+use libsqlite3_sys::{
+    sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_text,
+    sqlite3_column_type, SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT,
+};
 
-    Double(f64),
-
-    Int(i64),
-}
+use crate::sqlite::statement::SqliteStatement;
+use crate::sqlite::types::SqliteType;
 
 pub struct SqliteResultValue<'c> {
-    // statement: SqliteStatement<'c>,
-    statement: std::marker::PhantomData<&'c ()>,
+    pub(super) index: usize,
+    pub(super) statement: &'c SqliteStatement,
+}
+
+// https://www.sqlite.org/capi3ref.html#sqlite3_column_blob
+
+// These routines return information about a single column of the current result row of a query.
+
+impl<'c> SqliteResultValue<'c> {
+    pub(crate) fn r#type(&self) -> SqliteType {
+        #[allow(unsafe_code)]
+        let type_code =
+            unsafe { sqlite3_column_type(self.statement.handle.as_ptr(), self.index as i32) };
+
+        match type_code {
+            SQLITE_INTEGER => SqliteType::Integer,
+            SQLITE_FLOAT => SqliteType::Float,
+            SQLITE_BLOB => SqliteType::Blob,
+            SQLITE_NULL => SqliteType::Null,
+            SQLITE_TEXT => SqliteType::Text,
+
+            _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn int(&self) -> i32 {
+        #[allow(unsafe_code)]
+        unsafe {
+            sqlite3_column_int(self.statement.handle.as_ptr(), self.index as i32)
+        }
+    }
+
+    pub(crate) fn int64(&self) -> i64 {
+        #[allow(unsafe_code)]
+        unsafe {
+            sqlite3_column_int64(self.statement.handle.as_ptr(), self.index as i32)
+        }
+    }
+
+    pub(crate) fn double(&self) -> f64 {
+        #[allow(unsafe_code)]
+        unsafe {
+            sqlite3_column_double(self.statement.handle.as_ptr(), self.index as i32)
+        }
+    }
+
+    pub(crate) fn text(&self) -> crate::Result<&'c str> {
+        #[allow(unsafe_code)]
+        let raw = unsafe {
+            CStr::from_ptr(
+                sqlite3_column_text(self.statement.handle.as_ptr(), self.index as i32) as *const i8,
+            )
+        };
+
+        raw.to_str().map_err(crate::Error::decode)
+    }
 }

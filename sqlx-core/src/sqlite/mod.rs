@@ -5,16 +5,18 @@ mod database;
 mod error;
 mod executor;
 mod row;
+mod statement;
 mod types;
 mod value;
 
-pub use arguments::SqliteArguments;
+pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use connection::SqliteConnection;
 pub use cursor::SqliteCursor;
 pub use database::Sqlite;
 pub use error::SqliteError;
 pub use row::SqliteRow;
 pub use types::SqliteTypeInfo;
+pub use value::SqliteResultValue;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Sqlite**.
 pub type SqlitePool = crate::pool::Pool<SqliteConnection>;

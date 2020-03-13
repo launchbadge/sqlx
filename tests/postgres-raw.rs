@@ -18,6 +18,18 @@ async fn test_empty_query() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_multi_cursor() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let query = format!("SELECT {} as _1", 10);
+    let _cursor1 = conn.fetch(&*query);
+    let _cursor2 = conn.fetch(&*query);
+
+    Ok(())
+}
+
 /// Test a simple select expression. This should return the row.
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]

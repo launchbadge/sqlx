@@ -102,7 +102,10 @@ where
 {
     type Database = T::Database;
 
-    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    fn execute<'e, 'q: 'e, 't: 'e, E: 'e>(
+        &'t mut self,
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {

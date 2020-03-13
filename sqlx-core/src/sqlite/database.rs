@@ -1,5 +1,4 @@
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
-use crate::sqlite::value::{SqliteArgumentValue, SqliteResultValue};
 
 /// **Sqlite** database driver.
 pub struct Sqlite;
@@ -14,7 +13,7 @@ impl Database for Sqlite {
     // TODO?
     type TableId = u32;
 
-    type RawBuffer = Vec<SqliteArgumentValue>;
+    type RawBuffer = Vec<super::SqliteArgumentValue>;
 }
 
 impl<'c> HasRow<'c> for Sqlite {
@@ -30,5 +29,5 @@ impl<'s, 'q> HasCursor<'s, 'q> for Sqlite {
 }
 
 impl<'c> HasRawValue<'c> for Sqlite {
-    type RawValue = SqliteResultValue<'c>;
+    type RawValue = super::SqliteResultValue<'c>;
 }
