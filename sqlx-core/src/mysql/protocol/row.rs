@@ -110,16 +110,16 @@ impl<'c> Row<'c> {
             if is_null {
                 values.push(None);
             } else {
-                let size = match columns[column_idx] {
-                    TypeId::TINY_INT => 1,
-                    TypeId::SMALL_INT => 2,
-                    TypeId::INT | TypeId::FLOAT => 4,
-                    TypeId::BIG_INT | TypeId::DOUBLE => 8,
+                let (offset, size) = match columns[column_idx] {
+                    TypeId::TINY_INT => (0, 1),
+                    TypeId::SMALL_INT => (0, 2),
+                    TypeId::INT | TypeId::FLOAT => (0, 4),
+                    TypeId::BIG_INT | TypeId::DOUBLE => (0, 8),
 
-                    TypeId::DATE => 5,
-                    TypeId::TIME => 1 + buffer[index] as usize,
+                    TypeId::DATE => (0, 5),
+                    TypeId::TIME => (0, 1 + buffer[index] as usize),
 
-                    TypeId::TIMESTAMP | TypeId::DATETIME => 1 + buffer[index] as usize,
+                    TypeId::TIMESTAMP | TypeId::DATETIME => (0, 1 + buffer[index] as usize),
 
                     TypeId::TINY_BLOB
                     | TypeId::MEDIUM_BLOB
@@ -129,7 +129,7 @@ impl<'c> Row<'c> {
                     | TypeId::VAR_CHAR => {
                         let (len_size, len) = get_lenenc(&buffer[index..]);
 
-                        len_size + len.unwrap_or_default()
+                        (len_size, len.unwrap_or_default())
                     }
 
                     id => {
@@ -137,8 +137,8 @@ impl<'c> Row<'c> {
                     }
                 };
 
-                values.push(Some(index..(index + size)));
-                index += size;
+                values.push(Some((index + offset)..(index + offset + size)));
+                index += size + offset;
             }
         }
 

@@ -2,7 +2,7 @@ use byteorder::LittleEndian;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::mysql::io::{BufExt, BufMutExt};
+use crate::mysql::io::{BufMutExt};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValue};
@@ -41,16 +41,7 @@ impl Encode<MySql> for Vec<u8> {
 impl<'de> Decode<'de, MySql> for Vec<u8> {
     fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
-            MySqlValue::Binary(mut buf) => {
-                let len = buf
-                    .get_uint_lenenc::<LittleEndian>()
-                    .map_err(crate::Error::decode)?
-                    .unwrap_or_default();
-
-                Ok((&buf[..(len as usize)]).to_vec())
-            }
-
-            MySqlValue::Text(s) => Ok(s.to_vec()),
+            MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf.to_vec()),
         }
     }
 }
@@ -58,16 +49,7 @@ impl<'de> Decode<'de, MySql> for Vec<u8> {
 impl<'de> Decode<'de, MySql> for &'de [u8] {
     fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
-            MySqlValue::Binary(mut buf) => {
-                let len = buf
-                    .get_uint_lenenc::<LittleEndian>()
-                    .map_err(crate::Error::decode)?
-                    .unwrap_or_default();
-
-                Ok(&buf[..(len as usize)])
-            }
-
-            MySqlValue::Text(s) => Ok(s),
+            MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf),
         }
     }
 }

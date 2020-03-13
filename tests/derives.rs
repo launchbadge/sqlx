@@ -5,30 +5,35 @@ use sqlx::encode::Encode;
 struct Foo(i32);
 
 #[test]
-#[cfg(feature = "mysql")]
-fn encode_mysql() {
-    encode_with_db::<sqlx::MySql>();
-}
-
-#[test]
 #[cfg(feature = "postgres")]
-fn encode_postgres() {
-    encode_with_db::<sqlx::Postgres>();
-}
-
-#[allow(dead_code)]
-fn encode_with_db<DB: sqlx::Database>()
-where
-    Foo: Encode<DB>,
-    i32: Encode<DB>,
+fn encode_with_postgres()
 {
+    use sqlx_core::postgres::Postgres;
+
     let example = Foo(0x1122_3344);
 
     let mut encoded = Vec::new();
     let mut encoded_orig = Vec::new();
 
-    Encode::<DB>::encode(&example, &mut encoded);
-    Encode::<DB>::encode(&example.0, &mut encoded_orig);
+    Encode::<Postgres>::encode(&example, &mut encoded);
+    Encode::<Postgres>::encode(&example.0, &mut encoded_orig);
+
+    assert_eq!(encoded, encoded_orig);
+}
+
+#[test]
+#[cfg(feature = "mysql")]
+fn encode_with_mysql()
+{
+    use sqlx_core::mysql::MySql;
+
+    let example = Foo(0x1122_3344);
+
+    let mut encoded = Vec::new();
+    let mut encoded_orig = Vec::new();
+
+    Encode::<MySql>::encode(&example, &mut encoded);
+    Encode::<MySql>::encode(&example.0, &mut encoded_orig);
 
     assert_eq!(encoded, encoded_orig);
 }
