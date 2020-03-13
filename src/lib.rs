@@ -34,7 +34,7 @@ pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
-pub use sqlx_core::sqlite::{self, SqliteConnection, SqlitePool, Sqlite};
+pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]

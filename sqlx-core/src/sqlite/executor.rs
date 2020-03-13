@@ -41,10 +41,10 @@ impl Executor for super::SqliteConnection {
     }
 }
 
-impl<'c> RefExecutor<'c> for &'c mut super::SqliteConnection {
+impl<'e> RefExecutor<'e> for &'e mut super::SqliteConnection {
     type Database = Sqlite;
 
-    fn fetch_by_ref<'q, E>(self, query: E) -> SqliteCursor<'c, 'q>
+    fn fetch_by_ref<'q, E>(self, query: E) -> SqliteCursor<'e, 'q>
     where
         E: Execute<'q, Self::Database>,
     {

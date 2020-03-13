@@ -1,5 +1,5 @@
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
-use crate::sqlite::value::{SqliteResultValue, SqliteArgumentValue};
+use crate::sqlite::value::{SqliteArgumentValue, SqliteResultValue};
 
 /// **Sqlite** database driver.
 pub struct Sqlite;

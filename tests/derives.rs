@@ -6,8 +6,7 @@ struct Foo(i32);
 
 #[test]
 #[cfg(feature = "postgres")]
-fn encode_with_postgres()
-{
+fn encode_with_postgres() {
     use sqlx_core::postgres::Postgres;
 
     let example = Foo(0x1122_3344);
@@ -23,8 +22,7 @@ fn encode_with_postgres()
 
 #[test]
 #[cfg(feature = "mysql")]
-fn encode_with_mysql()
-{
+fn encode_with_mysql() {
     use sqlx_core::mysql::MySql;
 
     let example = Foo(0x1122_3344);

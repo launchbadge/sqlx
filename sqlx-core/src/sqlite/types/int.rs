@@ -1,8 +1,8 @@
-use crate::types::Type;
-use crate::sqlite::{Sqlite, SqliteTypeInfo};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::sqlite::value::{SqliteArgumentValue, SqliteResultValue};
-use crate::decode::Decode;
+use crate::sqlite::{Sqlite, SqliteTypeInfo};
+use crate::types::Type;
 
 impl Type<Sqlite> for i32 {
     fn type_info() -> SqliteTypeInfo {

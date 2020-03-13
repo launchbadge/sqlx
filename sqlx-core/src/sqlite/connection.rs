@@ -1,4 +1,4 @@
-use core::ptr::{NonNull, null, null_mut};
+use core::ptr::{null, null_mut, NonNull};
 
 use std::convert::TryInto;
 use std::ffi::CString;
@@ -10,11 +10,11 @@ use libsqlite3_sys::{
     SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 
-use crate::runtime::spawn_blocking;
 use crate::connection::{Connect, Connection};
+use crate::runtime::spawn_blocking;
+use crate::sqlite::SqliteError;
 use crate::url::Url;
 use futures_util::future;
-use crate::sqlite::SqliteError;
 
 #[derive(Debug)]
 pub struct SqliteConnection {
@@ -46,16 +46,12 @@ fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
 
     // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
     // cannot satisfy our wish for a thread-safe, lock-free connection object
-    let flags = SQLITE_OPEN_READWRITE
-        | SQLITE_OPEN_CREATE
-        | SQLITE_OPEN_NOMUTEX
-        | SQLITE_OPEN_SHAREDCACHE;
+    let flags =
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX | SQLITE_OPEN_SHAREDCACHE;
 
     // <https://www.sqlite.org/c3ref/open.html>
     #[allow(unsafe_code)]
-    let status = unsafe {
-        sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, null())
-    };
+    let status = unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, null()) };
 
     if status != SQLITE_OK {
         return Err(SqliteError::new(status).into());

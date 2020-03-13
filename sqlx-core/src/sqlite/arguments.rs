@@ -1,8 +1,8 @@
 use crate::arguments::Arguments;
 use crate::encode::Encode;
+use crate::sqlite::value::SqliteArgumentValue;
 use crate::sqlite::Sqlite;
 use crate::types::Type;
-use crate::sqlite::value::SqliteArgumentValue;
 
 #[derive(Default)]
 pub struct SqliteArguments {

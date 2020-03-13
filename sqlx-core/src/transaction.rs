@@ -127,14 +127,14 @@ where
     }
 }
 
-impl<'c, DB, T> RefExecutor<'c> for &'c mut Transaction<T>
+impl<'e, DB, T> RefExecutor<'e> for &'e mut Transaction<T>
 where
     DB: Database,
     T: Connection<Database = DB>,
 {
     type Database = DB;
 
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {

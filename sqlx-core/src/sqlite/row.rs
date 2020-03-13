@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::error::UnexpectedNullError;
 use crate::row::{ColumnIndex, Row};
-use crate::sqlite::Sqlite;
 use crate::sqlite::value::SqliteResultValue;
+use crate::sqlite::Sqlite;
 
 pub struct SqliteRow<'c> {
     c: std::marker::PhantomData<&'c ()>,

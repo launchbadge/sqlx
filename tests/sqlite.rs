@@ -1,5 +1,7 @@
 use futures::TryStreamExt;
-use sqlx::{sqlite::SqliteQueryAs, Connection, Executor, Sqlite, SqlitePool, SqliteConnection, Connect};
+use sqlx::{
+    sqlite::SqliteQueryAs, Connect, Connection, Executor, Sqlite, SqliteConnection, SqlitePool,
+};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -14,7 +16,10 @@ async fn it_connects() -> anyhow::Result<()> {
 async fn it_fails_to_connect() -> anyhow::Result<()> {
     // empty connection string
     assert!(SqliteConnection::connect("").await.is_err());
-    assert!(dbg!(SqliteConnection::connect("sqlite:///please_do_not_run_sqlx_tests_as_root").await).is_err());
+    assert!(dbg!(
+        SqliteConnection::connect("sqlite:///please_do_not_run_sqlx_tests_as_root").await
+    )
+    .is_err());
 
     Ok(())
 }

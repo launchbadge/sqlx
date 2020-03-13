@@ -3,10 +3,10 @@ mod connection;
 mod cursor;
 mod database;
 mod error;
-mod value;
 mod executor;
 mod row;
 mod types;
+mod value;
 
 pub use arguments::SqliteArguments;
 pub use connection::SqliteConnection;
