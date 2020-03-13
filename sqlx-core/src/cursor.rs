@@ -34,5 +34,7 @@ where
         E: Execute<'q, Self::Database>;
 
     /// Fetch the next row in the result. Returns `None` if there are no more rows.
-    fn next(&mut self) -> BoxFuture<crate::Result<Option<<Self::Database as HasRow>::Row>>>;
+    fn next<'cur>(
+        &'cur mut self,
+    ) -> BoxFuture<'cur, crate::Result<Option<<Self::Database as HasRow<'cur>>::Row>>>;
 }
