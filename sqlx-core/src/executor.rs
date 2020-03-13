@@ -28,6 +28,10 @@ where
     where
         E: Execute<'q, Self::Database>;
 
+    /// Executes a query for its result.
+    ///
+    /// Returns a [`Cursor`] that can be used to iterate through the [`Row`]s
+    /// of the result.
     fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>;
@@ -45,14 +49,12 @@ where
         E: Execute<'q, Self::Database>;
 }
 
-pub trait RefExecutor<'c> {
+// HACK: Generic Associated Types (GATs) will enable us to rework how the Executor bound is done
+//       in Query to remove the need for this.
+pub trait RefExecutor<'e> {
     type Database: Database;
 
-    /// Executes a query for its result.
-    ///
-    /// Returns a [`Cursor`] that can be used to iterate through the [`Row`]s
-    /// of the result.
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
+    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>;
 }
