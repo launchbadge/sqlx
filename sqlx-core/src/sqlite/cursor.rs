@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use futures_core::future::BoxFuture;
 
 use crate::connection::ConnectionSource;
@@ -22,7 +19,6 @@ enum State<'q> {
 
 pub struct SqliteCursor<'c, 'q> {
     source: ConnectionSource<'c, SqliteConnection>,
-    columns: Arc<HashMap<Box<str>, usize>>,
     state: State<'q>,
 }
 
@@ -36,7 +32,6 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
     {
         Self {
             source: ConnectionSource::Pool(pool.clone()),
-            columns: Arc::default(),
             state: State::Query(query.into_parts()),
         }
     }
@@ -48,7 +43,6 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
     {
         Self {
             source: ConnectionSource::Connection(conn.into()),
-            columns: Arc::default(),
             state: State::Query(query.into_parts()),
         }
     }

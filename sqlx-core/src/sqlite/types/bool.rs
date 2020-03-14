@@ -6,7 +6,7 @@ use crate::types::Type;
 
 impl Type<Sqlite> for bool {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo::new(SqliteType::Integer, SqliteTypeAffinity::Numeric)
+        SqliteTypeInfo::new(SqliteType::Boolean, SqliteTypeAffinity::Numeric)
     }
 }
 

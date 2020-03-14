@@ -1,7 +1,7 @@
 use crate::error::DatabaseError;
-use libc::c_int;
 use libsqlite3_sys::sqlite3_errstr;
 use std::ffi::CStr;
+use std::os::raw::c_int;
 
 pub struct SqliteError {
     #[allow(dead_code)]

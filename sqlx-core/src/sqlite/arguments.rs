@@ -1,6 +1,7 @@
 use core::ffi::c_void;
 
-use libc::c_int;
+use std::os::raw::c_int;
+
 use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_text, SQLITE_OK,

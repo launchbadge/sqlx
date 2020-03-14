@@ -3,14 +3,13 @@ use futures_core::future::BoxFuture;
 use libsqlite3_sys::sqlite3_changes;
 
 use crate::cursor::Cursor;
-use crate::describe::Describe;
+use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::maybe_owned::MaybeOwned;
-use crate::sqlite::arguments::SqliteArguments;
 use crate::sqlite::cursor::SqliteCursor;
 use crate::sqlite::statement::{SqliteStatement, Step};
-use crate::sqlite::{Sqlite, SqliteConnection};
-use std::collections::HashMap;
+use crate::sqlite::types::SqliteType;
+use crate::sqlite::{Sqlite, SqliteConnection, SqliteTypeInfo};
 
 impl SqliteConnection {
     pub(super) fn prepare(
@@ -74,7 +73,7 @@ impl Executor for SqliteConnection {
 
         Box::pin(async move {
             let mut statement = self.prepare(query, arguments.is_some())?;
-            let mut statement_ = statement.resolve(&mut self.statements);
+            let statement_ = statement.resolve(&mut self.statements);
 
             if let Some(arguments) = &mut arguments {
                 statement_.bind(arguments)?;
@@ -102,8 +101,59 @@ impl Executor for SqliteConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        // Box::pin(async move { self.describe(query.into_parts().0).await })
-        todo!()
+        Box::pin(async move {
+            let (query, _) = query.into_parts();
+            let mut statement = self.prepare(query, false)?;
+            let statement = statement.resolve(&mut self.statements);
+
+            // First let's attempt to describe what we can about parameter types
+            // Which happens to just be the count, heh
+            let num_params = statement.params();
+            let params = vec![
+                SqliteTypeInfo {
+                    r#type: SqliteType::Null,
+                    affinity: None,
+                };
+                num_params
+            ]
+            .into_boxed_slice();
+
+            // Next, collect (return) column types and names
+            let num_columns = statement.num_columns();
+            let mut columns = Vec::with_capacity(num_columns);
+            for i in 0..num_columns {
+                let name = statement.column_name(i);
+                let decl = statement.column_decltype(i);
+
+                let r#type = match decl {
+                    None => SqliteType::Null,
+                    Some(decl) => match &*decl.to_ascii_lowercase() {
+                        "bool" | "boolean" => SqliteType::Boolean,
+                        "clob" | "text" => SqliteType::Text,
+                        "blob" => SqliteType::Blob,
+                        "real" | "double" | "double precision" | "float" => SqliteType::Float,
+                        _ if decl.contains("int") => SqliteType::Integer,
+                        _ if decl.contains("char") => SqliteType::Text,
+                        _ => SqliteType::Null,
+                    },
+                };
+
+                columns.push(Column {
+                    name: Some(name.into()),
+                    non_null: None,
+                    table_id: None,
+                    type_info: SqliteTypeInfo {
+                        r#type,
+                        affinity: None,
+                    },
+                })
+            }
+
+            Ok(Describe {
+                param_types: params,
+                result_columns: columns.into_boxed_slice(),
+            })
+        })
     }
 }
 

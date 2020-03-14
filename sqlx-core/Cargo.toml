@@ -17,7 +17,7 @@ default = [ "runtime-async-std" ]
 unstable = []
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
-sqlite = [ "libc", "libsqlite3-sys" ]
+sqlite = [ "libsqlite3-sys" ]
 tls = [ "async-native-tls" ]
 runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
 runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
@@ -50,7 +50,6 @@ sha2 = { version = "0.8.1", default-features = false, optional = true }
 tokio = { version = "0.2.13", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true }
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
-libc = { version = "0.2", optional = true }
 
 # <https://github.com/jgallagher/rusqlite/tree/master/libsqlite3-sys>
 [dependencies.libsqlite3-sys]

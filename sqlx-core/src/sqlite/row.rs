@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use libc::c_int;
 use libsqlite3_sys::sqlite3_data_count;
+use std::os::raw::c_int;
 
 use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};

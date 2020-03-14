@@ -1660,7 +1660,6 @@ dependencies = [
  "generic-array",
  "hex",
  "hmac",
- "libc",
  "libsqlite3-sys",
  "log",
  "matches",

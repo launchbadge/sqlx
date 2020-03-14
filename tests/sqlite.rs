@@ -53,3 +53,44 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
     Ok(())
 }
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_describes() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE describe_test (
+    _1 int primary key,
+    _2 text not null,
+    _3 blob,
+    _4 boolean,
+    _5 float,
+    _6 varchar(255),
+    _7 double,
+    _8 bigint
+)
+            "#,
+        )
+        .await?;
+
+    let describe = conn
+        .describe("select nt.*, false from describe_test nt")
+        .await?;
+
+    assert_eq!(describe.result_columns[0].type_info.to_string(), "INTEGER");
+    assert_eq!(describe.result_columns[1].type_info.to_string(), "TEXT");
+    assert_eq!(describe.result_columns[2].type_info.to_string(), "BLOB");
+    assert_eq!(describe.result_columns[3].type_info.to_string(), "BOOLEAN");
+    assert_eq!(describe.result_columns[4].type_info.to_string(), "DOUBLE");
+    assert_eq!(describe.result_columns[5].type_info.to_string(), "TEXT");
+    assert_eq!(describe.result_columns[6].type_info.to_string(), "DOUBLE");
+    assert_eq!(describe.result_columns[7].type_info.to_string(), "INTEGER");
+
+    // Expressions can not be described
+    assert_eq!(describe.result_columns[8].type_info.to_string(), "NULL");
+
+    Ok(())
+}

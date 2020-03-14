@@ -3,7 +3,6 @@ use core::ptr::{null, null_mut, NonNull};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::CString;
-use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_util::future;
@@ -22,7 +21,6 @@ pub struct SqliteConnection {
     pub(super) handle: NonNull<sqlite3>,
     pub(super) statements: Vec<SqliteStatement>,
     pub(super) statement_by_query: HashMap<String, usize>,
-    pub(super) columns_by_query: HashMap<String, Arc<HashMap<String, usize>>>,
 }
 
 // SAFE: A sqlite3 handle is safe to access from multiple threads provided
@@ -70,7 +68,6 @@ fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
         handle: NonNull::new(handle).unwrap(),
         statements: Vec::with_capacity(10),
         statement_by_query: HashMap::with_capacity(10),
-        columns_by_query: HashMap::new(),
     })
 }
 
@@ -81,7 +78,9 @@ impl Connect for SqliteConnection {
         Self: Sized,
     {
         let url = url.try_into();
-        Box::pin(spawn_blocking(move || establish(url)))
+        let conn = establish(url);
+
+        Box::pin(future::ready(conn))
     }
 }
 
