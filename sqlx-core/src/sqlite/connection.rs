@@ -3,11 +3,12 @@ use core::ptr::{null, null_mut, NonNull};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::CString;
+use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_util::future;
 use libsqlite3_sys::{
-    sqlite3, sqlite3_open_v2, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX,
+    sqlite3, sqlite3_close, sqlite3_open_v2, SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 
@@ -19,7 +20,9 @@ use crate::url::Url;
 
 pub struct SqliteConnection {
     pub(super) handle: NonNull<sqlite3>,
-    pub(super) cache_statement: HashMap<String, SqliteStatement>,
+    pub(super) statements: Vec<SqliteStatement>,
+    pub(super) statement_by_query: HashMap<String, usize>,
+    pub(super) columns_by_query: HashMap<String, Arc<HashMap<String, usize>>>,
 }
 
 // SAFE: A sqlite3 handle is safe to access from multiple threads provided
@@ -40,7 +43,10 @@ unsafe impl Sync for SqliteConnection {}
 
 fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
     let url = url?;
-    let url = url.as_str().trim_start_matches("sqlite://");
+    let url = url
+        .as_str()
+        .trim_start_matches("sqlite:")
+        .trim_start_matches("//");
 
     // By default, we connect to an in-memory database.
     // TODO: Handle the error when there are internal NULs in the database URL
@@ -62,7 +68,9 @@ fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
 
     Ok(SqliteConnection {
         handle: NonNull::new(handle).unwrap(),
-        cache_statement: HashMap::new(),
+        statements: Vec::with_capacity(10),
+        statement_by_query: HashMap::with_capacity(10),
+        columns_by_query: HashMap::new(),
     })
 }
 
@@ -79,12 +87,26 @@ impl Connect for SqliteConnection {
 
 impl Connection for SqliteConnection {
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
-        // Box::pin(terminate(self.stream))
-        todo!()
+        // All necessary behavior is handled on drop
+        Box::pin(future::ok(()))
     }
 
     fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         // For SQLite connections, PING does effectively nothing
         Box::pin(future::ok(()))
+    }
+}
+
+impl Drop for SqliteConnection {
+    fn drop(&mut self) {
+        // Drop all statements first
+        self.statements.clear();
+
+        // Next close the statement
+        // https://sqlite.org/c3ref/close.html
+        #[allow(unsafe_code)]
+        unsafe {
+            let _ = sqlite3_close(self.handle.as_ptr());
+        }
     }
 }

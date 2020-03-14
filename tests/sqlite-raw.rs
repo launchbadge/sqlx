@@ -1,6 +1,6 @@
 //! Tests for the raw (unprepared) query API for Sqlite.
 
-use sqlx::{Cursor, Executor, Sqlite, Row};
+use sqlx::{Cursor, Executor, Row, Sqlite};
 use sqlx_test::new;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]

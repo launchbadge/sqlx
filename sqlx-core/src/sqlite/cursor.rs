@@ -1,5 +1,3 @@
-use core::mem::take;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -8,29 +6,22 @@ use futures_core::future::BoxFuture;
 use crate::connection::ConnectionSource;
 use crate::cursor::Cursor;
 use crate::executor::Execute;
+use crate::maybe_owned::MaybeOwned;
 use crate::pool::Pool;
 use crate::sqlite::statement::{SqliteStatement, Step};
 use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
 
 enum State<'q> {
-    Empty,
     Query((&'q str, Option<SqliteArguments>)),
     Statement {
         query: &'q str,
         arguments: Option<SqliteArguments>,
-        statement: SqliteStatement,
+        statement: MaybeOwned<SqliteStatement, usize>,
     },
-}
-
-impl Default for State<'_> {
-    fn default() -> Self {
-        State::Empty
-    }
 }
 
 pub struct SqliteCursor<'c, 'q> {
     source: ConnectionSource<'c, SqliteConnection>,
-    // query: Option<(&'q str, Option<SqliteArguments>)>,
     columns: Arc<HashMap<Box<str>, usize>>,
     state: State<'q>,
 }
@@ -76,9 +67,10 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
         match cursor.state {
             State::Query((query, ref mut arguments)) => {
                 let mut statement = conn.prepare(query, arguments.is_some())?;
+                let statement_ = statement.resolve(&mut conn.statements);
 
                 if let Some(arguments) = arguments {
-                    statement.bind(arguments)?;
+                    statement_.bind(arguments)?;
                 }
 
                 cursor.state = State::Statement {
@@ -93,44 +85,19 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
             } => {
                 break statement;
             }
-
-            State::Empty => unreachable!("use after drop"),
         }
     };
 
-    match statement.step().await? {
+    let statement_ = statement.resolve(&mut conn.statements);
+
+    match statement_.step().await? {
         Step::Done => {
             // TODO: If there is more to do, we need to do more
             Ok(None)
         }
 
         Step::Row => Ok(Some(SqliteRow {
-            statement,
-            columns: Arc::default(),
+            statement: &*statement_,
         })),
-    }
-}
-
-// If there is a statement on our WIP object
-// Put it back into the cache IFF this is a persistent query
-impl<'c, 'q> Drop for SqliteCursor<'c, 'q> {
-    fn drop(&mut self) {
-        match take(&mut self.state) {
-            State::Statement {
-                query,
-                arguments,
-                statement,
-            } => {
-                if arguments.is_some() {
-                    if let ConnectionSource::Connection(connection) = &mut self.source {
-                        connection
-                            .cache_statement
-                            .insert(query.to_owned(), statement);
-                    }
-                }
-            }
-
-            _ => {}
-        }
     }
 }

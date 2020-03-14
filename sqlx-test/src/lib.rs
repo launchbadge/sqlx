@@ -40,10 +40,10 @@ macro_rules! test_unprepared_type {
                 $(
                     let query = format!("SELECT {} as _1", $text);
                     let mut cursor = conn.fetch(&*query);
-                    // // let row = cursor.next().await?.unwrap();
-                    // // let rec = row.try_get::<$ty, _>("_1")?;
+                    let row = cursor.next().await?.unwrap();
+                    let rec = row.try_get::<$ty, _>("_1")?;
 
-                    // // assert!($value == rec);
+                    assert!($value == rec);
                 )+
 
                 Ok(())
@@ -93,7 +93,7 @@ macro_rules! MySql_query_for_test_prepared_type {
 #[macro_export]
 macro_rules! Sqlite_query_for_test_prepared_type {
     () => {
-        "SELECT ({0} is null or {0} = ?1), ?1 as _1"
+        "SELECT {} is ?, ? as _1"
     };
 }
 

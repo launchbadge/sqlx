@@ -5,30 +5,54 @@ use libsqlite3_sys::sqlite3_changes;
 use crate::cursor::Cursor;
 use crate::describe::Describe;
 use crate::executor::{Execute, Executor, RefExecutor};
+use crate::maybe_owned::MaybeOwned;
 use crate::sqlite::arguments::SqliteArguments;
 use crate::sqlite::cursor::SqliteCursor;
 use crate::sqlite::statement::{SqliteStatement, Step};
 use crate::sqlite::{Sqlite, SqliteConnection};
+use std::collections::HashMap;
 
 impl SqliteConnection {
     pub(super) fn prepare(
         &mut self,
         query: &str,
         persistent: bool,
-    ) -> crate::Result<SqliteStatement> {
-        if let Some(mut statement) = self.cache_statement.remove(&*query) {
+    ) -> crate::Result<MaybeOwned<SqliteStatement, usize>> {
+        // TODO: Revisit statement caching and allow cache expiration by using a
+        //       generational index
+
+        if !persistent {
+            // A non-persistent query will be immediately prepared and returned
+            return SqliteStatement::new(&mut self.handle, query, false).map(MaybeOwned::Owned);
+        }
+
+        if let Some(key) = self.statement_by_query.get(query) {
+            let statement = &mut self.statements[*key];
+
             // As this statement has very likely been used before, we reset
             // it to clear the bindings and its program state
-
             statement.reset();
 
-            Ok(statement)
-        } else {
-            SqliteStatement::new(&mut self.handle, query, persistent)
+            return Ok(MaybeOwned::Borrowed(*key));
         }
+
+        // Prepare a new statement object; ensuring to tell SQLite that this will be stored
+        // for a "long" time and re-used multiple times
+
+        let key = self.statements.len();
+
+        self.statement_by_query.insert(query.to_owned(), key);
+        self.statements
+            .push(SqliteStatement::new(&mut self.handle, query, true)?);
+
+        Ok(MaybeOwned::Borrowed(key))
     }
 
+    // This is used for [affected_rows] in the public API.
     fn changes(&mut self) -> u64 {
+        // Returns the number of rows modified, inserted or deleted by the most recently
+        // completed INSERT, UPDATE or DELETE statement.
+
         // https://www.sqlite.org/c3ref/changes.html
         #[allow(unsafe_code)]
         let changes = unsafe { sqlite3_changes(self.handle.as_ptr()) };
@@ -46,14 +70,22 @@ impl Executor for SqliteConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(
-            AffectedRows::<'c, 'q> {
-                connection: self,
-                query: query.into_parts(),
-                statement: None,
+        let (mut query, mut arguments) = query.into_parts();
+
+        Box::pin(async move {
+            let mut statement = self.prepare(query, arguments.is_some())?;
+            let mut statement_ = statement.resolve(&mut self.statements);
+
+            if let Some(arguments) = &mut arguments {
+                statement_.bind(arguments)?;
             }
-            .get(),
-        )
+
+            while let Step::Row = statement_.step().await? {
+                // We only care about the rows modified; ignore
+            }
+
+            Ok(self.changes())
+        })
     }
 
     fn fetch<'q, E>(&mut self, query: E) -> SqliteCursor<'_, 'q>
@@ -83,43 +115,5 @@ impl<'e> RefExecutor<'e> for &'e mut SqliteConnection {
         E: Execute<'q, Self::Database>,
     {
         SqliteCursor::from_connection(self, query)
-    }
-}
-
-struct AffectedRows<'c, 'q> {
-    query: (&'q str, Option<SqliteArguments>),
-    connection: &'c mut SqliteConnection,
-    statement: Option<SqliteStatement>,
-}
-
-impl AffectedRows<'_, '_> {
-    async fn get(mut self) -> crate::Result<u64> {
-        let mut statement = self
-            .connection
-            .prepare(self.query.0, self.query.1.is_some())?;
-
-        if let Some(arguments) = &mut self.query.1 {
-            statement.bind(arguments)?;
-        }
-
-        while let Step::Row = statement.step().await? {
-            // we only care about the rows modified; ignore
-        }
-
-        Ok(self.connection.changes())
-    }
-}
-
-impl Drop for AffectedRows<'_, '_> {
-    fn drop(&mut self) {
-        // If there is a statement on our WIP object
-        // Put it back into the cache IFF this is a persistent query
-        if self.query.1.is_some() {
-            if let Some(statement) = self.statement.take() {
-                self.connection
-                    .cache_statement
-                    .insert(self.query.0.to_owned(), statement);
-            }
-        }
     }
 }

@@ -6,6 +6,7 @@ use crate::sqlite::Sqlite;
 use crate::types::TypeInfo;
 
 mod bool;
+mod bytes;
 mod float;
 mod int;
 mod str;

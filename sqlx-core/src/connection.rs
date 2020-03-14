@@ -47,7 +47,7 @@ pub(crate) enum ConnectionSource<'c, C>
 where
     C: Connect,
 {
-    Connection(MaybeOwned<'c, PoolConnection<C>, C>),
+    Connection(MaybeOwned<PoolConnection<C>, &'c mut C>),
 
     #[allow(dead_code)]
     Pool(Pool<C>),

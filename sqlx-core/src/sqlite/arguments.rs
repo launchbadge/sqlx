@@ -1,7 +1,9 @@
+use core::ffi::c_void;
+
 use libc::c_int;
 use libsqlite3_sys::{
-    sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64, sqlite3_bind_null,
-    sqlite3_bind_text, SQLITE_OK,
+    sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
+    sqlite3_bind_null, sqlite3_bind_text, SQLITE_OK,
 };
 
 use crate::arguments::Arguments;
@@ -57,7 +59,14 @@ impl SqliteArgumentValue {
         #[allow(unsafe_code)]
         let status: c_int = match self {
             SqliteArgumentValue::Blob(value) => {
-                todo!("bind/blob");
+                // TODO: Handle bytes that are too large
+                let bytes = value.as_slice();
+                let bytes_ptr = bytes.as_ptr() as *const c_void;
+                let bytes_len = bytes.len() as i32;
+
+                unsafe {
+                    sqlite3_bind_blob(statement.handle.as_ptr(), index, bytes_ptr, bytes_len, None)
+                }
             }
 
             SqliteArgumentValue::Text(value) => {

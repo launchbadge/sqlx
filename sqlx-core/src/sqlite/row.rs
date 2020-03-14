@@ -4,6 +4,7 @@ use std::sync::Arc;
 use libc::c_int;
 use libsqlite3_sys::sqlite3_data_count;
 
+use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::value::SqliteResultValue;
@@ -11,8 +12,6 @@ use crate::sqlite::Sqlite;
 
 pub struct SqliteRow<'c> {
     pub(super) statement: &'c SqliteStatement,
-    // TODO
-    pub(super) columns: Arc<HashMap<Box<str>, u16>>,
 }
 
 impl<'c> Row<'c> for SqliteRow<'c> {
@@ -44,5 +43,27 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         };
 
         Ok(value)
+    }
+}
+
+impl ColumnIndex<Sqlite> for usize {
+    fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<usize> {
+        let len = Row::len(row);
+
+        if self >= len {
+            return Err(crate::Error::ColumnIndexOutOfBounds { len, index: self });
+        }
+
+        Ok(self)
+    }
+}
+
+impl ColumnIndex<Sqlite> for &'_ str {
+    fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<usize> {
+        row.statement
+            .columns()
+            .get(self)
+            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
+            .map(|&index| index as usize)
     }
 }

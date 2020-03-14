@@ -23,5 +23,4 @@ pub type SqlitePool = crate::pool::Pool<SqliteConnection>;
 
 make_query_as!(SqliteQueryAs, Sqlite, SqliteRow);
 impl_map_row_for_row!(Sqlite, SqliteRow);
-impl_column_index_for_row!(Sqlite);
 impl_from_row_for_tuples!(Sqlite, SqliteRow);

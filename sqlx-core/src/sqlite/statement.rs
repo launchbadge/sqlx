@@ -1,8 +1,14 @@
+use core::cell::{RefCell, RefMut};
+use core::ops::Deref;
 use core::ptr::{null_mut, NonNull};
 
+use std::collections::HashMap;
+use std::ffi::CStr;
+
 use libsqlite3_sys::{
-    sqlite3, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset, sqlite3_step, sqlite3_stmt,
-    SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
+    sqlite3, sqlite3_column_count, sqlite3_column_name, sqlite3_finalize, sqlite3_prepare_v3,
+    sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB,
+    SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
 use crate::sqlite::SqliteArguments;
@@ -15,6 +21,7 @@ pub(crate) enum Step {
 
 pub struct SqliteStatement {
     pub(super) handle: NonNull<sqlite3_stmt>,
+    columns: RefCell<Option<HashMap<String, usize>>>,
 }
 
 // SAFE: See notes for the Send impl on [SqliteConnection].
@@ -64,6 +71,32 @@ impl SqliteStatement {
 
         Ok(Self {
             handle: NonNull::new(statement_handle).unwrap(),
+            columns: RefCell::new(None),
+        })
+    }
+
+    pub(super) fn columns<'a>(&'a self) -> impl Deref<Target = HashMap<String, usize>> + 'a {
+        RefMut::map(self.columns.borrow_mut(), |columns| {
+            columns.get_or_insert_with(|| {
+                // https://sqlite.org/c3ref/column_count.html
+                #[allow(unsafe_code)]
+                let count = unsafe { sqlite3_column_count(self.handle.as_ptr()) };
+                let count = count as usize;
+
+                let mut columns = HashMap::with_capacity(count);
+
+                for i in 0..count {
+                    // https://sqlite.org/c3ref/column_name.html
+                    #[allow(unsafe_code)]
+                    let name =
+                        unsafe { CStr::from_ptr(sqlite3_column_name(self.handle.as_ptr(), 0)) };
+                    let name = name.to_str().unwrap().to_owned();
+
+                    columns.insert(name, i);
+                }
+
+                columns
+            })
         })
     }
 
