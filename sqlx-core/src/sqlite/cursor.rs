@@ -40,7 +40,7 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
         let (query, arguments) = query.into_parts();
 
         Self {
-            source: ConnectionSource::Connection(conn.into()),
+            source: ConnectionSource::ConnectionRef(conn),
             statement: None,
             query,
             arguments,

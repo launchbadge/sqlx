@@ -41,7 +41,7 @@ impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
         E: Execute<'q, MySql>,
     {
         Self {
-            source: ConnectionSource::Connection(conn.into()),
+            source: ConnectionSource::ConnectionRef(conn),
             column_names: Arc::default(),
             column_types: Vec::new(),
             binary: true,

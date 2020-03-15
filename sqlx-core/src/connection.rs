@@ -43,13 +43,14 @@ pub trait Connect: Connection {
         Self: Sized;
 }
 
+#[allow(dead_code)]
 pub(crate) enum ConnectionSource<'c, C>
 where
     C: Connect,
 {
-    Connection(MaybeOwned<PoolConnection<C>, &'c mut C>),
-
-    #[allow(dead_code)]
+    ConnectionRef(&'c mut C),
+    Connection(C),
+    PoolConnection(Pool<C>, PoolConnection<C>),
     Pool(Pool<C>),
 }
 
@@ -60,15 +61,43 @@ where
     #[allow(dead_code)]
     pub(crate) async fn resolve(&mut self) -> crate::Result<&'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
-            *self = ConnectionSource::Connection(MaybeOwned::Owned(pool.acquire().await?));
+            let conn = pool.acquire().await?;
+
+            *self = ConnectionSource::PoolConnection(pool.clone(), conn);
         }
 
         Ok(match self {
-            ConnectionSource::Connection(conn) => match conn {
-                MaybeOwned::Borrowed(conn) => &mut *conn,
-                MaybeOwned::Owned(ref mut conn) => conn,
-            },
+            ConnectionSource::ConnectionRef(conn) => conn,
+            ConnectionSource::PoolConnection(_, ref mut conn) => conn,
+            ConnectionSource::Connection(ref mut conn) => conn,
             ConnectionSource::Pool(_) => unreachable!(),
         })
+    }
+}
+
+impl<'c, C> From<C> for ConnectionSource<'c, C>
+where
+    C: Connect,
+{
+    fn from(connection: C) -> Self {
+        ConnectionSource::Connection(connection)
+    }
+}
+
+impl<'c, C> From<PoolConnection<C>> for ConnectionSource<'c, C>
+where
+    C: Connect,
+{
+    fn from(connection: PoolConnection<C>) -> Self {
+        ConnectionSource::PoolConnection(Pool(connection.pool.clone()), connection)
+    }
+}
+
+impl<'c, C> From<Pool<C>> for ConnectionSource<'c, C>
+where
+    C: Connect,
+{
+    fn from(pool: Pool<C>) -> Self {
+        ConnectionSource::Pool(pool)
     }
 }

@@ -19,7 +19,7 @@ use crate::{
 use super::connection::{Floating, Idle, Live};
 use super::Options;
 
-pub(super) struct SharedPool<C> {
+pub(crate) struct SharedPool<C> {
     url: String,
     idle_conns: ArrayQueue<Idle<C>>,
     waiters: SegQueue<Waker>,

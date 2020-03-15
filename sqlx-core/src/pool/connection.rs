@@ -15,7 +15,7 @@ where
     C: Connect,
 {
     live: Option<Live<C>>,
-    pool: Arc<SharedPool<C>>,
+    pub(crate) pool: Arc<SharedPool<C>>,
 }
 
 pub(super) struct Live<C> {

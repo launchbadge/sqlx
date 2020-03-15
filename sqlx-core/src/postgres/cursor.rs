@@ -41,7 +41,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         E: Execute<'q, Postgres>,
     {
         Self {
-            source: ConnectionSource::Connection(conn.into()),
+            source: ConnectionSource::ConnectionRef(conn),
             columns: Arc::default(),
             formats: Arc::new([] as [TypeFormat; 0]),
             query: Some(query.into_parts()),

@@ -21,7 +21,7 @@ pub use self::connection::PoolConnection;
 pub use self::options::Builder;
 
 /// A pool of database connections.
-pub struct Pool<C>(Arc<SharedPool<C>>);
+pub struct Pool<C>(pub(crate) Arc<SharedPool<C>>);
 
 impl<C> Pool<C>
 where
