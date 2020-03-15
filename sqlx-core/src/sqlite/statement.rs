@@ -24,19 +24,18 @@ pub(crate) enum Step {
 pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
 
 pub(super) struct SqliteStatement {
+    handle: SqliteStatementHandle,
     worker: Worker,
     pub(super) tail: usize,
-    pub(super) handle: SqliteStatementHandle,
     pub(super) columns: HashMap<String, usize>,
 }
 
-// SAFE: See notes for the Send impl on [SqliteConnection].
+// SQLite3 objects are safe to send between threads, but *not* safe
+// for concurrent access between threads. See more notes
+// on [SqliteConnectionHandle].
 
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteStatementHandle {}
-
-#[allow(unsafe_code)]
-unsafe impl Sync for SqliteStatementHandle {}
 
 impl SqliteStatement {
     pub(super) fn handle(&self) -> *mut sqlite3_stmt {

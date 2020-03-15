@@ -22,8 +22,8 @@ use crate::url::Url;
 pub(super) struct SqliteConnectionHandle(NonNull<sqlite3>);
 
 pub struct SqliteConnection {
+    handle: SqliteConnectionHandle,
     pub(super) worker: Worker,
-    pub(super) handle: SqliteConnectionHandle,
     // Storage of the most recently prepared, non-persistent statement
     pub(super) statement: Option<SqliteStatement>,
     // Storage of persistent statements
@@ -31,21 +31,28 @@ pub struct SqliteConnection {
     pub(super) statement_by_query: HashMap<String, usize>,
 }
 
-// SAFE: A sqlite3 handle is safe to access from multiple threads provided
-//       that only one thread access it at a time. Or in other words,
-//       the same guarantees that [Sync] with a mutable receiver (`&mut self`) requires.
-//       This is upheld as long [SQLITE_CONFIG_MULTITHREAD] is enabled and [SQLITE_THREADSAFE] was
-//       enabled when sqlite was compiled. We refuse to work if these conditions are
-//       not upheld, see [SqliteConnection::establish].
-//
+// A SQLite3 handle is safe to send between threads, provided not more than
+// one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
+// enabled and [SQLITE_THREADSAFE] was enabled when sqlite was compiled. We refuse to work
+// if these conditions are not upheld.
+
 // <https://www.sqlite.org/c3ref/threadsafe.html>
+
 // <https://www.sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmultithread>
 
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteConnectionHandle {}
 
+// A SQLite3 handle is unsafe to concurrently access from
+// more than on thread. However, `SqliteConnection` must be (and can safely be) `Sync`
+// for other usage. We must be sure to require a `&mut self` receiver on any method
+// that interacts with `self.handle`.
+
+// We uphold this invariant by only allowing `pub(crate)` access to our connection
+// handle through a `&mut self` function, `handle`.
+
 #[allow(unsafe_code)]
-unsafe impl Sync for SqliteConnectionHandle {}
+unsafe impl Sync for SqliteConnection {}
 
 async fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
     let mut worker = Worker::new();
@@ -100,7 +107,8 @@ async fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
 }
 
 impl SqliteConnection {
-    pub(super) fn handle(&self) -> *mut sqlite3 {
+    #[inline]
+    pub(super) fn handle(&mut self) -> *mut sqlite3 {
         self.handle.0.as_ptr()
     }
 }
