@@ -156,6 +156,8 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
     stream.capabilities &= handshake.server_capabilities;
     stream.capabilities |= Capabilities::PROTOCOL_41;
 
+    log::trace!("using capability flags: {:?}", stream.capabilities);
+
     // Depending on the ssl-mode and capabilities we should upgrade
     // our connection to TLS
 
