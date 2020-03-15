@@ -21,12 +21,12 @@ impl<'c> HasRow<'c> for Sqlite {
     type Row = super::SqliteRow<'c>;
 }
 
-impl<'s, 'q> HasCursor<'s, 'q> for Sqlite {
+impl<'c, 'q> HasCursor<'c, 'q> for Sqlite {
     type Database = Sqlite;
 
-    type Cursor = super::SqliteCursor<'s, 'q>;
+    type Cursor = super::SqliteCursor<'c, 'q>;
 }
 
 impl<'c> HasRawValue<'c> for Sqlite {
-    type RawValue = super::SqliteResultValue<'c>;
+    type RawValue = super::SqliteValue<'c>;
 }

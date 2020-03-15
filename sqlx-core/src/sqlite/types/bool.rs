@@ -1,7 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::sqlite::types::{SqliteType, SqliteTypeAffinity};
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteResultValue, SqliteTypeInfo};
+use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
 use crate::types::Type;
 
 impl Type<Sqlite> for bool {
@@ -17,7 +17,7 @@ impl Encode<Sqlite> for bool {
 }
 
 impl<'a> Decode<'a, Sqlite> for bool {
-    fn decode(value: SqliteResultValue<'a>) -> crate::Result<bool> {
+    fn decode(value: SqliteValue<'a>) -> crate::Result<bool> {
         Ok(value.int() != 0)
     }
 }

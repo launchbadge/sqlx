@@ -1,7 +1,7 @@
 use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::SqliteStatement;
-use crate::sqlite::value::SqliteResultValue;
+use crate::sqlite::value::SqliteValue;
 use crate::sqlite::{Sqlite, SqliteConnection};
 
 pub struct SqliteRow<'c> {
@@ -24,13 +24,13 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         self.values
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<SqliteResultValue<'r>>
+    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<SqliteValue<'r>>
     where
         'c: 'r,
         I: ColumnIndex<Self::Database>,
     {
         let index = index.resolve(self)?;
-        let value = SqliteResultValue::new(self.statement(), index);
+        let value = SqliteValue::new(self.statement(), index);
 
         Ok(value)
     }

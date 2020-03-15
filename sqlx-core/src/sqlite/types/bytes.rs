@@ -1,7 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::sqlite::types::{SqliteType, SqliteTypeAffinity};
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteResultValue, SqliteTypeInfo};
+use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
 use crate::types::Type;
 
 impl Type<Sqlite> for [u8] {
@@ -30,13 +30,13 @@ impl Encode<Sqlite> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, Sqlite> for &'de [u8] {
-    fn decode(value: SqliteResultValue<'de>) -> crate::Result<&'de [u8]> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<&'de [u8]> {
         Ok(value.blob())
     }
 }
 
 impl<'de> Decode<'de, Sqlite> for Vec<u8> {
-    fn decode(value: SqliteResultValue<'de>) -> crate::Result<Vec<u8>> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<Vec<u8>> {
         <&[u8] as Decode<Sqlite>>::decode(value).map(ToOwned::to_owned)
     }
 }

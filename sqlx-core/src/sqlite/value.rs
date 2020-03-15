@@ -12,12 +12,12 @@ use libsqlite3_sys::{
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::types::SqliteType;
 
-pub struct SqliteResultValue<'c> {
+pub struct SqliteValue<'c> {
     index: usize,
     statement: &'c SqliteStatement,
 }
 
-impl<'c> SqliteResultValue<'c> {
+impl<'c> SqliteValue<'c> {
     #[inline]
     pub(super) fn new(statement: &'c SqliteStatement, index: usize) -> Self {
         Self { statement, index }
@@ -29,7 +29,7 @@ impl<'c> SqliteResultValue<'c> {
 
 // These routines return information about a single column of the current result row of a query.
 
-impl<'c> SqliteResultValue<'c> {
+impl<'c> SqliteValue<'c> {
     /// Returns the initial data type of the result column.
     pub(super) fn r#type(&self) -> SqliteType {
         #[allow(unsafe_code)]

@@ -17,7 +17,7 @@ pub use database::Sqlite;
 pub use error::SqliteError;
 pub use row::SqliteRow;
 pub use types::SqliteTypeInfo;
-pub use value::SqliteResultValue;
+pub use value::SqliteValue;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Sqlite**.
 pub type SqlitePool = crate::pool::Pool<SqliteConnection>;

@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use crate::decode::Decode;
-use crate::sqlite::value::SqliteResultValue;
+use crate::sqlite::value::SqliteValue;
 use crate::sqlite::Sqlite;
 use crate::types::TypeInfo;
 
@@ -72,7 +72,7 @@ impl<'de, T> Decode<'de, Sqlite> for Option<T>
 where
     T: Decode<'de, Sqlite>,
 {
-    fn decode(value: SqliteResultValue<'de>) -> crate::Result<Self> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<Self> {
         match value.r#type() {
             SqliteType::Null => Ok(None),
             _ => <T as Decode<Sqlite>>::decode(value).map(Some),
