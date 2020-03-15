@@ -11,20 +11,6 @@ use crate::sqlite::types::SqliteType;
 use crate::sqlite::{Sqlite, SqliteConnection, SqliteTypeInfo};
 
 impl SqliteConnection {
-    pub(super) fn statement(&self, key: Option<usize>) -> &SqliteStatement {
-        match key {
-            Some(key) => &self.statements[key],
-            None => self.statement.as_ref().unwrap(),
-        }
-    }
-
-    pub(super) fn statement_mut(&mut self, key: Option<usize>) -> &mut SqliteStatement {
-        match key {
-            Some(key) => &mut self.statements[key],
-            None => self.statement.as_mut().unwrap(),
-        }
-    }
-
     pub(super) fn prepare(
         &mut self,
         query: &mut &str,
@@ -77,6 +63,22 @@ impl SqliteConnection {
         #[allow(unsafe_code)]
         let changes = unsafe { sqlite3_changes(self.handle()) };
         changes as u64
+    }
+
+    #[inline]
+    pub(super) fn statement(&self, key: Option<usize>) -> &SqliteStatement {
+        match key {
+            Some(key) => &self.statements[key],
+            None => self.statement.as_ref().unwrap(),
+        }
+    }
+
+    #[inline]
+    pub(super) fn statement_mut(&mut self, key: Option<usize>) -> &mut SqliteStatement {
+        match key {
+            Some(key) => &mut self.statements[key],
+            None => self.statement.as_mut().unwrap(),
+        }
     }
 }
 
