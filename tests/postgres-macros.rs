@@ -1,4 +1,4 @@
-use sqlx::{Connect, Executor, PgConnection};
+use sqlx::{Connect, PgConnection};
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -7,7 +7,7 @@ async fn test_query() -> anyhow::Result<()> {
 
     let account = sqlx::query!(
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
-        1i32,
+        1i32
     )
     .fetch_one(&mut conn)
     .await?;
@@ -54,9 +54,11 @@ struct Account {
 async fn test_query_as() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
+    let name: Option<&str> = None;
     let account = sqlx::query_as!(
         Account,
-        "SELECT * from (VALUES (1, null)) accounts(id, name)",
+        "SELECT * from (VALUES (1, $1)) accounts(id, name)",
+        name
     )
     .fetch_one(&mut conn)
     .await?;
@@ -114,12 +116,18 @@ async fn query_by_string() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let string = "Hello, world!".to_string();
+    let ref tuple = ("Hello, world!".to_string(),);
 
     let result = sqlx::query!(
         "SELECT * from (VALUES('Hello, world!')) strings(string)\
-         where string = $1 or string = $2",
-        string,
-        string[..]
+         where string in ($1, $2, $3, $4, $5, $6, $7)",
+        string, // make sure we don't actually take ownership here
+        &string[..],
+        Some(&string),
+        Some(&string[..]),
+        Option::<String>::None,
+        string.clone(),
+        tuple.0 // make sure we're not trying to move out of a field expression
     )
     .fetch_one(&mut conn)
     .await?;
@@ -148,11 +156,13 @@ async fn test_nullable_err() -> anyhow::Result<()> {
     .await
     .unwrap_err();
 
-    if let sqlx::Error::Decode(sqlx::decode::DecodeError::UnexpectedNull) = err {
-        Ok(())
-    } else {
-        panic!("expected `UnexpectedNull`, got {}", err)
+    if let sqlx::Error::Decode(err) = &err {
+        if let Some(sqlx::error::UnexpectedNullError) = err.downcast_ref() {
+            return Ok(());
+        }
     }
+
+    panic!("expected `UnexpectedNullError`, got {}", err)
 }
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]

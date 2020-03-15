@@ -1,5 +1,5 @@
 use crate::io::Buf;
-use crate::postgres::protocol::{Decode, TypeFormat, TypeId};
+use crate::postgres::protocol::{TypeFormat, TypeId};
 use byteorder::NetworkEndian;
 
 #[derive(Debug)]
@@ -18,8 +18,8 @@ pub struct Field {
     pub type_format: TypeFormat,
 }
 
-impl Decode for RowDescription {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl RowDescription {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut fields = Vec::with_capacity(cnt);
 
@@ -54,10 +54,10 @@ impl Decode for RowDescription {
 
 #[cfg(test)]
 mod test {
-    use super::{Decode, RowDescription};
+    use super::RowDescription;
 
     #[test]
-    fn it_decodes_row_description() {
+    fn it_reads_row_description() {
         #[rustfmt::skip]
         let buf = bytes! {
             // Number of Parameters
@@ -82,7 +82,7 @@ mod test {
             0_u8, 0_u8 // format_code
         };
 
-        let desc = RowDescription::decode(&buf).unwrap();
+        let desc = RowDescription::read(&buf).unwrap();
 
         assert_eq!(desc.fields.len(), 2);
         assert_eq!(desc.fields[0].type_id.0, 0x0000_0000);
@@ -90,9 +90,9 @@ mod test {
     }
 
     #[test]
-    fn it_decodes_empty_row_description() {
+    fn it_reads_empty_row_description() {
         let buf = b"\x00\x00";
-        let desc = RowDescription::decode(buf).unwrap();
+        let desc = RowDescription::read(buf).unwrap();
 
         assert_eq!(desc.fields.len(), 0);
     }

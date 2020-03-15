@@ -1,5 +1,7 @@
-#![recursion_limit = "256"]
+//! Core of SQLx, the rust SQL toolkit. Not intended to be used directly.
+
 #![forbid(unsafe_code)]
+#![recursion_limit = "512"]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
@@ -9,15 +11,14 @@ pub mod error;
 #[macro_use]
 mod io;
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
-mod cache;
+pub mod connection;
+pub mod cursor;
+pub mod database;
 
-mod connection;
-mod database;
-mod executor;
-mod query;
-mod query_as;
-mod transaction;
+#[macro_use]
+pub mod executor;
+
+pub mod transaction;
 mod url;
 
 #[doc(hidden)]
@@ -25,13 +26,15 @@ pub mod runtime;
 
 #[macro_use]
 pub mod arguments;
-
-#[doc(hidden)]
 pub mod decode;
-
 pub mod describe;
 pub mod encode;
 pub mod pool;
+pub mod query;
+
+#[macro_use]
+pub mod query_as;
+
 pub mod types;
 
 #[macro_use]
@@ -45,32 +48,8 @@ pub mod mysql;
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub mod postgres;
 
-pub use database::Database;
-
-#[doc(inline)]
 pub use error::{Error, Result};
 
-pub use connection::{Connect, Connection};
-pub use executor::Executor;
-pub use query::{query, Query};
-pub use query_as::{query_as, QueryAs};
-pub use transaction::Transaction;
-
-#[doc(hidden)]
-pub use query_as::query_as_mapped;
-
-#[doc(inline)]
-pub use pool::Pool;
-
-#[doc(inline)]
-pub use row::{FromRow, Row};
-
-#[cfg(feature = "mysql")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-#[doc(inline)]
-pub use mysql::MySql;
-
-#[cfg(feature = "postgres")]
-#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-#[doc(inline)]
-pub use postgres::Postgres;
+// Named Lifetimes:
+//  'c: connection
+//  'q: query string (and arguments)

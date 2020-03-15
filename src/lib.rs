@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
@@ -7,20 +6,23 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 #[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
-// Modules
-pub use sqlx_core::{arguments, describe, error, pool, row, types};
+pub use sqlx_core::arguments;
+pub use sqlx_core::connection::{Connect, Connection};
+pub use sqlx_core::cursor::Cursor;
+pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
+pub use sqlx_core::describe;
+pub use sqlx_core::executor::{Execute, Executor};
+pub use sqlx_core::pool::{self, Pool};
+pub use sqlx_core::query::{self, query, Query};
+pub use sqlx_core::query_as::{query_as, QueryAs};
+pub use sqlx_core::row::{FromRow, Row};
+pub use sqlx_core::transaction::Transaction;
 
-// Types
-pub use sqlx_core::{
-    Connect, Connection, Database, Error, Executor, FromRow, Pool, Query, QueryAs, Result, Row,
-    Transaction,
-};
+#[doc(inline)]
+pub use sqlx_core::types::{self, Type};
 
-// Functions
-pub use sqlx_core::{query, query_as};
-
-#[doc(hidden)]
-pub use sqlx_core::query_as_mapped;
+#[doc(inline)]
+pub use sqlx_core::error::{self, Error, Result};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
@@ -40,12 +42,37 @@ mod macros;
 // macro support
 #[cfg(feature = "macros")]
 #[doc(hidden)]
-pub mod ty_cons;
+pub mod ty_match;
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub mod result_ext;
 
-pub mod encode;
+pub mod encode {
+    pub use sqlx_core::encode::{Encode, IsNull};
 
-pub mod decode;
+    #[cfg(feature = "macros")]
+    pub use sqlx_macros::Encode;
+}
+
+pub mod decode {
+    pub use sqlx_core::decode::Decode;
+
+    #[cfg(feature = "macros")]
+    pub use sqlx_macros::Decode;
+}
+
+pub mod prelude {
+    pub use super::Connect;
+    pub use super::Connection;
+    pub use super::Cursor;
+    pub use super::Executor;
+    pub use super::FromRow;
+    pub use super::Row;
+
+    #[cfg(feature = "postgres")]
+    pub use super::postgres::PgQueryAs;
+
+    #[cfg(feature = "mysql")]
+    pub use super::mysql::MySqlQueryAs;
+}

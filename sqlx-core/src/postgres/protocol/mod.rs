@@ -10,7 +10,6 @@ pub use type_id::TypeId;
 // REQUESTS
 mod bind;
 mod cancel_request;
-mod close;
 mod describe;
 mod encode;
 mod execute;
@@ -28,7 +27,6 @@ mod terminate;
 
 pub use bind::Bind;
 pub use cancel_request::CancelRequest;
-pub use close::Close;
 pub use describe::Describe;
 pub use encode::Encode;
 pub use execute::Execute;
@@ -58,7 +56,9 @@ mod row_description;
 
 mod message;
 
-pub use authentication::Authentication;
+pub use authentication::{
+    Authentication, AuthenticationMd5, AuthenticationSasl, AuthenticationSaslContinue,
+};
 pub use backend_key_data::BackendKeyData;
 pub use command_complete::CommandComplete;
 pub use data_row::DataRow;
@@ -68,5 +68,5 @@ pub use notification_response::NotificationResponse;
 pub use parameter_description::ParameterDescription;
 pub use parameter_status::ParameterStatus;
 pub use ready_for_query::ReadyForQuery;
-pub use response::Response;
+pub use response::{Response, Severity};
 pub use row_description::{Field, RowDescription};

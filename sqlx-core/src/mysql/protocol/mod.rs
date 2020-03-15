@@ -20,12 +20,14 @@ pub use field::FieldFlags;
 pub use r#type::TypeId;
 pub use status::Status;
 
+mod com_ping;
 mod com_query;
 mod com_set_option;
 mod com_stmt_execute;
 mod com_stmt_prepare;
 mod handshake;
 
+pub use com_ping::ComPing;
 pub use com_query::ComQuery;
 pub use com_set_option::{ComSetOption, SetOption};
 pub use com_stmt_execute::{ComStmtExecute, Cursor};

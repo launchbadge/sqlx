@@ -6,7 +6,7 @@ use sha2::Sha256;
 
 use crate::mysql::util::xor_eq;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AuthPlugin {
     MySqlNativePassword,
     CachingSha2Password,

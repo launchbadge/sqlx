@@ -1,28 +1,30 @@
-use std::str;
+use std::convert::TryInto;
+use std::str::from_utf8;
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
-use crate::types::HasSqlType;
-use crate::Postgres;
+use crate::postgres::Postgres;
+use crate::types::Type;
+use crate::Error;
 
-impl HasSqlType<str> for Postgres {
+impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TEXT)
+        PgTypeInfo::new(TypeId::TEXT, "TEXT")
     }
 }
 
-impl HasSqlType<[&'_ str]> for Postgres {
+impl Type<Postgres> for [&'_ str] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TEXT)
+        PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT[]")
     }
 }
 
-// TODO: Do we need [HasSqlType] on String here?
-impl HasSqlType<String> for Postgres {
+impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<str>>::type_info()
+        <str as Type<Postgres>>::type_info()
     }
 }
 
@@ -46,8 +48,17 @@ impl Encode<Postgres> for String {
     }
 }
 
-impl Decode<Postgres> for String {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(str::from_utf8(buf)?.to_owned())
+impl<'de> Decode<'de, Postgres> for String {
+    fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Self> {
+        <&'de str as Decode<Postgres>>::decode(buf).map(ToOwned::to_owned)
+    }
+}
+
+impl<'de> Decode<'de, Postgres> for &'de str {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => from_utf8(buf).map_err(Error::decode),
+            PgValue::Text(s) => Ok(s),
+        }
     }
 }

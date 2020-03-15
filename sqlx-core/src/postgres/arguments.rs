@@ -3,8 +3,8 @@ use byteorder::{ByteOrder, NetworkEndian};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::io::BufMut;
-use crate::types::HasSqlType;
-use crate::Postgres;
+use crate::postgres::Postgres;
+use crate::types::Type;
 
 #[derive(Default)]
 pub struct PgArguments {
@@ -18,14 +18,6 @@ pub struct PgArguments {
 impl Arguments for PgArguments {
     type Database = super::Postgres;
 
-    fn len(&self) -> usize {
-        self.types.len()
-    }
-
-    fn size(&self) -> usize {
-        self.values.len()
-    }
-
     fn reserve(&mut self, len: usize, size: usize) {
         self.types.reserve(len);
         self.values.reserve(size);
@@ -33,14 +25,13 @@ impl Arguments for PgArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        Self::Database: HasSqlType<T>,
+        T: Type<Self::Database>,
         T: Encode<Self::Database>,
     {
         // TODO: When/if we receive types that do _not_ support BINARY, we need to check here
         // TODO: There is no need to be explicit unless we are expecting mixed BINARY / TEXT
 
-        self.types
-            .push(<Postgres as HasSqlType<T>>::type_info().id.0);
+        self.types.push(<T as Type<Postgres>>::type_info().id.0);
 
         let pos = self.values.len();
 

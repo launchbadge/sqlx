@@ -36,25 +36,39 @@ where
 #[test]
 #[cfg(feature = "mysql")]
 fn decode_mysql() {
-    decode_with_db::<sqlx::MySql>();
+    decode_with_db();
 }
 
 #[test]
 #[cfg(feature = "postgres")]
 fn decode_postgres() {
-    decode_with_db::<sqlx::Postgres>();
+    decode_with_db();
 }
 
-#[allow(dead_code)]
-fn decode_with_db<DB: sqlx::Database>()
+#[cfg(feature = "postgres")]
+fn decode_with_db()
 where
-    Foo: Decode<DB> + Encode<DB>,
+    Foo: for<'de> Decode<'de, sqlx::Postgres> + Encode<sqlx::Postgres>,
 {
     let example = Foo(0x1122_3344);
 
     let mut encoded = Vec::new();
-    Encode::<DB>::encode(&example, &mut encoded);
+    Encode::<sqlx::Postgres>::encode(&example, &mut encoded);
 
-    let decoded = Foo::decode(&encoded).unwrap();
+    let decoded = Foo::decode(Some(sqlx::postgres::PgValue::Binary(&encoded))).unwrap();
+    assert_eq!(example, decoded);
+}
+
+#[cfg(feature = "mysql")]
+fn decode_with_db()
+where
+    Foo: for<'de> Decode<'de, sqlx::MySql> + Encode<sqlx::MySql>,
+{
+    let example = Foo(0x1122_3344);
+
+    let mut encoded = Vec::new();
+    Encode::<sqlx::MySql>::encode(&example, &mut encoded);
+
+    let decoded = Foo::decode(Some(sqlx::mysql::MySqlValue::Binary(&encoded))).unwrap();
     assert_eq!(example, decoded);
 }

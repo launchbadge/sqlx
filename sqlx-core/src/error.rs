@@ -1,6 +1,5 @@
 //! Error and Result types.
 
-use crate::decode::DecodeError;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display};
 use std::io;
@@ -10,6 +9,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error communicating with the database.
     Io(io::Error),
@@ -20,14 +20,14 @@ pub enum Error {
     /// An error was returned by the database.
     Database(Box<dyn DatabaseError + Send + Sync>),
 
-    /// No rows were returned by a query that expected to return at least one row.
-    NotFound,
+    /// No row was returned during [`Map::fetch_one`] or [`QueryAs::fetch_one`].
+    RowNotFound,
 
-    /// More than one row was returned by a query that expected to return exactly one row.
-    FoundMoreThanOne,
-
-    /// Column was not found in Row during [Row::try_get].
+    /// Column was not found by name in a Row (during [`Row::get`]).
     ColumnNotFound(Box<str>),
+
+    /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
+    ColumnIndexOutOfBounds { index: usize, len: usize },
 
     /// Unexpected or invalid data was encountered. This would indicate that we received
     /// data that we were not expecting or it was in a format we did not understand. This
@@ -44,28 +44,32 @@ pub enum Error {
     /// [Pool::close] was called while we were waiting in [Pool::acquire].
     PoolClosed,
 
-    /// An error occurred during a TLS upgrade.
-    TlsUpgrade(Box<dyn StdError + Send + Sync>),
+    /// An error occurred while attempting to setup TLS.
+    /// This should only be returned from an explicit ask for TLS.
+    Tls(Box<dyn StdError + Send + Sync>),
 
-    Decode(DecodeError),
+    /// An error occurred decoding data received from the database.
+    Decode(Box<dyn StdError + Send + Sync>),
+}
 
-    // TODO: Remove and replace with `#[non_exhaustive]` when possible
-    #[doc(hidden)]
-    __Nonexhaustive,
+impl Error {
+    #[allow(dead_code)]
+    pub(crate) fn decode<E>(err: E) -> Self
+    where
+        E: StdError + Send + Sync + 'static,
+    {
+        Error::Decode(err.into())
+    }
 }
 
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::Io(error) => Some(error),
-
             Error::UrlParse(error) => Some(error),
-
             Error::PoolTimedOut(Some(error)) => Some(&**error),
-
-            Error::Decode(DecodeError::Other(error)) => Some(&**error),
-
-            Error::TlsUpgrade(error) => Some(&**error),
+            Error::Decode(error) => Some(&**error),
+            Error::Tls(error) => Some(&**error),
 
             _ => None,
         }
@@ -73,6 +77,8 @@ impl StdError for Error {
 }
 
 impl Display for Error {
+    // IntellijRust does not understand that [non_exhaustive] applies only for downstream crates
+    // noinspection RsMatchCheck
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(error) => write!(f, "{}", error),
@@ -83,15 +89,17 @@ impl Display for Error {
 
             Error::Database(error) => Display::fmt(error, f),
 
-            Error::NotFound => f.write_str("found no rows when we expected at least one"),
+            Error::RowNotFound => f.write_str("found no row when we expected at least one"),
 
             Error::ColumnNotFound(ref name) => {
                 write!(f, "no column found with the name {:?}", name)
             }
 
-            Error::FoundMoreThanOne => {
-                f.write_str("found more than one row when we expected exactly one")
-            }
+            Error::ColumnIndexOutOfBounds { index, len } => write!(
+                f,
+                "column index out of bounds: there are {} columns but the index is {}",
+                len, index
+            ),
 
             Error::Protocol(ref err) => f.write_str(err),
 
@@ -105,9 +113,7 @@ impl Display for Error {
 
             Error::PoolClosed => f.write_str("attempted to acquire a connection on a closed pool"),
 
-            Error::TlsUpgrade(ref err) => write!(f, "error during TLS upgrade: {}", err),
-
-            Error::__Nonexhaustive => unreachable!(),
+            Error::Tls(ref err) => write!(f, "error during TLS upgrade: {}", err),
         }
     }
 }
@@ -123,13 +129,6 @@ impl From<io::ErrorKind> for Error {
     #[inline]
     fn from(err: io::ErrorKind) -> Self {
         Error::Io(err.into())
-    }
-}
-
-impl From<DecodeError> for Error {
-    #[inline]
-    fn from(err: DecodeError) -> Self {
-        Error::Decode(err)
     }
 }
 
@@ -152,14 +151,14 @@ impl From<ProtocolError<'_>> for Error {
 impl From<async_native_tls::Error> for Error {
     #[inline]
     fn from(err: async_native_tls::Error) -> Self {
-        Error::TlsUpgrade(err.into())
+        Error::Tls(err.into())
     }
 }
 
 impl From<TlsError<'_>> for Error {
     #[inline]
     fn from(err: TlsError<'_>) -> Self {
-        Error::TlsUpgrade(err.args.to_string().into())
+        Error::Tls(err.args.to_string().into())
     }
 }
 
@@ -244,3 +243,18 @@ macro_rules! impl_fmt_error {
         }
     };
 }
+
+/// An unexpected `NULL` was encountered during decoding.
+///
+/// Returned from `Row::get` if the value from the database is `NULL`
+/// and you are not decoding into an `Option`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnexpectedNullError;
+
+impl Display for UnexpectedNullError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("unexpected null; try decoding as an `Option`")
+    }
+}
+
+impl StdError for UnexpectedNullError {}

@@ -10,8 +10,10 @@ mod chrono;
 
 use std::fmt::{self, Debug, Display};
 
+use crate::decode::Decode;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::protocol::{ColumnDefinition, FieldFlags};
+use crate::mysql::{MySql, MySqlValue};
 use crate::types::TypeInfo;
 
 #[derive(Clone, Debug, Default)]
@@ -49,12 +51,28 @@ impl MySqlTypeInfo {
             char_set: def.char_set,
         }
     }
+
+    #[doc(hidden)]
+    pub fn type_name(&self) -> &'static str {
+        self.id.type_name()
+    }
+
+    #[doc(hidden)]
+    pub fn type_feature_gate(&self) -> Option<&'static str> {
+        match self.id {
+            TypeId::DATE | TypeId::TIME | TypeId::DATETIME | TypeId::TIMESTAMP => Some("chrono"),
+            _ => None,
+        }
+    }
 }
 
 impl Display for MySqlTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO: Should we attempt to render the type *name* here?
-        write!(f, "{}", self.id.0)
+        if self.id.type_name() != "<unknown>" {
+            write!(f, "{}", self.id.type_name())
+        } else {
+            write!(f, "ID {:#x}", self.id.0)
+        }
     }
 }
 
@@ -85,5 +103,16 @@ impl TypeInfo for MySqlTypeInfo {
             // Fallback to equality of only [id] and [is_unsigned]
             _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
         }
+    }
+}
+
+impl<'de, T> Decode<'de, MySql> for Option<T>
+where
+    T: Decode<'de, MySql>,
+{
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        value
+            .map(|value| <T as Decode<MySql>>::decode(Some(value)))
+            .transpose()
     }
 }

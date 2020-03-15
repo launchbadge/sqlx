@@ -1,167 +1,197 @@
-use futures_core::Stream;
-use futures_util::{future, TryStreamExt};
+use core::marker::PhantomData;
 
-use crate::arguments::{Arguments, ImmutableArguments};
-use crate::{
-    arguments::IntoArguments, database::Database, encode::Encode, executor::Executor, row::FromRow,
-    types::HasSqlType,
-};
+use crate::arguments::Arguments;
+use crate::database::Database;
+use crate::encode::Encode;
+use crate::executor::Execute;
+use crate::types::Type;
 
-/// SQL query with bind parameters, which maps rows to an explicit output type.
-///
-/// Returned by [query_as] and [query!] *et al*.
-///
-/// The methods on this struct should be passed a reference to [crate::Pool] or one of
-/// the connection types.
-pub struct QueryAs<'q, DB, R, P = <DB as Database>::Arguments>
+/// Raw SQL query with bind parameters, mapped to a concrete type
+/// using [`FromRow`](trait.FromRow.html). Returned
+/// by [`query_as`](fn.query_as.html).
+pub struct QueryAs<'q, DB, O>
 where
     DB: Database,
 {
     query: &'q str,
-    args: P,
-    map_row: fn(DB::Row) -> crate::Result<R>,
+    arguments: <DB as Database>::Arguments,
+    database: PhantomData<DB>,
+    output: PhantomData<O>,
 }
 
-/// The result of [query!] for SQL queries that does not return output.
-impl<DB, P> QueryAs<'_, DB, (), P>
+impl<'q, DB, O> QueryAs<'q, DB, O>
 where
     DB: Database,
-    P: IntoArguments<DB> + Send,
-{
-    /// Execute the query for its side-effects.
-    ///
-    /// Returns the number of rows affected, or 0 if not applicable.
-    pub async fn execute<E>(self, executor: &mut E) -> crate::Result<u64>
-    where
-        E: Executor<Database = DB>,
-    {
-        executor
-            .execute(self.query, self.args.into_arguments())
-            .await
-    }
-}
-
-impl<'q, DB, R, P> QueryAs<'q, DB, R, P>
-where
-    DB: Database,
-    P: IntoArguments<DB> + Send,
-    R: Send + 'q,
-{
-    /// Execute the query, returning the rows as a futures `Stream`.
-    ///
-    /// Use [fetch_all] if you want a `Vec` instead.
-    pub fn fetch<'e, E>(self, executor: &'e mut E) -> impl Stream<Item = crate::Result<R>> + 'e
-    where
-        E: Executor<Database = DB>,
-        'q: 'e,
-    {
-        let Self {
-            query,
-            args,
-            map_row,
-            ..
-        } = self;
-        executor
-            .fetch(query, args.into_arguments())
-            .and_then(move |row| future::ready(map_row(row)))
-    }
-
-    /// Execute the query and get all rows from the result as a `Vec`.
-    pub async fn fetch_all<E>(self, executor: &mut E) -> crate::Result<Vec<R>>
-    where
-        E: Executor<Database = DB>,
-    {
-        self.fetch(executor).try_collect().await
-    }
-
-    /// Execute a query which should return either 0 or 1 rows.
-    ///
-    /// Returns [crate::Error::FoundMoreThanOne] if more than 1 row is returned.
-    /// Use `.fetch().try_next()` if you just want one row.
-    pub async fn fetch_optional<E>(self, executor: &mut E) -> crate::Result<Option<R>>
-    where
-        E: Executor<Database = DB>,
-    {
-        executor
-            .fetch_optional(self.query, self.args.into_arguments())
-            .await?
-            .map(self.map_row)
-            .transpose()
-    }
-
-    /// Execute a query which should return exactly 1 row.
-    ///
-    /// * Returns [crate::Error::NotFound] if 0 rows are returned.
-    /// * Returns [crate::Error::FoundMoreThanOne] if more than one row is returned.
-    pub async fn fetch_one<E>(self, executor: &mut E) -> crate::Result<R>
-    where
-        E: Executor<Database = DB>,
-    {
-        (self.map_row)(
-            executor
-                .fetch_one(self.query, self.args.into_arguments())
-                .await?,
-        )
-    }
-}
-
-impl<'q, DB, R> QueryAs<'q, DB, R>
-where
-    DB: Database,
-    DB::Arguments: Arguments<Database = DB>,
 {
     /// Bind a value for use with this SQL query.
-    ///
-    /// # Logic Safety
-    ///
-    /// This function should be used with care, as SQLx cannot validate
-    /// that the value is of the right type nor can it validate that you have
-    /// passed the correct number of parameters.
+    #[inline]
     pub fn bind<T>(mut self, value: T) -> Self
     where
-        DB: HasSqlType<T>,
+        T: Type<DB>,
         T: Encode<DB>,
     {
-        self.args.add(value);
+        self.arguments.add(value);
         self
     }
+}
 
-    // used by query!() and friends
-    #[doc(hidden)]
-    pub fn bind_all(self, values: DB::Arguments) -> QueryAs<'q, DB, R, ImmutableArguments<DB>> {
-        QueryAs {
-            query: self.query,
-            args: ImmutableArguments(values),
-            map_row: self.map_row,
+impl<'q, DB, O: Send> Execute<'q, DB> for QueryAs<'q, DB, O>
+where
+    DB: Database,
+{
+    #[inline]
+    fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
+        (self.query, Some(self.arguments))
+    }
+}
+
+/// Construct a raw SQL query that is mapped to a concrete type
+/// using [`FromRow`](crate::row::FromRow).
+///
+/// Returns [`QueryAs`].
+pub fn query_as<DB, O>(sql: &str) -> QueryAs<DB, O>
+where
+    DB: Database,
+{
+    QueryAs {
+        query: sql,
+        arguments: Default::default(),
+        database: PhantomData,
+        output: PhantomData,
+    }
+}
+
+// We need database-specific QueryAs traits to work around:
+//  https://github.com/rust-lang/rust/issues/62529
+
+// If for some reason we miss that issue being resolved in a _stable_ edition of
+// rust, please open up a 100 issues and shout as loud as you can to remove
+// this unseemly hack.
+
+#[allow(unused_macros)]
+macro_rules! make_query_as {
+    ($name:ident, $db:ident, $row:ident) => {
+        pub trait $name<'q, O> {
+            fn fetch<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e;
+
+            fn fetch_all<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e;
+
+            fn fetch_one<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e;
+
+            fn fetch_optional<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e;
         }
-    }
-}
 
-/// Construct a dynamic SQL query with an explicit output type implementing [FromRow].
-#[inline]
-pub fn query_as<DB, T>(query: &str) -> QueryAs<DB, T>
-where
-    DB: Database,
-    T: FromRow<DB::Row>,
-{
-    QueryAs {
-        query,
-        args: Default::default(),
-        map_row: |row| Ok(T::from_row(row)),
-    }
-}
+        impl<'q, O> $name<'q, O> for crate::query_as::QueryAs<'q, $db, O> {
+            fn fetch<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e,
+            {
+                use crate::cursor::Cursor;
 
-#[doc(hidden)]
-pub fn query_as_mapped<DB, T>(
-    query: &str,
-    map_row: fn(DB::Row) -> crate::Result<T>,
-) -> QueryAs<DB, T>
-where
-    DB: Database,
-{
-    QueryAs {
-        query,
-        args: Default::default(),
-        map_row,
-    }
+                Box::pin(async_stream::try_stream! {
+                    let mut cursor = executor.fetch_by_ref(self);
+
+                    while let Some(row) = cursor.next().await? {
+                        let obj = O::from_row(row)?;
+
+                        yield obj;
+                    }
+                })
+            }
+
+            fn fetch_optional<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e,
+            {
+                use crate::cursor::Cursor;
+
+                Box::pin(async move {
+                    let mut cursor = executor.fetch_by_ref(self);
+                    let row = cursor.next().await?;
+
+                    row.map(O::from_row).transpose()
+                })
+            }
+
+            fn fetch_one<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e,
+            {
+                use futures_util::TryFutureExt;
+
+                Box::pin(self.fetch_optional(executor).and_then(|row| match row {
+                    Some(row) => futures_util::future::ready(Ok(row)),
+                    None => futures_util::future::ready(Err(crate::Error::RowNotFound)),
+                }))
+            }
+
+            fn fetch_all<'e, E>(
+                self,
+                executor: E,
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
+            where
+                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
+                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
+                'q: 'e,
+            {
+                use crate::cursor::Cursor;
+
+                Box::pin(async move {
+                    let mut cursor = executor.fetch_by_ref(self);
+                    let mut out = Vec::new();
+
+                    while let Some(row) = cursor.next().await? {
+                        let obj = O::from_row(row)?;
+
+                        out.push(obj);
+                    }
+
+                    Ok(out)
+                })
+            }
+        }
+    };
 }

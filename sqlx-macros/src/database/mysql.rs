@@ -1,5 +1,5 @@
 impl_database_ext! {
-    sqlx::MySql {
+    sqlx::mysql::MySql {
         u8,
         u16,
         u32,
@@ -29,5 +29,7 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
     },
-    ParamChecking::Weak
+    ParamChecking::Weak,
+    feature-types: info => info.type_feature_gate(),
+    row = sqlx::mysql::MySqlRow
 }

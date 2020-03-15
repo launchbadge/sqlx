@@ -1,7 +1,7 @@
 //! Types and traits for encoding values to the database.
 
 use crate::database::Database;
-use crate::types::HasSqlType;
+use crate::types::Type;
 use std::mem;
 
 /// The return type of [Encode::encode].
@@ -36,7 +36,8 @@ where
 
 impl<T: ?Sized, DB> Encode<DB> for &'_ T
 where
-    DB: Database + HasSqlType<T>,
+    DB: Database,
+    T: Type<DB>,
     T: Encode<DB>,
 {
     fn encode(&self, buf: &mut Vec<u8>) {
@@ -54,7 +55,8 @@ where
 
 impl<T, DB> Encode<DB> for Option<T>
 where
-    DB: Database + HasSqlType<T>,
+    DB: Database,
+    T: Type<DB>,
     T: Encode<DB>,
 {
     fn encode(&self, buf: &mut Vec<u8>) {
@@ -73,10 +75,6 @@ where
     }
 
     fn size_hint(&self) -> usize {
-        if self.is_some() {
-            (*self).size_hint()
-        } else {
-            0
-        }
+        self.as_ref().map_or(0, Encode::size_hint)
     }
 }

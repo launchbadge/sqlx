@@ -7,6 +7,8 @@ pub trait Buf {
 
     fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64>;
 
+    fn get_i8(&mut self) -> io::Result<i8>;
+
     fn get_u8(&mut self) -> io::Result<u8>;
 
     fn get_u16<T: ByteOrder>(&mut self) -> io::Result<u16>;
@@ -16,6 +18,8 @@ pub trait Buf {
     fn get_u24<T: ByteOrder>(&mut self) -> io::Result<u32>;
 
     fn get_i32<T: ByteOrder>(&mut self) -> io::Result<i32>;
+
+    fn get_i64<T: ByteOrder>(&mut self) -> io::Result<i64>;
 
     fn get_u32<T: ByteOrder>(&mut self) -> io::Result<u32>;
 
@@ -38,6 +42,13 @@ impl<'a> Buf for &'a [u8] {
         self.advance(n);
 
         Ok(val)
+    }
+
+    fn get_i8(&mut self) -> io::Result<i8> {
+        let val = self[0];
+        self.advance(1);
+
+        Ok(val as i8)
     }
 
     fn get_u8(&mut self) -> io::Result<u8> {
@@ -70,6 +81,13 @@ impl<'a> Buf for &'a [u8] {
 
     fn get_i32<T: ByteOrder>(&mut self) -> io::Result<i32> {
         let val = T::read_i32(*self);
+        self.advance(4);
+
+        Ok(val)
+    }
+
+    fn get_i64<T: ByteOrder>(&mut self) -> io::Result<i64> {
+        let val = T::read_i64(*self);
         self.advance(4);
 
         Ok(val)

@@ -6,9 +6,29 @@ use sqlx::describe::Describe;
 
 use crate::database::DatabaseExt;
 
+use std::fmt::{self, Display, Formatter};
+
 pub struct RustColumn {
     pub(super) ident: Ident,
     pub(super) type_: TokenStream,
+}
+
+struct DisplayColumn<'a> {
+    // zero-based index, converted to 1-based number
+    idx: usize,
+    name: Option<&'a str>,
+}
+
+impl Display for DisplayColumn<'_> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let num = self.idx + 1;
+
+        if let Some(name) = self.name {
+            write!(f, "column #{} ({:?})", num, name)
+        } else {
+            write!(f, "column #{}", num)
+        }
+    }
 }
 
 pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
@@ -25,7 +45,30 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let ident = parse_ident(name)?;
 
             let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
-                .ok_or_else(|| format!("unknown type: {}", &column.type_info))?
+                .ok_or_else(|| {
+                    if let Some(feature_gate) =
+                        <DB as DatabaseExt>::get_feature_gate(&column.type_info)
+                    {
+                        format!(
+                            "optional feature `{feat}` required for type {ty} of {col}",
+                            ty = &column.type_info,
+                            feat = feature_gate,
+                            col = DisplayColumn {
+                                idx: i,
+                                name: column.name.as_deref()
+                            }
+                        )
+                    } else {
+                        format!(
+                            "unsupported type {ty} of {col}",
+                            ty = column.type_info,
+                            col = DisplayColumn {
+                                idx: i,
+                                name: column.name.as_deref()
+                            }
+                        )
+                    }
+                })?
                 .parse::<TokenStream>()
                 .unwrap();
 
@@ -37,6 +80,7 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 pub fn quote_query_as<DB: DatabaseExt>(
     sql: &str,
     out_ty: &Path,
+    bind_args: &Ident,
     columns: &[RustColumn],
 ) -> TokenStream {
     let instantiations = columns.iter().enumerate().map(
@@ -47,15 +91,17 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 ref type_,
                 ..
             },
-        )| { quote!( #ident: #i.try_get::<#type_>(&row).try_unwrap_optional()? ) },
+        )| { quote!( #ident: row.try_get::<#type_, _>(#i).try_unwrap_optional()? ) },
     );
 
-    let db_path = DB::quotable_path();
+    let db_path = DB::db_path();
+    let row_path = DB::row_path();
 
     quote! {
-        sqlx::query_as_mapped::<#db_path, _>(#sql, |row| {
-            use sqlx::row::RowIndex as _;
+        sqlx::query::<#db_path>(#sql).bind_all(#bind_args).try_map(|row: #row_path| {
+            use sqlx::Row as _;
             use sqlx::result_ext::ResultExt as _;
+
             Ok(#out_ty { #(#instantiations),* })
         })
     }

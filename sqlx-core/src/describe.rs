@@ -1,7 +1,8 @@
 //! Types for returning SQL type information about queries.
 
-use crate::Database;
 use std::fmt::{self, Debug};
+
+use crate::database::Database;
 
 /// The return type of [Executor::describe].
 #[non_exhaustive]
@@ -39,6 +40,8 @@ where
     pub name: Option<Box<str>>,
     pub table_id: Option<DB::TableId>,
     pub type_info: DB::TypeInfo,
+    /// Whether or not the column cannot be `NULL` (or if that is even knowable).
+    pub non_null: Option<bool>,
 }
 
 impl<DB> Debug for Column<DB>
@@ -52,6 +55,7 @@ where
             .field("name", &self.name)
             .field("table_id", &self.table_id)
             .field("type_id", &self.type_info)
+            .field("nonnull", &self.non_null)
             .finish()
     }
 }

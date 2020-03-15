@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::{postgres::PgConnection, Connection as _, Executor as _, Row as _};
-use sqlx_core::postgres::PgPool;
+use sqlx::postgres::{PgPool, PgRow};
+use sqlx::{postgres::PgConnection, Connect, Executor, Row};
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
@@ -8,11 +8,12 @@ use std::time::Duration;
 async fn it_connects() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let row = sqlx::query("select 1 + 1").fetch_one(&mut conn).await?;
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
 
-    assert_eq!(2, row.get(0));
-
-    conn.close().await?;
+    assert_eq!(2i32, value);
 
     Ok(())
 }
@@ -23,7 +24,7 @@ async fn it_executes() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     let _ = conn
-        .send(
+        .execute(
             r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
             "#,
@@ -40,32 +41,12 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM users")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
         .fetch(&mut conn)
-        .try_fold(
-            0_i32,
-            |acc, x| async move { Ok(acc + x.get::<i32, _>("id")) },
-        )
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
         .await?;
 
     assert_eq!(sum, 55);
-
-    Ok(())
-}
-
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
-async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
-
-    // This tests the internal buffer wrapping around at the end
-    // Specifically: https://github.com/launchbadge/sqlx/issues/30
-
-    let rows = sqlx::query("SELECT i, random()::text FROM generate_series(1, 1000) as i")
-        .fetch_all(&mut conn)
-        .await?;
-
-    assert_eq!(rows.len(), 1000);
-    assert_eq!(rows[rows.len() - 1].get::<i32, _>(0), 1000);
 
     Ok(())
 }
@@ -76,27 +57,31 @@ async fn it_remains_stable_issue_30() -> anyhow::Result<()> {
 async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
-    let row = sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-        .fetch_one(&mut conn)
-        .await?;
+    let tuple =
+        sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
+            .try_map(|row: PgRow| {
+                Ok((
+                    row.get::<Option<i32>, _>(0),
+                    row.get::<Option<i32>, _>(1),
+                    row.get::<Option<i32>, _>(2),
+                    row.get::<Option<i32>, _>(3),
+                    row.get::<Option<i32>, _>(4),
+                    row.get::<Option<i32>, _>(5),
+                    row.get::<Option<i32>, _>(6),
+                    row.get::<Option<i32>, _>(7),
+                ))
+            })
+            .fetch_one(&mut conn)
+            .await?;
 
-    let _1: Option<i32> = row.get(0);
-    let _2: Option<i32> = row.get(1);
-    let _3: Option<i32> = row.get(2);
-    let _4: Option<i32> = row.get(3);
-    let _5: Option<i32> = row.get(4);
-    let _6: Option<i32> = row.get(5);
-    let _7: Option<i32> = row.get(6);
-    let _8: Option<i32> = row.get(7);
-
-    assert_eq!(_1, None);
-    assert_eq!(_2, Some(10));
-    assert_eq!(_3, None);
-    assert_eq!(_4, Some(20));
-    assert_eq!(_5, None);
-    assert_eq!(_6, Some(40));
-    assert_eq!(_7, None);
-    assert_eq!(_8, Some(80));
+    assert_eq!(tuple.0, None);
+    assert_eq!(tuple.1, Some(10));
+    assert_eq!(tuple.2, None);
+    assert_eq!(tuple.3, Some(20));
+    assert_eq!(tuple.4, None);
+    assert_eq!(tuple.5, Some(40));
+    assert_eq!(tuple.6, None);
+    assert_eq!(tuple.7, Some(80));
 
     Ok(())
 }
@@ -122,7 +107,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         spawn(async move {
             loop {
-                if let Err(e) = sqlx::query("select 1 + 1").fetch_one(&mut &pool).await {
+                if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     eprintln!("pool task {} dying due to {}", i, e);
                     break;
                 }
@@ -156,8 +141,42 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_describe() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+        CREATE TEMP TABLE describe_test (
+            id SERIAL primary key,
+            name text not null,
+            hash bytea
+        )
+    "#,
+        )
+        .await?;
+
+    let describe = conn
+        .describe("select nt.*, false from describe_test nt")
+        .await?;
+
+    assert_eq!(describe.result_columns[0].non_null, Some(true));
+    assert_eq!(describe.result_columns[0].type_info.type_name(), "INT4");
+    assert_eq!(describe.result_columns[1].non_null, Some(true));
+    assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
+    assert_eq!(describe.result_columns[2].non_null, Some(false));
+    assert_eq!(describe.result_columns[2].type_info.type_name(), "BYTEA");
+    assert_eq!(describe.result_columns[3].non_null, None);
+    assert_eq!(describe.result_columns[3].type_info.type_name(), "BOOL");
+
+    Ok(())
+}
+
 async fn connect() -> anyhow::Result<PgConnection> {
     let _ = dotenv::dotenv();
     let _ = env_logger::try_init();
-    Ok(PgConnection::open(dotenv::var("DATABASE_URL")?).await?)
+
+    Ok(PgConnection::connect(dotenv::var("DATABASE_URL")?).await?)
 }

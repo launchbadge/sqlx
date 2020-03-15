@@ -1,7 +1,8 @@
 use std::{marker::PhantomData, time::Duration};
 
 use super::Pool;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connect;
+use crate::database::Database;
 
 /// Builder for [Pool].
 pub struct Builder<C> {
@@ -9,7 +10,10 @@ pub struct Builder<C> {
     options: Options,
 }
 
-impl<C> Builder<C> {
+impl<C> Builder<C>
+where
+    C: Connect,
+{
     /// Get a new builder with default options.
     ///
     /// See the source of this method for current defaults.
@@ -102,13 +106,17 @@ impl<C> Builder<C> {
     /// opened and placed into the pool.
     pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
     where
-        C: Connection + Connect<Connection = C>,
+        C: Connect,
     {
         Pool::with_options(url, self.options).await
     }
 }
 
-impl<C> Default for Builder<C> {
+impl<C, DB> Default for Builder<C>
+where
+    C: Connect<Database = DB>,
+    DB: Database<Connection = C>,
+{
     fn default() -> Self {
         Self::new()
     }

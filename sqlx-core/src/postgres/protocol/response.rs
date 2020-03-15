@@ -1,5 +1,4 @@
 use crate::io::Buf;
-use crate::postgres::protocol::Decode;
 use std::str::{self, FromStr};
 
 #[derive(Debug, Copy, Clone)]
@@ -65,8 +64,8 @@ pub struct Response {
     pub routine: Option<Box<str>>,
 }
 
-impl Decode for Response {
-    fn decode(mut buf: &[u8]) -> crate::Result<Self> {
+impl Response {
+    pub fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let mut code = None::<Box<str>>;
         let mut message = None::<Box<str>>;
         let mut severity = None::<Box<str>>;
@@ -226,7 +225,7 @@ impl Decode for Response {
 
 #[cfg(test)]
 mod tests {
-    use super::{Decode, Response, Severity};
+    use super::{Response, Severity};
     use matches::assert_matches;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
@@ -234,7 +233,7 @@ mod tests {
 
     #[test]
     fn it_decodes_response() {
-        let message = Response::decode(RESPONSE).unwrap();
+        let message = Response::read(RESPONSE).unwrap();
 
         assert_matches!(message.severity, Severity::Notice);
         assert_eq!(&*message.code, "42710");

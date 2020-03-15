@@ -1,81 +1,82 @@
-use std::collections::HashMap;
-use std::io;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 
 use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
+use futures_util::{stream, StreamExt, TryStreamExt};
 
+use crate::arguments::Arguments;
+use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
-use crate::postgres::protocol::{self, Encode, Message, StatementId, TypeFormat};
-use crate::postgres::{PgArguments, PgRow, PgTypeInfo, Postgres};
+use crate::executor::{Execute, Executor, RefExecutor};
+use crate::postgres::protocol::{
+    self, CommandComplete, Field, Message, ParameterDescription, RowDescription, StatementId,
+    TypeFormat, TypeId,
+};
+use crate::postgres::types::SharedStr;
+use crate::postgres::{PgArguments, PgConnection, PgCursor, PgRow, PgTypeInfo, Postgres};
+use crate::row::Row;
 
-#[derive(Debug)]
-enum Step {
-    Command(u64),
-    NoData,
-    Row(protocol::DataRow),
-    ParamDesc(Box<protocol::ParameterDescription>),
-    RowDesc(Box<protocol::RowDescription>),
-}
+impl PgConnection {
+    pub(crate) fn write_simple_query(&mut self, query: &str) {
+        self.stream.write(protocol::Query(query));
+    }
 
-impl super::PgConnection {
-    fn write_prepare(&mut self, query: &str, args: &PgArguments) -> StatementId {
-        if let Some(&id) = self.statement_cache.get(query) {
+    pub(crate) fn write_prepare(&mut self, query: &str, args: &PgArguments) -> StatementId {
+        if let Some(&id) = self.cache_statement.get(query) {
             id
         } else {
             let id = StatementId(self.next_statement_id);
+
             self.next_statement_id += 1;
 
-            protocol::Parse {
+            self.stream.write(protocol::Parse {
                 statement: id,
                 query,
                 param_types: &*args.types,
-            }
-            .encode(self.stream.buffer_mut());
+            });
 
-            self.statement_cache.put(query.to_owned(), id);
+            self.cache_statement.insert(query.into(), id);
 
             id
         }
     }
 
-    fn write_describe(&mut self, d: protocol::Describe) {
-        d.encode(self.stream.buffer_mut())
+    pub(crate) fn write_describe(&mut self, d: protocol::Describe) {
+        self.stream.write(d);
     }
 
-    fn write_bind(&mut self, portal: &str, statement: StatementId, args: &PgArguments) {
-        protocol::Bind {
+    pub(crate) fn write_bind(&mut self, portal: &str, statement: StatementId, args: &PgArguments) {
+        self.stream.write(protocol::Bind {
             portal,
             statement,
             formats: &[TypeFormat::Binary],
-            // TODO: Early error if there is more than i16
             values_len: args.types.len() as i16,
             values: &*args.values,
             result_formats: &[TypeFormat::Binary],
-        }
-        .encode(self.stream.buffer_mut());
+        });
     }
 
-    fn write_execute(&mut self, portal: &str, limit: i32) {
-        protocol::Execute { portal, limit }.encode(self.stream.buffer_mut());
+    pub(crate) fn write_execute(&mut self, portal: &str, limit: i32) {
+        self.stream.write(protocol::Execute { portal, limit });
     }
 
-    fn write_sync(&mut self) {
-        protocol::Sync.encode(self.stream.buffer_mut());
+    pub(crate) fn write_sync(&mut self) {
+        self.stream.write(protocol::Sync);
     }
 
     async fn wait_until_ready(&mut self) -> crate::Result<()> {
-        if !self.ready {
-            while let Some(message) = self.receive().await? {
-                match message {
-                    Message::ReadyForQuery(_) => {
-                        self.ready = true;
-                        break;
-                    }
+        // depending on how the previous query finished we may need to continue
+        // pulling messages from the stream until we receive a [ReadyForQuery] message
 
-                    _ => {
-                        // Drain the stream
-                    }
+        // postgres sends the [ReadyForQuery] message when it's fully complete with processing
+        // the previous query
+
+        if !self.is_ready {
+            loop {
+                if let Message::ReadyForQuery = self.stream.read().await? {
+                    // we are now ready to go
+                    self.is_ready = true;
+                    break;
                 }
             }
         }
@@ -83,254 +84,324 @@ impl super::PgConnection {
         Ok(())
     }
 
-    async fn step(&mut self) -> crate::Result<Option<Step>> {
-        while let Some(message) = self.receive().await? {
-            match message {
-                Message::BindComplete
-                | Message::ParseComplete
-                | Message::PortalSuspended
-                | Message::CloseComplete => {}
-
-                Message::CommandComplete(body) => {
-                    return Ok(Some(Step::Command(body.affected_rows)));
-                }
-
-                Message::NoData => {
-                    return Ok(Some(Step::NoData));
-                }
-
-                Message::DataRow(body) => {
-                    return Ok(Some(Step::Row(body)));
-                }
-
-                Message::ReadyForQuery(_) => {
-                    self.ready = true;
-
-                    return Ok(None);
-                }
-
-                Message::ParameterDescription(desc) => {
-                    return Ok(Some(Step::ParamDesc(desc)));
-                }
-
-                Message::RowDescription(desc) => {
-                    return Ok(Some(Step::RowDesc(desc)));
-                }
-
-                message => {
-                    return Err(protocol_err!("received unexpected message: {:?}", message).into());
-                }
-            }
-        }
-
-        // Connection was (unexpectedly) closed
-        Err(io::Error::from(io::ErrorKind::ConnectionAborted).into())
-    }
-}
-
-impl super::PgConnection {
-    async fn send<'e, 'q: 'e>(&'e mut self, command: &'q str) -> crate::Result<()> {
-        protocol::Query(command).encode(self.stream.buffer_mut());
-
-        self.wait_until_ready().await?;
-
-        self.stream.flush().await?;
-        self.ready = false;
-
-        while let Some(_step) = self.step().await? {
-            // Drain the stream until ReadyForQuery
-        }
-
-        Ok(())
-    }
-
-    async fn execute<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> crate::Result<u64> {
-        let statement = self.write_prepare(query, &args);
-
-        self.write_bind("", statement, &args);
-        self.write_execute("", 1);
-        self.write_sync();
-
-        self.wait_until_ready().await?;
-
-        self.stream.flush().await?;
-        self.ready = false;
-
-        let mut affected = 0;
-
-        while let Some(step) = self.step().await? {
-            if let Step::Command(cnt) = step {
-                affected = cnt;
-            }
-        }
-
-        Ok(affected)
-    }
-
-    // Initial part of [fetch]; write message to stream
-    fn write_fetch(&mut self, query: &str, args: &PgArguments) -> StatementId {
-        let statement = self.write_prepare(query, &args);
-
-        self.write_bind("", statement, &args);
-
-        if !self.statement_cache.has_columns(statement) {
-            self.write_describe(protocol::Describe::Portal(""));
-        }
-
-        self.write_execute("", 0);
-        self.write_sync();
-
-        statement
-    }
-
-    async fn get_columns(
+    // Write out the query to the connection stream, ensure that we are synchronized at the
+    // most recent [ReadyForQuery] and flush our buffer to postgres.
+    //
+    // It is safe to call this method repeatedly (but all data from postgres would be lost) but
+    // it is assumed that a call to [PgConnection::affected_rows] or [PgCursor::next] would
+    // immediately follow.
+    pub(crate) async fn run(
         &mut self,
-        statement: StatementId,
-    ) -> crate::Result<Arc<HashMap<Box<str>, usize>>> {
-        if !self.statement_cache.has_columns(statement) {
-            let desc: Option<_> = 'outer: loop {
-                while let Some(step) = self.step().await? {
-                    match step {
-                        Step::RowDesc(desc) => break 'outer Some(desc),
+        query: &str,
+        arguments: Option<PgArguments>,
+    ) -> crate::Result<Option<StatementId>> {
+        let statement = if let Some(arguments) = arguments {
+            // Check the statement cache for a statement ID that matches the given query
+            // If it doesn't exist, we generate a new statement ID and write out [Parse] to the
+            // connection command buffer
+            let statement = self.write_prepare(query, &arguments);
 
-                        Step::NoData => break 'outer None,
+            // Next, [Bind] attaches the arguments to the statement and creates a named portal
+            self.write_bind("", statement, &arguments);
 
-                        _ => {}
-                    }
-                }
-
-                unreachable!();
-            };
-
-            let mut columns = HashMap::new();
-
-            if let Some(desc) = desc {
-                columns.reserve(desc.fields.len());
-
-                for (index, field) in desc.fields.iter().enumerate() {
-                    if let Some(name) = &field.name {
-                        columns.insert(name.clone(), index);
-                    }
-                }
+            // Next, [Describe] will return the expected result columns and types
+            // Conditionally run [Describe] only if the results have not been cached
+            if !self.cache_statement_columns.contains_key(&statement) {
+                self.write_describe(protocol::Describe::Portal(""));
             }
 
-            self.statement_cache.put_columns(statement, columns);
-        }
+            // Next, [Execute] then executes the named portal
+            self.write_execute("", 0);
 
-        Ok(self.statement_cache.get_columns(statement))
-    }
+            // Finally, [Sync] asks postgres to process the messages that we sent and respond with
+            // a [ReadyForQuery] message when it's completely done. Theoretically, we could send
+            // dozens of queries before a [Sync] and postgres can handle that. Execution on the server
+            // is still serial but it would reduce round-trips. Some kind of builder pattern that is
+            // termed batching might suit this.
+            self.write_sync();
 
-    fn fetch<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> BoxStream<'e, crate::Result<PgRow>> {
-        Box::pin(async_stream::try_stream! {
-            let statement = self.write_fetch(query, &args);
+            Some(statement)
+        } else {
+            // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.4
+            self.write_simple_query(query);
 
-            self.wait_until_ready().await?;
+            None
+        };
 
-            self.stream.flush().await?;
-            self.ready = false;
+        self.wait_until_ready().await?;
 
-            let columns = self.get_columns(statement).await?;
+        self.stream.flush().await?;
+        self.is_ready = false;
 
-            while let Some(step) = self.step().await? {
-                if let Step::Row(data) = step {
-                    yield PgRow { data, columns: Arc::clone(&columns) };
-                }
-            }
-
-            // No more rows in the result set
-        })
+        Ok(statement)
     }
 
     async fn describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
     ) -> crate::Result<Describe<Postgres>> {
+        self.is_ready = false;
+
         let statement = self.write_prepare(query, &Default::default());
 
         self.write_describe(protocol::Describe::Statement(statement));
         self.write_sync();
 
         self.stream.flush().await?;
+
+        let params = loop {
+            match self.stream.read().await? {
+                Message::ParseComplete => {}
+
+                Message::ParameterDescription => {
+                    break ParameterDescription::read(self.stream.buffer())?;
+                }
+
+                message => {
+                    return Err(protocol_err!(
+                        "expected ParameterDescription; received {:?}",
+                        message
+                    )
+                    .into());
+                }
+            };
+        };
+
+        let result = match self.stream.read().await? {
+            Message::NoData => None,
+            Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
+
+            message => {
+                return Err(protocol_err!(
+                    "expected RowDescription or NoData; received {:?}",
+                    message
+                )
+                .into());
+            }
+        };
+
         self.wait_until_ready().await?;
 
-        let params = match self.step().await? {
-            Some(Step::ParamDesc(desc)) => desc,
+        let result_fields = result.map_or_else(Default::default, |r| r.fields);
 
-            step => {
-                return Err(
-                    protocol_err!("expected ParameterDescription; received {:?}", step).into(),
-                );
-            }
-        };
-
-        let result = match self.step().await? {
-            Some(Step::RowDesc(desc)) => Some(desc),
-            Some(Step::NoData) => None,
-
-            step => {
-                return Err(protocol_err!("expected RowDescription; received {:?}", step).into());
-            }
-        };
+        // TODO: cache this result
+        let type_names = self
+            .get_type_names(
+                params
+                    .ids
+                    .iter()
+                    .cloned()
+                    .chain(result_fields.iter().map(|field| field.type_id)),
+            )
+            .await?;
 
         Ok(Describe {
             param_types: params
                 .ids
                 .iter()
-                .map(|id| PgTypeInfo::new(*id))
+                .map(|id| PgTypeInfo::new(*id, &type_names[&id.0]))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            result_columns: result
-                .map(|r| r.fields)
-                .unwrap_or_default()
-                .into_vec()
-                .into_iter()
-                // TODO: Should [Column] just wrap [protocol::Field] ?
-                .map(|field| Column {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_info: PgTypeInfo::new(field.type_id),
-                })
-                .collect::<Vec<_>>()
+            result_columns: self
+                .map_result_columns(result_fields, type_names)
+                .await?
                 .into_boxed_slice(),
         })
     }
+
+    async fn get_type_names(
+        &mut self,
+        ids: impl IntoIterator<Item = TypeId>,
+    ) -> crate::Result<HashMap<u32, SharedStr>> {
+        let type_ids: HashSet<u32> = ids.into_iter().map(|id| id.0).collect::<HashSet<u32>>();
+
+        if type_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // uppercase type names are easier to visually identify
+        let mut query = "select types.type_id, UPPER(pg_type.typname) from (VALUES ".to_string();
+        let mut args = PgArguments::default();
+        let mut pushed = false;
+
+        // TODO: dedup this with the one below, ideally as an API we can export
+        for (i, (&type_id, bind)) in type_ids.iter().zip((1..).step_by(2)).enumerate() {
+            if pushed {
+                query += ", ";
+            }
+
+            pushed = true;
+            let _ = write!(query, "(${}, ${})", bind, bind + 1);
+
+            // not used in the output but ensures are values are sorted correctly
+            args.add(i as i32);
+            args.add(type_id as i32);
+        }
+
+        query += ") as types(idx, type_id) \
+                  inner join pg_catalog.pg_type on pg_type.oid = type_id \
+                  order by types.idx";
+
+        crate::query::query(&query)
+            .bind_all(args)
+            .try_map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
+                Ok((
+                    row.try_get::<i32, _>(0)? as u32,
+                    row.try_get::<String, _>(1)?.into(),
+                ))
+            })
+            .fetch(self)
+            .try_collect()
+            .await
+    }
+
+    async fn map_result_columns(
+        &mut self,
+        fields: Box<[Field]>,
+        type_names: HashMap<u32, SharedStr>,
+    ) -> crate::Result<Vec<Column<Postgres>>> {
+        if fields.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut query = "select col.idx, pg_attribute.attnotnull from (VALUES ".to_string();
+        let mut pushed = false;
+        let mut args = PgArguments::default();
+
+        for (i, (field, bind)) in fields.iter().zip((1..).step_by(3)).enumerate() {
+            if pushed {
+                query += ", ";
+            }
+
+            pushed = true;
+            let _ = write!(
+                query,
+                "(${}::int4, ${}::int4, ${}::int2)",
+                bind,
+                bind + 1,
+                bind + 2
+            );
+
+            args.add(i as i32);
+            args.add(field.table_id.map(|id| id as i32));
+            args.add(field.column_id);
+        }
+
+        query += ") as col(idx, table_id, col_idx) \
+        left join pg_catalog.pg_attribute on table_id is not null and attrelid = table_id and attnum = col_idx \
+        order by col.idx;";
+
+        log::trace!("describe pg_attribute query: {:#?}", query);
+
+        crate::query::query(&query)
+            .bind_all(args)
+            .try_map(|row: PgRow| {
+                let idx = row.try_get::<i32, _>(0)?;
+                let non_null = row.try_get::<Option<bool>, _>(1)?;
+
+                Ok((idx, non_null))
+            })
+            .fetch(self)
+            .zip(stream::iter(fields.into_vec().into_iter().enumerate()))
+            .map(|(row, (fidx, field))| -> crate::Result<Column<_>> {
+                let (idx, non_null) = row?;
+
+                if idx != fidx as i32 {
+                    return Err(
+                        protocol_err!("missing field from query, field: {:?}", field).into(),
+                    );
+                }
+
+                Ok(Column {
+                    name: field.name,
+                    table_id: field.table_id,
+                    type_info: PgTypeInfo::new(field.type_id, &type_names[&field.type_id.0]),
+                    non_null,
+                })
+            })
+            .try_collect()
+            .await
+    }
+
+    // Poll messages from Postgres, counting the rows affected, until we finish the query
+    // This must be called directly after a call to [PgConnection::execute]
+    async fn affected_rows(&mut self) -> crate::Result<u64> {
+        let mut rows = 0;
+
+        loop {
+            match self.stream.read().await? {
+                Message::ParseComplete
+                | Message::BindComplete
+                | Message::NoData
+                | Message::EmptyQueryResponse
+                | Message::RowDescription => {}
+
+                Message::DataRow => {
+                    // TODO: should we log a warning? this is almost
+                    //       definitely a programmer error
+                }
+
+                Message::CommandComplete => {
+                    rows += CommandComplete::read(self.stream.buffer())?.affected_rows;
+                }
+
+                Message::ReadyForQuery => {
+                    self.is_ready = true;
+                    break;
+                }
+
+                message => {
+                    return Err(
+                        protocol_err!("affected_rows: unexpected message: {:?}", message).into(),
+                    );
+                }
+            }
+        }
+
+        Ok(rows)
+    }
 }
 
-impl crate::Executor for super::PgConnection {
-    type Database = super::Postgres;
+impl Executor for super::PgConnection {
+    type Database = Postgres;
 
-    fn send<'e, 'q: 'e>(&'e mut self, query: &'q str) -> BoxFuture<'e, crate::Result<()>> {
-        Box::pin(self.send(query))
+    fn execute<'e, 'q, E: 'e>(&'e mut self, query: E) -> BoxFuture<'e, crate::Result<u64>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        Box::pin(async move {
+            let (query, arguments) = query.into_parts();
+
+            self.run(query, arguments).await?;
+            self.affected_rows().await
+        })
     }
 
-    fn execute<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> BoxFuture<'e, crate::Result<u64>> {
-        Box::pin(self.execute(query, args))
+    fn fetch<'q, E>(&mut self, query: E) -> PgCursor<'_, 'q>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        PgCursor::from_connection(self, query)
     }
 
-    fn fetch<'e, 'q: 'e>(
+    fn describe<'e, 'q, E: 'e>(
         &'e mut self,
-        query: &'q str,
-        args: PgArguments,
-    ) -> BoxStream<'e, crate::Result<PgRow>> {
-        self.fetch(query, args)
+        query: E,
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        Box::pin(async move { self.describe(query.into_parts().0).await })
     }
+}
 
-    fn describe<'e, 'q: 'e>(
-        &'e mut self,
-        query: &'q str,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>> {
-        Box::pin(self.describe(query))
+impl<'c> RefExecutor<'c> for &'c mut super::PgConnection {
+    type Database = Postgres;
+
+    fn fetch_by_ref<'q, E>(self, query: E) -> PgCursor<'c, 'q>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        PgCursor::from_connection(self, query)
     }
 }

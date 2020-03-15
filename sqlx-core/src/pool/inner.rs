@@ -16,7 +16,7 @@ use crate::{
     error::Error,
 };
 
-use super::conn::{Floating, Idle, Live};
+use super::connection::{Floating, Idle, Live};
 use super::Options;
 
 pub(super) struct SharedPool<C> {
@@ -130,7 +130,7 @@ where
 
 impl<C> SharedPool<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
         let mut pool = Self {
@@ -254,9 +254,9 @@ fn is_beyond_idle<C>(idle: &Idle<C>, options: &Options) -> bool {
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
-async fn check_conn<'s, C>(
+async fn check_conn<'s: 'p, 'p, C>(
     mut conn: Floating<'s, Idle<C>>,
-    options: &Options,
+    options: &'p Options,
 ) -> Option<Floating<'s, Live<C>>>
 where
     C: Connection,

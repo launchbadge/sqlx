@@ -1,7 +1,12 @@
-use std::io;
+use std::future::Future;
+use std::io::{self, BufRead};
 use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use futures_util::ready;
+
+use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 const RBUF_SIZE: usize = 8 * 1024;
 
@@ -20,6 +25,11 @@ pub struct BufStream<S> {
     rbuf_windex: usize,
 }
 
+pub struct GuardedFlush<'a, S: 'a> {
+    stream: &'a mut S,
+    buf: io::Cursor<&'a mut Vec<u8>>,
+}
+
 impl<S> BufStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -36,24 +46,22 @@ where
     }
 
     #[inline]
+    pub fn buffer<'c>(&'c self) -> &'c [u8] {
+        &self.rbuf[self.rbuf_rindex..]
+    }
+
+    #[inline]
     pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
         &mut self.wbuf
     }
 
     #[inline]
-    pub async fn flush(&mut self) -> io::Result<()> {
-        if !self.wbuf.is_empty() {
-            self.stream.write_all(&self.wbuf).await?;
-            self.wbuf.clear();
+    #[must_use = "write buffer is cleared on-drop even if future is not polled"]
+    pub fn flush(&mut self) -> GuardedFlush<S> {
+        GuardedFlush {
+            stream: &mut self.stream,
+            buf: io::Cursor::new(&mut self.wbuf),
         }
-
-        Ok(())
-    }
-
-    pub fn clear_bufs(&mut self) {
-        self.rbuf_rindex = 0;
-        self.rbuf_windex = 0;
-        self.wbuf.clear();
     }
 
     #[inline]
@@ -61,7 +69,14 @@ where
         self.rbuf_rindex += cnt;
     }
 
-    pub async fn peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
+    pub async fn peek(&mut self, cnt: usize) -> io::Result<&[u8]> {
+        self.try_peek(cnt)
+            .await
+            .transpose()
+            .ok_or(io::ErrorKind::ConnectionAborted)?
+    }
+
+    pub async fn try_peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
         loop {
             // Reaching end-of-file (read 0 bytes) will continuously
             // return None from all future calls to read
@@ -149,4 +164,35 @@ macro_rules! ret_if_none {
             }
         }
     };
+}
+
+impl<'a, S: AsyncWrite + Unpin> Future for GuardedFlush<'a, S> {
+    type Output = io::Result<()>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let Self {
+            ref mut stream,
+            ref mut buf,
+        } = *self;
+
+        loop {
+            let read = buf.fill_buf()?;
+
+            if !read.is_empty() {
+                let written = ready!(Pin::new(&mut *stream).poll_write(cx, read)?);
+                buf.consume(written);
+            } else {
+                break;
+            }
+        }
+
+        Pin::new(stream).poll_flush(cx)
+    }
+}
+
+impl<'a, S> Drop for GuardedFlush<'a, S> {
+    fn drop(&mut self) {
+        // clear the buffer regardless of whether the flush succeeded or not
+        self.buf.get_mut().clear();
+    }
 }

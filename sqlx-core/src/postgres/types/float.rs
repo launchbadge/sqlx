@@ -1,19 +1,25 @@
-use crate::decode::{Decode, DecodeError};
+use std::convert::TryInto;
+use std::str::FromStr;
+
+use byteorder::{NetworkEndian, ReadBytesExt};
+
+use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::error::Error;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::postgres::{PgValue, Postgres};
+use crate::types::Type;
 
-impl HasSqlType<f32> for Postgres {
+impl Type<Postgres> for f32 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT4)
+        PgTypeInfo::new(TypeId::FLOAT4, "FLOAT4")
     }
 }
 
-impl HasSqlType<[f32]> for Postgres {
+impl Type<Postgres> for [f32] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT4)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT4, "FLOAT4[]")
     }
 }
 
@@ -23,23 +29,28 @@ impl Encode<Postgres> for f32 {
     }
 }
 
-impl Decode<Postgres> for f32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(f32::from_bits(
-            <i32 as Decode<Postgres>>::decode(buf)? as u32
-        ))
+impl<'de> Decode<'de, Postgres> for f32 {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf
+                .read_i32::<NetworkEndian>()
+                .map_err(Error::decode)
+                .map(|value| f32::from_bits(value as u32)),
+
+            PgValue::Text(s) => f32::from_str(s).map_err(Error::decode),
+        }
     }
 }
 
-impl HasSqlType<f64> for Postgres {
+impl Type<Postgres> for f64 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT8)
+        PgTypeInfo::new(TypeId::FLOAT8, "FLOAT8")
     }
 }
 
-impl HasSqlType<[f64]> for Postgres {
+impl Type<Postgres> for [f64] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT8)
+        PgTypeInfo::new(TypeId::ARRAY_FLOAT8, "FLOAT8[]")
     }
 }
 
@@ -49,10 +60,15 @@ impl Encode<Postgres> for f64 {
     }
 }
 
-impl Decode<Postgres> for f64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(f64::from_bits(
-            <i64 as Decode<Postgres>>::decode(buf)? as u64
-        ))
+impl<'de> Decode<'de, Postgres> for f64 {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf
+                .read_i64::<NetworkEndian>()
+                .map_err(Error::decode)
+                .map(|value| f64::from_bits(value as u64)),
+
+            PgValue::Text(s) => f64::from_str(s).map_err(Error::decode),
+        }
     }
 }

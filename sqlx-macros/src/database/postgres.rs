@@ -1,7 +1,7 @@
 impl_database_ext! {
-    sqlx::Postgres {
+    sqlx::postgres::Postgres {
         bool,
-        String,
+        String | &str,
         i16,
         i32,
         i64,
@@ -9,7 +9,7 @@ impl_database_ext! {
         f64,
 
         // BYTEA
-        Vec<u8>,
+        Vec<u8> | &[u8],
 
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
@@ -26,5 +26,7 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     },
-    ParamChecking::Strong
+    ParamChecking::Strong,
+    feature-types: info => info.type_feature_gate(),
+    row = sqlx::postgres::PgRow
 }

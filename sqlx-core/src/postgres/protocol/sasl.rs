@@ -41,7 +41,7 @@ pub fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32]> {
 
     for _ in 1..iter_count {
         let mut mac = Hmac::<Sha256>::new_varkey(s.as_bytes())
-            .map_err(|_| protocol_err!(" HMAC can take key of any size"))?;
+            .map_err(|_| protocol_err!("HMAC can take key of any size"))?;
         mac.input(u.as_slice());
         u = mac.result().code();
         hi = hi.iter().zip(u.iter()).map(|(&a, &b)| a ^ b).collect();

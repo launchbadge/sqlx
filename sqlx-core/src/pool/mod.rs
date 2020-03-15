@@ -6,19 +6,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::connection::{Connect, Connection};
+use crate::connection::Connect;
 use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
 use self::options::Options;
 
-pub use self::conn::PoolConnection;
-
-mod conn;
+mod connection;
 mod executor;
 mod inner;
 mod options;
 
+pub use self::connection::PoolConnection;
 pub use self::options::Builder;
 
 /// A pool of database connections.
@@ -26,7 +25,7 @@ pub struct Pool<C>(Arc<SharedPool<C>>);
 
 impl<C> Pool<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     /// Creates a connection pool with the default configuration.
     ///
@@ -127,7 +126,7 @@ impl<C> Clone for Pool<C> {
 
 impl<C> fmt::Debug for Pool<C>
 where
-    C: Connection + Connect<Connection = C>,
+    C: Connect,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
@@ -150,11 +149,12 @@ fn deadline_as_timeout(deadline: Instant) -> crate::Result<Duration> {
 }
 
 #[test]
+#[allow(dead_code)]
 fn assert_pool_traits() {
     fn assert_send_sync<T: Send + Sync>() {}
     fn assert_clone<T: Clone>() {}
 
-    fn assert_pool<C: Connection + Connect<Connection = C>>() {
+    fn assert_pool<C: Connect>() {
         assert_send_sync::<Pool<C>>();
         assert_clone::<Pool<C>>();
     }

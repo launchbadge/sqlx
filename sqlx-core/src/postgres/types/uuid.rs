@@ -1,21 +1,25 @@
+use std::convert::TryInto;
+use std::str::FromStr;
+
 use uuid::Uuid;
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
 use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::types::Type;
 
-impl HasSqlType<Uuid> for Postgres {
+impl Type<Postgres> for Uuid {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::UUID)
+        PgTypeInfo::new(TypeId::UUID, "UUID")
     }
 }
 
-impl HasSqlType<[Uuid]> for Postgres {
+impl Type<Postgres> for [Uuid] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_UUID)
+        PgTypeInfo::new(TypeId::ARRAY_UUID, "UUID[]")
     }
 }
 
@@ -25,8 +29,11 @@ impl Encode<Postgres> for Uuid {
     }
 }
 
-impl Decode<Postgres> for Uuid {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Uuid::from_slice(buf).map_err(|err| DecodeError::Message(Box::new(err)))
+impl<'de> Decode<'de, Postgres> for Uuid {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => Uuid::from_slice(buf).map_err(|err| crate::Error::decode(err)),
+            PgValue::Text(s) => Uuid::from_str(s).map_err(|err| crate::Error::decode(err)),
+        }
     }
 }

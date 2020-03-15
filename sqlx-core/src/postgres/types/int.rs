@@ -1,21 +1,25 @@
-use byteorder::{ByteOrder, NetworkEndian};
+use std::convert::TryInto;
+use std::str::FromStr;
 
-use crate::decode::{Decode, DecodeError};
+use byteorder::{NetworkEndian, ReadBytesExt};
+
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::postgres::{PgValue, Postgres};
+use crate::types::Type;
+use crate::Error;
 
-impl HasSqlType<i16> for Postgres {
+impl Type<Postgres> for i16 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT2)
+        PgTypeInfo::new(TypeId::INT2, "INT2")
     }
 }
 
-impl HasSqlType<[i16]> for Postgres {
+impl Type<Postgres> for [i16] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT2)
+        PgTypeInfo::new(TypeId::ARRAY_INT2, "INT2[]")
     }
 }
 
@@ -25,21 +29,24 @@ impl Encode<Postgres> for i16 {
     }
 }
 
-impl Decode<Postgres> for i16 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i16(buf))
+impl<'de> Decode<'de, Postgres> for i16 {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf.read_i16::<NetworkEndian>().map_err(Error::decode),
+            PgValue::Text(s) => i16::from_str(s).map_err(Error::decode),
+        }
     }
 }
 
-impl HasSqlType<i32> for Postgres {
+impl Type<Postgres> for i32 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT4)
+        PgTypeInfo::new(TypeId::INT4, "INT4")
     }
 }
 
-impl HasSqlType<[i32]> for Postgres {
+impl Type<Postgres> for [i32] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT4)
+        PgTypeInfo::new(TypeId::ARRAY_INT4, "INT4[]")
     }
 }
 
@@ -49,21 +56,24 @@ impl Encode<Postgres> for i32 {
     }
 }
 
-impl Decode<Postgres> for i32 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i32(buf))
+impl<'de> Decode<'de, Postgres> for i32 {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf.read_i32::<NetworkEndian>().map_err(Error::decode),
+            PgValue::Text(s) => i32::from_str(s).map_err(Error::decode),
+        }
     }
 }
 
-impl HasSqlType<i64> for Postgres {
+impl Type<Postgres> for i64 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::INT8)
+        PgTypeInfo::new(TypeId::INT8, "INT8")
     }
 }
 
-impl HasSqlType<[i64]> for Postgres {
+impl Type<Postgres> for [i64] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_INT8)
+        PgTypeInfo::new(TypeId::ARRAY_INT8, "INT8[]")
     }
 }
 
@@ -73,8 +83,11 @@ impl Encode<Postgres> for i64 {
     }
 }
 
-impl Decode<Postgres> for i64 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(NetworkEndian::read_i64(buf))
+impl<'de> Decode<'de, Postgres> for i64 {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => buf.read_i64::<NetworkEndian>().map_err(Error::decode),
+            PgValue::Text(s) => i64::from_str(s).map_err(Error::decode),
+        }
     }
 }

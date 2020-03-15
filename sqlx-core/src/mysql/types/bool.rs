@@ -1,11 +1,13 @@
-use crate::decode::{Decode, DecodeError};
+use std::convert::TryInto;
+
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::mysql::{MySql, MySqlValue};
+use crate::types::Type;
 
-impl HasSqlType<bool> for MySql {
+impl Type<MySql> for bool {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TINY_INT)
     }
@@ -17,13 +19,18 @@ impl Encode<MySql> for bool {
     }
 }
 
-impl Decode<MySql> for bool {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        match buf.len() {
-            0 => Err(DecodeError::Message(Box::new(
-                "Expected minimum 1 byte but received none.",
-            ))),
-            _ => Ok(buf[0] != 0),
+impl<'de> Decode<'de, MySql> for bool {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
+
+            MySqlValue::Text(b"0") => Ok(false),
+
+            MySqlValue::Text(b"1") => Ok(true),
+
+            MySqlValue::Text(s) => Err(crate::Error::Decode(
+                format!("unexpected value {:?} for boolean", s).into(),
+            )),
         }
     }
 }

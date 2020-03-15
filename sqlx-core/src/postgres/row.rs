@@ -1,58 +1,59 @@
+use core::str::{from_utf8, Utf8Error};
+
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::sync::Arc;
 
-use crate::decode::Decode;
-use crate::postgres::protocol::DataRow;
+use crate::error::UnexpectedNullError;
+use crate::postgres::protocol::{DataRow, TypeFormat};
 use crate::postgres::Postgres;
-use crate::row::{Row, RowIndex};
-use crate::types::HasSqlType;
+use crate::row::{ColumnIndex, Row};
 
-pub struct PgRow {
-    pub(super) data: DataRow,
-    pub(super) columns: Arc<HashMap<Box<str>, usize>>,
+/// A value from Postgres. This may be in a BINARY or TEXT format depending
+/// on the data type and if the query was prepared or not.
+pub enum PgValue<'c> {
+    Binary(&'c [u8]),
+    Text(&'c str),
 }
 
-impl Row for PgRow {
+impl<'c> TryFrom<Option<PgValue<'c>>> for PgValue<'c> {
+    type Error = crate::Error;
+
+    #[inline]
+    fn try_from(value: Option<PgValue<'c>>) -> Result<Self, Self::Error> {
+        match value {
+            Some(value) => Ok(value),
+            None => Err(crate::Error::decode(UnexpectedNullError)),
+        }
+    }
+}
+
+pub struct PgRow<'c> {
+    pub(super) data: DataRow<'c>,
+    pub(super) columns: Arc<HashMap<Box<str>, usize>>,
+    pub(super) formats: Arc<[TypeFormat]>,
+}
+
+impl<'c> Row<'c> for PgRow<'c> {
     type Database = Postgres;
 
     fn len(&self) -> usize {
         self.data.len()
     }
 
-    fn get<T, I>(&self, index: I) -> T
+    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<Option<PgValue<'c>>>
     where
-        Self::Database: HasSqlType<T>,
-        I: RowIndex<Self>,
-        T: Decode<Self::Database>,
+        I: ColumnIndex<Self::Database>,
     {
-        index.try_get(self).unwrap()
+        let index = index.resolve(self)?;
+        let buffer = self.data.get(index);
+
+        buffer
+            .map(|buf| match self.formats[index] {
+                TypeFormat::Binary => Ok(PgValue::Binary(buf)),
+                TypeFormat::Text => Ok(PgValue::Text(from_utf8(buf)?)),
+            })
+            .transpose()
+            .map_err(|err: Utf8Error| crate::Error::Decode(Box::new(err)))
     }
 }
-
-impl RowIndex<PgRow> for usize {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        Ok(Decode::decode_nullable(row.data.get(*self))?)
-    }
-}
-
-impl RowIndex<PgRow> for &'_ str {
-    fn try_get<T>(&self, row: &PgRow) -> crate::Result<T>
-    where
-        <PgRow as Row>::Database: HasSqlType<T>,
-        T: Decode<<PgRow as Row>::Database>,
-    {
-        let index = row
-            .columns
-            .get(*self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))?;
-        let value = Decode::decode_nullable(row.data.get(*index))?;
-
-        Ok(value)
-    }
-}
-
-impl_from_row_for_row!(PgRow);

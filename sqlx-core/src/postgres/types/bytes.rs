@@ -1,26 +1,27 @@
-use crate::decode::{Decode, DecodeError};
+use std::convert::TryInto;
+
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::postgres::{PgValue, Postgres};
+use crate::types::Type;
 
-impl HasSqlType<[u8]> for Postgres {
+impl Type<Postgres> for [u8] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::BYTEA)
+        PgTypeInfo::new(TypeId::BYTEA, "BYTEA")
     }
 }
 
-impl HasSqlType<[&'_ [u8]]> for Postgres {
+impl Type<Postgres> for [&'_ [u8]] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_BYTEA)
+        PgTypeInfo::new(TypeId::ARRAY_BYTEA, "BYTEA[]")
     }
 }
 
-// TODO: Do we need the [HasSqlType] here on the Vec?
-impl HasSqlType<Vec<u8>> for Postgres {
+impl Type<Postgres> for Vec<u8> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[u8]>>::type_info()
+        <[u8] as Type<Postgres>>::type_info()
     }
 }
 
@@ -36,8 +37,27 @@ impl Encode<Postgres> for Vec<u8> {
     }
 }
 
-impl Decode<Postgres> for Vec<u8> {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        Ok(buf.to_vec())
+impl<'de> Decode<'de, Postgres> for Vec<u8> {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => Ok(buf.to_vec()),
+            PgValue::Text(s) => {
+                // BYTEA is formatted as \x followed by hex characters
+                hex::decode(&s[2..]).map_err(crate::Error::decode)
+            }
+        }
+    }
+}
+
+impl<'de> Decode<'de, Postgres> for &'de [u8] {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+        match value.try_into()? {
+            PgValue::Binary(buf) => Ok(buf),
+            PgValue::Text(_s) => Err(crate::Error::Decode(
+                "unsupported decode to `&[u8]` of BYTEA in a simple query; \
+                    use a prepared query or decode to `Vec<u8>`"
+                    .into(),
+            )),
+        }
     }
 }

@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 // For the love of crypto, please delete as much of this as possible and use the RSA crate
 // directly when that PR is merged
 
-pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<Box<[u8]>> {
+pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<Vec<u8>> {
     let key = std::str::from_utf8(key).map_err(|_err| {
         // TODO(@abonander): protocol_err doesn't like referring to [err]
         protocol_err!("unexpected error decoding what should be UTF-8")
@@ -14,7 +14,7 @@ pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<Box<[u8]>
 
     let key = parse(key)?;
 
-    Ok(oaep_encrypt::<_, D>(&mut thread_rng(), &key, message)?.into_boxed_slice())
+    Ok(oaep_encrypt::<_, D>(&mut thread_rng(), &key, message)?)
 }
 
 // https://github.com/RustCrypto/RSA/blob/9f1464c43831d422d9903574aad6ab072db9f2b0/src/internals.rs#L12

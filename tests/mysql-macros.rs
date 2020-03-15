@@ -1,9 +1,10 @@
-use sqlx::MySqlConnection;
+use sqlx::MySql;
+use sqlx_test::new;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn macro_select_from_cte() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
     let account =
         sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name) accounts")
             .fetch_one(&mut conn)
@@ -18,7 +19,7 @@ async fn macro_select_from_cte() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn macro_select_from_cte_bind() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
     let account = sqlx::query!(
         "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
         1i32
@@ -41,7 +42,7 @@ struct RawAccount {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_query_as_raw() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<MySql>().await?;
 
     let account = sqlx::query_as!(
         RawAccount,
@@ -56,12 +57,4 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     println!("{:?}", account);
 
     Ok(())
-}
-
-fn url() -> anyhow::Result<String> {
-    Ok(dotenv::var("DATABASE_URL")?)
-}
-
-async fn connect() -> anyhow::Result<MySqlConnection> {
-    Ok(MySqlConnection::open(url()?).await?)
 }
