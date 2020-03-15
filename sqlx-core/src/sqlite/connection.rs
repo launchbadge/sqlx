@@ -18,9 +18,11 @@ use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
 use crate::url::Url;
 
+/// Thin wrapper around [sqlite3] to impl `Send`.
 #[derive(Clone, Copy)]
 pub(super) struct SqliteConnectionHandle(NonNull<sqlite3>);
 
+/// A connection to a [SQLite][super::Sqlite] database.
 pub struct SqliteConnection {
     handle: SqliteConnectionHandle,
     pub(super) worker: Worker,
@@ -42,17 +44,6 @@ pub struct SqliteConnection {
 
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteConnectionHandle {}
-
-// A SQLite3 handle is unsafe to concurrently access from
-// more than on thread. However, `SqliteConnection` must be (and can safely be) `Sync`
-// for other usage. We must be sure to require a `&mut self` receiver on any method
-// that interacts with `self.handle`.
-
-// We uphold this invariant by only allowing `pub(crate)` access to our connection
-// handle through a `&mut self` function, `handle`.
-
-#[allow(unsafe_code)]
-unsafe impl Sync for SqliteConnection {}
 
 async fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
     let mut worker = Worker::new();

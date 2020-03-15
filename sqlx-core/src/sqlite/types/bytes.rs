@@ -31,7 +31,7 @@ impl Encode<Sqlite> for Vec<u8> {
 
 impl<'de> Decode<'de, Sqlite> for &'de [u8] {
     fn decode(value: SqliteResultValue<'de>) -> crate::Result<&'de [u8]> {
-        value.blob()
+        Ok(value.blob())
     }
 }
 

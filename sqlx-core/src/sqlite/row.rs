@@ -1,6 +1,3 @@
-use libsqlite3_sys::sqlite3_data_count;
-use std::os::raw::c_int;
-
 use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::SqliteStatement;
@@ -8,12 +5,13 @@ use crate::sqlite::value::SqliteResultValue;
 use crate::sqlite::{Sqlite, SqliteConnection};
 
 pub struct SqliteRow<'c> {
+    pub(super) values: usize,
     pub(super) statement: Option<usize>,
-    pub(super) connection: &'c SqliteConnection,
+    pub(super) connection: &'c mut SqliteConnection,
 }
 
-impl SqliteRow<'_> {
-    fn statement(&self) -> &SqliteStatement {
+impl<'c> SqliteRow<'c> {
+    fn statement(&'c self) -> &'c SqliteStatement {
         self.connection.statement(self.statement)
     }
 }
@@ -21,31 +19,18 @@ impl SqliteRow<'_> {
 impl<'c> Row<'c> for SqliteRow<'c> {
     type Database = Sqlite;
 
+    #[inline]
     fn len(&self) -> usize {
-        // https://sqlite.org/c3ref/data_count.html
-
-        // The sqlite3_data_count(P) interface returns the number of columns
-        // in the current row of the result set.
-
-        // The value is correct only if there was a recent call to
-        // sqlite3_step that returned SQLITE_ROW.
-
-        #[allow(unsafe_code)]
-        let count: c_int = unsafe { sqlite3_data_count(self.statement().handle()) };
-
-        count as usize
+        self.values
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<SqliteResultValue<'c>>
+    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<SqliteResultValue<'r>>
     where
+        'c: 'r,
         I: ColumnIndex<Self::Database>,
     {
         let index = index.resolve(self)?;
-        let value = SqliteResultValue {
-            index,
-            connection: self.connection,
-            statement: self.statement,
-        };
+        let value = SqliteResultValue::new(self.statement(), index);
 
         Ok(value)
     }

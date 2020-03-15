@@ -133,7 +133,7 @@ impl Executor for SqliteConnection {
         Box::pin(async move {
             let (mut query, _) = query.into_parts();
             let key = self.prepare(&mut query, false)?;
-            let statement = self.statement(key);
+            let statement = self.statement_mut(key);
 
             // First let's attempt to describe what we can about parameter types
             // Which happens to just be the count, heh
@@ -148,10 +148,10 @@ impl Executor for SqliteConnection {
             .into_boxed_slice();
 
             // Next, collect (return) column types and names
-            let num_columns = statement.num_columns();
+            let num_columns = statement.column_count();
             let mut columns = Vec::with_capacity(num_columns);
             for i in 0..num_columns {
-                let name = statement.column_name(i);
+                let name = statement.column_name(i).to_owned();
                 let decl = statement.column_decltype(i);
 
                 let r#type = match decl {

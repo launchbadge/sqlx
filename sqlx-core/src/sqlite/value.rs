@@ -1,4 +1,7 @@
+use core::slice;
+
 use std::ffi::CStr;
+use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     sqlite3_column_blob, sqlite3_column_bytes, sqlite3_column_double, sqlite3_column_int,
@@ -8,18 +11,16 @@ use libsqlite3_sys::{
 
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::types::SqliteType;
-use crate::sqlite::SqliteConnection;
-use core::slice;
 
 pub struct SqliteResultValue<'c> {
-    pub(super) index: usize,
-    pub(super) statement: Option<usize>,
-    pub(super) connection: &'c SqliteConnection,
+    index: usize,
+    statement: &'c SqliteStatement,
 }
 
-impl SqliteResultValue<'_> {
-    fn statement(&self) -> &SqliteStatement {
-        self.connection.statement(self.statement)
+impl<'c> SqliteResultValue<'c> {
+    #[inline]
+    pub(super) fn new(statement: &'c SqliteStatement, index: usize) -> Self {
+        Self { statement, index }
     }
 }
 
@@ -29,10 +30,10 @@ impl SqliteResultValue<'_> {
 // These routines return information about a single column of the current result row of a query.
 
 impl<'c> SqliteResultValue<'c> {
-    pub(crate) fn r#type(&self) -> SqliteType {
+    /// Returns the initial data type of the result column.
+    pub(super) fn r#type(&self) -> SqliteType {
         #[allow(unsafe_code)]
-        let type_code =
-            unsafe { sqlite3_column_type(self.statement().handle(), self.index as i32) };
+        let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index as i32) };
 
         match type_code {
             SQLITE_INTEGER => SqliteType::Integer,
@@ -45,53 +46,56 @@ impl<'c> SqliteResultValue<'c> {
         }
     }
 
-    pub(crate) fn int(&self) -> i32 {
+    /// Returns the 32-bit INTEGER result.
+    pub(super) fn int(&self) -> i32 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_int(self.statement().handle(), self.index as i32)
+            sqlite3_column_int(self.statement.handle(), self.index as i32)
         }
     }
 
-    pub(crate) fn int64(&self) -> i64 {
+    /// Returns the 64-bit INTEGER result.
+    pub(super) fn int64(&self) -> i64 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_int64(self.statement().handle(), self.index as i32)
+            sqlite3_column_int64(self.statement.handle(), self.index as i32)
         }
     }
 
-    pub(crate) fn double(&self) -> f64 {
+    /// Returns the 64-bit, REAL result.
+    pub(super) fn double(&self) -> f64 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_double(self.statement().handle(), self.index as i32)
+            sqlite3_column_double(self.statement.handle(), self.index as i32)
         }
     }
 
-    pub(crate) fn text(&self) -> crate::Result<&'c str> {
+    /// Returns the UTF-8 TEXT result.
+    pub(super) fn text(&self) -> &'c str {
         #[allow(unsafe_code)]
-        let raw = unsafe {
-            let ptr =
-                sqlite3_column_text(self.statement().handle(), self.index as i32) as *const i8;
+        unsafe {
+            let ptr = sqlite3_column_text(self.statement.handle(), self.index as i32) as *const i8;
 
             debug_assert!(!ptr.is_null());
 
-            CStr::from_ptr(ptr)
-        };
-
-        raw.to_str().map_err(crate::Error::decode)
+            from_utf8_unchecked(CStr::from_ptr(ptr).to_bytes())
+        }
     }
 
-    pub(crate) fn blob(&self) -> crate::Result<&'c [u8]> {
+    /// Returns the BLOB result.
+    pub(super) fn blob(&self) -> &'c [u8] {
         let index = self.index as i32;
 
         #[allow(unsafe_code)]
-        let ptr = unsafe { sqlite3_column_blob(self.statement().handle(), index) };
+        let ptr = unsafe { sqlite3_column_blob(self.statement.handle(), index) };
+
+        // Returns the size of the BLOB result in bytes.
+        #[allow(unsafe_code)]
+        let len = unsafe { sqlite3_column_bytes(self.statement.handle(), index) };
 
         #[allow(unsafe_code)]
-        let len = unsafe { sqlite3_column_bytes(self.statement().handle(), index) };
-
-        #[allow(unsafe_code)]
-        let raw = unsafe { slice::from_raw_parts(ptr as *const u8, len as usize) };
-
-        Ok(raw)
+        unsafe {
+            slice::from_raw_parts(ptr as *const u8, len as usize)
+        }
     }
 }

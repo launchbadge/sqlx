@@ -26,27 +26,30 @@ pub trait Row<'c>: Unpin + Send {
 
     fn get<'r, T, I>(&'r self, index: I) -> T
     where
+        'c: 'r,
         T: Type<Self::Database>,
         I: ColumnIndex<Self::Database>,
-        T: Decode<'c, Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
 
     fn try_get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
     where
+        'c: 'r,
         T: Type<Self::Database>,
         I: ColumnIndex<Self::Database>,
-        T: Decode<'c, Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         Ok(Decode::decode(self.try_get_raw(index)?)?)
     }
 
     fn try_get_raw<'r, I>(
-        &self,
+        &'r self,
         index: I,
-    ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
+    ) -> crate::Result<<Self::Database as HasRawValue<'r>>::RawValue>
     where
+        'c: 'r,
         I: ColumnIndex<Self::Database>;
 }
 
@@ -68,7 +71,7 @@ macro_rules! impl_from_row_for_tuple {
         impl<'c, $($T,)+> crate::row::FromRow<'c, $r<'c>> for ($($T,)+)
         where
             $($T: crate::types::Type<$db>,)+
-            $($T: crate::decode::Decode<'c, $db>,)+
+            $($T: for<'r> crate::decode::Decode<'r, $db>,)+
         {
             #[inline]
             fn from_row(row: $r<'c>) -> crate::Result<Self> {

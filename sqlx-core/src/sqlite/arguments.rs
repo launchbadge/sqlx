@@ -1,4 +1,5 @@
 use core::ffi::c_void;
+use core::mem;
 
 use std::os::raw::c_int;
 
@@ -13,7 +14,6 @@ use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::Sqlite;
 use crate::sqlite::SqliteError;
 use crate::types::Type;
-use core::mem;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue {

@@ -76,6 +76,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
         match step {
             Step::Row => {
                 return Ok(Some(SqliteRow {
+                    values: statement.data_count(),
                     statement: key,
                     connection: conn,
                 }));

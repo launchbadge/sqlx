@@ -31,7 +31,7 @@ impl Encode<Sqlite> for String {
 
 impl<'de> Decode<'de, Sqlite> for &'de str {
     fn decode(value: SqliteResultValue<'de>) -> crate::Result<&'de str> {
-        value.text()
+        Ok(value.text())
     }
 }
 

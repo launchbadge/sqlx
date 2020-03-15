@@ -6,42 +6,47 @@ use std::os::raw::c_int;
 
 use libsqlite3_sys::{
     sqlite3_bind_parameter_count, sqlite3_clear_bindings, sqlite3_column_count,
-    sqlite3_column_decltype, sqlite3_column_name, sqlite3_finalize, sqlite3_prepare_v3,
-    sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB,
-    SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
+    sqlite3_column_decltype, sqlite3_column_name, sqlite3_data_count, sqlite3_finalize,
+    sqlite3_prepare_v3, sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
+    SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
 use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
 
-pub(crate) enum Step {
+/// Return values from [SqliteStatement::step].
+pub(super) enum Step {
+    /// The statement has finished executing successfully.
     Done,
+
+    /// Another row of output is available.
     Row,
 }
 
+/// Thin wrapper around [sqlite3_stmt] to impl `Send`.
 #[derive(Clone, Copy)]
 pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
 
+/// Represents a _single_ SQL statement that has been compiled into binary
+/// form and is ready to be evaluated.
+///
+/// The statement is finalized ( `sqlite3_finalize` ) on drop.
 pub(super) struct SqliteStatement {
     handle: SqliteStatementHandle,
-    worker: Worker,
+    pub(super) worker: Worker,
     pub(super) tail: usize,
     pub(super) columns: HashMap<String, usize>,
 }
 
-// SQLite3 objects are safe to send between threads, but *not* safe
-// for concurrent access between threads. See more notes
+// SQLite3 statement objects are safe to send between threads, but *not* safe
+// for general-purpose concurrent access between threads. See more notes
 // on [SqliteConnectionHandle].
 
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteStatementHandle {}
 
 impl SqliteStatement {
-    pub(super) fn handle(&self) -> *mut sqlite3_stmt {
-        self.handle.0.as_ptr()
-    }
-
     pub(super) fn new(
         conn: &mut SqliteConnection,
         query: &mut &str,
@@ -92,24 +97,46 @@ impl SqliteStatement {
         };
 
         // Prepare a column hash map for use in pulling values from a column by name
-        let count = self_.num_columns();
+        let count = self_.column_count();
         self_.columns.reserve(count);
 
         for i in 0..count {
-            self_.columns.insert(self_.column_name(i).to_owned(), i);
+            let name = self_.column_name(i).to_owned();
+            self_.columns.insert(name, i);
         }
 
         Ok(self_)
     }
 
-    pub(super) fn num_columns(&self) -> usize {
+    /// Returns a pointer to the raw C pointer backing this statement.
+    #[inline]
+    #[allow(unsafe_code)]
+    pub(super) unsafe fn handle(&self) -> *mut sqlite3_stmt {
+        self.handle.0.as_ptr()
+    }
+
+    pub(super) fn data_count(&mut self) -> usize {
+        // https://sqlite.org/c3ref/data_count.html
+
+        // The sqlite3_data_count(P) interface returns the number of columns
+        // in the current row of the result set.
+
+        // The value is correct only if there was a recent call to
+        // sqlite3_step that returned SQLITE_ROW.
+
+        #[allow(unsafe_code)]
+        let count: c_int = unsafe { sqlite3_data_count(self.handle()) };
+        count as usize
+    }
+
+    pub(super) fn column_count(&mut self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
         #[allow(unsafe_code)]
         let count = unsafe { sqlite3_column_count(self.handle()) };
         count as usize
     }
 
-    pub(super) fn column_name(&self, index: usize) -> &str {
+    pub(super) fn column_name(&mut self, index: usize) -> &str {
         // https://sqlite.org/c3ref/column_name.html
         #[allow(unsafe_code)]
         let name = unsafe {
@@ -122,7 +149,7 @@ impl SqliteStatement {
         name.to_str().unwrap()
     }
 
-    pub(super) fn column_decltype(&self, index: usize) -> Option<&str> {
+    pub(super) fn column_decltype(&mut self, index: usize) -> Option<&str> {
         // https://sqlite.org/c3ref/column_name.html
         #[allow(unsafe_code)]
         let name = unsafe {
@@ -138,7 +165,7 @@ impl SqliteStatement {
         name.map(|s| s.to_str().unwrap())
     }
 
-    pub(super) fn params(&self) -> usize {
+    pub(super) fn params(&mut self) -> usize {
         // https://www.hwaci.com/sw/sqlite/c3ref/bind_parameter_count.html
         #[allow(unsafe_code)]
         let num = unsafe { sqlite3_bind_parameter_count(self.handle()) };
@@ -174,21 +201,18 @@ impl SqliteStatement {
     pub(super) async fn step(&mut self) -> crate::Result<Step> {
         // https://sqlite.org/c3ref/step.html
 
-        let status = self
-            .worker
-            .run({
-                let handle = self.handle;
-                move || {
-                    #[allow(unsafe_code)]
-                    unsafe {
-                        sqlite3_step(handle.0.as_ptr())
-                    }
-                }
-            })
-            .await;
+        let handle = self.handle;
+
+        #[allow(unsafe_code)]
+        let status = unsafe {
+            self.worker
+                .run(move || sqlite3_step(handle.0.as_ptr()))
+                .await
+        };
 
         match status {
             SQLITE_DONE => Ok(Step::Done),
+
             SQLITE_ROW => Ok(Step::Row),
 
             status => {
