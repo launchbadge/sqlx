@@ -1,6 +1,6 @@
 use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
-use crate::sqlite::statement::SqliteStatement;
+use crate::sqlite::statement::Statement;
 use crate::sqlite::value::SqliteValue;
 use crate::sqlite::{Sqlite, SqliteConnection};
 
@@ -11,7 +11,7 @@ pub struct SqliteRow<'c> {
 }
 
 impl<'c> SqliteRow<'c> {
-    fn statement(&'c self) -> &'c SqliteStatement {
+    fn statement(&'c self) -> &'c Statement {
         self.connection.statement(self.statement)
     }
 }

@@ -13,7 +13,7 @@ use libsqlite3_sys::{
 
 use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
-use crate::sqlite::statement::SqliteStatement;
+use crate::sqlite::statement::Statement;
 use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
 use crate::url::Url;
@@ -27,9 +27,9 @@ pub struct SqliteConnection {
     pub(super) handle: SqliteConnectionHandle,
     pub(super) worker: Worker,
     // Storage of the most recently prepared, non-persistent statement
-    pub(super) statement: Option<SqliteStatement>,
+    pub(super) statement: Option<Statement>,
     // Storage of persistent statements
-    pub(super) statements: Vec<SqliteStatement>,
+    pub(super) statements: Vec<Statement>,
     pub(super) statement_by_query: HashMap<String, usize>,
 }
 

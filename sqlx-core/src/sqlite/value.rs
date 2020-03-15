@@ -9,17 +9,17 @@ use libsqlite3_sys::{
     SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT,
 };
 
-use crate::sqlite::statement::SqliteStatement;
+use crate::sqlite::statement::Statement;
 use crate::sqlite::types::SqliteType;
 
 pub struct SqliteValue<'c> {
     index: usize,
-    statement: &'c SqliteStatement,
+    statement: &'c Statement,
 }
 
 impl<'c> SqliteValue<'c> {
     #[inline]
-    pub(super) fn new(statement: &'c SqliteStatement, index: usize) -> Self {
+    pub(super) fn new(statement: &'c Statement, index: usize) -> Self {
         Self { statement, index }
     }
 }

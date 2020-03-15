@@ -33,7 +33,7 @@ pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
 /// form and is ready to be evaluated.
 ///
 /// The statement is finalized ( `sqlite3_finalize` ) on drop.
-pub(super) struct SqliteStatement {
+pub(super) struct Statement {
     handle: SqliteStatementHandle,
     pub(super) connection: SqliteConnectionHandle,
     pub(super) worker: Worker,
@@ -48,7 +48,7 @@ pub(super) struct SqliteStatement {
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteStatementHandle {}
 
-impl SqliteStatement {
+impl Statement {
     pub(super) fn new(
         conn: &mut SqliteConnection,
         query: &mut &str,
@@ -225,7 +225,7 @@ impl SqliteStatement {
     }
 }
 
-impl Drop for SqliteStatement {
+impl Drop for Statement {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/finalize.html
         #[allow(unsafe_code)]

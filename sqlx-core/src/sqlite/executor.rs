@@ -6,7 +6,7 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::sqlite::cursor::SqliteCursor;
-use crate::sqlite::statement::{SqliteStatement, Step};
+use crate::sqlite::statement::{Statement, Step};
 use crate::sqlite::types::SqliteType;
 use crate::sqlite::{Sqlite, SqliteConnection, SqliteTypeInfo};
 
@@ -22,7 +22,7 @@ impl SqliteConnection {
         if !persistent {
             // A non-persistent query will be immediately prepared and returned,
             // regardless of the current state of the cache
-            self.statement = Some(SqliteStatement::new(self, query, false)?);
+            self.statement = Some(Statement::new(self, query, false)?);
             return Ok(None);
         }
 
@@ -44,7 +44,7 @@ impl SqliteConnection {
         // for a "long" time and re-used multiple times
 
         let query_key = query.to_owned();
-        let statement = SqliteStatement::new(self, query, true)?;
+        let statement = Statement::new(self, query, true)?;
 
         let key = self.statements.len();
 
@@ -66,7 +66,7 @@ impl SqliteConnection {
     }
 
     #[inline]
-    pub(super) fn statement(&self, key: Option<usize>) -> &SqliteStatement {
+    pub(super) fn statement(&self, key: Option<usize>) -> &Statement {
         match key {
             Some(key) => &self.statements[key],
             None => self.statement.as_ref().unwrap(),
@@ -74,7 +74,7 @@ impl SqliteConnection {
     }
 
     #[inline]
-    pub(super) fn statement_mut(&mut self, key: Option<usize>) -> &mut SqliteStatement {
+    pub(super) fn statement_mut(&mut self, key: Option<usize>) -> &mut Statement {
         match key {
             Some(key) => &mut self.statements[key],
             None => self.statement.as_mut().unwrap(),
