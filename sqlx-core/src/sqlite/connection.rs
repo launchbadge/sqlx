@@ -33,8 +33,8 @@ pub struct SqliteConnection {
 
 // SAFE: A sqlite3 handle is safe to access from multiple threads provided
 //       that only one thread access it at a time. Or in other words,
-//       the same guarantees that [Sync] requires. This is upheld as long
-//       [SQLITE_CONFIG_MULTITHREAD] is enabled and [SQLITE_THREADSAFE] was
+//       the same guarantees that [Sync] with a mutable receiver (`&mut self`) requires.
+//       This is upheld as long [SQLITE_CONFIG_MULTITHREAD] is enabled and [SQLITE_THREADSAFE] was
 //       enabled when sqlite was compiled. We refuse to work if these conditions are
 //       not upheld, see [SqliteConnection::establish].
 //
