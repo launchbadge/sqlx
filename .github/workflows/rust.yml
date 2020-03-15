@@ -59,6 +59,16 @@ jobs:
     # unit test: tokio
     - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'chrono uuid postgres mysql tls runtime-tokio'
 
+    # integration test: sqlite + async-std
+    - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros uuid chrono tls'
+      env:
+        DATABASE_URL: "sqlite::memory:"
+
+    # integration test: sqlite + tokio
+    - run: cargo test --no-default-features --features 'runtime-tokio sqlite macros uuid chrono tls'
+      env:
+        DATABASE_URL: "sqlite::memory:"
+
     # Rust ------------------------------------------------
 
     - name: Prepare build directory for cache
