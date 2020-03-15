@@ -5,10 +5,10 @@ use std::ffi::CStr;
 use std::os::raw::c_int;
 
 use libsqlite3_sys::{
-    sqlite3_bind_parameter_count, sqlite3_column_count, sqlite3_column_decltype,
-    sqlite3_column_name, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset, sqlite3_step,
-    sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT,
-    SQLITE_ROW,
+    sqlite3_bind_parameter_count, sqlite3_clear_bindings, sqlite3_column_count,
+    sqlite3_column_decltype, sqlite3_column_name, sqlite3_finalize, sqlite3_prepare_v3,
+    sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB,
+    SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
 use crate::sqlite::worker::Worker;
@@ -160,12 +160,16 @@ impl SqliteStatement {
 
     pub(super) fn reset(&mut self) {
         // https://sqlite.org/c3ref/reset.html
+        // https://sqlite.org/c3ref/clear_bindings.html
 
         // the status value of reset is ignored because it merely propagates
         // the status of the most recently invoked step function
 
         #[allow(unsafe_code)]
         let _ = unsafe { sqlite3_reset(self.handle()) };
+
+        #[allow(unsafe_code)]
+        let _ = unsafe { sqlite3_clear_bindings(self.handle()) };
     }
 
     pub(super) async fn step(&mut self) -> crate::Result<Step> {
