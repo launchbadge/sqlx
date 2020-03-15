@@ -3,6 +3,7 @@ use std::time::Duration;
 use async_std::stream;
 use futures::stream::StreamExt;
 use sqlx::postgres::PgPoolExt;
+use sqlx::Executor;
 
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,14 +45,14 @@ async fn notify(pool: sqlx::PgPool) {
         Ok(conn) => conn,
         Err(err) => return println!("[from notify]: {:?}", err),
     };
-    let res = sqlx::Executor::send(
-        &mut conn,
-        r#"
+    let res = conn
+        .execute(
+            r#"
         NOTIFY "chan0", '{"payload": 0}';
         NOTIFY "chan1", '{"payload": 1}';
         NOTIFY "chan2", '{"payload": 2}';
     "#,
-    )
-    .await;
+        )
+        .await;
     println!("[from notify]: {:?}", res);
 }

@@ -74,25 +74,26 @@ where
                     }
                     return Err(err);
                 }
+
                 self.needs_to_send_listen_cmd = false;
             }
+
             // Await a notification from the DB.
-            match self.connection.receive().await? {
+            return match self.connection.stream.read().await? {
                 // We've received an async notification, return it.
-                Some(Message::NotificationResponse(notification)) => {
-                    return Ok(Some(notification.into()))
+                Message::NotificationResponse => {
+                    let notification = NotificationResponse::read(self.connection.stream.buffer())?;
+
+                    Ok(Some(notification.into()))
                 }
+
                 // Protocol error, return the error.
-                Some(msg) => {
-                    return Err(protocol_err!(
-                        "unexpected message received from database {:?}",
-                        msg
-                    )
-                    .into())
-                }
-                // The connection is dead, return None.
-                None => return Ok(None),
-            }
+                message => Err(protocol_err!(
+                    "unexpected message received from database {:?}",
+                    message
+                )
+                .into()),
+            };
         }
     }
 
@@ -186,25 +187,28 @@ impl PgPoolListener {
                 self.needs_to_send_listen_cmd = false;
             }
             // Await a notification from the DB.
-            match conn.receive().await? {
+            // TODO: Handle connection dead here
+            match conn.stream.read().await? {
                 // We've received an async notification, return it.
-                Some(Message::NotificationResponse(notification)) => {
+                Message::NotificationResponse => {
+                    let notification = NotificationResponse::read(conn.stream.buffer())?;
+
                     return Ok(notification.into());
                 }
+
                 // Protocol error, return the error.
-                Some(msg) => {
+                msg => {
                     return Err(protocol_err!(
                         "unexpected message received from database {:?}",
                         msg
                     )
                     .into())
-                }
-                // The connection is dead, ensure that it is dropped, update self state, and loop to try again.
-                None => {
-                    self.close_conn().await;
-                    self.needs_to_send_listen_cmd = true;
-                    continue;
-                }
+                } // The connection is dead, ensure that it is dropped, update self state, and loop to try again.
+                  // None => {
+                  //     self.close_conn().await;
+                  //     self.needs_to_send_listen_cmd = true;
+                  //     continue;
+                  // }
             }
         }
     }
@@ -243,8 +247,8 @@ pub struct PgNotification {
     pub payload: String,
 }
 
-impl From<Box<NotificationResponse>> for PgNotification {
-    fn from(src: Box<NotificationResponse>) -> Self {
+impl From<NotificationResponse> for PgNotification {
+    fn from(src: NotificationResponse) -> Self {
         Self {
             pid: src.pid,
             channel: src.channel_name,
@@ -269,7 +273,9 @@ async fn send_listen_query<C: DerefMut<Target = PgConnection>>(
     channels: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Result<()> {
     let cmd = build_listen_all_query(channels);
-    conn.send(cmd.as_str()).await
+    let _ = conn.execute(cmd.as_str()).await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
