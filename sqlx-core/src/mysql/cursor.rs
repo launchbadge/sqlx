@@ -78,14 +78,19 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
     loop {
         let packet_id = conn.stream.receive().await?[0];
+
         match packet_id {
             // OK or EOF packet
             0x00 | 0xFE
                 if conn.stream.packet().len() < 0xFF_FF_FF && (packet_id != 0x00 || initial) =>
             {
-                let ok = conn.stream.handle_ok()?;
+                let status = if let Some(eof) = conn.stream.maybe_handle_eof()? {
+                    eof.status
+                } else {
+                    conn.stream.handle_ok()?.status
+                };
 
-                if ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
+                if status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                     // There is more to this query
                     initial = true;
                 } else {
@@ -122,6 +127,10 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                     if let Some(name) = column.name() {
                         column_names.insert(name.to_owned().into_boxed_str(), i as u16);
                     }
+                }
+
+                if cc.columns > 0 {
+                    conn.stream.maybe_receive_eof().await?;
                 }
 
                 cursor.column_names = Arc::new(column_names);
