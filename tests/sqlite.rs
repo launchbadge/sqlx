@@ -24,6 +24,21 @@ async fn it_fails_to_connect() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_fails_to_parse() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let res = conn.execute("SEELCT 1").await;
+
+    assert!(res.is_err());
+
+    let err = res.unwrap_err().to_string();
+
+    assert_eq!("near \"SEELCT\": syntax error", err);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

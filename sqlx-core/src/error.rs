@@ -223,19 +223,6 @@ macro_rules! tls_err {
 #[allow(unused_macros)]
 macro_rules! impl_fmt_error {
     ($err:ty) => {
-        impl std::fmt::Debug for $err {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.debug_struct("DatabaseError")
-                    .field("message", &self.message())
-                    .field("details", &self.details())
-                    .field("hint", &self.hint())
-                    .field("table_name", &self.table_name())
-                    .field("column_name", &self.column_name())
-                    .field("constraint_name", &self.constraint_name())
-                    .finish()
-            }
-        }
-
         impl std::fmt::Display for $err {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 f.pad(self.message())

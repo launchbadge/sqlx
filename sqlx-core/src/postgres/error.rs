@@ -1,6 +1,9 @@
+use std::fmt::{self, Display};
+
 use crate::error::DatabaseError;
 use crate::postgres::protocol::Response;
 
+#[derive(Debug)]
 pub struct PgError(pub(super) Response);
 
 impl DatabaseError for PgError {
@@ -29,4 +32,8 @@ impl DatabaseError for PgError {
     }
 }
 
-impl_fmt_error!(PgError);
+impl Display for PgError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.pad(self.message())
+    }
+}

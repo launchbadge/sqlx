@@ -11,6 +11,7 @@ use libsqlite3_sys::{
     SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
+use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
@@ -34,6 +35,7 @@ pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
 /// The statement is finalized ( `sqlite3_finalize` ) on drop.
 pub(super) struct SqliteStatement {
     handle: SqliteStatementHandle,
+    pub(super) connection: SqliteConnectionHandle,
     pub(super) worker: Worker,
     pub(super) tail: usize,
     pub(super) columns: HashMap<String, usize>,
@@ -80,17 +82,18 @@ impl SqliteStatement {
             )
         };
 
+        if status != SQLITE_OK {
+            return Err(SqliteError::from_connection(conn.handle()).into());
+        }
+
         // If pzTail is not NULL then *pzTail is made to point to the first byte
         // past the end of the first SQL statement in zSql.
         let tail = (tail as usize) - (query_ptr as usize);
         *query = &query[tail..].trim();
 
-        if status != SQLITE_OK {
-            return Err(SqliteError::new(status).into());
-        }
-
         let mut self_ = Self {
             worker: conn.worker.clone(),
+            connection: conn.handle,
             handle: SqliteStatementHandle(NonNull::new(statement_handle).unwrap()),
             columns: HashMap::new(),
             tail,
@@ -215,8 +218,8 @@ impl SqliteStatement {
 
             SQLITE_ROW => Ok(Step::Row),
 
-            status => {
-                return Err(SqliteError::new(status).into());
+            _ => {
+                return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
             }
         }
     }

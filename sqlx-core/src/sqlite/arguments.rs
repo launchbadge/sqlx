@@ -125,7 +125,7 @@ impl SqliteArgumentValue {
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteError::new(status).into());
+            return Err(SqliteError::from_connection(statement.connection.0.as_ptr()).into());
         }
 
         Ok(())

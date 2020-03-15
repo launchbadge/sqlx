@@ -20,11 +20,11 @@ use crate::url::Url;
 
 /// Thin wrapper around [sqlite3] to impl `Send`.
 #[derive(Clone, Copy)]
-pub(super) struct SqliteConnectionHandle(NonNull<sqlite3>);
+pub(super) struct SqliteConnectionHandle(pub(super) NonNull<sqlite3>);
 
 /// A connection to a [SQLite][super::Sqlite] database.
 pub struct SqliteConnection {
-    handle: SqliteConnectionHandle,
+    pub(super) handle: SqliteConnectionHandle,
     pub(super) worker: Worker,
     // Storage of the most recently prepared, non-persistent statement
     pub(super) statement: Option<SqliteStatement>,
@@ -74,7 +74,7 @@ async fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
             let status = unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, null()) };
 
             if status != SQLITE_OK {
-                return Err(SqliteError::new(status).into());
+                return Err(SqliteError::from_connection(handle).into());
             }
 
             // Enable extended result codes
