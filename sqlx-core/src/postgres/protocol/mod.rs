@@ -1,5 +1,6 @@
 //! Low level Postgres protocol. Defines the encoding and decoding of the messages communicated
 //! to and from the database server.
+#![allow(unused)]
 
 mod type_format;
 mod type_id;

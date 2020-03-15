@@ -8,6 +8,6 @@ impl_database_ext! {
         Vec<u8>,
     },
     ParamChecking::Weak,
-    feature-types: info => None,
+    feature-types: _info => None,
     row = sqlx::sqlite::SqliteRow
 }
