@@ -5,10 +5,17 @@ use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::value::SqliteResultValue;
-use crate::sqlite::Sqlite;
+use crate::sqlite::{Sqlite, SqliteConnection};
 
 pub struct SqliteRow<'c> {
-    pub(super) statement: &'c SqliteStatement,
+    pub(super) statement: Option<usize>,
+    pub(super) connection: &'c SqliteConnection,
+}
+
+impl SqliteRow<'_> {
+    fn statement(&self) -> &SqliteStatement {
+        self.connection.statement(self.statement)
+    }
 }
 
 impl<'c> Row<'c> for SqliteRow<'c> {
@@ -24,7 +31,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         // sqlite3_step that returned SQLITE_ROW.
 
         #[allow(unsafe_code)]
-        let count: c_int = unsafe { sqlite3_data_count(self.statement.handle.as_ptr()) };
+        let count: c_int = unsafe { sqlite3_data_count(self.statement().handle.as_ptr()) };
 
         count as usize
     }
@@ -36,6 +43,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         let index = index.resolve(self)?;
         let value = SqliteResultValue {
             index,
+            connection: self.connection,
             statement: self.statement,
         };
 
@@ -57,7 +65,7 @@ impl ColumnIndex<Sqlite> for usize {
 
 impl ColumnIndex<Sqlite> for &'_ str {
     fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<usize> {
-        row.statement
+        row.statement()
             .columns()
             .get(self)
             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))

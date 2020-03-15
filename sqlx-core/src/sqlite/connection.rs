@@ -12,13 +12,15 @@ use libsqlite3_sys::{
 };
 
 use crate::connection::{Connect, Connection};
-use crate::runtime::spawn_blocking;
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::SqliteError;
 use crate::url::Url;
 
 pub struct SqliteConnection {
     pub(super) handle: NonNull<sqlite3>,
+    // Storage of the most recently prepared, non-persistent statement
+    pub(super) statement: Option<SqliteStatement>,
+    // Storage of persistent statements
     pub(super) statements: Vec<SqliteStatement>,
     pub(super) statement_by_query: HashMap<String, usize>,
 }
@@ -66,6 +68,7 @@ fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
 
     Ok(SqliteConnection {
         handle: NonNull::new(handle).unwrap(),
+        statement: None,
         statements: Vec::with_capacity(10),
         statement_by_query: HashMap::with_capacity(10),
     })

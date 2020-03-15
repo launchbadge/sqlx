@@ -5,46 +5,67 @@ use libsqlite3_sys::sqlite3_changes;
 use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
-use crate::maybe_owned::MaybeOwned;
 use crate::sqlite::cursor::SqliteCursor;
 use crate::sqlite::statement::{SqliteStatement, Step};
 use crate::sqlite::types::SqliteType;
 use crate::sqlite::{Sqlite, SqliteConnection, SqliteTypeInfo};
 
 impl SqliteConnection {
+    pub(super) fn statement(&self, key: Option<usize>) -> &SqliteStatement {
+        match key {
+            Some(key) => &self.statements[key],
+            None => self.statement.as_ref().unwrap(),
+        }
+    }
+
+    pub(super) fn statement_mut(&mut self, key: Option<usize>) -> &mut SqliteStatement {
+        match key {
+            Some(key) => &mut self.statements[key],
+            None => self.statement.as_mut().unwrap(),
+        }
+    }
+
     pub(super) fn prepare(
         &mut self,
-        query: &str,
+        query: &mut &str,
         persistent: bool,
-    ) -> crate::Result<MaybeOwned<SqliteStatement, usize>> {
+    ) -> crate::Result<Option<usize>> {
         // TODO: Revisit statement caching and allow cache expiration by using a
         //       generational index
 
         if !persistent {
-            // A non-persistent query will be immediately prepared and returned
-            return SqliteStatement::new(&mut self.handle, query, false).map(MaybeOwned::Owned);
+            // A non-persistent query will be immediately prepared and returned,
+            // regardless of the current state of the cache
+            self.statement = Some(SqliteStatement::new(&mut self.handle, query, false)?);
+            return Ok(None);
         }
 
-        if let Some(key) = self.statement_by_query.get(query) {
+        if let Some(key) = self.statement_by_query.get(&**query) {
             let statement = &mut self.statements[*key];
+
+            // Adjust the passed in query string as if [string3_prepare]
+            // did the tail parsing
+            *query = &query[statement.tail..];
 
             // As this statement has very likely been used before, we reset
             // it to clear the bindings and its program state
             statement.reset();
 
-            return Ok(MaybeOwned::Borrowed(*key));
+            return Ok(Some(*key));
         }
 
         // Prepare a new statement object; ensuring to tell SQLite that this will be stored
         // for a "long" time and re-used multiple times
 
+        let query_key = query.to_owned();
+        let statement = SqliteStatement::new(&mut self.handle, query, true)?;
+
         let key = self.statements.len();
 
-        self.statement_by_query.insert(query.to_owned(), key);
-        self.statements
-            .push(SqliteStatement::new(&mut self.handle, query, true)?);
+        self.statement_by_query.insert(query_key, key);
+        self.statements.push(statement);
 
-        Ok(MaybeOwned::Borrowed(key))
+        Ok(Some(key))
     }
 
     // This is used for [affected_rows] in the public API.
@@ -72,15 +93,21 @@ impl Executor for SqliteConnection {
         let (mut query, mut arguments) = query.into_parts();
 
         Box::pin(async move {
-            let mut statement = self.prepare(query, arguments.is_some())?;
-            let statement_ = statement.resolve(&mut self.statements);
+            loop {
+                let key = self.prepare(&mut query, arguments.is_some())?;
+                let statement = self.statement_mut(key);
 
-            if let Some(arguments) = &mut arguments {
-                statement_.bind(arguments)?;
-            }
+                if let Some(arguments) = &mut arguments {
+                    statement.bind(arguments)?;
+                }
 
-            while let Step::Row = statement_.step().await? {
-                // We only care about the rows modified; ignore
+                while let Step::Row = statement.step().await? {
+                    // We only care about the rows modified; ignore
+                }
+
+                if query.is_empty() {
+                    break;
+                }
             }
 
             Ok(self.changes())
@@ -102,9 +129,9 @@ impl Executor for SqliteConnection {
         E: Execute<'q, Self::Database>,
     {
         Box::pin(async move {
-            let (query, _) = query.into_parts();
-            let mut statement = self.prepare(query, false)?;
-            let statement = statement.resolve(&mut self.statements);
+            let (mut query, _) = query.into_parts();
+            let key = self.prepare(&mut query, false)?;
+            let statement = self.statement(key);
 
             // First let's attempt to describe what we can about parameter types
             // Which happens to just be the count, heh

@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 
 use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
-    sqlite3_bind_null, sqlite3_bind_text, SQLITE_OK,
+    sqlite3_bind_null, sqlite3_bind_text, SQLITE_OK, SQLITE_TRANSIENT,
 };
 
 use crate::arguments::Arguments;
@@ -13,6 +13,7 @@ use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::Sqlite;
 use crate::sqlite::SqliteError;
 use crate::types::Type;
+use core::mem;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue {
@@ -33,7 +34,22 @@ pub enum SqliteArgumentValue {
 
 #[derive(Default)]
 pub struct SqliteArguments {
-    pub(super) values: Vec<SqliteArgumentValue>,
+    index: usize,
+    values: Vec<SqliteArgumentValue>,
+}
+
+impl SqliteArguments {
+    pub(crate) fn next(&mut self) -> Option<SqliteArgumentValue> {
+        if self.index >= self.values.len() {
+            return None;
+        }
+
+        let mut value = SqliteArgumentValue::Null;
+        mem::swap(&mut value, &mut self.values[self.index]);
+
+        self.index += 1;
+        Some(value)
+    }
 }
 
 impl Arguments for SqliteArguments {
@@ -66,7 +82,13 @@ impl SqliteArgumentValue {
                 let bytes_len = bytes.len() as i32;
 
                 unsafe {
-                    sqlite3_bind_blob(statement.handle.as_ptr(), index, bytes_ptr, bytes_len, None)
+                    sqlite3_bind_blob(
+                        statement.handle.as_ptr(),
+                        index,
+                        bytes_ptr,
+                        bytes_len,
+                        SQLITE_TRANSIENT(),
+                    )
                 }
             }
 
@@ -77,7 +99,13 @@ impl SqliteArgumentValue {
                 let bytes_len = bytes.len() as i32;
 
                 unsafe {
-                    sqlite3_bind_text(statement.handle.as_ptr(), index, bytes_ptr, bytes_len, None)
+                    sqlite3_bind_text(
+                        statement.handle.as_ptr(),
+                        index,
+                        bytes_ptr,
+                        bytes_len,
+                        SQLITE_TRANSIENT(),
+                    )
                 }
             }
 

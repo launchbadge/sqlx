@@ -3,23 +3,15 @@ use futures_core::future::BoxFuture;
 use crate::connection::ConnectionSource;
 use crate::cursor::Cursor;
 use crate::executor::Execute;
-use crate::maybe_owned::MaybeOwned;
 use crate::pool::Pool;
-use crate::sqlite::statement::{SqliteStatement, Step};
+use crate::sqlite::statement::Step;
 use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
 
-enum State<'q> {
-    Query((&'q str, Option<SqliteArguments>)),
-    Statement {
-        query: &'q str,
-        arguments: Option<SqliteArguments>,
-        statement: MaybeOwned<SqliteStatement, usize>,
-    },
-}
-
 pub struct SqliteCursor<'c, 'q> {
-    source: ConnectionSource<'c, SqliteConnection>,
-    state: State<'q>,
+    pub(super) source: ConnectionSource<'c, SqliteConnection>,
+    query: &'q str,
+    arguments: Option<SqliteArguments>,
+    pub(super) statement: Option<Option<usize>>,
 }
 
 impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
@@ -30,9 +22,13 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
         Self: Sized,
         E: Execute<'q, Sqlite>,
     {
+        let (query, arguments) = query.into_parts();
+
         Self {
             source: ConnectionSource::Pool(pool.clone()),
-            state: State::Query(query.into_parts()),
+            statement: None,
+            query,
+            arguments,
         }
     }
 
@@ -41,9 +37,13 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
         Self: Sized,
         E: Execute<'q, Sqlite>,
     {
+        let (query, arguments) = query.into_parts();
+
         Self {
             source: ConnectionSource::Connection(conn.into()),
-            state: State::Query(query.into_parts()),
+            statement: None,
+            query,
+            arguments,
         }
     }
 
@@ -57,41 +57,38 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 ) -> crate::Result<Option<SqliteRow<'a>>> {
     let conn = cursor.source.resolve().await?;
 
-    let statement = loop {
-        match cursor.state {
-            State::Query((query, ref mut arguments)) => {
-                let mut statement = conn.prepare(query, arguments.is_some())?;
-                let statement_ = statement.resolve(&mut conn.statements);
+    loop {
+        if cursor.statement.is_none() {
+            let key = conn.prepare(&mut cursor.query, cursor.arguments.is_some())?;
 
-                if let Some(arguments) = arguments {
-                    statement_.bind(arguments)?;
-                }
-
-                cursor.state = State::Statement {
-                    statement,
-                    query,
-                    arguments: arguments.take(),
-                };
+            if let Some(arguments) = &mut cursor.arguments {
+                conn.statement_mut(key).bind(arguments)?;
             }
 
-            State::Statement {
-                ref mut statement, ..
-            } => {
-                break statement;
+            cursor.statement = Some(key);
+        }
+
+        let key = cursor.statement.unwrap();
+        let statement = conn.statement_mut(key);
+
+        let step = statement.step().await?;
+
+        match step {
+            Step::Row => {
+                return Ok(Some(SqliteRow {
+                    statement: key,
+                    connection: conn,
+                }));
+            }
+
+            Step::Done if cursor.query.is_empty() => {
+                return Ok(None);
+            }
+
+            Step::Done => {
+                cursor.statement = None;
+                // continue
             }
         }
-    };
-
-    let statement_ = statement.resolve(&mut conn.statements);
-
-    match statement_.step().await? {
-        Step::Done => {
-            // TODO: If there is more to do, we need to do more
-            Ok(None)
-        }
-
-        Step::Row => Ok(Some(SqliteRow {
-            statement: &*statement_,
-        })),
     }
 }

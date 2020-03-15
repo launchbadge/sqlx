@@ -10,8 +10,7 @@ impl Database for Sqlite {
 
     type TypeInfo = super::SqliteTypeInfo;
 
-    // TODO?
-    type TableId = u32;
+    type TableId = String;
 
     type RawBuffer = Vec<super::SqliteArgumentValue>;
 }

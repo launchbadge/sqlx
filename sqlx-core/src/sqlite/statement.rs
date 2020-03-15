@@ -1,6 +1,6 @@
 use core::cell::{RefCell, RefMut};
 use core::ops::Deref;
-use core::ptr::{null_mut, NonNull};
+use core::ptr::{null, null_mut, NonNull};
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -22,6 +22,7 @@ pub(crate) enum Step {
 }
 
 pub struct SqliteStatement {
+    pub(super) tail: usize,
     pub(super) handle: NonNull<sqlite3_stmt>,
     columns: RefCell<Option<HashMap<String, usize>>>,
 }
@@ -37,7 +38,7 @@ unsafe impl Sync for SqliteStatement {}
 impl SqliteStatement {
     pub(super) fn new(
         handle: &mut NonNull<sqlite3>,
-        query: &str,
+        query: &mut &str,
         persistent: bool,
     ) -> crate::Result<Self> {
         // TODO: Error on queries that are too large
@@ -45,6 +46,7 @@ impl SqliteStatement {
         let query_len = query.len() as i32;
         let mut statement_handle: *mut sqlite3_stmt = null_mut();
         let mut flags = SQLITE_PREPARE_NO_VTAB;
+        let mut tail: *const i8 = null();
 
         if persistent {
             // SQLITE_PREPARE_PERSISTENT
@@ -63,9 +65,14 @@ impl SqliteStatement {
                 query_len,
                 flags as u32,
                 &mut statement_handle,
-                null_mut(),
+                &mut tail,
             )
         };
+
+        // If pzTail is not NULL then *pzTail is made to point to the first byte
+        // past the end of the first SQL statement in zSql.
+        let tail = (tail as usize) - (query_ptr as usize);
+        *query = &query[tail..].trim();
 
         if status != SQLITE_OK {
             return Err(SqliteError::new(status).into());
@@ -74,6 +81,7 @@ impl SqliteStatement {
         Ok(Self {
             handle: NonNull::new(statement_handle).unwrap(),
             columns: RefCell::new(None),
+            tail,
         })
     }
 
@@ -132,8 +140,12 @@ impl SqliteStatement {
     }
 
     pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<()> {
-        for (index, value) in arguments.values.iter().enumerate() {
-            value.bind(self, index + 1)?;
+        for index in 0..self.params() {
+            if let Some(value) = arguments.next() {
+                value.bind(self, index + 1)?;
+            } else {
+                break;
+            }
         }
 
         Ok(())

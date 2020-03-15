@@ -56,6 +56,40 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let affected = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, other INTEGER);
+INSERT INTO users DEFAULT VALUES;
+            "#,
+        )
+        .await?;
+
+    assert_eq!(affected, 1);
+
+    for index in 2..5_i32 {
+        let (id, other): (i32, i32) = sqlx::query_as(
+            r#"
+INSERT INTO users (other) VALUES (?);
+SELECT id, other FROM users WHERE id = last_insert_rowid();
+            "#,
+        )
+        .bind(index)
+        .fetch_one(&mut conn)
+        .await?;
+
+        assert_eq!(id, index);
+        assert_eq!(other, index);
+    }
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_describes() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

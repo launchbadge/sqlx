@@ -8,11 +8,19 @@ use libsqlite3_sys::{
 
 use crate::sqlite::statement::SqliteStatement;
 use crate::sqlite::types::SqliteType;
+use crate::sqlite::SqliteConnection;
 use core::slice;
 
 pub struct SqliteResultValue<'c> {
     pub(super) index: usize,
-    pub(super) statement: &'c SqliteStatement,
+    pub(super) statement: Option<usize>,
+    pub(super) connection: &'c SqliteConnection,
+}
+
+impl SqliteResultValue<'_> {
+    fn statement(&self) -> &SqliteStatement {
+        self.connection.statement(self.statement)
+    }
 }
 
 // https://www.sqlite.org/c3ref/column_blob.html
@@ -24,7 +32,7 @@ impl<'c> SqliteResultValue<'c> {
     pub(crate) fn r#type(&self) -> SqliteType {
         #[allow(unsafe_code)]
         let type_code =
-            unsafe { sqlite3_column_type(self.statement.handle.as_ptr(), self.index as i32) };
+            unsafe { sqlite3_column_type(self.statement().handle.as_ptr(), self.index as i32) };
 
         match type_code {
             SQLITE_INTEGER => SqliteType::Integer,
@@ -40,21 +48,21 @@ impl<'c> SqliteResultValue<'c> {
     pub(crate) fn int(&self) -> i32 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_int(self.statement.handle.as_ptr(), self.index as i32)
+            sqlite3_column_int(self.statement().handle.as_ptr(), self.index as i32)
         }
     }
 
     pub(crate) fn int64(&self) -> i64 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_int64(self.statement.handle.as_ptr(), self.index as i32)
+            sqlite3_column_int64(self.statement().handle.as_ptr(), self.index as i32)
         }
     }
 
     pub(crate) fn double(&self) -> f64 {
         #[allow(unsafe_code)]
         unsafe {
-            sqlite3_column_double(self.statement.handle.as_ptr(), self.index as i32)
+            sqlite3_column_double(self.statement().handle.as_ptr(), self.index as i32)
         }
     }
 
@@ -62,7 +70,8 @@ impl<'c> SqliteResultValue<'c> {
         #[allow(unsafe_code)]
         let raw = unsafe {
             CStr::from_ptr(
-                sqlite3_column_text(self.statement.handle.as_ptr(), self.index as i32) as *const i8,
+                sqlite3_column_text(self.statement().handle.as_ptr(), self.index as i32)
+                    as *const i8,
             )
         };
 
@@ -73,10 +82,10 @@ impl<'c> SqliteResultValue<'c> {
         let index = self.index as i32;
 
         #[allow(unsafe_code)]
-        let ptr = unsafe { sqlite3_column_blob(self.statement.handle.as_ptr(), index) };
+        let ptr = unsafe { sqlite3_column_blob(self.statement().handle.as_ptr(), index) };
 
         #[allow(unsafe_code)]
-        let len = unsafe { sqlite3_column_bytes(self.statement.handle.as_ptr(), index) };
+        let len = unsafe { sqlite3_column_bytes(self.statement().handle.as_ptr(), index) };
 
         #[allow(unsafe_code)]
         let raw = unsafe { slice::from_raw_parts(ptr as *const u8, len as usize) };
