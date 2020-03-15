@@ -83,7 +83,7 @@ impl SqliteArgumentValue {
 
                 unsafe {
                     sqlite3_bind_blob(
-                        statement.handle.as_ptr(),
+                        statement.handle(),
                         index,
                         bytes_ptr,
                         bytes_len,
@@ -100,7 +100,7 @@ impl SqliteArgumentValue {
 
                 unsafe {
                     sqlite3_bind_text(
-                        statement.handle.as_ptr(),
+                        statement.handle(),
                         index,
                         bytes_ptr,
                         bytes_len,
@@ -110,20 +110,18 @@ impl SqliteArgumentValue {
             }
 
             SqliteArgumentValue::Double(value) => unsafe {
-                sqlite3_bind_double(statement.handle.as_ptr(), index, *value)
+                sqlite3_bind_double(statement.handle(), index, *value)
             },
 
             SqliteArgumentValue::Int(value) => unsafe {
-                sqlite3_bind_int(statement.handle.as_ptr(), index, *value)
+                sqlite3_bind_int(statement.handle(), index, *value)
             },
 
             SqliteArgumentValue::Int64(value) => unsafe {
-                sqlite3_bind_int64(statement.handle.as_ptr(), index, *value)
+                sqlite3_bind_int64(statement.handle(), index, *value)
             },
 
-            SqliteArgumentValue::Null => unsafe {
-                sqlite3_bind_null(statement.handle.as_ptr(), index)
-            },
+            SqliteArgumentValue::Null => unsafe { sqlite3_bind_null(statement.handle(), index) },
         };
 
         if status != SQLITE_OK {

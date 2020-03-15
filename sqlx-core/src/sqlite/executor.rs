@@ -36,7 +36,7 @@ impl SqliteConnection {
         if !persistent {
             // A non-persistent query will be immediately prepared and returned,
             // regardless of the current state of the cache
-            self.statement = Some(SqliteStatement::new(&mut self.handle, query, false)?);
+            self.statement = Some(SqliteStatement::new(self, query, false)?);
             return Ok(None);
         }
 
@@ -58,7 +58,7 @@ impl SqliteConnection {
         // for a "long" time and re-used multiple times
 
         let query_key = query.to_owned();
-        let statement = SqliteStatement::new(&mut self.handle, query, true)?;
+        let statement = SqliteStatement::new(self, query, true)?;
 
         let key = self.statements.len();
 
@@ -75,7 +75,7 @@ impl SqliteConnection {
 
         // https://www.sqlite.org/c3ref/changes.html
         #[allow(unsafe_code)]
-        let changes = unsafe { sqlite3_changes(self.handle.as_ptr()) };
+        let changes = unsafe { sqlite3_changes(self.handle()) };
         changes as u64
     }
 }

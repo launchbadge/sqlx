@@ -31,7 +31,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         // sqlite3_step that returned SQLITE_ROW.
 
         #[allow(unsafe_code)]
-        let count: c_int = unsafe { sqlite3_data_count(self.statement().handle.as_ptr()) };
+        let count: c_int = unsafe { sqlite3_data_count(self.statement().handle()) };
 
         count as usize
     }
@@ -66,7 +66,7 @@ impl ColumnIndex<Sqlite> for usize {
 impl ColumnIndex<Sqlite> for &'_ str {
     fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<usize> {
         row.statement()
-            .columns()
+            .columns
             .get(self)
             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
             .map(|&index| index as usize)

@@ -8,6 +8,7 @@ mod row;
 mod statement;
 mod types;
 mod value;
+mod worker;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use connection::SqliteConnection;

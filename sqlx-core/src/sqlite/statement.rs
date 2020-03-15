@@ -1,5 +1,3 @@
-use core::cell::{RefCell, RefMut};
-use core::ops::Deref;
 use core::ptr::{null, null_mut, NonNull};
 
 use std::collections::HashMap;
@@ -7,37 +5,46 @@ use std::ffi::CStr;
 use std::os::raw::c_int;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_bind_parameter_count, sqlite3_column_count, sqlite3_column_decltype,
+    sqlite3_bind_parameter_count, sqlite3_column_count, sqlite3_column_decltype,
     sqlite3_column_name, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset, sqlite3_step,
     sqlite3_stmt, SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT,
     SQLITE_ROW,
 };
 
-use crate::sqlite::SqliteArguments;
+use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
+use crate::sqlite::{SqliteArguments, SqliteConnection};
 
 pub(crate) enum Step {
     Done,
     Row,
 }
 
-pub struct SqliteStatement {
+#[derive(Clone, Copy)]
+pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
+
+pub(super) struct SqliteStatement {
+    worker: Worker,
     pub(super) tail: usize,
-    pub(super) handle: NonNull<sqlite3_stmt>,
-    columns: RefCell<Option<HashMap<String, usize>>>,
+    pub(super) handle: SqliteStatementHandle,
+    pub(super) columns: HashMap<String, usize>,
 }
 
 // SAFE: See notes for the Send impl on [SqliteConnection].
 
 #[allow(unsafe_code)]
-unsafe impl Send for SqliteStatement {}
+unsafe impl Send for SqliteStatementHandle {}
 
 #[allow(unsafe_code)]
-unsafe impl Sync for SqliteStatement {}
+unsafe impl Sync for SqliteStatementHandle {}
 
 impl SqliteStatement {
+    pub(super) fn handle(&self) -> *mut sqlite3_stmt {
+        self.handle.0.as_ptr()
+    }
+
     pub(super) fn new(
-        handle: &mut NonNull<sqlite3>,
+        conn: &mut SqliteConnection,
         query: &mut &str,
         persistent: bool,
     ) -> crate::Result<Self> {
@@ -60,7 +67,7 @@ impl SqliteStatement {
         #[allow(unsafe_code)]
         let status = unsafe {
             sqlite3_prepare_v3(
-                handle.as_ptr(),
+                conn.handle(),
                 query_ptr,
                 query_len,
                 flags as u32,
@@ -78,25 +85,40 @@ impl SqliteStatement {
             return Err(SqliteError::new(status).into());
         }
 
-        Ok(Self {
-            handle: NonNull::new(statement_handle).unwrap(),
-            columns: RefCell::new(None),
+        let mut self_ = Self {
+            worker: conn.worker.clone(),
+            handle: SqliteStatementHandle(NonNull::new(statement_handle).unwrap()),
+            columns: HashMap::new(),
             tail,
-        })
+        };
+
+        // Prepare a column hash map for use in pulling values from a column by name
+        let count = self_.num_columns();
+        self_.columns.reserve(count);
+
+        for i in 0..count {
+            self_.columns.insert(self_.column_name(i).to_owned(), i);
+        }
+
+        Ok(self_)
     }
 
     pub(super) fn num_columns(&self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
         #[allow(unsafe_code)]
-        let count = unsafe { sqlite3_column_count(self.handle.as_ptr()) };
+        let count = unsafe { sqlite3_column_count(self.handle()) };
         count as usize
     }
 
     pub(super) fn column_name(&self, index: usize) -> &str {
         // https://sqlite.org/c3ref/column_name.html
         #[allow(unsafe_code)]
-        let name =
-            unsafe { CStr::from_ptr(sqlite3_column_name(self.handle.as_ptr(), index as c_int)) };
+        let name = unsafe {
+            let ptr = sqlite3_column_name(self.handle(), index as c_int);
+            debug_assert!(!ptr.is_null());
+
+            CStr::from_ptr(ptr)
+        };
 
         name.to_str().unwrap()
     }
@@ -105,7 +127,7 @@ impl SqliteStatement {
         // https://sqlite.org/c3ref/column_name.html
         #[allow(unsafe_code)]
         let name = unsafe {
-            let ptr = sqlite3_column_decltype(self.handle.as_ptr(), index as c_int);
+            let ptr = sqlite3_column_decltype(self.handle(), index as c_int);
 
             if ptr.is_null() {
                 None
@@ -117,25 +139,10 @@ impl SqliteStatement {
         name.map(|s| s.to_str().unwrap())
     }
 
-    pub(super) fn columns<'a>(&'a self) -> impl Deref<Target = HashMap<String, usize>> + 'a {
-        RefMut::map(self.columns.borrow_mut(), |columns| {
-            columns.get_or_insert_with(|| {
-                let count = self.num_columns();
-                let mut columns = HashMap::with_capacity(count);
-
-                for i in 0..count {
-                    columns.insert(self.column_name(i).to_owned(), i);
-                }
-
-                columns
-            })
-        })
-    }
-
     pub(super) fn params(&self) -> usize {
         // https://www.hwaci.com/sw/sqlite/c3ref/bind_parameter_count.html
         #[allow(unsafe_code)]
-        let num = unsafe { sqlite3_bind_parameter_count(self.handle.as_ptr()) };
+        let num = unsafe { sqlite3_bind_parameter_count(self.handle()) };
         num as usize
     }
 
@@ -158,14 +165,24 @@ impl SqliteStatement {
         // the status of the most recently invoked step function
 
         #[allow(unsafe_code)]
-        let _ = unsafe { sqlite3_reset(self.handle.as_ptr()) };
+        let _ = unsafe { sqlite3_reset(self.handle()) };
     }
 
     pub(super) async fn step(&mut self) -> crate::Result<Step> {
         // https://sqlite.org/c3ref/step.html
 
-        #[allow(unsafe_code)]
-        let status = unsafe { sqlite3_step(self.handle.as_ptr()) };
+        let status = self
+            .worker
+            .run({
+                let handle = self.handle;
+                move || {
+                    #[allow(unsafe_code)]
+                    unsafe {
+                        sqlite3_step(handle.0.as_ptr())
+                    }
+                }
+            })
+            .await;
 
         match status {
             SQLITE_DONE => Ok(Step::Done),
@@ -183,7 +200,7 @@ impl Drop for SqliteStatement {
         // https://sqlite.org/c3ref/finalize.html
         #[allow(unsafe_code)]
         unsafe {
-            let _ = sqlite3_finalize(self.handle.as_ptr());
+            let _ = sqlite3_finalize(self.handle());
         }
     }
 }

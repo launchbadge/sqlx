@@ -12,7 +12,12 @@ pub struct SqliteError {
 impl SqliteError {
     pub(crate) fn new(code: c_int) -> Self {
         #[allow(unsafe_code)]
-        let message = unsafe { CStr::from_ptr(sqlite3_errstr(code)) };
+        let message = unsafe {
+            let err = sqlite3_errstr(code);
+            debug_assert!(!err.is_null());
+
+            CStr::from_ptr(err)
+        };
 
         Self {
             code,
