@@ -64,6 +64,20 @@ macro_rules! async_macro (
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
 
             match db_url.scheme() {
+                #[cfg(feature = "sqlite")]
+                "sqlite" => {
+                    let $db = sqlx::sqlite::SqliteConnection::connect(db_url.as_str())
+                        .await
+                        .map_err(|e| format!("failed to connect to database: {}", e))?;
+
+                    $expr.await
+                }
+                #[cfg(not(feature = "sqlite"))]
+                "sqlite" => Err(format!(
+                    "DATABASE_URL {} has the scheme of a SQLite database but the `sqlite` \
+                     feature of sqlx was not enabled",
+                     db_url
+                ).into()),
                 #[cfg(feature = "postgres")]
                 "postgresql" | "postgres" => {
                     let $db = sqlx::postgres::PgConnection::connect(db_url.as_str())
