@@ -9,3 +9,6 @@ target/
 
 # Environment
 .env
+
+tests/fixtures/*.sqlite-shm
+tests/fixtures/*.sqlite-wal

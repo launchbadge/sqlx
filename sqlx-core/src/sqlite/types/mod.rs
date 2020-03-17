@@ -64,7 +64,7 @@ impl Display for SqliteTypeInfo {
 
 impl TypeInfo for SqliteTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
-        self.affinity == other.affinity
+        self.r#type == other.r#type || self.affinity == other.affinity
     }
 
     fn is_null_type(&self) -> bool {
