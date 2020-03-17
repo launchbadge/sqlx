@@ -220,13 +220,14 @@ where
             // successfully established connection
             Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard))),
 
-            // IO error while connecting, this should definitely be logged
-            // and we should attempt to retry
-            Ok(Err(crate::Error::Io(e))) => {
-                log::warn!("error establishing a connection: {}", e);
+            // an IO error while connecting is assumed to be the system starting up
+            Ok(Err(crate::Error::Io(_))) => Ok(None),
 
-                Ok(None)
-            }
+            // TODO: Handle other database "boot period"s
+
+            // [postgres] the database system is starting up
+            // TODO: Make this check actually check if this is postgres
+            Ok(Err(crate::Error::Database(error))) if error.code() == Some("57P03") => Ok(None),
 
             // Any other error while connection should immediately
             // terminate and bubble the error up
