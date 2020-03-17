@@ -115,6 +115,3 @@ required-features = [ "macros" ]
 [[test]]
 name = "postgres-struct"
 required-features = [ "postgres" ]
-
-[profile.release]
-lto = true
