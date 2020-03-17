@@ -46,6 +46,6 @@ impl DatabaseError for SqliteError {
     }
 
     fn code(&self) -> Option<&str> {
-        &self.code
+        Some(&self.code)
     }
 }
