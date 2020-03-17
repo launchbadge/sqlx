@@ -16,4 +16,8 @@ impl DatabaseError for MySqlError {
     fn message(&self) -> &str {
         &*self.0.error_message
     }
+
+    fn code(&self) -> Option<&str> {
+        self.0.sql_state.as_deref()
+    }
 }

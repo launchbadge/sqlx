@@ -7,8 +7,7 @@ use std::os::raw::c_int;
 
 #[derive(Debug)]
 pub struct SqliteError {
-    #[allow(dead_code)]
-    code: c_int,
+    code: String,
     message: String,
 }
 
@@ -29,7 +28,7 @@ impl SqliteError {
         };
 
         Self {
-            code,
+            code: code.to_string(),
             message: message.to_owned(),
         }
     }
@@ -44,5 +43,9 @@ impl Display for SqliteError {
 impl DatabaseError for SqliteError {
     fn message(&self) -> &str {
         &self.message
+    }
+
+    fn code(&self) -> Option<&str> {
+        &self.code
     }
 }

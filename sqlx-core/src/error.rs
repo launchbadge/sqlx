@@ -177,6 +177,11 @@ pub trait DatabaseError: Display + Debug + Send + Sync {
     /// The primary, human-readable error message.
     fn message(&self) -> &str;
 
+    /// The (SQLSTATE) code for the error.
+    fn code(&self) -> Option<&str> {
+        None
+    }
+
     fn details(&self) -> Option<&str> {
         None
     }

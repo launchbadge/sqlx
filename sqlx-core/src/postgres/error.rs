@@ -11,6 +11,10 @@ impl DatabaseError for PgError {
         &self.0.message
     }
 
+    fn code(&self) -> Option<&str> {
+        Some(&self.0.code)
+    }
+
     fn details(&self) -> Option<&str> {
         self.0.detail.as_ref().map(|s| &**s)
     }
