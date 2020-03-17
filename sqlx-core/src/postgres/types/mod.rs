@@ -11,10 +11,15 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod numeric;
 mod record;
 mod str;
 
+pub use self::numeric::{PgNumeric, PgNumericSign};
 pub use self::record::{PgRecordDecoder, PgRecordEncoder};
+
+#[cfg(feature = "bigdecimal_bigint")]
+mod bigdecimal;
 
 #[cfg(feature = "chrono")]
 mod chrono;

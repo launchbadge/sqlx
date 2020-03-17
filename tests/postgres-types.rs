@@ -1,11 +1,11 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use sqlx::decode::Decode;
 use sqlx::encode::Encode;
-use sqlx::postgres::types::PgRecordEncoder;
+use sqlx::postgres::types::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
 use sqlx::postgres::{PgQueryAs, PgTypeInfo, PgValue};
 use sqlx::{Cursor, Executor, Postgres, Row, Type};
-use sqlx_core::postgres::types::PgRecordDecoder;
-use sqlx_test::{new, test_type};
-use std::sync::atomic::{AtomicU32, Ordering};
+use sqlx_test::{new, test_prepared_type, test_type};
 
 test_type!(null(
     Postgres,
@@ -49,6 +49,66 @@ test_type!(bytea(
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
 
+// PgNumeric only works on the wire protocol
+test_prepared_type!(numeric(
+    Postgres,
+    PgNumeric,
+    "1::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![1]
+        },
+    "1234::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![1234]
+        },
+    "10000::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: 1,
+            scale: 0,
+            digits: vec![1]
+        },
+    "0.1::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: -1,
+            scale: 1,
+            digits: vec![1000]
+        },
+    "0.01234::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: -1,
+            scale: 5,
+            digits: vec![123, 4000]
+        },
+    "12.34::numeric"
+        == PgNumeric {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 2,
+            digits: vec![12, 3400]
+        }
+));
+
+#[cfg(feature = "bigdecimal")]
+test_type!(decimal(
+    Postgres,
+    sqlx::types::BigDecimal,
+    "1::numeric" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "10000::numeric" == "10000".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.1::numeric" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.01234::numeric" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap()
+));
+
 #[cfg(feature = "uuid")]
 test_type!(uuid(
     Postgres,
@@ -61,8 +121,9 @@ test_type!(uuid(
 
 #[cfg(feature = "chrono")]
 mod chrono {
-    use super::*;
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
+    use super::*;
 
     test_type!(chrono_date(
         Postgres,

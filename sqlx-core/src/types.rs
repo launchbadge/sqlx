@@ -14,6 +14,10 @@ pub mod chrono {
     pub use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 }
 
+#[cfg(feature = "bigdecimal")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
+pub use bigdecimal::BigDecimal;
+
 pub trait TypeInfo: Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.
