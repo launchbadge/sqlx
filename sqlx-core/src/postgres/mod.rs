@@ -5,7 +5,7 @@ pub use connection::PgConnection;
 pub use cursor::PgCursor;
 pub use database::Postgres;
 pub use error::PgError;
-pub use listen::{PgConnectionExt, PgListener, PgNotification, PgPoolExt, PgPoolListener};
+pub use listen::{PgListener, PgNotification};
 pub use row::{PgRow, PgValue};
 pub use types::PgTypeInfo;
 
