@@ -24,5 +24,9 @@ fn ui_tests() {
         }
     }
 
+    if cfg!(feature = "sqlite") {
+        t.compile_fail("tests/ui/sqlite/*.rs");
+    }
+
     t.compile_fail("tests/ui/*.rs");
 }

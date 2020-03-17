@@ -3,6 +3,7 @@ use quote::quote;
 use syn::Path;
 
 use sqlx::describe::Describe;
+use sqlx::types::TypeInfo;
 
 use crate::database::DatabaseExt;
 
@@ -53,6 +54,15 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                             "optional feature `{feat}` required for type {ty} of {col}",
                             ty = &column.type_info,
                             feat = feature_gate,
+                            col = DisplayColumn {
+                                idx: i,
+                                name: column.name.as_deref()
+                            }
+                        )
+                    } else if column.type_info.is_null_type() {
+                        format!(
+                            "database couldn't tell us the type of {col}; \
+                             this can happen for columns that are the result of an expression",
                             col = DisplayColumn {
                                 idx: i,
                                 name: column.name.as_deref()

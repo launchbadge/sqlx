@@ -106,6 +106,10 @@ impl TypeInfo for MySqlTypeInfo {
             _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
         }
     }
+
+    fn is_null_type(&self) -> bool {
+        self.id == TypeId::NULL
+    }
 }
 
 impl<'de, T> Decode<'de, MySql> for Option<T>

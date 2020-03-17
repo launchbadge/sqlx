@@ -18,6 +18,14 @@ pub trait TypeInfo: Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.
     fn compatible(&self, other: &Self) -> bool;
+
+    /// Return `true` if this is the database flavor's "null" sentinel type.
+    ///
+    /// For type info coming from the description of a prepared statement, this means
+    /// that the server could not infer the expected type of a bind parameter or result column;
+    /// the latter is most often the case with columns that are the result of an expression
+    /// in a weakly-typed database like MySQL or SQLite.
+    fn is_null_type(&self) -> bool;
 }
 
 /// Indicates that a SQL type is supported for a database.
