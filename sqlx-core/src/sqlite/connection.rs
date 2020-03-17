@@ -73,7 +73,19 @@ async fn establish(url: crate::Result<Url>) -> crate::Result<SqliteConnection> {
             #[allow(unsafe_code)]
             let status = unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, null()) };
 
+            if handle.is_null() {
+                // Failed to allocate memory
+                panic!("SQLite is unable to allocate memory to hold the sqlite3 object");
+            }
+
             if status != SQLITE_OK {
+                // Close the handle if there was an error here
+                // https://sqlite.org/c3ref/close.html
+                #[allow(unsafe_code)]
+                unsafe {
+                    let _ = sqlite3_close(handle);
+                }
+
                 return Err(SqliteError::from_connection(handle).into());
             }
 
