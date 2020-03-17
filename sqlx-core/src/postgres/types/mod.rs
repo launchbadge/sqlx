@@ -11,8 +11,10 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod record;
 mod str;
-pub mod r#struct;
+
+pub use self::record::{PgRecordDecoder, PgRecordEncoder};
 
 #[cfg(feature = "chrono")]
 mod chrono;

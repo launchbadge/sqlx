@@ -21,7 +21,7 @@ mod row;
 mod sasl;
 mod stream;
 mod tls;
-mod types;
+pub mod types;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.
 pub type PgPool = crate::pool::Pool<PgConnection>;

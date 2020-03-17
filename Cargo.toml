@@ -111,7 +111,3 @@ required-features = [ "mysql" ]
 [[test]]
 name = "derives"
 required-features = [ "macros" ]
-
-[[test]]
-name = "postgres-struct"
-required-features = [ "postgres" ]

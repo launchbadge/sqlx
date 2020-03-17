@@ -1,5 +1,11 @@
-use sqlx::Postgres;
-use sqlx_test::test_type;
+use sqlx::decode::Decode;
+use sqlx::encode::Encode;
+use sqlx::postgres::types::PgRecordEncoder;
+use sqlx::postgres::{PgQueryAs, PgTypeInfo, PgValue};
+use sqlx::{Cursor, Executor, Postgres, Row, Type};
+use sqlx_core::postgres::types::PgRecordDecoder;
+use sqlx_test::{new, test_type};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 test_type!(null(
     Postgres,
@@ -86,4 +92,189 @@ mod chrono {
                 Utc,
             )
     ));
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_prepared_anonymous_record() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // Tuple of no elements is not possible
+    // Tuple of 1 element requires a concrete type
+    // Tuple with a NULL requires a concrete type
+
+    // Tuple of 2 elements
+    let rec: ((bool, i32),) = sqlx::query_as("SELECT (true, 23512)")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!((rec.0).0, true);
+    assert_eq!((rec.0).1, 23512);
+
+    // Tuple with an empty string
+    let rec: ((bool, String),) = sqlx::query_as("SELECT (true,'')")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!((rec.0).1, "");
+
+    // Tuple with a string with an interior comma
+    let rec: ((bool, String),) = sqlx::query_as("SELECT (true,'Hello, World!')")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!((rec.0).1, "Hello, World!");
+
+    // Tuple with a string with an emoji
+    let rec: ((bool, String),) = sqlx::query_as("SELECT (true,'Hello, 🐕!')")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!((rec.0).1, "Hello, 🐕!");
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_unprepared_anonymous_record() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // Tuple of no elements is not possible
+    // Tuple of 1 element requires a concrete type
+    // Tuple with a NULL requires a concrete type
+
+    // Tuple of 2 elements
+    let mut cursor = conn.fetch("SELECT (true, 23512)");
+    let row = cursor.next().await?.unwrap();
+    let rec: (bool, i32) = row.get(0);
+
+    assert_eq!(rec.0, true);
+    assert_eq!(rec.1, 23512);
+
+    // Tuple with an empty string
+    let mut cursor = conn.fetch("SELECT (true, '')");
+    let row = cursor.next().await?.unwrap();
+    let rec: (bool, String) = row.get(0);
+
+    assert_eq!(rec.1, "");
+
+    // Tuple with a string with an interior comma
+    let mut cursor = conn.fetch("SELECT (true, 'Hello, World!')");
+    let row = cursor.next().await?.unwrap();
+    let rec: (bool, String) = row.get(0);
+
+    assert_eq!(rec.1, "Hello, World!");
+
+    // Tuple with a string with an emoji
+    let mut cursor = conn.fetch("SELECT (true, 'Hello, 🐕!')");
+    let row = cursor.next().await?.unwrap();
+    let rec: (bool, String) = row.get(0);
+
+    assert_eq!(rec.1, "Hello, 🐕!");
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_prepared_structs() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    //
+    // Setup custom types if needed
+    //
+
+    static OID_RECORD_EMPTY: AtomicU32 = AtomicU32::new(0);
+    static OID_RECORD_1: AtomicU32 = AtomicU32::new(0);
+
+    conn.execute(
+        r#"
+DO $$ BEGIN
+    CREATE TYPE _sqlx_record_empty AS ();
+    CREATE TYPE _sqlx_record_1 AS (_1 int8);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;    
+    "#,
+    )
+    .await?;
+
+    let type_ids: Vec<(i32,)> = sqlx::query_as(
+        "SELECT oid::int4 FROM pg_type WHERE typname IN ('_sqlx_record_empty', '_sqlx_record_1')",
+    )
+    .fetch_all(&mut conn)
+    .await?;
+
+    OID_RECORD_EMPTY.store(type_ids[0].0 as u32, Ordering::SeqCst);
+    OID_RECORD_1.store(type_ids[1].0 as u32, Ordering::SeqCst);
+
+    //
+    // Record of no elements
+    //
+
+    struct RecordEmpty {}
+
+    impl Type<Postgres> for RecordEmpty {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::with_oid(OID_RECORD_EMPTY.load(Ordering::SeqCst))
+        }
+    }
+
+    impl Encode<Postgres> for RecordEmpty {
+        fn encode(&self, buf: &mut Vec<u8>) {
+            PgRecordEncoder::new(buf).finish();
+        }
+    }
+
+    impl<'de> Decode<'de, Postgres> for RecordEmpty {
+        fn decode(_value: Option<PgValue<'de>>) -> sqlx::Result<Self> {
+            Ok(RecordEmpty {})
+        }
+    }
+
+    let _: (RecordEmpty, RecordEmpty) = sqlx::query_as("SELECT '()'::_sqlx_record_empty, $1")
+        .bind(RecordEmpty {})
+        .fetch_one(&mut conn)
+        .await?;
+
+    //
+    // Record of one element
+    //
+
+    #[derive(Debug, PartialEq)]
+    struct Record1 {
+        _1: i64,
+    }
+
+    impl Type<Postgres> for Record1 {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::with_oid(OID_RECORD_1.load(Ordering::SeqCst))
+        }
+    }
+
+    impl Encode<Postgres> for Record1 {
+        fn encode(&self, buf: &mut Vec<u8>) {
+            PgRecordEncoder::new(buf).encode(self._1).finish();
+        }
+    }
+
+    impl<'de> Decode<'de, Postgres> for Record1 {
+        fn decode(value: Option<PgValue<'de>>) -> sqlx::Result<Self> {
+            let mut decoder = PgRecordDecoder::new(value)?;
+
+            let _1 = decoder.decode()?;
+
+            Ok(Record1 { _1 })
+        }
+    }
+
+    let rec: (Record1, Record1) = sqlx::query_as("SELECT '(324235)'::_sqlx_record_1, $1")
+        .bind(Record1 { _1: 324235 })
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec.0, rec.1);
+
+    Ok(())
 }
