@@ -1,5 +1,5 @@
 [package]
-name = "listen-postgres"
+name = "sqlx-example-listen-postgres"
 version = "0.1.0"
 edition = "2018"
 workspace = "../.."

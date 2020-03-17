@@ -876,15 +876,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "listen-postgres"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "futures 0.3.4",
- "sqlx 0.2.6",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1710,6 +1701,15 @@ dependencies = [
  "sha-1",
  "sha2",
  "url",
+]
+
+[[package]]
+name = "sqlx-example-listen-postgres"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "futures 0.3.4",
+ "sqlx 0.2.6",
 ]
 
 [[package]]
