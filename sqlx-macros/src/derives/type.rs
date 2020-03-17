@@ -10,7 +10,7 @@ use syn::{
     FieldsUnnamed, Variant,
 };
 
-pub fn expand_derive_has_sql_type(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let attrs = parse_attributes(&input.attrs)?;
     match &input.data {
         Data::Struct(DataStruct {
@@ -56,37 +56,39 @@ fn expand_derive_has_sql_type_transparent(
 
     // extract type generics
     let generics = &input.generics;
-    let (impl_generics, ty_generics, _) = generics.split_for_impl();
+    let (_, ty_generics, _) = generics.split_for_impl();
 
     // add db type for clause
     let mut generics = generics.clone();
+    generics.params.insert(0, parse_quote!(DB: sqlx::Database));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(Self: sqlx::types::HasSqlType<#ty>));
-    let (_, _, where_clause) = generics.split_for_impl();
+        .push(parse_quote!(#ty: sqlx::types::Type<DB>));
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let mut tts = proc_macro2::TokenStream::new();
 
-    if cfg!(feature = "mysql") {
-        tts.extend(quote!(
-            impl #impl_generics sqlx::types::HasSqlType< #ident #ty_generics > for sqlx::MySql #where_clause {
-                fn type_info() -> Self::TypeInfo {
-                    <Self as HasSqlType<#ty>>::type_info()
-                }
+    // if cfg!(feature = "mysql") {
+    tts.extend(quote!(
+        impl #impl_generics sqlx::types::Type< DB > for #ident #ty_generics #where_clause {
+            fn type_info() -> DB::TypeInfo {
+                <#ty as sqlx::Type<DB>>::type_info()
             }
-        ));
-    }
+        }
+    ));
 
-    if cfg!(feature = "postgres") {
-        tts.extend(quote!(
-            impl #impl_generics sqlx::types::HasSqlType< #ident #ty_generics > for sqlx::Postgres #where_clause {
-                fn type_info() -> Self::TypeInfo {
-                    <Self as HasSqlType<#ty>>::type_info()
-                }
-            }
-        ));
-    }
+    // }
+
+    // if cfg!(feature = "postgres") {
+    //     tts.extend(quote!(
+    //         impl #impl_generics sqlx::types::HasSqlType< sqlx::Postgres > #ident #ty_generics #where_clause {
+    //             fn type_info() -> Self::TypeInfo {
+    //                 <Self as HasSqlType<#ty>>::type_info()
+    //             }
+    //         }
+    //     ));
+    // }
 
     Ok(tts)
 }

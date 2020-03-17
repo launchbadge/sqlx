@@ -61,25 +61,22 @@ fn expand_derive_decode_transparent(
     // add db type for impl generics & where clause
     let mut generics = generics.clone();
     generics.params.insert(0, parse_quote!(DB: sqlx::Database));
+    generics.params.insert(0, parse_quote!('de));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: sqlx::decode::Decode<DB>));
+        .push(parse_quote!(#ty: sqlx::decode::Decode<'de, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-    Ok(quote!(
-        impl #impl_generics sqlx::decode::Decode<DB> for #ident #ty_generics #where_clause {
-            fn decode(raw: &[u8]) -> std::result::Result<Self, sqlx::decode::DecodeError> {
-                <#ty as sqlx::decode::Decode<DB>>::decode(raw).map(Self)
-            }
-            fn decode_null() -> std::result::Result<Self, sqlx::decode::DecodeError> {
-                <#ty as sqlx::decode::Decode<DB>>::decode_null().map(Self)
-            }
-            fn decode_nullable(raw: std::option::Option<&[u8]>) -> std::result::Result<Self, sqlx::decode::DecodeError> {
-                <#ty as sqlx::decode::Decode<DB>>::decode_nullable(raw).map(Self)
+    let tts = quote!(
+        impl #impl_generics sqlx::decode::Decode<'de, DB> for #ident #ty_generics #where_clause {
+            fn decode(value: <DB as sqlx::database::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
+                <#ty as sqlx::decode::Decode<'de, DB>>::decode(value).map(Self)
             }
         }
-    ))
+    );
+
+    Ok(tts)
 }
 
 fn expand_derive_decode_weak_enum(
@@ -166,7 +163,7 @@ fn expand_derive_decode_struct(
         for field in fields {
             let ty = &field.ty;
             predicates.push(parse_quote!(#ty: sqlx::decode::Decode<sqlx::Postgres>));
-            predicates.push(parse_quote!(sqlx::Postgres: sqlx::types::HasSqlType<#ty>));
+            predicates.push(parse_quote!(#ty: sqlx::types::Type<sqlx::Postgres>));
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 

@@ -70,10 +70,10 @@ fn expand_derive_encode_transparent(
 
     Ok(quote!(
         impl #impl_generics sqlx::encode::Encode<DB> for #ident #ty_generics #where_clause {
-            fn encode(&self, buf: &mut std::vec::Vec<u8>) {
+            fn encode(&self, buf: &mut DB::RawBuffer) {
                 sqlx::encode::Encode::encode(&self.0, buf)
             }
-            fn encode_nullable(&self, buf: &mut std::vec::Vec<u8>) -> sqlx::encode::IsNull {
+            fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> sqlx::encode::IsNull {
                 sqlx::encode::Encode::encode_nullable(&self.0, buf)
             }
             fn size_hint(&self) -> usize {

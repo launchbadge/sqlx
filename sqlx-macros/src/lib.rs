@@ -169,19 +169,10 @@ pub fn derive_decode(tokenstream: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_derive(HasSqlType, attributes(sqlx))]
-pub fn derive_has_sql_type(tokenstream: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match derives::expand_derive_has_sql_type(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
-}
-
 #[proc_macro_derive(Type, attributes(sqlx))]
 pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match derives::expand_derive_type(&input) {
+    match derives::expand_derive_type_encode_decode(&input) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
