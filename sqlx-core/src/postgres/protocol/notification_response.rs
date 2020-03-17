@@ -1,24 +1,33 @@
 use crate::io::Buf;
 use byteorder::NetworkEndian;
+use std::borrow::Cow;
 
 #[derive(Debug)]
-pub(crate) struct NotificationResponse {
-    pub(crate) pid: u32,
-    pub(crate) channel_name: String,
-    pub(crate) message: String,
+pub(crate) struct NotificationResponse<'c> {
+    pub(crate) process_id: u32,
+    pub(crate) channel: Cow<'c, str>,
+    pub(crate) payload: Cow<'c, str>,
 }
 
-impl NotificationResponse {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
-        let pid = buf.get_u32::<NetworkEndian>()?;
-        let channel_name = buf.get_str_nul()?.to_owned();
-        let message = buf.get_str_nul()?.to_owned();
+impl<'c> NotificationResponse<'c> {
+    pub(crate) fn read(mut buf: &'c [u8]) -> crate::Result<Self> {
+        let process_id = buf.get_u32::<NetworkEndian>()?;
+        let channel = buf.get_str_nul()?;
+        let payload = buf.get_str_nul()?;
 
         Ok(Self {
-            pid,
-            channel_name,
-            message,
+            process_id,
+            channel: Cow::Borrowed(channel),
+            payload: Cow::Borrowed(payload),
         })
+    }
+
+    pub(crate) fn into_owned(self) -> NotificationResponse<'static> {
+        NotificationResponse {
+            process_id: self.process_id,
+            channel: Cow::Owned(self.channel.into_owned()),
+            payload: Cow::Owned(self.payload.into_owned()),
+        }
     }
 }
 
@@ -32,8 +41,8 @@ mod tests {
     fn it_decodes_notification_response() {
         let message = NotificationResponse::read(NOTIFICATION_RESPONSE).unwrap();
 
-        assert_eq!(message.pid, 0x34201002);
-        assert_eq!(message.channel_name, "TEST-CHANNEL");
-        assert_eq!(message.message, "THIS IS A TEST");
+        assert_eq!(message.process_id, 0x34201002);
+        assert_eq!(&*message.channel, "TEST-CHANNEL");
+        assert_eq!(&*message.payload, "THIS IS A TEST");
     }
 }
