@@ -24,7 +24,7 @@ pub struct PgListener {
     connection: Option<PoolConnection<PgConnection>>,
     buffer_rx: mpsc::UnboundedReceiver<NotificationResponse<'static>>,
     buffer_tx: Option<mpsc::UnboundedSender<NotificationResponse<'static>>>,
-    channels: HashSet<String>,
+    channels: Vec<String>,
 }
 
 /// An asynchronous notification from Postgres.
@@ -57,7 +57,7 @@ impl PgListener {
             connection: Some(connection),
             buffer_rx: receiver,
             buffer_tx: None,
-            channels: HashSet::new(),
+            channels: Vec::new(),
         })
     }
 
@@ -67,31 +67,36 @@ impl PgListener {
             .execute(&*format!("LISTEN {}", ident(channel)))
             .await?;
 
-        self.channels.insert(channel.to_owned());
+        self.channels.push(channel.to_owned());
 
         Ok(())
     }
 
     /// Starts listening for notifications on all channels.
-    pub async fn listen_all(&mut self, channels: &[impl AsRef<str>]) -> crate::Result<()> {
-        self.connection()
-            .execute(&*build_listen_all_query(channels))
-            .await?;
+    pub async fn listen_all(
+        &mut self,
+        channels: impl IntoIterator<Item = &str>,
+    ) -> crate::Result<()> {
+        let beg = self.channels.len();
+        self.channels.extend(channels.into_iter().map(|s| s.into()));
 
-        self.channels
-            .extend(channels.iter().map(|s| s.as_ref().to_string()));
+        self.connection
+            .as_mut()
+            .unwrap()
+            .execute(&*build_listen_all_query(&self.channels[beg..]))
+            .await?;
 
         Ok(())
     }
 
     /// Stops listening for notifications on a channel.
     pub async fn unlisten(&mut self, channel: &str) -> crate::Result<()> {
-        if self.channels.contains(channel) {
-            self.connection()
-                .execute(&*format!("UNLISTEN {}", ident(channel)))
-                .await?;
+        self.connection()
+            .execute(&*format!("UNLISTEN {}", ident(channel)))
+            .await?;
 
-            self.channels.remove(channel);
+        if let Some(pos) = self.channels.iter().position(|s| s == channel) {
+            self.channels.remove(pos);
         }
 
         Ok(())
@@ -112,10 +117,11 @@ impl PgListener {
             let mut connection = self.pool.acquire().await?;
             connection.stream.notifications = self.buffer_tx.take();
 
-            self.connection = Some(connection);
+            connection
+                .execute(&*build_listen_all_query(&self.channels))
+                .await?;
 
-            let channels: Vec<String> = self.channels.iter().cloned().collect();
-            self.listen_all(&*channels).await?;
+            self.connection = Some(connection);
         }
 
         Ok(())
