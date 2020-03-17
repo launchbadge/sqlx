@@ -9,13 +9,13 @@ compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must
 pub use sqlx_core::arguments;
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::cursor::Cursor;
-pub use sqlx_core::database::{Database, HasCursor, HasRawValue, HasRow};
+pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe;
-pub use sqlx_core::executor::{Execute, Executor};
+pub use sqlx_core::executor::{Execute, Executor, RefExecutor};
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
-pub use sqlx_core::row::{FromRow, Row};
+pub use sqlx_core::row::{self, FromRow, Row};
 pub use sqlx_core::transaction::Transaction;
 
 #[doc(inline)]
