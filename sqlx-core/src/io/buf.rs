@@ -2,7 +2,7 @@ use byteorder::ByteOrder;
 use memchr::memchr;
 use std::{io, slice, str};
 
-pub trait Buf {
+pub trait Buf<'a> {
     fn advance(&mut self, cnt: usize);
 
     fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64>;
@@ -25,14 +25,14 @@ pub trait Buf {
 
     fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64>;
 
-    fn get_str(&mut self, len: usize) -> io::Result<&str>;
+    fn get_str(&mut self, len: usize) -> io::Result<&'a str>;
 
-    fn get_str_nul(&mut self) -> io::Result<&str>;
+    fn get_str_nul(&mut self) -> io::Result<&'a str>;
 
-    fn get_bytes(&mut self, len: usize) -> io::Result<&[u8]>;
+    fn get_bytes(&mut self, len: usize) -> io::Result<&'a [u8]>;
 }
 
-impl<'a> Buf for &'a [u8] {
+impl<'a> Buf<'a> for &'a [u8] {
     fn advance(&mut self, cnt: usize) {
         *self = &self[cnt..];
     }
@@ -107,19 +107,19 @@ impl<'a> Buf for &'a [u8] {
         Ok(val)
     }
 
-    fn get_str(&mut self, len: usize) -> io::Result<&str> {
+    fn get_str(&mut self, len: usize) -> io::Result<&'a str> {
         str::from_utf8(self.get_bytes(len)?)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 
-    fn get_str_nul(&mut self) -> io::Result<&str> {
+    fn get_str_nul(&mut self) -> io::Result<&'a str> {
         let len = memchr(b'\0', &*self).ok_or(io::ErrorKind::InvalidData)?;
         let s = &self.get_str(len + 1)?[..len];
 
         Ok(s)
     }
 
-    fn get_bytes(&mut self, len: usize) -> io::Result<&[u8]> {
+    fn get_bytes(&mut self, len: usize) -> io::Result<&'a [u8]> {
         let buf = &self[..len];
         self.advance(len);
 
