@@ -65,7 +65,7 @@ pub(super) async fn authenticate<T: AsRef<str>>(
     stream.write(SaslInitialResponse(&client_first_message));
     stream.flush().await?;
 
-    let server_first_message = stream.read().await?;
+    let server_first_message = stream.receive().await?;
 
     if let Message::Authentication = server_first_message {
         let auth = Authentication::read(stream.buffer())?;
@@ -140,7 +140,7 @@ pub(super) async fn authenticate<T: AsRef<str>>(
             stream.write(SaslResponse(&client_final_message));
             stream.flush().await?;
 
-            let _server_final_response = stream.read().await?;
+            let _server_final_response = stream.receive().await?;
             // todo: assert that this was SaslFinal?
 
             Ok(())

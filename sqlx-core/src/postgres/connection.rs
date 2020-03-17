@@ -131,7 +131,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
     };
 
     loop {
-        match stream.read().await? {
+        match stream.receive().await? {
             Message::Authentication => match Authentication::read(stream.buffer())? {
                 Authentication::Ok => {
                     // do nothing. no password is needed to continue.

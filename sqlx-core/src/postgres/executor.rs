@@ -73,7 +73,7 @@ impl PgConnection {
 
         if !self.is_ready {
             loop {
-                if let Message::ReadyForQuery = self.stream.read().await? {
+                if let Message::ReadyForQuery = self.stream.receive().await? {
                     // we are now ready to go
                     self.is_ready = true;
                     break;
@@ -136,7 +136,7 @@ impl PgConnection {
         Ok(statement)
     }
 
-    async fn describe<'e, 'q: 'e>(
+    async fn do_describe<'e, 'q: 'e>(
         &'e mut self,
         query: &'q str,
     ) -> crate::Result<Describe<Postgres>> {
@@ -150,7 +150,7 @@ impl PgConnection {
         self.stream.flush().await?;
 
         let params = loop {
-            match self.stream.read().await? {
+            match self.stream.receive().await? {
                 Message::ParseComplete => {}
 
                 Message::ParameterDescription => {
@@ -167,7 +167,7 @@ impl PgConnection {
             };
         };
 
-        let result = match self.stream.read().await? {
+        let result = match self.stream.receive().await? {
             Message::NoData => None,
             Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
 
@@ -329,7 +329,7 @@ impl PgConnection {
         let mut rows = 0;
 
         loop {
-            match self.stream.read().await? {
+            match self.stream.receive().await? {
                 Message::ParseComplete
                 | Message::BindComplete
                 | Message::NoData
@@ -397,7 +397,7 @@ impl Executor for super::PgConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(async move { self.describe(query.into_parts().0).await })
+        Box::pin(async move { self.do_describe(query.into_parts().0).await })
     }
 }
 

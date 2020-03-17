@@ -77,7 +77,7 @@ async fn expect_desc(
     conn: &mut PgConnection,
 ) -> crate::Result<(HashMap<Box<str>, usize>, Vec<TypeFormat>)> {
     let description: Option<_> = loop {
-        match conn.stream.read().await? {
+        match conn.stream.receive().await? {
             Message::ParseComplete | Message::BindComplete => {}
 
             Message::RowDescription => {
@@ -148,7 +148,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
     }
 
     loop {
-        match conn.stream.read().await? {
+        match conn.stream.receive().await? {
             // Indicates that a phase of the extended query flow has completed
             // We as SQLx don't generally care as long as it is happening
             Message::ParseComplete | Message::BindComplete => {}
