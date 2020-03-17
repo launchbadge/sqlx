@@ -9,7 +9,7 @@ use libsqlite3_sys::{
 };
 
 use crate::arguments::Arguments;
-use crate::encode::Encode;
+use crate::encode::{Encode, IsNull};
 use crate::sqlite::statement::Statement;
 use crate::sqlite::Sqlite;
 use crate::sqlite::SqliteError;
@@ -63,7 +63,9 @@ impl Arguments for SqliteArguments {
     where
         T: Encode<Self::Database> + Type<Self::Database>,
     {
-        value.encode(&mut self.values);
+        if let IsNull::Yes = value.encode_nullable(&mut self.values) {
+            self.values.push(SqliteArgumentValue::Null);
+        }
     }
 }
 
