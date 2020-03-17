@@ -22,6 +22,7 @@ pub struct PgCursor<'c, 'q> {
 impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     type Database = Postgres;
 
+    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<PgConnection>, query: E) -> Self
     where
         Self: Sized,
@@ -35,6 +36,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         }
     }
 
+    #[doc(hidden)]
     fn from_connection<E>(conn: &'c mut PgConnection, query: E) -> Self
     where
         Self: Sized,

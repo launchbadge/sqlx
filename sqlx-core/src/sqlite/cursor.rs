@@ -17,6 +17,7 @@ pub struct SqliteCursor<'c, 'q> {
 impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
     type Database = Sqlite;
 
+    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<SqliteConnection>, query: E) -> Self
     where
         Self: Sized,
@@ -32,6 +33,7 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
         }
     }
 
+    #[doc(hidden)]
     fn from_connection<E>(conn: &'c mut SqliteConnection, query: E) -> Self
     where
         Self: Sized,

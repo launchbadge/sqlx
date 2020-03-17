@@ -21,6 +21,7 @@ pub struct MySqlCursor<'c, 'q> {
 impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
     type Database = MySql;
 
+    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<MySqlConnection>, query: E) -> Self
     where
         Self: Sized,
@@ -35,6 +36,7 @@ impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
         }
     }
 
+    #[doc(hidden)]
     fn from_connection<E>(conn: &'c mut MySqlConnection, query: E) -> Self
     where
         Self: Sized,

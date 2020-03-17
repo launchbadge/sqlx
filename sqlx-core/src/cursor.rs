@@ -18,11 +18,13 @@ where
 {
     type Database: Database;
 
+    #[doc(hidden)]
     fn from_pool<E>(pool: &Pool<<Self::Database as Database>::Connection>, query: E) -> Self
     where
         Self: Sized,
         E: Execute<'q, Self::Database>;
 
+    #[doc(hidden)]
     fn from_connection<E>(
         connection: &'c mut <Self::Database as Database>::Connection,
         query: E,
