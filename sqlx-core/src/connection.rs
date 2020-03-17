@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use futures_core::future::BoxFuture;
 
 use crate::executor::Executor;
-use crate::maybe_owned::MaybeOwned;
 use crate::pool::{Pool, PoolConnection};
 use crate::transaction::Transaction;
 use crate::url::Url;
