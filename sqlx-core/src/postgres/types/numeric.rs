@@ -1,8 +1,7 @@
-use byteorder::BigEndian;
-
 use std::convert::TryInto;
 
-use crate::database::{Database, HasRawValue};
+use byteorder::BigEndian;
+
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
@@ -43,7 +42,7 @@ impl PgNumericSign {
 }
 
 impl Type<Postgres> for PgNumeric {
-    fn type_info() -> <Postgres as Database>::TypeInfo {
+    fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::NUMERIC, "NUMERIC")
     }
 }

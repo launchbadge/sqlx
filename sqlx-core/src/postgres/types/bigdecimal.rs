@@ -1,20 +1,18 @@
+use std::cmp;
+use std::convert::{TryFrom, TryInto};
+
 use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 
-use std::convert::{TryFrom, TryInto};
-
-use super::numeric::{PgNumeric, PgNumericSign};
-use crate::database::{Database, HasRawValue};
+use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
-use crate::decode::Decode;
-use crate::Error;
-use std::cmp;
+use super::numeric::{PgNumeric, PgNumericSign};
 
 impl Type<Postgres> for BigDecimal {
-    fn type_info() -> <Postgres as Database>::TypeInfo {
+    fn type_info() -> PgTypeInfo {
         <PgNumeric as Type<Postgres>>::type_info()
     }
 }
@@ -129,7 +127,7 @@ impl TryFrom<PgNumeric> for BigDecimal {
 /// ### Panics
 /// If this `BigDecimal` cannot be represented by [PgNumeric].
 impl Encode<Postgres> for BigDecimal {
-    fn encode(&self, buf: &mut <Postgres as Database>::RawBuffer) {
+    fn encode(&self, buf: &mut Vec<u8>) {
         PgNumeric::try_from(self)
             .expect("BigDecimal magnitude too great for Postgres NUMERIC type")
             .encode(buf);
