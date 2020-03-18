@@ -138,14 +138,7 @@ impl Executor for SqliteConnection {
             // First let's attempt to describe what we can about parameter types
             // Which happens to just be the count, heh
             let num_params = statement.params();
-            let params = vec![
-                SqliteTypeInfo {
-                    r#type: SqliteType::Null,
-                    affinity: None,
-                };
-                num_params
-            ]
-            .into_boxed_slice();
+            let params = vec![None; num_params].into_boxed_slice();
 
             // Next, collect (return) column types and names
             let num_columns = statement.column_count();
@@ -155,15 +148,15 @@ impl Executor for SqliteConnection {
                 let decl = statement.column_decltype(i);
 
                 let r#type = match decl {
-                    None => SqliteType::Null,
+                    None => None,
                     Some(decl) => match &*decl.to_ascii_lowercase() {
-                        "bool" | "boolean" => SqliteType::Boolean,
-                        "clob" | "text" => SqliteType::Text,
-                        "blob" => SqliteType::Blob,
-                        "real" | "double" | "double precision" | "float" => SqliteType::Float,
-                        decl @ _ if decl.contains("int") => SqliteType::Integer,
-                        decl @ _ if decl.contains("char") => SqliteType::Text,
-                        _ => SqliteType::Null,
+                        "bool" | "boolean" => Some(SqliteType::Boolean),
+                        "clob" | "text" => Some(SqliteType::Text),
+                        "blob" => Some(SqliteType::Blob),
+                        "real" | "double" | "double precision" | "float" => Some(SqliteType::Float),
+                        decl @ _ if decl.contains("int") => Some(SqliteType::Integer),
+                        decl @ _ if decl.contains("char") => Some(SqliteType::Text),
+                        _ => None,
                     },
                 };
 
@@ -171,10 +164,10 @@ impl Executor for SqliteConnection {
                     name: Some(name.into()),
                     non_null: None,
                     table_id: None,
-                    type_info: SqliteTypeInfo {
+                    type_info: r#type.map(|r#type| SqliteTypeInfo {
                         r#type,
                         affinity: None,
-                    },
+                    }),
                 })
             }
 

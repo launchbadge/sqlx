@@ -66,10 +66,6 @@ impl TypeInfo for SqliteTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
         self.r#type == other.r#type || self.affinity == other.affinity
     }
-
-    fn is_null_type(&self) -> bool {
-        self.r#type == SqliteType::Null
-    }
 }
 
 impl<'de, T> Decode<'de, Sqlite> for Option<T>

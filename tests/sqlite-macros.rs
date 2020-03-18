@@ -21,9 +21,12 @@ async fn macro_select() -> anyhow::Result<()> {
 async fn macro_select_bind() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let account = sqlx::query!("select id, name, is_active from accounts where id = ?", 1i32)
-        .fetch_one(&mut conn)
-        .await?;
+    let account = sqlx::query!(
+        "select id, name, is_active from accounts where id = ?",
+        1i32
+    )
+    .fetch_one(&mut conn)
+    .await?;
 
     assert_eq!(1, account.id);
     assert_eq!("Herp Derpinson", account.name);

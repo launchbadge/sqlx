@@ -11,7 +11,7 @@ where
     DB: Database + ?Sized,
 {
     /// The expected types for the parameters of the query.
-    pub param_types: Box<[DB::TypeInfo]>,
+    pub param_types: Box<[Option<DB::TypeInfo>]>,
 
     /// The type and table information, if any for the results of the query.
     pub result_columns: Box<[Column<DB>]>,
@@ -39,7 +39,7 @@ where
 {
     pub name: Option<Box<str>>,
     pub table_id: Option<DB::TableId>,
-    pub type_info: DB::TypeInfo,
+    pub type_info: Option<DB::TypeInfo>,
     /// Whether or not the column cannot be `NULL` (or if that is even knowable).
     pub non_null: Option<bool>,
 }

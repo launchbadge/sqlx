@@ -230,13 +230,41 @@ async fn test_describe() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(describe.result_columns[0].non_null, Some(true));
-    assert_eq!(describe.result_columns[0].type_info.type_name(), "INT4");
+    assert_eq!(
+        describe.result_columns[0]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .type_name(),
+        "INT4"
+    );
     assert_eq!(describe.result_columns[1].non_null, Some(true));
-    assert_eq!(describe.result_columns[1].type_info.type_name(), "TEXT");
+    assert_eq!(
+        describe.result_columns[1]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .type_name(),
+        "TEXT"
+    );
     assert_eq!(describe.result_columns[2].non_null, Some(false));
-    assert_eq!(describe.result_columns[2].type_info.type_name(), "BYTEA");
+    assert_eq!(
+        describe.result_columns[2]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .type_name(),
+        "BYTEA"
+    );
     assert_eq!(describe.result_columns[3].non_null, None);
-    assert_eq!(describe.result_columns[3].type_info.type_name(), "BOOL");
+    assert_eq!(
+        describe.result_columns[3]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .type_name(),
+        "BOOL"
+    );
 
     Ok(())
 }

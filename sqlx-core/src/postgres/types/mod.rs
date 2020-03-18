@@ -81,11 +81,6 @@ impl TypeInfo for PgTypeInfo {
         // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
         self.id.0 == other.id.0
     }
-
-    fn is_null_type(&self) -> bool {
-        // Postgres doesn't have a "null" type
-        false
-    }
 }
 
 impl<'de, T> Decode<'de, Postgres> for Option<T>

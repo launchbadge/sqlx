@@ -43,13 +43,17 @@ impl MySqlTypeInfo {
         }
     }
 
-    pub(crate) fn from_column_def(def: &ColumnDefinition) -> Self {
-        Self {
+    pub(crate) fn from_column_def(def: &ColumnDefinition) -> Option<Self> {
+        if def.type_id == TypeId::NULL {
+            return None;
+        }
+
+        Some(Self {
             id: def.type_id,
             is_unsigned: def.flags.contains(FieldFlags::UNSIGNED),
             is_binary: def.flags.contains(FieldFlags::BINARY),
             char_set: def.char_set,
-        }
+        })
     }
 
     #[doc(hidden)]
@@ -105,10 +109,6 @@ impl TypeInfo for MySqlTypeInfo {
             // Fallback to equality of only [id] and [is_unsigned]
             _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
         }
-    }
-
-    fn is_null_type(&self) -> bool {
-        self.id == TypeId::NULL
     }
 }
 
