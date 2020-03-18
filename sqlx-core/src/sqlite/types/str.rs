@@ -1,5 +1,6 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::error::UnexpectedNullError;
 use crate::sqlite::types::{SqliteType, SqliteTypeAffinity};
 use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
 use crate::types::Type;
@@ -31,7 +32,9 @@ impl Encode<Sqlite> for String {
 
 impl<'de> Decode<'de, Sqlite> for &'de str {
     fn decode(value: SqliteValue<'de>) -> crate::Result<&'de str> {
-        Ok(value.text())
+        value
+            .text()
+            .ok_or_else(|| crate::Error::decode(UnexpectedNullError))
     }
 }
 

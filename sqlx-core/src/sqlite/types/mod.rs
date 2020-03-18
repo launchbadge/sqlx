@@ -18,7 +18,6 @@ pub(crate) enum SqliteType {
     Float = 2,
     Text = 3,
     Blob = 4,
-    Null = 5,
 
     // Non-standard extensions
     Boolean,
@@ -52,7 +51,6 @@ impl SqliteTypeInfo {
 impl Display for SqliteTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self.r#type {
-            SqliteType::Null => "NULL",
             SqliteType::Text => "TEXT",
             SqliteType::Boolean => "BOOLEAN",
             SqliteType::Integer => "INTEGER",
@@ -73,9 +71,10 @@ where
     T: Decode<'de, Sqlite>,
 {
     fn decode(value: SqliteValue<'de>) -> crate::Result<Self> {
-        match value.r#type() {
-            SqliteType::Null => Ok(None),
-            _ => <T as Decode<Sqlite>>::decode(value).map(Some),
+        if value.is_null() {
+            Ok(None)
+        } else {
+            <T as Decode<Sqlite>>::decode(value).map(Some)
         }
     }
 }
