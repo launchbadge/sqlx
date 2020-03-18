@@ -11,33 +11,42 @@ macro_rules! assert_attribute {
     };
 }
 
-pub struct SqlxAttributes {
+macro_rules! fail {
+    ($t:expr, $m:expr) => {
+        return Err(syn::Error::new_spanned($t, $m));
+    };
+}
+
+macro_rules! try_set {
+    ($i:ident, $v:expr, $t:expr) => {
+        match $i {
+            None => $i = Some($v),
+            Some(_) => fail!($t, "duplicate attribute"),
+        }
+    };
+}
+
+#[derive(Copy, Clone)]
+pub enum RenameAll {
+    LowerCase,
+}
+
+pub struct SqlxContainerAttributes {
     pub transparent: bool,
     pub postgres_oid: Option<u32>,
+    pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
+}
+
+pub struct SqlxChildAttributes {
     pub rename: Option<String>,
 }
 
-pub fn parse_attributes(input: &[Attribute]) -> syn::Result<SqlxAttributes> {
+pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
     let mut transparent = None;
     let mut postgres_oid = None;
     let mut repr = None;
-    let mut rename = None;
-
-    macro_rules! fail {
-        ($t:expr, $m:expr) => {
-            return Err(syn::Error::new_spanned($t, $m));
-        };
-    }
-
-    macro_rules! try_set {
-        ($i:ident, $v:expr, $t:expr) => {
-            match $i {
-                None => $i = Some($v),
-                Some(_) => fail!($t, "duplicate attribute"),
-            }
-        };
-    }
+    let mut rename_all = None;
 
     for attr in input {
         let meta = attr
@@ -51,11 +60,21 @@ pub fn parse_attributes(input: &[Attribute]) -> syn::Result<SqlxAttributes> {
                             Meta::Path(p) if p.is_ident("transparent") => {
                                 try_set!(transparent, true, value)
                             }
+
                             Meta::NameValue(MetaNameValue {
                                 path,
                                 lit: Lit::Str(val),
                                 ..
-                            }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
+                            }) if path.is_ident("rename_all") => {
+                                let val = match &*val.value() {
+                                    "lowercase" => RenameAll::LowerCase,
+
+                                    _ => fail!(meta, "unexpected value for rename_all"),
+                                };
+
+                                try_set!(rename_all, val, value)
+                            },
+
                             Meta::List(list) if list.path.is_ident("postgres") => {
                                 for value in list.nested.iter() {
                                     match value {
@@ -92,85 +111,93 @@ pub fn parse_attributes(input: &[Attribute]) -> syn::Result<SqlxAttributes> {
         }
     }
 
-    Ok(SqlxAttributes {
+    Ok(SqlxContainerAttributes {
         transparent: transparent.unwrap_or(false),
         postgres_oid,
         repr,
+        rename_all,
+    })
+}
+
+pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttributes> {
+    let mut rename = None;
+
+    for attr in input {
+        let meta = attr
+            .parse_meta()
+            .map_err(|e| syn::Error::new_spanned(attr, e))?;
+
+        match meta {
+            Meta::List(list) if list.path.is_ident("sqlx") => {
+                for value in list.nested.iter() {
+                    match value {
+                        NestedMeta::Meta(meta) => match meta {
+                            Meta::NameValue(MetaNameValue {
+                                path,
+                                lit: Lit::Str(val),
+                                ..
+                            }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
+
+                            u => fail!(u, "unexpected attribute"),
+                        },
+                        u => fail!(u, "unexpected attribute"),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(SqlxChildAttributes {
         rename,
     })
 }
 
 pub fn check_transparent_attributes(input: &DeriveInput, field: &Field) -> syn::Result<()> {
-    let attributes = parse_attributes(&input.attrs)?;
+    let attributes = parse_container_attributes(&input.attrs)?;
+
     assert_attribute!(
         attributes.transparent,
         "expected #[sqlx(transparent)]",
         input
     );
+
     #[cfg(feature = "postgres")]
     assert_attribute!(
         attributes.postgres_oid.is_none(),
         "unexpected #[sqlx(postgres(oid = ..))]",
         input
     );
+
     assert_attribute!(
-        attributes.rename.is_none(),
-        "unexpected #[sqlx(rename = ..)]",
+        attributes.rename_all.is_none(),
+        "unexpected #[sqlx(rename_all = ..)]",
         field
     );
+
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
-    let attributes = parse_attributes(&field.attrs)?;
-    assert_attribute!(
-        !attributes.transparent,
-        "unexpected #[sqlx(transparent)]",
-        field
-    );
-    #[cfg(feature = "postgres")]
-    assert_attribute!(
-        attributes.postgres_oid.is_none(),
-        "unexpected #[sqlx(postgres(oid = ..))]",
-        field
-    );
+
+    let attributes = parse_child_attributes(&field.attrs)?;
+
     assert_attribute!(
         attributes.rename.is_none(),
         "unexpected #[sqlx(rename = ..)]",
         field
     );
-    assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", field);
+
     Ok(())
 }
 
 pub fn check_enum_attributes<'a>(
     input: &'a DeriveInput,
-    variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<SqlxAttributes> {
-    let attributes = parse_attributes(&input.attrs)?;
+) -> syn::Result<SqlxContainerAttributes> {
+    let attributes = parse_container_attributes(&input.attrs)?;
+
     assert_attribute!(
         !attributes.transparent,
         "unexpected #[sqlx(transparent)]",
         input
     );
-    assert_attribute!(
-        attributes.rename.is_none(),
-        "unexpected #[sqlx(rename = ..)]",
-        input
-    );
-
-    for variant in variants {
-        let attributes = parse_attributes(&variant.attrs)?;
-        assert_attribute!(
-            !attributes.transparent,
-            "unexpected #[sqlx(transparent)]",
-            variant
-        );
-        #[cfg(feature = "postgres")]
-        assert_attribute!(
-            attributes.postgres_oid.is_none(),
-            "unexpected #[sqlx(postgres(oid = ..))]",
-            variant
-        );
-        assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", variant);
-    }
 
     Ok(attributes)
 }
@@ -178,83 +205,90 @@ pub fn check_enum_attributes<'a>(
 pub fn check_weak_enum_attributes(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<Ident> {
-    let attributes = check_enum_attributes(input, variants)?;
+) -> syn::Result<SqlxContainerAttributes> {
+    let attributes = check_enum_attributes(input)?;
+
     #[cfg(feature = "postgres")]
     assert_attribute!(
         attributes.postgres_oid.is_none(),
         "unexpected #[sqlx(postgres(oid = ..))]",
         input
     );
+
     assert_attribute!(attributes.repr.is_some(), "expected #[repr(..)]", input);
+
+    assert_attribute!(
+        attributes.rename_all.is_none(),
+        "unexpected #[sqlx(c = ..)]",
+        input
+    );
+
     for variant in variants {
-        let attributes = parse_attributes(&variant.attrs)?;
+        let attributes = parse_child_attributes(&variant.attrs)?;
+
         assert_attribute!(
             attributes.rename.is_none(),
             "unexpected #[sqlx(rename = ..)]",
             variant
         );
     }
-    Ok(attributes.repr.unwrap())
+
+    Ok(attributes)
 }
 
 pub fn check_strong_enum_attributes(
     input: &DeriveInput,
-    variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<SqlxAttributes> {
-    let attributes = check_enum_attributes(input, variants)?;
+    _variants: &Punctuated<Variant, Comma>,
+) -> syn::Result<SqlxContainerAttributes> {
+    let attributes = check_enum_attributes(input)?;
+
     #[cfg(feature = "postgres")]
     assert_attribute!(
         attributes.postgres_oid.is_some(),
         "expected #[sqlx(postgres(oid = ..))]",
         input
     );
+
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
+
     Ok(attributes)
 }
 
 pub fn check_struct_attributes<'a>(
     input: &'a DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<SqlxAttributes> {
-    let attributes = parse_attributes(&input.attrs)?;
+) -> syn::Result<SqlxContainerAttributes> {
+    let attributes = parse_container_attributes(&input.attrs)?;
+
     assert_attribute!(
         !attributes.transparent,
         "unexpected #[sqlx(transparent)]",
         input
     );
+
     #[cfg(feature = "postgres")]
     assert_attribute!(
         attributes.postgres_oid.is_some(),
         "expected #[sqlx(postgres(oid = ..))]",
         input
     );
+
     assert_attribute!(
-        attributes.rename.is_none(),
-        "unexpected #[sqlx(rename = ..)]",
+        attributes.rename_all.is_none(),
+        "unexpected #[sqlx(rename_all = ..)]",
         input
     );
+
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
 
     for field in fields {
-        let attributes = parse_attributes(&field.attrs)?;
-        assert_attribute!(
-            !attributes.transparent,
-            "unexpected #[sqlx(transparent)]",
-            field
-        );
-        #[cfg(feature = "postgres")]
-        assert_attribute!(
-            attributes.postgres_oid.is_none(),
-            "unexpected #[sqlx(postgres(oid = ..))]",
-            field
-        );
+        let attributes = parse_child_attributes(&field.attrs)?;
+
         assert_attribute!(
             attributes.rename.is_none(),
             "unexpected #[sqlx(rename = ..)]",
             field
         );
-        assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", field);
     }
 
     Ok(attributes)

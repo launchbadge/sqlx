@@ -93,6 +93,10 @@ name = "mysql-raw"
 required-features = [ "mysql" ]
 
 [[test]]
+name = "mysql-derives"
+required-features = [ "mysql", "macros" ]
+
+[[test]]
 name = "postgres"
 required-features = [ "postgres" ]
 
@@ -103,6 +107,10 @@ required-features = [ "postgres" ]
 [[test]]
 name = "postgres-types"
 required-features = [ "postgres" ]
+
+[[test]]
+name = "postgres-derives"
+required-features = [ "postgres", "macros" ]
 
 [[test]]
 name = "mysql-types"

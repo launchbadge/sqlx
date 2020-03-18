@@ -1,7 +1,8 @@
 use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
-    check_weak_enum_attributes, parse_attributes,
+    check_weak_enum_attributes, parse_container_attributes, parse_child_attributes,
 };
+use super::rename_all;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -11,7 +12,7 @@ use syn::{
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let args = parse_attributes(&input.attrs)?;
+    let args = parse_container_attributes(&input.attrs)?;
 
     match &input.data {
         Data::Struct(DataStruct {
@@ -87,18 +88,21 @@ fn expand_derive_encode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let repr = check_weak_enum_attributes(input, &variants)?;
+    let attr = check_weak_enum_attributes(input, &variants)?;
+    let repr = attr.repr.unwrap();
 
     let ident = &input.ident;
 
     Ok(quote!(
         impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where #repr: sqlx::encode::Encode<DB> {
-            fn encode(&self, buf: &mut std::vec::Vec<u8>) {
+            fn encode(&self, buf: &mut DB::RawBuffer) {
                 sqlx::encode::Encode::encode(&(*self as #repr), buf)
             }
-            fn encode_nullable(&self, buf: &mut std::vec::Vec<u8>) -> sqlx::encode::IsNull {
+
+            fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> sqlx::encode::IsNull {
                 sqlx::encode::Encode::encode_nullable(&(*self as #repr), buf)
             }
+
             fn size_hint(&self) -> usize {
                 sqlx::encode::Encode::size_hint(&(*self as #repr))
             }
@@ -110,16 +114,21 @@ fn expand_derive_encode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    check_strong_enum_attributes(input, &variants)?;
+    let cattr = check_strong_enum_attributes(input, &variants)?;
 
     let ident = &input.ident;
 
     let mut value_arms = Vec::new();
     for v in variants {
         let id = &v.ident;
-        let attributes = parse_attributes(&v.attrs)?;
+        let attributes = parse_child_attributes(&v.attrs)?;
+
         if let Some(rename) = attributes.rename {
             value_arms.push(quote!(#ident :: #id => #rename,));
+        } else if let Some(pattern) = cattr.rename_all {
+            let name = rename_all(&*id.to_string(), pattern);
+
+            value_arms.push(quote!(#ident :: #id => #name,));
         } else {
             let name = id.to_string();
             value_arms.push(quote!(#ident :: #id => #name,));
@@ -128,12 +137,13 @@ fn expand_derive_encode_strong_enum(
 
     Ok(quote!(
         impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where str: sqlx::encode::Encode<DB> {
-            fn encode(&self, buf: &mut std::vec::Vec<u8>) {
+            fn encode(&self, buf: &mut DB::RawBuffer) {
                 let val = match self {
                     #(#value_arms)*
                 };
                 <str as sqlx::encode::Encode<DB>>::encode(val, buf)
             }
+
             fn size_hint(&self) -> usize {
                 let val = match self {
                     #(#value_arms)*
@@ -154,7 +164,6 @@ fn expand_derive_encode_struct(
 
     if cfg!(feature = "postgres") {
         let ident = &input.ident;
-
         let column_count = fields.len();
 
         // extract type generics
@@ -164,23 +173,29 @@ fn expand_derive_encode_struct(
         // add db type for impl generics & where clause
         let mut generics = generics.clone();
         let predicates = &mut generics.make_where_clause().predicates;
+
         for field in fields {
             let ty = &field.ty;
+
             predicates.push(parse_quote!(#ty: sqlx::encode::Encode<sqlx::Postgres>));
-            predicates.push(parse_quote!(sqlx::Postgres: sqlx::types::HasSqlType<#ty>));
+            predicates.push(parse_quote!(#ty: sqlx::types::Type<sqlx::Postgres>));
         }
+
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let writes = fields.iter().map(|field| -> Stmt {
             let id = &field.ident;
+
             parse_quote!(
-                sqlx::postgres::encode_struct_field(buf, &self. #id);
+                // sqlx::postgres::encode_struct_field(buf, &self. #id);
+                encoder.encode(&self. #id);
             )
         });
 
         let sizes = fields.iter().map(|field| -> Expr {
             let id = &field.ident;
             let ty = &field.ty;
+
             parse_quote!(
                 <#ty as sqlx::encode::Encode<sqlx::Postgres>>::size_hint(&self. #id)
             )
@@ -189,13 +204,16 @@ fn expand_derive_encode_struct(
         tts.extend(quote!(
             impl #impl_generics sqlx::encode::Encode<sqlx::Postgres> for #ident #ty_generics #where_clause {
                 fn encode(&self, buf: &mut std::vec::Vec<u8>) {
-                    buf.extend(&(#column_count as u32).to_be_bytes());
+                    let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
+
                     #(#writes)*
+
+                    encoder.finish();
                 }
+
                 fn size_hint(&self) -> usize {
-                    4 // oid
-                     + #column_count * (4 + 4) // oid (int) and length (int) for each column
-                     + #(#sizes)+* // sum of the size hints for each column
+                    #column_count * (4 + 4) // oid (int) and length (int) for each column
+                        + #(#sizes)+* // sum of the size hints for each column
                 }
             }
         ));

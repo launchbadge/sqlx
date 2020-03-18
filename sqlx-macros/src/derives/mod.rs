@@ -7,6 +7,7 @@ pub(crate) use decode::expand_derive_decode;
 pub(crate) use encode::expand_derive_encode;
 pub(crate) use r#type::expand_derive_type;
 
+use self::attributes::RenameAll;
 use std::iter::FromIterator;
 use syn::DeriveInput;
 
@@ -22,4 +23,12 @@ pub(crate) fn expand_derive_type_encode_decode(
     );
 
     Ok(combined)
+}
+
+pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
+    match pattern {
+        RenameAll::LowerCase => {
+            s.to_lowercase()
+        }
+    }
 }

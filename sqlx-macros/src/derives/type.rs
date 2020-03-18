@@ -1,6 +1,6 @@
 use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
-    check_weak_enum_attributes, parse_attributes,
+    check_weak_enum_attributes, parse_container_attributes,
 };
 use quote::quote;
 use syn::punctuated::Punctuated;
@@ -11,7 +11,7 @@ use syn::{
 };
 
 pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let attrs = parse_attributes(&input.attrs)?;
+    let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
@@ -65,64 +65,36 @@ fn expand_derive_has_sql_type_transparent(
         .make_where_clause()
         .predicates
         .push(parse_quote!(#ty: sqlx::types::Type<DB>));
+
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-    let mut tts = proc_macro2::TokenStream::new();
-
-    // if cfg!(feature = "mysql") {
-    tts.extend(quote!(
+    Ok(quote!(
         impl #impl_generics sqlx::types::Type< DB > for #ident #ty_generics #where_clause {
             fn type_info() -> DB::TypeInfo {
                 <#ty as sqlx::Type<DB>>::type_info()
             }
         }
-    ));
-
-    // }
-
-    // if cfg!(feature = "postgres") {
-    //     tts.extend(quote!(
-    //         impl #impl_generics sqlx::types::HasSqlType< sqlx::Postgres > #ident #ty_generics #where_clause {
-    //             fn type_info() -> Self::TypeInfo {
-    //                 <Self as HasSqlType<#ty>>::type_info()
-    //             }
-    //         }
-    //     ));
-    // }
-
-    Ok(tts)
+    ))
 }
 
 fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let repr = check_weak_enum_attributes(input, variants)?;
-
+    let attr = check_weak_enum_attributes(input, variants)?;
+    let repr = attr.repr.unwrap();
     let ident = &input.ident;
-    let mut tts = proc_macro2::TokenStream::new();
 
-    if cfg!(feature = "mysql") {
-        tts.extend(quote!(
-            impl sqlx::types::HasSqlType< #ident > for sqlx::MySql where Self: sqlx::types::HasSqlType< #repr > {
-                fn type_info() -> Self::TypeInfo {
-                    <Self as HasSqlType<#repr>>::type_info()
-                }
+    Ok(quote!(
+        impl<DB: sqlx::Database> sqlx::Type<DB> for #ident
+        where
+            #repr: sqlx::Type<DB>,
+        {
+            fn type_info() -> DB::TypeInfo {
+                <#repr as sqlx::Type<DB>>::type_info()
             }
-        ));
-    }
-
-    if cfg!(feature = "postgres") {
-        tts.extend(quote!(
-            impl sqlx::types::HasSqlType< #ident > for sqlx::Postgres where Self: sqlx::types::HasSqlType< #repr > {
-                fn type_info() -> Self::TypeInfo {
-                    <Self as HasSqlType<#repr>>::type_info()
-                }
-            }
-        ));
-    }
-
-    Ok(tts)
+        }
+    ))
 }
 
 fn expand_derive_has_sql_type_strong_enum(
@@ -136,9 +108,11 @@ fn expand_derive_has_sql_type_strong_enum(
 
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
-            impl sqlx::types::HasSqlType< #ident > for sqlx::MySql {
-                fn type_info() -> Self::TypeInfo {
-                    sqlx::mysql::MySqlTypeInfo::r#enum()
+            impl sqlx::Type< sqlx::MySql > for #ident {
+                fn type_info() -> sqlx::mysql::MySqlTypeInfo {
+                    // This is really fine, MySQL is loosely typed and
+                    // we don't nede to be specific here
+                    <str as sqlx::Type<sqlx::MySql>>::type_info()
                 }
             }
         ));
@@ -147,8 +121,8 @@ fn expand_derive_has_sql_type_strong_enum(
     if cfg!(feature = "postgres") {
         let oid = attributes.postgres_oid.unwrap();
         tts.extend(quote!(
-            impl sqlx::types::HasSqlType< #ident > for sqlx::Postgres {
-                fn type_info() -> Self::TypeInfo {
+            impl sqlx::Type< sqlx::Postgres > for #ident {
+                fn type_info() -> sqlx::postgres::PgTypeInfo {
                     sqlx::postgres::PgTypeInfo::with_oid(#oid)
                 }
             }
@@ -170,8 +144,8 @@ fn expand_derive_has_sql_type_struct(
     if cfg!(feature = "postgres") {
         let oid = attributes.postgres_oid.unwrap();
         tts.extend(quote!(
-            impl sqlx::types::HasSqlType< #ident > for sqlx::Postgres {
-                fn type_info() -> Self::TypeInfo {
+            impl sqlx::types::Type< sqlx::Postgres > for #ident {
+                fn type_info() -> sqlx::postgres::PgTypeInfo {
                     sqlx::postgres::PgTypeInfo::with_oid(#oid)
                 }
             }

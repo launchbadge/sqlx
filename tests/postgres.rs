@@ -1,12 +1,13 @@
 use futures::TryStreamExt;
+use sqlx_test::new;
 use sqlx::postgres::{PgPool, PgQueryAs, PgRow};
-use sqlx::{postgres::PgConnection, Connect, Connection, Executor, Row};
+use sqlx::{Postgres, Connection, Executor, Row};
 use std::time::Duration;
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_connects() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<Postgres>().await?;
 
     let value = sqlx::query("select 1 + 1")
         .try_map(|row: PgRow| row.try_get::<i32, _>(0))
@@ -21,7 +22,7 @@ async fn it_connects() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<Postgres>().await?;
 
     let _ = conn
         .execute(
@@ -55,7 +56,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<Postgres>().await?;
 
     let tuple =
         sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
@@ -89,7 +90,7 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_can_work_with_transactions() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<Postgres>().await?;
 
     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
         .await?;
@@ -141,7 +142,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
             .await?;
     }
 
-    conn = connect().await?;
+    conn = new::<Postgres>().await?;
 
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
         .fetch_one(&mut conn)
@@ -210,7 +211,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_describe() -> anyhow::Result<()> {
-    let mut conn = connect().await?;
+    let mut conn = new::<Postgres>().await?;
 
     let _ = conn
         .execute(
@@ -238,11 +239,4 @@ async fn test_describe() -> anyhow::Result<()> {
     assert_eq!(describe.result_columns[3].type_info.type_name(), "BOOL");
 
     Ok(())
-}
-
-async fn connect() -> anyhow::Result<PgConnection> {
-    let _ = dotenv::dotenv();
-    let _ = env_logger::try_init();
-
-    Ok(PgConnection::connect(dotenv::var("DATABASE_URL")?).await?)
 }
