@@ -1622,6 +1622,16 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "sqlx"
 version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cf8ffc87c5eb00ab9bbb4f464372a26ff3320ed38c9745f28e42680c08758fd"
+dependencies = [
+ "sqlx-core 0.2.6",
+ "sqlx-macros 0.2.5",
+]
+
+[[package]]
+name = "sqlx"
+version = "0.3.0-alpha.1"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1629,26 +1639,44 @@ dependencies = [
  "env_logger",
  "futures 0.3.4",
  "paste",
- "sqlx-core 0.2.6",
- "sqlx-macros 0.2.5",
+ "sqlx-core 0.3.0-alpha.1",
+ "sqlx-macros 0.3.0-alpha.1",
  "sqlx-test",
  "tokio 0.2.13",
  "trybuild",
 ]
 
 [[package]]
-name = "sqlx"
+name = "sqlx-core"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cf8ffc87c5eb00ab9bbb4f464372a26ff3320ed38c9745f28e42680c08758fd"
+checksum = "065f0681d5f1dfc2f7cca898c611a9f6abd2e89f60409fcd2c3ce5e7b91623c8"
 dependencies = [
- "sqlx-core 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "sqlx-macros 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-native-tls",
+ "async-std",
+ "async-stream",
+ "base64 0.11.0",
+ "bitflags",
+ "byteorder",
+ "crossbeam-queue",
+ "crossbeam-utils 0.7.2",
+ "futures-channel",
+ "futures-core",
+ "futures-util",
+ "hmac",
+ "log",
+ "md-5",
+ "memchr",
+ "percent-encoding 2.1.0",
+ "rand",
+ "sha-1",
+ "sha2",
+ "url",
 ]
 
 [[package]]
 name = "sqlx-core"
-version = "0.2.6"
+version = "0.3.0-alpha.1"
 dependencies = [
  "async-native-tls",
  "async-std",
@@ -1682,40 +1710,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-core"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065f0681d5f1dfc2f7cca898c611a9f6abd2e89f60409fcd2c3ce5e7b91623c8"
-dependencies = [
- "async-native-tls",
- "async-std",
- "async-stream",
- "base64 0.11.0",
- "bitflags",
- "byteorder",
- "crossbeam-queue",
- "crossbeam-utils 0.7.2",
- "futures-channel",
- "futures-core",
- "futures-util",
- "hmac",
- "log",
- "md-5",
- "memchr",
- "percent-encoding 2.1.0",
- "rand",
- "sha-1",
- "sha2",
- "url",
-]
-
-[[package]]
 name = "sqlx-example-listen-postgres"
 version = "0.1.0"
 dependencies = [
  "async-std",
  "futures 0.3.4",
- "sqlx 0.2.6",
+ "sqlx 0.3.0-alpha.1",
 ]
 
 [[package]]
@@ -1731,24 +1731,8 @@ dependencies = [
  "rand",
  "rust-argon2",
  "serde",
- "sqlx 0.2.6",
+ "sqlx 0.3.0-alpha.1",
  "tide",
-]
-
-[[package]]
-name = "sqlx-macros"
-version = "0.2.5"
-dependencies = [
- "async-std",
- "dotenv",
- "futures 0.3.4",
- "lazy_static",
- "proc-macro2",
- "quote",
- "sqlx-core 0.2.6",
- "syn",
- "tokio 0.2.13",
- "url",
 ]
 
 [[package]]
@@ -1762,8 +1746,24 @@ dependencies = [
  "futures 0.3.4",
  "proc-macro2",
  "quote",
- "sqlx-core 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sqlx-core 0.2.6",
  "syn",
+ "url",
+]
+
+[[package]]
+name = "sqlx-macros"
+version = "0.3.0-alpha.1"
+dependencies = [
+ "async-std",
+ "dotenv",
+ "futures 0.3.4",
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "sqlx-core 0.3.0-alpha.1",
+ "syn",
+ "tokio 0.2.13",
  "url",
 ]
 
@@ -1775,7 +1775,7 @@ dependencies = [
  "async-std",
  "dotenv",
  "env_logger",
- "sqlx 0.2.6",
+ "sqlx 0.3.0-alpha.1",
  "tokio 0.2.13",
 ]
 
@@ -1946,7 +1946,7 @@ dependencies = [
  "async-std",
  "futures 0.3.4",
  "paw",
- "sqlx 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sqlx 0.2.6",
  "structopt",
 ]
 
