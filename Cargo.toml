@@ -115,7 +115,3 @@ required-features = [ "postgres", "macros" ]
 [[test]]
 name = "mysql-types"
 required-features = [ "mysql" ]
-
-[[test]]
-name = "derives"
-required-features = [ "macros" ]
