@@ -64,11 +64,6 @@ impl MySqlTypeInfo {
             _ => None,
         }
     }
-
-    #[doc(hidden)]
-    pub fn r#enum() -> Self {
-        Self::new(TypeId::ENUM)
-    }
 }
 
 impl Display for MySqlTypeInfo {
