@@ -161,8 +161,8 @@ impl Executor for SqliteConnection {
                         "clob" | "text" => SqliteType::Text,
                         "blob" => SqliteType::Blob,
                         "real" | "double" | "double precision" | "float" => SqliteType::Float,
-                        _ if decl.contains("int") => SqliteType::Integer,
-                        _ if decl.contains("char") => SqliteType::Text,
+                        decl @ _ if decl.contains("int") => SqliteType::Integer,
+                        decl @ _ if decl.contains("char") => SqliteType::Text,
                         _ => SqliteType::Null,
                     },
                 };
