@@ -141,7 +141,7 @@ mod chrono {
     test_type!(chrono_date_time(
         Postgres,
         NaiveDateTime,
-        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
     test_type!(chrono_date_time_tz(
@@ -256,7 +256,7 @@ DO $$ BEGIN
     CREATE TYPE _sqlx_record_1 AS (_1 int8);
 EXCEPTION
     WHEN duplicate_object THEN null;
-END $$;    
+END $$;
     "#,
     )
     .await?;
