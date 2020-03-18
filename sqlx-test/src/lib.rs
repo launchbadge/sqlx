@@ -67,7 +67,7 @@ macro_rules! test_prepared_type {
                 $(
                     let query = format!($crate::[< $db _query_for_test_prepared_type >]!(), $text);
 
-                    let rec: (bool, String, $ty, $ty) = sqlx::query_as(&query)
+                    let rec: (bool, Option<String>, $ty, $ty) = sqlx::query_as(&query)
                         .bind($value)
                         .bind($value)
                         .bind($value)
