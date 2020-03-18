@@ -28,14 +28,15 @@ enum Strong {
     Three,
 }
 
+// TODO: Figure out a good solution for custom type testing
 // Records must map to a custom type
 // Note that all types are types in Postgres
-#[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(postgres(oid = 12184))]
-struct PgConfig {
-    name: String,
-    setting: Option<String>,
-}
+// #[derive(PartialEq, Debug, sqlx::Type)]
+// #[sqlx(postgres(oid = 12184))]
+// struct PgConfig {
+//     name: String,
+//     setting: Option<String>,
+// }
 
 test_type!(transparent(
     Postgres,
@@ -60,25 +61,26 @@ test_type!(strong_enum(
     "'four'::text" == Strong::Three
 ));
 
-test_type!(record_pg_config(
-    Postgres,
-    PgConfig,
-    // (CC,gcc)
-    "(SELECT ROW('CC', 'gcc')::pg_config)"
-        == PgConfig {
-            name: "CC".to_owned(),
-            setting: Some("gcc".to_owned()),
-        },
-    // (CC,)
-    "(SELECT '(\"CC\",)'::pg_config)"
-        == PgConfig {
-            name: "CC".to_owned(),
-            setting: None,
-        },
-    // (CC,"")
-    "(SELECT '(\"CC\",\"\")'::pg_config)"
-        == PgConfig {
-            name: "CC".to_owned(),
-            setting: Some("".to_owned()),
-        }
-));
+// TODO: Figure out a good solution for custom type testing
+// test_type!(record_pg_config(
+//     Postgres,
+//     PgConfig,
+//     // (CC,gcc)
+//     "(SELECT ROW('CC', 'gcc')::pg_config)"
+//         == PgConfig {
+//             name: "CC".to_owned(),
+//             setting: Some("gcc".to_owned()),
+//         },
+//     // (CC,)
+//     "(SELECT '(\"CC\",)'::pg_config)"
+//         == PgConfig {
+//             name: "CC".to_owned(),
+//             setting: None,
+//         },
+//     // (CC,"")
+//     "(SELECT '(\"CC\",\"\")'::pg_config)"
+//         == PgConfig {
+//             name: "CC".to_owned(),
+//             setting: Some("".to_owned()),
+//         }
+// ));
