@@ -1,6 +1,6 @@
+use sqlx::Postgres;
 use sqlx_test::test_type;
 use std::fmt::Debug;
-use sqlx::Postgres;
 
 // Transparent types are rust-side wrappers over DB types
 #[derive(PartialEq, Debug, sqlx::Type)]
@@ -64,18 +64,21 @@ test_type!(record_pg_config(
     Postgres,
     PgConfig,
     // (CC,gcc)
-    "(SELECT ROW('CC', 'gcc')::pg_config)" == PgConfig {
-        name: "CC".to_owned(),
-        setting: Some("gcc".to_owned()),
-    },
+    "(SELECT ROW('CC', 'gcc')::pg_config)"
+        == PgConfig {
+            name: "CC".to_owned(),
+            setting: Some("gcc".to_owned()),
+        },
     // (CC,)
-    "(SELECT '(\"CC\",)'::pg_config)" == PgConfig {
-        name: "CC".to_owned(),
-        setting: None,
-    },
+    "(SELECT '(\"CC\",)'::pg_config)"
+        == PgConfig {
+            name: "CC".to_owned(),
+            setting: None,
+        },
     // (CC,"")
-    "(SELECT '(\"CC\",\"\")'::pg_config)" == PgConfig {
-        name: "CC".to_owned(),
-        setting: Some("".to_owned()),
-    }
+    "(SELECT '(\"CC\",\"\")'::pg_config)"
+        == PgConfig {
+            name: "CC".to_owned(),
+            setting: Some("".to_owned()),
+        }
 ));

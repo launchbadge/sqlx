@@ -1,7 +1,6 @@
 use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
-    check_weak_enum_attributes, parse_container_attributes,
-    parse_child_attributes,
+    check_weak_enum_attributes, parse_child_attributes, parse_container_attributes,
 };
 use super::rename_all;
 use quote::quote;

@@ -73,7 +73,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 };
 
                                 try_set!(rename_all, val, value)
-                            },
+                            }
 
                             Meta::List(list) if list.path.is_ident("postgres") => {
                                 for value in list.nested.iter() {
@@ -148,9 +148,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         }
     }
 
-    Ok(SqlxChildAttributes {
-        rename,
-    })
+    Ok(SqlxChildAttributes { rename })
 }
 
 pub fn check_transparent_attributes(input: &DeriveInput, field: &Field) -> syn::Result<()> {
@@ -188,9 +186,7 @@ pub fn check_transparent_attributes(input: &DeriveInput, field: &Field) -> syn::
     Ok(())
 }
 
-pub fn check_enum_attributes<'a>(
-    input: &'a DeriveInput,
-) -> syn::Result<SqlxContainerAttributes> {
+pub fn check_enum_attributes<'a>(input: &'a DeriveInput) -> syn::Result<SqlxContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;
 
     assert_attribute!(

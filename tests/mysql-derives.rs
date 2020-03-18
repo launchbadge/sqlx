@@ -1,6 +1,6 @@
+use sqlx::MySql;
 use sqlx_test::test_type;
 use std::fmt::Debug;
-use sqlx::MySql;
 
 // Transparent types are rust-side wrappers over DB types
 #[derive(PartialEq, Debug, sqlx::Type)]
@@ -40,8 +40,4 @@ test_type!(weak_enum(
     "4" == Weak::Three
 ));
 
-test_type!(strong_color_enum(
-    MySql,
-    Color,
-    "'green'" == Color::Green
-));
+test_type!(strong_color_enum(MySql, Color, "'green'" == Color::Green));
