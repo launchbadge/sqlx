@@ -62,12 +62,12 @@ jobs:
     # integration test: sqlite + async-std
     - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros uuid chrono tls'
       env:
-        DATABASE_URL: "sqlite::memory:"
+        DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
 
     # integration test: sqlite + tokio
     - run: cargo test --no-default-features --features 'runtime-tokio sqlite macros uuid chrono tls'
       env:
-        DATABASE_URL: "sqlite::memory:"
+        DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
 
     # Rust ------------------------------------------------
 

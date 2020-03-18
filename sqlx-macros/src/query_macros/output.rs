@@ -44,35 +44,51 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 
             let ident = parse_ident(name)?;
 
-            let type_ = <DB as DatabaseExt>::return_type_for_id(&column.type_info)
-                .ok_or_else(|| {
-                    if let Some(feature_gate) =
-                        <DB as DatabaseExt>::get_feature_gate(&column.type_info)
-                    {
-                        format!(
-                            "optional feature `{feat}` required for type {ty} of {col}",
-                            ty = &column.type_info,
-                            feat = feature_gate,
-                            col = DisplayColumn {
-                                idx: i,
-                                name: column.name.as_deref()
-                            }
-                        )
-                    } else {
-                        format!(
-                            "unsupported type {ty} of {col}",
-                            ty = column.type_info,
-                            col = DisplayColumn {
-                                idx: i,
-                                name: column.name.as_deref()
-                            }
-                        )
+            let type_ = if let Some(type_info) = &column.type_info {
+                <DB as DatabaseExt>::return_type_for_id(&type_info)
+                    .ok_or_else(|| {
+                        if let Some(feature_gate) =
+                            <DB as DatabaseExt>::get_feature_gate(&type_info)
+                        {
+                            format!(
+                                "optional feature `{feat}` required for type {ty} of {col}",
+                                ty = &type_info,
+                                feat = feature_gate,
+                                col = DisplayColumn {
+                                    idx: i,
+                                    name: column.name.as_deref()
+                                }
+                            )
+                        } else {
+                            format!(
+                                "unsupported type {ty} of {col}",
+                                ty = type_info,
+                                col = DisplayColumn {
+                                    idx: i,
+                                    name: column.name.as_deref()
+                                }
+                            )
+                        }
+                    })?
+                    .parse::<TokenStream>()
+                    .unwrap()
+            } else {
+                format!(
+                    "database couldn't tell us the type of {col}; \
+                     this can happen for columns that are the result of an expression",
+                    col = DisplayColumn {
+                        idx: i,
+                        name: column.name.as_deref()
                     }
-                })?
+                )
                 .parse::<TokenStream>()
-                .unwrap();
+                .unwrap()
+            };
 
-            Ok(RustColumn { ident, type_ })
+            Ok(RustColumn {
+                ident,
+                type_: type_,
+            })
         })
         .collect::<crate::Result<Vec<_>>>()
 }

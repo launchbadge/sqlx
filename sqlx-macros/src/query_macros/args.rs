@@ -30,11 +30,14 @@ pub fn quote_args<DB: DatabaseExt>(
             .iter()
             .zip(input.arg_names.iter().zip(&input.arg_exprs))
             .enumerate()
-            .map(|(i, (param_ty, (name, expr)))| -> crate::Result<_>{
+            .map(|(i, (param_ty, (name, expr)))| -> crate::Result<_> {
+                // TODO: We could remove the ParamChecking flag and just filter to only test params that are non-null
+                let param_ty = param_ty.as_ref().unwrap();
+
                 let param_ty = get_type_override(expr)
                     .or_else(|| {
                         Some(
-                            DB::param_type_for_id(param_ty)?
+                            DB::param_type_for_id(&param_ty)?
                                 .parse::<proc_macro2::TokenStream>()
                                 .unwrap(),
                         )

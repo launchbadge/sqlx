@@ -11,7 +11,7 @@ where
     DB: Database + ?Sized,
 {
     /// The expected types for the parameters of the query.
-    pub param_types: Box<[DB::TypeInfo]>,
+    pub param_types: Box<[Option<DB::TypeInfo>]>,
 
     /// The type and table information, if any for the results of the query.
     pub result_columns: Box<[Column<DB>]>,
@@ -39,7 +39,7 @@ where
 {
     pub name: Option<Box<str>>,
     pub table_id: Option<DB::TableId>,
-    pub type_info: DB::TypeInfo,
+    pub type_info: Option<DB::TypeInfo>,
     /// Whether or not the column cannot be `NULL` (or if that is even knowable).
     pub non_null: Option<bool>,
 }
@@ -54,8 +54,8 @@ where
         f.debug_struct("Column")
             .field("name", &self.name)
             .field("table_id", &self.table_id)
-            .field("type_id", &self.type_info)
-            .field("nonnull", &self.non_null)
+            .field("type_info", &self.type_info)
+            .field("non_null", &self.non_null)
             .finish()
     }
 }

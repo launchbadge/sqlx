@@ -29,7 +29,7 @@ pub(crate) struct MySqlStream {
 
 impl MySqlStream {
     pub(super) async fn new(url: &Url) -> crate::Result<Self> {
-        let stream = MaybeTlsStream::connect(&url, 5432).await?;
+        let stream = MaybeTlsStream::connect(&url, 3306).await?;
 
         let mut capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE

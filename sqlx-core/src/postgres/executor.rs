@@ -199,7 +199,7 @@ impl PgConnection {
             param_types: params
                 .ids
                 .iter()
-                .map(|id| PgTypeInfo::new(*id, &type_names[&id.0]))
+                .map(|id| Some(PgTypeInfo::new(*id, &type_names[&id.0])))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
             result_columns: self
@@ -315,7 +315,10 @@ impl PgConnection {
                 Ok(Column {
                     name: field.name,
                     table_id: field.table_id,
-                    type_info: PgTypeInfo::new(field.type_id, &type_names[&field.type_id.0]),
+                    type_info: Some(PgTypeInfo::new(
+                        field.type_id,
+                        &type_names[&field.type_id.0],
+                    )),
                     non_null,
                 })
             })

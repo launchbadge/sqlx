@@ -32,10 +32,11 @@ enum Strong {
 // Records must map to a custom type
 // Note that all types are types in Postgres
 // #[derive(PartialEq, Debug, sqlx::Type)]
-// #[sqlx(postgres(oid = 12184))]
-// struct PgConfig {
+// #[sqlx(postgres(oid = ?))]
+// struct InventoryItem {
 //     name: String,
-//     setting: Option<String>,
+//     supplier_id: Option<i32>,
+//     price: Option<i64>
 // }
 
 test_type!(transparent(
@@ -64,23 +65,23 @@ test_type!(strong_enum(
 // TODO: Figure out a good solution for custom type testing
 // test_type!(record_pg_config(
 //     Postgres,
-//     PgConfig,
-//     // (CC,gcc)
-//     "(SELECT ROW('CC', 'gcc')::pg_config)"
-//         == PgConfig {
-//             name: "CC".to_owned(),
-//             setting: Some("gcc".to_owned()),
+//     InventoryItem,
+//     "(SELECT ROW('fuzzy dice', 42, 199)::inventory_item)"
+//         == InventoryItem {
+//             name: "fuzzy dice".to_owned(),
+//             supplier_id: Some(42),
+//             price: Some(199),
 //         },
-//     // (CC,)
-//     "(SELECT '(\"CC\",)'::pg_config)"
-//         == PgConfig {
-//             name: "CC".to_owned(),
-//             setting: None,
+//     "(SELECT '(\"fuuzy dice\",,)'::pg_config)"
+//         == InventoryItem {
+//             name: "fuzzy dice".to_owned(),
+//             supplier_id: None,
+//             price: None,
 //         },
-//     // (CC,"")
-//     "(SELECT '(\"CC\",\"\")'::pg_config)"
-//         == PgConfig {
-//             name: "CC".to_owned(),
-//             setting: Some("".to_owned()),
+//     "(SELECT '(\"\",,2350)'::pg_config)"
+//         == InventoryItem {
+//             name: "".to_owned(),
+//             supplier_id: None,
+//             price: Some(2350)
 //         }
 // ));

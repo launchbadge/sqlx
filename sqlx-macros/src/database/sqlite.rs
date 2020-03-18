@@ -1,5 +1,6 @@
 impl_database_ext! {
     sqlx::sqlite::Sqlite {
+        bool,
         i32,
         i64,
         f32,

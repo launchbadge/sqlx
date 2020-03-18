@@ -129,17 +129,73 @@ CREATE TEMPORARY TABLE describe_test (
         .describe("select nt.*, false from describe_test nt")
         .await?;
 
-    assert_eq!(describe.result_columns[0].type_info.to_string(), "INTEGER");
-    assert_eq!(describe.result_columns[1].type_info.to_string(), "TEXT");
-    assert_eq!(describe.result_columns[2].type_info.to_string(), "BLOB");
-    assert_eq!(describe.result_columns[3].type_info.to_string(), "BOOLEAN");
-    assert_eq!(describe.result_columns[4].type_info.to_string(), "DOUBLE");
-    assert_eq!(describe.result_columns[5].type_info.to_string(), "TEXT");
-    assert_eq!(describe.result_columns[6].type_info.to_string(), "DOUBLE");
-    assert_eq!(describe.result_columns[7].type_info.to_string(), "INTEGER");
+    assert_eq!(
+        describe.result_columns[0]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "INTEGER"
+    );
+    assert_eq!(
+        describe.result_columns[1]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "TEXT"
+    );
+    assert_eq!(
+        describe.result_columns[2]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "BLOB"
+    );
+    assert_eq!(
+        describe.result_columns[3]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "BOOLEAN"
+    );
+    assert_eq!(
+        describe.result_columns[4]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "DOUBLE"
+    );
+    assert_eq!(
+        describe.result_columns[5]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "TEXT"
+    );
+    assert_eq!(
+        describe.result_columns[6]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "DOUBLE"
+    );
+    assert_eq!(
+        describe.result_columns[7]
+            .type_info
+            .as_ref()
+            .unwrap()
+            .to_string(),
+        "INTEGER"
+    );
 
     // Expressions can not be described
-    assert_eq!(describe.result_columns[8].type_info.to_string(), "NULL");
+    assert!(describe.result_columns[8].type_info.is_none());
 
     Ok(())
 }
