@@ -111,8 +111,6 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
         ("DateStyle", "ISO, MDY"),
-        // Sets the display format for interval values.
-        ("IntervalStyle", "iso_8601"),
         // Sets the time zone for displaying and interpreting time stamps.
         ("TimeZone", "UTC"),
         // Adjust postgres to return percise values for floats
