@@ -11,7 +11,10 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod record;
 mod str;
+
+pub use self::record::{PgRecordDecoder, PgRecordEncoder};
 
 #[cfg(feature = "chrono")]
 mod chrono;
@@ -56,6 +59,10 @@ impl PgTypeInfo {
             TypeId::UUID => Some("uuid"),
             _ => None,
         }
+    }
+
+    pub fn oid(&self) -> u32 {
+        self.id.0
     }
 }
 

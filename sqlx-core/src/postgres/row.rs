@@ -11,6 +11,7 @@ use crate::row::{ColumnIndex, Row};
 
 /// A value from Postgres. This may be in a BINARY or TEXT format depending
 /// on the data type and if the query was prepared or not.
+#[derive(Debug)]
 pub enum PgValue<'c> {
     Binary(&'c [u8]),
     Text(&'c str),

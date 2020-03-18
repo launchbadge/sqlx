@@ -85,6 +85,7 @@ impl TypeInfo for MySqlTypeInfo {
             | TypeId::TINY_BLOB
             | TypeId::MEDIUM_BLOB
             | TypeId::LONG_BLOB
+            | TypeId::ENUM
                 if (self.is_binary == other.is_binary)
                     && match other.id {
                         TypeId::VAR_CHAR
@@ -92,7 +93,8 @@ impl TypeInfo for MySqlTypeInfo {
                         | TypeId::CHAR
                         | TypeId::TINY_BLOB
                         | TypeId::MEDIUM_BLOB
-                        | TypeId::LONG_BLOB => true,
+                        | TypeId::LONG_BLOB
+                        | TypeId::ENUM => true,
 
                         _ => false,
                     } =>

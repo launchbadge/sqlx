@@ -93,6 +93,10 @@ name = "mysql-raw"
 required-features = [ "mysql" ]
 
 [[test]]
+name = "mysql-derives"
+required-features = [ "mysql", "macros" ]
+
+[[test]]
 name = "postgres"
 required-features = [ "postgres" ]
 
@@ -105,12 +109,9 @@ name = "postgres-types"
 required-features = [ "postgres" ]
 
 [[test]]
-name = "mysql-types"
-required-features = [ "mysql" ]
+name = "postgres-derives"
+required-features = [ "postgres", "macros" ]
 
 [[test]]
-name = "derives"
-required-features = [ "macros" ]
-
-[profile.release]
-lto = true
+name = "mysql-types"
+required-features = [ "mysql" ]

@@ -126,6 +126,7 @@ impl<'c> Row<'c> {
                     | TypeId::LONG_BLOB
                     | TypeId::CHAR
                     | TypeId::TEXT
+                    | TypeId::ENUM
                     | TypeId::VAR_CHAR => {
                         let (len_size, len) = get_lenenc(&buffer[index..]);
 

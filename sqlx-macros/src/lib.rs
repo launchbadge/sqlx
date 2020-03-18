@@ -151,19 +151,28 @@ pub fn query_file_as(input: TokenStream) -> TokenStream {
     async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db))
 }
 
-#[proc_macro_derive(Encode)]
+#[proc_macro_derive(Encode, attributes(sqlx))]
 pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match derives::expand_derive_encode(input) {
+    match derives::expand_derive_encode(&input) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
 }
 
-#[proc_macro_derive(Decode)]
+#[proc_macro_derive(Decode, attributes(sqlx))]
 pub fn derive_decode(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match derives::expand_derive_decode(input) {
+    match derives::expand_derive_decode(&input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[proc_macro_derive(Type, attributes(sqlx))]
+pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
+    match derives::expand_derive_type_encode_decode(&input) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
