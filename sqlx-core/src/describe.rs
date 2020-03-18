@@ -54,8 +54,8 @@ where
         f.debug_struct("Column")
             .field("name", &self.name)
             .field("table_id", &self.table_id)
-            .field("type_id", &self.type_info)
-            .field("nonnull", &self.non_null)
+            .field("type_info", &self.type_info)
+            .field("non_null", &self.non_null)
             .finish()
     }
 }
