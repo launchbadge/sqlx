@@ -62,6 +62,8 @@ impl PgTypeInfo {
         match self.id {
             TypeId::DATE | TypeId::TIME | TypeId::TIMESTAMP | TypeId::TIMESTAMPTZ => Some("chrono"),
             TypeId::UUID => Some("uuid"),
+            // we can support decoding `PgNumeric` but it's decidedly less useful to the layman
+            TypeId::NUMERIC => Some("bigdecimal"),
             _ => None,
         }
     }
