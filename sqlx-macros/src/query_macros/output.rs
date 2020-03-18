@@ -3,7 +3,6 @@ use quote::quote;
 use syn::Path;
 
 use sqlx::describe::Describe;
-use sqlx::types::TypeInfo;
 
 use crate::database::DatabaseExt;
 
