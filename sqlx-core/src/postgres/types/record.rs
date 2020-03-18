@@ -1,5 +1,5 @@
 use crate::decode::Decode;
-use crate::encode::Encode;
+use crate::encode::{Encode, IsNull};
 use crate::io::Buf;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::{PgTypeInfo, PgValue, Postgres};
@@ -42,13 +42,16 @@ impl<'a> PgRecordEncoder<'a> {
         self.buf.extend(&[0; 4]);
 
         let start = self.buf.len();
-        value.encode(self.buf);
+        if let IsNull::Yes = value.encode_nullable(self.buf) {
+            // replaces zeros with actual length
+            self.buf[start - 4..start].copy_from_slice(&(-1_i32).to_be_bytes());
+        } else {
+            let end = self.buf.len();
+            let size = end - start;
 
-        let end = self.buf.len();
-        let size = end - start;
-
-        // replaces zeros with actual length
-        self.buf[start - 4..start].copy_from_slice(&(size as u32).to_be_bytes());
+            // replaces zeros with actual length
+            self.buf[start - 4..start].copy_from_slice(&(size as u32).to_be_bytes());
+        }
 
         // keep track of count
         self.num += 1;
@@ -56,28 +59,6 @@ impl<'a> PgRecordEncoder<'a> {
         self
     }
 }
-
-// impl Encode<Postgres> for (bool, i32, i64, f64, String) {
-//     fn encode(&self, buf: &mut Vec<u8>) {
-//         PgRecordEncoder::new(buf)
-//             .encode(self.0)
-//             .encode(self.1)
-//             .encode(self.2)
-//             .encode(self.3)
-//             .encode(&self.4)
-//             .finish()
-//     }
-//
-//     fn size_hint(&self) -> usize {
-//         // for each field; oid, length, value
-//         5 * (4 + 4)
-//             + (<bool as Encode<Postgres>>::size_hint(&self.0)
-//                 + <i32 as Encode<Postgres>>::size_hint(&self.1)
-//                 + <i64 as Encode<Postgres>>::size_hint(&self.2)
-//                 + <f64 as Encode<Postgres>>::size_hint(&self.3)
-//                 + <String as Encode<Postgres>>::size_hint(&self.4))
-//     }
-// }
 
 pub struct PgRecordDecoder<'de> {
     value: PgValue<'de>,
