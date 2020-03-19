@@ -1,3 +1,47 @@
+//! Conversions between Rust and **Postgres** types.
+//!
+//! # Types
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `bool`                                | BOOL                                                 |
+//! | `i16`                                 | SMALLINT, SMALLSERIAL, INT2                          |
+//! | `i32`                                 | INT, SERIAL, INT4                                    |
+//! | `i64`                                 | BIGINT, BIGSERIAL, INT8                              |
+//! | `f32`                                 | REAL, FLOAT4                                         |
+//! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
+//! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, CITEXT, NAME                 |
+//! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
+//!
+//! ### [`chrono`](https://crates.io/crates/chrono)
+//!
+//! Requires the `chrono` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `chrono::DateTime<Utc>`               | TIMESTAMPTZ                                          |
+//! | `chrono::DateTime<Local>`             | TIMESTAMPTZ                                          |
+//! | `chrono::NaiveDateTime`               | TIMESTAMP                                            |
+//! | `chrono::NaiveTime`                   | DATE                                                 |
+//! | `chrono::NaiveDate`                   | TIME                                                 |
+//!
+//! ### [`uuid`](https://crates.io/crates/uuid)
+//!
+//! Requires the `uuid` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `uuid::Uuid`                          | UUID                                                 |
+//!
+//! # Composite types
+//!
+//! Anonymous composite types are represented as tuples.
+//!
+//! # Nullable
+//!
+//! An `Option<T>` represents a potentially `NULL` value from Postgres.
+//!
+
 use std::fmt::{self, Debug, Display};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -22,6 +66,7 @@ mod chrono;
 #[cfg(feature = "uuid")]
 mod uuid;
 
+/// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
 pub struct PgTypeInfo {
     pub(crate) id: TypeId,
