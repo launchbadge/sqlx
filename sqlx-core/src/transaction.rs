@@ -9,6 +9,7 @@ use crate::describe::Describe;
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::runtime::spawn;
 
+/// Represents a database transaction.
 // Transaction<PoolConnection<PgConnection>>
 // Transaction<PgConnection>
 pub struct Transaction<T>
@@ -38,10 +39,14 @@ where
         })
     }
 
-    pub async fn begin(mut self) -> crate::Result<Transaction<T>> {
-        Transaction::new(self.depth, self.inner.take().expect(ERR_FINALIZED)).await
+    /// Creates a new save point in the current transaction and returns
+    /// a new `Transaction` object to manage its scope.
+    pub async fn begin(self) -> crate::Result<Transaction<Transaction<T>>> {
+        Transaction::new(self.depth, self).await
     }
 
+    /// Commits the current transaction or save point.
+    /// Returns the inner connection or transaction.
     pub async fn commit(mut self) -> crate::Result<T> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
@@ -57,6 +62,8 @@ where
         Ok(inner)
     }
 
+    /// Rollback the current transaction or save point.
+    /// Returns the inner connection or transaction.
     pub async fn rollback(mut self) -> crate::Result<T> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
@@ -95,15 +102,49 @@ where
     }
 }
 
-impl<'c, DB, T> Executor for &'c mut Transaction<T>
+impl<T> Connection for Transaction<T>
+where
+    T: Connection,
+{
+    // Close is equivalent to
+    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+        Box::pin(async move {
+            let mut inner = self.inner.take().expect(ERR_FINALIZED);
+
+            if self.depth == 1 {
+                // This is the root transaction, call rollback
+                let res = inner.execute("ROLLBACK").await;
+
+                // No matter the result of the above, call close
+                let _ = inner.close().await;
+
+                // Now raise the error if there was one
+                res?;
+            } else {
+                // This is not the root transaction, forward to a nested
+                // transaction (to eventually call rollback)
+                inner.close().await?
+            }
+
+            Ok(())
+        })
+    }
+
+    #[inline]
+    fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>> {
+        self.deref_mut().ping()
+    }
+}
+
+impl<DB, T> Executor for Transaction<T>
 where
     DB: Database,
     T: Connection<Database = DB>,
 {
     type Database = T::Database;
 
-    fn execute<'e, 'q: 'e, 't: 'e, E: 'e>(
-        &'t mut self,
+    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
+        &'c mut self,
         query: E,
     ) -> BoxFuture<'e, crate::Result<u64>>
     where
@@ -112,7 +153,7 @@ where
         (**self).execute(query)
     }
 
-    fn fetch<'q, 'e, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
+    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>,
     {
@@ -151,16 +192,9 @@ where
 {
     fn drop(&mut self) {
         if self.depth > 0 {
-            if let Some(mut inner) = self.inner.take() {
+            if let Some(inner) = self.inner.take() {
                 spawn(async move {
-                    let res = inner.execute("ROLLBACK").await;
-
-                    // If the rollback failed we need to close the inner connection
-                    if res.is_err() {
-                        // This will explicitly forget the connection so it will not
-                        // return to the pool
-                        let _ = inner.close().await;
-                    }
+                    let _ = inner.close().await;
                 });
             }
         }
