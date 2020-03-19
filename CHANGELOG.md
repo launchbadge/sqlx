@@ -5,6 +5,168 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 - UNRELEASED
+
+### Added
+
+ - Queries from the database are now zero-copy and no allocation beyond a shared read buffer
+   for the TCP stream ( in other words, no per-query allocation ).
+
+ - [[#129]] Add support for [SQLite](https://sqlite.org/index.html). Generated code should be very close to normal use of the C API.
+
+      * Adds `Sqlite`, `SqliteConnection`, `SqlitePool`, and other supporting types
+
+ - [[#97]] [[#134]] Add support for user-defined types. [[@Freax13]]
+
+      * Rust-only domain types or transparent wrappers around SQL types. These may be used _transparently_ inplace of
+        the SQL type.
+
+          ```rust
+          #[derive(sqlx::Type)]
+          #[repr(transparent)]
+          struct Meters(i32);
+          ```
+
+      * Enumerations may be defined in Rust and can match SQL by integer discriminant or variant name.
+
+          ```rust
+          #[derive(sqlx::Type)]
+          #[repr(i32)] // Expects a INT in SQL
+          enum Color { Red = 1, Green = 2, Blue = 3 }
+          ```
+
+          ```rust
+          #[derive(sqlx::Type)]
+          #[sqlx(postgres(oid = 25))] // Postgres requires the OID
+          #[sqlx(rename_all = "lowercase")] // similar to serde rename_all
+          enum Color { Red, Green, Blue } // expects 'red', 'green', or 'blue'
+          ```
+
+      * **Postgres** further supports user-defined composite types.
+
+          ```rust
+          #[derive(sqlx::Type)]
+          #[sqlx(postgres(oid = ?))] // Postgres requires the OID
+          struct InterfaceType {
+              name: String,
+              supplier_id: i32,
+              price: f64
+          }
+          ```
+
+ - [[#98]] [[#131]] Add support for asynchronous notifications in Postgres (`LISTEN` / `NOTIFY`). [[@thedodd]]
+
+      * Supports automatic reconnection on connection failure.
+
+      * `PgListener` implements `Executor` and may be used to execute queries. Be careful however as if the
+        intent is to handle and process messages rapidly you don't want to be tying up the connection
+        for too long. Messages received during queries are buffered and will be delivered on the next call
+        to `recv()`.
+
+   ```rust
+   let mut listener = PgListener::new(DATABASE_URL).await?;
+
+   listener.listen("topic").await?;
+
+   loop {
+       let message = listener.recv().await?;
+
+       println!("payload = {}", message.payload);
+   }
+   ```
+
+### Changed
+
+ - `Query` (and `QueryAs`; returned from `query()`, `query_as()`, `query!()`, and `query_as!()`) now will accept both `&mut Connection` or
+   `&Pool` where as in 0.2.x they required `&mut &Pool`.
+
+ - `Executor` now takes any value that implements `Execute` as a query. `Execute` is implemented for `Query` and `QueryAs` to mean
+   exactly what they've meant so far, a prepared SQL query. However, `Execute` is also implemented for just `&str` which now performs
+   a raw or unprepared SQL query. You can further use this to fetch `Row`s from the database though it is not as efficient as the
+   prepared API (notably Postgres and MySQL send data back in TEXT mode as opposed to in BINARY mode).
+
+   ```rust
+   // Set the time zone parameter
+   conn.execute("SET TIME ZONE LOCAL;").await
+
+   // Demonstrate two queries at once with the raw API
+   let mut cursor = conn.fetch("SELECT 1; SELECT 2");
+   let row = cursor.next().await?.unwrap();
+   let value: i32 = row.get(0); // 1
+   let row = cursor.next().await?.unwrap();
+   let value: i32 = row.get(0); // 2
+   ```
+
+ - `sqlx::Row` now has a lifetime (`'c`) tied to the database connection. In effect, this means that you cannot store `Row`s or collect
+   them into a collection. `Query` (returned from `sqlx::query()`) has `map()` which takes a function to map from the `Row` to
+   another type to make this transition easier.
+
+   In 0.2.x
+
+   ```rust
+   let rows = sqlx::query("SELECT 1")
+       .fetch_all(&mut conn).await?;
+   ```
+
+   In 0.3.x
+
+   ```rust
+   let values: Vec<i32> = sqlx::query("SELECT 1")
+       .map(|row: PgRow| row.get(0))
+       .fetch_all(&mut conn).await?;
+   ```
+
+   To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements).
+
+   ```rust
+   let values: Vec<(i32, bool)> = sqlx::query("SELECT 1, false")
+       .fetch_all(&mut conn).await?;
+   ```
+
+ - `HasSqlType<T>: Database` is now `T: Type<Database>` to mirror `Encode` and `Decode`
+
+ - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a custom `Stream` type where the
+   item type borrows into the stream (which itself borrows from connection). This means that using `query().fetch()` you can now
+   stream directly from the database with **zero-copy** and **zero-allocation**.
+
+### Removed
+
+ - `Query` (returned from `query()`) no longer has `fetch_one`, `fetch_optional`, or `fetch_all`. You _must_ map the row using `map()` and then
+   you will have a `query::Map` value that has the former methods available.
+
+   ```rust
+   let values: Vec<i32> = sqlx::query("SELECT 1")
+       .map(|row: PgRow| row.get(0))
+       .fetch_all(&mut conn).await?;
+   ```
+
+### Fixed
+
+ - [[#62]] [[#130]] [[#135]] Remove explicit set of `IntervalStyle`. Allow usage of SQLx for CockroachDB and potentially PgBouncer. [[@bmisiak]]
+
+ - [[#108]] Allow nullable and borrowed values to be used as arguments in `query!` and `query_as!`. For example, where the column would
+   resolve to `String` in Rust (TEXT, VARCHAR, etc.), you may now use `Option<String>`, `Option<&str>`, or `&str` instead. [[@abonander]]
+
+ - [[#108]] Make unknown type errors far more informative. As an example, trying to `SELECT` a `DATE` column will now try and tell you about the
+   `chrono` feature. [[@abonander]]
+
+   ```
+   optional feature `chrono` required for type DATE of column #1 ("now")
+   ```
+
+[#62]: https://github.com/launchbadge/sqlx/issues/62
+[#130]: https://github.com/launchbadge/sqlx/issues/130
+
+[#98]: https://github.com/launchbadge/sqlx/pull/98
+[#97]: https://github.com/launchbadge/sqlx/pull/97
+[#134]: https://github.com/launchbadge/sqlx/pull/134
+[#129]: https://github.com/launchbadge/sqlx/pull/129
+[#131]: https://github.com/launchbadge/sqlx/pull/131
+[#135]: https://github.com/launchbadge/sqlx/pull/135
+[#108]: https://github.com/launchbadge/sqlx/pull/108
+
+[@bmisiak]: https://github.com/bmisiak
+
 ## 0.2.6 - 2020-03-10
 
 ### Added
