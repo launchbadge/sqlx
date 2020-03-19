@@ -119,7 +119,7 @@ macro_rules! query (
 /// -----
 ///
 /// `examples/queries/account-by-id.sql`:
-/// ```sql
+/// ```text
 /// select * from (select (1) as id, 'Herp Derpinson' as name) accounts
 /// where id = ?
 /// ```
