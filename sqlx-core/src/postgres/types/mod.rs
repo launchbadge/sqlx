@@ -33,6 +33,14 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | UUID                                                 |
 //!
+//! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
+//!
+//! Requires the `network-address` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
+//!
 //! # Composite types
 //!
 //! Anonymous composite types are represented as tuples.
@@ -69,6 +77,8 @@ mod chrono;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+mod network;
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
