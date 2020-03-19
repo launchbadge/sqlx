@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::Path;
 
@@ -45,9 +45,9 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let ident = parse_ident(name)?;
 
             let type_ = if let Some(type_info) = &column.type_info {
-                <DB as DatabaseExt>::return_type_for_id(&type_info)
-                    .ok_or_else(|| {
-                        if let Some(feature_gate) =
+                <DB as DatabaseExt>::return_type_for_id(&type_info).map_or_else(
+                    || {
+                        let message = if let Some(feature_gate) =
                             <DB as DatabaseExt>::get_feature_gate(&type_info)
                         {
                             format!(
@@ -68,21 +68,24 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                                     name: column.name.as_deref()
                                 }
                             )
-                        }
-                    })?
-                    .parse::<TokenStream>()
-                    .unwrap()
-            } else {
-                format!(
-                    "database couldn't tell us the type of {col}; \
-                     this can happen for columns that are the result of an expression",
-                    col = DisplayColumn {
-                        idx: i,
-                        name: column.name.as_deref()
-                    }
+                        };
+                        syn::Error::new(Span::call_site(), message).to_compile_error()
+                    },
+                    |t| t.parse().unwrap(),
                 )
-                .parse::<TokenStream>()
-                .unwrap()
+            } else {
+                syn::Error::new(
+                    Span::call_site(),
+                    format!(
+                        "database couldn't tell us the type of {col}; \
+                     this can happen for columns that are the result of an expression",
+                        col = DisplayColumn {
+                            idx: i,
+                            name: column.name.as_deref()
+                        }
+                    ),
+                )
+                .to_compile_error()
             };
 
             Ok(RustColumn {
