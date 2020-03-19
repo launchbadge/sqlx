@@ -122,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements).
 
    ```rust
-   let values: Vec<(i32, bool)> = sqlx::query("SELECT 1, false")
+   let values: Vec<(i32, bool)> = sqlx::query_as("SELECT 1, false")
        .fetch_all(&mut conn).await?;
    ```
 
