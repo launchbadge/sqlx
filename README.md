@@ -78,6 +78,8 @@ sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio"
  
  * `mysql`: Add support for the MySQL (and MariaDB) database server.
  
+ * `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
+ 
  * `uuid`: Add support for UUID (in Postgres).
  
  * `chrono`: Add support for date and time types from `chrono`.
