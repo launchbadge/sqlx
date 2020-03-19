@@ -125,8 +125,9 @@ impl TryFrom<PgNumeric> for BigDecimal {
             cents.push((digit % 100) as u8);
         }
 
-        let bigint = BigInt::from_radix_be(sign, &cents, 100)
-            .expect("BUG digit outside of given radix, check math above");
+        let bigint = BigInt::from_radix_be(sign, &cents, 100).ok_or_else(|e| {
+            crate::Error::Decode("PgNumeric contained an out-of-range digit".into())
+        })?;
 
         Ok(BigDecimal::new(bigint, scale))
     }
