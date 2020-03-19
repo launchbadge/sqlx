@@ -36,6 +36,8 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
         let weight_10 = base_10.len() as i64 - exp;
 
         // scale is only nonzero when we have fractional digits
+        // since `exp` is the _negative_ decimal exponent, it tells us
+        // exactly what our scale should be
         let scale: i16 = cmp::max(0, exp).try_into()?;
 
         // there's an implicit +1 offset in the interpretation
@@ -77,7 +79,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
             digits.pop();
         }
 
-        Ok(PgNumeric {
+        Ok(PgNumeric::Number {
             sign: match sign {
                 Sign::Plus | Sign::NoSign => PgNumericSign::Positive,
                 Sign::Minus => PgNumericSign::Negative,
@@ -93,32 +95,39 @@ impl TryFrom<PgNumeric> for BigDecimal {
     type Error = crate::Error;
 
     fn try_from(numeric: PgNumeric) -> crate::Result<Self> {
-        let sign = match numeric.sign {
-            _ if numeric.digits.is_empty() => Sign::NoSign,
-            PgNumericSign::Positive => Sign::Plus,
-            PgNumericSign::Negative => Sign::Minus,
-            PgNumericSign::NotANumber => {
+        let (digits, sign, weight) = match numeric {
+            PgNumeric::Number {
+                digits,
+                sign,
+                weight,
+                ..
+            } => (digits, sign, weight),
+            PgNumeric::NotANumber => {
                 return Err(crate::Error::Decode(
                     "BigDecimal does not support NaN values".into(),
                 ))
             }
         };
 
+        let sign = match sign {
+            _ if digits.is_empty() => Sign::NoSign,
+            PgNumericSign::Positive => Sign::Plus,
+            PgNumericSign::Negative => Sign::Minus,
+        };
+
         // `scale` is effectively the number of places left to shift the decimal point
         // weight is 0 if the decimal point falls after the first base-10000 digit
-        let scale = (numeric.digits.len() as i64 - numeric.weight as i64 - 1) * 4;
+        let scale = (digits.len() as i64 - weight as i64 - 1) * 4;
 
         // no optimized algorithm for base-10 so use base-100 for faster processing
-        let mut cents = Vec::with_capacity(numeric.digits.len() * 2);
-        for digit in &numeric.digits {
+        let mut cents = Vec::with_capacity(digits.len() * 2);
+        for digit in &digits {
             cents.push((digit / 100) as u8);
             cents.push((digit % 100) as u8);
         }
 
         let bigint = BigInt::from_radix_be(sign, &cents, 100)
             .expect("BUG digit outside of given radix, check math above");
-
-        dbg!(&numeric);
 
         Ok(BigDecimal::new(bigint, scale))
     }
@@ -156,7 +165,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let one: BigDecimal = "1".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&one).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
             weight: 0,
@@ -167,7 +176,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let ten: BigDecimal = "10".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&ten).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
             weight: 0,
@@ -178,7 +187,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let one_hundred: BigDecimal = "100".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&one_hundred).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
             weight: 0,
@@ -190,7 +199,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let ten_thousand: BigDecimal = "10000".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&ten_thousand).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
             weight: 1,
@@ -201,7 +210,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let two_digits: BigDecimal = "12345".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&two_digits).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
             weight: 1,
@@ -212,7 +221,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let one_tenth: BigDecimal = "0.1".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&one_tenth).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 1,
             weight: -1,
@@ -223,7 +232,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let decimal: BigDecimal = "1.2345".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 4,
             weight: 0,
@@ -234,7 +243,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let decimal: BigDecimal = "0.12345".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
             weight: -1,
@@ -245,7 +254,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let decimal: BigDecimal = "0.01234".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
             weight: -1,
@@ -256,7 +265,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let decimal: BigDecimal = "12345.67890".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
             weight: 1,
@@ -267,7 +276,7 @@ fn test_bigdecimal_to_pgnumeric() {
     let one_digit_decimal: BigDecimal = "0.00001234".parse().unwrap();
     assert_eq!(
         PgNumeric::try_from(&one_digit_decimal).unwrap(),
-        PgNumeric {
+        PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 8,
             weight: -2,

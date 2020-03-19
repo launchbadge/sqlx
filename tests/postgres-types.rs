@@ -53,48 +53,63 @@ test_type!(bytea(
 test_prepared_type!(numeric(
     Postgres,
     PgNumeric,
+    "0::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![]
+        },
+    "(-0)::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![]
+        },
     "1::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: 0,
             scale: 0,
             digits: vec![1]
         },
     "1234::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: 0,
             scale: 0,
             digits: vec![1234]
         },
     "10000::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: 1,
             scale: 0,
             digits: vec![1]
         },
     "0.1::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: -1,
             scale: 1,
             digits: vec![1000]
         },
     "0.01234::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: -1,
             scale: 5,
             digits: vec![123, 4000]
         },
     "12.34::numeric"
-        == PgNumeric {
+        == PgNumeric::Number {
             sign: PgNumericSign::Positive,
             weight: 0,
             scale: 2,
             digits: vec![12, 3400]
-        }
+        },
+    "'NaN'::numeric" == PgNumeric::NotANumber,
 ));
 
 #[cfg(feature = "bigdecimal")]
@@ -106,7 +121,7 @@ test_type!(decimal(
     "0.1::numeric" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
     "0.01234::numeric" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
-    "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap()
+    "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
 #[cfg(feature = "uuid")]

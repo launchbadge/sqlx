@@ -19,7 +19,7 @@ where
 // Test type encoding and decoding
 #[macro_export]
 macro_rules! test_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::test_prepared_type!($name($db, $ty, $($text == $value),+));
         $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
     }
@@ -28,7 +28,7 @@ macro_rules! test_type {
 // Test type decoding for the simple (unprepared) query API
 #[macro_export]
 macro_rules! test_unprepared_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -55,7 +55,7 @@ macro_rules! test_unprepared_type {
 // Test type encoding and decoding for the prepared query API
 #[macro_export]
 macro_rules! test_prepared_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
