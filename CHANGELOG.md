@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
  - `HasSqlType<T>: Database` is now `T: Type<Database>` to mirror `Encode` and `Decode`
 
- - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a custom `Stream` type where the
+ - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a Stream-like type where the
    item type borrows into the stream (which itself borrows from connection). This means that using `query().fetch()` you can now
    stream directly from the database with **zero-copy** and **zero-allocation**.
 
