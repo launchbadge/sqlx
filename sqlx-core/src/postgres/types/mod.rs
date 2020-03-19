@@ -61,6 +61,7 @@ impl PgTypeInfo {
         }
     }
 
+    #[doc(hidden)]
     pub fn oid(&self) -> u32 {
         self.id.0
     }
