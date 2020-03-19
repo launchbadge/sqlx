@@ -115,7 +115,6 @@ impl TryFrom<PgNumeric> for BigDecimal {
             PgNumericSign::Negative => Sign::Minus,
         };
 
-        // `scale` is effectively the number of places left to shift the decimal point
         // weight is 0 if the decimal point falls after the first base-10000 digit
         let scale = (digits.len() as i64 - weight as i64 - 1) * 4;
 
