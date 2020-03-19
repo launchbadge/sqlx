@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
- - Queries from the database are now zero-copy and no allocation beyond a shared read buffer
-   for the TCP stream ( in other words, no per-query allocation ).
+ - Results from the database are now zero-copy and no allocation beyond a shared read buffer
+   for the TCP stream ( in other words, almost no per-query allocation ). Bind arguments still 
+   do allocate a buffer per query.
 
  - [[#129]] Add support for [SQLite](https://sqlite.org/index.html). Generated code should be very close to normal use of the C API.
 
