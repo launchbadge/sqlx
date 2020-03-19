@@ -1,3 +1,5 @@
+//! Types which represent various database drivers.
+
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
 use crate::postgres::row::PgValue;
 

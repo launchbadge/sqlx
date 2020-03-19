@@ -55,6 +55,7 @@ pub mod ty_match;
 #[doc(hidden)]
 pub mod result_ext;
 
+/// Types and traits for encoding values for the database.
 pub mod encode {
     pub use sqlx_core::encode::{Encode, IsNull};
 
@@ -62,6 +63,7 @@ pub mod encode {
     pub use sqlx_macros::Encode;
 }
 
+/// Types and traits for decoding values from the database.
 pub mod decode {
     pub use sqlx_core::decode::Decode;
 
@@ -69,6 +71,7 @@ pub mod decode {
     pub use sqlx_macros::Decode;
 }
 
+/// Convenience re-export of common traits.
 pub mod prelude {
     pub use super::Connect;
     pub use super::Connection;

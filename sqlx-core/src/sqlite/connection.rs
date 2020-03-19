@@ -22,7 +22,7 @@ use crate::url::Url;
 #[derive(Clone, Copy)]
 pub(super) struct SqliteConnectionHandle(pub(super) NonNull<sqlite3>);
 
-/// A connection to a [SQLite][super::Sqlite] database.
+/// A connection to a [Sqlite](struct.Sqlite.html) database.
 pub struct SqliteConnection {
     pub(super) handle: SqliteConnectionHandle,
     pub(super) worker: Worker,

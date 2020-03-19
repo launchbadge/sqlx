@@ -1,3 +1,5 @@
+//! **SQLite** database and connection types.
+
 mod arguments;
 mod connection;
 mod cursor;
@@ -20,6 +22,7 @@ pub use types::SqliteTypeInfo;
 pub use value::SqliteValue;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Sqlite**.
+#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
 pub type SqlitePool = crate::pool::Pool<SqliteConnection>;
 
 make_query_as!(SqliteQueryAs, Sqlite, SqliteRow);

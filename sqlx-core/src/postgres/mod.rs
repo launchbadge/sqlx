@@ -24,6 +24,7 @@ mod tls;
 pub mod types;
 
 /// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.
+#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub type PgPool = crate::pool::Pool<PgConnection>;
 
 make_query_as!(PgQueryAs, Postgres, PgRow);

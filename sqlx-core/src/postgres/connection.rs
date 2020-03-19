@@ -16,7 +16,7 @@ use crate::postgres::stream::PgStream;
 use crate::postgres::{sasl, tls};
 use crate::url::Url;
 
-/// An asynchronous connection to a [Postgres][super::Postgres] database.
+/// An asynchronous connection to a [Postgres](struct.Postgres.html) database.
 ///
 /// The connection string expected by [Connect::connect] should be a PostgreSQL connection
 /// string, as documented at
