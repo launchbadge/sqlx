@@ -2,7 +2,7 @@ use sqlx::{Connect, Database};
 
 fn setup_if_needed() {
     let _ = dotenv::dotenv();
-    let _ = env_logger::try_init();
+    let _ = env_logger::builder().is_test(true).try_init();
 }
 
 // Make a new connection
