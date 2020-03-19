@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    prepared API (notably Postgres and MySQL send data back in TEXT mode as opposed to in BINARY mode).
 
    ```rust
+   use sqlx::Executor;
+   
    // Set the time zone parameter
    conn.execute("SET TIME ZONE LOCAL;").await
 
