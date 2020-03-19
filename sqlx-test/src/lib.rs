@@ -19,7 +19,7 @@ where
 // Test type encoding and decoding
 #[macro_export]
 macro_rules! test_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::test_prepared_type!($name($db, $ty, $($text == $value),+));
         $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
     }
@@ -28,7 +28,7 @@ macro_rules! test_type {
 // Test type decoding for the simple (unprepared) query API
 #[macro_export]
 macro_rules! test_unprepared_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -55,7 +55,7 @@ macro_rules! test_unprepared_type {
 // Test type encoding and decoding for the prepared query API
 #[macro_export]
 macro_rules! test_prepared_type {
-    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+)) => {
+    ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -67,14 +67,33 @@ macro_rules! test_prepared_type {
                 $(
                     let query = format!($crate::[< $db _query_for_test_prepared_type >]!(), $text);
 
-                    let rec: (bool, $ty) = sqlx::query_as(&query)
+                    let rec: (bool, Option<String>, $ty, $ty) = sqlx::query_as(&query)
+                        .bind($value)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)
                         .await?;
 
-                    assert!(rec.0, "value returned from server: {:?}", rec.1);
-                    assert!($value == rec.1);
+                    assert!(rec.0,
+                            "DB value mismatch; given value: {:?}\n\
+                             as received: {:?}\n\
+                             as returned: {:?}\n\
+                             round-trip: {:?}",
+                            $value, rec.1, rec.2, rec.3);
+
+                    assert_eq!($value, rec.2,
+                            "DB value mismatch; given value: {:?}\n\
+                                     as received: {:?}\n\
+                                     as returned: {:?}\n\
+                                     round-trip: {:?}",
+                                    $value, rec.1, rec.2, rec.3);
+
+                    assert_eq!($value, rec.3,
+                            "DB value mismatch; given value: {:?}\n\
+                                     as received: {:?}\n\
+                                     as returned: {:?}\n\
+                                     round-trip: {:?}",
+                                    $value, rec.1, rec.2, rec.3);
                 )+
 
                 Ok(())
@@ -86,20 +105,20 @@ macro_rules! test_prepared_type {
 #[macro_export]
 macro_rules! MySql_query_for_test_prepared_type {
     () => {
-        "SELECT {} <=> ?, ? as _1"
+        "SELECT {0} <=> ?, cast(? as text) as _1, {0} as _2, ? as _3"
     };
 }
 
 #[macro_export]
 macro_rules! Sqlite_query_for_test_prepared_type {
     () => {
-        "SELECT {} is ?, ? as _1"
+        "SELECT {0} is ?, cast(? as text) as _1, {0} as _2, ? as _3"
     };
 }
 
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
-        "SELECT {} is not distinct from $1, $2 as _1"
+        "SELECT {0} is not distinct from $1, $2::text as _1, {0} as _2, $3 as _3"
     };
 }

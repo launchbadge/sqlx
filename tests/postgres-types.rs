@@ -1,11 +1,11 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use sqlx::decode::Decode;
 use sqlx::encode::Encode;
-use sqlx::postgres::types::PgRecordEncoder;
+use sqlx::postgres::types::raw::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
 use sqlx::postgres::{PgQueryAs, PgTypeInfo, PgValue};
 use sqlx::{Cursor, Executor, Postgres, Row, Type};
-use sqlx_core::postgres::types::PgRecordDecoder;
-use sqlx_test::{new, test_type};
-use std::sync::atomic::{AtomicU32, Ordering};
+use sqlx_test::{new, test_prepared_type, test_type};
 
 test_type!(null(
     Postgres,
@@ -49,6 +49,81 @@ test_type!(bytea(
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
 
+// PgNumeric only works on the wire protocol
+test_prepared_type!(numeric(
+    Postgres,
+    PgNumeric,
+    "0::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![]
+        },
+    "(-0)::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![]
+        },
+    "1::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![1]
+        },
+    "1234::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 0,
+            digits: vec![1234]
+        },
+    "10000::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 1,
+            scale: 0,
+            digits: vec![1]
+        },
+    "0.1::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: -1,
+            scale: 1,
+            digits: vec![1000]
+        },
+    "0.01234::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: -1,
+            scale: 5,
+            digits: vec![123, 4000]
+        },
+    "12.34::numeric"
+        == PgNumeric::Number {
+            sign: PgNumericSign::Positive,
+            weight: 0,
+            scale: 2,
+            digits: vec![12, 3400]
+        },
+    "'NaN'::numeric" == PgNumeric::NotANumber,
+));
+
+#[cfg(feature = "bigdecimal")]
+test_type!(decimal(
+    Postgres,
+    sqlx::types::BigDecimal,
+    "1::numeric" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "10000::numeric" == "10000".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.1::numeric" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.01234::numeric" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
+));
+
 #[cfg(feature = "uuid")]
 test_type!(uuid(
     Postgres,
@@ -61,8 +136,9 @@ test_type!(uuid(
 
 #[cfg(feature = "chrono")]
 mod chrono {
-    use super::*;
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+
+    use super::*;
 
     test_type!(chrono_date(
         Postgres,
@@ -80,7 +156,7 @@ mod chrono {
     test_type!(chrono_date_time(
         Postgres,
         NaiveDateTime,
-        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
     test_type!(chrono_date_time_tz(
@@ -195,7 +271,7 @@ DO $$ BEGIN
     CREATE TYPE _sqlx_record_1 AS (_1 int8);
 EXCEPTION
     WHEN duplicate_object THEN null;
-END $$;    
+END $$;
     "#,
     )
     .await?;

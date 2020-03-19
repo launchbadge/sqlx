@@ -196,7 +196,7 @@ fn expand_derive_decode_struct(
         tts.extend(quote!(
             impl #impl_generics sqlx::decode::Decode<'de, sqlx::Postgres> for #ident #ty_generics #where_clause {
                 fn decode(value: <sqlx::Postgres as sqlx::database::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
-                    let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+                    let mut decoder = sqlx::postgres::types::raw::PgRecordDecoder::new(value)?;
 
                     #(#reads)*
 

@@ -55,10 +55,14 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
-mod record;
 mod str;
 
-pub use self::record::{PgRecordDecoder, PgRecordEncoder};
+// types we want to integration test but don't want to stabilize
+#[doc(hidden)]
+pub mod raw;
+
+#[cfg(feature = "bigdecimal_bigint")]
+mod bigdecimal;
 
 #[cfg(feature = "chrono")]
 mod chrono;
@@ -102,6 +106,8 @@ impl PgTypeInfo {
         match self.id {
             TypeId::DATE | TypeId::TIME | TypeId::TIMESTAMP | TypeId::TIMESTAMPTZ => Some("chrono"),
             TypeId::UUID => Some("uuid"),
+            // we can support decoding `PgNumeric` but it's decidedly less useful to the layman
+            TypeId::NUMERIC => Some("bigdecimal"),
             _ => None,
         }
     }

@@ -1,6 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TypeId(pub(crate) u32);
 
+// DEVELOPER PRO TIP: find builtin type OIDs easily by grepping this file
+// https://github.com/postgres/postgres/blob/master/src/include/catalog/pg_type.dat
+//
+// If you have Postgres running locally you can also try
+// SELECT oid, typarray FROM pg_type where typname = '<type name>'
+
 #[allow(dead_code)]
 impl TypeId {
     // Scalar
@@ -13,6 +19,8 @@ impl TypeId {
 
     pub(crate) const FLOAT4: TypeId = TypeId(700);
     pub(crate) const FLOAT8: TypeId = TypeId(701);
+
+    pub(crate) const NUMERIC: TypeId = TypeId(1700);
 
     pub(crate) const TEXT: TypeId = TypeId(25);
 
@@ -37,6 +45,8 @@ impl TypeId {
     pub(crate) const ARRAY_FLOAT8: TypeId = TypeId(1022);
 
     pub(crate) const ARRAY_TEXT: TypeId = TypeId(1009);
+
+    pub(crate) const ARRAY_NUMERIC: TypeId = TypeId(1700);
 
     pub(crate) const ARRAY_DATE: TypeId = TypeId(1182);
     pub(crate) const ARRAY_TIME: TypeId = TypeId(1183);

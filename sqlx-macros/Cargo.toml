@@ -27,6 +27,7 @@ postgres = [ "sqlx/postgres" ]
 sqlite = [ "sqlx/sqlite" ]
 
 # type
+bigdecimal = [ "sqlx/bigdecimal_bigint" ]
 chrono = [ "sqlx/chrono" ]
 uuid = [ "sqlx/uuid" ]
 
