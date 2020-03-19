@@ -21,7 +21,7 @@ test_type!(i32(MySql, i32, "2141512" == 2141512_i32));
 test_type!(u64(MySql, u64, "2141512" == 2141512_u64));
 test_type!(i64(MySql, i64, "2141512" == 2141512_i64));
 
-test_type!(double(MySql, f64, "3.14159265" == 3.14159265f64));
+test_type!(double(MySql, f64, "3.14159265E0" == 3.14159265f64));
 
 // NOTE: This behavior can be very surprising. MySQL implicitly widens FLOAT bind parameters
 //       to DOUBLE. This results in the weirdness you see below. MySQL generally recommends to stay
@@ -29,7 +29,7 @@ test_type!(double(MySql, f64, "3.14159265" == 3.14159265f64));
 test_type!(float(
     MySql,
     f32,
-    "3.1410000324249268" == 3.141f32 as f64 as f32
+    "3.1410000324249268e0" == 3.141f32 as f64 as f32
 ));
 
 test_type!(string(

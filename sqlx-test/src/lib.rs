@@ -75,21 +75,21 @@ macro_rules! test_prepared_type {
                         .await?;
 
                     assert!(rec.0,
-                            "DB value mismatch; given value: {:?}\n\
+                            "[1] DB value mismatch; given value: {:?}\n\
                              as received: {:?}\n\
                              as returned: {:?}\n\
                              round-trip: {:?}",
                             $value, rec.1, rec.2, rec.3);
 
                     assert_eq!($value, rec.2,
-                            "DB value mismatch; given value: {:?}\n\
+                            "[2] DB value mismatch; given value: {:?}\n\
                                      as received: {:?}\n\
                                      as returned: {:?}\n\
                                      round-trip: {:?}",
                                     $value, rec.1, rec.2, rec.3);
 
                     assert_eq!($value, rec.3,
-                            "DB value mismatch; given value: {:?}\n\
+                            "[3] DB value mismatch; given value: {:?}\n\
                                      as received: {:?}\n\
                                      as returned: {:?}\n\
                                      round-trip: {:?}",
@@ -105,7 +105,7 @@ macro_rules! test_prepared_type {
 #[macro_export]
 macro_rules! MySql_query_for_test_prepared_type {
     () => {
-        "SELECT {0} <=> ?, cast(? as text) as _1, {0} as _2, ? as _3"
+        "SELECT {0} <=> ?, '<UNKNOWN>' as _1, ? as _2, ? as _3"
     };
 }
 

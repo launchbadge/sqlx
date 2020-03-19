@@ -57,6 +57,7 @@ type_id_consts! {
     // Numeric: FLOAT, DOUBLE
     pub const FLOAT: TypeId = TypeId(4);
     pub const DOUBLE: TypeId = TypeId(5);
+    // pub const NEWDECIMAL: TypeId = TypeId(246);
 
     // Date/Time: DATE, TIME, DATETIME, TIMESTAMP
     pub const DATE: TypeId = TypeId(10);
