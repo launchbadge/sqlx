@@ -204,7 +204,7 @@ fn expand_derive_encode_struct(
         tts.extend(quote!(
             impl #impl_generics sqlx::encode::Encode<sqlx::Postgres> for #ident #ty_generics #where_clause {
                 fn encode(&self, buf: &mut std::vec::Vec<u8>) {
-                    let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
+                    let mut encoder = sqlx::postgres::types::raw::PgRecordEncoder::new(buf);
 
                     #(#writes)*
 

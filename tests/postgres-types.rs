@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use sqlx::decode::Decode;
 use sqlx::encode::Encode;
-use sqlx::postgres::types::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
+use sqlx::postgres::types::raw::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
 use sqlx::postgres::{PgQueryAs, PgTypeInfo, PgValue};
 use sqlx::{Cursor, Executor, Postgres, Row, Type};
 use sqlx_test::{new, test_prepared_type, test_type};

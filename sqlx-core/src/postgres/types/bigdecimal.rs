@@ -9,7 +9,7 @@ use crate::encode::Encode;
 use crate::postgres::{PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
-use super::numeric::{PgNumeric, PgNumericSign};
+use super::raw::{PgNumeric, PgNumericSign};
 
 impl Type<Postgres> for BigDecimal {
     fn type_info() -> PgTypeInfo {
@@ -17,18 +17,17 @@ impl Type<Postgres> for BigDecimal {
     }
 }
 
-impl TryFrom<&'_ BigDecimal> for PgNumeric {
+impl TryFrom<BigDecimal> for PgNumeric {
     type Error = std::num::TryFromIntError;
 
-    fn try_from(bd: &'_ BigDecimal) -> Result<Self, Self::Error> {
+    fn try_from(bd: BigDecimal) -> Result<Self, Self::Error> {
         let base_10_to_10000 = |chunk: &[u8]| chunk.iter().fold(0i16, |a, &d| a * 10 + d as i16);
 
-        // this implementation unfortunately has a number of redundant copies because BigDecimal
-        // doesn't give us even immutable access to its internal representation, and neither
-        // does `BigInt` or `BigUint`
+        // `.to_bigint_and_exponent()` unfortunately also requires copy so there's no gain to
+        // taking `BigDecimal` by-reference
+        let (bigint, exp) = bd.into_bigint_and_exponent();
 
-        let (bigint, exp) = bd.as_bigint_and_exponent();
-        // routine is specifically optimized for base-10
+        // this routine is specifically optimized for base-10
         let (sign, base_10) = bigint.to_radix_be(10);
 
         // weight is positive power of 10000
@@ -125,7 +124,7 @@ impl TryFrom<PgNumeric> for BigDecimal {
             cents.push((digit % 100) as u8);
         }
 
-        let bigint = BigInt::from_radix_be(sign, &cents, 100).ok_or_else(|e| {
+        let bigint = BigInt::from_radix_be(sign, &cents, 100).ok_or_else(|| {
             crate::Error::Decode("PgNumeric contained an out-of-range digit".into())
         })?;
 
@@ -137,7 +136,10 @@ impl TryFrom<PgNumeric> for BigDecimal {
 /// If this `BigDecimal` cannot be represented by [PgNumeric].
 impl Encode<Postgres> for BigDecimal {
     fn encode(&self, buf: &mut Vec<u8>) {
-        PgNumeric::try_from(self)
+        // this copy is unfortunately necessary because we'd have to use `.to_bigint_and_exponent()`
+        // otherwise which does the exact same thing, so for the explicit impl might as well allow
+        // the user to skip one of the copies if they have an owned value
+        PgNumeric::try_from(self.clone())
             .expect("BigDecimal magnitude too great for Postgres NUMERIC type")
             .encode(buf);
     }
@@ -164,7 +166,7 @@ impl Decode<'_, Postgres> for BigDecimal {
 fn test_bigdecimal_to_pgnumeric() {
     let one: BigDecimal = "1".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&one).unwrap(),
+        PgNumeric::try_from(one).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -175,7 +177,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let ten: BigDecimal = "10".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&ten).unwrap(),
+        PgNumeric::try_from(ten).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -186,7 +188,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_hundred: BigDecimal = "100".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&one_hundred).unwrap(),
+        PgNumeric::try_from(one_hundred).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -198,7 +200,7 @@ fn test_bigdecimal_to_pgnumeric() {
     // BigDecimal doesn't normalize here
     let ten_thousand: BigDecimal = "10000".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&ten_thousand).unwrap(),
+        PgNumeric::try_from(ten_thousand).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -209,7 +211,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let two_digits: BigDecimal = "12345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&two_digits).unwrap(),
+        PgNumeric::try_from(two_digits).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -220,7 +222,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_tenth: BigDecimal = "0.1".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&one_tenth).unwrap(),
+        PgNumeric::try_from(one_tenth).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 1,
@@ -231,7 +233,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "1.2345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
+        PgNumeric::try_from(decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 4,
@@ -242,7 +244,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "0.12345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
+        PgNumeric::try_from(decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -253,7 +255,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "0.01234".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
+        PgNumeric::try_from(decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -264,7 +266,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "12345.67890".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
+        PgNumeric::try_from(decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -275,7 +277,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_digit_decimal: BigDecimal = "0.00001234".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(&one_digit_decimal).unwrap(),
+        PgNumeric::try_from(one_digit_decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 8,

@@ -11,12 +11,11 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
-mod numeric;
-mod record;
 mod str;
 
-pub use self::numeric::{PgNumeric, PgNumericSign};
-pub use self::record::{PgRecordDecoder, PgRecordEncoder};
+// types we want to integration test but don't want to stabilize
+#[doc(hidden)]
+pub mod raw;
 
 #[cfg(feature = "bigdecimal_bigint")]
 mod bigdecimal;
