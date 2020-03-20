@@ -129,6 +129,16 @@ fn expand_derive_has_sql_type_strong_enum(
         ));
     }
 
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl sqlx::Type< sqlx::Sqlite > for #ident {
+                fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+                    <str as sqlx::Type<sqlx::Sqlite>>::type_info()
+                }
+            }
+        ));
+    }
+
     Ok(tts)
 }
 
