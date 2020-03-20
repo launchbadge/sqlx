@@ -19,6 +19,11 @@ impl Type<Postgres> for [bool] {
         PgTypeInfo::new(TypeId::ARRAY_BOOL, "BOOL[]")
     }
 }
+impl HasSqlType<Vec<bool>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[bool]>>::type_info()
+    }
+}
 
 impl Encode<Postgres> for bool {
     fn encode(&self, buf: &mut Vec<u8>) {

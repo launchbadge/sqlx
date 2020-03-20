@@ -21,10 +21,25 @@ impl Type<Postgres> for [&'_ str] {
         PgTypeInfo::new(TypeId::ARRAY_TEXT, "TEXT[]")
     }
 }
+impl HasSqlType<Vec<&'_ str>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[&'_ str]>>::type_info()
+    }
+}
 
 impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
         <str as Type<Postgres>>::type_info()
+    }
+}
+impl HasSqlType<[String]> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[&'_ str]>>::type_info()
+    }
+}
+impl HasSqlType<Vec<String>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<Vec<&'_ str>>>::type_info()
     }
 }
 

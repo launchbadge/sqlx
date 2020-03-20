@@ -19,6 +19,12 @@ impl Type<Postgres> for [&'_ [u8]] {
     }
 }
 
+impl Type<Postgres> for Vec<&'_ [u8]> {
+    fn type_info() -> PgTypeInfo {
+        <&'_ [u8] as Type<Postgres>>::type_info()
+    }
+}
+
 impl Type<Postgres> for Vec<u8> {
     fn type_info() -> PgTypeInfo {
         <[u8] as Type<Postgres>>::type_info()

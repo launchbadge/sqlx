@@ -67,6 +67,33 @@ where
     }
 }
 
+impl Type<Postgres> for Vec<NaiveTime> {
+    fn type_info() -> PgTypeInfo {
+        <[NaiveTime] as Type<Postgres>>::type_info()
+    }
+}
+
+impl Type<Postgres> for Vec<NaiveDate> {
+    fn type_info() -> PgTypeInfo {
+        <[NaiveDate] as Type<Postgres>>::type_info()
+    }
+}
+
+impl Type<Postgres> for Vec<NaiveDateTime> {
+    fn type_info() -> PgTypeInfo {
+        <[NaiveDateTime] as Type<Postgres>>::type_info()
+    }
+}
+
+impl<Tz> Type<Postgres> for Vec<DateTime<Tz>>
+where
+    Tz: TimeZone,
+{
+    fn type_info() -> PgTypeInfo {
+        <[NaiveDateTime] as Type<Postgres>>::type_info()
+    }
+}
+
 impl<'de> Decode<'de, Postgres> for NaiveTime {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {

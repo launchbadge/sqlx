@@ -59,6 +59,7 @@ use crate::postgres::protocol::TypeId;
 use crate::postgres::{PgValue, Postgres};
 use crate::types::TypeInfo;
 
+mod array;
 mod bool;
 mod bytes;
 mod float;

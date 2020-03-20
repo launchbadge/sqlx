@@ -22,6 +22,11 @@ impl Type<Postgres> for [f32] {
         PgTypeInfo::new(TypeId::ARRAY_FLOAT4, "FLOAT4[]")
     }
 }
+impl HasSqlType<Vec<f32>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[f32]>>::type_info()
+    }
+}
 
 impl Encode<Postgres> for f32 {
     fn encode(&self, buf: &mut Vec<u8>) {
@@ -51,6 +56,11 @@ impl Type<Postgres> for f64 {
 impl Type<Postgres> for [f64] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::new(TypeId::ARRAY_FLOAT8, "FLOAT8[]")
+    }
+}
+impl HasSqlType<Vec<f64>> for Postgres {
+    fn type_info() -> PgTypeInfo {
+        <Self as HasSqlType<[f64]>>::type_info()
     }
 }
 

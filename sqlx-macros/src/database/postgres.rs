@@ -30,7 +30,16 @@ impl_database_ext! {
         sqlx::types::BigDecimal,
 
         #[cfg(feature = "ipnetwork")]
-        sqlx::types::ipnetwork::IpNetwork
+        sqlx::types::ipnetwork::IpNetwork,
+
+        // Arrays
+        Vec<bool> | &[bool],
+        Vec<String> | &[String],
+        Vec<i16> | &[i16],
+        Vec<i32> | &[i32],
+        Vec<i64> | &[i64],
+        Vec<f32> | &[f32],
+        Vec<f64> | &[f64],
     },
     ParamChecking::Strong,
     feature-types: info => info.type_feature_gate(),
