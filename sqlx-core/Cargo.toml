@@ -18,7 +18,6 @@ unstable = []
 # we need a feature which activates `num-bigint` as well because
 # `bigdecimal` uses types from it but does not reexport (tsk tsk)
 bigdecimal_bigint = ["bigdecimal", "num-bigint"]
-network-address = [ "ipnetwork", "libc" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
@@ -45,7 +44,7 @@ generic-array = { version = "0.12.3", default-features = false, optional = true 
 hex = "0.4.2"
 hmac = { version = "0.7.1", default-features = false, optional = true }
 ipnetwork = { version = "0.16.0", default-feature = false, optional = true }
-libc = { version = "0.2.68", default-feature = false, optional = true }
+libc = "0.2.68"
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }

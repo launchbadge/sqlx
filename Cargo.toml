@@ -48,6 +48,7 @@ sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
 # types
 bigdecimal = ["sqlx-core/bigdecimal_bigint", "sqlx-macros/bigdecimal"]
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
+ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 
 [dependencies]

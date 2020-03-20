@@ -27,7 +27,10 @@ impl_database_ext! {
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
 
         #[cfg(feature = "bigdecimal")]
-        sqlx::types::BigDecimal
+        sqlx::types::BigDecimal,
+
+        #[cfg(feature = "ipnetwork")]
+        sqlx::types::ipnetwork::IpNetwork
     },
     ParamChecking::Strong,
     feature-types: info => info.type_feature_gate(),

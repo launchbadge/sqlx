@@ -35,7 +35,7 @@
 //!
 //! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
 //!
-//! Requires the `network-address` Cargo feature flag.
+//! Requires the `ipnetwork` Cargo feature flag.
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
@@ -78,7 +78,8 @@ mod chrono;
 #[cfg(feature = "uuid")]
 mod uuid;
 
-mod network;
+#[cfg(feature = "ipnetwork")]
+mod ipnetwork;
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
@@ -118,6 +119,7 @@ impl PgTypeInfo {
             TypeId::UUID => Some("uuid"),
             // we can support decoding `PgNumeric` but it's decidedly less useful to the layman
             TypeId::NUMERIC => Some("bigdecimal"),
+            TypeId::CIDR | TypeId::INET => Some("ipnetwork"),
             _ => None,
         }
     }

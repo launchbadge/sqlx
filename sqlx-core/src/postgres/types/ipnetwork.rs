@@ -55,7 +55,7 @@ impl<'de> Decode<'de, Postgres> for IpNetwork {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
             PgValue::Binary(buf) => decode(buf, INET_TYPE),
-            PgValue::Text(s) => decode(s.as_bytes(), INET_TYPE),
+            PgValue::Text(s) => s.parse().map_err(|err| crate::Error::decode(err)),
         }
     }
 }
