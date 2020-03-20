@@ -74,18 +74,29 @@ where
             });
         }
 
-        assert_eq!(ndim, 1, "only arrays of dimension 1 is supported");
+        if ndim != 1 {
+            return Err(decode_err!(
+                "only arrays of dimension 1 is supported, found array of dimension {}",
+                ndim
+            ));
+        }
 
         let dimensions = buf.get_i32::<Order>()?;
         let lower_bnds = buf.get_i32::<Order>()?;
 
-        assert_eq!(dataoffset, 0, "arrays with [null bitmap] is not supported");
-        assert_eq!(
-            elemtype,
-            <Postgres as HasSqlType<T>>::type_info().id.0 as i32,
-            "mismatched array element type"
-        );
-        assert_eq!(lower_bnds, 1);
+        if dataoffset != 0 {
+            // arrays with [null bitmap] is not supported
+            return Err(DecodeError::UnexpectedNull);
+        }
+        if elemtype != <Postgres as HasSqlType<T>>::type_info().id.0 as i32 {
+            return Err(decode_err!("mismatched array element type"));
+        }
+        if lower_bnds != 1 {
+            return Err(decode_err!(
+                "expected lower_bnds of array to be 1, but found {}",
+                lower_bnds
+            ));
+        }
 
         Ok(ArrayDecoder {
             left: dimensions as usize,
@@ -169,7 +180,7 @@ where
         let el_len_index = self.buf.len();
         self.buf.put_i32::<Order>(0);
 
-        // Allocate the element it self
+        // Allocate and encode the element it self
         let el_start = self.buf.len();
         Encode::encode(item, self.buf);
         let el_end = self.buf.len();

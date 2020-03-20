@@ -244,3 +244,10 @@ macro_rules! impl_fmt_error {
         }
     };
 }
+
+#[allow(unused_macros)]
+macro_rules! decode_err (
+    ($($args:tt)*) => {
+        $crate::decode::DecodeError::Message(Box::new(format!($($args)*)))
+    }
+);
