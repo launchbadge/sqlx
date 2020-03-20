@@ -134,6 +134,36 @@ test_type!(uuid(
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
+#[cfg(feature = "ipnetwork")]
+test_type!(ipnetwork(
+    Postgres,
+    sqlx::types::ipnetwork::IpNetwork,
+    "'127.0.0.1'::inet"
+        == "127.0.0.1"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+    "'8.8.8.8/24'::inet"
+        == "8.8.8.8/24"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+    "'::ffff:1.2.3.0'::inet"
+        == "::ffff:1.2.3.0"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+    "'2001:4f8:3:ba::/64'::inet"
+        == "2001:4f8:3:ba::/64"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+    "'192.168'::cidr"
+        == "192.168.0.0/24"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+    "'::ffff:1.2.3.0/120'::cidr"
+        == "::ffff:1.2.3.0/120"
+            .parse::<sqlx::types::ipnetwork::IpNetwork>()
+            .unwrap(),
+));
+
 #[cfg(feature = "chrono")]
 mod chrono {
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};

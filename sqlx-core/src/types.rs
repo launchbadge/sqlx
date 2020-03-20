@@ -18,6 +18,12 @@ pub mod chrono {
 #[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
 pub use bigdecimal::BigDecimal;
 
+#[cfg(feature = "ipnetwork")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
+pub mod ipnetwork {
+    pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
+}
+
 pub trait TypeInfo: Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.

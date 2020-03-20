@@ -830,6 +830,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnetwork"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
+
+[[package]]
 name = "itoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1706,6 +1712,8 @@ dependencies = [
  "generic-array",
  "hex",
  "hmac",
+ "ipnetwork",
+ "libc",
  "libsqlite3-sys",
  "log",
  "matches",

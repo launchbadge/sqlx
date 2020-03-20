@@ -29,6 +29,7 @@ sqlite = [ "sqlx/sqlite" ]
 # type
 bigdecimal = [ "sqlx/bigdecimal_bigint" ]
 chrono = [ "sqlx/chrono" ]
+ipnetwork = [ "sqlx/ipnetwork" ]
 uuid = [ "sqlx/uuid" ]
 
 [dependencies]

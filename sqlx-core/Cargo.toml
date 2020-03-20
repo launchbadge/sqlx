@@ -43,6 +43,8 @@ futures-util = { version = "0.3.4", default-features = false }
 generic-array = { version = "0.12.3", default-features = false, optional = true }
 hex = "0.4.2"
 hmac = { version = "0.7.1", default-features = false, optional = true }
+ipnetwork = { version = "0.16.0", default-features = false, optional = true }
+libc = "0.2.68"
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }

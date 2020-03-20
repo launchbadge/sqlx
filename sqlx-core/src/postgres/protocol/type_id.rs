@@ -33,6 +33,9 @@ impl TypeId {
 
     pub(crate) const UUID: TypeId = TypeId(2950);
 
+    pub(crate) const CIDR: TypeId = TypeId(650);
+    pub(crate) const INET: TypeId = TypeId(869);
+
     // Arrays
 
     pub(crate) const ARRAY_BOOL: TypeId = TypeId(1000);
@@ -56,4 +59,7 @@ impl TypeId {
     pub(crate) const ARRAY_BYTEA: TypeId = TypeId(1001);
 
     pub(crate) const ARRAY_UUID: TypeId = TypeId(2951);
+
+    pub(crate) const ARRAY_CIDR: TypeId = TypeId(651);
+    pub(crate) const ARRAY_INET: TypeId = TypeId(1041);
 }

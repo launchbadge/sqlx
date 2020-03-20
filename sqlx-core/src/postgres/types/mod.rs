@@ -33,6 +33,14 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | UUID                                                 |
 //!
+//! ### [`ipnetwork`](https://crates.io/crates/ipnetwork)
+//!
+//! Requires the `ipnetwork` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
+//!
 //! # Composite types
 //!
 //! Anonymous composite types are represented as tuples.
@@ -69,6 +77,9 @@ mod chrono;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+#[cfg(feature = "ipnetwork")]
+mod ipnetwork;
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
@@ -108,6 +119,7 @@ impl PgTypeInfo {
             TypeId::UUID => Some("uuid"),
             // we can support decoding `PgNumeric` but it's decidedly less useful to the layman
             TypeId::NUMERIC => Some("bigdecimal"),
+            TypeId::CIDR | TypeId::INET => Some("ipnetwork"),
             _ => None,
         }
     }
@@ -130,8 +142,16 @@ impl Display for PgTypeInfo {
 
 impl TypeInfo for PgTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
-        // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
-        self.id.0 == other.id.0
+        match (self.id, other.id) {
+            (TypeId::CIDR, TypeId::INET)
+            | (TypeId::INET, TypeId::CIDR)
+            | (TypeId::ARRAY_CIDR, TypeId::ARRAY_INET)
+            | (TypeId::ARRAY_INET, TypeId::ARRAY_CIDR) => true,
+            _ => {
+                // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
+                self.id.0 == other.id.0
+            }
+        }
     }
 }
 
