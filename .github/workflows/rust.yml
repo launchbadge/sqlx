@@ -39,25 +39,25 @@ jobs:
 
     # check w/deny warnings in sqlx-core: async-std
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint chrono uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
 
     # check w/deny warnings in sqlx-core: tokio
     # `cargo rustc -p sqlx-core` ignores `--no-default-features` and builds with `runtime-async-std` anyway
     # https://github.com/rust-lang/cargo/issues/5364
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint chrono uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
 
     # check w/deny warnings: async-std
-    - run: cargo rustc --no-default-features --features 'bigdecimal chrono uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata
+    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata
 
     # check w/deny warnings: tokio
-    - run: cargo rustc --no-default-features --features 'bigdecimal chrono uuid postgres mysql macros tls runtime-tokio' -- -D warnings --emit=metadata
+    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql macros tls runtime-tokio' -- -D warnings --emit=metadata
 
     # unit test: async-std
-    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal chrono uuid postgres mysql tls runtime-async-std'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql tls runtime-async-std'
 
     # unit test: tokio
-    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal chrono uuid postgres mysql tls runtime-tokio'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql tls runtime-tokio'
 
     # integration test: sqlite + async-std
     - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros uuid chrono tls'
@@ -121,22 +121,22 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono bigdecimal tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: tokio
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono bigdecimal tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # UI feature gate tests: async-std
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros bigdecimal tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # UI feature gate tests: tokio
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros bigdecimal tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
