@@ -834,9 +834,6 @@ name = "ipnetwork"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "itoa"
