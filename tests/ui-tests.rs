@@ -13,6 +13,10 @@ fn ui_tests() {
         if cfg!(not(feature = "uuid")) {
             t.compile_fail("tests/ui/postgres/gated/uuid.rs");
         }
+
+        if cfg!(not(feature = "ipnetwork")) {
+            t.compile_fail("tests/ui/postgres/gated/ipnetwork.rs");
+        }
     }
 
     if cfg!(feature = "mysql") {
