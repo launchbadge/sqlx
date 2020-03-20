@@ -12,7 +12,7 @@ pub(crate) async fn request_if_needed(stream: &mut PgStream, url: &Url) -> crate
         #[cfg(feature = "tls")]
         Some("prefer") | None => {
             // We default to [prefer] if TLS is compiled in
-            if !try_upgrade(stream, url, false, false).await? {
+            if !try_upgrade(stream, url, true, true).await? {
                 // TLS upgrade failed; fall back to a normal connection
             }
         }
