@@ -40,7 +40,22 @@ impl Type<Postgres> for [IpNetwork] {
 
 impl Encode<Postgres> for IpNetwork {
     fn encode(&self, buf: &mut Vec<u8>) {
-        encode(self, INET_TYPE, buf)
+        match self {
+            IpNetwork::V4(net) => {
+                buf.push(PGSQL_AF_INET);
+                buf.push(net.prefix());
+                buf.push(INET_TYPE);
+                buf.push(4);
+                buf.extend_from_slice(&net.ip().octets());
+            }
+            IpNetwork::V6(net) => {
+                buf.push(PGSQL_AF_INET6);
+                buf.push(net.prefix());
+                buf.push(INET_TYPE);
+                buf.push(16);
+                buf.extend_from_slice(&net.ip().octets());
+            }
+        }
     }
 
     fn size_hint(&self) -> usize {
@@ -54,42 +69,23 @@ impl Encode<Postgres> for IpNetwork {
 impl<'de> Decode<'de, Postgres> for IpNetwork {
     fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
         match value.try_into()? {
-            PgValue::Binary(buf) => decode(buf, INET_TYPE),
+            PgValue::Binary(buf) => decode(buf),
             PgValue::Text(s) => s.parse().map_err(|err| crate::Error::decode(err)),
         }
     }
 }
 
-fn encode(net: &IpNetwork, net_type: u8, buf: &mut Vec<u8>) {
-    match net {
-        IpNetwork::V4(net) => {
-            buf.push(PGSQL_AF_INET);
-            buf.push(net.prefix());
-            buf.push(net_type);
-            buf.push(4);
-            buf.extend_from_slice(&net.ip().octets());
-        }
-        IpNetwork::V6(net) => {
-            buf.push(PGSQL_AF_INET6);
-            buf.push(net.prefix());
-            buf.push(net_type);
-            buf.push(16);
-            buf.extend_from_slice(&net.ip().octets());
-        }
-    }
-}
-
-fn decode(bytes: &[u8], net_type: u8) -> crate::Result<IpNetwork> {
-    if bytes.len() <= 8 {
+fn decode(bytes: &[u8]) -> crate::Result<IpNetwork> {
+    if bytes.len() < 8 {
         return Err(Error::Decode("Input too short".into()));
     }
 
     let af = bytes[0];
     let prefix = bytes[1];
-    let type_ = bytes[2];
+    let net_type = bytes[2];
     let len = bytes[3];
 
-    if type_ == net_type {
+    if net_type == INET_TYPE || net_type == CIDR_TYPE {
         if af == PGSQL_AF_INET && bytes.len() == 8 && len == 4 {
             let inet = Ipv4Network::new(
                 Ipv4Addr::new(bytes[4], bytes[5], bytes[6], bytes[7]),
@@ -115,5 +111,5 @@ fn decode(bytes: &[u8], net_type: u8) -> crate::Result<IpNetwork> {
         }
     }
 
-    return Err(Error::Decode("Invalid inet_struct".into()));
+    return Err(Error::Decode("Invalid input".into()));
 }
