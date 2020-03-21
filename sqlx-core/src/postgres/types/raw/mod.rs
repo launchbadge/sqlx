@@ -3,6 +3,12 @@ mod numeric;
 mod record;
 mod sequence;
 
+#[cfg(feature = "json")]
+mod json;
+
+#[cfg(feature = "json")]
+pub use json::{PgJson, PgJsonb};
+
 pub(crate) use array::{PgArrayDecoder, PgArrayEncoder};
 
 // Used in integration tests

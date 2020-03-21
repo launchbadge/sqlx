@@ -19,10 +19,15 @@ where
 // Test type encoding and decoding
 #[macro_export]
 macro_rules! test_type {
+    ($name:ident($db:ident, $ty:ty, $sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::test_prepared_type!($name($db, $ty, $sql, $($text == $value),+));
+        $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
+    };
+
     ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         $crate::test_prepared_type!($name($db, $ty, $($text == $value),+));
         $crate::test_unprepared_type!($name($db, $ty, $($text == $value),+));
-    }
+    };
 }
 
 // Test type decoding for the simple (unprepared) query API
@@ -52,9 +57,56 @@ macro_rules! test_unprepared_type {
     }
 }
 
+// TODO: This macro is cursed. Needs a good re-factor.
 // Test type encoding and decoding for the prepared query API
 #[macro_export]
 macro_rules! test_prepared_type {
+    ($name:ident($db:ident, $ty:ty, $sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
+        paste::item! {
+            #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+            #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+            async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
+                use sqlx::prelude::*;
+
+                let mut conn = sqlx_test::new::<$db>().await?;
+
+                $(
+                    let query = format!($sql, $text);
+
+                    let rec: (bool, Option<String>, $ty, $ty) = sqlx::query_as(&query)
+                        .bind($value)
+                        .bind($value)
+                        .bind($value)
+                        .fetch_one(&mut conn)
+                        .await?;
+
+                    assert!(rec.0,
+                            "[1] DB value mismatch; given value: {:?}\n\
+                             as received: {:?}\n\
+                             as returned: {:?}\n\
+                             round-trip: {:?}",
+                            $value, rec.1, rec.2, rec.3);
+
+                    assert_eq!($value, rec.2,
+                            "[2] DB value mismatch; given value: {:?}\n\
+                                     as received: {:?}\n\
+                                     as returned: {:?}\n\
+                                     round-trip: {:?}",
+                                    $value, rec.1, rec.2, rec.3);
+
+                    assert_eq!($value, rec.3,
+                            "[3] DB value mismatch; given value: {:?}\n\
+                                     as received: {:?}\n\
+                                     as returned: {:?}\n\
+                                     round-trip: {:?}",
+                                    $value, rec.1, rec.2, rec.3);
+                )+
+
+                Ok(())
+            }
+        }
+    };
+
     ($name:ident($db:ident, $ty:ty, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
@@ -99,7 +151,7 @@ macro_rules! test_prepared_type {
                 Ok(())
             }
         }
-    }
+    };
 }
 
 #[macro_export]

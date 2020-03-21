@@ -24,6 +24,11 @@ pub mod ipnetwork {
     pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 }
 
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+#[derive(Debug, PartialEq)]
+pub struct Json<T>(pub T);
+
 pub trait TypeInfo: Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.

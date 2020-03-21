@@ -1,38 +1,57 @@
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::io::{Buf, BufMut};
-use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::postgres::types::{PgJsonb, PgTypeInfo};
+use crate::postgres::{PgValue, Postgres};
+use crate::types::{Json, Type};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::value::RawValue as JsonRawValue;
+use serde_json::Value as JsonValue;
 
-impl HasSqlType<Value> for Postgres {
+// <https://www.postgresql.org/docs/12/datatype-json.html>
+
+// In general, most applications should prefer to store JSON data as jsonb,
+// unless there are quite specialized needs, such as legacy assumptions
+// about ordering of object keys.
+
+impl Type<Postgres> for JsonValue {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::JSON)
+        <PgJsonb<Self> as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<Postgres> for Value {
+impl Encode<Postgres> for JsonValue {
     fn encode(&self, buf: &mut Vec<u8>) {
-        Json(self).encode(buf)
+        PgJsonb(self).encode(buf)
     }
 }
 
-impl Decode<Postgres> for Value {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let Json(item) = Decode::decode(buf)?;
-        Ok(item)
+impl<'de> Decode<'de, Postgres> for JsonValue {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        <PgJsonb<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Json<T>(pub T);
-
-impl<T> HasSqlType<Json<T>> for Postgres {
+impl Type<Postgres> for &'_ JsonRawValue {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::JSON)
+        <PgJsonb<Self> as Type<Postgres>>::type_info()
+    }
+}
+
+impl Encode<Postgres> for &'_ JsonRawValue {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        PgJsonb(self).encode(buf)
+    }
+}
+
+impl<'de> Decode<'de, Postgres> for &'de JsonRawValue {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        <PgJsonb<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
+    }
+}
+
+impl<T> Type<Postgres> for Json<T> {
+    fn type_info() -> PgTypeInfo {
+        <PgJsonb<T> as Type<Postgres>>::type_info()
     }
 }
 
@@ -41,53 +60,16 @@ where
     T: Serialize,
 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        serde_json::to_writer(buf, &self.0)
-            .expect("failed to serialize json for encoding to database");
+        PgJsonb(&self.0).encode(buf)
     }
 }
 
-impl<T> Decode<Postgres> for Json<T>
+impl<'de, T> Decode<'de, Postgres> for Json<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: 'de,
+    T: Deserialize<'de>,
 {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let item = serde_json::from_slice(buf)?;
-        Ok(Json(item))
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Jsonb<T>(pub T);
-
-impl<T> HasSqlType<Jsonb<T>> for Postgres {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::JSONB)
-    }
-}
-
-impl<T> Encode<Postgres> for Jsonb<T>
-where
-    T: Serialize,
-{
-    fn encode(&self, buf: &mut Vec<u8>) {
-        // TODO: I haven't been figure out what this byte is, but it is required or else we get the error:
-        // Error: unsupported jsonb version number 34
-        buf.put_u8(1);
-
-        serde_json::to_writer(buf, &self.0)
-            .expect("failed to serialize json for encoding to database");
-    }
-}
-
-impl<T> Decode<Postgres> for Jsonb<T>
-where
-    T: for<'a> Deserialize<'a>,
-{
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        // TODO: I don't know what this byte is, similarly to Encode
-        let _ = buf.get_u8()?;
-
-        let item = serde_json::from_slice(buf)?;
-        Ok(Jsonb(item))
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        <PgJsonb<T> as Decode<Postgres>>::decode(value).map(|item| Self(item.0))
     }
 }

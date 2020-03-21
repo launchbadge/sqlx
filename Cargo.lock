@@ -1657,6 +1657,7 @@ dependencies = [
  "futures 0.3.4",
  "paste",
  "serde",
+ "serde_json",
  "sqlx-core 0.3.0-alpha.1",
  "sqlx-macros 0.3.0-alpha.1",
  "sqlx-test",

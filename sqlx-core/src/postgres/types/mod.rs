@@ -87,7 +87,7 @@ pub mod json;
 mod ipnetwork;
 
 #[cfg(feature = "json")]
-pub use json::{Json, Jsonb};
+pub use raw::{PgJson, PgJsonb};
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]

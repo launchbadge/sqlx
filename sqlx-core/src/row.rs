@@ -70,6 +70,7 @@ macro_rules! impl_from_row_for_tuple {
     ($db:ident, $r:ident; $( ($idx:tt) -> $T:ident );+;) => {
         impl<'c, $($T,)+> crate::row::FromRow<'c, $r<'c>> for ($($T,)+)
         where
+            $($T: 'c,)+
             $($T: crate::types::Type<$db>,)+
             $($T: for<'r> crate::decode::Decode<'r, $db>,)+
         {

@@ -200,6 +200,50 @@ mod chrono {
     ));
 }
 
+// This is trying to break my complete lack of understanding of null bitmaps for array/record
+// decoding. The docs in pg are either wrong or I'm reading the wrong docs.
+test_type!(lots_of_nulls_vec(Postgres, Vec<Option<bool>>,
+    "ARRAY[NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true]::bool[]" == {
+      vec![None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(true)]
+    },
+));
+
+test_type!(bool_vec(Postgres, Vec<bool>,
+    "ARRAY[true, true, false, true]::bool[]" == vec![true, true, false, true],
+));
+
+test_type!(bool_opt_vec(Postgres, Vec<Option<bool>>,
+    "ARRAY[NULL, true, NULL, false]::bool[]" == vec![None, Some(true), None, Some(false)],
+));
+
+test_type!(f32_vec(Postgres, Vec<f32>,
+    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::real[]" == vec![0.0_f32, 1.0, 3.14, 1.234, -0.002, 100000.0],
+));
+
+test_type!(f64_vec(Postgres, Vec<f64>,
+    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::double precision[]" == vec![0.0_f64, 1.0, 3.14, 1.234, -0.002, 100000.0],
+));
+
+test_type!(i16_vec(Postgres, Vec<i16>,
+    "ARRAY[1, 152, -12412]::smallint[]" == vec![1_i16, 152, -12412],
+    "ARRAY[]::smallint[]" == Vec::<i16>::new(),
+    "ARRAY[0]::smallint[]" == vec![0_i16]
+));
+
+test_type!(string_vec(Postgres, Vec<String>,
+    "ARRAY['', '\"']::text[]"
+        == vec!["".to_string(), "\"".to_string()],
+
+    "ARRAY['Hello, World', '', 'Goodbye']::text[]"
+        == vec!["Hello, World".to_string(), "".to_string(), "Goodbye".to_string()],
+));
+
+//
+// These require some annoyingly different tests as anonymous records cannot be read from the
+// database. If someone enterprising comes along and wants to try and just the macro to handle
+// this, that would be super awesome.
+//
+
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_prepared_anonymous_record() -> anyhow::Result<()> {
@@ -281,44 +325,6 @@ async fn test_unprepared_anonymous_record() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-// This is trying to break my complete lack of understanding of null bitmaps for array/record
-// decoding. The docs in pg are either wrong or I'm reading the wrong docs.
-test_type!(lots_of_nulls_vec(Postgres, Vec<Option<bool>>,
-    "ARRAY[NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true]::bool[]" == {
-      vec![None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(true)]
-    },
-));
-
-test_type!(bool_vec(Postgres, Vec<bool>,
-    "ARRAY[true, true, false, true]::bool[]" == vec![true, true, false, true],
-));
-
-test_type!(bool_opt_vec(Postgres, Vec<Option<bool>>,
-    "ARRAY[NULL, true, NULL, false]::bool[]" == vec![None, Some(true), None, Some(false)],
-));
-
-test_type!(f32_vec(Postgres, Vec<f32>,
-    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::real[]" == vec![0.0_f32, 1.0, 3.14, 1.234, -0.002, 100000.0],
-));
-
-test_type!(f64_vec(Postgres, Vec<f64>,
-    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::double precision[]" == vec![0.0_f64, 1.0, 3.14, 1.234, -0.002, 100000.0],
-));
-
-test_type!(i16_vec(Postgres, Vec<i16>,
-    "ARRAY[1, 152, -12412]::smallint[]" == vec![1_i16, 152, -12412],
-    "ARRAY[]::smallint[]" == Vec::<i16>::new(),
-    "ARRAY[0]::smallint[]" == vec![0_i16]
-));
-
-test_type!(string_vec(Postgres, Vec<String>,
-    "ARRAY['', '\"']::text[]"
-        == vec!["".to_string(), "\"".to_string()],
-
-    "ARRAY['Hello, World', '', 'Goodbye']::text[]"
-        == vec!["Hello, World".to_string(), "".to_string(), "Goodbye".to_string()],
-));
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
@@ -478,4 +484,77 @@ END $$;
     assert_eq!(rec.0, rec.1);
 
     Ok(())
+}
+
+//
+// JSON
+//
+
+#[cfg(feature = "json")]
+mod json {
+    use super::*;
+    use serde_json::value::RawValue;
+    use serde_json::{json, Value as JsonValue};
+    use sqlx::postgres::types::PgJson;
+    use sqlx::postgres::PgRow;
+    use sqlx::types::Json;
+    use sqlx::Row;
+
+    // When testing JSON, coerce to JSONB for `=` comparison as `JSON = JSON` is not
+    // supported in PostgreSQL
+
+    test_type!(json(
+        Postgres,
+        PgJson<JsonValue>,
+        "SELECT {0}::jsonb is not distinct from $1::jsonb, $2::text as _1, {0} as _2, $3 as _3",
+        "'\"Hello, World\"'::json" == PgJson(json!("Hello, World")),
+        "'\"😎\"'::json" == PgJson(json!("😎")),
+        "'\"🙋‍♀️\"'::json" == PgJson(json!("🙋‍♀️")),
+        "'[\"Hello\", \"World!\"]'::json" == PgJson(json!(["Hello", "World!"]))
+    ));
+
+    test_type!(jsonb(
+        Postgres,
+        JsonValue,
+        "'\"Hello, World\"'::jsonb" == json!("Hello, World"),
+        "'\"😎\"'::jsonb" == json!("😎"),
+        "'\"🙋‍♀️\"'::jsonb" == json!("🙋‍♀️"),
+        "'[\"Hello\", \"World!\"]'::jsonb" == json!(["Hello", "World!"])
+    ));
+
+    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+    struct Friend {
+        name: String,
+        age: u32,
+    }
+
+    // The default JSON type that SQLx chooses is JSONB
+    //  sqlx::types::Json -> JSONB
+    //  sqlx::postgres::types::PgJson -> JSON
+    //  sqlx::postgres::types::PgJsonB -> JSONB
+
+    test_type!(jsonb_struct(Postgres, Json<Friend>,
+        "'{\"name\":\"Joe\",\"age\":33}'::jsonb" == Json(Friend { name: "Joe".to_string(), age: 33 })
+    ));
+
+    test_type!(json_struct(
+        Postgres,
+        PgJson<Friend>,
+        "SELECT {0}::jsonb is not distinct from $1::jsonb, $2::text as _1, {0} as _2, $3 as _3",
+        "'{\"name\":\"Joe\",\"age\":33}'::json" == PgJson(Friend { name: "Joe".to_string(), age: 33 })
+    ));
+
+    #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+    #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+    async fn test_prepared_jsonb_raw_value() -> anyhow::Result<()> {
+        let mut conn = new::<Postgres>().await?;
+
+        let mut cursor = sqlx::query("SELECT '{\"hello\": \"world\"}'::jsonb").fetch(&mut conn);
+        let row: PgRow = cursor.next().await?.unwrap();
+        let value: &RawValue = row.get::<&RawValue, usize>(0_usize);
+
+        assert_eq!(value.get(), "{\"hello\": \"world\"}");
+
+        Ok(())
+    }
 }
