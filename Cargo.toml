@@ -28,7 +28,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = [ "tls", "postgres", "mysql", "uuid", "chrono", "json" ]
+features = [ "tls", "postgres", "mysql", "uuid", "chrono", "json", "time" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -51,6 +51,7 @@ chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 json = [ "sqlx-core/json" ]
+time = [ "sqlx-core/time", "sqlx-macros/time" ]
 
 [dependencies]
 sqlx-core = { version = "0.3.0-alpha.1", path = "sqlx-core", default-features = false }

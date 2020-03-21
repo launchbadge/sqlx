@@ -39,33 +39,33 @@ jobs:
 
     # check w/deny warnings in sqlx-core: async-std
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono time uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
 
     # check w/deny warnings in sqlx-core: tokio
     # `cargo rustc -p sqlx-core` ignores `--no-default-features` and builds with `runtime-async-std` anyway
     # https://github.com/rust-lang/cargo/issues/5364
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono time uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
 
     # check w/deny warnings: async-std
-    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata
+    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata
 
     # check w/deny warnings: tokio
-    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql macros tls runtime-tokio' -- -D warnings --emit=metadata
+    - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql macros tls runtime-tokio' -- -D warnings --emit=metadata
 
     # unit test: async-std
-    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql tls runtime-async-std'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql tls runtime-async-std'
 
     # unit test: tokio
-    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono uuid postgres mysql tls runtime-tokio'
+    - run: cargo test --manifest-path sqlx-core/Cargo.toml --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql tls runtime-tokio'
 
     # integration test: sqlite + async-std
-    - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros tls'
       env:
         DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
 
     # integration test: sqlite + tokio
-    - run: cargo test --no-default-features --features 'runtime-tokio sqlite macros uuid chrono tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio sqlite macros tls'
       env:
         DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
 
@@ -120,13 +120,33 @@ jobs:
 
     # -----------------------------------------------------
 
-    # integration test: async-std
+    # integration test: async-std (chrono)
     - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
-    # integration test: tokio
+    # integration test: async-std (time)
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid time bigdecimal ipnetwork tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # integration test: async-std (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono time bigdecimal ipnetwork tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # integration test: tokio (chrono)
     - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono bigdecimal ipnetwork tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # integration test: tokio (time)
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid time bigdecimal ipnetwork tls'
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+
+    # integration test: tokio (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono time bigdecimal ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
@@ -182,15 +202,43 @@ jobs:
 
     # -----------------------------------------------------
 
-    # integration test: async-std
+    # integration test: async-std (chrono)
     - run: cargo test --no-default-features --features 'runtime-async-std mysql macros uuid chrono tls'
       env:
         # pass the path to the CA that the MySQL service generated
         # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
         DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
 
-    # integration test: tokio
+    # integration test: async-std (time)
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros uuid time tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # integration test: async-std (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros uuid time chrono tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # integration test: tokio (chrono)
     - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # integration test: tokio (time)
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid time tls'
+      env:
+        # pass the path to the CA that the MySQL service generated
+        # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/sqlx?ssl-mode=VERIFY_CA&ssl-ca=%2Fdata%2Fmysql%2Fca.pem
+
+    # integration test: tokio (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono time tls'
       env:
         # pass the path to the CA that the MySQL service generated
         # NOTE: Github Actions' YML parser doesn't handle multiline strings correctly
@@ -251,13 +299,33 @@ jobs:
 
     # -----------------------------------------------------
 
-    # integration test: async-std
+    # integration test: async-std (chrono)
     - run: cargo test --no-default-features --features 'runtime-async-std mysql macros chrono uuid chrono tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
 
-    # integration test: tokio
+    # integration test: async-std (time)
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros time uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # integration test: async-std (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-async-std mysql macros time chrono uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # integration test: tokio (chrono)
     - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid chrono tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # integration test: tokio (time)
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid time tls'
+      env:
+        DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
+
+    # integration test: tokio (time + chrono)
+    - run: cargo test --no-default-features --features 'runtime-tokio mysql macros uuid time chrono tls'
       env:
         DATABASE_URL: mariadb://root:password@localhost:${{ job.services.mariadb.ports[3306] }}/sqlx
 

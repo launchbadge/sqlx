@@ -14,6 +14,12 @@ pub mod chrono {
     pub use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 }
 
+#[cfg(feature = "time")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time")))]
+pub mod time {
+    pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+}
+
 #[cfg(feature = "bigdecimal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
 pub use bigdecimal::BigDecimal;

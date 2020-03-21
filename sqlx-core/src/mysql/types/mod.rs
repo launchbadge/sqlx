@@ -8,6 +8,9 @@ mod uint;
 #[cfg(feature = "chrono")]
 mod chrono;
 
+#[cfg(feature = "time")]
+mod time;
+
 use std::fmt::{self, Debug, Display};
 
 use crate::decode::Decode;

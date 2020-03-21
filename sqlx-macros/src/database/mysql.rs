@@ -17,17 +17,29 @@ impl_database_ext! {
         // BINARY, VAR_BINARY, BLOB
         Vec<u8>,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveTime,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveDate,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::NaiveDateTime,
 
-        #[cfg(feature = "chrono")]
+        #[cfg(all(feature = "chrono", not(feature = "time")))]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::Time,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::Date,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::PrimitiveDateTime,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::OffsetDateTime,
     },
     ParamChecking::Weak,
     feature-types: info => info.type_feature_gate(),

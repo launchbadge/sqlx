@@ -8,7 +8,6 @@ impl_database_ext! {
         f32,
         f64,
 
-        // BYTEA
         Vec<u8> | &[u8],
 
         #[cfg(feature = "uuid")]
@@ -25,6 +24,18 @@ impl_database_ext! {
 
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::Time,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::Date,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::PrimitiveDateTime,
+
+        #[cfg(feature = "time")]
+        sqlx::types::time::OffsetDateTime,
 
         #[cfg(feature = "bigdecimal")]
         sqlx::types::BigDecimal,
