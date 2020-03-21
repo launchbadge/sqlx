@@ -65,7 +65,7 @@ pub enum PgNumericSign {
 }
 
 impl PgNumericSign {
-    fn try_from_u16(val: u16) -> crate::Result<Self> {
+    fn try_from_u16(val: u16) -> crate::Result<Postgres, Self> {
         match val {
             SIGN_POS => Ok(PgNumericSign::Positive),
             SIGN_NEG => Ok(PgNumericSign::Negative),
@@ -83,7 +83,7 @@ impl Type<Postgres> for PgNumeric {
     }
 }
 impl PgNumeric {
-    pub(crate) fn from_bytes(mut bytes: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn from_bytes(mut bytes: &[u8]) -> crate::Result<Postgres, Self> {
         // https://github.com/postgres/postgres/blob/bcd1c3630095e48bc3b1eb0fc8e8c8a7c851eba1/src/backend/utils/adt/numeric.c#L874
         let num_digits = bytes.get_u16::<BigEndian>()?;
         let weight = bytes.get_i16::<BigEndian>()?;
@@ -109,7 +109,7 @@ impl PgNumeric {
 /// Receiving `PgNumeric` is currently only supported for the Postgres
 /// binary (prepared statements) protocol.
 impl Decode<'_, Postgres> for PgNumeric {
-    fn decode(value: Option<PgValue>) -> crate::Result<Self> {
+    fn decode(value: Option<PgValue>) -> crate::Result<Postgres, Self> {
         if let PgValue::Binary(bytes) = value.try_into()? {
             Self::from_bytes(bytes)
         } else {

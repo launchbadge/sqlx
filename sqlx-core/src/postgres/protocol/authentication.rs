@@ -1,4 +1,5 @@
 use crate::io::Buf;
+use crate::postgres::database::Postgres;
 use byteorder::NetworkEndian;
 use std::str;
 
@@ -54,7 +55,7 @@ pub(crate) enum Authentication {
 }
 
 impl Authentication {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
         Ok(match buf.get_u32::<NetworkEndian>()? {
             0 => Authentication::Ok,
             2 => Authentication::KerberosV5,
@@ -81,7 +82,7 @@ pub(crate) struct AuthenticationMd5 {
 }
 
 impl AuthenticationMd5 {
-    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Postgres, Self> {
         let mut salt = [0_u8; 4];
         salt.copy_from_slice(buf);
 
@@ -95,7 +96,7 @@ pub(crate) struct AuthenticationSasl {
 }
 
 impl AuthenticationSasl {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
         let mut mechanisms = Vec::new();
 
         while buf[0] != 0 {
@@ -117,7 +118,7 @@ pub(crate) struct AuthenticationSaslContinue {
 }
 
 impl AuthenticationSaslContinue {
-    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Postgres, Self> {
         let mut salt: Vec<u8> = Vec::new();
         let mut nonce: Vec<u8> = Vec::new();
         let mut iter_count: u32 = 0;

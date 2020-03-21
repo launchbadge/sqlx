@@ -5,6 +5,7 @@ use sha1::Sha1;
 use sha2::Sha256;
 
 use crate::mysql::util::xor_eq;
+use crate::mysql::MySql;
 
 #[derive(Debug, PartialEq)]
 pub enum AuthPlugin {
@@ -14,7 +15,7 @@ pub enum AuthPlugin {
 }
 
 impl AuthPlugin {
-    pub(crate) fn from_opt_str(s: Option<&str>) -> crate::Result<AuthPlugin> {
+    pub(crate) fn from_opt_str(s: Option<&str>) -> crate::Result<MySql, AuthPlugin> {
         match s {
             Some("mysql_native_password") | None => Ok(AuthPlugin::MySqlNativePassword),
             Some("caching_sha2_password") => Ok(AuthPlugin::CachingSha2Password),

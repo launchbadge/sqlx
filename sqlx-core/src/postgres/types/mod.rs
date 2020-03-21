@@ -161,7 +161,7 @@ impl<'de, T> Decode<'de, Postgres> for Option<T>
 where
     T: Decode<'de, Postgres>,
 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
         value
             .map(|value| <T as Decode<Postgres>>::decode(Some(value)))
             .transpose()

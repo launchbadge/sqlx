@@ -91,9 +91,9 @@ impl TryFrom<BigDecimal> for PgNumeric {
 }
 
 impl TryFrom<PgNumeric> for BigDecimal {
-    type Error = crate::Error;
+    type Error = crate::Error<Postgres>;
 
-    fn try_from(numeric: PgNumeric) -> crate::Result<Self> {
+    fn try_from(numeric: PgNumeric) -> crate::Result<Postgres, Self> {
         let (digits, sign, weight) = match numeric {
             PgNumeric::Number {
                 digits,
@@ -152,7 +152,7 @@ impl Encode<Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
-    fn decode(value: Option<PgValue>) -> crate::Result<Self> {
+    fn decode(value: Option<PgValue>) -> crate::Result<Postgres, Self> {
         match value.try_into()? {
             PgValue::Binary(binary) => PgNumeric::from_bytes(binary)?.try_into(),
             PgValue::Text(text) => text

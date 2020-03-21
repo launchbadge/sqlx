@@ -1,8 +1,12 @@
+use crate::postgres::database::Postgres;
 use crate::postgres::stream::PgStream;
 use crate::url::Url;
 
 #[cfg_attr(not(feature = "tls"), allow(unused_variables))]
-pub(crate) async fn request_if_needed(stream: &mut PgStream, url: &Url) -> crate::Result<()> {
+pub(crate) async fn request_if_needed(
+    stream: &mut PgStream,
+    url: &Url,
+) -> crate::Result<Postgres, ()> {
     // https://www.postgresql.org/docs/12/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
     match url.param("sslmode").as_deref() {
         Some("disable") | Some("allow") => {
@@ -67,7 +71,7 @@ async fn try_upgrade(
     url: &Url,
     accept_invalid_certs: bool,
     accept_invalid_host_names: bool,
-) -> crate::Result<bool> {
+) -> crate::Result<Postgres, bool> {
     use async_native_tls::TlsConnector;
 
     stream.write(crate::postgres::protocol::SslRequest);
@@ -111,7 +115,9 @@ async fn try_upgrade(
 }
 
 #[cfg(feature = "tls")]
-async fn read_root_certificate(url: &Url) -> crate::Result<Option<async_native_tls::Certificate>> {
+async fn read_root_certificate(
+    url: &Url,
+) -> crate::Result<Postgres, Option<async_native_tls::Certificate>> {
     use crate::runtime::fs;
     use std::env;
 

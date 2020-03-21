@@ -1,8 +1,9 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::arguments::Arguments;
 use crate::connection::Connect;
 use crate::cursor::Cursor;
+use crate::error::DatabaseError;
 use crate::row::Row;
 use crate::types::TypeInfo;
 
@@ -16,6 +17,7 @@ where
     Self: for<'c> HasRow<'c, Database = Self>,
     Self: for<'c> HasRawValue<'c>,
     Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,
+    Self: Debug,
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connect<Database = Self>;
@@ -33,6 +35,9 @@ where
     ///
     /// For example, **Postgres** and **MySQL** use `Vec<u8>`; however, **SQLite** uses `Vec<SqliteArgumentValue>`.
     type RawBuffer: Default;
+
+    /// The concrete `DatabaseError` type used to report errors from the database.
+    type Error: DatabaseError + Send + Sync;
 }
 
 /// Associate [`Database`] with a `RawValue` of a generic lifetime.

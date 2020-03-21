@@ -1,17 +1,27 @@
 use crate::error::{Error, UnexpectedNullError};
+use sqlx_core::database::Database;
 
-pub trait ResultExt<T>: Sized {
-    fn try_unwrap_optional(self) -> crate::Result<T>;
+pub trait ResultExt<DB, T>: Sized
+where
+    DB: Database,
+{
+    fn try_unwrap_optional(self) -> crate::Result<DB, T>;
 }
 
-impl<T> ResultExt<T> for crate::Result<T> {
-    fn try_unwrap_optional(self) -> crate::Result<T> {
+impl<DB, T> ResultExt<DB, T> for crate::Result<DB, T>
+where
+    DB: Database,
+{
+    fn try_unwrap_optional(self) -> crate::Result<DB, T> {
         self
     }
 }
 
-impl<T> ResultExt<Option<T>> for crate::Result<T> {
-    fn try_unwrap_optional(self) -> crate::Result<Option<T>> {
+impl<DB, T> ResultExt<DB, Option<T>> for crate::Result<DB, T>
+where
+    DB: Database,
+{
+    fn try_unwrap_optional(self) -> crate::Result<DB, Option<T>> {
         match self {
             Ok(val) => Ok(Some(val)),
 

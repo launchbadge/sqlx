@@ -79,7 +79,7 @@ where
     C: Connect,
 {
     /// Detach the connection from the pool and close it nicely.
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+    fn close(mut self) -> BoxFuture<'static, crate::Result<C::Database, ()>> {
         Box::pin(async move {
             let live = self.live.take().expect("PoolConnection double-dropped");
             live.float(&self.pool).into_idle().close().await
@@ -87,7 +87,7 @@ where
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+    fn ping(&mut self) -> BoxFuture<crate::Result<C::Database, ()>> {
         Box::pin(self.deref_mut().ping())
     }
 }
@@ -186,7 +186,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
         }
     }
 
-    pub async fn ping(&mut self) -> crate::Result<()>
+    pub async fn ping(&mut self) -> crate::Result<C::Database, ()>
     where
         C: Connection,
     {
@@ -200,7 +200,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
         }
     }
 
-    pub async fn close(self) -> crate::Result<()>
+    pub async fn close(self) -> crate::Result<C::Database, ()>
     where
         C: Connection,
     {

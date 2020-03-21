@@ -1,4 +1,5 @@
 use crate::io::Buf;
+use crate::postgres::database::Postgres;
 use byteorder::NetworkEndian;
 use std::borrow::Cow;
 
@@ -10,7 +11,7 @@ pub(crate) struct NotificationResponse<'c> {
 }
 
 impl<'c> NotificationResponse<'c> {
-    pub(crate) fn read(mut buf: &'c [u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &'c [u8]) -> crate::Result<Postgres, Self> {
         let process_id = buf.get_u32::<NetworkEndian>()?;
         let channel = buf.get_str_nul()?;
         let payload = buf.get_str_nul()?;

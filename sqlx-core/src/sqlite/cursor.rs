@@ -49,14 +49,14 @@ impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
         }
     }
 
-    fn next(&mut self) -> BoxFuture<crate::Result<Option<SqliteRow<'_>>>> {
+    fn next(&mut self) -> BoxFuture<crate::Result<Sqlite, Option<SqliteRow<'_>>>> {
         Box::pin(next(self))
     }
 }
 
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut SqliteCursor<'c, 'q>,
-) -> crate::Result<Option<SqliteRow<'a>>> {
+) -> crate::Result<Sqlite, Option<SqliteRow<'a>>> {
     let conn = cursor.source.resolve().await?;
 
     loop {

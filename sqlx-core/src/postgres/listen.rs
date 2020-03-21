@@ -30,7 +30,7 @@ pub struct PgListener {
 pub struct PgNotification<'c>(NotificationResponse<'c>);
 
 impl PgListener {
-    pub async fn new(url: &str) -> crate::Result<Self> {
+    pub async fn new(url: &str) -> crate::Result<Postgres, Self> {
         // Create a pool of 1 without timeouts (as they don't apply here)
         // We only use the pool to handle re-connections
         let pool = Pool::<PgConnection>::builder()
@@ -43,7 +43,7 @@ impl PgListener {
         Self::from_pool(&pool).await
     }
 
-    pub async fn from_pool(pool: &Pool<PgConnection>) -> crate::Result<Self> {
+    pub async fn from_pool(pool: &Pool<PgConnection>) -> crate::Result<Postgres, Self> {
         // Pull out an initial connection
         let mut connection = pool.acquire().await?;
 
@@ -61,7 +61,7 @@ impl PgListener {
     }
 
     /// Starts listening for notifications on a channel.
-    pub async fn listen(&mut self, channel: &str) -> crate::Result<()> {
+    pub async fn listen(&mut self, channel: &str) -> crate::Result<Postgres, ()> {
         self.connection()
             .execute(&*format!("LISTEN {}", ident(channel)))
             .await?;
@@ -75,7 +75,7 @@ impl PgListener {
     pub async fn listen_all(
         &mut self,
         channels: impl IntoIterator<Item = &str>,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<Postgres, ()> {
         let beg = self.channels.len();
         self.channels.extend(channels.into_iter().map(|s| s.into()));
 
@@ -89,7 +89,7 @@ impl PgListener {
     }
 
     /// Stops listening for notifications on a channel.
-    pub async fn unlisten(&mut self, channel: &str) -> crate::Result<()> {
+    pub async fn unlisten(&mut self, channel: &str) -> crate::Result<Postgres, ()> {
         self.connection()
             .execute(&*format!("UNLISTEN {}", ident(channel)))
             .await?;
@@ -102,7 +102,7 @@ impl PgListener {
     }
 
     /// Stops listening for notifications on all channels.
-    pub async fn unlisten_all(&mut self) -> crate::Result<()> {
+    pub async fn unlisten_all(&mut self) -> crate::Result<Postgres, ()> {
         self.connection().execute("UNLISTEN *").await?;
 
         self.channels.clear();
@@ -111,7 +111,7 @@ impl PgListener {
     }
 
     #[inline]
-    async fn connect_if_needed(&mut self) -> crate::Result<()> {
+    async fn connect_if_needed(&mut self) -> crate::Result<Postgres, ()> {
         if let None = self.connection {
             let mut connection = self.pool.acquire().await?;
             connection.stream.notifications = self.buffer_tx.take();
@@ -132,7 +132,7 @@ impl PgListener {
     }
 
     /// Receives the next notification available from any of the subscribed channels.
-    pub async fn recv(&mut self) -> crate::Result<PgNotification<'_>> {
+    pub async fn recv(&mut self) -> crate::Result<Postgres, PgNotification<'_>> {
         // Flush the buffer first, if anything
         // This would only fill up if this listener is used as a connection
         if let Ok(Some(notification)) = self.buffer_rx.try_next() {
@@ -178,7 +178,7 @@ impl PgListener {
     /// Consume this listener, returning a `Stream` of notifications.
     pub fn into_stream(
         mut self,
-    ) -> impl Stream<Item = crate::Result<PgNotification<'static>>> + Unpin {
+    ) -> impl Stream<Item = crate::Result<Postgres, PgNotification<'static>>> + Unpin {
         Box::pin(try_stream! {
             loop {
                 let notification = self.recv().await?;
@@ -194,7 +194,7 @@ impl Executor for PgListener {
     fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
         &'c mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<u64>>
+    ) -> BoxFuture<'e, crate::Result<Postgres, u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -211,7 +211,7 @@ impl Executor for PgListener {
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    ) -> BoxFuture<'e, crate::Result<Postgres, Describe<Self::Database>>>
     where
         E: Execute<'q, Self::Database>,
     {

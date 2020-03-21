@@ -19,7 +19,7 @@ where
     /// Starts a transaction.
     ///
     /// Returns [`Transaction`](struct.Transaction.html).
-    fn begin(self) -> BoxFuture<'static, crate::Result<Transaction<Self>>>
+    fn begin(self) -> BoxFuture<'static, crate::Result<Self::Database, Transaction<Self>>>
     where
         Self: Sized,
     {
@@ -27,18 +27,18 @@ where
     }
 
     /// Close this database connection.
-    fn close(self) -> BoxFuture<'static, crate::Result<()>>;
+    fn close(self) -> BoxFuture<'static, crate::Result<Self::Database, ()>>;
 
     /// Verifies a connection to the database is still alive.
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>>;
+    fn ping(&mut self) -> BoxFuture<crate::Result<Self::Database, ()>>;
 }
 
 /// Represents a type that can directly establish a new connection.
 pub trait Connect: Connection {
     /// Establish a new database connection.
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self::Database, Self>>
     where
-        T: TryInto<Url, Error = crate::Error>,
+        T: TryInto<Url, Error = url::ParseError>,
         Self: Sized;
 }
 
@@ -58,7 +58,7 @@ where
     C: Connect,
 {
     #[allow(dead_code)]
-    pub(crate) async fn resolve(&mut self) -> crate::Result<&'_ mut C> {
+    pub(crate) async fn resolve(&mut self) -> crate::Result<C::Database, &'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
             let conn = pool.acquire().await?;
 

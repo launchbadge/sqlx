@@ -26,7 +26,7 @@ impl Encode<MySql> for DateTime<Utc> {
 }
 
 impl<'de> Decode<'de, MySql> for DateTime<Utc> {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(DateTime::from_utc(naive, Utc))
@@ -66,7 +66,7 @@ impl Encode<MySql> for NaiveTime {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveTime {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match buf.try_into()? {
             MySqlValue::Binary(mut buf) => {
                 // data length, expecting 8 or 12 (fractional seconds)
@@ -110,7 +110,7 @@ impl Encode<MySql> for NaiveDate {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveDate {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match buf.try_into()? {
             MySqlValue::Binary(buf) => Ok(decode_date(&buf[1..])),
 
@@ -163,7 +163,7 @@ impl Encode<MySql> for NaiveDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveDateTime {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match buf.try_into()? {
             MySqlValue::Binary(buf) => {
                 let len = buf[0];
@@ -214,7 +214,7 @@ fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
     }
 }
 
-fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<NaiveTime> {
+fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<MySql, NaiveTime> {
     let hour = buf.get_u8()?;
     let minute = buf.get_u8()?;
     let seconds = buf.get_u8()?;

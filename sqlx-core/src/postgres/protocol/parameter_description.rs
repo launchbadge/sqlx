@@ -1,4 +1,5 @@
 use crate::io::Buf;
+use crate::postgres::database::Postgres;
 use crate::postgres::protocol::TypeId;
 use byteorder::NetworkEndian;
 
@@ -8,7 +9,7 @@ pub struct ParameterDescription {
 }
 
 impl ParameterDescription {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut ids = Vec::with_capacity(cnt);
 

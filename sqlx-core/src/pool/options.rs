@@ -104,11 +104,11 @@ where
     ///
     /// If [min_size] was set to a non-zero value, that many connections will be immediately
     /// opened and placed into the pool.
-    pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
+    pub async fn build(self, url: &str) -> crate::Result<C::Database, Pool<C>>
     where
         C: Connect,
     {
-        Pool::with_options(url, self.options).await
+        Pool::<C>::with_options(url, self.options).await
     }
 }
 

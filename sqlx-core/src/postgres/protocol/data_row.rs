@@ -1,4 +1,5 @@
 use crate::io::Buf;
+use crate::postgres::database::Postgres;
 use byteorder::NetworkEndian;
 use std::ops::Range;
 
@@ -24,7 +25,7 @@ impl<'c> DataRow<'c> {
     pub(crate) fn read(
         buffer: &'c [u8],
         values: &'c mut Vec<Option<Range<u32>>>,
-    ) -> crate::Result<Self> {
+    ) -> crate::Result<Postgres, Self> {
         // let buffer = connection.stream.buffer();
         // let values = &mut connection.current_row_values;
 

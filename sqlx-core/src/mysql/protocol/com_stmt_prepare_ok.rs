@@ -1,6 +1,7 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
+use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response_ok
 #[derive(Debug)]
@@ -19,7 +20,7 @@ pub(crate) struct ComStmtPrepareOk {
 }
 
 impl ComStmtPrepareOk {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self> {
         let header = buf.get_u8()?;
 
         if header != 0x00 {

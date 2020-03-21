@@ -39,7 +39,7 @@ impl Encode<MySql> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, MySql> for Vec<u8> {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf.to_vec()),
         }
@@ -47,7 +47,7 @@ impl<'de> Decode<'de, MySql> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, MySql> for &'de [u8] {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf),
         }

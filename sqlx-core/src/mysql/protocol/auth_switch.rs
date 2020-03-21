@@ -1,5 +1,6 @@
 use crate::io::Buf;
 use crate::mysql::protocol::AuthPlugin;
+use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_auth_switch_request.html
 #[derive(Debug)]
@@ -9,7 +10,7 @@ pub(crate) struct AuthSwitch {
 }
 
 impl AuthSwitch {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self>
     where
         Self: Sized,
     {

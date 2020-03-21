@@ -1,3 +1,4 @@
+use crate::postgres::database::Postgres;
 use std::convert::TryFrom;
 
 #[derive(Debug, Copy, Clone)]
@@ -23,9 +24,9 @@ pub enum Message {
 }
 
 impl TryFrom<u8> for Message {
-    type Error = crate::Error;
+    type Error = crate::Error<Postgres>;
 
-    fn try_from(type_: u8) -> crate::Result<Self> {
+    fn try_from(type_: u8) -> crate::Result<Postgres, Self> {
         // https://www.postgresql.org/docs/12/protocol-message-formats.html
         Ok(match type_ {
             b'E' => Message::ErrorResponse,

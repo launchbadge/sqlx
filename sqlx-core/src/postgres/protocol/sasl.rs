@@ -1,6 +1,6 @@
 use crate::io::BufMut;
 use crate::postgres::protocol::Write;
-use crate::Result;
+use crate::postgres::Postgres;
 use byteorder::NetworkEndian;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -29,7 +29,11 @@ impl<'a> Write for SaslResponse<'a> {
 }
 
 // Hi(str, salt, i):
-pub(crate) fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32]> {
+pub(crate) fn hi<'a>(
+    s: &'a str,
+    salt: &'a [u8],
+    iter_count: u32,
+) -> crate::Result<Postgres, [u8; 32]> {
     let mut mac = Hmac::<Sha256>::new_varkey(s.as_bytes())
         .map_err(|_| protocol_err!("HMAC can take key of any size"))?;
 

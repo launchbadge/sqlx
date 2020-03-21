@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto};
 pub struct Url(url::Url);
 
 impl TryFrom<String> for Url {
-    type Error = crate::Error;
+    type Error = url::ParseError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         (&value).try_into()
@@ -13,7 +13,7 @@ impl TryFrom<String> for Url {
 }
 
 impl<'s> TryFrom<&'s str> for Url {
-    type Error = crate::Error;
+    type Error = url::ParseError;
 
     fn try_from(value: &'s str) -> Result<Self, Self::Error> {
         Ok(Url(value.parse()?))
@@ -21,7 +21,7 @@ impl<'s> TryFrom<&'s str> for Url {
 }
 
 impl<'s> TryFrom<&'s String> for Url {
-    type Error = crate::Error;
+    type Error = url::ParseError;
 
     fn try_from(value: &'s String) -> Result<Self, Self::Error> {
         (value.as_str()).try_into()

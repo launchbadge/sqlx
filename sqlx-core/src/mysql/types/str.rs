@@ -42,7 +42,7 @@ impl Encode<MySql> for String {
 }
 
 impl<'de> Decode<'de, MySql> for &'de str {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(buf) | MySqlValue::Text(buf) => {
                 from_utf8(buf).map_err(crate::Error::decode)
@@ -52,7 +52,7 @@ impl<'de> Decode<'de, MySql> for &'de str {
 }
 
 impl<'de> Decode<'de, MySql> for String {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         <&'de str as Decode<MySql>>::decode(buf).map(ToOwned::to_owned)
     }
 }

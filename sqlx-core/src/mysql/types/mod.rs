@@ -116,7 +116,7 @@ impl<'de, T> Decode<'de, MySql> for Option<T>
 where
     T: Decode<'de, MySql>,
 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         value
             .map(|value| <T as Decode<MySql>>::decode(Some(value)))
             .transpose()

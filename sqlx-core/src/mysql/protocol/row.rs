@@ -4,6 +4,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
 use crate::mysql::protocol::TypeId;
+use crate::mysql::MySql;
 
 pub(crate) struct Row<'c> {
     buffer: &'c [u8],
@@ -58,7 +59,7 @@ impl<'c> Row<'c> {
         columns: &[TypeId],
         values: &'c mut Vec<Option<Range<usize>>>,
         binary: bool,
-    ) -> crate::Result<Self> {
+    ) -> crate::Result<MySql, Self> {
         let buffer = &*buf;
 
         values.clear();
@@ -159,7 +160,7 @@ impl<'c> Row<'c> {
 //     use super::*;
 //
 //     #[test]
-//     fn null_bitmap_test() -> crate::Result<()> {
+//     fn null_bitmap_test() -> crate::Result<MySql, ()> {
 //         let column_len = ColumnCount::decode(&[26])?;
 //         assert_eq!(column_len.columns, 26);
 //

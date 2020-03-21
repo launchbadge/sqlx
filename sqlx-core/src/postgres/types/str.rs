@@ -67,13 +67,13 @@ impl Encode<Postgres> for String {
 }
 
 impl<'de> Decode<'de, Postgres> for String {
-    fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Self> {
+    fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
         <&'de str as Decode<Postgres>>::decode(buf).map(ToOwned::to_owned)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for &'de str {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
         match value.try_into()? {
             PgValue::Binary(buf) => from_utf8(buf).map_err(Error::decode),
             PgValue::Text(s) => Ok(s),

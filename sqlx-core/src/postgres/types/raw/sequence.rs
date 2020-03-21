@@ -35,7 +35,7 @@ impl<'de> PgSequenceDecoder<'de> {
         self.len
     }
 
-    pub(crate) fn decode<T>(&mut self) -> crate::Result<Option<T>>
+    pub(crate) fn decode<T>(&mut self) -> crate::Result<Postgres, Option<T>>
     where
         T: DecodeOwned<Postgres>,
         T: Type<Postgres>,
@@ -165,9 +165,10 @@ impl<'de> From<&'de str> for PgSequenceDecoder<'de> {
 #[cfg(test)]
 mod tests {
     use super::PgSequenceDecoder;
+    use crate::postgres::Postgres;
 
     #[test]
-    fn it_decodes_text_number() -> crate::Result<()> {
+    fn it_decodes_text_number() -> crate::Result<Postgres, ()> {
         // select (10,20,-220);
         let data = "(10,20,-220)";
         let mut decoder = PgSequenceDecoder::from(data);
@@ -181,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_text_nested_sequence() -> crate::Result<()> {
+    fn it_decodes_text_nested_sequence() -> crate::Result<Postgres, ()> {
         // select ((1,array[false,true]),array[(1,4),(5,2)]);
         let data = r#"("(1,""{f,t}"")","{""(1,4)"",""(5,2)""}")"#;
         let mut decoder = PgSequenceDecoder::from(data);

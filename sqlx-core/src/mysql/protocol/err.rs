@@ -2,6 +2,7 @@ use byteorder::LittleEndian;
 
 use crate::io::Buf;
 use crate::mysql::protocol::Capabilities;
+use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_err_packet.html
 // https://mariadb.com/kb/en/err_packet/
@@ -13,7 +14,7 @@ pub struct ErrPacket {
 }
 
 impl ErrPacket {
-    pub(crate) fn read(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<Self>
+    pub(crate) fn read(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<MySql, Self>
     where
         Self: Sized,
     {

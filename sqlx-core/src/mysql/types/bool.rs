@@ -20,7 +20,7 @@ impl Encode<MySql> for bool {
 }
 
 impl<'de> Decode<'de, MySql> for bool {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
 

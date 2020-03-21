@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::connection::Connect;
+use crate::database::Database;
 use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
@@ -34,12 +35,12 @@ where
     ///
     /// * MySQL/MariaDB: [crate::mysql::MySqlConnection]
     /// * PostgreSQL: [crate::postgres::PgConnection]
-    pub async fn new(url: &str) -> crate::Result<Self> {
+    pub async fn new(url: &str) -> crate::Result<C::Database, Self> {
         Self::builder().build(url).await
     }
 
-    async fn with_options(url: &str, options: Options) -> crate::Result<Self> {
-        let inner = SharedPool::new_arc(url, options).await?;
+    async fn with_options(url: &str, options: Options) -> crate::Result<C::Database, Self> {
+        let inner = SharedPool::<C>::new_arc(url, options).await?;
 
         Ok(Pool(inner))
     }
@@ -52,7 +53,7 @@ where
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> crate::Result<PoolConnection<C>> {
+    pub async fn acquire(&self) -> crate::Result<C::Database, PoolConnection<C>> {
         self.0.acquire().await.map(|conn| conn.attach(&self.0))
     }
 
@@ -64,7 +65,7 @@ where
     }
 
     /// Retrieves a new connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
+    pub async fn begin(&self) -> crate::Result<C::Database, Transaction<PoolConnection<C>>> {
         Ok(Transaction::new(0, self.acquire().await?).await?)
     }
 
@@ -141,11 +142,11 @@ where
 
 /// get the time between the deadline and now and use that as our timeout
 ///
-/// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout(deadline: Instant) -> crate::Result<Duration> {
+/// returns `Error::<DB>::PoolTimedOut` if the deadline is in the past
+fn deadline_as_timeout<DB: Database>(deadline: Instant) -> crate::Result<DB, Duration> {
     deadline
         .checked_duration_since(Instant::now())
-        .ok_or(crate::Error::PoolTimedOut(None))
+        .ok_or(crate::Error::<DB>::PoolTimedOut(None))
 }
 
 #[test]

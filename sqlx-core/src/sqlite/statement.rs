@@ -13,6 +13,7 @@ use libsqlite3_sys::{
 
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
+use crate::sqlite::Sqlite;
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
 
@@ -53,7 +54,7 @@ impl Statement {
         conn: &mut SqliteConnection,
         query: &mut &str,
         persistent: bool,
-    ) -> crate::Result<Self> {
+    ) -> crate::Result<Sqlite, Self> {
         // TODO: Error on queries that are too large
         let query_ptr = query.as_bytes().as_ptr() as *const i8;
         let query_len = query.len() as i32;
@@ -175,7 +176,7 @@ impl Statement {
         num as usize
     }
 
-    pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<()> {
+    pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<Sqlite, ()> {
         for index in 0..self.params() {
             if let Some(value) = arguments.next() {
                 value.bind(self, index + 1)?;
@@ -201,7 +202,7 @@ impl Statement {
         let _ = unsafe { sqlite3_clear_bindings(self.handle()) };
     }
 
-    pub(super) async fn step(&mut self) -> crate::Result<Step> {
+    pub(super) async fn step(&mut self) -> crate::Result<Sqlite, Step> {
         // https://sqlite.org/c3ref/step.html
 
         let handle = self.handle;

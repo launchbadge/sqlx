@@ -42,7 +42,7 @@ macro_rules! impl_pg_record_for_tuple {
             $($T: Type<Postgres>,)+
             $($T: DecodeOwned<Postgres>,)+
         {
-            fn decode(value: Option<PgValue<'de>>) -> crate::Result<Self> {
+            fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
                 let mut decoder = PgRecordDecoder::new(value)?;
 
                 $(let $idx: $T = decoder.decode()?;)+

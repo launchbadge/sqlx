@@ -17,7 +17,7 @@ impl Encode<Sqlite> for f32 {
 }
 
 impl<'a> Decode<'a, Sqlite> for f32 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<f32> {
+    fn decode(value: SqliteValue<'a>) -> crate::Result<Sqlite, f32> {
         Ok(value.double() as f32)
     }
 }
@@ -35,7 +35,7 @@ impl Encode<Sqlite> for f64 {
 }
 
 impl<'a> Decode<'a, Sqlite> for f64 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<f64> {
+    fn decode(value: SqliteValue<'a>) -> crate::Result<Sqlite, f64> {
         Ok(value.double())
     }
 }

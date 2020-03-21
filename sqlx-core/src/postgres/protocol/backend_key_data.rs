@@ -1,4 +1,5 @@
 use crate::io::Buf;
+use crate::postgres::database::Postgres;
 use byteorder::NetworkEndian;
 
 #[derive(Debug)]
@@ -11,7 +12,7 @@ pub struct BackendKeyData {
 }
 
 impl BackendKeyData {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
         let process_id = buf.get_u32::<NetworkEndian>()?;
         let secret_key = buf.get_u32::<NetworkEndian>()?;
 

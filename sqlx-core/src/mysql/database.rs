@@ -1,6 +1,8 @@
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
+use crate::mysql::error::MySqlError;
 
 /// **MySQL** database driver.
+#[derive(Debug)]
 pub struct MySql;
 
 impl Database for MySql {
@@ -13,6 +15,8 @@ impl Database for MySql {
     type TableId = Box<str>;
 
     type RawBuffer = Vec<u8>;
+
+    type Error = MySqlError;
 }
 
 impl<'c> HasRow<'c> for MySql {

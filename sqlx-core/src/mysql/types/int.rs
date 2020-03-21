@@ -24,7 +24,7 @@ impl Encode<MySql> for i8 {
 }
 
 impl<'de> Decode<'de, MySql> for i8 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(mut buf) => buf.read_i8().map_err(Into::into),
 
@@ -49,7 +49,7 @@ impl Encode<MySql> for i16 {
 }
 
 impl<'de> Decode<'de, MySql> for i16 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(mut buf) => buf.read_i16::<LittleEndian>().map_err(Into::into),
 
@@ -74,7 +74,7 @@ impl Encode<MySql> for i32 {
 }
 
 impl<'de> Decode<'de, MySql> for i32 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(mut buf) => buf.read_i32::<LittleEndian>().map_err(Into::into),
 
@@ -99,7 +99,7 @@ impl Encode<MySql> for i64 {
 }
 
 impl<'de> Decode<'de, MySql> for i64 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<Self> {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
         match value.try_into()? {
             MySqlValue::Binary(mut buf) => buf.read_i64::<LittleEndian>().map_err(Into::into),
 

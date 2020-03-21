@@ -1,6 +1,8 @@
 use crate::database::{Database, HasCursor, HasRawValue, HasRow};
+use crate::sqlite::error::SqliteError;
 
 /// **Sqlite** database driver.
+#[derive(Debug)]
 pub struct Sqlite;
 
 impl Database for Sqlite {
@@ -13,6 +15,8 @@ impl Database for Sqlite {
     type TableId = String;
 
     type RawBuffer = Vec<super::SqliteArgumentValue>;
+
+    type Error = SqliteError;
 }
 
 impl<'c> HasRow<'c> for Sqlite {

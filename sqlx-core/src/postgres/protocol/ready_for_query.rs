@@ -1,3 +1,5 @@
+use crate::postgres::database::Postgres;
+
 #[derive(Debug)]
 #[repr(u8)]
 pub enum TransactionStatus {
@@ -18,7 +20,7 @@ pub struct ReadyForQuery {
 }
 
 impl ReadyForQuery {
-    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Postgres, Self> {
         Ok(Self {
             status: match buf[0] {
                 b'I' => TransactionStatus::Idle,

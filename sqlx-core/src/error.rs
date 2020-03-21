@@ -1,24 +1,25 @@
-//! Error and Result types.
+//! Error<DB>and Result types.
 
+use crate::database::Database;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display};
 use std::io;
 
 /// A specialized `Result` type for SQLx.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<DB, T> = std::result::Result<T, Error<DB>>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum Error {
-    /// Error communicating with the database.
+pub enum Error<DB: Database> {
+    /// Error<DB>communicating with the database.
     Io(io::Error),
 
     /// Connection URL was malformed.
     UrlParse(url::ParseError),
 
     /// An error was returned by the database.
-    Database(Box<dyn DatabaseError + Send + Sync>),
+    Database(Box<DB::Error>),
 
     /// No row was returned during [`Map::fetch_one`] or [`QueryAs::fetch_one`].
     RowNotFound,
@@ -52,17 +53,17 @@ pub enum Error {
     Decode(Box<dyn StdError + Send + Sync>),
 }
 
-impl Error {
+impl<DB: Database> Error<DB> {
     #[allow(dead_code)]
     pub(crate) fn decode<E>(err: E) -> Self
     where
         E: StdError + Send + Sync + 'static,
     {
-        Error::Decode(err.into())
+        Error::<DB>::Decode(err.into())
     }
 }
 
-impl StdError for Error {
+impl<DB: Database + Debug> StdError for Error<DB> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::Io(error) => Some(error),
@@ -76,7 +77,7 @@ impl StdError for Error {
     }
 }
 
-impl Display for Error {
+impl<DB: Database> Display for Error<DB> {
     // IntellijRust does not understand that [non_exhaustive] applies only for downstream crates
     // noinspection RsMatchCheck
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -118,28 +119,28 @@ impl Display for Error {
     }
 }
 
-impl From<io::Error> for Error {
+impl<DB: Database> From<io::Error> for Error<DB> {
     #[inline]
     fn from(err: io::Error) -> Self {
         Error::Io(err)
     }
 }
 
-impl From<io::ErrorKind> for Error {
+impl<DB: Database> From<io::ErrorKind> for Error<DB> {
     #[inline]
     fn from(err: io::ErrorKind) -> Self {
         Error::Io(err.into())
     }
 }
 
-impl From<url::ParseError> for Error {
+impl<DB: Database> From<url::ParseError> for Error<DB> {
     #[inline]
     fn from(err: url::ParseError) -> Self {
         Error::UrlParse(err)
     }
 }
 
-impl From<ProtocolError<'_>> for Error {
+impl<DB: Database> From<ProtocolError<'_>> for Error<DB> {
     #[inline]
     fn from(err: ProtocolError) -> Self {
         Error::Protocol(err.args.to_string().into_boxed_str())
@@ -148,32 +149,22 @@ impl From<ProtocolError<'_>> for Error {
 
 #[cfg(feature = "tls")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
-impl From<async_native_tls::Error> for Error {
+impl<DB: Database> From<async_native_tls::Error> for Error<DB> {
     #[inline]
     fn from(err: async_native_tls::Error) -> Self {
         Error::Tls(err.into())
     }
 }
 
-impl From<TlsError<'_>> for Error {
+impl<DB: Database> From<TlsError<'_>> for Error<DB> {
     #[inline]
     fn from(err: TlsError<'_>) -> Self {
         Error::Tls(err.args.to_string().into())
     }
 }
 
-impl<T> From<T> for Error
-where
-    T: 'static + DatabaseError,
-{
-    #[inline]
-    fn from(err: T) -> Self {
-        Error::Database(Box::new(err))
-    }
-}
-
 /// An error that was returned by the database.
-pub trait DatabaseError: Display + Debug + Send + Sync {
+pub trait DatabaseError: StdError + Send + Sync {
     /// The primary, human-readable error message.
     fn message(&self) -> &str;
 
@@ -223,17 +214,6 @@ pub(crate) struct TlsError<'a> {
 #[allow(unused_macros)]
 macro_rules! tls_err {
     ($($args:tt)*) => { crate::error::TlsError { args: format_args!($($args)*)} };
-}
-
-#[allow(unused_macros)]
-macro_rules! impl_fmt_error {
-    ($err:ty) => {
-        impl std::fmt::Display for $err {
-            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.pad(self.message())
-            }
-        }
-    };
 }
 
 #[allow(unused_macros)]

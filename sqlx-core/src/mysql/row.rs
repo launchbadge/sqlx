@@ -14,13 +14,13 @@ pub enum MySqlValue<'c> {
 }
 
 impl<'c> TryFrom<Option<MySqlValue<'c>>> for MySqlValue<'c> {
-    type Error = crate::Error;
+    type Error = crate::Error<MySql>;
 
     #[inline]
     fn try_from(value: Option<MySqlValue<'c>>) -> Result<Self, Self::Error> {
         match value {
             Some(value) => Ok(value),
-            None => Err(crate::Error::decode(UnexpectedNullError)),
+            None => Err(crate::Error::<MySql>::decode(UnexpectedNullError)),
         }
     }
 }
@@ -37,7 +37,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         self.row.len()
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<Option<MySqlValue<'r>>>
+    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<MySql, Option<MySqlValue<'r>>>
     where
         'c: 'r,
         I: ColumnIndex<Self::Database>,

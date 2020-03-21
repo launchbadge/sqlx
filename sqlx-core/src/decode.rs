@@ -6,9 +6,9 @@ use crate::database::{Database, HasRawValue};
 pub trait Decode<'de, DB>
 where
     Self: Sized + 'de,
-    DB: HasRawValue<'de>,
+    DB: Database,
 {
-    fn decode(value: DB::RawValue) -> crate::Result<Self>;
+    fn decode(value: <DB as HasRawValue<'de>>::RawValue) -> crate::Result<DB, Self>;
 }
 
 /// A type that can be decoded without borrowing from the connection.

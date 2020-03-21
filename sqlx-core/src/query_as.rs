@@ -75,7 +75,7 @@ macro_rules! make_query_as {
             fn fetch<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
+            ) -> futures_core::stream::BoxStream<'e, crate::Result<$db, O>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -84,7 +84,7 @@ macro_rules! make_query_as {
             fn fetch_all<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, Vec<O>>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -93,7 +93,7 @@ macro_rules! make_query_as {
             fn fetch_one<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, O>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -102,7 +102,7 @@ macro_rules! make_query_as {
             fn fetch_optional<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, Option<O>>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -113,7 +113,7 @@ macro_rules! make_query_as {
             fn fetch<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
+            ) -> futures_core::stream::BoxStream<'e, crate::Result<$db, O>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -135,7 +135,7 @@ macro_rules! make_query_as {
             fn fetch_optional<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, Option<O>>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -154,7 +154,7 @@ macro_rules! make_query_as {
             fn fetch_one<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, O>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
@@ -171,7 +171,7 @@ macro_rules! make_query_as {
             fn fetch_all<'e, E>(
                 self,
                 executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
+            ) -> futures_core::future::BoxFuture<'e, crate::Result<$db, Vec<O>>>
             where
                 E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
                 O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
