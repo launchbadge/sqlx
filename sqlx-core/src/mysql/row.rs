@@ -37,9 +37,8 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         self.row.len()
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<MySql, Option<MySqlValue<'r>>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<MySql, Option<MySqlValue<'c>>>
     where
-        'c: 'r,
         I: ColumnIndex<Self::Database>,
     {
         let index = index.resolve(self)?;

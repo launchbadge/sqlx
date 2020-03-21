@@ -42,9 +42,8 @@ impl<'c> Row<'c> for PgRow<'c> {
         self.data.len()
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<Postgres, Option<PgValue<'r>>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<Postgres, Option<PgValue<'c>>>
     where
-        'c: 'r,
         I: ColumnIndex<Self::Database>,
     {
         let index = index.resolve(self)?;

@@ -7,11 +7,19 @@ use crate::sqlite::{Sqlite, SqliteConnection};
 pub struct SqliteRow<'c> {
     pub(super) values: usize,
     pub(super) statement: Option<usize>,
-    pub(super) connection: &'c mut SqliteConnection,
+    pub(super) connection: &'c SqliteConnection,
 }
 
+// Accessing values from the statement object is
+// safe across threads as long as we don't call [sqlite3_step]
+// That should not be possible as long as an immutable borrow is held on the connection
+
+#[allow(unsafe_code)]
+unsafe impl Send for SqliteRow<'_> {}
+
 impl<'c> SqliteRow<'c> {
-    fn statement(&'c self) -> &'c Statement {
+    #[inline]
+    fn statement(&self) -> &'c Statement {
         self.connection.statement(self.statement)
     }
 }
@@ -24,15 +32,14 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         self.values
     }
 
-    fn try_get_raw<'r, I>(&'r self, index: I) -> crate::Result<Sqlite, SqliteValue<'r>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<Sqlite, SqliteValue<'c>>
     where
-        'c: 'r,
         I: ColumnIndex<Self::Database>,
     {
-        let index = index.resolve(self)?;
-        let value = SqliteValue::new(self.statement(), index);
-
-        Ok(value)
+        Ok(SqliteValue {
+            statement: self.statement(),
+            index: index.resolve(self)? as i32,
+        })
     }
 }
 

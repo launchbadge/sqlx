@@ -11,18 +11,8 @@ use libsqlite3_sys::{
 use crate::sqlite::statement::Statement;
 
 pub struct SqliteValue<'c> {
-    index: i32,
-    statement: &'c Statement,
-}
-
-impl<'c> SqliteValue<'c> {
-    #[inline]
-    pub(super) fn new(statement: &'c Statement, index: usize) -> Self {
-        Self {
-            statement,
-            index: index as i32,
-        }
-    }
+    pub(super) index: i32,
+    pub(super) statement: &'c Statement,
 }
 
 // https://www.sqlite.org/c3ref/column_blob.html
