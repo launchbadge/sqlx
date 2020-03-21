@@ -10,33 +10,6 @@ use crate::mysql::protocol::{
 use crate::mysql::{MySql, MySqlArguments, MySqlCursor, MySqlTypeInfo};
 
 impl super::MySqlConnection {
-    async fn wait_until_ready(&mut self) -> crate::Result<()> {
-        if !self.is_ready {
-            loop {
-                let packet_id = self.stream.receive().await?[0];
-                match packet_id {
-                    0xFE if self.stream.packet().len() < 0xFF_FF_FF => {
-                        // OK or EOF packet
-                        self.is_ready = true;
-                        break;
-                    }
-
-                    0xFF => {
-                        // ERR packet
-                        self.is_ready = true;
-                        return self.stream.handle_err();
-                    }
-
-                    _ => {
-                        // Something else; skip
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     // Creates a prepared statement for the passed query string
     async fn prepare(&mut self, query: &str) -> crate::Result<ComStmtPrepareOk> {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.11/page_protocol_com_stmt_prepare.html
@@ -91,8 +64,8 @@ impl super::MySqlConnection {
         query: &str,
         arguments: Option<MySqlArguments>,
     ) -> crate::Result<Option<u32>> {
-        self.wait_until_ready().await?;
-        self.is_ready = false;
+        self.stream.wait_until_ready().await?;
+        self.stream.is_ready = false;
 
         if let Some(arguments) = arguments {
             let statement_id = self.get_or_prepare(query).await?;
@@ -147,6 +120,7 @@ impl super::MySqlConnection {
                 }
 
                 0xFF => {
+                    self.is_ready = true;
                     return self.stream.handle_err();
                 }
 
@@ -160,7 +134,7 @@ impl super::MySqlConnection {
     // method is not named describe to work around an intellijrust bug
     // otherwise it marks someone trying to describe the connection as "method is private"
     async fn do_describe(&mut self, query: &str) -> crate::Result<Describe<MySql>> {
-        self.wait_until_ready().await?;
+        self.stream.wait_until_ready().await?;
 
         let stmt = self.prepare(query).await?;
 

@@ -13,6 +13,10 @@ const MAX_PACKET_SIZE: u32 = 1024;
 pub(crate) struct MySqlStream {
     pub(super) stream: BufStream<MaybeTlsStream>,
 
+    // Is the stream ready to send commands
+    // Put another way, are we still expecting an EOF or OK packet to terminate
+    pub(super) is_ready: bool,
+
     // Active capabilities
     pub(super) capabilities: Capabilities,
 
@@ -56,6 +60,7 @@ impl MySqlStream {
             packet_buf: Vec::with_capacity(MAX_PACKET_SIZE as usize),
             packet_len: 0,
             seq_no: 0,
+            is_ready: true,
         })
     }
 
@@ -182,10 +187,39 @@ impl MySqlStream {
     }
 
     pub(crate) fn handle_err<T>(&mut self) -> crate::Result<T> {
+        self.is_ready = true;
         Err(MySqlError(ErrPacket::read(self.packet(), self.capabilities)?).into())
     }
 
     pub(crate) fn handle_ok(&mut self) -> crate::Result<OkPacket> {
+        self.is_ready = true;
         OkPacket::read(self.packet())
+    }
+
+    pub(crate) async fn wait_until_ready(&mut self) -> crate::Result<()> {
+        if !self.is_ready {
+            loop {
+                let packet_id = self.receive().await?[0];
+                match packet_id {
+                    0xFE if self.packet().len() < 0xFF_FF_FF => {
+                        // OK or EOF packet
+                        self.is_ready = true;
+                        break;
+                    }
+
+                    0xFF => {
+                        // ERR packet
+                        self.is_ready = true;
+                        return self.handle_err();
+                    }
+
+                    _ => {
+                        // Something else; skip
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }

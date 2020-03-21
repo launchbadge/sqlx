@@ -252,10 +252,13 @@ async fn close(mut stream: MySqlStream) -> crate::Result<()> {
 }
 
 async fn ping(stream: &mut MySqlStream) -> crate::Result<()> {
+    stream.wait_until_ready().await?;
+    stream.is_ready = false;
+
     stream.send(ComPing, true).await?;
 
     match stream.receive().await?[0] {
-        0x00 | 0xFE => Ok(()),
+        0x00 | 0xFE => stream.handle_ok().map(drop),
 
         0xFF => stream.handle_err(),
 
@@ -323,10 +326,12 @@ impl Connect for MySqlConnection {
 }
 
 impl Connection for MySqlConnection {
+    #[inline]
     fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(close(self.stream))
     }
 
+    #[inline]
     fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         Box::pin(ping(&mut self.stream))
     }
