@@ -193,7 +193,7 @@ async fn test_array_from_slice() -> anyhow::Result<()> {
 
     let list: &[i32] = &[1, 2, 3, 4i32];
 
-    let result = sqlx::query!("SELECT $1::int[] as my_array", *list)
+    let result = sqlx::query!("SELECT $1::int[] as my_array", list)
         .fetch_one(&mut conn)
         .await?;
 

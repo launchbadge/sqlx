@@ -56,7 +56,7 @@ where
         let el_len_index = self.buf.len();
         self.buf.put_i32::<BE>(0);
 
-        // Allocate the element it self
+        // Allocate and encode the element it self
         let el_start = self.buf.len();
 
         if let IsNull::Yes = Encode::<Postgres>::encode_nullable(&item, self.buf) {
