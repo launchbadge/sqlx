@@ -1,3 +1,5 @@
+extern crate time_ as time;
+
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use sqlx::decode::Decode;
@@ -197,6 +199,43 @@ mod chrono {
                 NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
                 Utc,
             )
+    ));
+}
+
+#[cfg(feature = "time")]
+mod time_tests {
+    use super::*;
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use time::{date, time};
+
+    test_type!(time_date(
+        Postgres,
+        Date,
+        "DATE '2001-01-05'" == date!(2001 - 1 - 5),
+        "DATE '2050-11-23'" == date!(2050 - 11 - 23)
+    ));
+
+    test_type!(time_time(
+        Postgres,
+        Time,
+        "TIME '05:10:20.115100'" == time!(5:10:20.115100)
+    ));
+
+    test_type!(time_date_time(
+        Postgres,
+        PrimitiveDateTime,
+        "TIMESTAMP '2019-01-02 05:10:20'" == date!(2019 - 1 - 2).with_time(time!(5:10:20)),
+        "TIMESTAMP '2019-01-02 05:10:20.115100'"
+            == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
+    ));
+
+    test_type!(time_timestamp(
+        Postgres,
+        OffsetDateTime,
+        "TIMESTAMPTZ '2019-01-02 05:10:20.115100'"
+            == date!(2019 - 1 - 2)
+                .with_time(time!(5:10:20.115100))
+                .assume_utc()
     ));
 }
 

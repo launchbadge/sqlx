@@ -1,17 +1,19 @@
+use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use byteorder::{ByteOrder, LittleEndian};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::MySql;
-use crate::types::HasSqlType;
+use crate::mysql::{MySql, MySqlValue};
+use crate::types::Type;
 
-impl HasSqlType<OffsetDateTime> for MySql {
+impl Type<MySql> for OffsetDateTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIMESTAMP)
     }
@@ -26,15 +28,15 @@ impl Encode<MySql> for OffsetDateTime {
     }
 }
 
-impl Decode<MySql> for OffsetDateTime {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let primitive: PrimitiveDateTime = Decode::<MySql>::decode(buf)?;
+impl<'de> Decode<'de, MySql> for OffsetDateTime {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+        let primitive: PrimitiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(primitive.assume_utc())
     }
 }
 
-impl HasSqlType<Time> for MySql {
+impl Type<MySql> for Time {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::TIME)
     }
@@ -66,24 +68,44 @@ impl Encode<MySql> for Time {
     }
 }
 
-impl Decode<MySql> for Time {
-    fn decode(mut buf: &[u8]) -> Result<Self, DecodeError> {
-        // data length, expecting 8 or 12 (fractional seconds)
-        let len = buf.get_u8()?;
+impl<'de> Decode<'de, MySql> for Time {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(mut buf) => {
+                // data length, expecting 8 or 12 (fractional seconds)
+                let len = buf.get_u8()?;
 
-        // is negative : int<1>
-        let is_negative = buf.get_u8()?;
-        assert_eq!(is_negative, 0, "Negative dates/times are not supported");
+                // is negative : int<1>
+                let is_negative = buf.get_u8()?;
+                assert_eq!(is_negative, 0, "Negative dates/times are not supported");
 
-        // "date on 4 bytes little-endian format" (?)
-        // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
-        buf.advance(4);
+                // "date on 4 bytes little-endian format" (?)
+                // https://mariadb.com/kb/en/resultset-row/#timestamp-binary-encoding
+                buf.advance(4);
 
-        decode_time(len - 5, buf)
+                decode_time(len - 5, buf)
+            }
+
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(crate::Error::decode)?;
+
+                // If there are less than 9 digits after the decimal point
+                // We need to zero-pad
+                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
+
+                let s = if s.len() < 20 {
+                    Cow::Owned(format!("{:0<19}", s))
+                } else {
+                    Cow::Borrowed(s)
+                };
+
+                Time::parse(&*s, "%H:%M:%S.%N").map_err(crate::Error::decode)
+            }
+        }
     }
 }
 
-impl HasSqlType<Date> for MySql {
+impl Type<MySql> for Date {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATE)
     }
@@ -101,13 +123,19 @@ impl Encode<MySql> for Date {
     }
 }
 
-impl Decode<MySql> for Date {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        decode_date(&buf[1..])
+impl<'de> Decode<'de, MySql> for Date {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(buf) => decode_date(&buf[1..]),
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(crate::Error::decode)?;
+                Date::parse(s, "%Y-%m-%d").map_err(crate::Error::decode)
+            }
+        }
     }
 }
 
-impl HasSqlType<PrimitiveDateTime> for MySql {
+impl Type<MySql> for PrimitiveDateTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::new(TypeId::DATETIME)
     }
@@ -142,18 +170,42 @@ impl Encode<MySql> for PrimitiveDateTime {
     }
 }
 
-impl Decode<MySql> for PrimitiveDateTime {
-    fn decode(buf: &[u8]) -> Result<Self, DecodeError> {
-        let len = buf[0];
-        let date = decode_date(&buf[1..])?;
+impl<'de> Decode<'de, MySql> for PrimitiveDateTime {
+    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+        match value.try_into()? {
+            MySqlValue::Binary(buf) => {
+                let len = buf[0];
+                let date = decode_date(&buf[1..])?;
 
-        let dt = if len > 4 {
-            date.with_time(decode_time(len - 4, &buf[5..])?)
-        } else {
-            date.midnight()
-        };
+                let dt = if len > 4 {
+                    date.with_time(decode_time(len - 4, &buf[5..])?)
+                } else {
+                    date.midnight()
+                };
 
-        Ok(dt)
+                Ok(dt)
+            }
+
+            MySqlValue::Text(buf) => {
+                let s = from_utf8(buf).map_err(crate::Error::decode)?;
+
+                // If there are less than 9 digits after the decimal point
+                // We need to zero-pad
+                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
+
+                let s = if s.len() < 31 {
+                    if s.contains('.') {
+                        Cow::Owned(format!("{:0<30}", s))
+                    } else {
+                        Cow::Owned(format!("{}.000000000", s))
+                    }
+                } else {
+                    Cow::Borrowed(s)
+                };
+
+                PrimitiveDateTime::parse(&*s, "%Y-%m-%d %H:%M:%S.%N").map_err(crate::Error::decode)
+            }
+        }
     }
 }
 
@@ -167,13 +219,13 @@ fn encode_date(date: &Date, buf: &mut Vec<u8>) {
     buf.push(date.day());
 }
 
-fn decode_date(buf: &[u8]) -> Result<Date, DecodeError> {
+fn decode_date(buf: &[u8]) -> crate::Result<MySql, Date> {
     Date::try_from_ymd(
         LittleEndian::read_u16(buf) as i32,
         buf[2] as u8,
         buf[3] as u8,
     )
-    .map_err(|e| DecodeError::Message(Box::new(format!("Error while decoding Date: {}", e))))
+    .map_err(|e| decode_err!("Error while decoding Date: {}", e))
 }
 
 fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
@@ -186,7 +238,7 @@ fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
     }
 }
 
-fn decode_time(len: u8, mut buf: &[u8]) -> Result<Time, DecodeError> {
+fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<MySql, Time> {
     let hour = buf.get_u8()?;
     let minute = buf.get_u8()?;
     let seconds = buf.get_u8()?;
@@ -199,9 +251,10 @@ fn decode_time(len: u8, mut buf: &[u8]) -> Result<Time, DecodeError> {
     };
 
     Time::try_from_hms_micro(hour, minute, seconds, micros as u32)
-        .map_err(|e| DecodeError::Message(Box::new(format!("Time out of range for MySQL: {}", e))))
+        .map_err(|e| decode_err!("Time out of range for MySQL: {}", e))
 }
 
+use std::str::from_utf8;
 #[cfg(test)]
 use time::{date, time};
 

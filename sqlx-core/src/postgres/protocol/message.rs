@@ -48,7 +48,7 @@ impl TryFrom<u8> for Message {
             b'I' => Message::EmptyQueryResponse,
 
             id => {
-                return Err(protocol_err!("unknown message: {:?}", id).into());
+                return Err(protocol_err!("unknown message: {:?}", id as char).into());
             }
         })
     }

@@ -1,3 +1,5 @@
+extern crate time_ as time;
+
 use sqlx::MySql;
 use sqlx_test::test_type;
 
@@ -74,7 +76,7 @@ mod chrono {
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
-    test_type!(chrono_date_time_tz(
+    test_type!(chrono_timestamp(
         MySql,
         DateTime::<Utc>,
         "TIMESTAMP '2019-01-02 05:10:20.115100'"
@@ -82,5 +84,41 @@ mod chrono {
                 NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
                 Utc,
             )
+    ));
+}
+
+#[cfg(feature = "time")]
+mod time_tests {
+    use super::*;
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+    use time::{date, time};
+
+    test_type!(time_date(
+        MySql,
+        Date,
+        "DATE '2001-01-05'" == date!(2001 - 1 - 5),
+        "DATE '2050-11-23'" == date!(2050 - 11 - 23)
+    ));
+
+    test_type!(time_time(
+        MySql,
+        Time,
+        "TIME '05:10:20.115100'" == time!(5:10:20.115100)
+    ));
+
+    test_type!(time_date_time(
+        MySql,
+        PrimitiveDateTime,
+        "'2019-01-02 05:10:20'" == date!(2019 - 1 - 2).with_time(time!(5:10:20)),
+        "'2019-01-02 05:10:20.115100'" == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
+    ));
+
+    test_type!(time_timestamp(
+        MySql,
+        OffsetDateTime,
+        "TIMESTAMP '2019-01-02 05:10:20.115100'"
+            == date!(2019 - 1 - 2)
+                .with_time(time!(5:10:20.115100))
+                .assume_utc()
     ));
 }

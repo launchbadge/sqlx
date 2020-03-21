@@ -1,62 +1,89 @@
+use std::borrow::Cow;
 use std::convert::TryInto;
 use std::mem;
 
+use byteorder::BigEndian;
 use time::{date, offset, Date, NumericalDuration, OffsetDateTime, PrimitiveDateTime, Time};
 
-use crate::decode::{Decode, DecodeError};
+use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::io::Buf;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
-use crate::types::HasSqlType;
+use crate::postgres::{PgValue, Postgres};
+use crate::types::Type;
 
 const POSTGRES_EPOCH: PrimitiveDateTime = date!(2000 - 1 - 1).midnight();
 
-impl HasSqlType<Time> for Postgres {
+impl Type<Postgres> for Time {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIME)
+        PgTypeInfo::new(TypeId::TIME, "TIME")
     }
 }
 
-impl HasSqlType<Date> for Postgres {
+impl Type<Postgres> for Date {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::DATE)
+        PgTypeInfo::new(TypeId::DATE, "DATE")
     }
 }
 
-impl HasSqlType<PrimitiveDateTime> for Postgres {
+impl Type<Postgres> for PrimitiveDateTime {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMP)
+        PgTypeInfo::new(TypeId::TIMESTAMP, "TIMESTAMP")
     }
 }
 
-impl HasSqlType<OffsetDateTime> for Postgres {
+impl Type<Postgres> for OffsetDateTime {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::TIMESTAMPTZ, "TIMESTAMPTZ")
     }
 }
 
-impl HasSqlType<[Time]> for Postgres {
+impl Type<Postgres> for [Time] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIME)
+        PgTypeInfo::new(TypeId::ARRAY_TIME, "TIME[]")
     }
 }
 
-impl HasSqlType<[Date]> for Postgres {
+impl Type<Postgres> for [Date] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_DATE)
+        PgTypeInfo::new(TypeId::ARRAY_DATE, "DATE[]")
     }
 }
 
-impl HasSqlType<[PrimitiveDateTime]> for Postgres {
+impl Type<Postgres> for [PrimitiveDateTime] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP, "TIMESTAMP[]")
     }
 }
 
-impl HasSqlType<[OffsetDateTime]> for Postgres {
+impl Type<Postgres> for [OffsetDateTime] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ)
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ, "TIMESTAMPTZ[]")
+    }
+}
+
+impl Type<Postgres> for Vec<Time> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIME, "TIME[]")
+    }
+}
+
+impl Type<Postgres> for Vec<Date> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_DATE, "DATE[]")
+    }
+}
+
+impl Type<Postgres> for Vec<PrimitiveDateTime> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMP, "TIMESTAMP[]")
+    }
+}
+
+impl Type<Postgres> for Vec<OffsetDateTime> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_TIMESTAMPTZ, "TIMESTAMPTZ[]")
     }
 }
 
@@ -67,7 +94,7 @@ fn microseconds_since_midnight(time: Time) -> i64 {
         + time.microsecond() as i64
 }
 
-fn from_microseconds_since_midnight(mut microsecond: u64) -> Result<Time, DecodeError> {
+fn from_microseconds_since_midnight(mut microsecond: u64) -> crate::Result<Postgres, Time> {
     #![allow(clippy::cast_possible_truncation)]
 
     microsecond %= 86_400 * 1_000_000;
@@ -78,14 +105,32 @@ fn from_microseconds_since_midnight(mut microsecond: u64) -> Result<Time, Decode
         (microsecond / 1_000_000 % 60) as u8,
         (microsecond % 1_000_000) as u32,
     )
-    .map_err(|e| DecodeError::Message(Box::new(format!("Time out of range for Postgres: {}", e))))
+    .map_err(|e| decode_err!("Time out of range for Postgres: {}", e))
 }
 
-impl Decode<Postgres> for Time {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
-        let micros: i64 = Decode::<Postgres>::decode(raw)?;
+impl<'de> Decode<'de, Postgres> for Time {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let micros: i64 = buf.get_i64::<BigEndian>()?;
 
-        from_microseconds_since_midnight(micros as u64)
+                from_microseconds_since_midnight(micros as u64)
+            }
+
+            PgValue::Text(s) => {
+                // If there are less than 9 digits after the decimal point
+                // We need to zero-pad
+                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
+
+                let s = if s.len() < 20 {
+                    Cow::Owned(format!("{:0<19}", s))
+                } else {
+                    Cow::Borrowed(s)
+                };
+
+                Time::parse(&*s, "%H:%M:%S.%N").map_err(crate::Error::decode)
+            }
+        }
     }
 }
 
@@ -101,11 +146,17 @@ impl Encode<Postgres> for Time {
     }
 }
 
-impl Decode<Postgres> for Date {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
-        let n: i32 = Decode::<Postgres>::decode(raw)?;
+impl<'de> Decode<'de, Postgres> for Date {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let n: i32 = buf.get_i32::<BigEndian>()?;
 
-        Ok(date!(2000 - 1 - 1) + n.days())
+                Ok(date!(2000 - 1 - 1) + n.days())
+            }
+
+            PgValue::Text(s) => Date::parse(s, "%Y-%m-%d").map_err(crate::Error::decode),
+        }
     }
 }
 
@@ -125,11 +176,44 @@ impl Encode<Postgres> for Date {
     }
 }
 
-impl Decode<Postgres> for PrimitiveDateTime {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
-        let n: i64 = Decode::<Postgres>::decode(raw)?;
+impl<'de> Decode<'de, Postgres> for PrimitiveDateTime {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        match value.try_into()? {
+            PgValue::Binary(mut buf) => {
+                let n: i64 = buf.get_i64::<BigEndian>()?;
 
-        Ok(POSTGRES_EPOCH + n.microseconds())
+                Ok(POSTGRES_EPOCH + n.microseconds())
+            }
+
+            // TODO: Try and fix duplication between here and MySQL
+            PgValue::Text(s) => {
+                // If there are less than 9 digits after the decimal point
+                // We need to zero-pad
+                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
+
+                let s = if let Some(plus) = s.rfind('+') {
+                    let mut big = String::from(&s[..plus]);
+
+                    while big.len() < 31 {
+                        big.push('0');
+                    }
+
+                    big.push_str(&s[plus..]);
+
+                    Cow::Owned(big)
+                } else if s.len() < 31 {
+                    if s.contains('.') {
+                        Cow::Owned(format!("{:0<30}", s))
+                    } else {
+                        Cow::Owned(format!("{}.000000000", s))
+                    }
+                } else {
+                    Cow::Borrowed(s)
+                };
+
+                PrimitiveDateTime::parse(&*s, "%Y-%m-%d %H:%M:%S.%N").map_err(crate::Error::decode)
+            }
+        }
     }
 }
 
@@ -148,10 +232,11 @@ impl Encode<Postgres> for PrimitiveDateTime {
     }
 }
 
-impl Decode<Postgres> for OffsetDateTime {
-    fn decode(raw: &[u8]) -> Result<Self, DecodeError> {
-        let date_time: PrimitiveDateTime = Decode::<Postgres>::decode(raw)?;
-        Ok(date_time.assume_utc())
+impl<'de> Decode<'de, Postgres> for OffsetDateTime {
+    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+        let primitive: PrimitiveDateTime = Decode::<Postgres>::decode(value)?;
+
+        Ok(primitive.assume_utc())
     }
 }
 
