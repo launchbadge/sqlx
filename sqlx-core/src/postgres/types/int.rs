@@ -22,9 +22,9 @@ impl Type<Postgres> for [i16] {
         PgTypeInfo::new(TypeId::ARRAY_INT2, "INT2[]")
     }
 }
-impl HasSqlType<Vec<i16>> for Postgres {
+impl Type<Postgres> for Vec<i16> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[i16]>>::type_info()
+        <[i16] as Type<Postgres>>::type_info()
     }
 }
 
@@ -54,9 +54,9 @@ impl Type<Postgres> for [i32] {
         PgTypeInfo::new(TypeId::ARRAY_INT4, "INT4[]")
     }
 }
-impl HasSqlType<Vec<i32>> for Postgres {
+impl Type<Postgres> for Vec<i32> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[i32]>>::type_info()
+        <[i32] as Type<Postgres>>::type_info()
     }
 }
 
@@ -86,9 +86,9 @@ impl Type<Postgres> for [i64] {
         PgTypeInfo::new(TypeId::ARRAY_INT8, "INT8[]")
     }
 }
-impl HasSqlType<Vec<i64>> for Postgres {
+impl Type<Postgres> for Vec<i64> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[i64]>>::type_info()
+        <[i64] as Type<Postgres>>::type_info()
     }
 }
 

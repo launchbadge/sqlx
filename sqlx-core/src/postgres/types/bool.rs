@@ -19,9 +19,9 @@ impl Type<Postgres> for [bool] {
         PgTypeInfo::new(TypeId::ARRAY_BOOL, "BOOL[]")
     }
 }
-impl HasSqlType<Vec<bool>> for Postgres {
+impl Type<Postgres> for Vec<bool> {
     fn type_info() -> PgTypeInfo {
-        <Self as HasSqlType<[bool]>>::type_info()
+        <[bool] as Type<Postgres>>::type_info()
     }
 }
 

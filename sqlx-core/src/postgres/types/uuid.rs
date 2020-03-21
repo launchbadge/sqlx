@@ -23,7 +23,7 @@ impl Type<Postgres> for [Uuid] {
     }
 }
 
-impl HasSqlType<Vec<Uuid>> for Postgres {
+impl Type<Postgres> for Vec<Uuid> {
     fn type_info() -> PgTypeInfo {
         <Postgres as HasSqlType<[Uuid]>>::type_info()
     }
