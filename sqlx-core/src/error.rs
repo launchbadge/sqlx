@@ -236,6 +236,17 @@ macro_rules! impl_fmt_error {
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! decode_err {
+    ($s:literal, $($args:tt)*) => {
+        crate::Error::Decode(format!($s, $($args)*).into())
+    };
+
+    ($expr:expr) => {
+        crate::Error::decode($expr)
+    };
+}
+
 /// An unexpected `NULL` was encountered during decoding.
 ///
 /// Returned from `Row::get` if the value from the database is `NULL`
