@@ -284,15 +284,18 @@ fn test_encode_date_time() {
 fn test_decode_date_time() {
     // test values from https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
     let buf = [11, 218, 7, 10, 17, 19, 27, 30, 1, 0, 0, 0];
-    let date1 = <PrimitiveDateTime as Decode<MySql>>::decode(&buf).unwrap();
+    let date1 =
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
     assert_eq!(date1.to_string(), "2010-10-17 19:27:30.000001");
 
     let buf = [7, 218, 7, 10, 17, 19, 27, 30];
-    let date2 = <PrimitiveDateTime as Decode<MySql>>::decode(&buf).unwrap();
+    let date2 =
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
     assert_eq!(date2.to_string(), "2010-10-17 19:27:30");
 
     let buf = [4, 218, 7, 10, 17];
-    let date3 = <PrimitiveDateTime as Decode<MySql>>::decode(&buf).unwrap();
+    let date3 =
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
     assert_eq!(date3.to_string(), "2010-10-17 0:00");
 }
 
@@ -307,6 +310,6 @@ fn test_encode_date() {
 #[test]
 fn test_decode_date() {
     let buf = [4, 218, 7, 10, 17];
-    let date = <Date as Decode<MySql>>::decode(&buf).unwrap();
+    let date = <Date as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
     assert_eq!(date, date!(2010 - 10 - 17));
 }

@@ -265,18 +265,18 @@ fn test_encode_time() {
 #[test]
 fn test_decode_time() {
     let buf = [0u8; 8];
-    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, NaiveTime::from_hms(0, 0, 0),);
 
     // half an hour
     let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
-    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, NaiveTime::from_hms(0, 30, 0),);
 
     // 12:53:05.125305
     let buf = (1_000_000i64 * 60 * 60 * 12 + 1_000_000i64 * 60 * 53 + 1_000_000i64 * 5 + 125305)
         .to_be_bytes();
-    let time: NaiveTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, NaiveTime::from_hms_micro(12, 53, 5, 125305),);
 }
 

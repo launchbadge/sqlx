@@ -285,18 +285,18 @@ fn test_encode_time() {
 #[test]
 fn test_decode_time() {
     let buf = [0u8; 8];
-    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: Time = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, time!(0:00));
 
     // half an hour
     let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
-    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: Time = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, time!(0:30));
 
     // 12:53:05.125305
     let buf = (1_000_000i64 * 60 * 60 * 12 + 1_000_000i64 * 60 * 53 + 1_000_000i64 * 5 + 125305)
         .to_be_bytes();
-    let time: Time = Decode::<Postgres>::decode(&buf).unwrap();
+    let time: Time = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(time, time!(12:53:05.125305));
 }
 
@@ -325,21 +325,21 @@ fn test_encode_datetime() {
 #[test]
 fn test_decode_datetime() {
     let buf = [0u8; 8];
-    let date: PrimitiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: PrimitiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2000 - 01 - 01), time!(00:00:00))
     );
 
     let buf = 3_600_000_000i64.to_be_bytes();
-    let date: PrimitiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: PrimitiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2000 - 01 - 01), time!(01:00:00))
     );
 
     let buf = 629_377_265_000_000i64.to_be_bytes();
-    let date: PrimitiveDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: PrimitiveDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2019 - 12 - 11), time!(11:01:05))
@@ -372,21 +372,21 @@ fn test_encode_offsetdatetime() {
 #[test]
 fn test_decode_offsetdatetime() {
     let buf = [0u8; 8];
-    let date: OffsetDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: OffsetDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2000 - 01 - 01), time!(00:00:00)).assume_utc()
     );
 
     let buf = 3_600_000_000i64.to_be_bytes();
-    let date: OffsetDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: OffsetDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2000 - 01 - 01), time!(01:00:00)).assume_utc()
     );
 
     let buf = 629_377_265_000_000i64.to_be_bytes();
-    let date: OffsetDateTime = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: OffsetDateTime = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(
         date,
         PrimitiveDateTime::new(date!(2019 - 12 - 11), time!(11:01:05)).assume_utc()
@@ -417,14 +417,14 @@ fn test_encode_date() {
 #[test]
 fn test_decode_date() {
     let buf = [0; 4];
-    let date: Date = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: Date = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date, date!(2000 - 01 - 01));
 
     let buf = 366i32.to_be_bytes();
-    let date: Date = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: Date = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date, date!(2001 - 01 - 01));
 
     let buf = 7284i32.to_be_bytes();
-    let date: Date = Decode::<Postgres>::decode(&buf).unwrap();
+    let date: Date = Decode::<Postgres>::decode(Some(PgValue::Binary(&buf))).unwrap();
     assert_eq!(date, date!(2019 - 12 - 11));
 }
