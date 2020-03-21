@@ -64,9 +64,10 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod record;
 mod str;
 
-// types we want to integration test but don't want to stabilize
+// internal types used by other types to encode or decode related formats
 #[doc(hidden)]
 pub mod raw;
 

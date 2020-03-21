@@ -282,11 +282,100 @@ async fn test_unprepared_anonymous_record() -> anyhow::Result<()> {
     Ok(())
 }
 
-test!(postgres_int_vec: Vec<i32>: "ARRAY[1, 2, 3]::int[]" == vec![1, 2, 3i32], "ARRAY[3, 292, 15, 2, 3]::int[]" == vec![3, 292, 15, 2, 3], "ARRAY[7, 6, 5, 4, 3, 2, 1]::int[]" == vec![7, 6, 5, 4, 3, 2, 1], "ARRAY[]::int[]" == vec![] as Vec<i32>);
-test!(postgres_string_vec: Vec<String>: "ARRAY['Hello', 'world', 'friend']::text[]" == vec!["Hello", "world", "friend"]);
-test!(postgres_bool_vec: Vec<bool>: "ARRAY[true, true, false, true]::bool[]" == vec![true, true, false, true]);
-test!(postgres_real_vec: Vec<f32>: "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::real[]" == vec![0.0, 1.0, 3.14, 1.234, -0.002, 100000.0_f32]);
-test!(postgres_double_vec: Vec<f64>: "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::double precision[]" == vec![0.0, 1.0, 3.14, 1.234, -0.002, 100000.0_f64]);
+// This is trying to break my complete lack of understanding of null bitmaps for array/record
+// decoding. The docs in pg are either wrong or I'm reading the wrong docs.
+test_type!(lots_of_nulls_vec(Postgres, Vec<Option<bool>>,
+    "ARRAY[NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true]::bool[]" == {
+      vec![None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Some(true)]
+    },
+));
+
+test_type!(bool_vec(Postgres, Vec<bool>,
+    "ARRAY[true, true, false, true]::bool[]" == vec![true, true, false, true],
+));
+
+test_type!(bool_opt_vec(Postgres, Vec<Option<bool>>,
+    "ARRAY[NULL, true, NULL, false]::bool[]" == vec![None, Some(true), None, Some(false)],
+));
+
+test_type!(f32_vec(Postgres, Vec<f32>,
+    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::real[]" == vec![0.0_f32, 1.0, 3.14, 1.234, -0.002, 100000.0],
+));
+
+test_type!(f64_vec(Postgres, Vec<f64>,
+    "ARRAY[0.0, 1.0, 3.14, 1.234, -0.002, 100000.0]::double precision[]" == vec![0.0_f64, 1.0, 3.14, 1.234, -0.002, 100000.0],
+));
+
+test_type!(i16_vec(Postgres, Vec<i16>,
+    "ARRAY[1, 152, -12412]::smallint[]" == vec![1_i16, 152, -12412],
+    "ARRAY[]::smallint[]" == Vec::<i16>::new(),
+    "ARRAY[0]::smallint[]" == vec![0_i16]
+));
+
+test_type!(string_vec(Postgres, Vec<String>,
+    "ARRAY['', '\"']::text[]"
+        == vec!["".to_string(), "\"".to_string()],
+
+    "ARRAY['Hello, World', '', 'Goodbye']::text[]"
+        == vec!["Hello, World".to_string(), "".to_string(), "Goodbye".to_string()],
+));
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_unprepared_anonymous_record_arrays() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // record of arrays
+    let mut cursor = conn.fetch("SELECT (ARRAY['', '\"']::text[], false)");
+    let row = cursor.next().await?.unwrap();
+    let rec: (Vec<String>, bool) = row.get(0);
+
+    assert_eq!(rec, (vec!["".to_string(), "\"".to_string()], false));
+
+    // array of records
+    let mut cursor = conn.fetch("SELECT ARRAY[('','\"'), (NULL,'')]::record[]");
+    let row = cursor.next().await?.unwrap();
+    let rec: Vec<(Option<String>, String)> = row.get(0);
+
+    assert_eq!(
+        rec,
+        vec![
+            (Some(String::from("")), String::from("\"")),
+            (None, String::from(""))
+        ]
+    );
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_prepared_anonymous_record_arrays() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // record of arrays
+    let rec: ((Vec<String>, bool),) = sqlx::query_as("SELECT (ARRAY['', '\"']::text[], false)")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec.0, (vec!["".to_string(), "\"".to_string()], false));
+
+    // array of records
+    let rec: (Vec<(Option<String>, String)>,) =
+        sqlx::query_as("SELECT ARRAY[('','\"'), (NULL,'')]::record[]")
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert_eq!(
+        rec.0,
+        vec![
+            (Some(String::from("")), String::from("\"")),
+            (None, String::from(""))
+        ]
+    );
+
+    Ok(())
+}
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
