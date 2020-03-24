@@ -9,22 +9,43 @@ use crate::describe::Describe;
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::runtime::spawn;
 
-/// Represents a database transaction.
+/// Represents an in-progress database transaction.
+///
+/// A transaction ends with a call to [`commit`] or [`rollback`] in which the wrapped connection (
+/// or outer transaction) is returned. If neither are called before the transaction
+/// goes out-of-scope, [`rollback`] is called. In other words, [`rollback`] is called on `drop`
+/// if the transaction is still in-progress.
+///
+/// ```rust,ignore
+/// // Acquire a new connection and immediately begin a transaction
+/// let mut tx = pool.begin().await?;
+///
+/// sqlx::query("INSERT INTO articles (slug) VALUES ('this-is-a-slug')")
+///     .execute(&mut tx)
+///     // As we didn't fill in all the required fields in this INSERT,
+///     // this statement will fail. Since we used `?`, this function
+///     // will immediately return with the error which will cause
+///     // this transaction to be rolled back.
+///     .await?;
+/// ```
+///
+/// [`commit`]: #method.commit
+/// [`rollback`]: #method.rollback
 // Transaction<PoolConnection<PgConnection>>
 // Transaction<PgConnection>
-pub struct Transaction<T>
+pub struct Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
-    inner: Option<T>,
+    inner: Option<C>,
     depth: u32,
 }
 
-impl<T> Transaction<T>
+impl<C> Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
-    pub(crate) async fn new(depth: u32, mut inner: T) -> crate::Result<T::Database, Self> {
+    pub(crate) async fn new(depth: u32, mut inner: C) -> crate::Result<C::Database, Self> {
         if depth == 0 {
             inner.execute("BEGIN").await?;
         } else {
@@ -41,13 +62,13 @@ where
 
     /// Creates a new save point in the current transaction and returns
     /// a new `Transaction` object to manage its scope.
-    pub async fn begin(self) -> crate::Result<T::Database, Transaction<Transaction<T>>> {
+    pub async fn begin(self) -> crate::Result<C::Database, Transaction<Transaction<C>>> {
         Transaction::new(self.depth, self).await
     }
 
     /// Commits the current transaction or save point.
     /// Returns the inner connection or transaction.
-    pub async fn commit(mut self) -> crate::Result<T::Database, T> {
+    pub async fn commit(mut self) -> crate::Result<C::Database, C> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
 
@@ -64,7 +85,7 @@ where
 
     /// Rollback the current transaction or save point.
     /// Returns the inner connection or transaction.
-    pub async fn rollback(mut self) -> crate::Result<T::Database, T> {
+    pub async fn rollback(mut self) -> crate::Result<C::Database, C> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
 
@@ -82,32 +103,32 @@ where
 
 const ERR_FINALIZED: &str = "(bug) transaction already finalized";
 
-impl<T> Deref for Transaction<T>
+impl<C> Deref for Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
-    type Target = T;
+    type Target = C;
 
     fn deref(&self) -> &Self::Target {
         self.inner.as_ref().expect(ERR_FINALIZED)
     }
 }
 
-impl<T> DerefMut for Transaction<T>
+impl<C> DerefMut for Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner.as_mut().expect(ERR_FINALIZED)
     }
 }
 
-impl<T> Connection for Transaction<T>
+impl<C> Connection for Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
     // Close is equivalent to
-    fn close(mut self) -> BoxFuture<'static, crate::Result<T::Database, ()>> {
+    fn close(mut self) -> BoxFuture<'static, crate::Result<C::Database, ()>> {
         Box::pin(async move {
             let mut inner = self.inner.take().expect(ERR_FINALIZED);
 
@@ -131,22 +152,22 @@ where
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<'_, crate::Result<T::Database, ()>> {
+    fn ping(&mut self) -> BoxFuture<'_, crate::Result<C::Database, ()>> {
         self.deref_mut().ping()
     }
 }
 
-impl<DB, T> Executor for Transaction<T>
+impl<DB, C> Executor for Transaction<C>
 where
     DB: Database,
-    T: Connection<Database = DB>,
+    C: Connection<Database = DB>,
 {
-    type Database = T::Database;
+    type Database = C::Database;
 
     fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
         &'c mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<T::Database, u64>>
+    ) -> BoxFuture<'e, crate::Result<C::Database, u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -164,7 +185,7 @@ where
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<T::Database, Describe<Self::Database>>>
+    ) -> BoxFuture<'e, crate::Result<C::Database, Describe<Self::Database>>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -172,10 +193,10 @@ where
     }
 }
 
-impl<'e, DB, T> RefExecutor<'e> for &'e mut Transaction<T>
+impl<'e, DB, C> RefExecutor<'e> for &'e mut Transaction<C>
 where
     DB: Database,
-    T: Connection<Database = DB>,
+    C: Connection<Database = DB>,
 {
     type Database = DB;
 
@@ -187,9 +208,9 @@ where
     }
 }
 
-impl<T> Drop for Transaction<T>
+impl<C> Drop for Transaction<C>
 where
-    T: Connection,
+    C: Connection,
 {
     fn drop(&mut self) {
         if self.depth > 0 {

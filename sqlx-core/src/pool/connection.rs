@@ -78,7 +78,6 @@ impl<C> Connection for PoolConnection<C>
 where
     C: Connect,
 {
-    /// Detach the connection from the pool and close it nicely.
     fn close(mut self) -> BoxFuture<'static, crate::Result<C::Database, ()>> {
         Box::pin(async move {
             let live = self.live.take().expect("PoolConnection double-dropped");

@@ -1,3 +1,5 @@
+//! Contains the `Connection` and `Connect` traits.
+
 use std::convert::TryInto;
 
 use futures_core::future::BoxFuture;
@@ -9,16 +11,31 @@ use crate::url::Url;
 
 /// Represents a single database connection rather than a pool of database connections.
 ///
-/// Prefer running queries from [Pool] unless there is a specific need for a single, continuous
+/// Connections can be manually established outside of a [`Pool`] with [`Connect::connect`].
+///
+/// Prefer running queries from [`Pool`] unless there is a specific need for a single, sticky
 /// connection.
 pub trait Connection
 where
     Self: Send + 'static,
     Self: Executor,
 {
-    /// Starts a transaction.
+    /// Starts a new transaction.
     ///
-    /// Returns [`Transaction`](struct.Transaction.html).
+    /// Wraps this connection in [`Transaction`] to manage the transaction lifecycle. To get the
+    /// original connection back, explicitly [`commit`] or [`rollback`] and this connection will
+    /// be returned.
+    ///
+    /// ```rust,ignore
+    /// let mut tx = conn.begin().await?;
+    /// // conn is now inaccessible as its wrapped in a transaction
+    ///
+    /// let conn = tx.commit().await?;
+    /// // conn is back now and out of the transaction
+    /// ```
+    ///
+    /// [`commit`]: crate::transaction::Transaction::commit
+    /// [`rollback`]: crate::transaction::Transaction::rollback
     fn begin(self) -> BoxFuture<'static, crate::Result<Self::Database, Transaction<Self>>>
     where
         Self: Sized,
@@ -26,10 +43,14 @@ where
         Box::pin(Transaction::new(0, self))
     }
 
-    /// Close this database connection.
+    /// Explicitly close this database connection.
+    ///
+    /// This method is **not required** for safe and consistent operation. However, it is
+    /// recommended to call it instead of letting a connection `drop` as the database server
+    /// will be faster at cleaning up resources.
     fn close(self) -> BoxFuture<'static, crate::Result<Self::Database, ()>>;
 
-    /// Verifies a connection to the database is still alive.
+    /// Checks if a connection to the database is still valid.
     fn ping(&mut self) -> BoxFuture<crate::Result<Self::Database, ()>>;
 }
 
