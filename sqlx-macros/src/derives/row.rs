@@ -2,7 +2,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{
     parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Field,
-    Fields, FieldsNamed, Lifetime, LifetimeDef, Stmt,
+    Fields, FieldsNamed, Lifetime, Stmt,
 };
 
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
