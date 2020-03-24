@@ -162,7 +162,11 @@ async fn pool_immediately_fails_with_db_error() -> anyhow::Result<()> {
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    use sqlx_core::runtime::{sleep, spawn, timeout};
+    #[cfg(feature = "runtime-tokio")]
+    use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
+
+    #[cfg(feature = "runtime-async-std")]
+    use async_std::{future::timeout, task::sleep, task::spawn};
 
     eprintln!("starting pool");
 
