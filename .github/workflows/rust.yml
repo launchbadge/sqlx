@@ -39,13 +39,13 @@ jobs:
 
     # check w/deny warnings in sqlx-core: async-std
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono time uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql tls runtime-async-std' -- -D warnings --emit=metadata
 
     # check w/deny warnings in sqlx-core: tokio
     # `cargo rustc -p sqlx-core` ignores `--no-default-features` and builds with `runtime-async-std` anyway
     # https://github.com/rust-lang/cargo/issues/5364
     - working-directory: sqlx-core
-      run: cargo rustc --no-default-features --features 'bigdecimal_bigint ipnetwork chrono time uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
+      run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql tls runtime-tokio' -- -D warnings --emit=metadata
 
     # check w/deny warnings: async-std
     - run: cargo rustc --no-default-features --features 'bigdecimal ipnetwork chrono time uuid postgres mysql macros tls runtime-async-std' -- -D warnings --emit=metadata

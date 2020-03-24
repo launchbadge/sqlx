@@ -27,7 +27,7 @@ postgres = [ "sqlx/postgres" ]
 sqlite = [ "sqlx/sqlite" ]
 
 # type
-bigdecimal = [ "sqlx/bigdecimal_bigint" ]
+bigdecimal = [ "sqlx/bigdecimal" ]
 chrono = [ "sqlx/chrono" ]
 time = [ "sqlx/time" ]
 ipnetwork = [ "sqlx/ipnetwork" ]

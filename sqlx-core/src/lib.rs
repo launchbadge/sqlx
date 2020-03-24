@@ -9,6 +9,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // #![warn(missing_docs)]
 
+// HACK: Allow a feature name the same name as a dependency
+#[cfg(feature = "bigdecimal")]
+extern crate bigdecimal_ as bigdecimal;
+
 mod runtime;
 
 #[macro_use]
