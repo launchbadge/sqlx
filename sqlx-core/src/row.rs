@@ -62,7 +62,7 @@ pub trait Row<'c>
 where
     Self: private_row::Sealed + Unpin + Send,
 {
-    /// The database this `Row` is from.
+    /// The `Database` this `Row` is implemented for.
     type Database: Database;
 
     /// Returns `true` if this row has no columns.

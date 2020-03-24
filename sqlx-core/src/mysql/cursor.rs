@@ -18,6 +18,8 @@ pub struct MySqlCursor<'c, 'q> {
     binary: bool,
 }
 
+impl crate::cursor::private::Sealed for MySqlCursor<'_, '_> {}
+
 impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
     type Database = MySql;
 

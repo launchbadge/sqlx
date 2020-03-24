@@ -14,6 +14,8 @@ pub struct SqliteCursor<'c, 'q> {
     pub(super) statement: Option<Option<usize>>,
 }
 
+impl crate::cursor::private::Sealed for SqliteCursor<'_, '_> {}
+
 impl<'c, 'q> Cursor<'c, 'q> for SqliteCursor<'c, 'q> {
     type Database = Sqlite;
 

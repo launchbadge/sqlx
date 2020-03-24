@@ -19,6 +19,8 @@ pub struct PgCursor<'c, 'q> {
     formats: Arc<[TypeFormat]>,
 }
 
+impl crate::cursor::private::Sealed for PgCursor<'_, '_> {}
+
 impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     type Database = Postgres;
 
