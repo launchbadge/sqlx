@@ -21,7 +21,7 @@ pub use row::SqliteRow;
 pub use types::SqliteTypeInfo;
 pub use value::SqliteValue;
 
-/// An alias for [`Pool`][crate::Pool], specialized for **Sqlite**.
+/// An alias for [`Pool`][crate::pool::Pool], specialized for **Sqlite**.
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
 pub type SqlitePool = crate::pool::Pool<SqliteConnection>;
 

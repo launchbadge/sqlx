@@ -21,9 +21,9 @@ pub(super) const MAX_PACKET_SIZE: u32 = 1024;
 
 pub(super) const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 
-/// An asynchronous connection to a [MySql] database.
+/// An asynchronous connection to a [`MySql`] database.
 ///
-/// The connection string expected by [Connection::open] should be a MySQL connection
+/// The connection string expected by `MySqlConnection` should be a MySQL connection
 /// string, as documented at
 /// <https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri>
 ///

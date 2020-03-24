@@ -34,6 +34,7 @@ where
         DB::Cursor::from_pool(self, query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
@@ -85,6 +86,7 @@ where
         (**self).fetch(query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,

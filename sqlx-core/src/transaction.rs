@@ -160,6 +160,7 @@ where
         (**self).fetch(query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,

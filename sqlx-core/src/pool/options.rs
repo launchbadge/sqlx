@@ -47,7 +47,7 @@ where
 
     /// Set the amount of time to attempt connecting to the database.
     ///
-    /// If this timeout elapses, [Pool::acquire] will return an error.
+    /// If this timeout elapses, [`Pool::acquire`] will return an error.
     pub fn connect_timeout(mut self, connect_timeout: Duration) -> Self {
         self.options.connect_timeout = connect_timeout;
         self
@@ -57,8 +57,11 @@ where
     ///
     /// When the pool is built, this many connections will be automatically spun up.
     ///
-    /// If any connection is reaped by [max_lifetime] or [idle_timeout] and it brings
+    /// If any connection is reaped by [`max_lifetime`] or [`idle_timeout`] and it brings
     /// the connection count below this amount, a new connection will be opened to replace it.
+    ///
+    /// [`max_lifetime`]: #method.max_lifetime
+    /// [`idle_timeout`]: #method.idle_timeout
     pub fn min_size(mut self, min_size: u32) -> Self {
         self.options.min_size = min_size;
         self
@@ -68,7 +71,7 @@ where
     ///
     /// Any connection with a lifetime greater than this will be closed.
     ///
-    /// When set to `None`, all connections live until either reaped by [idle_timeout]
+    /// When set to `None`, all connections live until either reaped by [`idle_timeout`]
     /// or explicitly disconnected.
     ///
     /// Infinite connections are not recommended due to the unfortunate reality of memory/resource
@@ -76,6 +79,8 @@ where
     /// (even if only once daily) to allow the database the opportunity to clean up data structures
     /// (parse trees, query metadata caches, thread-local storage, etc.) that are associated with a
     /// session.
+    ///
+    /// [`idle_timeout`]: #method.idle_timeout
     pub fn max_lifetime(mut self, max_lifetime: impl Into<Option<Duration>>) -> Self {
         self.options.max_lifetime = max_lifetime.into();
         self
@@ -91,10 +96,12 @@ where
         self
     }
 
-    /// If true, the health of a connection will be verified by a call to `Connection::ping`
+    /// If true, the health of a connection will be verified by a call to [`Connection::ping`]
     /// before returning the connection.
     ///
     /// Defaults to `true`.
+    ///
+    /// [`Connection::ping`]: crate::connection::Connection::ping
     pub fn test_on_acquire(mut self, test: bool) -> Self {
         self.options.test_on_acquire = test;
         self
@@ -102,8 +109,10 @@ where
 
     /// Spin up the connection pool.
     ///
-    /// If [min_size] was set to a non-zero value, that many connections will be immediately
+    /// If [`min_size`] was set to a non-zero value, that many connections will be immediately
     /// opened and placed into the pool.
+    ///
+    /// [`min_size`]: #method.min_size
     pub async fn build(self, url: &str) -> crate::Result<C::Database, Pool<C>>
     where
         C: Connect,

@@ -197,6 +197,7 @@ impl Executor for super::MySqlConnection {
         MySqlCursor::from_connection(self, query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,

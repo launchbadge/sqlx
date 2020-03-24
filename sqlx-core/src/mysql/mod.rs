@@ -23,7 +23,7 @@ mod tls;
 mod types;
 mod util;
 
-/// An alias for [`Pool`], specialized for **MySQL**.
+/// An alias for [`crate::pool::Pool`], specialized for **MySQL**.
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub type MySqlPool = crate::pool::Pool<MySqlConnection>;
 

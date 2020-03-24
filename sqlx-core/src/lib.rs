@@ -31,7 +31,10 @@ mod url;
 #[macro_use]
 pub mod arguments;
 pub mod decode;
+
+#[doc(hidden)]
 pub mod describe;
+
 pub mod encode;
 pub mod pool;
 pub mod query;

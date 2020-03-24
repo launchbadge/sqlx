@@ -55,9 +55,9 @@ mod private_column_index {
 ///
 /// This trait is sealed and cannot be implemented for types outside of SQLx.
 ///
-/// [`FromRow`]: trait.FromRow.html
-/// [`Cursor`]: ../trait.Cursor.html
-/// [`Query::fetch`]: ../struct.Query.html#method.fetch
+/// [`FromRow`]: crate::row::FromRow
+/// [`Cursor`]: crate::cursor::Cursor
+/// [`Query::fetch`]: crate::query::Query::fetch
 pub trait Row<'c>
 where
     Self: private_row::Sealed + Unpin + Send,
@@ -122,9 +122,9 @@ where
     ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
     ///  * [`Decode`] if the value could not be decoded into the requested type.
     ///
-    /// [`Decode`]: ../enum.Error.html#variant.Decode
-    /// [`ColumnNotFound`]: ../enum.Error.html#variant.ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: ../enum.Error.html#variant.ColumnIndexOutOfBounds
+    /// [`Decode`]: crate::Error::Decode
+    /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
     #[inline]
     fn try_get<T, I>(&self, index: I) -> crate::Result<Self::Database, T>
     where
@@ -167,7 +167,7 @@ pub(crate) mod private_row {
 /// ```
 ///
 /// [`query_as`]: crate::query_as
-/// [`Row::try_get`]: crate::Row::try_get
+/// [`Row::try_get`]: crate::row::Row::try_get
 pub trait FromRow<'c, R>
 where
     Self: Sized,

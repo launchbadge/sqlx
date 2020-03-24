@@ -21,10 +21,14 @@ pub enum Error<DB: Database> {
     /// An error was returned by the database.
     Database(Box<DB::Error>),
 
-    /// No row was returned during [`Map::fetch_one`] or [`QueryAs::fetch_one`].
+    /// No row was returned during [`query::Map::fetch_one`] or `QueryAs::fetch_one`.
+    ///
+    /// [`query::Map::fetch_one`]: crate::query::Map::fetch_one
     RowNotFound,
 
     /// Column was not found by name in a Row (during [`Row::get`]).
+    ///
+    /// [`Row::get`]: crate::row::Row::get
     ColumnNotFound(Box<str>),
 
     /// Column index was out of bounds (e.g., asking for column 4 in a 2-column row).
@@ -38,11 +42,16 @@ pub enum Error<DB: Database> {
     /// Context is provided by the included error message.
     Protocol(Box<str>),
 
-    /// A [Pool::acquire] timed out due to connections not becoming available or
+    /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
+    ///
+    /// [`Pool::acquire`]: crate::pool::Pool::acquire
     PoolTimedOut(Option<Box<dyn StdError + Send + Sync>>),
 
-    /// [Pool::close] was called while we were waiting in [Pool::acquire].
+    /// [`Pool::close`] was called while we were waiting in [`Pool::acquire`].
+    ///
+    /// [`Pool::acquire`]: crate::pool::Pool::acquire
+    /// [`Pool::close`]: crate::pool::Pool::close
     PoolClosed,
 
     /// An error occurred while attempting to setup TLS.

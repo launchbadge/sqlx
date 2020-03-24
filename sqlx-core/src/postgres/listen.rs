@@ -208,6 +208,7 @@ impl Executor for PgListener {
         self.connection().fetch(query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,

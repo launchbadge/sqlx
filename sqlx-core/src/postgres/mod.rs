@@ -23,7 +23,7 @@ mod stream;
 mod tls;
 pub mod types;
 
-/// An alias for [`Pool`][crate::Pool], specialized for **Postgres**.
+/// An alias for [`Pool`][crate::pool::Pool], specialized for **Postgres**.
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub type PgPool = crate::pool::Pool<PgConnection>;
 

@@ -4,7 +4,9 @@ use std::fmt::{self, Debug};
 
 use crate::database::Database;
 
-/// The return type of [Executor::describe].
+/// The return type of [`Executor::describe`].
+///
+/// [`Executor::describe`]: crate::executor::Executor::describe
 #[non_exhaustive]
 pub struct Describe<DB>
 where

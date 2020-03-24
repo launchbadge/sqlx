@@ -35,6 +35,9 @@ where
     ///
     /// Returns a [`Cursor`] that can be used to iterate through the [`Row`]s
     /// of the result.
+    ///
+    /// [`Cursor`]: crate::cursor::Cursor
+    /// [`Row`]: crate::row::Row
     fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
     where
         E: Execute<'q, Self::Database>;
@@ -42,8 +45,9 @@ where
     /// Prepare the SQL query and return type information about its parameters
     /// and results.
     ///
-    /// This is used by the query macros ( [`query!`] ) during compilation to
+    /// This is used by the query macros during compilation to
     /// power their type inference.
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
@@ -109,6 +113,7 @@ where
         (**self).fetch(query)
     }
 
+    #[doc(hidden)]
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
