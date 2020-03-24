@@ -35,6 +35,8 @@ pub struct PgRow<'c> {
     pub(super) formats: Arc<[TypeFormat]>,
 }
 
+impl crate::row::private_row::Sealed for PgRow<'_> {}
+
 impl<'c> Row<'c> for PgRow<'c> {
     type Database = Postgres;
 
@@ -42,11 +44,12 @@ impl<'c> Row<'c> for PgRow<'c> {
         self.data.len()
     }
 
+    #[doc(hidden)]
     fn try_get_raw<I>(&self, index: I) -> crate::Result<Postgres, Option<PgValue<'c>>>
     where
         I: ColumnIndex<'c, Self>,
     {
-        let index = index.resolve(self)?;
+        let index = index.index(self)?;
         let buffer = self.data.get(index);
 
         buffer

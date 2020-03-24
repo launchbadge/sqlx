@@ -30,6 +30,8 @@ pub struct MySqlRow<'c> {
     pub(super) columns: Arc<HashMap<Box<str>, u16>>,
 }
 
+impl crate::row::private_row::Sealed for MySqlRow<'_> {}
+
 impl<'c> Row<'c> for MySqlRow<'c> {
     type Database = MySql;
 
@@ -37,11 +39,12 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         self.row.len()
     }
 
+    #[doc(hidden)]
     fn try_get_raw<I>(&self, index: I) -> crate::Result<MySql, Option<MySqlValue<'c>>>
     where
         I: ColumnIndex<'c, Self>,
     {
-        let index = index.resolve(self)?;
+        let index = index.index(self)?;
 
         Ok(self.row.get(index).map(|buf| {
             if self.row.binary {

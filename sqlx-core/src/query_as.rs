@@ -125,7 +125,7 @@ macro_rules! make_query_as {
                     let mut cursor = executor.fetch_by_ref(self);
 
                     while let Some(row) = cursor.next().await? {
-                        let obj = O::from_row(row)?;
+                        let obj = O::from_row(&row)?;
 
                         yield obj;
                     }
@@ -147,7 +147,7 @@ macro_rules! make_query_as {
                     let mut cursor = executor.fetch_by_ref(self);
                     let row = cursor.next().await?;
 
-                    row.map(O::from_row).transpose()
+                    row.as_ref().map(O::from_row).transpose()
                 })
             }
 
@@ -184,7 +184,7 @@ macro_rules! make_query_as {
                     let mut out = Vec::new();
 
                     while let Some(row) = cursor.next().await? {
-                        let obj = O::from_row(row)?;
+                        let obj = O::from_row(&row)?;
 
                         out.push(obj);
                     }

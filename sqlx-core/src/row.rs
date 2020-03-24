@@ -1,28 +1,98 @@
-//! Contains the Row and FromRow traits.
+//! Contains the `ColumnIndex`, `Row`, and `FromRow` traits.
 
 use crate::database::{Database, HasRawValue};
 use crate::decode::Decode;
 use crate::types::Type;
 
+/// A type that can be used to index into a [`Row`].
+///
+/// The [`get`] and [`try_get`] methods of [`Row`] accept any type that implements `ColumnIndex`.
+/// This trait is implemented for strings which are used to look up a column by name, and for
+/// `usize` which is used as a positional index into the row.
+///
+/// This trait is sealed and cannot be implemented for types outside of SQLx.
+///
+/// [`Row`]: trait.Row.html
+/// [`get`]: trait.Row.html#method.get
+/// [`try_get`]: trait.Row.html#method.try_get
 pub trait ColumnIndex<'c, R>
 where
+    Self: private_column_index::Sealed,
     R: Row<'c> + ?Sized,
 {
-    fn resolve(self, row: &R) -> crate::Result<R::Database, usize>;
+    /// Returns a valid positional index into the row, [`ColumnIndexOutOfBounds`], or,
+    /// [`ColumnNotFound`].
+    ///
+    /// [`ColumnNotFound`]: ../enum.Error.html#variant.ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: ../enum.Error.html#variant.ColumnIndexOutOfBounds
+    fn index(&self, row: &R) -> crate::Result<R::Database, usize>;
 }
 
-/// Represents a single row of the result set.
-pub trait Row<'c>: Unpin + Send {
-    type Database: Database + ?Sized;
+impl<'c, R, I> ColumnIndex<'c, R> for &'_ I
+where
+    R: Row<'c>,
+    I: ColumnIndex<'c, R>,
+{
+    #[inline]
+    fn index(&self, row: &R) -> crate::Result<<R as Row<'c>>::Database, usize> {
+        (**self).index(row)
+    }
+}
 
-    /// Returns `true` if the row contains no values.
+// Prevent users from implementing the `ColumnIndex` trait.
+mod private_column_index {
+    pub trait Sealed {}
+    impl Sealed for usize {}
+    impl Sealed for str {}
+    impl<T> Sealed for &'_ T where T: Sealed {}
+}
+
+/// Represents a single row from the database.
+///
+/// Applications should not generally need to use this trait. Values of this trait are only
+/// encountered when manually implementing [`FromRow`] (as opposed to deriving) or iterating
+/// a [`Cursor`] (returned from [`Query::fetch`]).
+///
+/// This trait is sealed and cannot be implemented for types outside of SQLx.
+///
+/// [`FromRow`]: trait.FromRow.html
+/// [`Cursor`]: ../trait.Cursor.html
+/// [`Query::fetch`]: ../struct.Query.html#method.fetch
+pub trait Row<'c>
+where
+    Self: private_row::Sealed + Unpin + Send,
+{
+    /// The database this `Row` is from.
+    type Database: Database;
+
+    /// Returns `true` if this row has no columns.
+    #[inline]
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Returns the number of values in the row.
+    /// Returns the number of columns in this row.
     fn len(&self) -> usize;
 
+    /// Index into the database row and decode a single value.
+    ///
+    /// A string index can be used to access a column by name and a `usize` index
+    /// can be used to access a column by position.
+    ///
+    /// ```rust,ignore
+    /// # let mut cursor = sqlx::query("SELECT id, name FROM users")
+    /// #     .fetch(&mut conn);
+    /// #
+    /// # let row = cursor.next().await?.unwrap();
+    /// #
+    /// let id: i32 = row.get("id"); // a column named "id"
+    /// let name: &str = row.get(1); // the second column in the result
+    /// ```
+    ///
+    /// # Panics
+    /// Panics if the column does not exist or its value cannot be decoded into the requested type.
+    /// See [`try_get`](#method.try_get) for a non-panicking version.
+    #[inline]
     fn get<T, I>(&self, index: I) -> T
     where
         T: Type<Self::Database>,
@@ -32,6 +102,30 @@ pub trait Row<'c>: Unpin + Send {
         self.try_get::<T, I>(index).unwrap()
     }
 
+    /// Index into the database row and decode a single value.
+    ///
+    /// A string index can be used to access a column by name and a `usize` index
+    /// can be used to access a column by position.
+    ///
+    /// ```rust,ignore
+    /// # let mut cursor = sqlx::query("SELECT id, name FROM users")
+    /// #     .fetch(&mut conn);
+    /// #
+    /// # let row = cursor.next().await?.unwrap();
+    /// #
+    /// let id: i32 = row.try_get("id")?; // a column named "id"
+    /// let name: &str = row.try_get(1)?; // the second column in the result
+    /// ```
+    ///
+    /// # Errors
+    ///  * [`ColumnNotFound`] if the column by the given name was not found.
+    ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
+    ///  * [`Decode`] if the value could not be decoded into the requested type.
+    ///
+    /// [`Decode`]: ../enum.Error.html#variant.Decode
+    /// [`ColumnNotFound`]: ../enum.Error.html#variant.ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: ../enum.Error.html#variant.ColumnIndexOutOfBounds
+    #[inline]
     fn try_get<T, I>(&self, index: I) -> crate::Result<Self::Database, T>
     where
         T: Type<Self::Database>,
@@ -41,6 +135,7 @@ pub trait Row<'c>: Unpin + Send {
         Ok(Decode::decode(self.try_get_raw(index)?)?)
     }
 
+    #[doc(hidden)]
     fn try_get_raw<I>(
         &self,
         index: I,
@@ -49,13 +144,37 @@ pub trait Row<'c>: Unpin + Send {
         I: ColumnIndex<'c, Self>;
 }
 
-/// A **record** that can be built from a row returned from by the database.
+// Prevent users from implementing the `Row` trait.
+pub(crate) mod private_row {
+    pub trait Sealed {}
+}
+
+/// A record that can be built from a row returned by the database.
+///
+/// In order to use [`query_as`] the output type must implement `FromRow`.
+///
+/// # Deriving
+/// This trait can be automatically derived by SQLx for any struct. The generated implementation
+/// will consist of a sequence of calls to [`Row::try_get`] using the name from each
+/// struct field.
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+/// }
+/// ```
+///
+/// [`query_as`]: crate::query_as
+/// [`Row::try_get`]: crate::Row::try_get
 pub trait FromRow<'c, R>
 where
     Self: Sized,
     R: Row<'c>,
 {
-    fn from_row(row: R) -> crate::Result<R::Database, Self>;
+    #[allow(missing_docs)]
+    fn from_row(row: &R) -> crate::Result<R::Database, Self>;
 }
 
 // Macros to help unify the internal implementations as a good chunk
@@ -71,7 +190,7 @@ macro_rules! impl_from_row_for_tuple {
             $($T: crate::decode::Decode<'c, $db>,)+
         {
             #[inline]
-            fn from_row(row: $r<'c>) -> crate::Result<$db, Self> {
+            fn from_row(row: &$r<'c>) -> crate::Result<$db, Self> {
                 use crate::row::Row;
 
                 Ok(($(row.try_get($idx as usize)?,)+))
@@ -177,23 +296,23 @@ macro_rules! impl_map_row_for_row {
 macro_rules! impl_column_index_for_row {
     ($R:ident) => {
         impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for usize {
-            fn resolve(
-                self,
+            fn index(
+                &self,
                 row: &$R<'c>,
             ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
                 let len = crate::row::Row::len(row);
 
-                if self >= len {
-                    return Err(crate::Error::ColumnIndexOutOfBounds { len, index: self });
+                if *self >= len {
+                    return Err(crate::Error::ColumnIndexOutOfBounds { len, index: *self });
                 }
 
-                Ok(self)
+                Ok(*self)
             }
         }
 
-        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for &'_ str {
-            fn resolve(
-                self,
+        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for str {
+            fn index(
+                &self,
                 row: &$R<'c>,
             ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
                 row.columns

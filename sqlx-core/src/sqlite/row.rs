@@ -9,12 +9,17 @@ pub struct SqliteRow<'c> {
     pub(super) connection: &'c SqliteConnection,
 }
 
+impl crate::row::private_row::Sealed for SqliteRow<'_> {}
+
 // Accessing values from the statement object is
 // safe across threads as long as we don't call [sqlite3_step]
 // That should not be possible as long as an immutable borrow is held on the connection
 
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteRow<'_> {}
+
+#[allow(unsafe_code)]
+unsafe impl Sync for SqliteRow<'_> {}
 
 impl<'c> SqliteRow<'c> {
     #[inline]
@@ -31,31 +36,32 @@ impl<'c> Row<'c> for SqliteRow<'c> {
         self.values
     }
 
+    #[doc(hidden)]
     fn try_get_raw<I>(&self, index: I) -> crate::Result<Sqlite, SqliteValue<'c>>
     where
         I: ColumnIndex<'c, Self>,
     {
         Ok(SqliteValue {
             statement: self.statement(),
-            index: index.resolve(self)? as i32,
+            index: index.index(self)? as i32,
         })
     }
 }
 
 impl<'c> ColumnIndex<'c, SqliteRow<'c>> for usize {
-    fn resolve(self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
+    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
         let len = Row::len(row);
 
-        if self >= len {
-            return Err(crate::Error::ColumnIndexOutOfBounds { len, index: self });
+        if *self >= len {
+            return Err(crate::Error::ColumnIndexOutOfBounds { len, index: *self });
         }
 
-        Ok(self)
+        Ok(*self)
     }
 }
 
-impl<'c> ColumnIndex<'c, SqliteRow<'c>> for &'c str {
-    fn resolve(self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
+impl<'c> ColumnIndex<'c, SqliteRow<'c>> for str {
+    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
         row.statement()
             .columns
             .get(self)
