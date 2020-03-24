@@ -33,7 +33,7 @@ where
         Self: Sized,
         E: Execute<'q, Self::Database>;
 
-    /// Fetch the next row in the result. Returns `None` if there are no more rows.
+    /// Creates a future that resolves to the next row in the cursor.
     fn next<'cur>(
         &'cur mut self,
     ) -> BoxFuture<'cur, crate::Result<Self::Database, Option<<Self::Database as HasRow<'cur>>::Row>>>;
