@@ -1,4 +1,4 @@
-use crate::decode::DecodeOwned;
+use crate::decode::Decode;
 use crate::io::Buf;
 use crate::postgres::{PgValue, Postgres};
 use crate::types::Type;
@@ -37,7 +37,7 @@ impl<'de> PgSequenceDecoder<'de> {
 
     pub(crate) fn decode<T>(&mut self) -> crate::Result<Postgres, Option<T>>
     where
-        T: DecodeOwned<Postgres>,
+        T: for<'seq> Decode<'seq, Postgres>,
         T: Type<Postgres>,
     {
         match self.value {

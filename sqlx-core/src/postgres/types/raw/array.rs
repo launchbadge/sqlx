@@ -1,4 +1,4 @@
-use crate::decode::DecodeOwned;
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::{Buf, BufMut};
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
@@ -91,7 +91,7 @@ pub(crate) struct PgArrayDecoder<'de, T> {
 
 impl<'de, T> PgArrayDecoder<'de, T>
 where
-    T: DecodeOwned<Postgres>,
+    T: for<'arr> Decode<'arr, Postgres>,
     T: Type<Postgres>,
 {
     pub(crate) fn new(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
@@ -157,8 +157,7 @@ where
 
 impl<'de, T> Iterator for PgArrayDecoder<'de, T>
 where
-    T: 'de,
-    T: DecodeOwned<Postgres>,
+    T: for<'arr> Decode<'arr, Postgres>,
     T: Type<Postgres>,
 {
     type Item = crate::Result<Postgres, T>;

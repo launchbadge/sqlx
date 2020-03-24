@@ -1,4 +1,4 @@
-use crate::decode::DecodeOwned;
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::Buf;
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
@@ -78,7 +78,7 @@ impl<'de> PgRecordDecoder<'de> {
     #[inline]
     pub fn decode<T>(&mut self) -> crate::Result<Postgres, T>
     where
-        T: DecodeOwned<Postgres>,
+        T: for<'rec> Decode<'rec, Postgres>,
         T: Type<Postgres>,
     {
         self.0

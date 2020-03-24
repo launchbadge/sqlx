@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 #[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
 compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 

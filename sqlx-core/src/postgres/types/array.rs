@@ -1,7 +1,7 @@
 //! Encoding and decoding of Postgres arrays.
 
 use crate::database::Database;
-use crate::decode::{Decode, DecodeOwned};
+use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::database::Postgres;
 use crate::postgres::types::raw::{PgArrayDecoder, PgArrayEncoder};
@@ -37,7 +37,7 @@ where
 impl<'de, T> Decode<'de, Postgres> for Vec<T>
 where
     T: 'de,
-    T: DecodeOwned<Postgres>,
+    T: for<'arr> Decode<'arr, Postgres>,
     [T]: Type<Postgres>,
     T: Type<Postgres>,
 {
