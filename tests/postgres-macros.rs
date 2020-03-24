@@ -31,6 +31,38 @@ async fn test_no_result() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_text_var_char_char_n() -> anyhow::Result<()> {
+    let mut conn = connect().await?;
+
+    // TEXT
+
+    let rec = sqlx::query!("SELECT 'Hello'::text as greeting")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec.greeting, "Hello");
+
+    // VARCHAR(N)
+
+    let rec = sqlx::query!("SELECT 'Hello'::varchar(5) as greeting")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec.greeting, "Hello");
+
+    // CHAR(N)
+
+    let rec = sqlx::query!("SELECT 'Hello'::char(5) as greeting")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec.greeting, "Hello");
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn _file() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 

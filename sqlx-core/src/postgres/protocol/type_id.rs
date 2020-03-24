@@ -23,6 +23,8 @@ impl TypeId {
     pub(crate) const NUMERIC: TypeId = TypeId(1700);
 
     pub(crate) const TEXT: TypeId = TypeId(25);
+    pub(crate) const VARCHAR: TypeId = TypeId(1043);
+    pub(crate) const BPCHAR: TypeId = TypeId(1042);
 
     pub(crate) const DATE: TypeId = TypeId(1082);
     pub(crate) const TIME: TypeId = TypeId(1083);
@@ -48,6 +50,8 @@ impl TypeId {
     pub(crate) const ARRAY_FLOAT8: TypeId = TypeId(1022);
 
     pub(crate) const ARRAY_TEXT: TypeId = TypeId(1009);
+    pub(crate) const ARRAY_VARCHAR: TypeId = TypeId(1015);
+    pub(crate) const ARRAY_BPCHAR: TypeId = TypeId(1014);
 
     pub(crate) const ARRAY_NUMERIC: TypeId = TypeId(1700);
 

@@ -247,6 +247,28 @@ impl TypeInfo for PgTypeInfo {
             | (TypeId::ARRAY_CIDR, TypeId::ARRAY_INET)
             | (TypeId::ARRAY_INET, TypeId::ARRAY_CIDR) => true,
 
+            // text, varchar, and bpchar are compatible
+            (TypeId::VARCHAR, other) | (TypeId::TEXT, other) | (TypeId::BPCHAR, other)
+                if match other {
+                    TypeId::VARCHAR | TypeId::TEXT | TypeId::BPCHAR => true,
+                    _ => false,
+                } =>
+            {
+                true
+            }
+
+            // text[], varchar[], and bpchar[] are compatible
+            (TypeId::ARRAY_VARCHAR, other)
+            | (TypeId::ARRAY_TEXT, other)
+            | (TypeId::ARRAY_BPCHAR, other)
+                if match other {
+                    TypeId::ARRAY_VARCHAR | TypeId::ARRAY_TEXT | TypeId::ARRAY_BPCHAR => true,
+                    _ => false,
+                } =>
+            {
+                true
+            }
+
             _ => {
                 // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
                 self.id.0 == other.id.0
