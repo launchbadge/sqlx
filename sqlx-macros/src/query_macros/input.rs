@@ -11,7 +11,8 @@ use syn::{ExprGroup, Token};
 
 use sqlx::connection::Connection;
 use sqlx::describe::Describe;
-use sqlx::runtime::fs;
+
+use crate::runtime::fs;
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {

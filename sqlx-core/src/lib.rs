@@ -7,6 +7,9 @@
 #![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
 #![recursion_limit = "512"]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// #![warn(missing_docs)]
+
+mod runtime;
 
 #[macro_use]
 pub mod error;
@@ -24,9 +27,6 @@ pub mod executor;
 
 pub mod transaction;
 mod url;
-
-#[doc(hidden)]
-pub mod runtime;
 
 #[macro_use]
 pub mod arguments;

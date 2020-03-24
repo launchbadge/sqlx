@@ -1,11 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
-compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
-
-#[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
-compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
-
 pub use sqlx_core::arguments;
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::cursor::Cursor;
