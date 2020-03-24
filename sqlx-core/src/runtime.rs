@@ -6,6 +6,7 @@ compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must
 
 #[cfg(feature = "runtime-async-std")]
 pub(crate) use async_std::{
+    fs,
     future::timeout,
     io::prelude::ReadExt as AsyncReadExt,
     io::{Read as AsyncRead, Write as AsyncWrite},
@@ -16,6 +17,7 @@ pub(crate) use async_std::{
 
 #[cfg(feature = "runtime-tokio")]
 pub(crate) use tokio::{
+    fs,
     io::{AsyncRead, AsyncReadExt, AsyncWrite},
     net::TcpStream,
     task::spawn,

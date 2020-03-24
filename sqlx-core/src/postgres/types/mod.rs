@@ -22,8 +22,19 @@
 //! | `chrono::DateTime<Utc>`               | TIMESTAMPTZ                                          |
 //! | `chrono::DateTime<Local>`             | TIMESTAMPTZ                                          |
 //! | `chrono::NaiveDateTime`               | TIMESTAMP                                            |
-//! | `chrono::NaiveTime`                   | DATE                                                 |
-//! | `chrono::NaiveDate`                   | TIME                                                 |
+//! | `chrono::NaiveDate`                   | DATE                                                 |
+//! | `chrono::NaiveTime`                   | TIME                                                 |
+//!
+//! ### [`time`](https://crates.io/crates/time)
+//!
+//! Requires the `time` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `time::PrimitiveDateTime`             | TIMESTAMP                                            |
+//! | `time::OffsetDateTime`                | TIMESTAMPTZ                                          |
+//! | `time::Date`                          | DATE                                                 |
+//! | `time::Time`                          | TIME                                                 |
 //!
 //! ### [`uuid`](https://crates.io/crates/uuid)
 //!
@@ -41,13 +52,90 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
 //!
-//! # Composite types
+//! ### [`json`](https://crates.io/crates/serde_json)
 //!
-//! Anonymous composite types are represented as tuples.
+//! Requires the `json` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | [`Json<T>`]                           | JSONB                                                |
+//! | [`PgJson<T>`]                         | JSON                                                 |
+//! | [`PgJsonb<T>`]                        | JSONB                                                |
+//! | `serde_json::Value`                   | JSONB                                                |
+//! | `PgJson<serde_json::Value>`           | JSON                                                 |
+//! | `&serde_json::value::RawValue`        | JSONB                                                |
+//! | `PgJson<&serde_json::value::RawValue>`| JSON                                                 |
+//!
+//! By default, Rust types are mapped to `JSONB`. They can be wrapped in [`PgJson<T>`] to use `JSON`
+//! instead.
+//!
+//! `Value` and `RawValue` from `serde_json` can be used for unstructured JSON data with
+//! Postgres.
+//!
+//! [`Json<T>`] can be used for structured JSON data with Postgres. [`Json<T>`] is an alias
+//! for [`PgJsonb<T>`].
+//!
+//! [`Json<T>`]: crate::types::Json
+//! [`PgJson<T>`]: crate::postgres::types::PgJson
+//! [`PgJsonb<T>`]: crate::postgres::types::PgJsonb
+//!
+//! # [Composite types](https://www.postgresql.org/docs/current/rowtypes.html)
+//!
+//! User-defined composite types are supported through a derive for `Type`.
+//!
+//! ```text
+//! CREATE TYPE inventory_item AS (
+//!     name            text,
+//!     supplier_id     integer,
+//!     price           numeric
+//! );
+//! ```
+//!
+//! ```rust,ignore
+//! #[derive(sqlx::Type)]
+//! #[sqlx(rename = "inventory_item")]
+//! struct InventoryItem {
+//!     name: String,
+//!     supplier_id: i32,
+//!     price: BigDecimal,
+//! }
+//! ```
+//!
+//! Anonymous composite types are represented as tuples. Note that anonymous composites may only
+//! be returned and not sent to Postgres (this is a limitation of postgres).
+//!
+//! # Arrays
+//!
+//! One-dimensional arrays are supported as `Vec<T>` or `&[T]` where `T` implements `Type`.
+//!
+//! # [Enumerations](https://www.postgresql.org/docs/current/datatype-enum.html)
+//!
+//! User-defined enumerations are supported through a derive for `Type`.
+//!
+//! ```text
+//! CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+//! ```
+//!
+//! ```rust,ignore
+//! #[derive(sqlx::Type)]
+//! #[sqlx(rename = "mood", rename_all = "lowercase")]
+//! enum Mood { Sad, Ok, Happy }
+//! ```
+//!
+//! Rust enumerations may also be defined to be represented as an integer using `repr`.
+//! The following type expects a SQL type of `INTEGER` or `INT4` and will convert to/from the
+//! Rust enumeration.
+//!
+//! ```rust,ignore
+//! #[derive(sqlx::Type)]
+//! #[repr(i32)]
+//! enum Mood { Sad = 0, Ok = 1, Happy = 2 }
+//! ```
 //!
 //! # Nullable
 //!
-//! An `Option<T>` represents a potentially `NULL` value from Postgres.
+//! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
+//! a potentially `NULL` value from Postgres.
 //!
 
 use std::fmt::{self, Debug, Display};
@@ -71,7 +159,7 @@ mod str;
 #[doc(hidden)]
 pub mod raw;
 
-#[cfg(feature = "bigdecimal_bigint")]
+#[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
 #[cfg(feature = "chrono")]
@@ -84,7 +172,7 @@ mod time;
 mod uuid;
 
 #[cfg(feature = "json")]
-pub mod json;
+mod json;
 
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;

@@ -36,6 +36,11 @@ default = [ "macros", "runtime-async-std" ]
 macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
+# intended mainly for CI and docs
+all = [ "tls", "all-database", "all-type" ]
+all-database = [ "mysql", "sqlite", "postgres" ]
+all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]

@@ -1,4 +1,15 @@
-//! Traits linking Rust types to SQL types.
+//! Conversions between Rust and SQL types.
+//!
+//! To see how each SQL type maps to a Rust type, see the corresponding `types` module for each
+//! database:
+//!
+//!  * [PostgreSQL](crate::postgres::types)
+//!  * [MySQL](crate::mysql::types)
+//!  * [SQLite](crate::sqlite::types)
+//!
+//! Any external types that have had [`Type`] implemented for, are re-exported in this module
+//! for convenience as downstream users need to use a compatible version of the external crate
+//! to take advantage of the implementation.
 
 use std::fmt::{Debug, Display};
 

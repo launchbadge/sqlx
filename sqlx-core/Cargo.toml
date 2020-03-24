@@ -15,6 +15,10 @@ authors = [
 [features]
 default = [ "runtime-async-std" ]
 unstable = []
+# intended mainly for CI and docs
+all = ["all-database", "all-type"]
+all-database = ["mysql", "sqlite", "postgres"]
+all-type = ["bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid"]
 # we need a feature which activates `num-bigint` as well because
 # `bigdecimal` uses types from it but does not reexport (tsk tsk)
 bigdecimal = ["bigdecimal_", "num-bigint"]

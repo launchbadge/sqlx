@@ -20,7 +20,7 @@ mod row;
 mod rsa;
 mod stream;
 mod tls;
-mod types;
+pub mod types;
 mod util;
 
 /// An alias for [`crate::pool::Pool`], specialized for **MySQL**.

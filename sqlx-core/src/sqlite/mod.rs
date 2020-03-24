@@ -8,7 +8,7 @@ mod error;
 mod executor;
 mod row;
 mod statement;
-mod types;
+pub mod types;
 mod value;
 mod worker;
 
