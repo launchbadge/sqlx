@@ -1,5 +1,5 @@
 use sqlx::Postgres;
-use sqlx_test::test_type;
+use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 
 // Transparent types are rust-side wrappers over DB types
@@ -85,3 +85,49 @@ test_type!(strong_enum(
 //             price: Some(2350)
 //         }
 // ));
+
+#[cfg(feature = "macros")]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_from_row() -> anyhow::Result<()> {
+    // Needed for PgQueryAs
+    use sqlx::prelude::*;
+
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(sqlx::FromRow)]
+    struct Account {
+        id: i32,
+        name: String,
+    }
+
+    let account: Account = sqlx::query_as(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch_one(&mut conn).await?;
+
+    assert_eq!(account.id, 1);
+    assert_eq!(account.name, "Herp Derpinson");
+
+    // A _single_ lifetime may be used but only when using the lowest-level API currently (Query::fetch)
+
+    #[derive(sqlx::FromRow)]
+    struct RefAccount<'a> {
+        id: i32,
+        name: &'a str,
+    }
+
+    let mut cursor = sqlx::query(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch(&mut conn);
+
+    let account = RefAccount::from_row(cursor.next().await?.unwrap())?;
+
+    assert_eq!(account.id, 1);
+    assert_eq!(account.name, "Herp Derpinson");
+
+    Ok(())
+}
