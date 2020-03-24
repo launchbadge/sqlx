@@ -125,7 +125,7 @@ async fn test_from_row() -> anyhow::Result<()> {
     .bind(1_i32)
     .fetch(&mut conn);
 
-    let account = RefAccount::from_row(cursor.next().await?.unwrap())?;
+    let account = RefAccount::from_row(&cursor.next().await?.unwrap())?;
 
     assert_eq!(account.id, 1);
     assert_eq!(account.name, "Herp Derpinson");

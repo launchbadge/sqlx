@@ -86,7 +86,7 @@ fn expand_derive_from_row_struct(
 
     Ok(quote!(
         impl #impl_generics sqlx::row::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
-            fn from_row(row: R) -> sqlx::Result<R::Database, Self> {
+            fn from_row(row: &R) -> sqlx::Result<R::Database, Self> {
                 #(#reads)*
 
                 Ok(#ident {

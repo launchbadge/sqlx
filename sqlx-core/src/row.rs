@@ -31,7 +31,7 @@ where
 impl<'c, R, I> ColumnIndex<'c, R> for &'_ I
 where
     R: Row<'c>,
-    I: ColumnIndex<'c, R>,
+    I: ColumnIndex<'c, R> + ?Sized,
 {
     #[inline]
     fn index(&self, row: &R) -> crate::Result<<R as Row<'c>>::Database, usize> {
@@ -44,7 +44,7 @@ mod private_column_index {
     pub trait Sealed {}
     impl Sealed for usize {}
     impl Sealed for str {}
-    impl<T> Sealed for &'_ T where T: Sealed {}
+    impl<T> Sealed for &'_ T where T: Sealed + ?Sized {}
 }
 
 /// Represents a single row from the database.
