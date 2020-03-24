@@ -1,11 +1,13 @@
 mod attributes;
 mod decode;
 mod encode;
+mod row;
 mod r#type;
 
 pub(crate) use decode::expand_derive_decode;
 pub(crate) use encode::expand_derive_encode;
 pub(crate) use r#type::expand_derive_type;
+pub(crate) use row::expand_derive_from_row;
 
 use self::attributes::RenameAll;
 use std::iter::FromIterator;

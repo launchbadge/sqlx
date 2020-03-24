@@ -177,3 +177,13 @@ pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
         Err(e) => e.to_compile_error().into(),
     }
 }
+
+#[proc_macro_derive(FromRow)]
+pub fn derive_from_row(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    match derives::expand_derive_from_row(&input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
