@@ -1,15 +1,14 @@
 //! Contains the Row and FromRow traits.
 
-use crate::database::{Database, HasRawValue, HasRow};
+use crate::database::{Database, HasRawValue};
 use crate::decode::Decode;
 use crate::types::Type;
 
-pub trait ColumnIndex<DB>
+pub trait ColumnIndex<'c, R>
 where
-    DB: Database,
-    DB: for<'c> HasRow<'c, Database = DB>,
+    R: Row<'c> + ?Sized,
 {
-    fn resolve<'c>(self, row: &<DB as HasRow<'c>>::Row) -> crate::Result<DB, usize>;
+    fn resolve(self, row: &R) -> crate::Result<R::Database, usize>;
 }
 
 /// Represents a single row of the result set.
@@ -27,7 +26,7 @@ pub trait Row<'c>: Unpin + Send {
     fn get<T, I>(&self, index: I) -> T
     where
         T: Type<Self::Database>,
-        I: ColumnIndex<Self::Database>,
+        I: ColumnIndex<'c, Self>,
         T: Decode<'c, Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
@@ -36,7 +35,7 @@ pub trait Row<'c>: Unpin + Send {
     fn try_get<T, I>(&self, index: I) -> crate::Result<Self::Database, T>
     where
         T: Type<Self::Database>,
-        I: ColumnIndex<Self::Database>,
+        I: ColumnIndex<'c, Self>,
         T: Decode<'c, Self::Database>,
     {
         Ok(Decode::decode(self.try_get_raw(index)?)?)
@@ -47,7 +46,7 @@ pub trait Row<'c>: Unpin + Send {
         index: I,
     ) -> crate::Result<Self::Database, <Self::Database as HasRawValue<'c>>::RawValue>
     where
-        I: ColumnIndex<Self::Database>;
+        I: ColumnIndex<'c, Self>;
 }
 
 /// A **record** that can be built from a row returned from by the database.
@@ -176,30 +175,30 @@ macro_rules! impl_map_row_for_row {
 
 #[allow(unused_macros)]
 macro_rules! impl_column_index_for_row {
-    ($DB:ident) => {
-        impl crate::row::ColumnIndex<$DB> for usize {
-            fn resolve<'c>(
+    ($R:ident) => {
+        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for usize {
+            fn resolve(
                 self,
-                row: &<$DB as crate::database::HasRow<'c>>::Row,
-            ) -> crate::Result<$DB, usize> {
+                row: &$R<'c>,
+            ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
                 let len = crate::row::Row::len(row);
 
                 if self >= len {
-                    return Err(crate::Error::<$DB>::ColumnIndexOutOfBounds { len, index: self });
+                    return Err(crate::Error::ColumnIndexOutOfBounds { len, index: self });
                 }
 
                 Ok(self)
             }
         }
 
-        impl crate::row::ColumnIndex<$DB> for &'_ str {
-            fn resolve<'c>(
+        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for &'_ str {
+            fn resolve(
                 self,
-                row: &<$DB as crate::database::HasRow<'c>>::Row,
-            ) -> crate::Result<$DB, usize> {
+                row: &$R<'c>,
+            ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
                 row.columns
                     .get(self)
-                    .ok_or_else(|| crate::Error::<$DB>::ColumnNotFound((*self).into()))
+                    .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
                     .map(|&index| index as usize)
             }
         }

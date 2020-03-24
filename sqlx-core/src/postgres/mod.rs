@@ -29,5 +29,5 @@ pub type PgPool = crate::pool::Pool<PgConnection>;
 
 make_query_as!(PgQueryAs, Postgres, PgRow);
 impl_map_row_for_row!(Postgres, PgRow);
-impl_column_index_for_row!(Postgres);
+impl_column_index_for_row!(PgRow);
 impl_from_row_for_tuples!(Postgres, PgRow);

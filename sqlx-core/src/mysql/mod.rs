@@ -29,5 +29,5 @@ pub type MySqlPool = crate::pool::Pool<MySqlConnection>;
 
 make_query_as!(MySqlQueryAs, MySql, MySqlRow);
 impl_map_row_for_row!(MySql, MySqlRow);
-impl_column_index_for_row!(MySql);
+impl_column_index_for_row!(MySqlRow);
 impl_from_row_for_tuples!(MySql, MySqlRow);

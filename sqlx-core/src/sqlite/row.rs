@@ -1,4 +1,3 @@
-use crate::database::HasRow;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::Statement;
 use crate::sqlite::value::SqliteValue;
@@ -34,7 +33,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
 
     fn try_get_raw<I>(&self, index: I) -> crate::Result<Sqlite, SqliteValue<'c>>
     where
-        I: ColumnIndex<Self::Database>,
+        I: ColumnIndex<'c, Self>,
     {
         Ok(SqliteValue {
             statement: self.statement(),
@@ -43,8 +42,8 @@ impl<'c> Row<'c> for SqliteRow<'c> {
     }
 }
 
-impl ColumnIndex<Sqlite> for usize {
-    fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<Sqlite, usize> {
+impl<'c> ColumnIndex<'c, SqliteRow<'c>> for usize {
+    fn resolve(self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
         let len = Row::len(row);
 
         if self >= len {
@@ -55,8 +54,8 @@ impl ColumnIndex<Sqlite> for usize {
     }
 }
 
-impl ColumnIndex<Sqlite> for &'_ str {
-    fn resolve(self, row: &<Sqlite as HasRow>::Row) -> crate::Result<Sqlite, usize> {
+impl<'c> ColumnIndex<'c, SqliteRow<'c>> for &'c str {
+    fn resolve(self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
         row.statement()
             .columns
             .get(self)
