@@ -105,7 +105,8 @@ async fn test_from_row() -> anyhow::Result<()> {
         "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
     )
     .bind(1_i32)
-    .fetch_one(&mut conn).await?;
+    .fetch_one(&mut conn)
+    .await?;
 
     assert_eq!(account.id, 1);
     assert_eq!(account.name, "Herp Derpinson");
