@@ -3,8 +3,8 @@ use std::ops::{Deref, DerefMut};
 use futures_core::future::BoxFuture;
 
 use crate::connection::Connection;
+use crate::cursor::HasCursor;
 use crate::database::Database;
-use crate::database::HasCursor;
 use crate::describe::Describe;
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::runtime::spawn;

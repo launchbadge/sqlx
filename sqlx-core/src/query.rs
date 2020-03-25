@@ -6,10 +6,11 @@ use futures_util::future::ready;
 use futures_util::TryFutureExt;
 
 use crate::arguments::Arguments;
-use crate::cursor::Cursor;
-use crate::database::{Database, HasCursor, HasRow};
+use crate::cursor::{Cursor, HasCursor};
+use crate::database::Database;
 use crate::encode::Encode;
 use crate::executor::{Execute, Executor, RefExecutor};
+use crate::row::HasRow;
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].

@@ -25,6 +25,7 @@ mod io;
 pub mod connection;
 pub mod cursor;
 pub mod database;
+pub mod value;
 
 #[macro_use]
 pub mod executor;

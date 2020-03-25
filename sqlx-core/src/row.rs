@@ -1,8 +1,9 @@
 //! Contains the `ColumnIndex`, `Row`, and `FromRow` traits.
 
-use crate::database::{Database, HasRawValue};
+use crate::database::Database;
 use crate::decode::Decode;
 use crate::types::Type;
+use crate::value::HasRawValue;
 
 /// A type that can be used to index into a [`Row`].
 ///
@@ -149,6 +150,21 @@ pub(crate) mod private_row {
     pub trait Sealed {}
 }
 
+/// Associate [`Database`] with a [`Row`] of a generic lifetime.
+///
+/// ---
+///
+/// The upcoming Rust feature, [Generic Associated Types], should obviate
+/// the need for this trait.
+///
+/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
+pub trait HasRow<'c> {
+    type Database: Database;
+
+    /// The concrete `Row` implementation for this database.
+    type Row: Row<'c, Database = Self::Database>;
+}
+
 /// A record that can be built from a row returned by the database.
 ///
 /// In order to use [`query_as`] the output type must implement `FromRow`.
@@ -287,38 +303,6 @@ macro_rules! impl_map_row_for_row {
 
             fn try_map_row(&mut self, row: $R) -> crate::Result<$DB, O> {
                 (self)(row)
-            }
-        }
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! impl_column_index_for_row {
-    ($R:ident) => {
-        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for usize {
-            fn index(
-                &self,
-                row: &$R<'c>,
-            ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
-                let len = crate::row::Row::len(row);
-
-                if *self >= len {
-                    return Err(crate::Error::ColumnIndexOutOfBounds { len, index: *self });
-                }
-
-                Ok(*self)
-            }
-        }
-
-        impl<'c> crate::row::ColumnIndex<'c, $R<'c>> for str {
-            fn index(
-                &self,
-                row: &$R<'c>,
-            ) -> crate::Result<<$R<'c> as crate::row::Row<'c>>::Database, usize> {
-                row.columns
-                    .get(self)
-                    .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
-                    .map(|&index| index as usize)
             }
         }
     };

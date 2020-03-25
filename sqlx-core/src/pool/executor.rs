@@ -2,8 +2,8 @@ use futures_core::future::BoxFuture;
 
 use super::PoolConnection;
 use crate::connection::Connect;
-use crate::cursor::Cursor;
-use crate::database::{Database, HasCursor};
+use crate::cursor::{Cursor, HasCursor};
+use crate::database::Database;
 use crate::describe::Describe;
 use crate::executor::Execute;
 use crate::executor::{Executor, RefExecutor};

@@ -1,6 +1,7 @@
 use futures_core::future::BoxFuture;
 
-use crate::database::{Database, HasCursor};
+use crate::cursor::HasCursor;
+use crate::database::Database;
 use crate::describe::Describe;
 
 /// A type that contains or can provide a database connection to use for executing queries
