@@ -37,5 +37,5 @@ impl<'c, 'q> HasCursor<'c, 'q> for MySql {
 impl<'c> HasRawValue<'c> for MySql {
     type Database = MySql;
 
-    type RawValue = Option<super::MySqlValue<'c>>;
+    type RawValue = super::MySqlValue<'c>;
 }

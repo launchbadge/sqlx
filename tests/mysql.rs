@@ -95,7 +95,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "INT"
     );
     assert_eq!(describe.result_columns[1].non_null, Some(true));
@@ -104,7 +104,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "TEXT"
     );
     assert_eq!(describe.result_columns[2].non_null, Some(false));
@@ -113,8 +113,8 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
-        "TEXT"
+            .to_string(),
+        "BLOB"
     );
     assert_eq!(describe.result_columns[3].non_null, Some(true));
 
@@ -122,11 +122,11 @@ async fn test_describe() -> anyhow::Result<()> {
         .type_info
         .as_ref()
         .unwrap()
-        .type_name();
+        .to_string();
 
     // MySQL 5.7, 8 and MariaDB 10.1 return BIG_INT, MariaDB 10.4 returns INT (optimization?)
     assert!(
-        ["BIG_INT", "INT"].contains(&bool_ty_name),
+        ["BIGINT", "INT"].contains(&bool_ty_name.as_str()),
         "type name returned: {}",
         bool_ty_name
     );
@@ -221,13 +221,13 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 async fn test_fetch_one_and_ping() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i64,) = sqlx::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 
     conn.ping().await?;
 
-    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i64,) = sqlx::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 

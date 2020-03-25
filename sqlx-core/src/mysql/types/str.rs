@@ -7,9 +7,8 @@ use crate::encode::Encode;
 use crate::mysql::io::BufMutExt;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue};
+use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
-use std::convert::TryInto;
 use std::str::from_utf8;
 
 impl Type<MySql> for str {
@@ -42,9 +41,9 @@ impl Encode<MySql> for String {
 }
 
 impl<'de> Decode<'de, MySql> for &'de str {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(buf) | MySqlValue::Text(buf) => {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(buf) | MySqlData::Text(buf) => {
                 from_utf8(buf).map_err(crate::Error::decode)
             }
         }
@@ -52,7 +51,7 @@ impl<'de> Decode<'de, MySql> for &'de str {
 }
 
 impl<'de> Decode<'de, MySql> for String {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        <&'de str as Decode<MySql>>::decode(buf).map(ToOwned::to_owned)
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        <&'de str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }

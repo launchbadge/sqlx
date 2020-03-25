@@ -4,11 +4,12 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
 use crate::mysql::protocol::TypeId;
-use crate::mysql::MySql;
+use crate::mysql::{MySql, MySqlTypeInfo};
 
 pub(crate) struct Row<'c> {
     buffer: &'c [u8],
     values: &'c [Option<Range<usize>>],
+    pub(crate) columns: &'c [MySqlTypeInfo],
     pub(crate) binary: bool,
 }
 
@@ -56,7 +57,7 @@ fn get_lenenc(buf: &[u8]) -> (usize, Option<usize>) {
 impl<'c> Row<'c> {
     pub(crate) fn read(
         mut buf: &'c [u8],
-        columns: &[TypeId],
+        columns: &'c [MySqlTypeInfo],
         values: &'c mut Vec<Option<Range<usize>>>,
         binary: bool,
     ) -> crate::Result<MySql, Self> {
@@ -82,6 +83,7 @@ impl<'c> Row<'c> {
 
             return Ok(Self {
                 buffer,
+                columns,
                 values: &*values,
                 binary: false,
             });
@@ -111,7 +113,7 @@ impl<'c> Row<'c> {
             if is_null {
                 values.push(None);
             } else {
-                let (offset, size) = match columns[column_idx] {
+                let (offset, size) = match columns[column_idx].id {
                     TypeId::TINY_INT => (0, 1),
                     TypeId::SMALL_INT => (0, 2),
                     TypeId::INT | TypeId::FLOAT => (0, 4),
@@ -147,6 +149,7 @@ impl<'c> Row<'c> {
         Ok(Self {
             buffer: buf,
             values: &*values,
+            columns,
             binary,
         })
     }

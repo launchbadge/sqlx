@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
@@ -8,10 +8,10 @@ use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue};
+use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
 use crate::Error;
-use bitflags::_core::str::from_utf8;
+use std::str::from_utf8;
 
 impl Type<MySql> for DateTime<Utc> {
     fn type_info() -> MySqlTypeInfo {
@@ -26,7 +26,7 @@ impl Encode<MySql> for DateTime<Utc> {
 }
 
 impl<'de> Decode<'de, MySql> for DateTime<Utc> {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
         let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(DateTime::from_utc(naive, Utc))
@@ -66,9 +66,9 @@ impl Encode<MySql> for NaiveTime {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveTime {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match buf.try_into()? {
-            MySqlValue::Binary(mut buf) => {
+    fn decode(buf: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match buf.try_get()? {
+            MySqlData::Binary(mut buf) => {
                 // data length, expecting 8 or 12 (fractional seconds)
                 let len = buf.get_u8()?;
 
@@ -83,7 +83,7 @@ impl<'de> Decode<'de, MySql> for NaiveTime {
                 decode_time(len - 5, buf)
             }
 
-            MySqlValue::Text(buf) => {
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(Error::decode)?;
                 NaiveTime::parse_from_str(s, "%H:%M:%S%.f").map_err(Error::decode)
             }
@@ -110,11 +110,11 @@ impl Encode<MySql> for NaiveDate {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveDate {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match buf.try_into()? {
-            MySqlValue::Binary(buf) => Ok(decode_date(&buf[1..])),
+    fn decode(buf: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match buf.try_get()? {
+            MySqlData::Binary(buf) => Ok(decode_date(&buf[1..])),
 
-            MySqlValue::Text(buf) => {
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(Error::decode)?;
                 NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(Error::decode)
             }
@@ -163,9 +163,9 @@ impl Encode<MySql> for NaiveDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for NaiveDateTime {
-    fn decode(buf: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match buf.try_into()? {
-            MySqlValue::Binary(buf) => {
+    fn decode(buf: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match buf.try_get()? {
+            MySqlData::Binary(buf) => {
                 let len = buf[0];
                 let date = decode_date(&buf[1..]);
 
@@ -178,7 +178,7 @@ impl<'de> Decode<'de, MySql> for NaiveDateTime {
                 Ok(dt)
             }
 
-            MySqlValue::Text(buf) => {
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(Error::decode)?;
                 NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").map_err(Error::decode)
             }
@@ -260,15 +260,15 @@ fn test_encode_date_time() {
 fn test_decode_date_time() {
     // test values from https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
     let buf = [11, 218, 7, 10, 17, 19, 27, 30, 1, 0, 0, 0];
-    let date1 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+    let date1 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date1.to_string(), "2010-10-17 19:27:30.000001");
 
     let buf = [7, 218, 7, 10, 17, 19, 27, 30];
-    let date2 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+    let date2 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date2.to_string(), "2010-10-17 19:27:30");
 
     let buf = [4, 218, 7, 10, 17];
-    let date3 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+    let date3 = <NaiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date3.to_string(), "2010-10-17 00:00:00");
 }
 
@@ -283,6 +283,6 @@ fn test_encode_date() {
 #[test]
 fn test_decode_date() {
     let buf = [4, 218, 7, 10, 17];
-    let date = <NaiveDate as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+    let date = <NaiveDate as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date.to_string(), "2010-10-17");
 }

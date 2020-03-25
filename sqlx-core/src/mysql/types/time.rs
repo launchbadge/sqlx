@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
-use std::convert::TryInto;
 
 use byteorder::{ByteOrder, LittleEndian};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
@@ -10,7 +9,7 @@ use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue};
+use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
 
 impl Type<MySql> for OffsetDateTime {
@@ -29,7 +28,7 @@ impl Encode<MySql> for OffsetDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for OffsetDateTime {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
         let primitive: PrimitiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(primitive.assume_utc())
@@ -69,9 +68,9 @@ impl Encode<MySql> for Time {
 }
 
 impl<'de> Decode<'de, MySql> for Time {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(mut buf) => {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(mut buf) => {
                 // data length, expecting 8 or 12 (fractional seconds)
                 let len = buf.get_u8()?;
 
@@ -86,7 +85,7 @@ impl<'de> Decode<'de, MySql> for Time {
                 decode_time(len - 5, buf)
             }
 
-            MySqlValue::Text(buf) => {
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(crate::Error::decode)?;
 
                 // If there are less than 9 digits after the decimal point
@@ -124,10 +123,10 @@ impl Encode<MySql> for Date {
 }
 
 impl<'de> Decode<'de, MySql> for Date {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(buf) => decode_date(&buf[1..]),
-            MySqlValue::Text(buf) => {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(buf) => decode_date(&buf[1..]),
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(crate::Error::decode)?;
                 Date::parse(s, "%Y-%m-%d").map_err(crate::Error::decode)
             }
@@ -171,9 +170,9 @@ impl Encode<MySql> for PrimitiveDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for PrimitiveDateTime {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(buf) => {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(buf) => {
                 let len = buf[0];
                 let date = decode_date(&buf[1..])?;
 
@@ -186,7 +185,7 @@ impl<'de> Decode<'de, MySql> for PrimitiveDateTime {
                 Ok(dt)
             }
 
-            MySqlValue::Text(buf) => {
+            MySqlData::Text(buf) => {
                 let s = from_utf8(buf).map_err(crate::Error::decode)?;
 
                 // If there are less than 9 digits after the decimal point
@@ -285,17 +284,17 @@ fn test_decode_date_time() {
     // test values from https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
     let buf = [11, 218, 7, 10, 17, 19, 27, 30, 1, 0, 0, 0];
     let date1 =
-        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date1.to_string(), "2010-10-17 19:27:30.000001");
 
     let buf = [7, 218, 7, 10, 17, 19, 27, 30];
     let date2 =
-        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date2.to_string(), "2010-10-17 19:27:30");
 
     let buf = [4, 218, 7, 10, 17];
     let date3 =
-        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+        <PrimitiveDateTime as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date3.to_string(), "2010-10-17 0:00");
 }
 
@@ -310,6 +309,6 @@ fn test_encode_date() {
 #[test]
 fn test_decode_date() {
     let buf = [4, 218, 7, 10, 17];
-    let date = <Date as Decode<MySql>>::decode(Some(MySqlValue::Binary(&buf))).unwrap();
+    let date = <Date as Decode<MySql>>::decode(Some(MySqlData::Binary(&buf))).unwrap();
     assert_eq!(date, date!(2010 - 10 - 17));
 }

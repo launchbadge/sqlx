@@ -5,9 +5,8 @@ use crate::encode::Encode;
 use crate::mysql::io::BufMutExt;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue};
+use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
-use std::convert::TryInto;
 
 impl Type<MySql> for [u8] {
     fn type_info() -> MySqlTypeInfo {
@@ -39,17 +38,17 @@ impl Encode<MySql> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, MySql> for Vec<u8> {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf.to_vec()),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(buf) | MySqlData::Text(buf) => Ok(buf.to_vec()),
         }
     }
 }
 
 impl<'de> Decode<'de, MySql> for &'de [u8] {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(buf) | MySqlValue::Text(buf) => Ok(buf),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(buf) | MySqlData::Text(buf) => Ok(buf),
         }
     }
 }

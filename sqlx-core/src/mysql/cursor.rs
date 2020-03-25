@@ -6,15 +6,15 @@ use futures_core::future::BoxFuture;
 use crate::connection::ConnectionSource;
 use crate::cursor::Cursor;
 use crate::executor::Execute;
-use crate::mysql::protocol::{ColumnCount, ColumnDefinition, Row, Status, TypeId};
-use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow};
+use crate::mysql::protocol::{ColumnCount, ColumnDefinition, Row, Status};
+use crate::mysql::{MySql, MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo};
 use crate::pool::Pool;
 
 pub struct MySqlCursor<'c, 'q> {
     source: ConnectionSource<'c, MySqlConnection>,
     query: Option<(&'q str, Option<MySqlArguments>)>,
     column_names: Arc<HashMap<Box<str>, u16>>,
-    column_types: Vec<TypeId>,
+    column_types: Vec<MySqlTypeInfo>,
     binary: bool,
 }
 
@@ -123,7 +123,11 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                 for i in 0..cc.columns {
                     let column = ColumnDefinition::read(conn.stream.receive().await?)?;
 
-                    cursor.column_types.push(column.type_id);
+                    println!("[def] {:?}", column);
+
+                    cursor
+                        .column_types
+                        .push(MySqlTypeInfo::from_nullable_column_def(&column));
 
                     if let Some(name) = column.name() {
                         column_names.insert(name.to_owned().into_boxed_str(), i as u16);
@@ -148,7 +152,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
                 let row = MySqlRow {
                     row,
-                    columns: Arc::clone(&cursor.column_names),
+                    names: Arc::clone(&cursor.column_names),
                 };
 
                 return Ok(Some(row));

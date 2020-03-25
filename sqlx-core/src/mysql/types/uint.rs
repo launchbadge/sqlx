@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::str::from_utf8;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -7,7 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::mysql::protocol::TypeId;
 use crate::mysql::types::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue};
+use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
 use crate::Error;
 
@@ -24,11 +23,11 @@ impl Encode<MySql> for u8 {
 }
 
 impl<'de> Decode<'de, MySql> for u8 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(mut buf) => buf.read_u8().map_err(Into::into),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(mut buf) => buf.read_u8().map_err(Into::into),
 
-            MySqlValue::Text(s) => from_utf8(s)
+            MySqlData::Text(s) => from_utf8(s)
                 .map_err(Error::decode)?
                 .parse()
                 .map_err(Error::decode),
@@ -49,11 +48,11 @@ impl Encode<MySql> for u16 {
 }
 
 impl<'de> Decode<'de, MySql> for u16 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(mut buf) => buf.read_u16::<LittleEndian>().map_err(Into::into),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(mut buf) => buf.read_u16::<LittleEndian>().map_err(Into::into),
 
-            MySqlValue::Text(s) => from_utf8(s)
+            MySqlData::Text(s) => from_utf8(s)
                 .map_err(Error::decode)?
                 .parse()
                 .map_err(Error::decode),
@@ -74,11 +73,11 @@ impl Encode<MySql> for u32 {
 }
 
 impl<'de> Decode<'de, MySql> for u32 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(mut buf) => buf.read_u32::<LittleEndian>().map_err(Into::into),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(mut buf) => buf.read_u32::<LittleEndian>().map_err(Into::into),
 
-            MySqlValue::Text(s) => from_utf8(s)
+            MySqlData::Text(s) => from_utf8(s)
                 .map_err(Error::decode)?
                 .parse()
                 .map_err(Error::decode),
@@ -99,11 +98,11 @@ impl Encode<MySql> for u64 {
 }
 
 impl<'de> Decode<'de, MySql> for u64 {
-    fn decode(value: Option<MySqlValue<'de>>) -> crate::Result<MySql, Self> {
-        match value.try_into()? {
-            MySqlValue::Binary(mut buf) => buf.read_u64::<LittleEndian>().map_err(Into::into),
+    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+        match value.try_get()? {
+            MySqlData::Binary(mut buf) => buf.read_u64::<LittleEndian>().map_err(Into::into),
 
-            MySqlValue::Text(s) => from_utf8(s)
+            MySqlData::Text(s) => from_utf8(s)
                 .map_err(Error::decode)?
                 .parse()
                 .map_err(Error::decode),
