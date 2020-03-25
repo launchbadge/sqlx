@@ -8,7 +8,7 @@ use std::fmt::{self, Display};
 use std::os::raw::c_int;
 
 #[derive(Debug)]
-pub struct SqliteError {
+pub struct SqliteDatabaseError {
     code: String,
     message: String,
 }
@@ -16,7 +16,7 @@ pub struct SqliteError {
 // Error Codes And Messages
 // https://www.sqlite.org/c3ref/errcode.html
 
-impl SqliteError {
+impl SqliteDatabaseError {
     pub(super) fn from_connection(conn: *mut sqlite3) -> Self {
         #[allow(unsafe_code)]
         let code: c_int = unsafe { sqlite3_extended_errcode(conn) };
@@ -36,13 +36,13 @@ impl SqliteError {
     }
 }
 
-impl Display for SqliteError {
+impl Display for SqliteDatabaseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(self.message())
     }
 }
 
-impl DatabaseError for SqliteError {
+impl DatabaseError for SqliteDatabaseError {
     fn message(&self) -> &str {
         &self.message
     }
@@ -52,10 +52,10 @@ impl DatabaseError for SqliteError {
     }
 }
 
-impl StdError for SqliteError {}
+impl StdError for SqliteDatabaseError {}
 
-impl From<SqliteError> for crate::Error<Sqlite> {
-    fn from(err: SqliteError) -> Self {
+impl From<SqliteDatabaseError> for crate::Error<Sqlite> {
+    fn from(err: SqliteDatabaseError) -> Self {
         crate::Error::Database(Box::new(err))
     }
 }

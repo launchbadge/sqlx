@@ -12,7 +12,7 @@ use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::sqlite::statement::Statement;
 use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteError;
+use crate::sqlite::SqliteDatabaseError;
 use crate::types::Type;
 
 #[derive(Debug, Clone)]
@@ -131,7 +131,9 @@ impl SqliteArgumentValue {
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteError::from_connection(statement.connection.0.as_ptr()).into());
+            return Err(
+                SqliteDatabaseError::from_connection(statement.connection.0.as_ptr()).into(),
+            );
         }
 
         Ok(())

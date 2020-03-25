@@ -1,7 +1,7 @@
 use crate::cursor::HasCursor;
 use crate::database::Database;
 use crate::row::HasRow;
-use crate::sqlite::error::SqliteError;
+use crate::sqlite::error::SqliteDatabaseError;
 use crate::sqlite::{
     SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteCursor, SqliteRow,
     SqliteTypeInfo, SqliteValue,
@@ -23,7 +23,7 @@ impl Database for Sqlite {
 
     type RawBuffer = Vec<SqliteArgumentValue>;
 
-    type Error = SqliteError;
+    type Error = SqliteDatabaseError;
 }
 
 impl<'c> HasRow<'c> for Sqlite {

@@ -16,7 +16,7 @@ pub use arguments::{SqliteArgumentValue, SqliteArguments};
 pub use connection::SqliteConnection;
 pub use cursor::SqliteCursor;
 pub use database::Sqlite;
-pub use error::SqliteError;
+pub use error::SqliteDatabaseError;
 pub use row::SqliteRow;
 pub use types::SqliteTypeInfo;
 pub use value::SqliteValue;

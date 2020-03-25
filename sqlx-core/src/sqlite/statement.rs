@@ -14,7 +14,7 @@ use libsqlite3_sys::{
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
 use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteError;
+use crate::sqlite::SqliteDatabaseError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
 
 /// Return values from [SqliteStatement::step].
@@ -84,7 +84,7 @@ impl Statement {
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteError::from_connection(conn.handle()).into());
+            return Err(SqliteDatabaseError::from_connection(conn.handle()).into());
         }
 
         // If pzTail is not NULL then *pzTail is made to point to the first byte
@@ -220,7 +220,9 @@ impl Statement {
             SQLITE_ROW => Ok(Step::Row),
 
             _ => {
-                return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
+                return Err(
+                    SqliteDatabaseError::from_connection(self.connection.0.as_ptr()).into(),
+                );
             }
         }
     }

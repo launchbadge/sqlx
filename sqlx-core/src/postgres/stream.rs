@@ -6,7 +6,7 @@ use futures_channel::mpsc::UnboundedSender;
 
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{Message, NotificationResponse, Response, Write};
-use crate::postgres::PgError;
+use crate::postgres::PgDatabaseError;
 use crate::postgres::Postgres;
 use crate::url::Url;
 use futures_util::SinkExt;
@@ -87,7 +87,7 @@ impl PgStream {
 
                     if response.severity.is_error() {
                         // This is an error, bubble up as one immediately
-                        return Err(crate::Error::Database(Box::new(PgError(response))));
+                        return Err(crate::Error::Database(Box::new(PgDatabaseError(response))));
                     }
 
                     // TODO: Provide some way of receiving these non-critical

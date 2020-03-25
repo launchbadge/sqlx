@@ -6,9 +6,9 @@ use crate::postgres::protocol::Response;
 use crate::postgres::Postgres;
 
 #[derive(Debug)]
-pub struct PgError(pub(super) Response);
+pub struct PgDatabaseError(pub(super) Response);
 
-impl DatabaseError for PgError {
+impl DatabaseError for PgDatabaseError {
     fn message(&self) -> &str {
         &self.0.message
     }
@@ -38,16 +38,16 @@ impl DatabaseError for PgError {
     }
 }
 
-impl Display for PgError {
+impl Display for PgDatabaseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(self.message())
     }
 }
 
-impl StdError for PgError {}
+impl StdError for PgDatabaseError {}
 
-impl From<PgError> for crate::Error<Postgres> {
-    fn from(err: PgError) -> Self {
+impl From<PgDatabaseError> for crate::Error<Postgres> {
+    fn from(err: PgDatabaseError) -> Self {
         crate::Error::Database(Box::new(err))
     }
 }

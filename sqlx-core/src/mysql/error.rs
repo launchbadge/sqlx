@@ -6,15 +6,15 @@ use crate::mysql::protocol::ErrPacket;
 use crate::mysql::MySql;
 
 #[derive(Debug)]
-pub struct MySqlError(pub(super) ErrPacket);
+pub struct MySqlDatabaseError(pub(super) ErrPacket);
 
-impl Display for MySqlError {
+impl Display for MySqlDatabaseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(self.message())
     }
 }
 
-impl DatabaseError for MySqlError {
+impl DatabaseError for MySqlDatabaseError {
     fn message(&self) -> &str {
         &*self.0.error_message
     }
@@ -24,10 +24,10 @@ impl DatabaseError for MySqlError {
     }
 }
 
-impl StdError for MySqlError {}
+impl StdError for MySqlDatabaseError {}
 
-impl From<MySqlError> for crate::Error<MySql> {
-    fn from(err: MySqlError) -> Self {
+impl From<MySqlDatabaseError> for crate::Error<MySql> {
+    fn from(err: MySqlDatabaseError) -> Self {
         crate::Error::Database(Box::new(err))
     }
 }

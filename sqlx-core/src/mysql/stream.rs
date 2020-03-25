@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::protocol::{Capabilities, Encode, EofPacket, ErrPacket, OkPacket};
 use crate::mysql::MySql;
-use crate::mysql::MySqlError;
+use crate::mysql::MySqlDatabaseError;
 use crate::url::Url;
 
 // Size before a packet is split
@@ -189,7 +189,7 @@ impl MySqlStream {
 
     pub(crate) fn handle_err<T>(&mut self) -> crate::Result<MySql, T> {
         self.is_ready = true;
-        Err(MySqlError(ErrPacket::read(self.packet(), self.capabilities)?).into())
+        Err(MySqlDatabaseError(ErrPacket::read(self.packet(), self.capabilities)?).into())
     }
 
     pub(crate) fn handle_ok(&mut self) -> crate::Result<MySql, OkPacket> {

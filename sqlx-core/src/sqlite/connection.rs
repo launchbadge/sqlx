@@ -16,7 +16,7 @@ use crate::executor::Executor;
 use crate::sqlite::statement::Statement;
 use crate::sqlite::worker::Worker;
 use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteError;
+use crate::sqlite::SqliteDatabaseError;
 use crate::url::Url;
 
 /// Thin wrapper around [sqlite3] to impl `Send`.
@@ -87,7 +87,7 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<Sqlite, S
                     let _ = sqlite3_close(handle);
                 }
 
-                return Err(SqliteError::from_connection(handle).into());
+                return Err(SqliteDatabaseError::from_connection(handle).into());
             }
 
             // Enable extended result codes
