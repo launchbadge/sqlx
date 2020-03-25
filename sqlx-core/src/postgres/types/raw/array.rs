@@ -171,7 +171,8 @@ where
 mod tests {
     use super::PgArrayDecoder;
     use super::PgArrayEncoder;
-    use crate::postgres::{PgData, PgValue, Postgres};
+    use crate::postgres::protocol::TypeId;
+    use crate::postgres::{PgValue, Postgres};
 
     const BUF_BINARY_I32: &[u8] = b"\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x17\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x00\x00\x04\x00\x00\x00\x03\x00\x00\x00\x04\x00\x00\x00\x04";
 
@@ -192,7 +193,7 @@ mod tests {
     #[test]
     fn it_decodes_text_i32() -> crate::Result<Postgres, ()> {
         let s = "{1,152,-12412}";
-        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgData::Text(s)))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::str(TypeId(0), s))?;
 
         assert_eq!(decoder.decode()?, Some(1));
         assert_eq!(decoder.decode()?, Some(152));
@@ -205,7 +206,7 @@ mod tests {
     #[test]
     fn it_decodes_text_str() -> crate::Result<Postgres, ()> {
         let s = "{\"\",\"\\\"\"}";
-        let mut decoder = PgArrayDecoder::<String>::new(Some(PgData::Text(s)))?;
+        let mut decoder = PgArrayDecoder::<String>::new(PgValue::str(TypeId(0), s))?;
 
         assert_eq!(decoder.decode()?, Some("".to_string()));
         assert_eq!(decoder.decode()?, Some("\"".to_string()));
@@ -216,9 +217,9 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_nulls() -> crate::Result<Postgres, ()> {
-        let mut decoder = PgArrayDecoder::<Option<bool>>::new(Some(PgData::Binary(
-            b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00", 0,
-        )))?;
+        let mut decoder = PgArrayDecoder::<Option<bool>>::new(PgValue::bytes(TypeId(0),
+            b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00",
+        ))?;
 
         assert_eq!(decoder.decode()?, Some(None));
         assert_eq!(decoder.decode()?, Some(Some(true)));
@@ -230,7 +231,7 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_i32() -> crate::Result<Postgres, ()> {
-        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgData::Binary(BUF_BINARY_I32, 0)))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::bytes(TypeId(0), BUF_BINARY_I32))?;
 
         let val_1 = decoder.decode()?;
         let val_2 = decoder.decode()?;

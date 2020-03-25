@@ -88,6 +88,8 @@ impl<'de> PgRecordDecoder<'de> {
 
 #[test]
 fn test_encode_field() {
+    use std::convert::TryInto;
+
     let value = "Foo Bar";
     let mut raw_encoded = Vec::new();
     <&str as Encode<Postgres>>::encode(&value, &mut raw_encoded);
@@ -111,6 +113,8 @@ fn test_encode_field() {
 
 #[test]
 fn test_decode_field() {
+    use crate::postgres::protocol::TypeId;
+
     let value = "Foo Bar".to_string();
 
     let mut buf = Vec::new();
@@ -118,7 +122,7 @@ fn test_decode_field() {
     encoder.encode(&value);
 
     let buf = buf.as_slice();
-    let mut decoder = PgRecordDecoder::new(Some(PgData::Binary(buf, 0))).unwrap();
+    let mut decoder = PgRecordDecoder::new(PgValue::bytes(TypeId(0), buf)).unwrap();
 
     let value_decoded: String = decoder.decode().unwrap();
     assert_eq!(value_decoded, value);
