@@ -66,7 +66,7 @@ fn parse_row_description(rd: RowDescription) -> Statement {
         }
 
         columns.push(Column {
-            type_oid: field.type_id.0,
+            type_id: field.type_id,
             format: field.type_format,
         });
     }

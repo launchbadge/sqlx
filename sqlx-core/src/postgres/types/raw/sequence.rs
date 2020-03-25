@@ -1,5 +1,6 @@
 use crate::decode::Decode;
 use crate::io::Buf;
+use crate::postgres::protocol::TypeId;
 use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BigEndian;
@@ -60,14 +61,14 @@ impl<'de> PgSequenceDecoder<'de> {
 
                 let value = if len < 0 {
                     // TODO: Grab the correct element OID
-                    T::decode(PgValue::null(0))?
+                    T::decode(PgValue::null(TypeId(0)))?
                 } else {
                     let value_buf = &buf[..(len as usize)];
 
                     *buf = &buf[(len as usize)..];
 
                     // TODO: Grab the correct element OID
-                    T::decode(PgValue::bytes(0, value_buf))?
+                    T::decode(PgValue::bytes(TypeId(0), value_buf))?
                 };
 
                 self.len += 1;
@@ -137,14 +138,14 @@ impl<'de> PgSequenceDecoder<'de> {
 
                 let value = T::decode(if end == Some(0) {
                     // TODO: Grab the correct element OID
-                    PgValue::null(0)
+                    PgValue::null(TypeId(0))
                 } else if !self.mixed && value == "NULL" {
                     // Yes, in arrays the text encoding of a NULL is just NULL
                     // TODO: Grab the correct element OID
-                    PgValue::null(0)
+                    PgValue::null(TypeId(0))
                 } else {
                     // TODO: Grab the correct element OID
-                    PgValue::str(0, &*value)
+                    PgValue::str(TypeId(0), &*value)
                 })?;
 
                 *s = if let Some(end) = end {

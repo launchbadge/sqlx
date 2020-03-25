@@ -234,7 +234,7 @@ impl Display for PgTypeInfo {
         if let Some(ref name) = self.name {
             write!(f, "{}", *name)
         } else {
-            write!(f, "OID {}", self.id.0)
+            write!(f, "{}", self.id)
         }
     }
 }

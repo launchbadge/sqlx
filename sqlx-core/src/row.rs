@@ -2,8 +2,8 @@
 
 use crate::database::Database;
 use crate::decode::Decode;
-use crate::types::Type;
-use crate::value::HasRawValue;
+use crate::types::{Type, TypeInfo};
+use crate::value::{HasRawValue, RawValue};
 
 /// A type that can be used to index into a [`Row`].
 ///
@@ -133,7 +133,22 @@ where
         I: ColumnIndex<'c, Self>,
         T: Decode<'c, Self::Database>,
     {
-        Ok(Decode::decode(self.try_get_raw(index)?)?)
+        let value = self.try_get_raw(index)?;
+        let value_type_info = value.type_info();
+        let output_type_info = T::type_info();
+
+        if !value_type_info.compatible(&output_type_info) {
+            let ty_name = std::any::type_name::<T>();
+
+            return Err(decode_err!(
+                "mismatched types; Rust type `{}` (as SQL type {}) is not compatible with SQL type {}",
+                ty_name,
+                output_type_info,
+                value_type_info
+            ));
+        }
+
+        T::decode(value)
     }
 
     #[doc(hidden)]

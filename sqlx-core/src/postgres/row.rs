@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::postgres::protocol::{DataRow, TypeFormat};
+use crate::postgres::protocol::{DataRow, TypeFormat, TypeId};
 use crate::postgres::value::PgValue;
 use crate::postgres::Postgres;
 use crate::row::{ColumnIndex, Row};
@@ -11,7 +11,7 @@ use crate::row::{ColumnIndex, Row};
 // For simple (unprepared) queries, format will always be text
 // For prepared queries, format will _almost_ always be binary
 pub(crate) struct Column {
-    pub(crate) type_oid: u32,
+    pub(crate) type_id: TypeId,
     pub(crate) format: TypeFormat,
 }
 
@@ -53,9 +53,9 @@ impl<'c> Row<'c> for PgRow<'c> {
         let column = &self.statement.columns[index];
         let buffer = self.data.get(index);
         let value = match (column.format, buffer) {
-            (_, None) => PgValue::null(column.type_oid),
-            (TypeFormat::Binary, Some(buf)) => PgValue::bytes(column.type_oid, buf),
-            (TypeFormat::Text, Some(buf)) => PgValue::utf8(column.type_oid, buf)?,
+            (_, None) => PgValue::null(column.type_id),
+            (TypeFormat::Binary, Some(buf)) => PgValue::bytes(column.type_id, buf),
+            (TypeFormat::Text, Some(buf)) => PgValue::utf8(column.type_id, buf)?,
         };
 
         Ok(value)

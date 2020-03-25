@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TypeId(pub(crate) u32);
 
@@ -71,4 +73,69 @@ impl TypeId {
 
     pub(crate) const JSON: TypeId = TypeId(114);
     pub(crate) const JSONB: TypeId = TypeId(3802);
+}
+
+impl Display for TypeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            TypeId::BOOL => f.write_str("BOOL"),
+
+            TypeId::INT2 => f.write_str("INT2"),
+            TypeId::INT4 => f.write_str("INT4"),
+            TypeId::INT8 => f.write_str("INT8"),
+
+            TypeId::FLOAT4 => f.write_str("FLOAT4"),
+            TypeId::FLOAT8 => f.write_str("FLOAT8"),
+
+            TypeId::NUMERIC => f.write_str("NUMERIC"),
+
+            TypeId::TEXT => f.write_str("TEXT"),
+            TypeId::VARCHAR => f.write_str("VARCHAR"),
+            TypeId::BPCHAR => f.write_str("BPCHAR"),
+
+            TypeId::DATE => f.write_str("DATE"),
+            TypeId::TIME => f.write_str("TIME"),
+            TypeId::TIMESTAMP => f.write_str("TIMESTAMP"),
+            TypeId::TIMESTAMPTZ => f.write_str("TIMESTAMPTZ"),
+
+            TypeId::BYTEA => f.write_str("BYTEA"),
+
+            TypeId::UUID => f.write_str("UUID"),
+
+            TypeId::CIDR => f.write_str("CIDR"),
+            TypeId::INET => f.write_str("INET"),
+
+            TypeId::ARRAY_BOOL => f.write_str("BOOL[]"),
+
+            TypeId::ARRAY_INT2 => f.write_str("INT2[]"),
+            TypeId::ARRAY_INT4 => f.write_str("INT4[]"),
+            TypeId::ARRAY_INT8 => f.write_str("INT8[]"),
+
+            TypeId::ARRAY_FLOAT4 => f.write_str("FLOAT4[]"),
+            TypeId::ARRAY_FLOAT8 => f.write_str("FLOAT8[]"),
+
+            TypeId::ARRAY_TEXT => f.write_str("TEXT[]"),
+            TypeId::ARRAY_VARCHAR => f.write_str("VARCHAR[]"),
+            TypeId::ARRAY_BPCHAR => f.write_str("BPCHAR[]"),
+
+            TypeId::ARRAY_NUMERIC => f.write_str("NUMERIC[]"),
+
+            TypeId::ARRAY_DATE => f.write_str("DATE[]"),
+            TypeId::ARRAY_TIME => f.write_str("TIME[]"),
+            TypeId::ARRAY_TIMESTAMP => f.write_str("TIMESTAMP[]"),
+            TypeId::ARRAY_TIMESTAMPTZ => f.write_str("TIMESTAMPTZ[]"),
+
+            TypeId::ARRAY_BYTEA => f.write_str("BYTEA[]"),
+
+            TypeId::ARRAY_UUID => f.write_str("UUID[]"),
+
+            TypeId::ARRAY_CIDR => f.write_str("CIDR[]"),
+            TypeId::ARRAY_INET => f.write_str("INET[]"),
+
+            TypeId::JSON => f.write_str("JSON"),
+            TypeId::JSONB => f.write_str("JSONB"),
+
+            _ => write!(f, "<{}>", self.0),
+        }
+    }
 }

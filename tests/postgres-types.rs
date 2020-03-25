@@ -12,7 +12,7 @@ use sqlx_test::{new, test_prepared_type, test_type};
 test_type!(null(
     Postgres,
     Option<i16>,
-    "NULL" == None::<i16>
+    "NULL::int2" == None::<i16>
 ));
 
 test_type!(bool(
