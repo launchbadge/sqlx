@@ -221,13 +221,13 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 async fn test_fetch_one_and_ping() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let (_id,): (i64,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 
     conn.ping().await?;
 
-    let (_id,): (i64,) = sqlx::query_as("SELECT 1 as id")
+    let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
 
