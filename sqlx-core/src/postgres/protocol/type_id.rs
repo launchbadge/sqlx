@@ -15,9 +15,13 @@ impl TypeId {
 
     pub(crate) const BOOL: TypeId = TypeId(16);
 
+    pub(crate) const CHAR: TypeId = TypeId(18);
+
     pub(crate) const INT2: TypeId = TypeId(21);
     pub(crate) const INT4: TypeId = TypeId(23);
     pub(crate) const INT8: TypeId = TypeId(20);
+
+    pub(crate) const OID: TypeId = TypeId(26);
 
     pub(crate) const FLOAT4: TypeId = TypeId(700);
     pub(crate) const FLOAT8: TypeId = TypeId(701);
@@ -46,9 +50,13 @@ impl TypeId {
 
     pub(crate) const ARRAY_BOOL: TypeId = TypeId(1000);
 
+    pub(crate) const ARRAY_CHAR: TypeId = TypeId(1002);
+
     pub(crate) const ARRAY_INT2: TypeId = TypeId(1005);
     pub(crate) const ARRAY_INT4: TypeId = TypeId(1007);
     pub(crate) const ARRAY_INT8: TypeId = TypeId(1016);
+
+    pub(crate) const ARRAY_OID: TypeId = TypeId(1028);
 
     pub(crate) const ARRAY_FLOAT4: TypeId = TypeId(1021);
     pub(crate) const ARRAY_FLOAT8: TypeId = TypeId(1022);
@@ -83,9 +91,13 @@ impl Display for TypeId {
         match *self {
             TypeId::BOOL => f.write_str("BOOL"),
 
+            TypeId::CHAR => f.write_str("\"CHAR\""),
+
             TypeId::INT2 => f.write_str("INT2"),
             TypeId::INT4 => f.write_str("INT4"),
             TypeId::INT8 => f.write_str("INT8"),
+
+            TypeId::OID => f.write_str("OID"),
 
             TypeId::FLOAT4 => f.write_str("FLOAT4"),
             TypeId::FLOAT8 => f.write_str("FLOAT8"),
@@ -112,9 +124,13 @@ impl Display for TypeId {
 
             TypeId::ARRAY_BOOL => f.write_str("BOOL[]"),
 
+            TypeId::ARRAY_CHAR => f.write_str("\"CHAR\"[]"),
+
             TypeId::ARRAY_INT2 => f.write_str("INT2[]"),
             TypeId::ARRAY_INT4 => f.write_str("INT4[]"),
             TypeId::ARRAY_INT8 => f.write_str("INT8[]"),
+
+            TypeId::ARRAY_OID => f.write_str("OID[]"),
 
             TypeId::ARRAY_FLOAT4 => f.write_str("FLOAT4[]"),
             TypeId::ARRAY_FLOAT8 => f.write_str("FLOAT8[]"),

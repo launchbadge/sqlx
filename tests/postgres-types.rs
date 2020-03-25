@@ -22,8 +22,17 @@ test_type!(bool(
     "true::boolean" == true
 ));
 
+test_type!(i8(Postgres, i8, "120::\"char\"" == 120_i8));
 test_type!(i16(Postgres, i16, "821::smallint" == 821_i16));
-test_type!(i32(Postgres, i32, "94101::int" == 94101_i32));
+
+test_type!(i32(
+    Postgres,
+    i32,
+    "94101::int" == 94101_i32,
+    "-5101::int" == -5101_i32
+));
+
+test_type!(u32(Postgres, u32, "94101::oid" == 94101_u32));
 test_type!(i64(Postgres, i64, "9358295312::bigint" == 9358295312_i64));
 
 test_type!(f32(Postgres, f32, "9419.122::real" == 9419.122_f32));

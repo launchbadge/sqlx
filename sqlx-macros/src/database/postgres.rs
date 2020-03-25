@@ -2,8 +2,10 @@ impl_database_ext! {
     sqlx::postgres::Postgres {
         bool,
         String | &str,
+        i8,
         i16,
         i32,
+        u32,
         i64,
         f32,
         f64,
@@ -46,8 +48,10 @@ impl_database_ext! {
         // Arrays
         Vec<bool> | &[bool],
         Vec<String> | &[String],
+        Vec<i8> | &[i8],
         Vec<i16> | &[i16],
         Vec<i32> | &[i32],
+        Vec<u32> | &[u32],
         Vec<i64> | &[i64],
         Vec<f32> | &[f32],
         Vec<f64> | &[f64],
