@@ -239,6 +239,14 @@ impl Display for PgTypeInfo {
     }
 }
 
+impl PartialEq<PgTypeInfo> for PgTypeInfo {
+    fn eq(&self, other: &PgTypeInfo) -> bool {
+        // Postgres is strongly typed (mostly) so the rules that make sense here are equivalent
+        // to the rules that make sense in [compatible]
+        self.compatible(other)
+    }
+}
+
 impl TypeInfo for PgTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
         match (self.id, other.id) {
@@ -281,10 +289,7 @@ impl TypeInfo for PgTypeInfo {
                 true
             }
 
-            _ => {
-                // TODO: 99% of postgres types are direct equality for [compatible]; when we add something that isn't (e.g, JSON/JSONB), fix this here
-                self.id.0 == other.id.0
-            }
+            _ => self.id.0 == other.id.0,
         }
     }
 }

@@ -83,6 +83,12 @@ impl Display for SqliteTypeInfo {
     }
 }
 
+impl PartialEq<SqliteTypeInfo> for SqliteTypeInfo {
+    fn eq(&self, other: &SqliteTypeInfo) -> bool {
+        self.r#type == other.r#type || self.affinity == other.affinity
+    }
+}
+
 impl TypeInfo for SqliteTypeInfo {
     #[inline]
     fn compatible(&self, _other: &Self) -> bool {
