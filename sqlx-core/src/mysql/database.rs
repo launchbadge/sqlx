@@ -1,5 +1,8 @@
-use crate::database::{Database, HasCursor, HasRawValue, HasRow};
+use crate::cursor::HasCursor;
+use crate::database::Database;
 use crate::mysql::error::MySqlError;
+use crate::row::HasRow;
+use crate::value::HasRawValue;
 
 /// **MySQL** database driver.
 #[derive(Debug)]
@@ -32,5 +35,7 @@ impl<'c, 'q> HasCursor<'c, 'q> for MySql {
 }
 
 impl<'c> HasRawValue<'c> for MySql {
+    type Database = MySql;
+
     type RawValue = Option<super::MySqlValue<'c>>;
 }

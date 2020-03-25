@@ -1,31 +1,31 @@
 use crate::decode::Decode;
 use crate::io::Buf;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BigEndian;
 
 pub(crate) struct PgSequenceDecoder<'de> {
-    value: PgValue<'de>,
+    data: PgData<'de>,
     len: usize,
     mixed: bool,
 }
 
 impl<'de> PgSequenceDecoder<'de> {
-    pub(crate) fn new(mut value: PgValue<'de>, mixed: bool) -> Self {
-        match value {
-            PgValue::Binary(_) => {
+    pub(crate) fn new(mut data: PgData<'de>, mixed: bool) -> Self {
+        match data {
+            PgData::Binary(_) => {
                 // assume that this has already gotten tweaked by the caller as
                 // tuples and arrays have a very different header
             }
 
-            PgValue::Text(ref mut s) => {
+            PgData::Text(ref mut s) => {
                 // remove the outer ( ... ) or { ... }
                 *s = &s[1..(s.len() - 1)];
             }
         }
 
         Self {
-            value,
+            data,
             mixed,
             len: 0,
         }
@@ -40,8 +40,8 @@ impl<'de> PgSequenceDecoder<'de> {
         T: for<'seq> Decode<'seq, Postgres>,
         T: Type<Postgres>,
     {
-        match self.value {
-            PgValue::Binary(ref mut buf) => {
+        match self.data {
+            PgData::Binary(ref mut buf) => {
                 if buf.is_empty() {
                     return Ok(None);
                 }
@@ -59,13 +59,15 @@ impl<'de> PgSequenceDecoder<'de> {
                 let len = buf.get_i32::<BigEndian>()? as isize;
 
                 let value = if len < 0 {
-                    T::decode(None)?
+                    // TODO: Grab the correct element OID
+                    T::decode(PgValue::null(0))?
                 } else {
                     let value_buf = &buf[..(len as usize)];
 
                     *buf = &buf[(len as usize)..];
 
-                    T::decode(Some(PgValue::Binary(value_buf)))?
+                    // TODO: Grab the correct element OID
+                    T::decode(PgValue::bytes(0, value_buf))?
                 };
 
                 self.len += 1;
@@ -73,7 +75,7 @@ impl<'de> PgSequenceDecoder<'de> {
                 Ok(Some(value))
             }
 
-            PgValue::Text(ref mut s) => {
+            PgData::Text(ref mut s) => {
                 if s.is_empty() {
                     return Ok(None);
                 }
@@ -134,12 +136,15 @@ impl<'de> PgSequenceDecoder<'de> {
                 };
 
                 let value = T::decode(if end == Some(0) {
-                    None
+                    // TODO: Grab the correct element OID
+                    PgValue::null(0)
                 } else if !self.mixed && value == "NULL" {
                     // Yes, in arrays the text encoding of a NULL is just NULL
-                    None
+                    // TODO: Grab the correct element OID
+                    PgValue::null(0)
                 } else {
-                    Some(PgValue::Text(&value))
+                    // TODO: Grab the correct element OID
+                    PgValue::str(0, &*value)
                 })?;
 
                 *s = if let Some(end) = end {
@@ -158,7 +163,7 @@ impl<'de> PgSequenceDecoder<'de> {
 
 impl<'de> From<&'de str> for PgSequenceDecoder<'de> {
     fn from(s: &'de str) -> Self {
-        Self::new(PgValue::Text(s), false)
+        Self::new(PgData::Text(s), false)
     }
 }
 

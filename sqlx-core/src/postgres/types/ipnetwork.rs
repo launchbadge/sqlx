@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
@@ -6,9 +5,9 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::Postgres;
+use crate::postgres::value::PgValue;
+use crate::postgres::{PgData, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -67,10 +66,10 @@ impl Encode<Postgres> for IpNetwork {
 }
 
 impl<'de> Decode<'de, Postgres> for IpNetwork {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(buf) => decode(buf),
-            PgValue::Text(s) => s.parse().map_err(|err| crate::Error::decode(err)),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(buf) => decode(buf),
+            PgData::Text(s) => s.parse().map_err(crate::Error::decode),
         }
     }
 }

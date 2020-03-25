@@ -11,8 +11,9 @@ use crate::executor::Executor;
 use crate::postgres::database::Postgres;
 use crate::postgres::protocol::{
     Authentication, AuthenticationMd5, AuthenticationSasl, BackendKeyData, Message,
-    PasswordMessage, StartupMessage, StatementId, Terminate, TypeFormat,
+    PasswordMessage, StartupMessage, StatementId, Terminate,
 };
+use crate::postgres::row::Statement;
 use crate::postgres::stream::PgStream;
 use crate::postgres::{sasl, tls};
 use crate::url::Url;
@@ -82,9 +83,11 @@ pub struct PgConnection {
     pub(super) next_statement_id: u32,
     pub(super) is_ready: bool,
 
-    pub(super) cache_statement: HashMap<Box<str>, StatementId>,
-    pub(super) cache_statement_columns: HashMap<StatementId, Arc<HashMap<Box<str>, usize>>>,
-    pub(super) cache_statement_formats: HashMap<StatementId, Arc<[TypeFormat]>>,
+    // cache query -> statement ID
+    pub(super) cache_statement_id: HashMap<Box<str>, StatementId>,
+
+    // cache statement ID -> statement description
+    pub(super) cache_statement: HashMap<StatementId, Arc<Statement>>,
 
     // Work buffer for the value ranges of the current row
     // This is used as the backing memory for each Row's value indexes
@@ -250,9 +253,8 @@ impl PgConnection {
             current_row_values: Vec::with_capacity(10),
             next_statement_id: 1,
             is_ready: true,
-            cache_statement: HashMap::new(),
-            cache_statement_columns: HashMap::new(),
-            cache_statement_formats: HashMap::new(),
+            cache_statement_id: HashMap::with_capacity(10),
+            cache_statement: HashMap::with_capacity(10),
             process_id: key_data.process_id,
             secret_key: key_data.secret_key,
         })

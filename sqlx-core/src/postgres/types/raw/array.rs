@@ -2,10 +2,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::{Buf, BufMut};
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BE;
-use std::convert::TryInto;
 use std::marker::PhantomData;
 
 // https://git.postgresql.org/gitweb/?p=postgresql.git;a=blob;f=src/include/utils/array.h;h=7f7e744cb12bc872f628f90dad99dfdf074eb314;hb=master#l6
@@ -94,17 +93,17 @@ where
     T: for<'arr> Decode<'arr, Postgres>,
     T: Type<Postgres>,
 {
-    pub(crate) fn new(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        let mut value = value.try_into()?;
+    pub(crate) fn new(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        let mut data = value.try_get()?;
 
-        match value {
-            PgValue::Binary(ref mut buf) => {
+        match data {
+            PgData::Binary(ref mut buf) => {
                 // number of dimensions of the array
                 let ndim = buf.get_i32::<BE>()?;
 
                 if ndim == 0 {
                     return Ok(Self {
-                        inner: PgSequenceDecoder::new(PgValue::Binary(&[]), false),
+                        inner: PgSequenceDecoder::new(PgData::Binary(&[]), false),
                         phantom: PhantomData,
                     });
                 }
@@ -141,11 +140,11 @@ where
                 }
             }
 
-            PgValue::Text(_) => {}
+            PgData::Text(_) => {}
         }
 
         Ok(Self {
-            inner: PgSequenceDecoder::new(value, false),
+            inner: PgSequenceDecoder::new(data, false),
             phantom: PhantomData,
         })
     }
@@ -172,7 +171,7 @@ where
 mod tests {
     use super::PgArrayDecoder;
     use super::PgArrayEncoder;
-    use crate::postgres::{PgValue, Postgres};
+    use crate::postgres::{PgData, PgValue, Postgres};
 
     const BUF_BINARY_I32: &[u8] = b"\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x17\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x00\x00\x04\x00\x00\x00\x03\x00\x00\x00\x04\x00\x00\x00\x04";
 
@@ -193,7 +192,7 @@ mod tests {
     #[test]
     fn it_decodes_text_i32() -> crate::Result<Postgres, ()> {
         let s = "{1,152,-12412}";
-        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgValue::Text(s)))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgData::Text(s)))?;
 
         assert_eq!(decoder.decode()?, Some(1));
         assert_eq!(decoder.decode()?, Some(152));
@@ -206,7 +205,7 @@ mod tests {
     #[test]
     fn it_decodes_text_str() -> crate::Result<Postgres, ()> {
         let s = "{\"\",\"\\\"\"}";
-        let mut decoder = PgArrayDecoder::<String>::new(Some(PgValue::Text(s)))?;
+        let mut decoder = PgArrayDecoder::<String>::new(Some(PgData::Text(s)))?;
 
         assert_eq!(decoder.decode()?, Some("".to_string()));
         assert_eq!(decoder.decode()?, Some("\"".to_string()));
@@ -217,8 +216,8 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_nulls() -> crate::Result<Postgres, ()> {
-        let mut decoder = PgArrayDecoder::<Option<bool>>::new(Some(PgValue::Binary(
-            b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00"
+        let mut decoder = PgArrayDecoder::<Option<bool>>::new(Some(PgData::Binary(
+            b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00", 0,
         )))?;
 
         assert_eq!(decoder.decode()?, Some(None));
@@ -231,7 +230,7 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_i32() -> crate::Result<Postgres, ()> {
-        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgValue::Binary(BUF_BINARY_I32)))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(Some(PgData::Binary(BUF_BINARY_I32, 0)))?;
 
         let val_1 = decoder.decode()?;
         let val_2 = decoder.decode()?;

@@ -7,16 +7,14 @@ use crate::connection::ConnectionSource;
 use crate::cursor::Cursor;
 use crate::executor::Execute;
 use crate::pool::Pool;
-use crate::postgres::protocol::{
-    DataRow, Message, ReadyForQuery, RowDescription, StatementId, TypeFormat,
-};
+use crate::postgres::protocol::{DataRow, Message, ReadyForQuery, RowDescription, StatementId};
+use crate::postgres::row::{Column, Statement};
 use crate::postgres::{PgArguments, PgConnection, PgRow, Postgres};
 
 pub struct PgCursor<'c, 'q> {
     source: ConnectionSource<'c, PgConnection>,
     query: Option<(&'q str, Option<PgArguments>)>,
-    columns: Arc<HashMap<Box<str>, usize>>,
-    formats: Arc<[TypeFormat]>,
+    statement: Arc<Statement>,
 }
 
 impl crate::cursor::private::Sealed for PgCursor<'_, '_> {}
@@ -32,8 +30,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     {
         Self {
             source: ConnectionSource::Pool(pool.clone()),
-            columns: Arc::default(),
-            formats: Arc::new([] as [TypeFormat; 0]),
+            statement: Arc::default(),
             query: Some(query.into_parts()),
         }
     }
@@ -46,8 +43,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     {
         Self {
             source: ConnectionSource::ConnectionRef(conn),
-            columns: Arc::default(),
-            formats: Arc::new([] as [TypeFormat; 0]),
+            statement: Arc::default(),
             query: Some(query.into_parts()),
         }
     }
@@ -57,29 +53,33 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     }
 }
 
-fn parse_row_description(rd: RowDescription) -> (HashMap<Box<str>, usize>, Vec<TypeFormat>) {
-    let mut columns = HashMap::new();
-    let mut formats = Vec::new();
+fn parse_row_description(rd: RowDescription) -> Statement {
+    let mut names = HashMap::new();
+    let mut columns = Vec::new();
 
     columns.reserve(rd.fields.len());
-    formats.reserve(rd.fields.len());
+    names.reserve(rd.fields.len());
 
     for (index, field) in rd.fields.iter().enumerate() {
         if let Some(name) = &field.name {
-            columns.insert(name.clone(), index);
+            names.insert(name.clone(), index);
         }
 
-        formats.push(field.type_format);
+        columns.push(Column {
+            type_oid: field.type_id.0,
+            format: field.type_format,
+        });
     }
 
-    (columns, formats)
+    Statement {
+        columns: columns.into_boxed_slice(),
+        names,
+    }
 }
 
 // Used to describe the incoming results
 // We store the column map in an Arc and share it among all rows
-async fn expect_desc(
-    conn: &mut PgConnection,
-) -> crate::Result<Postgres, (HashMap<Box<str>, usize>, Vec<TypeFormat>)> {
+async fn expect_desc(conn: &mut PgConnection) -> crate::Result<Postgres, Statement> {
     let description: Option<_> = loop {
         match conn.stream.receive().await? {
             Message::ParseComplete | Message::BindComplete => {}
@@ -106,24 +106,15 @@ async fn expect_desc(
 // A form of describe that uses the statement cache
 async fn get_or_describe(
     conn: &mut PgConnection,
-    statement: StatementId,
-) -> crate::Result<Postgres, (Arc<HashMap<Box<str>, usize>>, Arc<[TypeFormat]>)> {
-    if !conn.cache_statement_columns.contains_key(&statement)
-        || !conn.cache_statement_formats.contains_key(&statement)
-    {
-        let (columns, formats) = expect_desc(conn).await?;
+    id: StatementId,
+) -> crate::Result<Postgres, Arc<Statement>> {
+    if !conn.cache_statement.contains_key(&id) {
+        let statement = expect_desc(conn).await?;
 
-        conn.cache_statement_columns
-            .insert(statement, Arc::new(columns));
-
-        conn.cache_statement_formats
-            .insert(statement, Arc::from(formats));
+        conn.cache_statement.insert(id, Arc::new(statement));
     }
 
-    Ok((
-        Arc::clone(&conn.cache_statement_columns[&statement]),
-        Arc::clone(&conn.cache_statement_formats[&statement]),
-    ))
+    Ok(Arc::clone(&conn.cache_statement[&id]))
 }
 
 async fn next<'a, 'c: 'a, 'q: 'a>(
@@ -141,10 +132,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
         if let Some(statement) = statement {
             // A prepared statement will re-use the previous column map if
             // this query has been executed before
-            let (columns, formats) = get_or_describe(&mut *conn, statement).await?;
-
-            cursor.columns = columns;
-            cursor.formats = formats;
+            cursor.statement = get_or_describe(&mut *conn, statement).await?;
         }
 
         // A non-prepared query must be described each time
@@ -171,18 +159,14 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
             Message::RowDescription => {
                 let rd = RowDescription::read(conn.stream.buffer())?;
-                let (columns, formats) = parse_row_description(rd);
-
-                cursor.columns = Arc::new(columns);
-                cursor.formats = Arc::from(formats);
+                cursor.statement = Arc::new(parse_row_description(rd));
             }
 
             Message::DataRow => {
                 let data = DataRow::read(conn.stream.buffer(), &mut conn.current_row_values)?;
 
                 return Ok(Some(PgRow {
-                    columns: Arc::clone(&cursor.columns),
-                    formats: Arc::clone(&cursor.formats),
+                    statement: Arc::clone(&cursor.statement),
                     data,
                 }));
             }

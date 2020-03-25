@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::str::FromStr;
 
 use byteorder::{NetworkEndian, ReadBytesExt};
@@ -7,7 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -35,10 +34,10 @@ impl Encode<Postgres> for i16 {
 }
 
 impl<'de> Decode<'de, Postgres> for i16 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(mut buf) => buf.read_i16::<NetworkEndian>().map_err(Error::decode),
-            PgValue::Text(s) => i16::from_str(s).map_err(Error::decode),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(mut buf) => buf.read_i16::<NetworkEndian>().map_err(Error::decode),
+            PgData::Text(s) => i16::from_str(s).map_err(Error::decode),
         }
     }
 }
@@ -67,10 +66,10 @@ impl Encode<Postgres> for i32 {
 }
 
 impl<'de> Decode<'de, Postgres> for i32 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(mut buf) => buf.read_i32::<NetworkEndian>().map_err(Error::decode),
-            PgValue::Text(s) => i32::from_str(s).map_err(Error::decode),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(mut buf) => buf.read_i32::<NetworkEndian>().map_err(Error::decode),
+            PgData::Text(s) => i32::from_str(s).map_err(Error::decode),
         }
     }
 }
@@ -99,10 +98,10 @@ impl Encode<Postgres> for i64 {
 }
 
 impl<'de> Decode<'de, Postgres> for i64 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(mut buf) => buf.read_i64::<NetworkEndian>().map_err(Error::decode),
-            PgValue::Text(s) => i64::from_str(s).map_err(Error::decode),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(mut buf) => buf.read_i64::<NetworkEndian>().map_err(Error::decode),
+            PgData::Text(s) => i64::from_str(s).map_err(Error::decode),
         }
     }
 }

@@ -2,10 +2,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::Buf;
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BigEndian;
-use std::convert::TryInto;
 
 pub struct PgRecordEncoder<'a> {
     buf: &'a mut Vec<u8>,
@@ -62,17 +61,17 @@ impl<'a> PgRecordEncoder<'a> {
 pub struct PgRecordDecoder<'de>(PgSequenceDecoder<'de>);
 
 impl<'de> PgRecordDecoder<'de> {
-    pub fn new(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        let mut value: PgValue = value.try_into()?;
+    pub fn new(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        let mut data = value.try_get()?;
 
-        match value {
-            PgValue::Text(_) => {}
-            PgValue::Binary(ref mut buf) => {
+        match data {
+            PgData::Text(_) => {}
+            PgData::Binary(ref mut buf) => {
                 let _expected_len = buf.get_u32::<BigEndian>()?;
             }
         }
 
-        Ok(Self(PgSequenceDecoder::new(value, true)))
+        Ok(Self(PgSequenceDecoder::new(data, true)))
     }
 
     #[inline]
@@ -119,7 +118,7 @@ fn test_decode_field() {
     encoder.encode(&value);
 
     let buf = buf.as_slice();
-    let mut decoder = PgRecordDecoder::new(Some(PgValue::Binary(buf))).unwrap();
+    let mut decoder = PgRecordDecoder::new(Some(PgData::Binary(buf, 0))).unwrap();
 
     let value_decoded: String = decoder.decode().unwrap();
     assert_eq!(value_decoded, value);

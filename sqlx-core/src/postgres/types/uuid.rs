@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::str::FromStr;
 
 use uuid::Uuid;
@@ -6,8 +5,8 @@ use uuid::Uuid;
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
+use crate::postgres::value::{PgData, PgValue};
 use crate::postgres::Postgres;
 use crate::types::Type;
 
@@ -36,10 +35,10 @@ impl Encode<Postgres> for Uuid {
 }
 
 impl<'de> Decode<'de, Postgres> for Uuid {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(buf) => Uuid::from_slice(buf).map_err(|err| crate::Error::decode(err)),
-            PgValue::Text(s) => Uuid::from_str(s).map_err(|err| crate::Error::decode(err)),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(buf) => Uuid::from_slice(buf).map_err(crate::Error::decode),
+            PgData::Text(s) => Uuid::from_str(s).map_err(crate::Error::decode),
         }
     }
 }

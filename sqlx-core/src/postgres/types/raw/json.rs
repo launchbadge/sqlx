@@ -3,10 +3,9 @@ use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::protocol::TypeId;
 use crate::postgres::types::PgTypeInfo;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::{PgData, PgValue, Postgres};
 use crate::types::Type;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 
 #[derive(Debug, PartialEq)]
 pub struct PgJson<T>(pub T);
@@ -32,10 +31,10 @@ where
     T: 'de,
     T: Deserialize<'de>,
 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        (match value.try_into()? {
-            PgValue::Text(s) => serde_json::from_str(s),
-            PgValue::Binary(buf) => serde_json::from_slice(buf),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        (match value.try_get()? {
+            PgData::Text(s) => serde_json::from_str(s),
+            PgData::Binary(buf) => serde_json::from_slice(buf),
         })
         .map(PgJson)
         .map_err(crate::Error::decode)
@@ -71,10 +70,10 @@ where
     T: 'de,
     T: Deserialize<'de>,
 {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        (match value.try_into()? {
-            PgValue::Text(s) => serde_json::from_str(s),
-            PgValue::Binary(mut buf) => {
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        (match value.try_get()? {
+            PgData::Text(s) => serde_json::from_str(s),
+            PgData::Binary(mut buf) => {
                 let version = buf.get_u8()?;
 
                 assert_eq!(

@@ -6,8 +6,9 @@ pub use cursor::PgCursor;
 pub use database::Postgres;
 pub use error::PgError;
 pub use listen::{PgListener, PgNotification};
-pub use row::{PgRow, PgValue};
+pub use row::PgRow;
 pub use types::PgTypeInfo;
+pub use value::{PgData, PgValue};
 
 mod arguments;
 mod connection;
@@ -22,6 +23,7 @@ mod sasl;
 mod stream;
 mod tls;
 pub mod types;
+mod value;
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for **Postgres**.
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
@@ -29,5 +31,4 @@ pub type PgPool = crate::pool::Pool<PgConnection>;
 
 make_query_as!(PgQueryAs, Postgres, PgRow);
 impl_map_row_for_row!(Postgres, PgRow);
-impl_column_index_for_row!(PgRow);
 impl_from_row_for_tuples!(Postgres, PgRow);

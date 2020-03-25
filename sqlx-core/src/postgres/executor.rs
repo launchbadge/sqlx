@@ -22,7 +22,7 @@ impl PgConnection {
     }
 
     pub(crate) fn write_prepare(&mut self, query: &str, args: &PgArguments) -> StatementId {
-        if let Some(&id) = self.cache_statement.get(query) {
+        if let Some(&id) = self.cache_statement_id.get(query) {
             id
         } else {
             let id = StatementId(self.next_statement_id);
@@ -35,7 +35,7 @@ impl PgConnection {
                 param_types: &*args.types,
             });
 
-            self.cache_statement.insert(query.into(), id);
+            self.cache_statement_id.insert(query.into(), id);
 
             id
         }
@@ -106,7 +106,7 @@ impl PgConnection {
 
             // Next, [Describe] will return the expected result columns and types
             // Conditionally run [Describe] only if the results have not been cached
-            if !self.cache_statement_columns.contains_key(&statement) {
+            if !self.cache_statement.contains_key(&statement) {
                 self.write_describe(protocol::Describe::Portal(""));
             }
 

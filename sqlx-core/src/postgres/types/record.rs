@@ -1,8 +1,8 @@
 use crate::decode::Decode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::row::PgValue;
 use crate::postgres::types::raw::PgRecordDecoder;
 use crate::postgres::types::PgTypeInfo;
+use crate::postgres::value::PgValue;
 use crate::postgres::Postgres;
 use crate::types::Type;
 
@@ -42,7 +42,7 @@ macro_rules! impl_pg_record_for_tuple {
             $($T: Type<Postgres>,)+
             $($T: for<'tup> Decode<'tup, Postgres>,)+
         {
-            fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
+            fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
                 let mut decoder = PgRecordDecoder::new(value)?;
 
                 $(let $idx: $T = decoder.decode()?;)+

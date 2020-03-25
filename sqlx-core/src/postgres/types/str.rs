@@ -1,11 +1,10 @@
-use std::convert::TryInto;
 use std::str::from_utf8;
 
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::row::PgValue;
 use crate::postgres::types::PgTypeInfo;
+use crate::postgres::value::{PgData, PgValue};
 use crate::postgres::Postgres;
 use crate::types::Type;
 use crate::Error;
@@ -67,16 +66,16 @@ impl Encode<Postgres> for String {
 }
 
 impl<'de> Decode<'de, Postgres> for String {
-    fn decode(buf: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        <&'de str as Decode<Postgres>>::decode(buf).map(ToOwned::to_owned)
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        <&'de str as Decode<Postgres>>::decode(value).map(ToOwned::to_owned)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for &'de str {
-    fn decode(value: Option<PgValue<'de>>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(buf) => from_utf8(buf).map_err(Error::decode),
-            PgValue::Text(s) => Ok(s),
+    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(buf) => from_utf8(buf).map_err(Error::decode),
+            PgData::Text(s) => Ok(s),
         }
     }
 }

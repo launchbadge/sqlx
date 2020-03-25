@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 use byteorder::BigEndian;
 
@@ -6,7 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -109,8 +109,8 @@ impl PgNumeric {
 /// Receiving `PgNumeric` is currently only supported for the Postgres
 /// binary (prepared statements) protocol.
 impl Decode<'_, Postgres> for PgNumeric {
-    fn decode(value: Option<PgValue>) -> crate::Result<Postgres, Self> {
-        if let PgValue::Binary(bytes) = value.try_into()? {
+    fn decode(value: PgValue) -> crate::Result<Postgres, Self> {
+        if let PgData::Binary(bytes) = value.try_get()? {
             Self::from_bytes(bytes)
         } else {
             Err(Error::Decode(
@@ -119,6 +119,7 @@ impl Decode<'_, Postgres> for PgNumeric {
         }
     }
 }
+
 /// ### Panics
 ///
 /// * If `digits.len()` overflows `i16`

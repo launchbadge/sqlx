@@ -26,9 +26,6 @@ impl<'c> DataRow<'c> {
         buffer: &'c [u8],
         values: &'c mut Vec<Option<Range<u32>>>,
     ) -> crate::Result<Postgres, Self> {
-        // let buffer = connection.stream.buffer();
-        // let values = &mut connection.current_row_values;
-
         values.clear();
 
         let mut buf = buffer;

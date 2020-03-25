@@ -6,7 +6,7 @@ use num_bigint::{BigInt, Sign};
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::{PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 use super::raw::{PgNumeric, PgNumericSign};
@@ -152,10 +152,10 @@ impl Encode<Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
-    fn decode(value: Option<PgValue>) -> crate::Result<Postgres, Self> {
-        match value.try_into()? {
-            PgValue::Binary(binary) => PgNumeric::from_bytes(binary)?.try_into(),
-            PgValue::Text(text) => text
+    fn decode(value: PgValue) -> crate::Result<Postgres, Self> {
+        match value.try_get()? {
+            PgData::Binary(binary) => PgNumeric::from_bytes(binary)?.try_into(),
+            PgData::Text(text) => text
                 .parse::<BigDecimal>()
                 .map_err(|e| crate::Error::Decode(e.into())),
         }
