@@ -19,5 +19,5 @@ pub trait HasRawValue<'c> {
 pub trait RawValue<'c> {
     type Database: Database;
 
-    fn type_info(&self) -> <Self::Database as Database>::TypeInfo;
+    fn type_info(&self) -> Option<<Self::Database as Database>::TypeInfo>;
 }

@@ -65,7 +65,11 @@ impl<'c> PgValue<'c> {
 impl<'c> RawValue<'c> for PgValue<'c> {
     type Database = Postgres;
 
-    fn type_info(&self) -> PgTypeInfo {
-        PgTypeInfo::with_oid(self.type_id.0)
+    fn type_info(&self) -> Option<PgTypeInfo> {
+        if self.data.is_some() {
+            Some(PgTypeInfo::with_oid(self.type_id.0))
+        } else {
+            None
+        }
     }
 }

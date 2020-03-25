@@ -62,7 +62,7 @@ where
     T: Serialize,
 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        // JSONB version (as of 2020-03-20)
+        // JSONB version (as of 2020-03-20  )
         buf.put_u8(1);
 
         serde_json::to_writer(buf, &self.0)
@@ -79,7 +79,7 @@ where
         (match value.try_get()? {
             PgData::Text(s) => serde_json::from_str(s),
             PgData::Binary(mut buf) => {
-                if value.type_info().id == TypeId::JSONB {
+                if value.type_info().as_ref().map(|info| info.id) == Some(TypeId::JSONB) {
                     let version = buf.get_u8()?;
 
                     assert_eq!(

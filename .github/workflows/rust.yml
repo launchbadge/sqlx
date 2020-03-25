@@ -121,42 +121,42 @@ jobs:
     # -----------------------------------------------------
 
     # integration test: async-std (chrono)
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: async-std (time)
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid time bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid time bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: async-std (time + chrono)
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono time bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros uuid chrono time bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: tokio (chrono)
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: tokio (time)
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid time bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid time bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # integration test: tokio (time + chrono)
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono time bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros uuid chrono time bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # UI feature gate tests: async-std
-    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-async-std postgres macros bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 
     # UI feature gate tests: tokio
-    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros bigdecimal ipnetwork tls'
+    - run: cargo test --no-default-features --features 'runtime-tokio postgres macros bigdecimal json ipnetwork tls'
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
 

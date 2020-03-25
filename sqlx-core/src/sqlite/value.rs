@@ -27,20 +27,20 @@ pub struct SqliteValue<'c> {
 impl<'c> SqliteValue<'c> {
     /// Returns true if the value should be intrepreted as NULL.
     pub(super) fn is_null(&self) -> bool {
-        self.r#type() == SqliteType::Null
+        self.r#type().is_none()
     }
 
-    fn r#type(&self) -> SqliteType {
+    fn r#type(&self) -> Option<SqliteType> {
         #[allow(unsafe_code)]
         let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index) };
 
         // SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL
         match type_code {
-            SQLITE_INTEGER => SqliteType::Integer,
-            SQLITE_FLOAT => SqliteType::Float,
-            SQLITE_TEXT => SqliteType::Text,
-            SQLITE_BLOB => SqliteType::Blob,
-            SQLITE_NULL => SqliteType::Null,
+            SQLITE_INTEGER => Some(SqliteType::Integer),
+            SQLITE_FLOAT => Some(SqliteType::Float),
+            SQLITE_TEXT => Some(SqliteType::Text),
+            SQLITE_BLOB => Some(SqliteType::Blob),
+            SQLITE_NULL => None,
 
             _ => unreachable!("received unexpected column type: {}", type_code),
         }
@@ -111,10 +111,10 @@ impl<'c> SqliteValue<'c> {
 impl<'c> RawValue<'c> for SqliteValue<'c> {
     type Database = Sqlite;
 
-    fn type_info(&self) -> SqliteTypeInfo {
-        SqliteTypeInfo {
-            r#type: self.r#type(),
+    fn type_info(&self) -> Option<SqliteTypeInfo> {
+        Some(SqliteTypeInfo {
+            r#type: self.r#type()?,
             affinity: None,
-        }
+        })
     }
 }

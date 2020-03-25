@@ -10,7 +10,7 @@ pub enum MySqlData<'c> {
 
 #[derive(Debug)]
 pub struct MySqlValue<'c> {
-    type_info: MySqlTypeInfo,
+    type_info: Option<MySqlTypeInfo>,
     data: Option<MySqlData<'c>>,
 }
 
@@ -31,23 +31,23 @@ impl<'c> MySqlValue<'c> {
         self.data
     }
 
-    pub(crate) fn null(type_info: MySqlTypeInfo) -> Self {
+    pub(crate) fn null() -> Self {
         Self {
-            type_info,
+            type_info: None,
             data: None,
         }
     }
 
     pub(crate) fn binary(type_info: MySqlTypeInfo, buf: &'c [u8]) -> Self {
         Self {
-            type_info,
+            type_info: Some(type_info),
             data: Some(MySqlData::Binary(buf)),
         }
     }
 
     pub(crate) fn text(type_info: MySqlTypeInfo, buf: &'c [u8]) -> Self {
         Self {
-            type_info,
+            type_info: Some(type_info),
             data: Some(MySqlData::Text(buf)),
         }
     }
@@ -56,7 +56,7 @@ impl<'c> MySqlValue<'c> {
 impl<'c> RawValue<'c> for MySqlValue<'c> {
     type Database = MySql;
 
-    fn type_info(&self) -> MySqlTypeInfo {
+    fn type_info(&self) -> Option<MySqlTypeInfo> {
         self.type_info.clone()
     }
 }

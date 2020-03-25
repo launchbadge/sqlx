@@ -134,10 +134,15 @@ where
         T: Decode<'c, Self::Database>,
     {
         let value = self.try_get_raw(index)?;
-        let expected_ty = value.type_info();
 
-        if !expected_ty.compatible(&T::type_info()) {
-            return Err(crate::Error::mismatched_types::<T>(expected_ty));
+        if let Some(expected_ty) = value.type_info() {
+            // NOTE: If there is no type, the value is NULL. This is fine. If the user tries
+            //       to get this into a non-Option we catch that elsewhere and report as
+            //       UnexpectedNullError.
+
+            if !expected_ty.compatible(&T::type_info()) {
+                return Err(crate::Error::mismatched_types::<T>(expected_ty));
+            }
         }
 
         T::decode(value)

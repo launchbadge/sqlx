@@ -60,22 +60,21 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let tuple =
-        sqlx::query("SELECT NULL::INT, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-            .try_map(|row: PgRow| {
-                Ok((
-                    row.get::<Option<i32>, _>(0),
-                    row.get::<Option<i32>, _>(1),
-                    row.get::<Option<i32>, _>(2),
-                    row.get::<Option<i32>, _>(3),
-                    row.get::<Option<i32>, _>(4),
-                    row.get::<Option<i32>, _>(5),
-                    row.get::<Option<i32>, _>(6),
-                    row.get::<Option<i32>, _>(7),
-                ))
-            })
-            .fetch_one(&mut conn)
-            .await?;
+    let tuple = sqlx::query("SELECT NULL, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
+        .try_map(|row: PgRow| {
+            Ok((
+                row.get::<Option<i32>, _>(0),
+                row.get::<Option<i32>, _>(1),
+                row.get::<Option<i32>, _>(2),
+                row.get::<Option<i32>, _>(3),
+                row.get::<Option<i32>, _>(4),
+                row.get::<Option<i32>, _>(5),
+                row.get::<Option<i32>, _>(6),
+                row.get::<Option<i32>, _>(7),
+            ))
+        })
+        .fetch_one(&mut conn)
+        .await?;
 
     assert_eq!(tuple.0, None);
     assert_eq!(tuple.1, Some(10));

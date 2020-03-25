@@ -35,7 +35,6 @@ mod str;
 // https://www.sqlite.org/c3ref/c_blob.html
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum SqliteType {
-    Null = 0,
     Integer = 1,
     Float = 2,
     Text = 3,
@@ -78,7 +77,6 @@ impl Display for SqliteTypeInfo {
             SqliteType::Integer => "INTEGER",
             SqliteType::Float => "DOUBLE",
             SqliteType::Blob => "BLOB",
-            SqliteType::Null => "NULL",
         })
     }
 }

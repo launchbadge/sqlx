@@ -28,7 +28,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         let column_ty = self.row.columns[index].clone();
         let buffer = self.row.get(index);
         let value = match (self.row.binary, buffer) {
-            (_, None) => MySqlValue::null(column_ty),
+            (_, None) => MySqlValue::null(),
             (true, Some(buf)) => MySqlValue::binary(column_ty, buf),
             (false, Some(buf)) => MySqlValue::text(column_ty, buf),
         };
