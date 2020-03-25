@@ -35,6 +35,7 @@ mod str;
 // https://www.sqlite.org/c3ref/c_blob.html
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum SqliteType {
+    Null = 0,
     Integer = 1,
     Float = 2,
     Text = 3,
@@ -77,13 +78,16 @@ impl Display for SqliteTypeInfo {
             SqliteType::Integer => "INTEGER",
             SqliteType::Float => "DOUBLE",
             SqliteType::Blob => "BLOB",
+            SqliteType::Null => "NULL",
         })
     }
 }
 
 impl TypeInfo for SqliteTypeInfo {
-    fn compatible(&self, other: &Self) -> bool {
-        self.r#type == other.r#type || self.affinity == other.affinity
+    #[inline]
+    fn compatible(&self, _other: &Self) -> bool {
+        // All types are compatible with all other types in SQLite
+        true
     }
 }
 

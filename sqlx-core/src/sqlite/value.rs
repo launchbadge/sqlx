@@ -5,10 +5,14 @@ use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     sqlite3_column_blob, sqlite3_column_bytes, sqlite3_column_double, sqlite3_column_int,
-    sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type, SQLITE_NULL,
+    sqlite3_column_int64, sqlite3_column_text, sqlite3_column_type, SQLITE_BLOB, SQLITE_FLOAT,
+    SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT,
 };
 
 use crate::sqlite::statement::Statement;
+use crate::sqlite::types::SqliteType;
+use crate::sqlite::{Sqlite, SqliteTypeInfo};
+use crate::value::RawValue;
 
 pub struct SqliteValue<'c> {
     pub(super) index: i32,
@@ -23,9 +27,23 @@ pub struct SqliteValue<'c> {
 impl<'c> SqliteValue<'c> {
     /// Returns true if the value should be intrepreted as NULL.
     pub(super) fn is_null(&self) -> bool {
+        self.r#type() == SqliteType::Null
+    }
+
+    fn r#type(&self) -> SqliteType {
         #[allow(unsafe_code)]
         let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index) };
-        type_code == SQLITE_NULL
+
+        // SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL
+        match type_code {
+            SQLITE_INTEGER => SqliteType::Integer,
+            SQLITE_FLOAT => SqliteType::Float,
+            SQLITE_TEXT => SqliteType::Text,
+            SQLITE_BLOB => SqliteType::Blob,
+            SQLITE_NULL => SqliteType::Null,
+
+            _ => unreachable!("received unexpected column type: {}", type_code),
+        }
     }
 
     /// Returns the 32-bit INTEGER result.
@@ -86,6 +104,17 @@ impl<'c> SqliteValue<'c> {
         #[allow(unsafe_code)]
         unsafe {
             slice::from_raw_parts(ptr as *const u8, self.bytes())
+        }
+    }
+}
+
+impl<'c> RawValue<'c> for SqliteValue<'c> {
+    type Database = Sqlite;
+
+    fn type_info(&self) -> SqliteTypeInfo {
+        SqliteTypeInfo {
+            r#type: self.r#type(),
+            affinity: None,
         }
     }
 }

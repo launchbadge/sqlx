@@ -90,7 +90,7 @@ required-features = [ "sqlite" ]
 
 [[test]]
 name = "sqlite-macros"
-required-features = [ "sqlite" ]
+required-features = [ "sqlite", "macros" ]
 
 [[test]]
 name = "sqlite-raw"
