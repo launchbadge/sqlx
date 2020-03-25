@@ -27,6 +27,8 @@ impl TypeId {
     pub(crate) const TEXT: TypeId = TypeId(25);
     pub(crate) const VARCHAR: TypeId = TypeId(1043);
     pub(crate) const BPCHAR: TypeId = TypeId(1042);
+    pub(crate) const NAME: TypeId = TypeId(19);
+    pub(crate) const UNKNOWN: TypeId = TypeId(705);
 
     pub(crate) const DATE: TypeId = TypeId(1082);
     pub(crate) const TIME: TypeId = TypeId(1083);
@@ -54,6 +56,7 @@ impl TypeId {
     pub(crate) const ARRAY_TEXT: TypeId = TypeId(1009);
     pub(crate) const ARRAY_VARCHAR: TypeId = TypeId(1015);
     pub(crate) const ARRAY_BPCHAR: TypeId = TypeId(1014);
+    pub(crate) const ARRAY_NAME: TypeId = TypeId(1003);
 
     pub(crate) const ARRAY_NUMERIC: TypeId = TypeId(1700);
 
@@ -92,6 +95,8 @@ impl Display for TypeId {
             TypeId::TEXT => f.write_str("TEXT"),
             TypeId::VARCHAR => f.write_str("VARCHAR"),
             TypeId::BPCHAR => f.write_str("BPCHAR"),
+            TypeId::UNKNOWN => f.write_str("UNKNOWN"),
+            TypeId::NAME => f.write_str("NAME"),
 
             TypeId::DATE => f.write_str("DATE"),
             TypeId::TIME => f.write_str("TIME"),
@@ -117,6 +122,7 @@ impl Display for TypeId {
             TypeId::ARRAY_TEXT => f.write_str("TEXT[]"),
             TypeId::ARRAY_VARCHAR => f.write_str("VARCHAR[]"),
             TypeId::ARRAY_BPCHAR => f.write_str("BPCHAR[]"),
+            TypeId::ARRAY_NAME => f.write_str("NAME[]"),
 
             TypeId::ARRAY_NUMERIC => f.write_str("NUMERIC[]"),
 

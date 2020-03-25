@@ -247,22 +247,34 @@ impl TypeInfo for PgTypeInfo {
             | (TypeId::ARRAY_CIDR, TypeId::ARRAY_INET)
             | (TypeId::ARRAY_INET, TypeId::ARRAY_CIDR) => true,
 
-            // text, varchar, and bpchar are compatible
-            (TypeId::VARCHAR, other) | (TypeId::TEXT, other) | (TypeId::BPCHAR, other)
+            // the following text-like types are compatible
+            (TypeId::VARCHAR, other)
+            | (TypeId::TEXT, other)
+            | (TypeId::BPCHAR, other)
+            | (TypeId::NAME, other)
+            | (TypeId::UNKNOWN, other)
                 if match other {
-                    TypeId::VARCHAR | TypeId::TEXT | TypeId::BPCHAR => true,
+                    TypeId::VARCHAR
+                    | TypeId::TEXT
+                    | TypeId::BPCHAR
+                    | TypeId::NAME
+                    | TypeId::UNKNOWN => true,
                     _ => false,
                 } =>
             {
                 true
             }
 
-            // text[], varchar[], and bpchar[] are compatible
+            // the following text-like array types are compatible
             (TypeId::ARRAY_VARCHAR, other)
             | (TypeId::ARRAY_TEXT, other)
             | (TypeId::ARRAY_BPCHAR, other)
+            | (TypeId::ARRAY_NAME, other)
                 if match other {
-                    TypeId::ARRAY_VARCHAR | TypeId::ARRAY_TEXT | TypeId::ARRAY_BPCHAR => true,
+                    TypeId::ARRAY_VARCHAR
+                    | TypeId::ARRAY_TEXT
+                    | TypeId::ARRAY_BPCHAR
+                    | TypeId::ARRAY_NAME => true,
                     _ => false,
                 } =>
             {
