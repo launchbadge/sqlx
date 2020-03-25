@@ -1,8 +1,10 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::types::{PgJsonb, PgTypeInfo};
-use crate::postgres::{PgValue, Postgres};
+use crate::io::{Buf, BufMut};
+use crate::postgres::protocol::TypeId;
+use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
 use crate::types::{Json, Type};
+use crate::value::RawValue;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue as JsonRawValue;
 use serde_json::Value as JsonValue;
@@ -15,43 +17,43 @@ use serde_json::Value as JsonValue;
 
 impl Type<Postgres> for JsonValue {
     fn type_info() -> PgTypeInfo {
-        <PgJsonb<Self> as Type<Postgres>>::type_info()
+        <Json<Self> as Type<Postgres>>::type_info()
     }
 }
 
 impl Encode<Postgres> for JsonValue {
     fn encode(&self, buf: &mut Vec<u8>) {
-        PgJsonb(self).encode(buf)
+        Json(self).encode(buf)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for JsonValue {
     fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
-        <PgJsonb<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
+        <Json<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
     }
 }
 
 impl Type<Postgres> for &'_ JsonRawValue {
     fn type_info() -> PgTypeInfo {
-        <PgJsonb<Self> as Type<Postgres>>::type_info()
+        <Json<Self> as Type<Postgres>>::type_info()
     }
 }
 
 impl Encode<Postgres> for &'_ JsonRawValue {
     fn encode(&self, buf: &mut Vec<u8>) {
-        PgJsonb(self).encode(buf)
+        Json(self).encode(buf)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for &'de JsonRawValue {
     fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
-        <PgJsonb<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
+        <Json<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
     }
 }
 
 impl<T> Type<Postgres> for Json<T> {
     fn type_info() -> PgTypeInfo {
-        <PgJsonb<T> as Type<Postgres>>::type_info()
+        PgTypeInfo::new(TypeId::JSONB, "JSONB")
     }
 }
 
@@ -60,7 +62,11 @@ where
     T: Serialize,
 {
     fn encode(&self, buf: &mut Vec<u8>) {
-        PgJsonb(&self.0).encode(buf)
+        // JSONB version (as of 2020-03-20)
+        buf.put_u8(1);
+
+        serde_json::to_writer(buf, &self.0)
+            .expect("failed to serialize json for encoding to database");
     }
 }
 
@@ -70,6 +76,23 @@ where
     T: Deserialize<'de>,
 {
     fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
-        <PgJsonb<T> as Decode<Postgres>>::decode(value).map(|item| Self(item.0))
+        (match value.try_get()? {
+            PgData::Text(s) => serde_json::from_str(s),
+            PgData::Binary(mut buf) => {
+                if value.type_info().id == TypeId::JSONB {
+                    let version = buf.get_u8()?;
+
+                    assert_eq!(
+                        version, 1,
+                        "unsupported JSONB format version {}; please open an issue",
+                        version
+                    );
+                }
+
+                serde_json::from_slice(buf)
+            }
+        })
+        .map(Json)
+        .map_err(crate::Error::decode)
     }
 }

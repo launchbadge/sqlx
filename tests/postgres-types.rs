@@ -534,7 +534,6 @@ mod json {
     use super::*;
     use serde_json::value::RawValue;
     use serde_json::{json, Value as JsonValue};
-    use sqlx::postgres::types::PgJson;
     use sqlx::postgres::PgRow;
     use sqlx::types::Json;
     use sqlx::Row;
@@ -544,12 +543,12 @@ mod json {
 
     test_type!(json(
         Postgres,
-        PgJson<JsonValue>,
+        JsonValue,
         "SELECT {0}::jsonb is not distinct from $1::jsonb, $2::text as _1, {0} as _2, $3 as _3",
-        "'\"Hello, World\"'::json" == PgJson(json!("Hello, World")),
-        "'\"😎\"'::json" == PgJson(json!("😎")),
-        "'\"🙋‍♀️\"'::json" == PgJson(json!("🙋‍♀️")),
-        "'[\"Hello\", \"World!\"]'::json" == PgJson(json!(["Hello", "World!"]))
+        "'\"Hello, World\"'::json" == json!("Hello, World"),
+        "'\"😎\"'::json" == json!("😎"),
+        "'\"🙋‍♀️\"'::json" == json!("🙋‍♀️"),
+        "'[\"Hello\", \"World!\"]'::json" == json!(["Hello", "World!"])
     ));
 
     test_type!(jsonb(
@@ -567,20 +566,15 @@ mod json {
         age: u32,
     }
 
-    // The default JSON type that SQLx chooses is JSONB
-    //  sqlx::types::Json -> JSONB
-    //  sqlx::postgres::types::PgJson -> JSON
-    //  sqlx::postgres::types::PgJsonB -> JSONB
-
     test_type!(jsonb_struct(Postgres, Json<Friend>,
         "'{\"name\":\"Joe\",\"age\":33}'::jsonb" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 
     test_type!(json_struct(
         Postgres,
-        PgJson<Friend>,
+        Json<Friend>,
         "SELECT {0}::jsonb is not distinct from $1::jsonb, $2::text as _1, {0} as _2, $3 as _3",
-        "'{\"name\":\"Joe\",\"age\":33}'::json" == PgJson(Friend { name: "Joe".to_string(), age: 33 })
+        "'{\"name\":\"Joe\",\"age\":33}'::json" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 
     #[cfg_attr(feature = "runtime-async-std", async_std::test)]

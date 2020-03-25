@@ -58,26 +58,16 @@
 //!
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
-//! | [`Json<T>`]                           | JSONB                                                |
-//! | [`PgJson<T>`]                         | JSON                                                 |
-//! | [`PgJsonb<T>`]                        | JSONB                                                |
-//! | `serde_json::Value`                   | JSONB                                                |
-//! | `PgJson<serde_json::Value>`           | JSON                                                 |
-//! | `&serde_json::value::RawValue`        | JSONB                                                |
-//! | `PgJson<&serde_json::value::RawValue>`| JSON                                                 |
-//!
-//! By default, Rust types are mapped to `JSONB`. They can be wrapped in [`PgJson<T>`] to use `JSON`
-//! instead.
+//! | [`Json<T>`]                           | JSON, JSONB                                          |
+//! | `serde_json::Value`                   | JSON, JSONB                                          |
+//! | `&serde_json::value::RawValue`        | JSON, JSONB                                          |
 //!
 //! `Value` and `RawValue` from `serde_json` can be used for unstructured JSON data with
 //! Postgres.
 //!
-//! [`Json<T>`] can be used for structured JSON data with Postgres. [`Json<T>`] is an alias
-//! for [`PgJsonb<T>`].
+//! [`Json<T>`] can be used for structured JSON data with Postgres.
 //!
 //! [`Json<T>`]: crate::types::Json
-//! [`PgJson<T>`]: crate::postgres::types::PgJson
-//! [`PgJsonb<T>`]: crate::postgres::types::PgJsonb
 //!
 //! # [Composite types](https://www.postgresql.org/docs/current/rowtypes.html)
 //!
@@ -176,9 +166,6 @@ mod json;
 
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
-
-#[cfg(feature = "json")]
-pub use raw::{PgJson, PgJsonb};
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
@@ -283,6 +270,16 @@ impl TypeInfo for PgTypeInfo {
                     | TypeId::ARRAY_TEXT
                     | TypeId::ARRAY_BPCHAR
                     | TypeId::ARRAY_NAME => true,
+                    _ => false,
+                } =>
+            {
+                true
+            }
+
+            // JSON <=> JSONB
+            (TypeId::JSON, other) | (TypeId::JSONB, other)
+                if match other {
+                    TypeId::JSON | TypeId::JSONB => true,
                     _ => false,
                 } =>
             {
