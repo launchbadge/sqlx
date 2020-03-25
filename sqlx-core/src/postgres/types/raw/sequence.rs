@@ -1,8 +1,8 @@
 use crate::decode::Decode;
 use crate::io::Buf;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgValue, Postgres};
-use crate::types::Type;
+use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::types::{Type, TypeInfo};
 use byteorder::BigEndian;
 
 pub(crate) struct PgSequenceDecoder<'de> {
@@ -49,26 +49,32 @@ impl<'de> PgSequenceDecoder<'de> {
 
                 // mixed sequences can contain values of many different types
                 // the OID of the type is encoded next to each value
-                if self.mixed {
-                    // TODO: We should fail if this type is not _compatible_; but
-                    //       I want to make sure we handle this _and_ the outer level
-                    //       type mismatch errors at the same time
+                let type_id = if self.mixed {
+                    let oid = buf.get_u32::<BigEndian>()?;
+                    let expected_ty = PgTypeInfo::with_oid(oid);
 
-                    let _oid = buf.get_u32::<BigEndian>()?;
-                }
+                    if !expected_ty.compatible(&T::type_info()) {
+                        return Err(crate::Error::mismatched_types::<T>(expected_ty));
+                    }
+
+                    TypeId(oid)
+                } else {
+                    // NOTE: We don't validate the element type for non-mixed sequences because
+                    //       the outer type like `text[]` would have already ensured we are dealing
+                    //       with a Vec<String>
+                    T::type_info().id
+                };
 
                 let len = buf.get_i32::<BigEndian>()? as isize;
 
                 let value = if len < 0 {
-                    // TODO: Grab the correct element OID
-                    T::decode(PgValue::null(TypeId(0)))?
+                    T::decode(PgValue::null(type_id))?
                 } else {
                     let value_buf = &buf[..(len as usize)];
 
                     *buf = &buf[(len as usize)..];
 
-                    // TODO: Grab the correct element OID
-                    T::decode(PgValue::bytes(TypeId(0), value_buf))?
+                    T::decode(PgValue::bytes(type_id, value_buf))?
                 };
 
                 self.len += 1;
@@ -136,15 +142,15 @@ impl<'de> PgSequenceDecoder<'de> {
                     break None;
                 };
 
+                // NOTE: We pass `0` as the type ID because we don't have a reasonable value
+                //       we could use. In TEXT mode, sequences aren't typed.
+
                 let value = T::decode(if end == Some(0) {
-                    // TODO: Grab the correct element OID
                     PgValue::null(TypeId(0))
                 } else if !self.mixed && value == "NULL" {
                     // Yes, in arrays the text encoding of a NULL is just NULL
-                    // TODO: Grab the correct element OID
                     PgValue::null(TypeId(0))
                 } else {
-                    // TODO: Grab the correct element OID
                     PgValue::str(TypeId(0), &*value)
                 })?;
 

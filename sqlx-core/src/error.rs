@@ -1,9 +1,22 @@
 //! Error<DB>and Result types.
 
 use crate::database::Database;
+use crate::types::Type;
+use std::any::type_name;
 use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display};
 use std::io;
+
+#[allow(unused_macros)]
+macro_rules! decode_err {
+    ($s:literal, $($args:tt)*) => {
+        crate::Error::Decode(format!($s, $($args)*).into())
+    };
+
+    ($expr:expr) => {
+        crate::Error::decode($expr)
+    };
+}
 
 /// A specialized `Result` type for SQLx.
 pub type Result<DB, T> = std::result::Result<T, Error<DB>>;
@@ -69,6 +82,21 @@ impl<DB: Database> Error<DB> {
         E: StdError + Send + Sync + 'static,
     {
         Error::<DB>::Decode(err.into())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn mismatched_types<T>(expected: DB::TypeInfo) -> Self
+    where
+        T: Type<DB>,
+    {
+        let ty_name = type_name::<T>();
+
+        return decode_err!(
+            "mismatched types; Rust type `{}` (as SQL type {}) is not compatible with SQL type {}",
+            ty_name,
+            T::type_info(),
+            expected
+        );
     }
 }
 
@@ -223,17 +251,6 @@ pub(crate) struct TlsError<'a> {
 #[allow(unused_macros)]
 macro_rules! tls_err {
     ($($args:tt)*) => { crate::error::TlsError { args: format_args!($($args)*)} };
-}
-
-#[allow(unused_macros)]
-macro_rules! decode_err {
-    ($s:literal, $($args:tt)*) => {
-        crate::Error::Decode(format!($s, $($args)*).into())
-    };
-
-    ($expr:expr) => {
-        crate::Error::decode($expr)
-    };
 }
 
 /// An unexpected `NULL` was encountered during decoding.

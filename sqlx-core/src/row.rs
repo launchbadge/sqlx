@@ -134,18 +134,10 @@ where
         T: Decode<'c, Self::Database>,
     {
         let value = self.try_get_raw(index)?;
-        let value_type_info = value.type_info();
-        let output_type_info = T::type_info();
+        let expected_ty = value.type_info();
 
-        if !value_type_info.compatible(&output_type_info) {
-            let ty_name = std::any::type_name::<T>();
-
-            return Err(decode_err!(
-                "mismatched types; Rust type `{}` (as SQL type {}) is not compatible with SQL type {}",
-                ty_name,
-                output_type_info,
-                value_type_info
-            ));
+        if !expected_ty.compatible(&T::type_info()) {
+            return Err(crate::Error::mismatched_types::<T>(expected_ty));
         }
 
         T::decode(value)
