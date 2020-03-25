@@ -2,7 +2,7 @@
 
 pub use sqlx_core::arguments;
 pub use sqlx_core::connection::{Connect, Connection};
-pub use sqlx_core::cursor::Cursor;
+pub use sqlx_core::cursor::{self, Cursor};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{self, Execute, Executor};
 pub use sqlx_core::pool::{self, Pool};
@@ -10,6 +10,7 @@ pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
 pub use sqlx_core::row::{self, FromRow, Row};
 pub use sqlx_core::transaction::Transaction;
+pub use sqlx_core::value;
 
 #[doc(hidden)]
 pub use sqlx_core::describe;

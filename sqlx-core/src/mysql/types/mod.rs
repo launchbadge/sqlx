@@ -95,6 +95,16 @@ impl MySqlTypeInfo {
         }
     }
 
+    #[doc(hidden)]
+    pub const fn r#enum() -> Self {
+        Self {
+            id: TypeId::ENUM,
+            is_unsigned: false,
+            is_binary: false,
+            char_set: 0,
+        }
+    }
+
     pub(crate) fn from_nullable_column_def(def: &ColumnDefinition) -> Self {
         Self {
             id: def.type_id,
@@ -157,6 +167,51 @@ impl Display for MySqlTypeInfo {
     }
 }
 
+impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
+    fn eq(&self, other: &MySqlTypeInfo) -> bool {
+        match self.id {
+            TypeId::VAR_CHAR
+            | TypeId::TEXT
+            | TypeId::CHAR
+            | TypeId::TINY_BLOB
+            | TypeId::MEDIUM_BLOB
+            | TypeId::LONG_BLOB
+            | TypeId::ENUM
+                if (self.is_binary == other.is_binary)
+                    && match other.id {
+                        TypeId::VAR_CHAR
+                        | TypeId::TEXT
+                        | TypeId::CHAR
+                        | TypeId::TINY_BLOB
+                        | TypeId::MEDIUM_BLOB
+                        | TypeId::LONG_BLOB
+                        | TypeId::ENUM => true,
+
+                        _ => false,
+                    } =>
+            {
+                return true;
+            }
+
+            _ => {}
+        }
+
+        if self.id.0 != other.id.0 {
+            return false;
+        }
+
+        match self.id {
+            TypeId::TINY_INT | TypeId::SMALL_INT | TypeId::INT | TypeId::BIG_INT => {
+                return self.is_unsigned == other.is_unsigned;
+            }
+
+            _ => {}
+        }
+
+        true
+    }
+}
+
 impl TypeInfo for MySqlTypeInfo {
     fn compatible(&self, other: &Self) -> bool {
         // NOTE: MySQL is weakly typed so much of this may be surprising to a Rust developer.
@@ -190,19 +245,45 @@ impl TypeInfo for MySqlTypeInfo {
             | TypeId::TINY_BLOB
             | TypeId::MEDIUM_BLOB
             | TypeId::LONG_BLOB
-            | TypeId::ENUM
-                if (self.is_binary == other.is_binary)
-                    && match other.id {
-                        TypeId::VAR_CHAR
-                        | TypeId::TEXT
-                        | TypeId::CHAR
-                        | TypeId::TINY_BLOB
-                        | TypeId::MEDIUM_BLOB
-                        | TypeId::LONG_BLOB
-                        | TypeId::ENUM => true,
+                if match other.id {
+                    TypeId::VAR_CHAR
+                    | TypeId::TEXT
+                    | TypeId::CHAR
+                    | TypeId::TINY_BLOB
+                    | TypeId::MEDIUM_BLOB
+                    | TypeId::LONG_BLOB => true,
 
-                        _ => false,
-                    } =>
+                    _ => false,
+                } =>
+            {
+                true
+            }
+
+            // Enums are considered compatible with other text/binary types
+            TypeId::ENUM
+                if match other.id {
+                    TypeId::VAR_CHAR
+                    | TypeId::TEXT
+                    | TypeId::CHAR
+                    | TypeId::TINY_BLOB
+                    | TypeId::MEDIUM_BLOB
+                    | TypeId::LONG_BLOB
+                    | TypeId::ENUM => true,
+
+                    _ => false,
+                } =>
+            {
+                true
+            }
+
+            TypeId::VAR_CHAR
+            | TypeId::TEXT
+            | TypeId::CHAR
+            | TypeId::TINY_BLOB
+            | TypeId::MEDIUM_BLOB
+            | TypeId::LONG_BLOB
+            | TypeId::ENUM
+                if other.id == TypeId::ENUM =>
             {
                 true
             }
@@ -227,8 +308,7 @@ impl TypeInfo for MySqlTypeInfo {
                 true
             }
 
-            // Fallback to equality of only [id] and [is_unsigned]
-            _ => self.id.0 == other.id.0 && self.is_unsigned == other.is_unsigned,
+            _ => self.eq(other),
         }
     }
 }

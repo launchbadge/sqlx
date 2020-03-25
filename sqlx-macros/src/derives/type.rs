@@ -110,9 +110,7 @@ fn expand_derive_has_sql_type_strong_enum(
         tts.extend(quote!(
             impl sqlx::Type< sqlx::MySql > for #ident {
                 fn type_info() -> sqlx::mysql::MySqlTypeInfo {
-                    // This is really fine, MySQL is loosely typed and
-                    // we don't nede to be specific here
-                    <str as sqlx::Type<sqlx::MySql>>::type_info()
+                    sqlx::mysql::MySqlTypeInfo::r#enum()
                 }
             }
         ));

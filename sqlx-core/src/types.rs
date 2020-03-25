@@ -46,7 +46,7 @@ pub mod ipnetwork {
 #[derive(Debug, PartialEq)]
 pub struct Json<T>(pub T);
 
-pub trait TypeInfo: Debug + Display + Clone {
+pub trait TypeInfo: PartialEq<Self> + Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
     /// with `self`.
     fn compatible(&self, other: &Self) -> bool;

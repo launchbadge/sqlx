@@ -45,7 +45,10 @@ macro_rules! impl_database_ext {
             fn param_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {
                 match () {
                     $(
-                        // `if` statements cannot have attributes but these can
+                        $(#[$meta])?
+                        _ if <$ty as sqlx::types::Type<$database>>::type_info() == *info => Some(input_ty!($ty $(, $input)?)),
+                    )*
+                    $(
                         $(#[$meta])?
                         _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
                     )*
@@ -55,6 +58,10 @@ macro_rules! impl_database_ext {
 
             fn return_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {
                 match () {
+                    $(
+                        $(#[$meta])?
+                        _ if <$ty as sqlx::types::Type<$database>>::type_info() == *info => return Some(stringify!($ty)),
+                    )*
                     $(
                         $(#[$meta])?
                         _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => return Some(stringify!($ty)),

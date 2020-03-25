@@ -58,3 +58,17 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_bytes() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let rec = sqlx::query!("SELECT X'01AF' as _1")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(rec._1, &[0x01_u8, 0xAF_u8]);
+
+    Ok(())
+}
