@@ -10,7 +10,7 @@
 //! | `i64`                                 | BIGINT, BIGSERIAL, INT8                              |
 //! | `f32`                                 | REAL, FLOAT4                                         |
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
-//! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, CITEXT, NAME                 |
+//! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
@@ -191,11 +191,6 @@ impl PgTypeInfo {
             id: TypeId(oid),
             name: None,
         }
-    }
-
-    #[doc(hidden)]
-    pub fn type_name(&self) -> &str {
-        self.name.as_deref().unwrap_or("<UNKNOWN>")
     }
 
     #[doc(hidden)]
