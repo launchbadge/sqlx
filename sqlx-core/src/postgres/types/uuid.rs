@@ -35,7 +35,7 @@ impl Encode<Postgres> for Uuid {
 }
 
 impl<'de> Decode<'de, Postgres> for Uuid {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Uuid::from_slice(buf).map_err(crate::Error::decode),
             PgData::Text(s) => Uuid::from_str(s).map_err(crate::Error::decode),

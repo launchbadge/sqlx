@@ -3,7 +3,6 @@ use byteorder::LittleEndian;
 use crate::io::Buf;
 use crate::mysql::io::BufExt;
 use crate::mysql::protocol::Status;
-use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_ok_packet.html
 // https://mariadb.com/kb/en/ok_packet/
@@ -17,7 +16,7 @@ pub(crate) struct OkPacket {
 }
 
 impl OkPacket {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self>
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

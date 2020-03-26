@@ -28,7 +28,7 @@ impl Encode<Postgres> for bool {
 }
 
 impl<'de> Decode<'de, Postgres> for bool {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
 

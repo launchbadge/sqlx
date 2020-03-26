@@ -93,7 +93,7 @@ where
     T: for<'arr> Decode<'arr, Postgres>,
     T: Type<Postgres>,
 {
-    pub(crate) fn new(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    pub(crate) fn new(value: PgValue<'de>) -> crate::Result<Self> {
         let mut data = value.try_get()?;
 
         match data {
@@ -149,7 +149,7 @@ where
         })
     }
 
-    fn decode(&mut self) -> crate::Result<Postgres, Option<T>> {
+    fn decode(&mut self) -> crate::Result<Option<T>> {
         self.inner.decode()
     }
 }
@@ -159,10 +159,10 @@ where
     T: for<'arr> Decode<'arr, Postgres>,
     T: Type<Postgres>,
 {
-    type Item = crate::Result<Postgres, T>;
+    type Item = crate::Result<T>;
 
     #[inline]
-    fn next(&mut self) -> Option<crate::Result<Postgres, T>> {
+    fn next(&mut self) -> Option<crate::Result<T>> {
         self.decode().transpose()
     }
 }
@@ -172,7 +172,7 @@ mod tests {
     use super::PgArrayDecoder;
     use super::PgArrayEncoder;
     use crate::postgres::protocol::TypeId;
-    use crate::postgres::{PgValue, Postgres};
+    use crate::postgres::PgValue;
 
     const BUF_BINARY_I32: &[u8] = b"\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x17\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x00\x00\x04\x00\x00\x00\x03\x00\x00\x00\x04\x00\x00\x00\x04";
 
@@ -191,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_text_i32() -> crate::Result<Postgres, ()> {
+    fn it_decodes_text_i32() -> crate::Result<()> {
         let s = "{1,152,-12412}";
         let mut decoder = PgArrayDecoder::<i32>::new(PgValue::str(TypeId(0), s))?;
 
@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_text_str() -> crate::Result<Postgres, ()> {
+    fn it_decodes_text_str() -> crate::Result<()> {
         let s = "{\"\",\"\\\"\"}";
         let mut decoder = PgArrayDecoder::<String>::new(PgValue::str(TypeId(0), s))?;
 
@@ -216,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_binary_nulls() -> crate::Result<Postgres, ()> {
+    fn it_decodes_binary_nulls() -> crate::Result<()> {
         let mut decoder = PgArrayDecoder::<Option<bool>>::new(PgValue::bytes(TypeId(0),
             b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00",
         ))?;
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_binary_i32() -> crate::Result<Postgres, ()> {
+    fn it_decodes_binary_i32() -> crate::Result<()> {
         let mut decoder = PgArrayDecoder::<i32>::new(PgValue::bytes(TypeId(0), BUF_BINARY_I32))?;
 
         let val_1 = decoder.decode()?;

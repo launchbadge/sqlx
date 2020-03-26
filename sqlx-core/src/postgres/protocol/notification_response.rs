@@ -11,7 +11,7 @@ pub(crate) struct NotificationResponse<'c> {
 }
 
 impl<'c> NotificationResponse<'c> {
-    pub(crate) fn read(mut buf: &'c [u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(mut buf: &'c [u8]) -> crate::Result<Self> {
         let process_id = buf.get_u32::<NetworkEndian>()?;
         let channel = buf.get_str_nul()?;
         let payload = buf.get_str_nul()?;

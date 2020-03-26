@@ -1,6 +1,6 @@
 use crate::cursor::HasCursor;
 use crate::database::Database;
-use crate::mysql::error::MySqlDatabaseError;
+use crate::mysql::error::MySqlError;
 use crate::row::HasRow;
 use crate::value::HasRawValue;
 
@@ -19,7 +19,7 @@ impl Database for MySql {
 
     type RawBuffer = Vec<u8>;
 
-    type Error = MySqlDatabaseError;
+    type Error = MySqlError;
 }
 
 impl<'c> HasRow<'c> for MySql {

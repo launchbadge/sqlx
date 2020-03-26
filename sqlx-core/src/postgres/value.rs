@@ -19,7 +19,7 @@ pub struct PgValue<'c> {
 impl<'c> PgValue<'c> {
     /// Gets the binary or text data for this value; or, `UnexpectedNullError` if this
     /// is a `NULL` value.
-    pub(crate) fn try_get(&self) -> crate::Result<Postgres, PgData<'c>> {
+    pub(crate) fn try_get(&self) -> crate::Result<PgData<'c>> {
         match self.data {
             Some(data) => Ok(data),
             None => Err(crate::Error::decode(UnexpectedNullError)),
@@ -47,7 +47,7 @@ impl<'c> PgValue<'c> {
         }
     }
 
-    pub(crate) fn utf8(type_id: TypeId, buf: &'c [u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn utf8(type_id: TypeId, buf: &'c [u8]) -> crate::Result<Self> {
         Ok(Self {
             type_id,
             data: Some(PgData::Text(from_utf8(&buf).map_err(crate::Error::decode)?)),

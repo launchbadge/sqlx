@@ -3,7 +3,7 @@ use std::str::{self, FromStr};
 
 use crate::postgres::database::Postgres;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Severity {
     Panic,
     Fatal,
@@ -25,9 +25,9 @@ impl Severity {
 }
 
 impl FromStr for Severity {
-    type Err = crate::Error<Postgres>;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> crate::Result<Postgres, Self> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         Ok(match s {
             "PANIC" => Severity::Panic,
             "FATAL" => Severity::Fatal,
@@ -67,7 +67,7 @@ pub(crate) struct Response {
 }
 
 impl Response {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let mut code = None::<Box<str>>;
         let mut message = None::<Box<str>>;
         let mut severity = None::<Box<str>>;

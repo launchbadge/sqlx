@@ -7,7 +7,7 @@
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -36,7 +36,7 @@
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -129,7 +129,7 @@ macro_rules! query (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -185,7 +185,7 @@ macro_rules! query_file (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -241,7 +241,7 @@ macro_rules! query_as (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }

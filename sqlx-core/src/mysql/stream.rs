@@ -4,8 +4,8 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::protocol::{Capabilities, Encode, EofPacket, ErrPacket, OkPacket};
-use crate::mysql::MySql;
-use crate::mysql::MySqlDatabaseError;
+
+use crate::mysql::MySqlError;
 use crate::url::Url;
 
 // Size before a packet is split
@@ -33,7 +33,7 @@ pub(crate) struct MySqlStream {
 }
 
 impl MySqlStream {
-    pub(super) async fn new(url: &Url) -> crate::Result<MySql, Self> {
+    pub(super) async fn new(url: &Url) -> crate::Result<Self> {
         let stream = MaybeTlsStream::connect(&url, 3306).await?;
 
         let mut capabilities = Capabilities::PROTOCOL_41
@@ -69,12 +69,12 @@ impl MySqlStream {
         self.stream.is_tls()
     }
 
-    pub(super) fn shutdown(&self) -> crate::Result<MySql, ()> {
+    pub(super) fn shutdown(&self) -> crate::Result<()> {
         Ok(self.stream.shutdown(Shutdown::Both)?)
     }
 
     #[inline]
-    pub(super) async fn send<T>(&mut self, packet: T, initial: bool) -> crate::Result<MySql, ()>
+    pub(super) async fn send<T>(&mut self, packet: T, initial: bool) -> crate::Result<()>
     where
         T: Encode + std::fmt::Debug,
     {
@@ -87,7 +87,7 @@ impl MySqlStream {
     }
 
     #[inline]
-    pub(super) async fn flush(&mut self) -> crate::Result<MySql, ()> {
+    pub(super) async fn flush(&mut self) -> crate::Result<()> {
         Ok(self.stream.flush().await?)
     }
 
@@ -121,13 +121,13 @@ impl MySqlStream {
     }
 
     #[inline]
-    pub(super) async fn receive(&mut self) -> crate::Result<MySql, &[u8]> {
+    pub(super) async fn receive(&mut self) -> crate::Result<&[u8]> {
         self.read().await?;
 
         Ok(self.packet())
     }
 
-    pub(super) async fn read(&mut self) -> crate::Result<MySql, ()> {
+    pub(super) async fn read(&mut self) -> crate::Result<()> {
         self.packet_buf.clear();
         self.packet_len = 0;
 
@@ -167,7 +167,7 @@ impl MySqlStream {
 }
 
 impl MySqlStream {
-    pub(crate) async fn maybe_receive_eof(&mut self) -> crate::Result<MySql, ()> {
+    pub(crate) async fn maybe_receive_eof(&mut self) -> crate::Result<()> {
         if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) {
             let _eof = EofPacket::read(self.receive().await?)?;
         }
@@ -175,7 +175,7 @@ impl MySqlStream {
         Ok(())
     }
 
-    pub(crate) fn maybe_handle_eof(&mut self) -> crate::Result<MySql, Option<EofPacket>> {
+    pub(crate) fn maybe_handle_eof(&mut self) -> crate::Result<Option<EofPacket>> {
         if !self.capabilities.contains(Capabilities::DEPRECATE_EOF) && self.packet()[0] == 0xFE {
             Ok(Some(EofPacket::read(self.packet())?))
         } else {
@@ -183,21 +183,21 @@ impl MySqlStream {
         }
     }
 
-    pub(crate) fn handle_unexpected<T>(&mut self) -> crate::Result<MySql, T> {
+    pub(crate) fn handle_unexpected<T>(&mut self) -> crate::Result<T> {
         Err(protocol_err!("unexpected packet identifier 0x{:X?}", self.packet()[0]).into())
     }
 
-    pub(crate) fn handle_err<T>(&mut self) -> crate::Result<MySql, T> {
+    pub(crate) fn handle_err<T>(&mut self) -> crate::Result<T> {
         self.is_ready = true;
-        Err(MySqlDatabaseError(ErrPacket::read(self.packet(), self.capabilities)?).into())
+        Err(MySqlError(ErrPacket::read(self.packet(), self.capabilities)?).into())
     }
 
-    pub(crate) fn handle_ok(&mut self) -> crate::Result<MySql, OkPacket> {
+    pub(crate) fn handle_ok(&mut self) -> crate::Result<OkPacket> {
         self.is_ready = true;
         OkPacket::read(self.packet())
     }
 
-    pub(crate) async fn wait_until_ready(&mut self) -> crate::Result<MySql, ()> {
+    pub(crate) async fn wait_until_ready(&mut self) -> crate::Result<()> {
         if !self.is_ready {
             loop {
                 let packet_id = self.receive().await?[0];

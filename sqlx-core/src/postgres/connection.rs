@@ -8,7 +8,7 @@ use futures_util::TryFutureExt;
 
 use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
-use crate::postgres::database::Postgres;
+
 use crate::postgres::protocol::{
     Authentication, AuthenticationMd5, AuthenticationSasl, BackendKeyData, Message,
     PasswordMessage, StartupMessage, StatementId, Terminate,
@@ -102,7 +102,7 @@ pub struct PgConnection {
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
-async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<Postgres, BackendKeyData> {
+async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyData> {
     // Defaults to postgres@.../postgres
     let username = url.username().unwrap_or("postgres");
     let database = url.database().unwrap_or("postgres");
@@ -230,7 +230,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<Postgres, Ba
 }
 
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.10
-async fn terminate(mut stream: PgStream) -> crate::Result<Postgres, ()> {
+async fn terminate(mut stream: PgStream) -> crate::Result<()> {
     stream.write(Terminate);
     stream.flush().await?;
     stream.shutdown()?;
@@ -239,9 +239,7 @@ async fn terminate(mut stream: PgStream) -> crate::Result<Postgres, ()> {
 }
 
 impl PgConnection {
-    pub(super) async fn new(
-        url: std::result::Result<Url, url::ParseError>,
-    ) -> crate::Result<Postgres, Self> {
+    pub(super) async fn new(url: std::result::Result<Url, url::ParseError>) -> crate::Result<Self> {
         let url = url?;
         let mut stream = PgStream::new(&url).await?;
 
@@ -262,7 +260,7 @@ impl PgConnection {
 }
 
 impl Connect for PgConnection {
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Postgres, PgConnection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<PgConnection>>
     where
         T: TryInto<Url, Error = url::ParseError>,
         Self: Sized,
@@ -272,11 +270,11 @@ impl Connect for PgConnection {
 }
 
 impl Connection for PgConnection {
-    fn close(self) -> BoxFuture<'static, crate::Result<Postgres, ()>> {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(terminate(self.stream))
     }
 
-    fn ping(&mut self) -> BoxFuture<crate::Result<Postgres, ()>> {
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         Box::pin(Executor::execute(self, "SELECT 1").map_ok(|_| ()))
     }
 }

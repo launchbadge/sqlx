@@ -13,8 +13,8 @@ use libsqlite3_sys::{
 
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
-use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteDatabaseError;
+
+use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
 
 /// Return values from [SqliteStatement::step].
@@ -54,7 +54,7 @@ impl Statement {
         conn: &mut SqliteConnection,
         query: &mut &str,
         persistent: bool,
-    ) -> crate::Result<Sqlite, Self> {
+    ) -> crate::Result<Self> {
         // TODO: Error on queries that are too large
         let query_ptr = query.as_bytes().as_ptr() as *const i8;
         let query_len = query.len() as i32;
@@ -84,7 +84,7 @@ impl Statement {
         };
 
         if status != SQLITE_OK {
-            return Err(SqliteDatabaseError::from_connection(conn.handle()).into());
+            return Err(SqliteError::from_connection(conn.handle()).into());
         }
 
         // If pzTail is not NULL then *pzTail is made to point to the first byte
@@ -176,7 +176,7 @@ impl Statement {
         num as usize
     }
 
-    pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<Sqlite, ()> {
+    pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<()> {
         for index in 0..self.params() {
             if let Some(value) = arguments.next() {
                 value.bind(self, index + 1)?;
@@ -202,7 +202,7 @@ impl Statement {
         let _ = unsafe { sqlite3_clear_bindings(self.handle()) };
     }
 
-    pub(super) async fn step(&mut self) -> crate::Result<Sqlite, Step> {
+    pub(super) async fn step(&mut self) -> crate::Result<Step> {
         // https://sqlite.org/c3ref/step.html
 
         let handle = self.handle;
@@ -220,9 +220,7 @@ impl Statement {
             SQLITE_ROW => Ok(Step::Row),
 
             _ => {
-                return Err(
-                    SqliteDatabaseError::from_connection(self.connection.0.as_ptr()).into(),
-                );
+                return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
             }
         }
     }

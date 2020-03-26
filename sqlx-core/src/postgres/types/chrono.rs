@@ -94,7 +94,7 @@ where
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveTime {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let micros = buf.read_i64::<NetworkEndian>().map_err(Error::decode)?;
@@ -122,7 +122,7 @@ impl Encode<Postgres> for NaiveTime {
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveDate {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let days: i32 = buf.read_i32::<NetworkEndian>().map_err(Error::decode)?;
@@ -153,7 +153,7 @@ impl Encode<Postgres> for NaiveDate {
 }
 
 impl<'de> Decode<'de, Postgres> for NaiveDateTime {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let micros = buf.read_i64::<NetworkEndian>().map_err(Error::decode)?;
@@ -206,14 +206,14 @@ impl Encode<Postgres> for NaiveDateTime {
 }
 
 impl<'de> Decode<'de, Postgres> for DateTime<Utc> {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         let date_time = Decode::<Postgres>::decode(value)?;
         Ok(DateTime::from_utc(date_time, Utc))
     }
 }
 
 impl<'de> Decode<'de, Postgres> for DateTime<Local> {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         let date_time = Decode::<Postgres>::decode(value)?;
         Ok(Local.from_utc_datetime(&date_time))
     }

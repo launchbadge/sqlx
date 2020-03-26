@@ -20,7 +20,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
     }
 
     #[doc(hidden)]
-    fn try_get_raw<I>(&self, index: I) -> crate::Result<MySql, MySqlValue<'c>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<MySqlValue<'c>>
     where
         I: ColumnIndex<'c, Self>,
     {
@@ -38,7 +38,7 @@ impl<'c> Row<'c> for MySqlRow<'c> {
 }
 
 impl<'c> ColumnIndex<'c, MySqlRow<'c>> for usize {
-    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<MySql, usize> {
+    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<usize> {
         let len = Row::len(row);
 
         if *self >= len {
@@ -50,7 +50,7 @@ impl<'c> ColumnIndex<'c, MySqlRow<'c>> for usize {
 }
 
 impl<'c> ColumnIndex<'c, MySqlRow<'c>> for str {
-    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<MySql, usize> {
+    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<usize> {
         row.names
             .get(self)
             .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))

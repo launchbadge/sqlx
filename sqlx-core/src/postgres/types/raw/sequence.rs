@@ -36,7 +36,7 @@ impl<'de> PgSequenceDecoder<'de> {
         self.len
     }
 
-    pub(crate) fn decode<T>(&mut self) -> crate::Result<Postgres, Option<T>>
+    pub(crate) fn decode<T>(&mut self) -> crate::Result<Option<T>>
     where
         T: for<'seq> Decode<'seq, Postgres>,
         T: Type<Postgres>,
@@ -54,7 +54,7 @@ impl<'de> PgSequenceDecoder<'de> {
                     let expected_ty = PgTypeInfo::with_oid(oid);
 
                     if !expected_ty.compatible(&T::type_info()) {
-                        return Err(crate::Error::mismatched_types::<T>(expected_ty));
+                        return Err(crate::Error::mismatched_types::<Postgres, T>(expected_ty));
                     }
 
                     TypeId(oid)
@@ -177,10 +177,9 @@ impl<'de> From<&'de str> for PgSequenceDecoder<'de> {
 #[cfg(test)]
 mod tests {
     use super::PgSequenceDecoder;
-    use crate::postgres::Postgres;
 
     #[test]
-    fn it_decodes_text_number() -> crate::Result<Postgres, ()> {
+    fn it_decodes_text_number() -> crate::Result<()> {
         // select (10,20,-220);
         let data = "(10,20,-220)";
         let mut decoder = PgSequenceDecoder::from(data);
@@ -194,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn it_decodes_text_nested_sequence() -> crate::Result<Postgres, ()> {
+    fn it_decodes_text_nested_sequence() -> crate::Result<()> {
         // select ((1,array[false,true]),array[(1,4),(5,2)]);
         let data = r#"("(1,""{f,t}"")","{""(1,4)"",""(5,2)""}")"#;
         let mut decoder = PgSequenceDecoder::from(data);

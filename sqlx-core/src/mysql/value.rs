@@ -17,7 +17,7 @@ pub struct MySqlValue<'c> {
 impl<'c> MySqlValue<'c> {
     /// Gets the binary or text data for this value; or, `UnexpectedNullError` if this
     /// is a `NULL` value.
-    pub(crate) fn try_get(&self) -> crate::Result<MySql, MySqlData<'c>> {
+    pub(crate) fn try_get(&self) -> crate::Result<MySqlData<'c>> {
         match self.data {
             Some(data) => Ok(data),
             None => Err(crate::Error::decode(UnexpectedNullError)),

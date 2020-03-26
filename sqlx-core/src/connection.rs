@@ -36,7 +36,7 @@ where
     ///
     /// [`commit`]: crate::transaction::Transaction::commit
     /// [`rollback`]: crate::transaction::Transaction::rollback
-    fn begin(self) -> BoxFuture<'static, crate::Result<Self::Database, Transaction<Self>>>
+    fn begin(self) -> BoxFuture<'static, crate::Result<Transaction<Self>>>
     where
         Self: Sized,
     {
@@ -48,16 +48,16 @@ where
     /// This method is **not required** for safe and consistent operation. However, it is
     /// recommended to call it instead of letting a connection `drop` as the database server
     /// will be faster at cleaning up resources.
-    fn close(self) -> BoxFuture<'static, crate::Result<Self::Database, ()>>;
+    fn close(self) -> BoxFuture<'static, crate::Result<()>>;
 
     /// Checks if a connection to the database is still valid.
-    fn ping(&mut self) -> BoxFuture<crate::Result<Self::Database, ()>>;
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>>;
 }
 
 /// Represents a type that can directly establish a new connection.
 pub trait Connect: Connection {
     /// Establish a new database connection.
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self::Database, Self>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Self>>
     where
         T: TryInto<Url, Error = url::ParseError>,
         Self: Sized;
@@ -79,7 +79,7 @@ where
     C: Connect,
 {
     #[allow(dead_code)]
-    pub(crate) async fn resolve(&mut self) -> crate::Result<C::Database, &'_ mut C> {
+    pub(crate) async fn resolve(&mut self) -> crate::Result<&'_ mut C> {
         if let ConnectionSource::Pool(pool) = self {
             let conn = pool.acquire().await?;
 

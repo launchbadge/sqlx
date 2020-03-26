@@ -18,7 +18,7 @@ impl Encode<MySql> for bool {
 }
 
 impl<'de> Decode<'de, MySql> for bool {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
 

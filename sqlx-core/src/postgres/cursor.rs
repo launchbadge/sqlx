@@ -48,7 +48,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
         }
     }
 
-    fn next(&mut self) -> BoxFuture<crate::Result<Postgres, Option<PgRow<'_>>>> {
+    fn next(&mut self) -> BoxFuture<crate::Result<Option<PgRow<'_>>>> {
         Box::pin(next(self))
     }
 }
@@ -79,7 +79,7 @@ fn parse_row_description(rd: RowDescription) -> Statement {
 
 // Used to describe the incoming results
 // We store the column map in an Arc and share it among all rows
-async fn expect_desc(conn: &mut PgConnection) -> crate::Result<Postgres, Statement> {
+async fn expect_desc(conn: &mut PgConnection) -> crate::Result<Statement> {
     let description: Option<_> = loop {
         match conn.stream.receive().await? {
             Message::ParseComplete | Message::BindComplete => {}
@@ -107,7 +107,7 @@ async fn expect_desc(conn: &mut PgConnection) -> crate::Result<Postgres, Stateme
 async fn get_or_describe(
     conn: &mut PgConnection,
     id: StatementId,
-) -> crate::Result<Postgres, Arc<Statement>> {
+) -> crate::Result<Arc<Statement>> {
     if !conn.cache_statement.contains_key(&id) {
         let statement = expect_desc(conn).await?;
 
@@ -119,7 +119,7 @@ async fn get_or_describe(
 
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut PgCursor<'c, 'q>,
-) -> crate::Result<Postgres, Option<PgRow<'a>>> {
+) -> crate::Result<Option<PgRow<'a>>> {
     let mut conn = cursor.source.resolve().await?;
 
     // The first time [next] is called we need to actually execute our

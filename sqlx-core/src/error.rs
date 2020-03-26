@@ -1,4 +1,4 @@
-//! Error<DB>and Result types.
+//! Errorand Result types.
 
 use crate::database::Database;
 use crate::types::Type;
@@ -19,20 +19,20 @@ macro_rules! decode_err {
 }
 
 /// A specialized `Result` type for SQLx.
-pub type Result<DB, T> = std::result::Result<T, Error<DB>>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// A generic error that represents all the ways a method can fail inside of SQLx.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum Error<DB: Database> {
-    /// Error<DB>communicating with the database.
+pub enum Error {
+    /// Error communicating with the database.
     Io(io::Error),
 
     /// Connection URL was malformed.
     UrlParse(url::ParseError),
 
     /// An error was returned by the database.
-    Database(Box<DB::Error>),
+    Database(Box<dyn DatabaseError>),
 
     /// No row was returned during [`query::Map::fetch_one`] or `QueryAs::fetch_one`.
     ///
@@ -75,17 +75,17 @@ pub enum Error<DB: Database> {
     Decode(Box<dyn StdError + Send + Sync>),
 }
 
-impl<DB: Database> Error<DB> {
+impl Error {
     #[allow(dead_code)]
     pub(crate) fn decode<E>(err: E) -> Self
     where
         E: StdError + Send + Sync + 'static,
     {
-        Error::<DB>::Decode(err.into())
+        Error::Decode(err.into())
     }
 
     #[allow(dead_code)]
-    pub(crate) fn mismatched_types<T>(expected: DB::TypeInfo) -> Self
+    pub(crate) fn mismatched_types<DB: Database, T>(expected: DB::TypeInfo) -> Self
     where
         T: Type<DB>,
     {
@@ -100,7 +100,7 @@ impl<DB: Database> Error<DB> {
     }
 }
 
-impl<DB: Database + Debug> StdError for Error<DB> {
+impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::Io(error) => Some(error),
@@ -108,13 +108,14 @@ impl<DB: Database + Debug> StdError for Error<DB> {
             Error::PoolTimedOut(Some(error)) => Some(&**error),
             Error::Decode(error) => Some(&**error),
             Error::Tls(error) => Some(&**error),
+            Error::Database(error) => Some(error.as_ref_err()),
 
             _ => None,
         }
     }
 }
 
-impl<DB: Database> Display for Error<DB> {
+impl Display for Error {
     // IntellijRust does not understand that [non_exhaustive] applies only for downstream crates
     // noinspection RsMatchCheck
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -156,28 +157,28 @@ impl<DB: Database> Display for Error<DB> {
     }
 }
 
-impl<DB: Database> From<io::Error> for Error<DB> {
+impl From<io::Error> for Error {
     #[inline]
     fn from(err: io::Error) -> Self {
         Error::Io(err)
     }
 }
 
-impl<DB: Database> From<io::ErrorKind> for Error<DB> {
+impl From<io::ErrorKind> for Error {
     #[inline]
     fn from(err: io::ErrorKind) -> Self {
         Error::Io(err.into())
     }
 }
 
-impl<DB: Database> From<url::ParseError> for Error<DB> {
+impl From<url::ParseError> for Error {
     #[inline]
     fn from(err: url::ParseError) -> Self {
         Error::UrlParse(err)
     }
 }
 
-impl<DB: Database> From<ProtocolError<'_>> for Error<DB> {
+impl From<ProtocolError<'_>> for Error {
     #[inline]
     fn from(err: ProtocolError) -> Self {
         Error::Protocol(err.args.to_string().into_boxed_str())
@@ -186,14 +187,14 @@ impl<DB: Database> From<ProtocolError<'_>> for Error<DB> {
 
 #[cfg(feature = "tls")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
-impl<DB: Database> From<async_native_tls::Error> for Error<DB> {
+impl From<async_native_tls::Error> for Error {
     #[inline]
     fn from(err: async_native_tls::Error) -> Self {
         Error::Tls(err.into())
     }
 }
 
-impl<DB: Database> From<TlsError<'_>> for Error<DB> {
+impl From<TlsError<'_>> for Error {
     #[inline]
     fn from(err: TlsError<'_>) -> Self {
         Error::Tls(err.args.to_string().into())
@@ -201,7 +202,7 @@ impl<DB: Database> From<TlsError<'_>> for Error<DB> {
 }
 
 /// An error that was returned by the database.
-pub trait DatabaseError: StdError + Send + Sync {
+pub trait DatabaseError: StdError + Send + Sync + 'static {
     /// The primary, human-readable error message.
     fn message(&self) -> &str;
 
@@ -228,6 +229,116 @@ pub trait DatabaseError: StdError + Send + Sync {
 
     fn constraint_name(&self) -> Option<&str> {
         None
+    }
+
+    #[doc(hidden)]
+    fn as_ref_err(&self) -> &(dyn StdError + Send + Sync + 'static);
+
+    #[doc(hidden)]
+    fn as_mut_err(&mut self) -> &mut (dyn StdError + Send + Sync + 'static);
+
+    #[doc(hidden)]
+    fn into_box_err(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static>;
+}
+
+impl dyn DatabaseError {
+    /// Downcast this `&dyn DatabaseError` to a specific database error type:
+    ///
+    /// * [PgError][crate::postgres::PgError] (if the `postgres` feature is active)
+    /// * [MySqlError][crate::mysql::MySqlError] (if the `mysql` feature is active)
+    /// * [SqliteError][crate::sqlite::SqliteError] (if the `sqlite` feature is active)
+    ///
+    /// In a generic context you can use the [crate::database::Database::Error] associated type.
+    ///
+    /// ### Panics
+    /// If the type does not match; this is in contrast with [StdError::downcast_ref]
+    /// which returns `Option`. This was a deliberate design decision in favor of brevity as in
+    /// almost all cases you should know which database error type you're expecting.
+    ///
+    /// In any other cases, use [Self::try_downcast_ref] instead.
+    pub fn downcast_ref<T: DatabaseError>(&self) -> &T {
+        self.try_downcast_ref::<T>().unwrap_or_else(|| {
+            panic!(
+                "downcasting to wrong DatabaseError type; original error: {:?}",
+                self
+            )
+        })
+    }
+
+    /// Downcast this `&dyn DatabaseError` to a specific database error type:
+    ///
+    /// * [PgError][crate::postgres::PgError] (if the `postgres` feature is active)
+    /// * [MySqlError][crate::mysql::MySqlError] (if the `mysql` feature is active)
+    /// * [SqliteError][crate::sqlite::SqliteError] (if the `sqlite` feature is active)
+    ///
+    /// In a generic context you can use the [crate::database::Database::Error] associated type.
+    ///
+    /// Returns `None` if the downcast fails (the types do not match)
+    pub fn try_downcast_ref<T: DatabaseError>(&self) -> Option<&T> {
+        self.as_ref_err().downcast_ref()
+    }
+
+    /// Only meant for internal use so no `try_` variant is currently provided
+    #[allow(dead_code)]
+    pub(crate) fn downcast_mut<T: DatabaseError>(&mut self) -> &mut T {
+        // tried to express this as the following:
+        //
+        // if let Some(e) = self.as_mut_err().downcast_mut() { return e; }
+        //
+        // however it didn't like using `self` again in the panic format
+        if self.as_ref_err().is::<T>() {
+            return self.as_mut_err().downcast_mut().unwrap();
+        }
+
+        panic!(
+            "downcasting to wrong DatabaseError type; original error: {:?}",
+            self
+        )
+    }
+
+    /// Downcast this `Box<dyn DatabaseError>` to a specific database error type:
+    ///
+    /// * [PgError][crate::postgres::PgError] (if the `postgres` feature is active)
+    /// * [MySqlError][crate::mysql::MySqlError] (if the `mysql` feature is active)
+    /// * [SqliteError][crate::sqlite::SqliteError] (if the `sqlite` feature is active)
+    ///
+    /// In a generic context you can use the [crate::database::Database::Error] associated type.
+    ///
+    /// ### Panics
+    /// If the type does not match; this is in contrast with [std::error::Error::downcast]
+    /// which returns `Result`. This was a deliberate design decision in favor of
+    /// brevity as in almost all cases you should know which database error type you're expecting.
+    ///
+    /// In any other cases, use [Self::try_downcast] instead.
+    pub fn downcast<T: DatabaseError>(self: Box<Self>) -> Box<T> {
+        self.try_downcast().unwrap_or_else(|e| {
+            panic!(
+                "downcasting to wrong DatabaseError type; original error: {:?}",
+                e
+            )
+        })
+    }
+
+    /// Downcast this `Box<dyn DatabaseError>` to a specific database error type:
+    ///
+    /// * [PgError][crate::postgres::PgError] (if the `postgres` feature is active)
+    /// * [MySqlError][crate::mysql::MySqlError] (if the `mysql` feature is active)
+    /// * [SqliteError][crate::sqlite::SqliteError] (if the `sqlite` feature is active)
+    ///
+    /// In a generic context you can use the [crate::database::Database::Error] associated type.
+    ///
+    /// Returns `Err(self)` if the downcast fails (the types do not match).
+    pub fn try_downcast<T: DatabaseError>(
+        self: Box<Self>,
+    ) -> std::result::Result<Box<T>, Box<Self>> {
+        if self.as_ref_err().is::<T>() {
+            Ok(self
+                .into_box_err()
+                .downcast()
+                .expect("type mismatch between DatabaseError::as_ref_err() and into_box_err()"))
+        } else {
+            Err(self)
+        }
     }
 }
 

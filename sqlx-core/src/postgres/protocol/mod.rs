@@ -60,7 +60,7 @@ pub(crate) use message::Message;
 pub(crate) use notification_response::NotificationResponse;
 pub(crate) use parameter_description::ParameterDescription;
 pub(crate) use ready_for_query::ReadyForQuery;
-pub(crate) use response::Response;
+pub(crate) use response::{Response, Severity};
 pub(crate) use row_description::{Field, RowDescription};
 
 pub(crate) trait Write {

@@ -4,7 +4,7 @@ pub use arguments::PgArguments;
 pub use connection::PgConnection;
 pub use cursor::PgCursor;
 pub use database::Postgres;
-pub use error::PgDatabaseError;
+pub use error::PgError;
 pub use listen::{PgListener, PgNotification};
 pub use row::PgRow;
 pub use types::PgTypeInfo;

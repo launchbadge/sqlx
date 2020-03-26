@@ -35,7 +35,7 @@ impl Encode<Postgres> for i8 {
 }
 
 impl<'de> Decode<'de, Postgres> for i8 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf.read_i8().map_err(Error::decode),
             PgData::Text(s) => Ok(s.as_bytes()[0] as i8),
@@ -68,7 +68,7 @@ impl Encode<Postgres> for i16 {
 }
 
 impl<'de> Decode<'de, Postgres> for i16 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf.read_i16::<NetworkEndian>().map_err(Error::decode),
             PgData::Text(s) => i16::from_str(s).map_err(Error::decode),
@@ -101,7 +101,7 @@ impl Encode<Postgres> for i32 {
 }
 
 impl<'de> Decode<'de, Postgres> for i32 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf.read_i32::<NetworkEndian>().map_err(Error::decode),
             PgData::Text(s) => i32::from_str(s).map_err(Error::decode),
@@ -134,7 +134,7 @@ impl Encode<Postgres> for u32 {
 }
 
 impl<'de> Decode<'de, Postgres> for u32 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf.read_u32::<NetworkEndian>().map_err(Error::decode),
             PgData::Text(s) => u32::from_str(s).map_err(Error::decode),
@@ -166,7 +166,7 @@ impl Encode<Postgres> for i64 {
 }
 
 impl<'de> Decode<'de, Postgres> for i64 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf.read_i64::<NetworkEndian>().map_err(Error::decode),
             PgData::Text(s) => i64::from_str(s).map_err(Error::decode),

@@ -34,7 +34,7 @@ impl Encode<Postgres> for f32 {
 }
 
 impl<'de> Decode<'de, Postgres> for f32 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf
                 .read_i32::<NetworkEndian>()
@@ -70,7 +70,7 @@ impl Encode<Postgres> for f64 {
 }
 
 impl<'de> Decode<'de, Postgres> for f64 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf
                 .read_i64::<NetworkEndian>()

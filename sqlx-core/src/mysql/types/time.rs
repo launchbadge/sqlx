@@ -28,7 +28,7 @@ impl Encode<MySql> for OffsetDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for OffsetDateTime {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         let primitive: PrimitiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(primitive.assume_utc())
@@ -68,7 +68,7 @@ impl Encode<MySql> for Time {
 }
 
 impl<'de> Decode<'de, MySql> for Time {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(mut buf) => {
                 // data length, expecting 8 or 12 (fractional seconds)
@@ -123,7 +123,7 @@ impl Encode<MySql> for Date {
 }
 
 impl<'de> Decode<'de, MySql> for Date {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(buf) => decode_date(&buf[1..]),
             MySqlData::Text(buf) => {
@@ -170,7 +170,7 @@ impl Encode<MySql> for PrimitiveDateTime {
 }
 
 impl<'de> Decode<'de, MySql> for PrimitiveDateTime {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(buf) => {
                 let len = buf[0];
@@ -218,7 +218,7 @@ fn encode_date(date: &Date, buf: &mut Vec<u8>) {
     buf.push(date.day());
 }
 
-fn decode_date(buf: &[u8]) -> crate::Result<MySql, Date> {
+fn decode_date(buf: &[u8]) -> crate::Result<Date> {
     Date::try_from_ymd(
         LittleEndian::read_u16(buf) as i32,
         buf[2] as u8,
@@ -237,7 +237,7 @@ fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {
     }
 }
 
-fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<MySql, Time> {
+fn decode_time(len: u8, mut buf: &[u8]) -> crate::Result<Time> {
     let hour = buf.get_u8()?;
     let minute = buf.get_u8()?;
     let seconds = buf.get_u8()?;

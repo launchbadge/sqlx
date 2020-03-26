@@ -25,7 +25,7 @@ impl<'c> DataRow<'c> {
     pub(crate) fn read(
         buffer: &'c [u8],
         values: &'c mut Vec<Option<Range<u32>>>,
-    ) -> crate::Result<Postgres, Self> {
+    ) -> crate::Result<Self> {
         values.clear();
 
         let mut buf = buffer;

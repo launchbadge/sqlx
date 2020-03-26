@@ -113,7 +113,7 @@ where
     /// opened and placed into the pool.
     ///
     /// [`min_size`]: #method.min_size
-    pub async fn build(self, url: &str) -> crate::Result<C::Database, Pool<C>>
+    pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
     where
         C: Connect,
     {

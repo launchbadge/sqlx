@@ -483,7 +483,7 @@ END $$;
     }
 
     impl<'de> Decode<'de, Postgres> for RecordEmpty {
-        fn decode(_value: PgValue<'de>) -> sqlx::Result<Postgres, Self> {
+        fn decode(_value: PgValue<'de>) -> sqlx::Result<Self> {
             Ok(RecordEmpty {})
         }
     }
@@ -515,7 +515,7 @@ END $$;
     }
 
     impl<'de> Decode<'de, Postgres> for Record1 {
-        fn decode(value: PgValue<'de>) -> sqlx::Result<Postgres, Self> {
+        fn decode(value: PgValue<'de>) -> sqlx::Result<Self> {
             let mut decoder = PgRecordDecoder::new(value)?;
 
             let _1 = decoder.decode()?;

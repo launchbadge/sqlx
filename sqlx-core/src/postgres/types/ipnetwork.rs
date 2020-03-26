@@ -66,7 +66,7 @@ impl Encode<Postgres> for IpNetwork {
 }
 
 impl<'de> Decode<'de, Postgres> for IpNetwork {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => decode(buf),
             PgData::Text(s) => s.parse().map_err(crate::Error::decode),
@@ -74,7 +74,7 @@ impl<'de> Decode<'de, Postgres> for IpNetwork {
     }
 }
 
-fn decode(bytes: &[u8]) -> crate::Result<Postgres, IpNetwork> {
+fn decode(bytes: &[u8]) -> crate::Result<IpNetwork> {
     if bytes.len() < 8 {
         return Err(Error::Decode("Input too short".into()));
     }
