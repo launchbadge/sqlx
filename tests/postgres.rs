@@ -333,7 +333,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "INT4"
     );
     assert_eq!(describe.result_columns[1].non_null, Some(true));
@@ -342,7 +342,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "TEXT"
     );
     assert_eq!(describe.result_columns[2].non_null, Some(false));
@@ -351,7 +351,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "BYTEA"
     );
     assert_eq!(describe.result_columns[3].non_null, None);
@@ -360,7 +360,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "BOOL"
     );
 
