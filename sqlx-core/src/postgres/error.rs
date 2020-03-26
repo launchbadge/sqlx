@@ -63,3 +63,38 @@ impl From<PgError> for crate::Error {
         crate::Error::Database(Box::new(err))
     }
 }
+
+#[test]
+fn test_error_downcasting() {
+    use super::protocol::Severity;
+
+    let error = PgError(Response {
+        severity: Severity::Panic,
+        code: "".into(),
+        message: "".into(),
+        detail: None,
+        hint: None,
+        position: None,
+        internal_position: None,
+        internal_query: None,
+        where_: None,
+        schema: None,
+        table: None,
+        column: None,
+        data_type: None,
+        constraint: None,
+        file: None,
+        line: None,
+        routine: None
+    });
+
+    let error = crate::Error::from(error);
+
+    let db_err = match error {
+        crate::Error::Database(db_err) => db_err,
+        e => panic!("expected Error::Database, got {:?}", e)
+    };
+
+    assert_eq!(db_err.downcast_ref::<PgError>().0.severity, Severity::Panic);
+    assert_eq!(db_err.downcast::<PgError>().0.severity, Severity::Panic);
+}

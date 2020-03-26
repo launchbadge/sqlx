@@ -43,3 +43,22 @@ impl From<MySqlError> for crate::Error {
         crate::Error::Database(Box::new(err))
     }
 }
+
+#[test]
+fn test_error_downcasting() {
+    let error = MySqlError(ErrPacket {
+        error_code: 0xABCD,
+        sql_state: None,
+        error_message: "".into()
+    });
+
+    let error = crate::Error::from(error);
+
+    let db_err = match error {
+        crate::Error::Database(db_err) => db_err,
+        e => panic!("expected crate::Error::Database, got {:?}", e)
+    };
+
+    assert_eq!(db_err.downcast_ref::<MySqlError>().0.error_code, 0xABCD);
+    assert_eq!(db_err.downcast::<MySqlError>().0.error_code, 0xABCD);
+}

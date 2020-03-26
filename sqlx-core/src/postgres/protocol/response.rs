@@ -3,7 +3,7 @@ use std::str::{self, FromStr};
 
 use crate::postgres::database::Postgres;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Severity {
     Panic,
     Fatal,

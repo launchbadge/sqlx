@@ -71,3 +71,21 @@ impl From<SqliteError> for crate::Error {
         crate::Error::Database(Box::new(err))
     }
 }
+
+#[test]
+fn test_error_downcasting() {
+    let error = SqliteError {
+        code: "SQLITE_ERR_SOMETHING".into(),
+        message: "Some hypothetical error message".into()
+    };
+
+    let error = crate::Error::from(error);
+
+    let db_err = match error {
+        crate::Error::Database(db_err) => db_err,
+        e => panic!("expected Error::Database, got {:?}", e)
+    };
+
+    assert_eq!(&db_err.downcast_ref::<SqliteError>().code, "SQLITE_ERR_SOMETHING");
+    assert_eq!(db_err.downcast::<SqliteError>().code, "SQLITE_ERR_SOMETHING");
+}
