@@ -295,7 +295,7 @@ impl<'de, T> Decode<'de, Postgres> for Option<T>
 where
     T: Decode<'de, Postgres>,
 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         Ok(if value.get().is_some() {
             Some(<T as Decode<Postgres>>::decode(value)?)
         } else {

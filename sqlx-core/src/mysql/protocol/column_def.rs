@@ -35,7 +35,7 @@ impl ColumnDefinition {
 }
 
 impl ColumnDefinition {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         // catalog : string<lenenc>
         let catalog = buf.get_str_lenenc::<LittleEndian>()?;
 

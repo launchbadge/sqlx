@@ -47,7 +47,7 @@ pub(super) async fn authenticate<T: AsRef<str>>(
     stream: &mut PgStream,
     username: T,
     password: T,
-) -> crate::Result<Postgres, ()> {
+) -> crate::Result<()> {
     // channel-binding = "c=" base64
     let channel_binding = format!("{}={}", CHANNEL_ATTR, base64::encode(GS2_HEADER));
     // "n=" saslname ;; Usernames are prepared using SASLprep.

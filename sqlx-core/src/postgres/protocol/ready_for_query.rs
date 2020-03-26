@@ -20,7 +20,7 @@ pub struct ReadyForQuery {
 }
 
 impl ReadyForQuery {
-    pub(crate) fn read(buf: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(buf: &[u8]) -> crate::Result<Self> {
         Ok(Self {
             status: match buf[0] {
                 b'I' => TransactionStatus::Idle,

@@ -14,7 +14,7 @@ pub struct ErrPacket {
 }
 
 impl ErrPacket {
-    pub(crate) fn read(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<MySql, Self>
+    pub(crate) fn read(mut buf: &[u8], capabilities: Capabilities) -> crate::Result<Self>
     where
         Self: Sized,
     {

@@ -45,7 +45,7 @@ impl<'c> Row<'c> for PgRow<'c> {
     }
 
     #[doc(hidden)]
-    fn try_get_raw<I>(&self, index: I) -> crate::Result<Postgres, PgValue<'c>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<PgValue<'c>>
     where
         I: ColumnIndex<'c, Self>,
     {
@@ -63,7 +63,7 @@ impl<'c> Row<'c> for PgRow<'c> {
 }
 
 impl<'c> ColumnIndex<'c, PgRow<'c>> for usize {
-    fn index(&self, row: &PgRow<'c>) -> crate::Result<Postgres, usize> {
+    fn index(&self, row: &PgRow<'c>) -> crate::Result<usize> {
         let len = Row::len(row);
 
         if *self >= len {
@@ -75,7 +75,7 @@ impl<'c> ColumnIndex<'c, PgRow<'c>> for usize {
 }
 
 impl<'c> ColumnIndex<'c, PgRow<'c>> for str {
-    fn index(&self, row: &PgRow<'c>) -> crate::Result<Postgres, usize> {
+    fn index(&self, row: &PgRow<'c>) -> crate::Result<usize> {
         row.statement
             .names
             .get(self)

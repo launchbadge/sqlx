@@ -12,7 +12,7 @@ use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::sqlite::statement::Statement;
 use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteDatabaseError;
+use crate::sqlite::SqliteError;
 use crate::types::Type;
 
 #[derive(Debug, Clone)]
@@ -70,11 +70,7 @@ impl Arguments for SqliteArguments {
 }
 
 impl SqliteArgumentValue {
-    pub(super) fn bind(
-        &self,
-        statement: &mut Statement,
-        index: usize,
-    ) -> crate::Result<Sqlite, ()> {
+    pub(super) fn bind(&self, statement: &mut Statement, index: usize) -> crate::Result<()> {
         // TODO: Handle error of trying to bind too many parameters here
         let index = index as c_int;
 
@@ -131,9 +127,7 @@ impl SqliteArgumentValue {
         };
 
         if status != SQLITE_OK {
-            return Err(
-                SqliteDatabaseError::from_connection(statement.connection.0.as_ptr()).into(),
-            );
+            return Err(SqliteError::from_connection(statement.connection.0.as_ptr()).into());
         }
 
         Ok(())

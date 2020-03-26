@@ -19,7 +19,7 @@ pub(crate) struct Handshake {
 }
 
 impl Handshake {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self>
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

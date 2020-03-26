@@ -35,7 +35,7 @@ impl Encode<MySql> for f32 {
 }
 
 impl<'de> Decode<'de, MySql> for f32 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(mut buf) => buf
                 .read_i32::<LittleEndian>()
@@ -67,7 +67,7 @@ impl Encode<MySql> for f64 {
 }
 
 impl<'de> Decode<'de, MySql> for f64 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             MySqlData::Binary(mut buf) => buf
                 .read_i64::<LittleEndian>()

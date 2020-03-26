@@ -20,7 +20,7 @@ pub(crate) struct Field {
 }
 
 impl RowDescription {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let cnt = buf.get_u16::<NetworkEndian>()? as usize;
         let mut fields = Vec::with_capacity(cnt);
 

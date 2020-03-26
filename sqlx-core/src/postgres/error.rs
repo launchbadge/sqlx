@@ -6,9 +6,9 @@ use crate::postgres::protocol::Response;
 use crate::postgres::Postgres;
 
 #[derive(Debug)]
-pub struct PgDatabaseError(pub(super) Response);
+pub struct PgError(pub(super) Response);
 
-impl DatabaseError for PgDatabaseError {
+impl DatabaseError for PgError {
     fn message(&self) -> &str {
         &self.0.message
     }
@@ -36,18 +36,30 @@ impl DatabaseError for PgDatabaseError {
     fn constraint_name(&self) -> Option<&str> {
         self.0.constraint.as_ref().map(|s| &**s)
     }
+
+    fn as_ref_err(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    fn as_mut_err(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    fn into_box_err(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+        self
+    }
 }
 
-impl Display for PgDatabaseError {
+impl Display for PgError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(self.message())
     }
 }
 
-impl StdError for PgDatabaseError {}
+impl StdError for PgError {}
 
-impl From<PgDatabaseError> for crate::Error<Postgres> {
-    fn from(err: PgDatabaseError) -> Self {
+impl From<PgError> for crate::Error {
+    fn from(err: PgError) -> Self {
         crate::Error::Database(Box::new(err))
     }
 }

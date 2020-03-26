@@ -20,7 +20,7 @@ pub(crate) struct ComStmtPrepareOk {
 }
 
 impl ComStmtPrepareOk {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let header = buf.get_u8()?;
 
         if header != 0x00 {

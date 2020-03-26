@@ -317,7 +317,7 @@ impl<'de, T> Decode<'de, MySql> for Option<T>
 where
     T: Decode<'de, MySql>,
 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<MySql, Self> {
+    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
         Ok(if value.get().is_some() {
             Some(<T as Decode<MySql>>::decode(value)?)
         } else {

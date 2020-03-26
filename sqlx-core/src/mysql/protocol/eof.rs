@@ -13,7 +13,7 @@ pub struct EofPacket {
 }
 
 impl EofPacket {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self>
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

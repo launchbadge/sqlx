@@ -99,7 +99,7 @@ impl<'de, T> Decode<'de, Sqlite> for Option<T>
 where
     T: Decode<'de, Sqlite>,
 {
-    fn decode(value: SqliteValue<'de>) -> crate::Result<Sqlite, Self> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<Self> {
         if value.is_null() {
             Ok(None)
         } else {

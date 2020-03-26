@@ -22,7 +22,7 @@ enum Inner {
 }
 
 impl MaybeTlsStream {
-    pub async fn connect<DB: Database>(url: &Url, default_port: u16) -> crate::Result<DB, Self> {
+    pub async fn connect(url: &Url, default_port: u16) -> crate::Result<Self> {
         let conn = TcpStream::connect((url.host(), url.port(default_port))).await?;
         Ok(Self {
             inner: Inner::NotTls(conn),
@@ -42,11 +42,11 @@ impl MaybeTlsStream {
 
     #[cfg(feature = "tls")]
     #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
-    pub async fn upgrade<DB: Database>(
+    pub async fn upgrade(
         &mut self,
         url: &Url,
         connector: async_native_tls::TlsConnector,
-    ) -> crate::Result<DB, ()> {
+    ) -> crate::Result<()> {
         let conn = match std::mem::replace(&mut self.inner, Upgrading) {
             NotTls(conn) => conn,
             Tls(_) => return Err(tls_err!("connection already upgraded").into()),

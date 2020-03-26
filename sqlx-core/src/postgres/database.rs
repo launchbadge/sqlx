@@ -2,9 +2,7 @@
 
 use crate::cursor::HasCursor;
 use crate::database::Database;
-use crate::postgres::{
-    PgArguments, PgConnection, PgCursor, PgDatabaseError, PgRow, PgTypeInfo, PgValue,
-};
+use crate::postgres::{PgArguments, PgConnection, PgCursor, PgError, PgRow, PgTypeInfo, PgValue};
 use crate::row::HasRow;
 use crate::value::HasRawValue;
 
@@ -23,7 +21,7 @@ impl Database for Postgres {
 
     type RawBuffer = Vec<u8>;
 
-    type Error = PgDatabaseError;
+    type Error = PgError;
 }
 
 impl<'a> HasRow<'a> for Postgres {

@@ -94,7 +94,7 @@ fn microseconds_since_midnight(time: Time) -> i64 {
         + time.microsecond() as i64
 }
 
-fn from_microseconds_since_midnight(mut microsecond: u64) -> crate::Result<Postgres, Time> {
+fn from_microseconds_since_midnight(mut microsecond: u64) -> crate::Result<Time> {
     #![allow(clippy::cast_possible_truncation)]
 
     microsecond %= 86_400 * 1_000_000;
@@ -109,7 +109,7 @@ fn from_microseconds_since_midnight(mut microsecond: u64) -> crate::Result<Postg
 }
 
 impl<'de> Decode<'de, Postgres> for Time {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let micros: i64 = buf.get_i64::<BigEndian>()?;
@@ -147,7 +147,7 @@ impl Encode<Postgres> for Time {
 }
 
 impl<'de> Decode<'de, Postgres> for Date {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let n: i32 = buf.get_i32::<BigEndian>()?;
@@ -177,7 +177,7 @@ impl Encode<Postgres> for Date {
 }
 
 impl<'de> Decode<'de, Postgres> for PrimitiveDateTime {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => {
                 let n: i64 = buf.get_i64::<BigEndian>()?;
@@ -233,7 +233,7 @@ impl Encode<Postgres> for PrimitiveDateTime {
 }
 
 impl<'de> Decode<'de, Postgres> for OffsetDateTime {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         let primitive: PrimitiveDateTime = Decode::<Postgres>::decode(value)?;
 
         Ok(primitive.assume_utc())

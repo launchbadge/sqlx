@@ -42,7 +42,7 @@ impl Encode<Postgres> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, Postgres> for Vec<u8> {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Ok(buf.to_vec()),
             PgData::Text(s) => {
@@ -54,7 +54,7 @@ impl<'de> Decode<'de, Postgres> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, Postgres> for &'de [u8] {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Ok(buf),
             PgData::Text(_s) => Err(crate::Error::Decode(

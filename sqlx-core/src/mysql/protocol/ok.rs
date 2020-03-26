@@ -17,7 +17,7 @@ pub(crate) struct OkPacket {
 }
 
 impl OkPacket {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self>
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self>
     where
         Self: Sized,
     {

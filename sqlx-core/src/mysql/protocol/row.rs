@@ -60,7 +60,7 @@ impl<'c> Row<'c> {
         columns: &'c [MySqlTypeInfo],
         values: &'c mut Vec<Option<Range<usize>>>,
         binary: bool,
-    ) -> crate::Result<MySql, Self> {
+    ) -> crate::Result<Self> {
         let buffer = &*buf;
 
         values.clear();
@@ -163,7 +163,7 @@ impl<'c> Row<'c> {
 //     use super::*;
 //
 //     #[test]
-//     fn null_bitmap_test() -> crate::Result<MySql, ()> {
+//     fn null_bitmap_test() -> crate::Result<()> {
 //         let column_len = ColumnCount::decode(&[26])?;
 //         assert_eq!(column_len.columns, 26);
 //

@@ -41,7 +41,7 @@ where
     [T]: Type<Postgres>,
     T: Type<Postgres>,
 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         PgArrayDecoder::<T>::new(value)?.collect()
     }
 }

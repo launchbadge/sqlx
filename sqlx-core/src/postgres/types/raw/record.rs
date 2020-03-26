@@ -61,7 +61,7 @@ impl<'a> PgRecordEncoder<'a> {
 pub struct PgRecordDecoder<'de>(PgSequenceDecoder<'de>);
 
 impl<'de> PgRecordDecoder<'de> {
-    pub fn new(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    pub fn new(value: PgValue<'de>) -> crate::Result<Self> {
         let mut data = value.try_get()?;
 
         match data {
@@ -75,7 +75,7 @@ impl<'de> PgRecordDecoder<'de> {
     }
 
     #[inline]
-    pub fn decode<T>(&mut self) -> crate::Result<Postgres, T>
+    pub fn decode<T>(&mut self) -> crate::Result<T>
     where
         T: for<'rec> Decode<'rec, Postgres>,
         T: Type<Postgres>,

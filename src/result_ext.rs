@@ -5,23 +5,23 @@ pub trait ResultExt<DB, T>: Sized
 where
     DB: Database,
 {
-    fn try_unwrap_optional(self) -> crate::Result<DB, T>;
+    fn try_unwrap_optional(self) -> crate::Result<T>;
 }
 
-impl<DB, T> ResultExt<DB, T> for crate::Result<DB, T>
+impl<DB, T> ResultExt<DB, T> for crate::Result<T>
 where
     DB: Database,
 {
-    fn try_unwrap_optional(self) -> crate::Result<DB, T> {
+    fn try_unwrap_optional(self) -> crate::Result<T> {
         self
     }
 }
 
-impl<DB, T> ResultExt<DB, Option<T>> for crate::Result<DB, T>
+impl<DB, T> ResultExt<DB, Option<T>> for crate::Result<T>
 where
     DB: Database,
 {
-    fn try_unwrap_optional(self) -> crate::Result<DB, Option<T>> {
+    fn try_unwrap_optional(self) -> crate::Result<Option<T>> {
         match self {
             Ok(val) => Ok(Some(val)),
 

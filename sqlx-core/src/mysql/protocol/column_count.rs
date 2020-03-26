@@ -9,7 +9,7 @@ pub struct ColumnCount {
 }
 
 impl ColumnCount {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<MySql, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let columns = buf.get_uint_lenenc::<LittleEndian>()?.unwrap_or(0);
 
         Ok(Self { columns })

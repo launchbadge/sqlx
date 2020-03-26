@@ -15,7 +15,7 @@ pub enum AuthPlugin {
 }
 
 impl AuthPlugin {
-    pub(crate) fn from_opt_str(s: Option<&str>) -> crate::Result<MySql, AuthPlugin> {
+    pub(crate) fn from_opt_str(s: Option<&str>) -> crate::Result<AuthPlugin> {
         match s {
             Some("mysql_native_password") | None => Ok(AuthPlugin::MySqlNativePassword),
             Some("caching_sha2_password") => Ok(AuthPlugin::CachingSha2Password),
