@@ -1,4 +1,3 @@
-use crate::postgres::database::Postgres;
 use crate::postgres::stream::PgStream;
 use crate::url::Url;
 

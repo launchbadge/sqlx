@@ -13,7 +13,7 @@ use libsqlite3_sys::{
 
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
-use crate::sqlite::Sqlite;
+
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
 

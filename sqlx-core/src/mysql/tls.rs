@@ -1,4 +1,3 @@
-use super::MySql;
 use crate::mysql::stream::MySqlStream;
 use crate::url::Url;
 

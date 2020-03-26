@@ -3,7 +3,6 @@ use std::fmt::{self, Display};
 
 use crate::error::DatabaseError;
 use crate::postgres::protocol::Response;
-use crate::postgres::Postgres;
 
 #[derive(Debug)]
 pub struct PgError(pub(super) Response);
@@ -85,14 +84,14 @@ fn test_error_downcasting() {
         constraint: None,
         file: None,
         line: None,
-        routine: None
+        routine: None,
     });
 
     let error = crate::Error::from(error);
 
     let db_err = match error {
         crate::Error::Database(db_err) => db_err,
-        e => panic!("expected Error::Database, got {:?}", e)
+        e => panic!("expected Error::Database, got {:?}", e),
     };
 
     assert_eq!(db_err.downcast_ref::<PgError>().0.severity, Severity::Panic);

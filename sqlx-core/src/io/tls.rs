@@ -3,7 +3,6 @@ use std::net::Shutdown;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::database::Database;
 use crate::runtime::{AsyncRead, AsyncWrite, TcpStream};
 use crate::url::Url;
 

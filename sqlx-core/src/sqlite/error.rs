@@ -1,5 +1,5 @@
 use crate::error::DatabaseError;
-use crate::sqlite::Sqlite;
+
 use bitflags::_core::str::from_utf8_unchecked;
 use libsqlite3_sys::{sqlite3, sqlite3_errmsg, sqlite3_extended_errcode};
 use std::error::Error as StdError;
@@ -76,16 +76,22 @@ impl From<SqliteError> for crate::Error {
 fn test_error_downcasting() {
     let error = SqliteError {
         code: "SQLITE_ERR_SOMETHING".into(),
-        message: "Some hypothetical error message".into()
+        message: "Some hypothetical error message".into(),
     };
 
     let error = crate::Error::from(error);
 
     let db_err = match error {
         crate::Error::Database(db_err) => db_err,
-        e => panic!("expected Error::Database, got {:?}", e)
+        e => panic!("expected Error::Database, got {:?}", e),
     };
 
-    assert_eq!(&db_err.downcast_ref::<SqliteError>().code, "SQLITE_ERR_SOMETHING");
-    assert_eq!(db_err.downcast::<SqliteError>().code, "SQLITE_ERR_SOMETHING");
+    assert_eq!(
+        &db_err.downcast_ref::<SqliteError>().code,
+        "SQLITE_ERR_SOMETHING"
+    );
+    assert_eq!(
+        db_err.downcast::<SqliteError>().code,
+        "SQLITE_ERR_SOMETHING"
+    );
 }

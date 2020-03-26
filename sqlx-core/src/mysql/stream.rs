@@ -4,7 +4,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::{Buf, BufMut, BufStream, MaybeTlsStream};
 use crate::mysql::protocol::{Capabilities, Encode, EofPacket, ErrPacket, OkPacket};
-use crate::mysql::MySql;
+
 use crate::mysql::MySqlError;
 use crate::url::Url;
 

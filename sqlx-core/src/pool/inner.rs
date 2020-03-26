@@ -13,7 +13,7 @@ use crate::pool::deadline_as_timeout;
 use crate::runtime::{sleep, spawn, timeout};
 use crate::{
     connection::{Connect, Connection},
-    error::{DatabaseError, Error},
+    error::Error,
 };
 
 use super::connection::{Floating, Idle, Live};

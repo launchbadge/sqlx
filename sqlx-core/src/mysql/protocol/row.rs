@@ -4,7 +4,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::io::Buf;
 use crate::mysql::protocol::TypeId;
-use crate::mysql::{MySql, MySqlTypeInfo};
+use crate::mysql::MySqlTypeInfo;
 
 pub(crate) struct Row<'c> {
     buffer: &'c [u8],

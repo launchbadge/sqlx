@@ -12,7 +12,7 @@ use crate::mysql::protocol::{
 };
 use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
-use crate::mysql::MySql;
+
 use crate::mysql::{rsa, tls};
 use crate::url::Url;
 

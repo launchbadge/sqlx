@@ -279,6 +279,7 @@ impl dyn DatabaseError {
     }
 
     /// Only meant for internal use so no `try_` variant is currently provided
+    #[allow(dead_code)]
     pub(crate) fn downcast_mut<T: DatabaseError>(&mut self) -> &mut T {
         // tried to express this as the following:
         //

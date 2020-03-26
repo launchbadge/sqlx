@@ -177,7 +177,6 @@ impl<'de> From<&'de str> for PgSequenceDecoder<'de> {
 #[cfg(test)]
 mod tests {
     use super::PgSequenceDecoder;
-    use crate::postgres::Postgres;
 
     #[test]
     fn it_decodes_text_number() -> crate::Result<()> {

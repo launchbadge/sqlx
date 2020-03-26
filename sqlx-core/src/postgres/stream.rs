@@ -7,7 +7,7 @@ use futures_channel::mpsc::UnboundedSender;
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{Message, NotificationResponse, Response, Write};
 use crate::postgres::PgError;
-use crate::postgres::Postgres;
+
 use crate::url::Url;
 use futures_util::SinkExt;
 

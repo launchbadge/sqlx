@@ -1,7 +1,6 @@
 use byteorder::LittleEndian;
 
 use crate::mysql::io::BufExt;
-use crate::mysql::MySql;
 
 #[derive(Debug)]
 pub struct ColumnCount {

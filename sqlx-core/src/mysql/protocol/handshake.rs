@@ -2,7 +2,6 @@ use byteorder::LittleEndian;
 
 use crate::io::Buf;
 use crate::mysql::protocol::{AuthPlugin, Capabilities, Status};
-use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase_packets_protocol_handshake_v10.html
 // https://mariadb.com/kb/en/connection/#initial-handshake-packet

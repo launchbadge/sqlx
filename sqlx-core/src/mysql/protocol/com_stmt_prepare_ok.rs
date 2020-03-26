@@ -1,7 +1,6 @@
 use byteorder::LittleEndian;
 
 use crate::io::Buf;
-use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_stmt_prepare.html#sect_protocol_com_stmt_prepare_response_ok
 #[derive(Debug)]

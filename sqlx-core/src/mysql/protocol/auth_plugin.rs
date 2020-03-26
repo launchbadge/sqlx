@@ -5,7 +5,6 @@ use sha1::Sha1;
 use sha2::Sha256;
 
 use crate::mysql::util::xor_eq;
-use crate::mysql::MySql;
 
 #[derive(Debug, PartialEq)]
 pub enum AuthPlugin {

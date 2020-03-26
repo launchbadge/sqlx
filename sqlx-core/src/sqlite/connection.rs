@@ -15,7 +15,7 @@ use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
 use crate::sqlite::statement::Statement;
 use crate::sqlite::worker::Worker;
-use crate::sqlite::Sqlite;
+
 use crate::sqlite::SqliteError;
 use crate::url::Url;
 

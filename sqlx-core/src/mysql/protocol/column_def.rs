@@ -3,7 +3,6 @@ use byteorder::LittleEndian;
 use crate::io::Buf;
 use crate::mysql::io::BufExt;
 use crate::mysql::protocol::{FieldFlags, TypeId};
-use crate::mysql::MySql;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_com_query_response_text_resultset_column_definition.html
 // https://mariadb.com/kb/en/resultset/#column-definition-packet

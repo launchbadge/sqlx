@@ -8,7 +8,7 @@ use futures_util::TryFutureExt;
 
 use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
-use crate::postgres::database::Postgres;
+
 use crate::postgres::protocol::{
     Authentication, AuthenticationMd5, AuthenticationSasl, BackendKeyData, Message,
     PasswordMessage, StartupMessage, StatementId, Terminate,

@@ -2,7 +2,6 @@ use hmac::{Hmac, Mac};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 
-use crate::postgres::database::Postgres;
 use crate::postgres::protocol::{
     hi, Authentication, AuthenticationSaslContinue, Message, SaslInitialResponse, SaslResponse,
 };
