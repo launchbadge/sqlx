@@ -141,7 +141,7 @@ impl Response {
                     internal_query = Some(field_value.into());
                 }
 
-                b'w' => {
+                b'W' => {
                     where_ = Some(field_value.into());
                 }
 
