@@ -1,7 +1,7 @@
 use crate::decode::Decode;
 use crate::postgres::protocol::TypeId;
+use crate::postgres::type_info::PgTypeInfo;
 use crate::postgres::types::raw::PgRecordDecoder;
-use crate::postgres::types::PgTypeInfo;
 use crate::postgres::value::PgValue;
 use crate::postgres::Postgres;
 use crate::types::Type;
@@ -11,20 +11,14 @@ macro_rules! impl_pg_record_for_tuple {
         impl<$($T,)+> Type<Postgres> for ($($T,)+) {
             #[inline]
             fn type_info() -> PgTypeInfo {
-                PgTypeInfo {
-                    id: TypeId(2249),
-                    name: Some("RECORD".into()),
-                }
+                PgTypeInfo::new(TypeId::RECORD, "RECORD")
             }
         }
 
         impl<$($T,)+> Type<Postgres> for [($($T,)+)] {
             #[inline]
             fn type_info() -> PgTypeInfo {
-                PgTypeInfo {
-                    id: TypeId(2287),
-                    name: Some("RECORD[]".into()),
-                }
+                PgTypeInfo::new(TypeId::ARRAY_RECORD, "RECORD[]")
             }
         }
 

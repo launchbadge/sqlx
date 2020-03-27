@@ -6,7 +6,7 @@ use num_bigint::{BigInt, Sign};
 
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 use super::raw::{PgNumeric, PgNumericSign};
@@ -135,7 +135,7 @@ impl TryFrom<PgNumeric> for BigDecimal {
 /// ### Panics
 /// If this `BigDecimal` cannot be represented by [PgNumeric].
 impl Encode<Postgres> for BigDecimal {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         // this copy is unfortunately necessary because we'd have to use `.to_bigint_and_exponent()`
         // otherwise which does the exact same thing, so for the explicit impl might as well allow
         // the user to skip one of the copies if they have an owned value

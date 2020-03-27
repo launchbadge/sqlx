@@ -2,18 +2,18 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::Buf;
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
-use crate::postgres::{PgData, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BigEndian;
 
 pub struct PgRecordEncoder<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut PgRawBuffer,
     beg: usize,
     num: u32,
 }
 
 impl<'a> PgRecordEncoder<'a> {
-    pub fn new(buf: &'a mut Vec<u8>) -> Self {
+    pub fn new(buf: &'a mut PgRawBuffer) -> Self {
         // reserve space for a field count
         buf.extend_from_slice(&(0_u32).to_be_bytes());
 
@@ -33,9 +33,15 @@ impl<'a> PgRecordEncoder<'a> {
     where
         T: Type<Postgres> + Encode<Postgres>,
     {
-        // write oid
         let info = T::type_info();
-        self.buf.extend(&info.oid().to_be_bytes());
+
+        if let Some(oid) = info.id {
+            // write oid
+            self.buf.extend(&oid.0.to_be_bytes());
+        } else {
+            // write hole for this oid
+            self.buf.push_type_hole(&info.name);
+        }
 
         // write zeros for length
         self.buf.extend(&[0; 4]);
@@ -71,7 +77,7 @@ impl<'de> PgRecordDecoder<'de> {
             }
         }
 
-        Ok(Self(PgSequenceDecoder::new(data, true)))
+        Ok(Self(PgSequenceDecoder::new(data, None)))
     }
 
     #[inline]
@@ -91,15 +97,15 @@ fn test_encode_field() {
     use std::convert::TryInto;
 
     let value = "Foo Bar";
-    let mut raw_encoded = Vec::new();
+    let mut raw_encoded = PgRawBuffer::default();
     <&str as Encode<Postgres>>::encode(&value, &mut raw_encoded);
-    let mut field_encoded = Vec::new();
+    let mut field_encoded = PgRawBuffer::default();
 
     let mut encoder = PgRecordEncoder::new(&mut field_encoded);
     encoder.encode(&value);
 
     // check oid
-    let oid = <&str as Type<Postgres>>::type_info().oid();
+    let oid = <&str as Type<Postgres>>::type_info().id.unwrap().0;
     let field_encoded_oid = u32::from_be_bytes(field_encoded[4..8].try_into().unwrap());
     assert_eq!(oid, field_encoded_oid);
 
@@ -108,21 +114,19 @@ fn test_encode_field() {
     assert_eq!(raw_encoded.len(), field_encoded_length as usize);
 
     // check data
-    assert_eq!(raw_encoded, &field_encoded[12..]);
+    assert_eq!(&**raw_encoded, &field_encoded[12..]);
 }
 
 #[test]
 fn test_decode_field() {
-    use crate::postgres::protocol::TypeId;
-
     let value = "Foo Bar".to_string();
 
-    let mut buf = Vec::new();
+    let mut buf = PgRawBuffer::default();
     let mut encoder = PgRecordEncoder::new(&mut buf);
     encoder.encode(&value);
 
     let buf = buf.as_slice();
-    let mut decoder = PgRecordDecoder::new(PgValue::bytes(TypeId(0), buf)).unwrap();
+    let mut decoder = PgRecordDecoder::new(PgValue::from_bytes(buf)).unwrap();
 
     let value_decoded: String = decoder.decode().unwrap();
     assert_eq!(value_decoded, value);

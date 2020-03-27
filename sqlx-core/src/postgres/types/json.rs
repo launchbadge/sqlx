@@ -2,7 +2,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::{Json, Type};
 use crate::value::RawValue;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ impl Type<Postgres> for JsonValue {
 }
 
 impl Encode<Postgres> for JsonValue {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         Json(self).encode(buf)
     }
 }
@@ -40,7 +40,7 @@ impl Type<Postgres> for &'_ JsonRawValue {
 }
 
 impl Encode<Postgres> for &'_ JsonRawValue {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         Json(self).encode(buf)
     }
 }
@@ -61,11 +61,11 @@ impl<T> Encode<Postgres> for Json<T>
 where
     T: Serialize,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        // JSONB version (as of 2020-03-20  )
+    fn encode(&self, buf: &mut PgRawBuffer) {
+        // JSONB version (as of 2020-03-20)
         buf.put_u8(1);
 
-        serde_json::to_writer(buf, &self.0)
+        serde_json::to_writer(&mut **buf, &self.0)
             .expect("failed to serialize json for encoding to database");
     }
 }
@@ -79,7 +79,7 @@ where
         (match value.try_get()? {
             PgData::Text(s) => serde_json::from_str(s),
             PgData::Binary(mut buf) => {
-                if value.type_info().as_ref().map(|info| info.id) == Some(TypeId::JSONB) {
+                if value.type_info().as_ref().and_then(|info| info.id) == Some(TypeId::JSONB) {
                     let version = buf.get_u8()?;
 
                     assert_eq!(

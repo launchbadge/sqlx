@@ -7,8 +7,7 @@ use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, Tim
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
-use crate::postgres::{PgData, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -108,7 +107,7 @@ impl<'de> Decode<'de, Postgres> for NaiveTime {
 }
 
 impl Encode<Postgres> for NaiveTime {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         let micros = (*self - NaiveTime::from_hms(0, 0, 0))
             .num_microseconds()
             .expect("shouldn't overflow");
@@ -136,7 +135,7 @@ impl<'de> Decode<'de, Postgres> for NaiveDate {
 }
 
 impl Encode<Postgres> for NaiveDate {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         let days: i32 = self
             .signed_duration_since(NaiveDate::from_ymd(2000, 1, 1))
             .num_days()
@@ -191,7 +190,7 @@ impl<'de> Decode<'de, Postgres> for NaiveDateTime {
 }
 
 impl Encode<Postgres> for NaiveDateTime {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         let micros = self
             .signed_duration_since(postgres_epoch().naive_utc())
             .num_microseconds()
@@ -223,7 +222,7 @@ impl<Tz: TimeZone> Encode<Postgres> for DateTime<Tz>
 where
     Tz::Offset: Copy,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         Encode::<Postgres>::encode(&self.naive_utc(), buf);
     }
 
@@ -238,60 +237,60 @@ fn postgres_epoch() -> DateTime<Utc> {
 
 #[test]
 fn test_encode_time() {
-    let mut buf = Vec::new();
+    let mut buf = PgRawBuffer::default();
 
     Encode::<Postgres>::encode(&NaiveTime::from_hms(0, 0, 0), &mut buf);
-    assert_eq!(buf, [0; 8]);
+    assert_eq!(&**buf, [0; 8]);
     buf.clear();
 
     // one second
     Encode::<Postgres>::encode(&NaiveTime::from_hms(0, 0, 1), &mut buf);
-    assert_eq!(buf, 1_000_000i64.to_be_bytes());
+    assert_eq!(&**buf, 1_000_000i64.to_be_bytes());
     buf.clear();
 
     // two hours
     Encode::<Postgres>::encode(&NaiveTime::from_hms(2, 0, 0), &mut buf);
     let expected = 1_000_000i64 * 60 * 60 * 2;
-    assert_eq!(buf, expected.to_be_bytes());
+    assert_eq!(&**buf, expected.to_be_bytes());
     buf.clear();
 
     // 3:14:15.000001
     Encode::<Postgres>::encode(&NaiveTime::from_hms_micro(3, 14, 15, 1), &mut buf);
     let expected = 1_000_000i64 * 60 * 60 * 3 + 1_000_000i64 * 60 * 14 + 1_000_000i64 * 15 + 1;
-    assert_eq!(buf, expected.to_be_bytes());
+    assert_eq!(&**buf, expected.to_be_bytes());
     buf.clear();
 }
 #[test]
 fn test_decode_time() {
     let buf = [0u8; 8];
-    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(time, NaiveTime::from_hms(0, 0, 0),);
 
     // half an hour
     let buf = (1_000_000i64 * 60 * 30).to_be_bytes();
-    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(time, NaiveTime::from_hms(0, 30, 0),);
 
     // 12:53:05.125305
     let buf = (1_000_000i64 * 60 * 60 * 12 + 1_000_000i64 * 60 * 53 + 1_000_000i64 * 5 + 125305)
         .to_be_bytes();
-    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let time: NaiveTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(time, NaiveTime::from_hms_micro(12, 53, 5, 125305),);
 }
 
 #[test]
 fn test_encode_datetime() {
-    let mut buf = Vec::new();
+    let mut buf = PgRawBuffer::default();
 
     let date = postgres_epoch();
     Encode::<Postgres>::encode(&date, &mut buf);
-    assert_eq!(buf, [0; 8]);
+    assert_eq!(&**buf, [0; 8]);
     buf.clear();
 
     // one hour past epoch
     let date2 = postgres_epoch() + Duration::hours(1);
     Encode::<Postgres>::encode(&date2, &mut buf);
-    assert_eq!(buf, 3_600_000_000i64.to_be_bytes());
+    assert_eq!(&**buf, 3_600_000_000i64.to_be_bytes());
     buf.clear();
 
     // some random date
@@ -300,57 +299,57 @@ fn test_encode_datetime() {
         .num_microseconds()
         .unwrap());
     Encode::<Postgres>::encode(&date3, &mut buf);
-    assert_eq!(buf, expected.to_be_bytes());
+    assert_eq!(&**buf, expected.to_be_bytes());
     buf.clear();
 }
 
 #[test]
 fn test_decode_datetime() {
     let buf = [0u8; 8];
-    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2000-01-01 00:00:00");
 
     let buf = 3_600_000_000i64.to_be_bytes();
-    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2000-01-01 01:00:00");
 
     let buf = 629_377_265_000_000i64.to_be_bytes();
-    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDateTime = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2019-12-11 11:01:05");
 }
 
 #[test]
 fn test_encode_date() {
-    let mut buf = Vec::new();
+    let mut buf = PgRawBuffer::default();
 
     let date = NaiveDate::from_ymd(2000, 1, 1);
     Encode::<Postgres>::encode(&date, &mut buf);
-    assert_eq!(buf, [0; 4]);
+    assert_eq!(&**buf, [0; 4]);
     buf.clear();
 
     let date2 = NaiveDate::from_ymd(2001, 1, 1);
     Encode::<Postgres>::encode(&date2, &mut buf);
     // 2000 was a leap year
-    assert_eq!(buf, 366i32.to_be_bytes());
+    assert_eq!(&**buf, 366i32.to_be_bytes());
     buf.clear();
 
     let date3 = NaiveDate::from_ymd(2019, 12, 11);
     Encode::<Postgres>::encode(&date3, &mut buf);
-    assert_eq!(buf, 7284i32.to_be_bytes());
+    assert_eq!(&**buf, 7284i32.to_be_bytes());
     buf.clear();
 }
 
 #[test]
 fn test_decode_date() {
     let buf = [0; 4];
-    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2000-01-01");
 
     let buf = 366i32.to_be_bytes();
-    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2001-01-01");
 
     let buf = 7284i32.to_be_bytes();
-    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::bytes(TypeId(0), &buf)).unwrap();
+    let date: NaiveDate = Decode::<Postgres>::decode(PgValue::from_bytes(&buf)).unwrap();
     assert_eq!(date.to_string(), "2019-12-11");
 }

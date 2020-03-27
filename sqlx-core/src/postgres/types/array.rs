@@ -3,9 +3,8 @@
 use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::postgres::database::Postgres;
 use crate::postgres::types::raw::{PgArrayDecoder, PgArrayEncoder};
-use crate::postgres::PgValue;
+use crate::postgres::{PgRawBuffer, PgValue, Postgres};
 use crate::types::Type;
 
 impl<T> Encode<Postgres> for [T]
@@ -13,7 +12,7 @@ where
     T: Encode<Postgres>,
     T: Type<Postgres>,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         let mut encoder = PgArrayEncoder::new(buf);
 
         for item in self {
@@ -29,7 +28,7 @@ where
     T: Encode<Postgres>,
     T: Type<Postgres>,
 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         self.as_slice().encode(buf)
     }
 }

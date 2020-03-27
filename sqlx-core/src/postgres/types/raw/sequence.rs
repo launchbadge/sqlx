@@ -8,11 +8,14 @@ use byteorder::BigEndian;
 pub(crate) struct PgSequenceDecoder<'de> {
     data: PgData<'de>,
     len: usize,
-    mixed: bool,
+    is_text_record: bool,
+    element_oid: Option<u32>,
 }
 
 impl<'de> PgSequenceDecoder<'de> {
-    pub(crate) fn new(mut data: PgData<'de>, mixed: bool) -> Self {
+    pub(crate) fn new(mut data: PgData<'de>, element_oid: Option<u32>) -> Self {
+        let mut is_text_record = false;
+
         match data {
             PgData::Binary(_) => {
                 // assume that this has already gotten tweaked by the caller as
@@ -20,14 +23,16 @@ impl<'de> PgSequenceDecoder<'de> {
             }
 
             PgData::Text(ref mut s) => {
+                is_text_record = s.as_bytes()[0] == b'(';
                 // remove the outer ( ... ) or { ... }
                 *s = &s[1..(s.len() - 1)];
             }
         }
 
         Self {
+            is_text_record,
+            element_oid,
             data,
-            mixed,
             len: 0,
         }
     }
@@ -47,34 +52,34 @@ impl<'de> PgSequenceDecoder<'de> {
                     return Ok(None);
                 }
 
-                // mixed sequences can contain values of many different types
-                // the OID of the type is encoded next to each value
-                let type_id = if self.mixed {
-                    let oid = buf.get_u32::<BigEndian>()?;
-                    let expected_ty = PgTypeInfo::with_oid(oid);
+                let type_info = if let Some(element_oid) = self.element_oid {
+                    // NOTE: We don't validate the element type for non-mixed sequences because
+                    //       the outer type like `text[]` would have already ensured we are dealing
+                    //       with a Vec<String>
+                    PgTypeInfo::new(TypeId(element_oid), "")
+                } else {
+                    // mixed sequences can contain values of many different types
+                    // the OID of the type is encoded next to each value
+                    let element_oid = buf.get_u32::<BigEndian>()?;
+                    let expected_ty = PgTypeInfo::new(TypeId(element_oid), "");
 
                     if !expected_ty.compatible(&T::type_info()) {
                         return Err(crate::Error::mismatched_types::<Postgres, T>(expected_ty));
                     }
 
-                    TypeId(oid)
-                } else {
-                    // NOTE: We don't validate the element type for non-mixed sequences because
-                    //       the outer type like `text[]` would have already ensured we are dealing
-                    //       with a Vec<String>
-                    T::type_info().id
+                    expected_ty
                 };
 
                 let len = buf.get_i32::<BigEndian>()? as isize;
 
                 let value = if len < 0 {
-                    T::decode(PgValue::null(type_id))?
+                    T::decode(PgValue::null())?
                 } else {
                     let value_buf = &buf[..(len as usize)];
 
                     *buf = &buf[(len as usize)..];
 
-                    T::decode(PgValue::bytes(type_id, value_buf))?
+                    T::decode(PgValue::bytes(type_info, value_buf))?
                 };
 
                 self.len += 1;
@@ -146,12 +151,12 @@ impl<'de> PgSequenceDecoder<'de> {
                 //       we could use. In TEXT mode, sequences aren't typed.
 
                 let value = T::decode(if end == Some(0) {
-                    PgValue::null(TypeId(0))
-                } else if !self.mixed && value == "NULL" {
+                    PgValue::null()
+                } else if !self.is_text_record && value == "NULL" {
                     // Yes, in arrays the text encoding of a NULL is just NULL
-                    PgValue::null(TypeId(0))
+                    PgValue::null()
                 } else {
-                    PgValue::str(TypeId(0), &*value)
+                    PgValue::from_str(&*value)
                 })?;
 
                 *s = if let Some(end) = end {
@@ -168,9 +173,10 @@ impl<'de> PgSequenceDecoder<'de> {
     }
 }
 
+#[cfg(test)]
 impl<'de> From<&'de str> for PgSequenceDecoder<'de> {
     fn from(s: &'de str) -> Self {
-        Self::new(PgData::Text(s), false)
+        Self::new(PgData::Text(s), None)
     }
 }
 

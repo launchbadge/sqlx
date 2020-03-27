@@ -6,7 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -125,7 +125,7 @@ impl Decode<'_, Postgres> for PgNumeric {
 /// * If `digits.len()` overflows `i16`
 /// * If any element in `digits` is greater than or equal to 10000
 impl Encode<Postgres> for PgNumeric {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         match *self {
             PgNumeric::Number {
                 ref digits,

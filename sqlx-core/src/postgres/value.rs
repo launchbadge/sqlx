@@ -1,5 +1,4 @@
 use crate::error::UnexpectedNullError;
-use crate::postgres::protocol::TypeId;
 use crate::postgres::{PgTypeInfo, Postgres};
 use crate::value::RawValue;
 use std::str::from_utf8;
@@ -12,7 +11,7 @@ pub enum PgData<'c> {
 
 #[derive(Debug)]
 pub struct PgValue<'c> {
-    type_id: TypeId,
+    type_info: Option<PgTypeInfo>,
     data: Option<PgData<'c>>,
 }
 
@@ -33,30 +32,38 @@ impl<'c> PgValue<'c> {
         self.data
     }
 
-    pub(crate) fn null(type_id: TypeId) -> Self {
+    pub(crate) fn null() -> Self {
         Self {
-            type_id,
+            type_info: None,
             data: None,
         }
     }
 
-    pub(crate) fn bytes(type_id: TypeId, buf: &'c [u8]) -> Self {
+    pub(crate) fn bytes(type_info: PgTypeInfo, buf: &'c [u8]) -> Self {
         Self {
-            type_id,
+            type_info: Some(type_info),
             data: Some(PgData::Binary(buf)),
         }
     }
 
-    pub(crate) fn utf8(type_id: TypeId, buf: &'c [u8]) -> crate::Result<Self> {
+    pub(crate) fn utf8(type_info: PgTypeInfo, buf: &'c [u8]) -> crate::Result<Self> {
         Ok(Self {
-            type_id,
+            type_info: Some(type_info),
             data: Some(PgData::Text(from_utf8(&buf).map_err(crate::Error::decode)?)),
         })
     }
 
-    pub(crate) fn str(type_id: TypeId, s: &'c str) -> Self {
+    #[cfg(test)]
+    pub(crate) fn from_bytes(buf: &'c [u8]) -> Self {
         Self {
-            type_id,
+            type_info: None,
+            data: Some(PgData::Binary(buf)),
+        }
+    }
+
+    pub(crate) fn from_str(s: &'c str) -> Self {
+        Self {
+            type_info: None,
             data: Some(PgData::Text(s)),
         }
     }
@@ -66,8 +73,8 @@ impl<'c> RawValue<'c> for PgValue<'c> {
     type Database = Postgres;
 
     fn type_info(&self) -> Option<PgTypeInfo> {
-        if self.data.is_some() {
-            Some(PgTypeInfo::with_oid(self.type_id.0))
+        if let (Some(type_info), Some(_)) = (&self.type_info, &self.data) {
+            Some(type_info.clone())
         } else {
             None
         }

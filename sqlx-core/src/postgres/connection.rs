@@ -15,6 +15,7 @@ use crate::postgres::protocol::{
 };
 use crate::postgres::row::Statement;
 use crate::postgres::stream::PgStream;
+use crate::postgres::type_info::SharedStr;
 use crate::postgres::{sasl, tls};
 use crate::url::Url;
 
@@ -88,6 +89,12 @@ pub struct PgConnection {
 
     // cache statement ID -> statement description
     pub(super) cache_statement: HashMap<StatementId, Arc<Statement>>,
+
+    // cache type name -> type OID
+    pub(super) cache_type_oid: HashMap<SharedStr, u32>,
+
+    // cache type OID -> type name
+    pub(super) cache_type_name: HashMap<u32, SharedStr>,
 
     // Work buffer for the value ranges of the current row
     // This is used as the backing memory for each Row's value indexes
@@ -251,6 +258,8 @@ impl PgConnection {
             current_row_values: Vec::with_capacity(10),
             next_statement_id: 1,
             is_ready: true,
+            cache_type_oid: HashMap::new(),
+            cache_type_name: HashMap::new(),
             cache_statement_id: HashMap::with_capacity(10),
             cache_statement: HashMap::with_capacity(10),
             process_id: key_data.process_id,

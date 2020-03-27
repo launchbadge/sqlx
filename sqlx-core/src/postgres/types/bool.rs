@@ -1,7 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for bool {
@@ -22,7 +22,7 @@ impl Type<Postgres> for Vec<bool> {
 }
 
 impl Encode<Postgres> for bool {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         buf.push(*self as u8);
     }
 }

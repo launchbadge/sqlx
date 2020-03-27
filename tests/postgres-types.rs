@@ -1,11 +1,9 @@
 extern crate time_ as time;
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
 use sqlx::decode::Decode;
 use sqlx::encode::Encode;
 use sqlx::postgres::types::raw::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
-use sqlx::postgres::{PgQueryAs, PgTypeInfo, PgValue};
+use sqlx::postgres::{PgQueryAs, PgRawBuffer, PgTypeInfo, PgValue};
 use sqlx::{Cursor, Executor, Postgres, Row, Type};
 use sqlx_test::{new, test_prepared_type, test_type};
 
@@ -440,9 +438,6 @@ async fn test_prepared_structs() -> anyhow::Result<()> {
     // Setup custom types if needed
     //
 
-    static OID_RECORD_EMPTY: AtomicU32 = AtomicU32::new(0);
-    static OID_RECORD_1: AtomicU32 = AtomicU32::new(0);
-
     conn.execute(
         r#"
 DO $$ BEGIN
@@ -455,15 +450,6 @@ END $$;
     )
     .await?;
 
-    let type_ids: Vec<(i32,)> = sqlx::query_as(
-        "SELECT oid::int4 FROM pg_type WHERE typname IN ('_sqlx_record_empty', '_sqlx_record_1')",
-    )
-    .fetch_all(&mut conn)
-    .await?;
-
-    OID_RECORD_EMPTY.store(type_ids[0].0 as u32, Ordering::SeqCst);
-    OID_RECORD_1.store(type_ids[1].0 as u32, Ordering::SeqCst);
-
     //
     // Record of no elements
     //
@@ -472,12 +458,12 @@ END $$;
 
     impl Type<Postgres> for RecordEmpty {
         fn type_info() -> PgTypeInfo {
-            PgTypeInfo::with_oid(OID_RECORD_EMPTY.load(Ordering::SeqCst))
+            PgTypeInfo::with_name("_sqlx_record_empty")
         }
     }
 
     impl Encode<Postgres> for RecordEmpty {
-        fn encode(&self, buf: &mut Vec<u8>) {
+        fn encode(&self, buf: &mut PgRawBuffer) {
             PgRecordEncoder::new(buf).finish();
         }
     }
@@ -504,12 +490,12 @@ END $$;
 
     impl Type<Postgres> for Record1 {
         fn type_info() -> PgTypeInfo {
-            PgTypeInfo::with_oid(OID_RECORD_1.load(Ordering::SeqCst))
+            PgTypeInfo::with_name("_sqlx_record_1")
         }
     }
 
     impl Encode<Postgres> for Record1 {
-        fn encode(&self, buf: &mut Vec<u8>) {
+        fn encode(&self, buf: &mut PgRawBuffer) {
             PgRecordEncoder::new(buf).encode(self._1).finish();
         }
     }

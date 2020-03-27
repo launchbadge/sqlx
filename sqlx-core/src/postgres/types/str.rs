@@ -3,9 +3,7 @@ use std::str::from_utf8;
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
-use crate::postgres::value::{PgData, PgValue};
-use crate::postgres::Postgres;
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -46,7 +44,7 @@ impl Type<Postgres> for Vec<String> {
 }
 
 impl Encode<Postgres> for str {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         buf.extend_from_slice(self.as_bytes());
     }
 
@@ -56,7 +54,7 @@ impl Encode<Postgres> for str {
 }
 
 impl Encode<Postgres> for String {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         <str as Encode<Postgres>>::encode(self.as_str(), buf)
     }
 

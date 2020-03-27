@@ -5,9 +5,8 @@ use uuid::Uuid;
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
 use crate::postgres::value::{PgData, PgValue};
-use crate::postgres::Postgres;
+use crate::postgres::{PgRawBuffer, PgTypeInfo, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for Uuid {
@@ -29,7 +28,7 @@ impl Type<Postgres> for Vec<Uuid> {
 }
 
 impl Encode<Postgres> for Uuid {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         buf.extend_from_slice(self.as_bytes());
     }
 }

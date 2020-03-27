@@ -1,16 +1,18 @@
 //! **Postgres** database and connection types.
 
 pub use arguments::PgArguments;
+pub use buffer::PgRawBuffer;
 pub use connection::PgConnection;
 pub use cursor::PgCursor;
 pub use database::Postgres;
 pub use error::PgError;
 pub use listen::{PgListener, PgNotification};
 pub use row::PgRow;
-pub use types::PgTypeInfo;
+pub use type_info::PgTypeInfo;
 pub use value::{PgData, PgValue};
 
 mod arguments;
+mod buffer;
 mod connection;
 mod cursor;
 mod database;
@@ -22,6 +24,7 @@ mod row;
 mod sasl;
 mod stream;
 mod tls;
+mod type_info;
 pub mod types;
 mod value;
 

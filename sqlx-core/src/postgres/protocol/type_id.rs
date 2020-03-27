@@ -1,3 +1,4 @@
+use crate::postgres::types::try_resolve_type_name;
 use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,7 +67,7 @@ impl TypeId {
     pub(crate) const ARRAY_BPCHAR: TypeId = TypeId(1014);
     pub(crate) const ARRAY_NAME: TypeId = TypeId(1003);
 
-    pub(crate) const ARRAY_NUMERIC: TypeId = TypeId(1700);
+    pub(crate) const ARRAY_NUMERIC: TypeId = TypeId(1231);
 
     pub(crate) const ARRAY_DATE: TypeId = TypeId(1182);
     pub(crate) const ARRAY_TIME: TypeId = TypeId(1183);
@@ -84,80 +85,19 @@ impl TypeId {
 
     pub(crate) const JSON: TypeId = TypeId(114);
     pub(crate) const JSONB: TypeId = TypeId(3802);
+
+    // Records
+
+    pub(crate) const RECORD: TypeId = TypeId(2249);
+    pub(crate) const ARRAY_RECORD: TypeId = TypeId(2287);
 }
 
 impl Display for TypeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            TypeId::BOOL => f.write_str("BOOL"),
-
-            TypeId::CHAR => f.write_str("\"CHAR\""),
-
-            TypeId::INT2 => f.write_str("INT2"),
-            TypeId::INT4 => f.write_str("INT4"),
-            TypeId::INT8 => f.write_str("INT8"),
-
-            TypeId::OID => f.write_str("OID"),
-
-            TypeId::FLOAT4 => f.write_str("FLOAT4"),
-            TypeId::FLOAT8 => f.write_str("FLOAT8"),
-
-            TypeId::NUMERIC => f.write_str("NUMERIC"),
-
-            TypeId::TEXT => f.write_str("TEXT"),
-            TypeId::VARCHAR => f.write_str("VARCHAR"),
-            TypeId::BPCHAR => f.write_str("BPCHAR"),
-            TypeId::UNKNOWN => f.write_str("UNKNOWN"),
-            TypeId::NAME => f.write_str("NAME"),
-
-            TypeId::DATE => f.write_str("DATE"),
-            TypeId::TIME => f.write_str("TIME"),
-            TypeId::TIMESTAMP => f.write_str("TIMESTAMP"),
-            TypeId::TIMESTAMPTZ => f.write_str("TIMESTAMPTZ"),
-
-            TypeId::BYTEA => f.write_str("BYTEA"),
-
-            TypeId::UUID => f.write_str("UUID"),
-
-            TypeId::CIDR => f.write_str("CIDR"),
-            TypeId::INET => f.write_str("INET"),
-
-            TypeId::ARRAY_BOOL => f.write_str("BOOL[]"),
-
-            TypeId::ARRAY_CHAR => f.write_str("\"CHAR\"[]"),
-
-            TypeId::ARRAY_INT2 => f.write_str("INT2[]"),
-            TypeId::ARRAY_INT4 => f.write_str("INT4[]"),
-            TypeId::ARRAY_INT8 => f.write_str("INT8[]"),
-
-            TypeId::ARRAY_OID => f.write_str("OID[]"),
-
-            TypeId::ARRAY_FLOAT4 => f.write_str("FLOAT4[]"),
-            TypeId::ARRAY_FLOAT8 => f.write_str("FLOAT8[]"),
-
-            TypeId::ARRAY_TEXT => f.write_str("TEXT[]"),
-            TypeId::ARRAY_VARCHAR => f.write_str("VARCHAR[]"),
-            TypeId::ARRAY_BPCHAR => f.write_str("BPCHAR[]"),
-            TypeId::ARRAY_NAME => f.write_str("NAME[]"),
-
-            TypeId::ARRAY_NUMERIC => f.write_str("NUMERIC[]"),
-
-            TypeId::ARRAY_DATE => f.write_str("DATE[]"),
-            TypeId::ARRAY_TIME => f.write_str("TIME[]"),
-            TypeId::ARRAY_TIMESTAMP => f.write_str("TIMESTAMP[]"),
-            TypeId::ARRAY_TIMESTAMPTZ => f.write_str("TIMESTAMPTZ[]"),
-
-            TypeId::ARRAY_BYTEA => f.write_str("BYTEA[]"),
-
-            TypeId::ARRAY_UUID => f.write_str("UUID[]"),
-
-            TypeId::ARRAY_CIDR => f.write_str("CIDR[]"),
-            TypeId::ARRAY_INET => f.write_str("INET[]"),
-
-            TypeId::JSON => f.write_str("JSON"),
-            TypeId::JSONB => f.write_str("JSONB"),
-
-            _ => write!(f, "<{}>", self.0),
+        if let Some(name) = try_resolve_type_name(self.0) {
+            f.write_str(name)
+        } else {
+            write!(f, "<{}>", self.0)
         }
     }
 }

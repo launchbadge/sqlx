@@ -2,7 +2,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::io::{Buf, BufMut};
 use crate::postgres::types::raw::sequence::PgSequenceDecoder;
-use crate::postgres::{PgData, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgValue, Postgres};
 use crate::types::Type;
 use byteorder::BE;
 use std::marker::PhantomData;
@@ -13,16 +13,15 @@ use std::marker::PhantomData;
 pub(crate) struct PgArrayEncoder<'enc, T> {
     count: usize,
     len_start_index: usize,
-    buf: &'enc mut Vec<u8>,
+    buf: &'enc mut PgRawBuffer,
     phantom: PhantomData<T>,
 }
 
 impl<'enc, T> PgArrayEncoder<'enc, T>
 where
-    T: Encode<Postgres>,
-    T: Type<Postgres>,
+    T: Encode<Postgres> + Type<Postgres>,
 {
-    pub(crate) fn new(buf: &'enc mut Vec<u8>) -> Self {
+    pub(crate) fn new(buf: &'enc mut PgRawBuffer) -> Self {
         let ty = <T as Type<Postgres>>::type_info();
 
         // ndim
@@ -31,8 +30,15 @@ where
         // dataoffset
         buf.put_i32::<BE>(0);
 
-        // elemtype
-        buf.put_i32::<BE>(ty.id.0 as i32);
+        // [elemtype] element type OID
+        if let Some(oid) = ty.id {
+            // write oid
+            buf.extend(&oid.0.to_be_bytes());
+        } else {
+            // write hole for this oid
+            buf.push_type_hole(&ty.name);
+        }
+
         let len_start_index = buf.len();
 
         // dimensions
@@ -96,14 +102,15 @@ where
     pub(crate) fn new(value: PgValue<'de>) -> crate::Result<Self> {
         let mut data = value.try_get()?;
 
-        match data {
+        let element_oid = match data {
             PgData::Binary(ref mut buf) => {
                 // number of dimensions of the array
                 let ndim = buf.get_i32::<BE>()?;
 
                 if ndim == 0 {
+                    // ndim of 0 is an empty array
                     return Ok(Self {
-                        inner: PgSequenceDecoder::new(PgData::Binary(&[]), false),
+                        inner: PgSequenceDecoder::new(PgData::Binary(&[]), None),
                         phantom: PhantomData,
                     });
                 }
@@ -119,12 +126,8 @@ where
                 // this doesn't matter as the data is always at the end of the header
                 let _dataoffset = buf.get_i32::<BE>()?;
 
-                // TODO: Validate element type with whatever framework is put in place to do so
-                //       As a reminder, we have no way to do this yet and still account for [compatible]
-                //       types.
-
                 // element type OID
-                let _elemtype = buf.get_i32::<BE>()?;
+                let element_oid = buf.get_u32::<BE>()?;
 
                 // length of each array axis
                 let _dimensions = buf.get_i32::<BE>()?;
@@ -138,13 +141,15 @@ where
                         lower_bnds
                     ));
                 }
+
+                Some(element_oid)
             }
 
-            PgData::Text(_) => {}
-        }
+            PgData::Text(_) => None,
+        };
 
         Ok(Self {
-            inner: PgSequenceDecoder::new(data, false),
+            inner: PgSequenceDecoder::new(data, element_oid),
             phantom: PhantomData,
         })
     }
@@ -171,14 +176,13 @@ where
 mod tests {
     use super::PgArrayDecoder;
     use super::PgArrayEncoder;
-    use crate::postgres::protocol::TypeId;
-    use crate::postgres::PgValue;
+    use crate::postgres::{PgRawBuffer, PgValue, Postgres};
 
     const BUF_BINARY_I32: &[u8] = b"\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x17\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x00\x00\x04\x00\x00\x00\x03\x00\x00\x00\x04\x00\x00\x00\x04";
 
     #[test]
     fn it_encodes_i32() {
-        let mut buf = Vec::new();
+        let mut buf = PgRawBuffer::default();
         let mut encoder = PgArrayEncoder::new(&mut buf);
 
         for val in &[1_i32, 2, 3, 4] {
@@ -187,13 +191,13 @@ mod tests {
 
         encoder.finish();
 
-        assert_eq!(buf, BUF_BINARY_I32);
+        assert_eq!(&**buf, BUF_BINARY_I32);
     }
 
     #[test]
     fn it_decodes_text_i32() -> crate::Result<()> {
         let s = "{1,152,-12412}";
-        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::str(TypeId(0), s))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::from_str(s))?;
 
         assert_eq!(decoder.decode()?, Some(1));
         assert_eq!(decoder.decode()?, Some(152));
@@ -206,7 +210,7 @@ mod tests {
     #[test]
     fn it_decodes_text_str() -> crate::Result<()> {
         let s = "{\"\",\"\\\"\"}";
-        let mut decoder = PgArrayDecoder::<String>::new(PgValue::str(TypeId(0), s))?;
+        let mut decoder = PgArrayDecoder::<String>::new(PgValue::from_str(s))?;
 
         assert_eq!(decoder.decode()?, Some("".to_string()));
         assert_eq!(decoder.decode()?, Some("\"".to_string()));
@@ -217,7 +221,7 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_nulls() -> crate::Result<()> {
-        let mut decoder = PgArrayDecoder::<Option<bool>>::new(PgValue::bytes(TypeId(0),
+        let mut decoder = PgArrayDecoder::<Option<bool>>::new(PgValue::from_bytes(
             b"\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x04\x00\x00\x00\x01\xff\xff\xff\xff\x00\x00\x00\x01\x01\xff\xff\xff\xff\x00\x00\x00\x01\x00",
         ))?;
 
@@ -231,7 +235,7 @@ mod tests {
 
     #[test]
     fn it_decodes_binary_i32() -> crate::Result<()> {
-        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::bytes(TypeId(0), BUF_BINARY_I32))?;
+        let mut decoder = PgArrayDecoder::<i32>::new(PgValue::from_bytes(BUF_BINARY_I32))?;
 
         let val_1 = decoder.decode()?;
         let val_2 = decoder.decode()?;

@@ -5,9 +5,8 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
 use crate::postgres::value::PgValue;
-use crate::postgres::{PgData, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -38,7 +37,7 @@ impl Type<Postgres> for [IpNetwork] {
 }
 
 impl Encode<Postgres> for IpNetwork {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         match self {
             IpNetwork::V4(net) => {
                 buf.push(PGSQL_AF_INET);

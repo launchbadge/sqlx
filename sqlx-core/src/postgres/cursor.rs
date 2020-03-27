@@ -53,7 +53,7 @@ impl<'c, 'q> Cursor<'c, 'q> for PgCursor<'c, 'q> {
     }
 }
 
-fn parse_row_description(rd: RowDescription) -> Statement {
+fn parse_row_description(conn: &mut PgConnection, rd: RowDescription) -> Statement {
     let mut names = HashMap::new();
     let mut columns = Vec::new();
 
@@ -65,8 +65,10 @@ fn parse_row_description(rd: RowDescription) -> Statement {
             names.insert(name.clone(), index);
         }
 
+        let type_info = conn.get_type_info_by_oid(field.type_id.0);
+
         columns.push(Column {
-            type_id: field.type_id,
+            type_info,
             format: field.type_format,
         });
     }
@@ -100,7 +102,11 @@ async fn expect_desc(conn: &mut PgConnection) -> crate::Result<Statement> {
         }
     };
 
-    Ok(description.map(parse_row_description).unwrap_or_default())
+    if let Some(description) = description {
+        Ok(parse_row_description(conn, description))
+    } else {
+        Ok(Statement::default())
+    }
 }
 
 // A form of describe that uses the statement cache
@@ -159,7 +165,7 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
 
             Message::RowDescription => {
                 let rd = RowDescription::read(conn.stream.buffer())?;
-                cursor.statement = Arc::new(parse_row_description(rd));
+                cursor.statement = Arc::new(parse_row_description(conn, rd));
             }
 
             Message::DataRow => {
