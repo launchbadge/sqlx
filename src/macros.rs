@@ -284,3 +284,48 @@ macro_rules! query_file_as (
         macro_result!($($args),*)
     })
 );
+
+/// A variant of [query_as!] which does not check the input or output types. This still does parse
+/// the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_as_unchecked (
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query);
+        }
+        macro_result!()
+    });
+
+    ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);
+
+/// A variant of [query_file_as!] which does not check the input or output types. This
+/// still does parse the query to ensure it's syntactically and semantically valid
+/// for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_file_as_unchecked (
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query);
+        }
+        macro_result!()
+    });
+
+    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);

@@ -30,6 +30,7 @@ where
 pub async fn expand_query_as<C: Connection>(
     input: QueryAsMacroInput,
     mut conn: C,
+    checked: bool,
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
@@ -45,7 +46,7 @@ where
         .into());
     }
 
-    let args_tokens = args::quote_args(&input.query_input, &describe)?;
+    let args_tokens = args::quote_args(&input.query_input, &describe, checked)?;
 
     let query_args = format_ident!("query_args");
 
@@ -55,6 +56,7 @@ where
         &input.as_ty.path,
         &query_args,
         &columns,
+        checked,
     );
 
     let arg_names = &input.query_input.arg_names;
@@ -75,10 +77,11 @@ where
 pub async fn expand_query_file_as<C: Connection>(
     input: QueryAsMacroInput,
     conn: C,
+    checked: bool,
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
     <C::Database as Database>::TypeInfo: Display,
 {
-    expand_query_as(input.expand_file_src().await?, conn).await
+    expand_query_as(input.expand_file_src().await?, conn, checked).await
 }
