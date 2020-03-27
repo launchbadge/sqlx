@@ -105,6 +105,19 @@ where
 
     /// Index into the database row and decode a single value.
     ///
+    /// See [`try_get_unchecked`](#method.try_get_unchecked).
+    #[inline]
+    fn get_unchecked<T, I>(&self, index: I) -> T
+    where
+        T: Type<Self::Database>,
+        I: ColumnIndex<'c, Self>,
+        T: Decode<'c, Self::Database>,
+    {
+        self.try_get_unchecked::<T, I>(index).unwrap()
+    }
+
+    /// Index into the database row and decode a single value.
+    ///
     /// A string index can be used to access a column by name and a `usize` index
     /// can be used to access a column by position.
     ///
@@ -126,7 +139,6 @@ where
     /// [`Decode`]: crate::Error::Decode
     /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
-    #[inline]
     fn try_get<T, I>(&self, index: I) -> crate::Result<T>
     where
         T: Type<Self::Database>,
@@ -148,6 +160,22 @@ where
         }
 
         T::decode(value)
+    }
+
+    /// Index into the database row and decode a single value.
+    ///
+    /// Unlike [`try_get`](#method.try_get), this method does not check that the type
+    /// being returned from the database is compatible with the Rust type and just blindly tries
+    /// to decode the value. An example of where this could be useful is decoding a Postgres
+    /// enumeration as a Rust string (instead of deriving a new Rust enum).
+    #[inline]
+    fn try_get_unchecked<T, I>(&self, index: I) -> crate::Result<T>
+    where
+        T: Type<Self::Database>,
+        I: ColumnIndex<'c, Self>,
+        T: Decode<'c, Self::Database>,
+    {
+        self.try_get_raw(index).and_then(T::decode)
     }
 
     #[doc(hidden)]
