@@ -64,6 +64,36 @@
 /// * Postgres: `$N` where `N` is the 1-based positional argument index
 /// * MySQL: `?` which matches arguments in order that it appears in the query
 ///
+/// ## Nullability: Bind Parameters
+/// For a given expected type `T`, both `T` and `Option<T>` are allowed (as well as either
+/// behind references). `Option::None` will be bound as `NULL`, so if binding a type behind `Option`
+/// be sure your query can support it.
+///
+/// Note, however, if binding in a `where` clause, that equality comparisons with `NULL` may not
+/// work as expected; instead you must use `IS NOT NULL` or `IS NULL` to check if a column is not
+/// null or is null, respectively. Note that `IS [NOT] NULL` cannot be bound as a parameter either;
+/// you must modify your query string instead.
+///
+/// ## Nullability: Output Columns
+/// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
+/// the `query!()` macro adjusts the field types of the returned struct accordingly.
+///
+/// For Postgres and SQLite, this only works for columns which come directly from actual tables,
+/// as the implementation will need to query the table metadata to find if a given column
+/// has a `NOT NULL` constraint. Columns that do not have a `NOT NULL` constraint or are the result
+/// of an expression are assumed to be nullable and so `Option<T>` is used instead of `T`.
+///
+/// For MySQL, the implementation looks at [the `NOT_NULL` flag](https://dev.mysql.com/doc/dev/mysql-server/8.0.12/group__group__cs__column__definition__flags.html#ga50377f5ca5b3e92f3931a81fe7b44043)
+/// of [the `ColumnDefinition` structure in `COM_QUERY_OK`](https://dev.mysql.com/doc/internals/en/com-query-response.html#column-definition):
+/// if it is set, `T` is used; if it is not set, `Option<T>` is used.
+///
+/// MySQL appears to be capable of determining the nullability of a result column even if it
+/// is the result of an expression, depending on if the expression may in any case result in
+/// `NULL` which then depends on the semantics of what functions are used. Consult the MySQL
+/// manual for the functions you are using to find the cases in which they return `NULL`.
+///
+/// To override the nullability of an output column, use [query_as!].
+///
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
 /// server with the schema that the query string will be checked against. (All variants of
@@ -214,6 +244,10 @@ macro_rules! query_file (
 /// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
 /// # fn main() {}
 /// ```
+///
+/// ## Nullability
+/// Use `Option` for columns which may be `NULL` in order to avoid a runtime error being returned
+/// from `.fetch_*()`.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as (
