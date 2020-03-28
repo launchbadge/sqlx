@@ -1,3 +1,5 @@
+#![allow(unsafe_code)]
+
 use core::ptr::{null, null_mut, NonNull};
 
 use std::collections::HashMap;
@@ -45,8 +47,6 @@ pub(super) struct Statement {
 // SQLite3 statement objects are safe to send between threads, but *not* safe
 // for general-purpose concurrent access between threads. See more notes
 // on [SqliteConnectionHandle].
-
-#[allow(unsafe_code)]
 unsafe impl Send for SqliteStatementHandle {}
 
 impl Statement {
@@ -71,7 +71,6 @@ impl Statement {
         }
 
         // <https://www.sqlite.org/c3ref/prepare.html>
-        #[allow(unsafe_code)]
         let status = unsafe {
             sqlite3_prepare_v3(
                 conn.handle(),
@@ -114,7 +113,6 @@ impl Statement {
 
     /// Returns a pointer to the raw C pointer backing this statement.
     #[inline]
-    #[allow(unsafe_code)]
     pub(super) unsafe fn handle(&self) -> *mut sqlite3_stmt {
         self.handle.0.as_ptr()
     }
@@ -128,21 +126,18 @@ impl Statement {
         // The value is correct only if there was a recent call to
         // sqlite3_step that returned SQLITE_ROW.
 
-        #[allow(unsafe_code)]
         let count: c_int = unsafe { sqlite3_data_count(self.handle()) };
         count as usize
     }
 
     pub(super) fn column_count(&mut self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
-        #[allow(unsafe_code)]
         let count = unsafe { sqlite3_column_count(self.handle()) };
         count as usize
     }
 
     pub(super) fn column_name(&mut self, index: usize) -> &str {
         // https://sqlite.org/c3ref/column_name.html
-        #[allow(unsafe_code)]
         let name = unsafe {
             let ptr = sqlite3_column_name(self.handle(), index as c_int);
             debug_assert!(!ptr.is_null());
@@ -154,8 +149,6 @@ impl Statement {
     }
 
     pub(super) fn column_decltype(&mut self, index: usize) -> Option<&str> {
-        // https://sqlite.org/c3ref/column_name.html
-        #[allow(unsafe_code)]
         let name = unsafe {
             let ptr = sqlite3_column_decltype(self.handle(), index as c_int);
 
@@ -171,7 +164,6 @@ impl Statement {
 
     pub(super) fn params(&mut self) -> usize {
         // https://www.hwaci.com/sw/sqlite/c3ref/bind_parameter_count.html
-        #[allow(unsafe_code)]
         let num = unsafe { sqlite3_bind_parameter_count(self.handle()) };
         num as usize
     }
@@ -195,10 +187,8 @@ impl Statement {
         // the status value of reset is ignored because it merely propagates
         // the status of the most recently invoked step function
 
-        #[allow(unsafe_code)]
         let _ = unsafe { sqlite3_reset(self.handle()) };
 
-        #[allow(unsafe_code)]
         let _ = unsafe { sqlite3_clear_bindings(self.handle()) };
     }
 
@@ -207,7 +197,6 @@ impl Statement {
 
         let handle = self.handle;
 
-        #[allow(unsafe_code)]
         let status = unsafe {
             self.worker
                 .run(move || sqlite3_step(handle.0.as_ptr()))
@@ -229,7 +218,6 @@ impl Statement {
 impl Drop for Statement {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/finalize.html
-        #[allow(unsafe_code)]
         unsafe {
             let _ = sqlite3_finalize(self.handle());
         }
