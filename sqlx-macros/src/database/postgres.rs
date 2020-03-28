@@ -45,6 +45,9 @@ impl_database_ext! {
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
 
+        #[cfg(feature = "json")]
+        serde_json::Value,
+
         // Arrays
         Vec<bool> | &[bool],
         Vec<String> | &[String],

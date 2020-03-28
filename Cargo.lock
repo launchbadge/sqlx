@@ -1817,6 +1817,7 @@ dependencies = [
  "lazy_static",
  "proc-macro2",
  "quote",
+ "serde_json",
  "sqlx-core 0.3.0-alpha.2",
  "syn",
  "tokio 0.2.13",

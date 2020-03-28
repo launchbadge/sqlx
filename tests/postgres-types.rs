@@ -695,4 +695,29 @@ mod json {
 
         Ok(())
     }
+
+    #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+    #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+    async fn test_json_value_in_macro() -> anyhow::Result<()> {
+        use sqlx::prelude::*;
+
+        let mut conn = sqlx_test::new::<Postgres>().await?;
+
+        let v: serde_json::Value = json!({
+            "name": "Joe".to_string(),
+            "age": 33
+        });
+
+        let res = sqlx::query!(
+            "SELECT '{\"name\":\"Joe\",\"age\":33}'::jsonb as _1, $1::jsonb as _2",
+            v,
+        )
+        .fetch_one(&mut conn)
+        .await?;
+
+        assert_eq!(v, res._1);
+        assert_eq!(res._1, res._2);
+
+        Ok(())
+    }
 }
