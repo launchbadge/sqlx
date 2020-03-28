@@ -35,12 +35,12 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
     let mut conn = connect().await?;
 
     // TEXT
-
+    // we cannot infer nullability from an expression
     let rec = sqlx::query!("SELECT 'Hello'::text as greeting")
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(rec.greeting, "Hello");
+    assert_eq!(rec.greeting.as_deref(), Some("Hello"));
 
     // VARCHAR(N)
 
@@ -48,7 +48,7 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(rec.greeting, "Hello");
+    assert_eq!(rec.greeting.as_deref(), Some("Hello"));
 
     // CHAR(N)
 
@@ -56,7 +56,7 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(rec.greeting, "Hello");
+    assert_eq!(rec.greeting.as_deref(), Some("Hello"));
 
     Ok(())
 }
@@ -164,7 +164,7 @@ async fn query_by_string() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    assert_eq!(result.string, string);
+    assert_eq!(result.string, Some(string));
 
     Ok(())
 }
@@ -212,7 +212,7 @@ async fn test_many_args() -> anyhow::Result<()> {
         .await?;
 
     for (i, row) in rows.iter().enumerate() {
-        assert_eq!(i as i32, row.id);
+        assert_eq!(Some(i as i32), row.id);
     }
 
     Ok(())
@@ -229,7 +229,7 @@ async fn test_array_from_slice() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(result.my_array, vec![1, 2, 3, 4]);
+    assert_eq!(result.my_array, Some(vec![1, 2, 3, 4]));
 
     println!("result ID: {:?}", result.my_array);
 
@@ -237,7 +237,7 @@ async fn test_array_from_slice() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(account.my_array, vec![4, 3, 2, 1]);
+    assert_eq!(account.my_array, Some(vec![4, 3, 2, 1]));
 
     println!("account ID: {:?}", account.my_array);
 

@@ -185,6 +185,13 @@ impl From<ProtocolError<'_>> for Error {
     }
 }
 
+impl From<UnexpectedNullError> for Error {
+    #[inline]
+    fn from(err: UnexpectedNullError) -> Self {
+        Error::Decode(err.into())
+    }
+}
+
 #[cfg(feature = "tls")]
 #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
 impl From<async_native_tls::Error> for Error {
