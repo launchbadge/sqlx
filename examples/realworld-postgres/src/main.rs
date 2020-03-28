@@ -98,7 +98,7 @@ async fn get_current_user(req: Request<PgPool>) -> Response {
     let token = get_token_from_request(&req);
     let user_id = authorize(&token).await.unwrap();
 
-    let mut pool = req.state();
+    let pool = req.state();
 
     let rec = sqlx::query!(
         r#"
@@ -108,7 +108,7 @@ WHERE id = $1
         "#,
         user_id
     )
-    .fetch_one(&mut pool)
+    .fetch_one(pool)
     .await
     .unwrap();
 

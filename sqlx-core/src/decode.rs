@@ -9,5 +9,5 @@ where
     Self: Sized + 'de,
     DB: Database,
 {
-    fn decode(value: <DB as HasRawValue<'de>>::RawValue) -> crate::Result<DB, Self>;
+    fn decode(value: <DB as HasRawValue<'de>>::RawValue) -> crate::Result<Self>;
 }

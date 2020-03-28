@@ -31,7 +31,7 @@ impl Encode<Sqlite> for String {
 }
 
 impl<'de> Decode<'de, Sqlite> for &'de str {
-    fn decode(value: SqliteValue<'de>) -> crate::Result<Sqlite, &'de str> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<&'de str> {
         value
             .text()
             .ok_or_else(|| crate::Error::decode(UnexpectedNullError))
@@ -39,7 +39,7 @@ impl<'de> Decode<'de, Sqlite> for &'de str {
 }
 
 impl<'de> Decode<'de, Sqlite> for String {
-    fn decode(value: SqliteValue<'de>) -> crate::Result<Sqlite, String> {
+    fn decode(value: SqliteValue<'de>) -> crate::Result<String> {
         <&str as Decode<Sqlite>>::decode(value).map(ToOwned::to_owned)
     }
 }

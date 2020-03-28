@@ -141,13 +141,26 @@ pub fn query_file(input: TokenStream) -> TokenStream {
 #[allow(unused_variables)]
 pub fn query_as(input: TokenStream) -> TokenStream {
     #[allow(unused_variables)]
-    async_macro!(db, input: QueryAsMacroInput => expand_query_as(input, db))
+    async_macro!(db, input: QueryAsMacroInput => expand_query_as(input, db, true))
 }
 
 #[proc_macro]
 #[allow(unused_variables)]
 pub fn query_file_as(input: TokenStream) -> TokenStream {
-    async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db))
+    async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db, true))
+}
+
+#[proc_macro]
+#[allow(unused_variables)]
+pub fn query_as_unchecked(input: TokenStream) -> TokenStream {
+    #[allow(unused_variables)]
+    async_macro!(db, input: QueryAsMacroInput => expand_query_as(input, db, false))
+}
+
+#[proc_macro]
+#[allow(unused_variables)]
+pub fn query_file_as_unchecked(input: TokenStream) -> TokenStream {
+    async_macro!(db, input: QueryAsMacroInput => expand_query_file_as(input, db, false))
 }
 
 #[proc_macro_derive(Encode, attributes(sqlx))]

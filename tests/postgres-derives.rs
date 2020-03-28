@@ -18,7 +18,7 @@ enum Weak {
 
 // "Strong" enums can map to TEXT (25) or a custom enum type
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(postgres(oid = 25))]
+#[sqlx(rename = "text")]
 #[sqlx(rename_all = "lowercase")]
 enum Strong {
     One,
@@ -32,7 +32,7 @@ enum Strong {
 // Records must map to a custom type
 // Note that all types are types in Postgres
 // #[derive(PartialEq, Debug, sqlx::Type)]
-// #[sqlx(postgres(oid = ?))]
+// #[sqlx(rename = "inventory_item")]
 // struct InventoryItem {
 //     name: String,
 //     supplier_id: Option<i32>,

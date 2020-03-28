@@ -7,7 +7,7 @@ pub(crate) struct CommandComplete {
 }
 
 impl CommandComplete {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         // Attempt to parse the last word in the command tag as an integer
         // If it can't be parsed, the tag is probably "CREATE TABLE" or something
         // and we should return 0 rows

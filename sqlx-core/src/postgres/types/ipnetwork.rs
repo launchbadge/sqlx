@@ -5,9 +5,8 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
 use crate::postgres::value::PgValue;
-use crate::postgres::{PgData, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -44,7 +43,7 @@ impl Type<Postgres> for Vec<IpNetwork> {
 }
 
 impl Encode<Postgres> for IpNetwork {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         match self {
             IpNetwork::V4(net) => {
                 buf.push(PGSQL_AF_INET);
@@ -72,7 +71,7 @@ impl Encode<Postgres> for IpNetwork {
 }
 
 impl<'de> Decode<'de, Postgres> for IpNetwork {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => decode(buf),
             PgData::Text(s) => s.parse().map_err(crate::Error::decode),
@@ -80,7 +79,7 @@ impl<'de> Decode<'de, Postgres> for IpNetwork {
     }
 }
 
-fn decode(bytes: &[u8]) -> crate::Result<Postgres, IpNetwork> {
+fn decode(bytes: &[u8]) -> crate::Result<IpNetwork> {
     if bytes.len() < 8 {
         return Err(Error::Decode("Input too short".into()));
     }

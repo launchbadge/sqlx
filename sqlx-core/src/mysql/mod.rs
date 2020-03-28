@@ -4,7 +4,7 @@ pub use arguments::MySqlArguments;
 pub use connection::MySqlConnection;
 pub use cursor::MySqlCursor;
 pub use database::MySql;
-pub use error::MySqlDatabaseError;
+pub use error::MySqlError;
 pub use row::MySqlRow;
 pub use types::MySqlTypeInfo;
 pub use value::{MySqlData, MySqlValue};

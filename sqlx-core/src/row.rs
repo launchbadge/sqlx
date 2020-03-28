@@ -26,7 +26,7 @@ where
     ///
     /// [`ColumnNotFound`]: ../enum.Error.html#variant.ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: ../enum.Error.html#variant.ColumnIndexOutOfBounds
-    fn index(&self, row: &R) -> crate::Result<R::Database, usize>;
+    fn index(&self, row: &R) -> crate::Result<usize>;
 }
 
 impl<'c, R, I> ColumnIndex<'c, R> for &'_ I
@@ -35,7 +35,7 @@ where
     I: ColumnIndex<'c, R> + ?Sized,
 {
     #[inline]
-    fn index(&self, row: &R) -> crate::Result<<R as Row<'c>>::Database, usize> {
+    fn index(&self, row: &R) -> crate::Result<usize> {
         (**self).index(row)
     }
 }
@@ -105,6 +105,19 @@ where
 
     /// Index into the database row and decode a single value.
     ///
+    /// See [`try_get_unchecked`](#method.try_get_unchecked).
+    #[inline]
+    fn get_unchecked<T, I>(&self, index: I) -> T
+    where
+        T: Type<Self::Database>,
+        I: ColumnIndex<'c, Self>,
+        T: Decode<'c, Self::Database>,
+    {
+        self.try_get_unchecked::<T, I>(index).unwrap()
+    }
+
+    /// Index into the database row and decode a single value.
+    ///
     /// A string index can be used to access a column by name and a `usize` index
     /// can be used to access a column by position.
     ///
@@ -126,8 +139,7 @@ where
     /// [`Decode`]: crate::Error::Decode
     /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
-    #[inline]
-    fn try_get<T, I>(&self, index: I) -> crate::Result<Self::Database, T>
+    fn try_get<T, I>(&self, index: I) -> crate::Result<T>
     where
         T: Type<Self::Database>,
         I: ColumnIndex<'c, Self>,
@@ -141,18 +153,36 @@ where
             //       UnexpectedNullError.
 
             if !expected_ty.compatible(&T::type_info()) {
-                return Err(crate::Error::mismatched_types::<T>(expected_ty));
+                return Err(crate::Error::mismatched_types::<Self::Database, T>(
+                    expected_ty,
+                ));
             }
         }
 
         T::decode(value)
     }
 
+    /// Index into the database row and decode a single value.
+    ///
+    /// Unlike [`try_get`](#method.try_get), this method does not check that the type
+    /// being returned from the database is compatible with the Rust type and just blindly tries
+    /// to decode the value. An example of where this could be useful is decoding a Postgres
+    /// enumeration as a Rust string (instead of deriving a new Rust enum).
+    #[inline]
+    fn try_get_unchecked<T, I>(&self, index: I) -> crate::Result<T>
+    where
+        T: Type<Self::Database>,
+        I: ColumnIndex<'c, Self>,
+        T: Decode<'c, Self::Database>,
+    {
+        self.try_get_raw(index).and_then(T::decode)
+    }
+
     #[doc(hidden)]
     fn try_get_raw<I>(
         &self,
         index: I,
-    ) -> crate::Result<Self::Database, <Self::Database as HasRawValue<'c>>::RawValue>
+    ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
     where
         I: ColumnIndex<'c, Self>;
 }
@@ -202,7 +232,7 @@ where
     R: Row<'c>,
 {
     #[allow(missing_docs)]
-    fn from_row(row: &R) -> crate::Result<R::Database, Self>;
+    fn from_row(row: &R) -> crate::Result<Self>;
 }
 
 // Macros to help unify the internal implementations as a good chunk
@@ -218,7 +248,7 @@ macro_rules! impl_from_row_for_tuple {
             $($T: crate::decode::Decode<'c, $db>,)+
         {
             #[inline]
-            fn from_row(row: &$r<'c>) -> crate::Result<$db, Self> {
+            fn from_row(row: &$r<'c>) -> crate::Result<Self> {
                 use crate::row::Row;
 
                 Ok(($(row.try_get($idx as usize)?,)+))
@@ -309,11 +339,11 @@ macro_rules! impl_map_row_for_row {
     ($DB:ident, $R:ident) => {
         impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
         where
-            F: for<'c> FnMut($R<'c>) -> crate::Result<$DB, O>,
+            F: for<'c> FnMut($R<'c>) -> crate::Result<O>,
         {
             type Output = O;
 
-            fn try_map_row(&mut self, row: $R) -> crate::Result<$DB, O> {
+            fn try_map_row(&mut self, row: $R) -> crate::Result<O> {
                 (self)(row)
             }
         }
@@ -325,7 +355,7 @@ macro_rules! impl_from_row_for_row {
     ($R:ident) => {
         impl<'c> crate::row::FromRow<'c, $R<'c>> for $R<'c> {
             #[inline]
-            fn from_row(row: $R<'c>) -> crate::Result<$R::Database, Self> {
+            fn from_row(row: $R<'c>) -> crate::Result<Self> {
                 Ok(row)
             }
         }

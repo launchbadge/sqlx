@@ -7,7 +7,7 @@ use num_bigint::{BigInt, Sign};
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 use super::raw::{PgNumeric, PgNumericSign};
@@ -105,9 +105,9 @@ impl TryFrom<BigDecimal> for PgNumeric {
 }
 
 impl TryFrom<PgNumeric> for BigDecimal {
-    type Error = crate::Error<Postgres>;
+    type Error = crate::Error;
 
-    fn try_from(numeric: PgNumeric) -> crate::Result<Postgres, Self> {
+    fn try_from(numeric: PgNumeric) -> crate::Result<Self> {
         let (digits, sign, weight) = match numeric {
             PgNumeric::Number {
                 digits,
@@ -149,7 +149,7 @@ impl TryFrom<PgNumeric> for BigDecimal {
 /// ### Panics
 /// If this `BigDecimal` cannot be represented by [PgNumeric].
 impl Encode<Postgres> for BigDecimal {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         // this copy is unfortunately necessary because we'd have to use `.to_bigint_and_exponent()`
         // otherwise which does the exact same thing, so for the explicit impl might as well allow
         // the user to skip one of the copies if they have an owned value
@@ -166,7 +166,7 @@ impl Encode<Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
-    fn decode(value: PgValue) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(binary) => PgNumeric::from_bytes(binary)?.try_into(),
             PgData::Text(text) => text

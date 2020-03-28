@@ -13,6 +13,7 @@ use crate::query_macros::QueryMacroInput;
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
     describe: &Describe<DB>,
+    checked: bool,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
 
@@ -24,7 +25,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     let arg_name = &input.arg_names;
 
-    let args_check = if DB::PARAM_CHECKING == ParamChecking::Strong {
+    let args_check = if checked && DB::PARAM_CHECKING == ParamChecking::Strong {
         describe
             .param_types
             .iter()

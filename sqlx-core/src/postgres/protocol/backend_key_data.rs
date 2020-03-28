@@ -12,7 +12,7 @@ pub struct BackendKeyData {
 }
 
 impl BackendKeyData {
-    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn read(mut buf: &[u8]) -> crate::Result<Self> {
         let process_id = buf.get_u32::<NetworkEndian>()?;
         let secret_key = buf.get_u32::<NetworkEndian>()?;
 

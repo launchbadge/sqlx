@@ -1,4 +1,3 @@
-use super::MySql;
 use digest::Digest;
 use num_bigint::BigUint;
 use rand::{thread_rng, Rng};
@@ -7,7 +6,7 @@ use rand::{thread_rng, Rng};
 // For the love of crypto, please delete as much of this as possible and use the RSA crate
 // directly when that PR is merged
 
-pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<MySql, Vec<u8>> {
+pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<Vec<u8>> {
     let key = std::str::from_utf8(key).map_err(|_err| {
         // TODO(@abonander): protocol_err doesn't like referring to [err]
         protocol_err!("unexpected error decoding what should be UTF-8")
@@ -97,7 +96,7 @@ fn oaep_encrypt<R: Rng, D: Digest>(
     rng: &mut R,
     pub_key: &PublicKey,
     msg: &[u8],
-) -> crate::Result<MySql, Vec<u8>> {
+) -> crate::Result<Vec<u8>> {
     // size of [n] in bytes
     let k = (pub_key.n.bits() + 7) / 8;
 
@@ -141,7 +140,7 @@ struct PublicKey {
     e: BigUint,
 }
 
-fn parse(key: &str) -> crate::Result<MySql, PublicKey> {
+fn parse(key: &str) -> crate::Result<PublicKey> {
     // This takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL

@@ -24,9 +24,9 @@ pub enum Message {
 }
 
 impl TryFrom<u8> for Message {
-    type Error = crate::Error<Postgres>;
+    type Error = crate::Error;
 
-    fn try_from(type_: u8) -> crate::Result<Postgres, Self> {
+    fn try_from(type_: u8) -> crate::Result<Self> {
         // https://www.postgresql.org/docs/12/protocol-message-formats.html
         Ok(match type_ {
             b'E' => Message::ErrorResponse,

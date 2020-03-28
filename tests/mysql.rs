@@ -1,5 +1,4 @@
 use futures::TryStreamExt;
-use sqlx::error::DatabaseError;
 use sqlx::{mysql::MySqlQueryAs, Connection, Executor, MySql, MySqlPool};
 use sqlx_test::new;
 use std::time::Duration;

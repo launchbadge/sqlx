@@ -7,7 +7,7 @@
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -36,7 +36,7 @@
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -129,7 +129,7 @@ macro_rules! query (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -185,7 +185,7 @@ macro_rules! query_file (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -241,7 +241,7 @@ macro_rules! query_as (
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
-/// # async fn main() -> sqlx::Result<sqlx::MySql, ()>{
+/// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
 /// #
 /// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
@@ -280,6 +280,51 @@ macro_rules! query_file_as (
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);
+
+/// A variant of [query_as!] which does not check the input or output types. This still does parse
+/// the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_as_unchecked (
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query);
+        }
+        macro_result!()
+    });
+
+    ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);
+
+/// A variant of [query_file_as!] which does not check the input or output types. This
+/// still does parse the query to ensure it's syntactically and semantically valid
+/// for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_file_as_unchecked (
+    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query);
+        }
+        macro_result!()
+    });
+
+    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query, $($args),*);
         }
         macro_result!($($args),*)
     })

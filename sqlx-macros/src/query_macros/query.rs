@@ -23,7 +23,7 @@ where
     let describe = input.describe_validate(&mut conn).await?;
     let sql = &input.source;
 
-    let args = args::quote_args(&input, &describe)?;
+    let args = args::quote_args(&input, &describe, true)?;
 
     let arg_names = &input.arg_names;
     let db_path = <C::Database as DatabaseExt>::db_path();
@@ -57,7 +57,8 @@ where
         .collect::<TokenStream>();
 
     let query_args = format_ident!("query_args");
-    let output = output::quote_query_as::<C::Database>(sql, &record_type, &query_args, &columns);
+    let output =
+        output::quote_query_as::<C::Database>(sql, &record_type, &query_args, &columns, true);
 
     Ok(quote! {
         macro_rules! macro_result {

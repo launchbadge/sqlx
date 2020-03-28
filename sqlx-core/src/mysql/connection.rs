@@ -12,7 +12,7 @@ use crate::mysql::protocol::{
 };
 use crate::mysql::stream::MySqlStream;
 use crate::mysql::util::xor_eq;
-use crate::mysql::MySql;
+
 use crate::mysql::{rsa, tls};
 use crate::url::Url;
 
@@ -105,7 +105,7 @@ async fn rsa_encrypt_with_nonce(
     public_key_request_id: u8,
     password: &str,
     nonce: &[u8],
-) -> crate::Result<MySql, Vec<u8>> {
+) -> crate::Result<Vec<u8>> {
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
     if stream.is_tls() {
@@ -133,7 +133,7 @@ async fn make_auth_response(
     plugin: &AuthPlugin,
     password: &str,
     nonce: &[u8],
-) -> crate::Result<MySql, Vec<u8>> {
+) -> crate::Result<Vec<u8>> {
     match plugin {
         AuthPlugin::CachingSha2Password | AuthPlugin::MySqlNativePassword => {
             Ok(plugin.scramble(password, nonce))
@@ -143,7 +143,7 @@ async fn make_auth_response(
     }
 }
 
-async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<MySql, ()> {
+async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
     // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase.html
     // https://mariadb.com/kb/en/connection/
 
@@ -243,7 +243,7 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<MySql, 
     Ok(())
 }
 
-async fn close(mut stream: MySqlStream) -> crate::Result<MySql, ()> {
+async fn close(mut stream: MySqlStream) -> crate::Result<()> {
     // TODO: Actually tell MySQL that we're closing
 
     stream.flush().await?;
@@ -252,7 +252,7 @@ async fn close(mut stream: MySqlStream) -> crate::Result<MySql, ()> {
     Ok(())
 }
 
-async fn ping(stream: &mut MySqlStream) -> crate::Result<MySql, ()> {
+async fn ping(stream: &mut MySqlStream) -> crate::Result<()> {
     stream.wait_until_ready().await?;
     stream.is_ready = false;
 
@@ -268,9 +268,7 @@ async fn ping(stream: &mut MySqlStream) -> crate::Result<MySql, ()> {
 }
 
 impl MySqlConnection {
-    pub(super) async fn new(
-        url: std::result::Result<Url, url::ParseError>,
-    ) -> crate::Result<MySql, Self> {
+    pub(super) async fn new(url: std::result::Result<Url, url::ParseError>) -> crate::Result<Self> {
         let url = url?;
         let mut stream = MySqlStream::new(&url).await?;
 
@@ -319,7 +317,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 }
 
 impl Connect for MySqlConnection {
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<MySql, MySqlConnection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<MySqlConnection>>
     where
         T: TryInto<Url, Error = url::ParseError>,
         Self: Sized,
@@ -330,12 +328,12 @@ impl Connect for MySqlConnection {
 
 impl Connection for MySqlConnection {
     #[inline]
-    fn close(self) -> BoxFuture<'static, crate::Result<MySql, ()>> {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(close(self.stream))
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<crate::Result<MySql, ()>> {
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         Box::pin(ping(&mut self.stream))
     }
 }
