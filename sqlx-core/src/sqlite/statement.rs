@@ -1,11 +1,11 @@
 #![allow(unsafe_code)]
 
 use core::ptr::{null, null_mut, NonNull};
-
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::os::raw::c_int;
 use std::ptr;
+use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     sqlite3_bind_parameter_count, sqlite3_clear_bindings, sqlite3_column_count,
@@ -15,13 +15,11 @@ use libsqlite3_sys::{
     SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
+use crate::error::DatabaseError;
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
-
-use crate::error::DatabaseError;
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
-use bitflags::_core::str::from_utf8_unchecked;
 
 /// Return values from [SqliteStatement::step].
 pub(super) enum Step {
