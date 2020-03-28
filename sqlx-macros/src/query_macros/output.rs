@@ -44,7 +44,7 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 
             let ident = parse_ident(name)?;
 
-            let type_ = if let Some(type_info) = &column.type_info {
+            let mut type_ = if let Some(type_info) = &column.type_info {
                 <DB as DatabaseExt>::return_type_for_id(&type_info).map_or_else(
                     || {
                         let message = if let Some(feature_gate) =
@@ -88,10 +88,11 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                 .to_compile_error()
             };
 
-            Ok(RustColumn {
-                ident,
-                type_: type_,
-            })
+            if !column.non_null.unwrap_or(false) {
+                type_ = quote! { Option<#type_> };
+            }
+
+            Ok(RustColumn { ident, type_ })
         })
         .collect::<crate::Result<Vec<_>>>()
 }
