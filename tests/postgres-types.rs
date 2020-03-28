@@ -23,8 +23,8 @@ macro_rules! array_macro_test {
                 $(
                     let v: &[$type] = $value;
                     let res = sqlx::query!($sql, v).fetch_one(&mut conn).await?;
-                    assert_eq!(res.value, $value);
-                    assert_eq!(res.out, $value);
+                    assert_eq!(res.value, v);
+                    assert_eq!(res.out, v);
                 )+
 
                 Ok(())
@@ -172,6 +172,32 @@ test_type!(decimal(
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
+// TODO: This is a minimal example that reproduces a typechecking error with
+// arrays of BigDecimal in macros.
+//
+// The error is:
+// error: unsupported type _NUMERIC for param #1
+//
+// The implementation for bigdecimal is of the same form as all the other types.
+// My (oeb25) hypothesis is that it is due to some overlap with PgNumeric, but I've been
+// conclude any results.
+// I have left the implementation in its ill form. It should not interfere with any of the other
+// types, but it just doesn't compile if you try to use arrays of bigdecimal in query macros.
+
+// #[cfg(feature = "bigdecimal")]
+// #[test]
+// fn minimal_decimal_macro_repro() {
+//     use sqlx::prelude::*;
+//     let v: &[sqlx::types::BigDecimal] = &[];
+//     sqlx::query!("select $1::numeric[] as out", v);
+// }
+
+// array_macro_test!(decimal(
+//     sqlx::types::BigDecimal,
+//     "select '{12345.6789}'::numeric[] as value, $1::numeric[] as out"
+//         == &["12345.6789".parse::<sqlx::types::BigDecimal>().unwrap()]
+// ));
+
 #[cfg(feature = "uuid")]
 test_type!(uuid(
     Postgres,
@@ -183,7 +209,10 @@ test_type!(uuid(
 ));
 #[cfg(feature = "uuid")]
 array_macro_test!(uuid(sqlx::types::Uuid, "select '{b731678f-636f-4135-bc6f-19440c13bd19,00000000-0000-0000-0000-000000000000}'::uuid[] as value, $1::uuid[] as out"
-    == &[sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(), sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()]));
+    == &[
+        sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+    ]));
 
 #[cfg(feature = "ipnetwork")]
 test_type!(ipnetwork(
