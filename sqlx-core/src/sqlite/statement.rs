@@ -5,19 +5,23 @@ use core::ptr::{null, null_mut, NonNull};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::os::raw::c_int;
+use std::ptr;
 
 use libsqlite3_sys::{
     sqlite3_bind_parameter_count, sqlite3_clear_bindings, sqlite3_column_count,
-    sqlite3_column_decltype, sqlite3_column_name, sqlite3_data_count, sqlite3_finalize,
-    sqlite3_prepare_v3, sqlite3_reset, sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_OK,
-    SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
+    sqlite3_column_database_name, sqlite3_column_decltype, sqlite3_column_name,
+    sqlite3_column_origin_name, sqlite3_column_table_name, sqlite3_data_count, sqlite3_finalize,
+    sqlite3_prepare_v3, sqlite3_reset, sqlite3_step, sqlite3_stmt, sqlite3_table_column_metadata,
+    SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
 
+use crate::error::DatabaseError;
 use crate::sqlite::SqliteError;
 use crate::sqlite::{SqliteArguments, SqliteConnection};
+use bitflags::_core::str::from_utf8_unchecked;
 
 /// Return values from [SqliteStatement::step].
 pub(super) enum Step {
@@ -160,6 +164,55 @@ impl Statement {
         };
 
         name.map(|s| s.to_str().unwrap())
+    }
+
+    pub(super) fn column_not_null(&mut self, index: usize) -> crate::Result<Option<bool>> {
+        unsafe {
+            // https://sqlite.org/c3ref/column_database_name.html
+            //
+            // ### Note
+            // The returned string is valid until the prepared statement is destroyed using
+            // sqlite3_finalize() or until the statement is automatically reprepared by the
+            // first call to sqlite3_step() for a particular run or until the same information
+            // is requested again in a different encoding.
+            let db_name = sqlite3_column_database_name(self.handle(), index as c_int);
+            let table_name = sqlite3_column_table_name(self.handle(), index as c_int);
+            let origin_name = sqlite3_column_origin_name(self.handle(), index as c_int);
+
+            if db_name.is_null() || table_name.is_null() || origin_name.is_null() {
+                return Ok(None);
+            }
+
+            let mut not_null: c_int = 0;
+
+            // https://sqlite.org/c3ref/table_column_metadata.html
+            let status = sqlite3_table_column_metadata(
+                self.connection.0.as_ptr(),
+                db_name,
+                table_name,
+                origin_name,
+                // function docs state to provide NULL for return values you don't care about
+                ptr::null_mut(),
+                ptr::null_mut(),
+                &mut not_null,
+                ptr::null_mut(),
+                ptr::null_mut(),
+            );
+
+            if status != SQLITE_OK {
+                // implementation note: the docs for sqlite3_table_column_metadata() specify
+                // that an error can be returned if the column came from a view; however,
+                // experimentally we found that the above functions give us the true origin
+                // for columns in views that came from real tables and so we should never hit this
+                // error; for view columns that are expressions we are given NULL for their origins
+                // so we don't need special handling for that case either.
+                //
+                // this is confirmed in the `tests/sqlite-macros.rs` integration test
+                return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
+            }
+
+            Ok(Some(not_null != 0))
+        }
     }
 
     pub(super) fn params(&mut self) -> usize {
