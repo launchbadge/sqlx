@@ -163,7 +163,7 @@ impl Executor for SqliteConnection {
 
                 columns.push(Column {
                     name: Some(name.into()),
-                    non_null: None,
+                    non_null: statement.column_not_null(i)?,
                     table_id: None,
                     type_info: r#type.map(|r#type| SqliteTypeInfo {
                         r#type,
