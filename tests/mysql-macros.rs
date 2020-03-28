@@ -6,12 +6,14 @@ use sqlx_test::new;
 async fn macro_select_from_cte() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let account =
-        sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name) accounts")
+        sqlx::query!("select * from (select (1) as id, 'Herp Derpinson' as name, cast(null as char) email) accounts")
             .fetch_one(&mut conn)
             .await?;
 
-    println!("{:?}", account);
-    println!("{}: {}", account.id, account.name);
+    assert_eq!(account.id, 1);
+    assert_eq!(account.name, "Herp Derpinson");
+    // MySQL can tell us the nullability of expressions, ain't that cool
+    assert_eq!(account.email, None);
 
     Ok(())
 }
@@ -51,8 +53,8 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    assert_eq!(None, account.name);
-    assert_eq!(1, account.r#type);
+    assert_eq!(account.name, None);
+    assert_eq!(account.r#type, 1);
 
     println!("{:?}", account);
 
