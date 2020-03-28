@@ -101,6 +101,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
     out_ty: &Path,
     bind_args: &Ident,
     columns: &[RustColumn],
+    checked: bool,
 ) -> TokenStream {
     let instantiations = columns.iter().enumerate().map(
         |(
@@ -110,7 +111,16 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 ref type_,
                 ..
             },
-        )| { quote!( #ident: row.try_get::<#type_, _>(#i).try_unwrap_optional()? ) },
+        )| {
+            // For "checked" queries, the macro checks these at compile time and using "try_get"
+            // would also perform pointless runtime checks
+
+            if checked {
+                quote!( #ident: row.try_get_unchecked::<#type_, _>(#i).try_unwrap_optional()? )
+            } else {
+                quote!( #ident: row.try_get_unchecked(#i).try_unwrap_optional()? )
+            }
+        },
     );
 
     let db_path = DB::db_path();

@@ -6,8 +6,8 @@ use futures_channel::mpsc::UnboundedSender;
 
 use crate::io::{Buf, BufStream, MaybeTlsStream};
 use crate::postgres::protocol::{Message, NotificationResponse, Response, Write};
-use crate::postgres::PgDatabaseError;
-use crate::postgres::Postgres;
+use crate::postgres::PgError;
+
 use crate::url::Url;
 use futures_util::SinkExt;
 
@@ -22,7 +22,7 @@ pub struct PgStream {
 }
 
 impl PgStream {
-    pub(super) async fn new(url: &Url) -> crate::Result<Postgres, Self> {
+    pub(super) async fn new(url: &Url) -> crate::Result<Self> {
         let stream = MaybeTlsStream::connect(&url, 5432).await?;
 
         Ok(Self {
@@ -32,7 +32,7 @@ impl PgStream {
         })
     }
 
-    pub(super) fn shutdown(&self) -> crate::Result<Postgres, ()> {
+    pub(super) fn shutdown(&self) -> crate::Result<()> {
         Ok(self.stream.shutdown(Shutdown::Both)?)
     }
 
@@ -45,11 +45,11 @@ impl PgStream {
     }
 
     #[inline]
-    pub(super) async fn flush(&mut self) -> crate::Result<Postgres, ()> {
+    pub(super) async fn flush(&mut self) -> crate::Result<()> {
         Ok(self.stream.flush().await?)
     }
 
-    pub(super) async fn read(&mut self) -> crate::Result<Postgres, Message> {
+    pub(super) async fn read(&mut self) -> crate::Result<Message> {
         // https://www.postgresql.org/docs/12/protocol-overview.html#PROTOCOL-MESSAGE-CONCEPTS
 
         // All communication is through a stream of messages. The first byte of a message
@@ -77,7 +77,7 @@ impl PgStream {
         Ok(type_)
     }
 
-    pub(super) async fn receive(&mut self) -> crate::Result<Postgres, Message> {
+    pub(super) async fn receive(&mut self) -> crate::Result<Message> {
         loop {
             let type_ = self.read().await?;
 
@@ -87,7 +87,7 @@ impl PgStream {
 
                     if response.severity.is_error() {
                         // This is an error, bubble up as one immediately
-                        return Err(crate::Error::Database(Box::new(PgDatabaseError(response))));
+                        return Err(crate::Error::Database(Box::new(PgError(response))));
                     }
 
                     // TODO: Provide some way of receiving these non-critical

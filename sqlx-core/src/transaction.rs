@@ -45,7 +45,7 @@ impl<C> Transaction<C>
 where
     C: Connection,
 {
-    pub(crate) async fn new(depth: u32, mut inner: C) -> crate::Result<C::Database, Self> {
+    pub(crate) async fn new(depth: u32, mut inner: C) -> crate::Result<Self> {
         if depth == 0 {
             inner.execute("BEGIN").await?;
         } else {
@@ -62,13 +62,13 @@ where
 
     /// Creates a new save point in the current transaction and returns
     /// a new `Transaction` object to manage its scope.
-    pub async fn begin(self) -> crate::Result<C::Database, Transaction<Transaction<C>>> {
+    pub async fn begin(self) -> crate::Result<Transaction<Transaction<C>>> {
         Transaction::new(self.depth, self).await
     }
 
     /// Commits the current transaction or save point.
     /// Returns the inner connection or transaction.
-    pub async fn commit(mut self) -> crate::Result<C::Database, C> {
+    pub async fn commit(mut self) -> crate::Result<C> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
 
@@ -85,7 +85,7 @@ where
 
     /// Rollback the current transaction or save point.
     /// Returns the inner connection or transaction.
-    pub async fn rollback(mut self) -> crate::Result<C::Database, C> {
+    pub async fn rollback(mut self) -> crate::Result<C> {
         let mut inner = self.inner.take().expect(ERR_FINALIZED);
         let depth = self.depth;
 
@@ -128,7 +128,7 @@ where
     C: Connection,
 {
     // Close is equivalent to
-    fn close(mut self) -> BoxFuture<'static, crate::Result<C::Database, ()>> {
+    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
         Box::pin(async move {
             let mut inner = self.inner.take().expect(ERR_FINALIZED);
 
@@ -152,7 +152,7 @@ where
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<'_, crate::Result<C::Database, ()>> {
+    fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>> {
         self.deref_mut().ping()
     }
 }
@@ -167,7 +167,7 @@ where
     fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
         &'c mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<C::Database, u64>>
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -185,7 +185,7 @@ where
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<C::Database, Describe<Self::Database>>>
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
     where
         E: Execute<'q, Self::Database>,
     {

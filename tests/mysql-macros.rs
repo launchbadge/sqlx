@@ -61,6 +61,29 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_query_as_bool() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    struct Article {
+        id: i32,
+        deleted: bool,
+    }
+
+    let article = sqlx::query_as_unchecked!(
+        Article,
+        "select * from (select 51 as id, true as deleted) articles"
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(51, article.id);
+    assert_eq!(true, article.deleted);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_query_bytes() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 

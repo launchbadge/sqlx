@@ -17,7 +17,7 @@ impl Encode<Sqlite> for i32 {
 }
 
 impl<'a> Decode<'a, Sqlite> for i32 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<Sqlite, i32> {
+    fn decode(value: SqliteValue<'a>) -> crate::Result<i32> {
         Ok(value.int())
     }
 }
@@ -35,7 +35,7 @@ impl Encode<Sqlite> for i64 {
 }
 
 impl<'a> Decode<'a, Sqlite> for i64 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<Sqlite, i64> {
+    fn decode(value: SqliteValue<'a>) -> crate::Result<i64> {
         Ok(value.int64())
     }
 }

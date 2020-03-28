@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.3.0 - UNRELEASED
 
+### Breaking Changes
+
+ - `sqlx::Row` now has a lifetime (`'c`) tied to the database connection. In effect, this means that you cannot store `Row`s or collect
+   them into a collection. `Query` (returned from `sqlx::query()`) has `map()` which takes a function to map from the `Row` to
+   another type to make this transition easier.
+
+   In 0.2.x
+
+   ```rust
+   let rows = sqlx::query("SELECT 1")
+       .fetch_all(&mut conn).await?;
+   ```
+
+   In 0.3.x
+
+   ```rust
+   let values: Vec<i32> = sqlx::query("SELECT 1")
+       .map(|row: PgRow| row.get(0))
+       .fetch_all(&mut conn).await?;
+   ```
+
+   To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements) or 
+   struct types with a `#[derive(FromRow)]`.
+
+   ```rust
+   // This extension trait is needed until a rust bug is fixed
+   use sqlx::postgres::PgQueryAs;
+   
+   let values: Vec<(i32, bool)> = sqlx::query_as("SELECT 1, false")
+       .fetch_all(&mut conn).await?;
+   ```
+
+ - `HasSqlType<T>: Database` is now `T: Type<Database>` to mirror `Encode` and `Decode`
+
+ - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a Stream-like type where the
+   item type borrows into the stream (which itself borrows from connection). This means that using `query().fetch()` you can now
+   stream directly from the database with **zero-copy** and **zero-allocation**.
+   
+ - Remove `PgTypeInfo::with_oid` and replace with `PgTypeInfo::with_name`
+
 ### Added
 
  - Results from the database are now zero-copy and no allocation beyond a shared read buffer
@@ -38,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
           ```rust
           #[derive(sqlx::Type)]
-          #[sqlx(postgres(oid = 25))] // Postgres requires the OID
+          #[sqlx(rename = "TEXT")] // May also be the name of a user defined enum type
           #[sqlx(rename_all = "lowercase")] // similar to serde rename_all
           enum Color { Red, Green, Blue } // expects 'red', 'green', or 'blue'
           ```
@@ -47,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
           ```rust
           #[derive(sqlx::Type)]
-          #[sqlx(postgres(oid = ?))] // Postgres requires the OID
+          #[sqlx(rename = "interface_type")]
           struct InterfaceType {
               name: String,
               supplier_id: i32,
@@ -75,6 +115,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
        println!("payload = {}", message.payload);
    }
    ```
+   
+ - Add _unchecked_ variants of the query macros. These will still verify the SQL for syntactic and 
+   semantic correctness with the current database but they will not check the input or output types.
+   
+   This is intended as a temporary solution until `query_as!` is able to support user defined types.
+   
+     * `query_as_unchecked!`
+     * `query_file_as_unchecked!`
+     
+ - Add support for many more types in Postgres
+ 
+   - `JSON`, `JSONB` [[@oeb25]]
+   - `INET`, `CIDR` [[@PoiScript]]
+   - Arrays [[@oeb25]]
+   - Composites ( Rust tuples or structs with a `#[derive(Type)]` )
+   - `NUMERIC` [[@abonander]]
+   - `OID` (`u32`)
+   - `"CHAR"` (`i8`)
+   - `TIMESTAMP`, `TIMESTAMPTZ`, etc. with the `time` crate [[@utter-step]]
+   - Enumerations ( Rust enums with a `#[derive(Type)]` ) [[@Freax13]]
 
 ### Changed
 
@@ -99,38 +159,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    let row = cursor.next().await?.unwrap();
    let value: i32 = row.get(0); // 2
    ```
-
- - `sqlx::Row` now has a lifetime (`'c`) tied to the database connection. In effect, this means that you cannot store `Row`s or collect
-   them into a collection. `Query` (returned from `sqlx::query()`) has `map()` which takes a function to map from the `Row` to
-   another type to make this transition easier.
-
-   In 0.2.x
-
-   ```rust
-   let rows = sqlx::query("SELECT 1")
-       .fetch_all(&mut conn).await?;
-   ```
-
-   In 0.3.x
-
-   ```rust
-   let values: Vec<i32> = sqlx::query("SELECT 1")
-       .map(|row: PgRow| row.get(0))
-       .fetch_all(&mut conn).await?;
-   ```
-
-   To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements).
-
-   ```rust
-   let values: Vec<(i32, bool)> = sqlx::query_as("SELECT 1, false")
-       .fetch_all(&mut conn).await?;
-   ```
-
- - `HasSqlType<T>: Database` is now `T: Type<Database>` to mirror `Encode` and `Decode`
-
- - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a Stream-like type where the
-   item type borrows into the stream (which itself borrows from connection). This means that using `query().fetch()` you can now
-   stream directly from the database with **zero-copy** and **zero-allocation**.
 
 ### Removed
 

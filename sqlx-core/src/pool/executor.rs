@@ -20,7 +20,7 @@ where
     fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
         &'c mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<DB, u64>>
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -38,7 +38,7 @@ where
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<DB, Describe<Self::Database>>>
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -72,7 +72,7 @@ where
     fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
         &'c mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<Self::Database, u64>>
+    ) -> BoxFuture<'e, crate::Result<u64>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -90,7 +90,7 @@ where
     fn describe<'e, 'q, E: 'e>(
         &'e mut self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<Self::Database, Describe<Self::Database>>>
+    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
     where
         E: Execute<'q, Self::Database>,
     {

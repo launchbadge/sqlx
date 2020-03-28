@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::{PgPool, PgQueryAs, PgRow};
-use sqlx::{Connection, Executor, Postgres, Row};
+use sqlx::{Connection, Cursor, Executor, Postgres, Row};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -308,6 +308,23 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_invalid_query() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("definitely not a correct query")
+        .await
+        .unwrap_err();
+
+    let mut cursor = conn.fetch("select 1");
+    let row = cursor.next().await?.unwrap();
+
+    assert_eq!(row.get::<i32, _>(0), 1i32);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_describe() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -333,7 +350,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "INT4"
     );
     assert_eq!(describe.result_columns[1].non_null, Some(true));
@@ -342,7 +359,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "TEXT"
     );
     assert_eq!(describe.result_columns[2].non_null, Some(false));
@@ -351,7 +368,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "BYTEA"
     );
     assert_eq!(describe.result_columns[3].non_null, None);
@@ -360,7 +377,7 @@ async fn test_describe() -> anyhow::Result<()> {
             .type_info
             .as_ref()
             .unwrap()
-            .type_name(),
+            .to_string(),
         "BOOL"
     );
 

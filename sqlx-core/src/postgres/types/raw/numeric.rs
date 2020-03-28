@@ -6,7 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgTypeInfo, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 use crate::Error;
 
@@ -65,7 +65,7 @@ pub enum PgNumericSign {
 }
 
 impl PgNumericSign {
-    fn try_from_u16(val: u16) -> crate::Result<Postgres, Self> {
+    fn try_from_u16(val: u16) -> crate::Result<Self> {
         match val {
             SIGN_POS => Ok(PgNumericSign::Positive),
             SIGN_NEG => Ok(PgNumericSign::Negative),
@@ -83,7 +83,7 @@ impl Type<Postgres> for PgNumeric {
     }
 }
 impl PgNumeric {
-    pub(crate) fn from_bytes(mut bytes: &[u8]) -> crate::Result<Postgres, Self> {
+    pub(crate) fn from_bytes(mut bytes: &[u8]) -> crate::Result<Self> {
         // https://github.com/postgres/postgres/blob/bcd1c3630095e48bc3b1eb0fc8e8c8a7c851eba1/src/backend/utils/adt/numeric.c#L874
         let num_digits = bytes.get_u16::<BigEndian>()?;
         let weight = bytes.get_i16::<BigEndian>()?;
@@ -109,7 +109,7 @@ impl PgNumeric {
 /// Receiving `PgNumeric` is currently only supported for the Postgres
 /// binary (prepared statements) protocol.
 impl Decode<'_, Postgres> for PgNumeric {
-    fn decode(value: PgValue) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue) -> crate::Result<Self> {
         if let PgData::Binary(bytes) = value.try_get()? {
             Self::from_bytes(bytes)
         } else {
@@ -125,7 +125,7 @@ impl Decode<'_, Postgres> for PgNumeric {
 /// * If `digits.len()` overflows `i16`
 /// * If any element in `digits` is greater than or equal to 10000
 impl Encode<Postgres> for PgNumeric {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         match *self {
             PgNumeric::Number {
                 ref digits,

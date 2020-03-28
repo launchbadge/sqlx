@@ -37,7 +37,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
     }
 
     #[doc(hidden)]
-    fn try_get_raw<I>(&self, index: I) -> crate::Result<Sqlite, SqliteValue<'c>>
+    fn try_get_raw<I>(&self, index: I) -> crate::Result<SqliteValue<'c>>
     where
         I: ColumnIndex<'c, Self>,
     {
@@ -49,7 +49,7 @@ impl<'c> Row<'c> for SqliteRow<'c> {
 }
 
 impl<'c> ColumnIndex<'c, SqliteRow<'c>> for usize {
-    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
+    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<usize> {
         let len = Row::len(row);
 
         if *self >= len {
@@ -61,7 +61,7 @@ impl<'c> ColumnIndex<'c, SqliteRow<'c>> for usize {
 }
 
 impl<'c> ColumnIndex<'c, SqliteRow<'c>> for str {
-    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<Sqlite, usize> {
+    fn index(&self, row: &SqliteRow<'c>) -> crate::Result<usize> {
         row.statement()
             .columns
             .get(self)

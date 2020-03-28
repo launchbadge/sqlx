@@ -15,8 +15,8 @@ use crate::connection::{Connect, Connection};
 use crate::executor::Executor;
 use crate::sqlite::statement::Statement;
 use crate::sqlite::worker::Worker;
-use crate::sqlite::Sqlite;
-use crate::sqlite::SqliteDatabaseError;
+
+use crate::sqlite::SqliteError;
 use crate::url::Url;
 
 /// Thin wrapper around [sqlite3] to impl `Send`.
@@ -46,7 +46,7 @@ pub struct SqliteConnection {
 #[allow(unsafe_code)]
 unsafe impl Send for SqliteConnectionHandle {}
 
-async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<Sqlite, SqliteConnection> {
+async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteConnection> {
     let mut worker = Worker::new();
 
     let url = url?;
@@ -60,7 +60,7 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<Sqlite, S
     let filename = CString::new(url).unwrap();
 
     let handle = worker
-        .run(move || -> crate::Result<Sqlite, SqliteConnectionHandle> {
+        .run(move || -> crate::Result<SqliteConnectionHandle> {
             let mut handle = null_mut();
 
             // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
@@ -87,7 +87,7 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<Sqlite, S
                     let _ = sqlite3_close(handle);
                 }
 
-                return Err(SqliteDatabaseError::from_connection(handle).into());
+                return Err(SqliteError::from_connection(handle).into());
             }
 
             // Enable extended result codes
@@ -118,7 +118,7 @@ impl SqliteConnection {
 }
 
 impl Connect for SqliteConnection {
-    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<Sqlite, SqliteConnection>>
+    fn connect<T>(url: T) -> BoxFuture<'static, crate::Result<SqliteConnection>>
     where
         T: TryInto<Url, Error = url::ParseError>,
         Self: Sized,
@@ -145,12 +145,12 @@ PRAGMA synchronous = NORMAL;
 }
 
 impl Connection for SqliteConnection {
-    fn close(self) -> BoxFuture<'static, crate::Result<Sqlite, ()>> {
+    fn close(self) -> BoxFuture<'static, crate::Result<()>> {
         // All necessary behavior is handled on drop
         Box::pin(future::ok(()))
     }
 
-    fn ping(&mut self) -> BoxFuture<crate::Result<Sqlite, ()>> {
+    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
         // For SQLite connections, PING does effectively nothing
         Box::pin(future::ok(()))
     }

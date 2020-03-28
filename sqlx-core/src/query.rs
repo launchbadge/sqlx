@@ -119,7 +119,7 @@ where
     DB: Database,
     Self: Execute<'q, DB>,
 {
-    pub async fn execute<E>(self, mut executor: E) -> crate::Result<DB, u64>
+    pub async fn execute<E>(self, mut executor: E) -> crate::Result<u64>
     where
         E: Executor<Database = DB>,
     {
@@ -144,7 +144,7 @@ where
     pub fn fetch<'e: 'q, E>(
         mut self,
         executor: E,
-    ) -> impl Stream<Item = crate::Result<DB, F::Output>> + 'e
+    ) -> impl Stream<Item = crate::Result<F::Output>> + 'e
     where
         'q: 'e,
         E: RefExecutor<'e, Database = DB> + 'e,
@@ -161,7 +161,7 @@ where
     }
 
     /// Get the first row in the result
-    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<DB, Option<F::Output>>
+    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<Option<F::Output>>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -173,7 +173,7 @@ where
         val.map(|row| mapper.try_map_row(row)).transpose()
     }
 
-    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<DB, F::Output>
+    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Output>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -181,12 +181,12 @@ where
         self.fetch_optional(executor)
             .and_then(|row| match row {
                 Some(row) => ready(Ok(row)),
-                None => ready(Err(crate::Error::<DB>::RowNotFound)),
+                None => ready(Err(crate::Error::RowNotFound)),
             })
             .await
     }
 
-    pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<DB, Vec<F::Output>>
+    pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Output>>
     where
         E: RefExecutor<'e, Database = DB>,
         'q: 'e,
@@ -210,7 +210,7 @@ where
 pub trait TryMapRow<DB: Database> {
     type Output: Unpin;
 
-    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<DB, Self::Output>;
+    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output>;
 }
 
 pub trait MapRow<DB: Database> {
@@ -231,7 +231,7 @@ where
 {
     type Output = O;
 
-    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<DB, Self::Output> {
+    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output> {
         Ok(self.0.map_row(row))
     }
 }

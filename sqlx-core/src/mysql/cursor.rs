@@ -53,14 +53,14 @@ impl<'c, 'q> Cursor<'c, 'q> for MySqlCursor<'c, 'q> {
         }
     }
 
-    fn next(&mut self) -> BoxFuture<crate::Result<MySql, Option<MySqlRow<'_>>>> {
+    fn next(&mut self) -> BoxFuture<crate::Result<Option<MySqlRow<'_>>>> {
         Box::pin(next(self))
     }
 }
 
 async fn next<'a, 'c: 'a, 'q: 'a>(
     cursor: &'a mut MySqlCursor<'c, 'q>,
-) -> crate::Result<MySql, Option<MySqlRow<'a>>> {
+) -> crate::Result<Option<MySqlRow<'a>>> {
     let mut conn = cursor.source.resolve().await?;
 
     // The first time [next] is called we need to actually execute our

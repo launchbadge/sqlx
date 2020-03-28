@@ -1,8 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
-use crate::postgres::{PgData, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for [u8] {
@@ -30,19 +29,19 @@ impl Type<Postgres> for Vec<u8> {
 }
 
 impl Encode<Postgres> for [u8] {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         buf.extend_from_slice(self);
     }
 }
 
 impl Encode<Postgres> for Vec<u8> {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         <[u8] as Encode<Postgres>>::encode(self, buf);
     }
 }
 
 impl<'de> Decode<'de, Postgres> for Vec<u8> {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Ok(buf.to_vec()),
             PgData::Text(s) => {
@@ -54,7 +53,7 @@ impl<'de> Decode<'de, Postgres> for Vec<u8> {
 }
 
 impl<'de> Decode<'de, Postgres> for &'de [u8] {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(buf) => Ok(buf),
             PgData::Text(_s) => Err(crate::Error::Decode(

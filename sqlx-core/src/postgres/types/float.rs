@@ -6,8 +6,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::postgres::protocol::TypeId;
-use crate::postgres::types::PgTypeInfo;
-use crate::postgres::{PgData, PgValue, Postgres};
+use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for f32 {
@@ -28,13 +27,13 @@ impl Type<Postgres> for Vec<f32> {
 }
 
 impl Encode<Postgres> for f32 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         <i32 as Encode<Postgres>>::encode(&(self.to_bits() as i32), buf)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for f32 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf
                 .read_i32::<NetworkEndian>()
@@ -64,13 +63,13 @@ impl Type<Postgres> for Vec<f64> {
 }
 
 impl Encode<Postgres> for f64 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut PgRawBuffer) {
         <i64 as Encode<Postgres>>::encode(&(self.to_bits() as i64), buf)
     }
 }
 
 impl<'de> Decode<'de, Postgres> for f64 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Postgres, Self> {
+    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
         match value.try_get()? {
             PgData::Binary(mut buf) => buf
                 .read_i64::<NetworkEndian>()

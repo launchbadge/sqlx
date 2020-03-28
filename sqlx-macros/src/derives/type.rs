@@ -117,11 +117,12 @@ fn expand_derive_has_sql_type_strong_enum(
     }
 
     if cfg!(feature = "postgres") {
-        let oid = attributes.postgres_oid.unwrap();
+        let ty_name = attributes.rename.unwrap_or_else(|| ident.to_string());
+
         tts.extend(quote!(
             impl sqlx::Type< sqlx::Postgres > for #ident {
                 fn type_info() -> sqlx::postgres::PgTypeInfo {
-                    sqlx::postgres::PgTypeInfo::with_oid(#oid)
+                    sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
@@ -150,11 +151,12 @@ fn expand_derive_has_sql_type_struct(
     let mut tts = proc_macro2::TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let oid = attributes.postgres_oid.unwrap();
+        let ty_name = attributes.rename.unwrap_or_else(|| ident.to_string());
+
         tts.extend(quote!(
             impl sqlx::types::Type< sqlx::Postgres > for #ident {
                 fn type_info() -> sqlx::postgres::PgTypeInfo {
-                    sqlx::postgres::PgTypeInfo::with_oid(#oid)
+                    sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
             }
         ));
