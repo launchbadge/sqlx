@@ -119,7 +119,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
             if checked {
                 quote!( #ident: row.try_get_unchecked::<#type_, _>(#i).try_unwrap_optional()? )
             } else {
-                quote!( #ident: row.try_get_unchecked(#i).try_unwrap_optional()? )
+                quote!( #ident: row.try_get_unchecked(#i)? )
             }
         },
     );
