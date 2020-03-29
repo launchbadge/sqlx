@@ -61,7 +61,7 @@ mod private_column_index {
 /// [`Query::fetch`]: crate::query::Query::fetch
 pub trait Row<'c>
 where
-    Self: private_row::Sealed + Unpin + Send,
+    Self: private_row::Sealed + Unpin + Send + Sync,
 {
     /// The `Database` this `Row` is implemented for.
     type Database: Database;
