@@ -1678,7 +1678,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.3.0-alpha.2"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1688,8 +1688,8 @@ dependencies = [
  "paste",
  "serde",
  "serde_json",
- "sqlx-core 0.3.0-alpha.2",
- "sqlx-macros 0.3.0-alpha.2",
+ "sqlx-core 0.3.0",
+ "sqlx-macros 0.3.0",
  "sqlx-test",
  "time 0.2.9",
  "tokio 0.2.13",
@@ -1726,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.3.0-alpha.2"
+version = "0.3.0"
 dependencies = [
  "async-native-tls",
  "async-std",
@@ -1771,7 +1771,7 @@ version = "0.1.0"
 dependencies = [
  "async-std",
  "futures 0.3.4",
- "sqlx 0.3.0-alpha.2",
+ "sqlx 0.3.0",
 ]
 
 [[package]]
@@ -1787,7 +1787,7 @@ dependencies = [
  "rand",
  "rust-argon2",
  "serde",
- "sqlx 0.3.0-alpha.2",
+ "sqlx 0.3.0",
  "tide",
 ]
 
@@ -1809,7 +1809,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.3.0-alpha.2"
+version = "0.3.0"
 dependencies = [
  "async-std",
  "dotenv",
@@ -1818,7 +1818,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
- "sqlx-core 0.3.0-alpha.2",
+ "sqlx-core 0.3.0",
  "syn",
  "tokio 0.2.13",
  "url",
@@ -1832,7 +1832,7 @@ dependencies = [
  "async-std",
  "dotenv",
  "env_logger",
- "sqlx 0.3.0-alpha.2",
+ "sqlx 0.3.0",
  "tokio 0.2.13",
 ]
 
