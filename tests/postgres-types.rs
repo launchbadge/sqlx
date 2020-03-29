@@ -11,6 +11,7 @@ use sqlx_test::{new, test_prepared_type, test_type};
 macro_rules! array_macro_test {
     ($name:ident($type:ty, $($sql:literal == $value:expr),+  $(,)?)) => {
         paste::item! {
+            #[allow(unused_imports)]
             #[cfg_attr(feature = "runtime-async-std", async_std::test)]
             #[cfg_attr(feature = "runtime-tokio", tokio::test)]
             async fn [< test_array_type_ $name >] () -> anyhow::Result<()> {
@@ -688,8 +689,6 @@ mod json {
     #[cfg_attr(feature = "runtime-async-std", async_std::test)]
     #[cfg_attr(feature = "runtime-tokio", tokio::test)]
     async fn test_json_value_in_macro() -> anyhow::Result<()> {
-        use sqlx::prelude::*;
-
         let mut conn = sqlx_test::new::<Postgres>().await?;
 
         let v: serde_json::Value = json!({
