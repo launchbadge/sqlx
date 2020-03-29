@@ -2,7 +2,7 @@ use byteorder::LittleEndian;
 
 use crate::io::BufMut;
 use crate::mysql::protocol::{Capabilities, Encode};
-use crate::mysql::types::MySqlTypeInfo;
+use crate::mysql::type_info::MySqlTypeInfo;
 
 bitflags::bitflags! {
     // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/mysql__com_8h.html#a3e5e9e744ff6f7b989a604fd669977da

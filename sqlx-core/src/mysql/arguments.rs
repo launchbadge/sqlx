@@ -1,6 +1,6 @@
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
-use crate::mysql::types::MySqlTypeInfo;
+use crate::mysql::type_info::MySqlTypeInfo;
 use crate::mysql::MySql;
 use crate::types::Type;
 

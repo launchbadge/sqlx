@@ -6,7 +6,7 @@ pub use cursor::MySqlCursor;
 pub use database::MySql;
 pub use error::MySqlError;
 pub use row::MySqlRow;
-pub use types::MySqlTypeInfo;
+pub use type_info::MySqlTypeInfo;
 pub use value::{MySqlData, MySqlValue};
 
 mod arguments;
@@ -21,6 +21,7 @@ mod row;
 mod rsa;
 mod stream;
 mod tls;
+mod type_info;
 pub mod types;
 mod util;
 mod value;

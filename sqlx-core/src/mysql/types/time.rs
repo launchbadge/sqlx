@@ -8,7 +8,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::io::{Buf, BufMut};
 use crate::mysql::protocol::TypeId;
-use crate::mysql::types::MySqlTypeInfo;
+use crate::mysql::type_info::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlData, MySqlValue};
 use crate::types::Type;
 
