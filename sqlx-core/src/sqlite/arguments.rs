@@ -75,7 +75,6 @@ impl SqliteArgumentValue {
         let index = index as c_int;
 
         // https://sqlite.org/c3ref/bind_blob.html
-        #[allow(unsafe_code)]
         let status: c_int = match self {
             SqliteArgumentValue::Blob(value) => {
                 // TODO: Handle bytes that are too large

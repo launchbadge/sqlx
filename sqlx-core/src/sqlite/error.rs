@@ -18,10 +18,8 @@ pub struct SqliteError {
 
 impl SqliteError {
     pub(super) fn from_connection(conn: *mut sqlite3) -> Self {
-        #[allow(unsafe_code)]
         let code: c_int = unsafe { sqlite3_extended_errcode(conn) };
 
-        #[allow(unsafe_code)]
         let message = unsafe {
             let err = sqlite3_errmsg(conn);
             debug_assert!(!err.is_null());

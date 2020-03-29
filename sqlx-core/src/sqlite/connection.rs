@@ -43,7 +43,6 @@ pub struct SqliteConnection {
 
 // <https://www.sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmultithread>
 
-#[allow(unsafe_code)]
 unsafe impl Send for SqliteConnectionHandle {}
 
 async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteConnection> {
@@ -71,7 +70,6 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteCon
                 | SQLITE_OPEN_SHAREDCACHE;
 
             // <https://www.sqlite.org/c3ref/open.html>
-            #[allow(unsafe_code)]
             let status = unsafe { sqlite3_open_v2(filename.as_ptr(), &mut handle, flags, null()) };
 
             if handle.is_null() {
@@ -82,7 +80,6 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteCon
             if status != SQLITE_OK {
                 // Close the handle if there was an error here
                 // https://sqlite.org/c3ref/close.html
-                #[allow(unsafe_code)]
                 unsafe {
                     let _ = sqlite3_close(handle);
                 }
@@ -92,7 +89,6 @@ async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteCon
 
             // Enable extended result codes
             // https://www.sqlite.org/c3ref/extended_result_codes.html
-            #[allow(unsafe_code)]
             unsafe {
                 sqlite3_extended_result_codes(handle, 1);
             }
@@ -163,7 +159,6 @@ impl Drop for SqliteConnection {
 
         // Next close the statement
         // https://sqlite.org/c3ref/close.html
-        #[allow(unsafe_code)]
         unsafe {
             let _ = sqlite3_close(self.handle());
         }

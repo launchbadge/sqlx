@@ -31,7 +31,6 @@ impl<'c> SqliteValue<'c> {
     }
 
     fn r#type(&self) -> Option<SqliteType> {
-        #[allow(unsafe_code)]
         let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index) };
 
         // SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL
@@ -48,31 +47,21 @@ impl<'c> SqliteValue<'c> {
 
     /// Returns the 32-bit INTEGER result.
     pub(super) fn int(&self) -> i32 {
-        #[allow(unsafe_code)]
-        unsafe {
-            sqlite3_column_int(self.statement.handle(), self.index)
-        }
+        unsafe { sqlite3_column_int(self.statement.handle(), self.index) }
     }
 
     /// Returns the 64-bit INTEGER result.
     pub(super) fn int64(&self) -> i64 {
-        #[allow(unsafe_code)]
-        unsafe {
-            sqlite3_column_int64(self.statement.handle(), self.index)
-        }
+        unsafe { sqlite3_column_int64(self.statement.handle(), self.index) }
     }
 
     /// Returns the 64-bit, REAL result.
     pub(super) fn double(&self) -> f64 {
-        #[allow(unsafe_code)]
-        unsafe {
-            sqlite3_column_double(self.statement.handle(), self.index)
-        }
+        unsafe { sqlite3_column_double(self.statement.handle(), self.index) }
     }
 
     /// Returns the UTF-8 TEXT result.
     pub(super) fn text(&self) -> Option<&'c str> {
-        #[allow(unsafe_code)]
         unsafe {
             let ptr = sqlite3_column_text(self.statement.handle(), self.index) as *const i8;
 
@@ -86,14 +75,12 @@ impl<'c> SqliteValue<'c> {
 
     fn bytes(&self) -> usize {
         // Returns the size of the result in bytes.
-        #[allow(unsafe_code)]
         let len = unsafe { sqlite3_column_bytes(self.statement.handle(), self.index) };
         len as usize
     }
 
     /// Returns the BLOB result.
     pub(super) fn blob(&self) -> &'c [u8] {
-        #[allow(unsafe_code)]
         let ptr = unsafe { sqlite3_column_blob(self.statement.handle(), self.index) };
 
         if ptr.is_null() {
@@ -101,10 +88,7 @@ impl<'c> SqliteValue<'c> {
             return &[];
         }
 
-        #[allow(unsafe_code)]
-        unsafe {
-            slice::from_raw_parts(ptr as *const u8, self.bytes())
-        }
+        unsafe { slice::from_raw_parts(ptr as *const u8, self.bytes()) }
     }
 }
 

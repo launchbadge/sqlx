@@ -60,7 +60,6 @@ impl SqliteConnection {
         // completed INSERT, UPDATE or DELETE statement.
 
         // https://www.sqlite.org/c3ref/changes.html
-        #[allow(unsafe_code)]
         let changes = unsafe { sqlite3_changes(self.handle()) };
         changes as u64
     }

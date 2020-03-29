@@ -15,10 +15,7 @@ impl crate::row::private_row::Sealed for SqliteRow<'_> {}
 // safe across threads as long as we don't call [sqlite3_step]
 // That should not be possible as long as an immutable borrow is held on the connection
 
-#[allow(unsafe_code)]
 unsafe impl Send for SqliteRow<'_> {}
-
-#[allow(unsafe_code)]
 unsafe impl Sync for SqliteRow<'_> {}
 
 impl<'c> SqliteRow<'c> {
