@@ -288,6 +288,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 
 [[package]]
+name = "cargo-sqlx"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dotenv",
+ "futures 0.3.4",
+ "sqlx 0.2.6",
+ "structopt",
+ "tokio 0.2.13",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1721,6 +1733,7 @@ dependencies = [
  "rand",
  "sha-1",
  "sha2",
+ "tokio 0.2.13",
  "url",
 ]
 
@@ -1800,10 +1813,12 @@ dependencies = [
  "async-std",
  "dotenv",
  "futures 0.3.4",
+ "lazy_static",
  "proc-macro2",
  "quote",
  "sqlx-core 0.2.6",
  "syn",
+ "tokio 0.2.13",
  "url",
 ]
 
