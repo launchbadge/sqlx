@@ -28,7 +28,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = [ "tls", "postgres", "mysql", "uuid", "chrono", "json", "time" ]
+features = [ "all" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
