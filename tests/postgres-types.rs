@@ -21,8 +21,11 @@ macro_rules! array_macro_test {
                 $(
                     let v: &[$type] = $value;
                     let res = sqlx::query!($sql, v).fetch_one(&mut conn).await?;
-                    assert_eq!(res.value, v);
-                    assert_eq!(res.out, v);
+
+                    // these must be unwrapped in query! because postgres infers expressions
+                    // to be potentially NULL at all times even if it's impossible to be NULL
+                    assert_eq!(res.value.unwrap(), v);
+                    assert_eq!(res.out.unwrap(), v);
                 )+
 
                 Ok(())
@@ -701,7 +704,7 @@ mod json {
         .fetch_one(&mut conn)
         .await?;
 
-        assert_eq!(v, res._1);
+        assert_eq!(Some(v), res._1);
         assert_eq!(res._1, res._2);
 
         Ok(())
