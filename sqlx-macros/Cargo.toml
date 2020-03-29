@@ -32,6 +32,7 @@ chrono = [ "sqlx/chrono" ]
 time = [ "sqlx/time" ]
 ipnetwork = [ "sqlx/ipnetwork" ]
 uuid = [ "sqlx/uuid" ]
+json = [ "sqlx/json", "serde_json" ]
 
 [dependencies]
 async-std = { version = "1.5.0", default-features = false, optional = true }
@@ -40,6 +41,7 @@ dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx = { version = "0.3.0-alpha.2", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
 syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
 url = { version = "2.1.1", default-features = false }

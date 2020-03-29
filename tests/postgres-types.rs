@@ -7,6 +7,30 @@ use sqlx::postgres::{PgQueryAs, PgRawBuffer, PgTypeInfo, PgValue};
 use sqlx::{Cursor, Executor, Postgres, Row, Type};
 use sqlx_test::{new, test_prepared_type, test_type};
 
+// TODO: With support for concatenation of sql literals in query! macros this should be updated
+macro_rules! array_macro_test {
+    ($name:ident($type:ty, $($sql:literal == $value:expr),+  $(,)?)) => {
+        paste::item! {
+            #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+            #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+            async fn [< test_array_type_ $name >] () -> anyhow::Result<()> {
+                use sqlx::prelude::*;
+
+                let mut conn = sqlx_test::new::<Postgres>().await?;
+
+                $(
+                    let v: &[$type] = $value;
+                    let res = sqlx::query!($sql, v).fetch_one(&mut conn).await?;
+                    assert_eq!(res.value, v);
+                    assert_eq!(res.out, v);
+                )+
+
+                Ok(())
+            }
+        }
+    };
+}
+
 test_type!(null(
     Postgres,
     Option<i16>,
@@ -19,6 +43,10 @@ test_type!(bool(
     "false::boolean" == false,
     "true::boolean" == true
 ));
+array_macro_test!(bool(
+    bool,
+    "select '{true,false,true}'::boolean[] as value, $1::boolean[] as out" == &[true, false, true]
+));
 
 test_type!(i8(Postgres, i8, "120::\"char\"" == 120_i8));
 test_type!(i16(Postgres, i16, "821::smallint" == 821_i16));
@@ -29,6 +57,10 @@ test_type!(i32(
     "94101::int" == 94101_i32,
     "-5101::int" == -5101_i32
 ));
+array_macro_test!(i32(
+    i32,
+    "select '{1,3,-5}'::int[] as value, $1::int[] as out" == &[1, 3, -5]
+));
 
 test_type!(u32(Postgres, u32, "94101::oid" == 94101_u32));
 test_type!(i64(Postgres, i64, "9358295312::bigint" == 9358295312_i64));
@@ -38,6 +70,11 @@ test_type!(f64(
     Postgres,
     f64,
     "939399419.1225182::double precision" == 939399419.1225182_f64
+));
+array_macro_test!(f64(
+    f64,
+    "select '{939399419.1225182,-12.0}'::double precision[] as value, $1::double precision[] as out"
+        == &[939399419.1225182_f64, -12.0]
 ));
 
 test_type!(string(
@@ -133,6 +170,32 @@ test_type!(decimal(
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
+// TODO: This is a minimal example that reproduces a typechecking error with
+// arrays of BigDecimal in macros.
+//
+// The error is:
+// error: unsupported type _NUMERIC for param #1
+//
+// The implementation for bigdecimal is of the same form as all the other types.
+// My (oeb25) hypothesis is that it is due to some overlap with PgNumeric, but I've been
+// conclude any results.
+// I have left the implementation in its ill form. It should not interfere with any of the other
+// types, but it just doesn't compile if you try to use arrays of bigdecimal in query macros.
+
+// #[cfg(feature = "bigdecimal")]
+// #[test]
+// fn minimal_decimal_macro_repro() {
+//     use sqlx::prelude::*;
+//     let v: &[sqlx::types::BigDecimal] = &[];
+//     sqlx::query!("select $1::numeric[] as out", v);
+// }
+
+// array_macro_test!(decimal(
+//     sqlx::types::BigDecimal,
+//     "select '{12345.6789}'::numeric[] as value, $1::numeric[] as out"
+//         == &["12345.6789".parse::<sqlx::types::BigDecimal>().unwrap()]
+// ));
+
 #[cfg(feature = "uuid")]
 test_type!(uuid(
     Postgres,
@@ -142,6 +205,12 @@ test_type!(uuid(
     "'00000000-0000-0000-0000-000000000000'::uuid"
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
+#[cfg(feature = "uuid")]
+array_macro_test!(uuid(sqlx::types::Uuid, "select '{b731678f-636f-4135-bc6f-19440c13bd19,00000000-0000-0000-0000-000000000000}'::uuid[] as value, $1::uuid[] as out"
+    == &[
+        sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+    ]));
 
 #[cfg(feature = "ipnetwork")]
 test_type!(ipnetwork(
@@ -172,6 +241,19 @@ test_type!(ipnetwork(
             .parse::<sqlx::types::ipnetwork::IpNetwork>()
             .unwrap(),
 ));
+#[cfg(feature = "ipnetwork")]
+array_macro_test!(ipnetwork(
+    sqlx::types::ipnetwork::IpNetwork,
+    "select '{127.0.0.1,8.8.8.8/24}'::inet[] as value, $1::inet[] as out"
+        == &[
+            "127.0.0.1"
+                .parse::<sqlx::types::ipnetwork::IpNetwork>()
+                .unwrap(),
+            "8.8.8.8/24"
+                .parse::<sqlx::types::ipnetwork::IpNetwork>()
+                .unwrap()
+        ]
+));
 
 #[cfg(feature = "chrono")]
 mod chrono {
@@ -197,6 +279,11 @@ mod chrono {
         NaiveDateTime,
         "'2019-01-02 05:10:20'::timestamp" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
+    array_macro_test!(chrono_date_time(
+        NaiveDateTime,
+        "select '{2019-01-02 05:10:20}'::timestamp[] as value, $1::timestamp[] as out"
+            == &[NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)]
+    ));
 
     test_type!(chrono_date_time_tz(
         Postgres,
@@ -207,6 +294,15 @@ mod chrono {
                 Utc,
             )
     ));
+    // TODO: Can't seem to get this to work
+    // array_macro_test!(chrono_date_time_tz(
+    //     DateTime::<Utc>,
+    //     "select ARRAY[TIMESTAMPTZ '2019-01-02 05:10:20.115100'] as value, $1::TIMESTAMPTZ as out"
+    //         == &[DateTime::<Utc>::from_utc(
+    //             NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
+    //             Utc,
+    //         )]
+    // ));
 }
 
 #[cfg(feature = "time")]
@@ -582,6 +678,31 @@ mod json {
         let value: &RawValue = row.get::<&RawValue, usize>(0_usize);
 
         assert_eq!(value.get(), "{\"hello\": \"world\"}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(feature = "runtime-async-std", async_std::test)]
+    #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+    async fn test_json_value_in_macro() -> anyhow::Result<()> {
+        use sqlx::prelude::*;
+
+        let mut conn = sqlx_test::new::<Postgres>().await?;
+
+        let v: serde_json::Value = json!({
+            "name": "Joe".to_string(),
+            "age": 33
+        });
+
+        let res = sqlx::query!(
+            "SELECT '{\"name\":\"Joe\",\"age\":33}'::jsonb as _1, $1::jsonb as _2",
+            v,
+        )
+        .fetch_one(&mut conn)
+        .await?;
+
+        assert_eq!(v, res._1);
+        assert_eq!(res._1, res._2);
 
         Ok(())
     }

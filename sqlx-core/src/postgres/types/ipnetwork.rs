@@ -36,6 +36,12 @@ impl Type<Postgres> for [IpNetwork] {
     }
 }
 
+impl Type<Postgres> for Vec<IpNetwork> {
+    fn type_info() -> PgTypeInfo {
+        <[IpNetwork] as Type<Postgres>>::type_info()
+    }
+}
+
 impl Encode<Postgres> for IpNetwork {
     fn encode(&self, buf: &mut PgRawBuffer) {
         match self {

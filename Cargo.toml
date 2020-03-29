@@ -55,7 +55,7 @@ bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
-json = [ "sqlx-core/json" ]
+json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 
 [dependencies]

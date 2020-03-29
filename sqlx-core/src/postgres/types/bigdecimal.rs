@@ -6,6 +6,7 @@ use num_bigint::{BigInt, Sign};
 
 use crate::decode::Decode;
 use crate::encode::Encode;
+use crate::postgres::protocol::TypeId;
 use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
 use crate::types::Type;
 
@@ -14,6 +15,19 @@ use super::raw::{PgNumeric, PgNumericSign};
 impl Type<Postgres> for BigDecimal {
     fn type_info() -> PgTypeInfo {
         <PgNumeric as Type<Postgres>>::type_info()
+    }
+}
+
+impl Type<Postgres> for [BigDecimal] {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::new(TypeId::ARRAY_NUMERIC, "NUMERIC[]")
+        // <[PgNumeric] as Type<Postgres>>::type_info()
+    }
+}
+
+impl Type<Postgres> for Vec<BigDecimal> {
+    fn type_info() -> PgTypeInfo {
+        <[BigDecimal] as Type<Postgres>>::type_info()
     }
 }
 
