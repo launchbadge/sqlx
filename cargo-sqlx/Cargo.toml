@@ -4,10 +4,9 @@ version = "0.1.0"
 description = "Simple postgres migrator without support for down migration"
 authors = ["Jesper Axelsson <jesperaxe@gmail.com>"]
 edition = "2018"
-license = "MIT OR Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/JesperAxelsson/blue-grouse-migrator"
-repository = "https://github.com/JesperAxelsson/blue-grouse-migrator"
+homepage = "https://github.com/launchbadge/sqlx"
+repository = "https://github.com/launchbadge/sqlx"
 keywords = ["database", "postgres", "database-management", "migration"]
 categories = ["database", "command-line-utilities"]
 
