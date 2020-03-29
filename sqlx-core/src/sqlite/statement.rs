@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::os::raw::c_int;
 use std::ptr;
-use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     sqlite3_bind_parameter_count, sqlite3_clear_bindings, sqlite3_column_count,
@@ -15,7 +14,6 @@ use libsqlite3_sys::{
     SQLITE_DONE, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT, SQLITE_ROW,
 };
 
-use crate::error::DatabaseError;
 use crate::sqlite::connection::SqliteConnectionHandle;
 use crate::sqlite::worker::Worker;
 use crate::sqlite::SqliteError;
