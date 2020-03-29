@@ -7,7 +7,7 @@ use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::sqlite::cursor::SqliteCursor;
 use crate::sqlite::statement::{Statement, Step};
-use crate::sqlite::types::SqliteType;
+use crate::sqlite::type_info::SqliteType;
 use crate::sqlite::{Sqlite, SqliteConnection, SqliteTypeInfo};
 
 impl SqliteConnection {

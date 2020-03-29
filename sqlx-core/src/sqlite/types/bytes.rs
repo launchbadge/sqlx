@@ -1,6 +1,6 @@
 use crate::decode::Decode;
 use crate::encode::Encode;
-use crate::sqlite::types::{SqliteType, SqliteTypeAffinity};
+use crate::sqlite::type_info::{SqliteType, SqliteTypeAffinity};
 use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
 use crate::types::Type;
 

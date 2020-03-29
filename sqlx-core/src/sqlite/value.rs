@@ -10,7 +10,7 @@ use libsqlite3_sys::{
 };
 
 use crate::sqlite::statement::Statement;
-use crate::sqlite::types::SqliteType;
+use crate::sqlite::type_info::SqliteType;
 use crate::sqlite::{Sqlite, SqliteTypeInfo};
 use crate::value::RawValue;
 

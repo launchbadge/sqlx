@@ -13,6 +13,7 @@ mod error;
 mod executor;
 mod row;
 mod statement;
+mod type_info;
 pub mod types;
 mod value;
 mod worker;
@@ -23,7 +24,7 @@ pub use cursor::SqliteCursor;
 pub use database::Sqlite;
 pub use error::SqliteError;
 pub use row::SqliteRow;
-pub use types::SqliteTypeInfo;
+pub use type_info::SqliteTypeInfo;
 pub use value::SqliteValue;
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for **Sqlite**.
