@@ -197,6 +197,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#108]: https://github.com/launchbadge/sqlx/pull/108
 
 [@bmisiak]: https://github.com/bmisiak
+[@oeb25]: https://github.com/oeb25
+[@PoiScript]: https://github.com/PoiScript
+[@utter-step]: https://github.com/utter-step
 
 ## 0.2.6 - 2020-03-10
 
