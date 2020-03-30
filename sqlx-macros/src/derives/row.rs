@@ -74,7 +74,7 @@ fn expand_derive_from_row_struct(
 
     let reads = fields.iter().filter_map(|field| -> Option<Stmt> {
         let id = &field.ident.as_ref()?;
-        let id_s = id.to_string();
+        let id_s = id.to_string().trim_start_matches("r#").to_owned();
         let ty = &field.ty;
 
         Some(parse_quote!(
