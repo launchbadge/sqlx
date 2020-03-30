@@ -332,8 +332,7 @@ WHERE organization = ?
 This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust. 
 
 If the `sqlite` feature is enabled, this is downgraded to `#![deny(unsafe_code)]` with `#![allow(unsafe_code)]` on the 
-`sqlx::sqlite` module. There are several places where we interact with the C SQLite API. These places should be well 
-commented on their invariants.
+`sqlx::sqlite` module. There are several places where we interact with the C SQLite API. We try to document each call for the invariants we're assuming. We absolutely welcome auditing on and feedback on our unsafe code usage.
 
 ## License
 
