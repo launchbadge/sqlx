@@ -4,9 +4,11 @@ members = [
     "sqlx-core",
     "sqlx-macros",
     "sqlx-test",
+    "examples/mysql/todos",
     "examples/postgres/listen",
     "examples/postgres/realworld",
     "examples/postgres/todos",
+    "examples/sqlite/todos",
 ]
 
 [package]
