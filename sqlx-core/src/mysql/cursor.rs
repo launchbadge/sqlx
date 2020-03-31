@@ -123,8 +123,6 @@ async fn next<'a, 'c: 'a, 'q: 'a>(
                 for i in 0..cc.columns {
                     let column = ColumnDefinition::read(conn.stream.receive().await?)?;
 
-                    println!("[def] {:?}", column);
-
                     cursor
                         .column_types
                         .push(MySqlTypeInfo::from_nullable_column_def(&column));
