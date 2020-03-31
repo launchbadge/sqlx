@@ -88,6 +88,8 @@ ORDER BY id
     .fetch_all(pool)
     .await?;
 
+    // NOTE: Booleans in MySQL are stored as `TINYINT(1)` / `i8`
+    //       0 = false, non-0 = true
     for rec in recs {
         println!(
             "- [{}] {}: {}",
