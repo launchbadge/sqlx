@@ -134,6 +134,11 @@ async fn make_auth_response(
     password: &str,
     nonce: &[u8],
 ) -> crate::Result<Vec<u8>> {
+    if password.is_empty() {
+        // Empty password should not be sent
+        return Ok(vec![]);
+    }
+
     match plugin {
         AuthPlugin::CachingSha2Password | AuthPlugin::MySqlNativePassword => {
             Ok(plugin.scramble(password, nonce))
