@@ -1766,6 +1766,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-sqlite-todos"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "futures 0.3.4",
+ "paw",
+ "sqlx",
+ "structopt",
+]
+
+[[package]]
 name = "sqlx-macros"
 version = "0.3.2"
 dependencies = [

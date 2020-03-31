@@ -7,6 +7,7 @@ members = [
     "examples/postgres/listen",
     "examples/postgres/realworld",
     "examples/postgres/todos",
+    "examples/sqlite/todos",
 ]
 
 [package]
