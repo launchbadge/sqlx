@@ -29,6 +29,8 @@ sqlite = [ "libsqlite3-sys" ]
 tls = [ "async-native-tls" ]
 runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
 runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
+# intended for internal benchmarking, do not use
+bench = []
 
 [dependencies]
 async-native-tls = { version = "0.3.2", default-features = false, optional = true }

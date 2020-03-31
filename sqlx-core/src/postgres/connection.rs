@@ -98,7 +98,7 @@ pub struct PgConnection {
 
     // Work buffer for the value ranges of the current row
     // This is used as the backing memory for each Row's value indexes
-    pub(super) current_row_values: Vec<Option<Range<u32>>>,
+    pub(super) current_row_values: Vec<Option<(u32, u32)>>,
 
     // TODO: Find a use for these values. Perhaps in a debug impl of PgConnection?
     #[allow(dead_code)]

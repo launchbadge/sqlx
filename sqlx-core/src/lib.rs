@@ -7,7 +7,11 @@
 #![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
 #![recursion_limit = "512"]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(all(test, feature = "bench"), feature(test))]
 // #![warn(missing_docs)]
+
+#[cfg(all(test, feature = "bench"))]
+extern crate test;
 
 // HACK: Allow a feature name the same name as a dependency
 #[cfg(feature = "bigdecimal")]
@@ -65,7 +69,3 @@ pub mod postgres;
 pub mod sqlite;
 
 pub use error::{Error, Result};
-
-// Named Lifetimes:
-//  'c: connection
-//  'q: query string (and arguments)
