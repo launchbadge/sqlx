@@ -1668,16 +1668,6 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "sqlx"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cf8ffc87c5eb00ab9bbb4f464372a26ff3320ed38c9745f28e42680c08758fd"
-dependencies = [
- "sqlx-core 0.2.6",
- "sqlx-macros 0.2.5",
-]
-
-[[package]]
-name = "sqlx"
 version = "0.3.0"
 dependencies = [
  "anyhow",
@@ -1688,40 +1678,12 @@ dependencies = [
  "paste",
  "serde",
  "serde_json",
- "sqlx-core 0.3.0",
- "sqlx-macros 0.3.0",
+ "sqlx-core",
+ "sqlx-macros",
  "sqlx-test",
  "time 0.2.9",
  "tokio 0.2.13",
  "trybuild",
-]
-
-[[package]]
-name = "sqlx-core"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065f0681d5f1dfc2f7cca898c611a9f6abd2e89f60409fcd2c3ce5e7b91623c8"
-dependencies = [
- "async-native-tls",
- "async-std",
- "async-stream",
- "base64 0.11.0",
- "bitflags",
- "byteorder",
- "crossbeam-queue",
- "crossbeam-utils 0.7.2",
- "futures-channel",
- "futures-core",
- "futures-util",
- "hmac",
- "log",
- "md-5",
- "memchr",
- "percent-encoding 2.1.0",
- "rand",
- "sha-1",
- "sha2",
- "url",
 ]
 
 [[package]]
@@ -1766,16 +1728,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-example-listen-postgres"
+name = "sqlx-example-postgres-listen"
 version = "0.1.0"
 dependencies = [
  "async-std",
  "futures 0.3.4",
- "sqlx 0.3.0",
+ "sqlx",
 ]
 
 [[package]]
-name = "sqlx-example-realworld-postgres"
+name = "sqlx-example-postgres-realworld"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1787,24 +1749,20 @@ dependencies = [
  "rand",
  "rust-argon2",
  "serde",
- "sqlx 0.3.0",
+ "sqlx",
  "tide",
 ]
 
 [[package]]
-name = "sqlx-macros"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "133ca6bf38b83c6c82196c12acb7b30a428f55fcdea7f1daba0e38b621294ea3"
+name = "sqlx-example-postgres-todos"
+version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-std",
- "dotenv",
  "futures 0.3.4",
- "proc-macro2",
- "quote",
- "sqlx-core 0.2.6",
- "syn",
- "url",
+ "paw",
+ "sqlx",
+ "structopt",
 ]
 
 [[package]]
@@ -1818,7 +1776,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
- "sqlx-core 0.3.0",
+ "sqlx-core",
  "syn",
  "tokio 0.2.13",
  "url",
@@ -1832,7 +1790,7 @@ dependencies = [
  "async-std",
  "dotenv",
  "env_logger",
- "sqlx 0.3.0",
+ "sqlx",
  "tokio 0.2.13",
 ]
 
@@ -2085,18 +2043,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "todos-postgres"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-std",
- "futures 0.3.4",
- "paw",
- "sqlx 0.2.6",
- "structopt",
 ]
 
 [[package]]

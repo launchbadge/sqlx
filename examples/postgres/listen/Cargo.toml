@@ -1,10 +1,10 @@
 [package]
-name = "sqlx-example-listen-postgres"
+name = "sqlx-example-postgres-listen"
 version = "0.1.0"
 edition = "2018"
-workspace = "../.."
+workspace = "../../../"
 
 [dependencies]
 async-std = { version = "1.4.0", features = [ "attributes", "unstable" ] }
-sqlx = { path = "../..", features = [ "postgres", "tls" ] }
+sqlx = { path = "../../../", features = [ "postgres", "tls" ] }
 futures = "0.3.1"
