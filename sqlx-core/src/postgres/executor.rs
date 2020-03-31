@@ -167,7 +167,7 @@ impl PgConnection {
             if !self.cache_statement_id.contains_key(query) {
                 // wait for `ParseComplete` on the stream or the
                 // error before we cache the statement
-                match self.stream.read().await? {
+                match self.stream.receive().await? {
                     Message::ParseComplete => {
                         self.cache_statement_id.insert(query.into(), statement);
                     }
