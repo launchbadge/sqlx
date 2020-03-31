@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
- - [[#212]] Removed snekay `println!` in `MySqlCursor`
+ - [[#212]] Removed sneaky `println!` in `MySqlCursor`
  
 [#212]: https://github.com/launchbadge/sqlx/issues/212
 
