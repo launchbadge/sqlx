@@ -39,6 +39,7 @@ use crate::row::HasRow;
 ///
 /// [`Executor::fetch`]: crate::executor::Executor::fetch
 /// [`Query::fetch`]: crate::query::Query::fetch
+#[must_use = "cursor must have `.next()` called to execute query"]
 pub trait Cursor<'c, 'q>
 where
     Self: Send + Unpin + private::Sealed,
