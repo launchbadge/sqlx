@@ -7,9 +7,9 @@ members = [
     "cargo-sqlx",
     "examples/mysql/todos",
     "examples/postgres/listen",
-    "examples/postgres/realworld",
     "examples/postgres/todos",
     "examples/sqlite/todos",
+    "examples/realworld",
 ]
 
 [package]

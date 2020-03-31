@@ -62,7 +62,7 @@ dependencies = [
  "native-tls",
  "thiserror",
  "tokio 0.2.13",
- "url",
+ "url 2.1.1",
 ]
 
 [[package]]
@@ -121,6 +121,17 @@ checksum = "0ac2c016b079e771204030951c366db398864f5026f84a44dafb0ff20f02085d"
 dependencies = [
  "libc",
  "winapi 0.3.8",
+]
+
+[[package]]
+name = "async-trait"
+version = "0.1.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "991d0a1a3e790c835fd54ab41742a59251338d8c7577fe7d7f0170c7072be708"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -351,6 +362,16 @@ name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
+
+[[package]]
+name = "cookie"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "888604f00b3db336d2af898ec3c1d5d0ddf5e6d462220f2ededc33a87ac4bbd5"
+dependencies = [
+ "time 0.1.42",
+ "url 1.7.2",
+]
 
 [[package]]
 name = "core-foundation"
@@ -828,6 +849,17 @@ dependencies = [
  "tokio-threadpool",
  "tokio-timer",
  "want",
+]
+
+[[package]]
+name = "idna"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f09e0f0b1fb55fdee1f17470ad800da77af5186a1a76c026b679358b7e844e"
+dependencies = [
+ "matches",
+ "unicode-bidi",
+ "unicode-normalization",
 ]
 
 [[package]]
@@ -1735,7 +1767,7 @@ dependencies = [
  "sha2",
  "time 0.2.9",
  "tokio 0.2.13",
- "url",
+ "url 2.1.1",
  "uuid",
 ]
 
@@ -1761,23 +1793,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-example-postgres-realworld"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-std",
- "chrono",
- "env_logger",
- "futures 0.3.4",
- "jsonwebtoken",
- "rand",
- "rust-argon2",
- "serde",
- "sqlx",
- "tide",
-]
-
-[[package]]
 name = "sqlx-example-postgres-todos"
 version = "0.1.0"
 dependencies = [
@@ -1787,6 +1802,27 @@ dependencies = [
  "paw",
  "sqlx",
  "structopt",
+]
+
+[[package]]
+name = "sqlx-example-realworld"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "async-trait",
+ "chrono",
+ "env_logger",
+ "jsonwebtoken",
+ "log",
+ "paw",
+ "rand",
+ "rust-argon2",
+ "serde",
+ "sqlx",
+ "structopt",
+ "thiserror",
+ "tide",
 ]
 
 [[package]]
@@ -1815,7 +1851,7 @@ dependencies = [
  "sqlx-core",
  "syn",
  "tokio 0.2.13",
- "url",
+ "url 2.1.1",
 ]
 
 [[package]]
@@ -2015,11 +2051,12 @@ dependencies = [
 
 [[package]]
 name = "tide"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13c99b1991db81e611a2614cd1b07fec89ae33c5f755e1f8eb70826fb5af0eea"
+checksum = "e619c99048ae107912703d0efeec4ff4fbff704f064e51d3eee614b28ea7b739"
 dependencies = [
  "async-std",
+ "cookie",
  "futures 0.3.4",
  "http",
  "http-service",
@@ -2327,11 +2364,22 @@ checksum = "55cd1f4b4e96b46aeb8d4855db4a7a9bd96eeeb5c6a1ab54593328761642ce2f"
 
 [[package]]
 name = "url"
+version = "1.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd4e7c0d531266369519a4aa4f399d748bd37043b00bde1e4ff1f60a120b355a"
+dependencies = [
+ "idna 0.1.5",
+ "matches",
+ "percent-encoding 1.0.1",
+]
+
+[[package]]
+name = "url"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "829d4a8476c35c9bf0bbce5a3b23f4106f79728039b726d292bb93bc106787cb"
 dependencies = [
- "idna",
+ "idna 0.2.0",
  "matches",
  "percent-encoding 2.1.0",
 ]
