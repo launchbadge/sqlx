@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.1 - 2020-03-30
+
+### Fixed
+
+ - [[#203]] Allow an empty password for MySQL
+ 
+ - [[#204]] Regression in error reporting for invalid SQL statements on PostgreSQL
+ 
+ - [[#200]] Fixes the incorrect handling of raw (`r#...`) fields of a struct in the `FromRow` derive [[@sidred]]
+
+[#200]: https://github.com/launchbadge/sqlx/pull/200 
+[#203]: https://github.com/launchbadge/sqlx/issues/203
+[#204]: https://github.com/launchbadge/sqlx/issues/204
+
 ## 0.3.0 - 2020-03-29
 
 ### Breaking Changes
@@ -196,11 +210,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#135]: https://github.com/launchbadge/sqlx/pull/135
 [#108]: https://github.com/launchbadge/sqlx/pull/108
 
-[@bmisiak]: https://github.com/bmisiak
-[@oeb25]: https://github.com/oeb25
-[@PoiScript]: https://github.com/PoiScript
-[@utter-step]: https://github.com/utter-step
-
 ## 0.2.6 - 2020-03-10
 
 ### Added
@@ -241,8 +250,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#100]: https://github.com/launchbadge/sqlx/issues/100
 [#104]: https://github.com/launchbadge/sqlx/issues/104
 
-[@repnop]: https://github.com/repnop
-
 ### Added
 
  - [[#72]] Add `PgTypeInfo::with_oid` to allow simple construction of `PgTypeInfo` which enables `HasSqlType`
@@ -256,10 +263,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#72]: https://github.com/launchbadge/sqlx/issues/72
 [#96]: https://github.com/launchbadge/sqlx/issues/96
 [#71]: https://github.com/launchbadge/sqlx/issues/71
-
-[@jplatte]: https://github.com/jplatte
-[@yaahc]: https://github.com/yaahc
-[@Freax13]: https://github.com/Freax13
 
 ## 0.2.4 - 2020-01-18
 
@@ -352,3 +355,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@danielakhterov]: https://github.com/danielakhterov
 [@mehcode]: https://github.com/mehcode
 [@udoprog]: https://github.com/udoprog
+[@jplatte]: https://github.com/jplatte
+[@yaahc]: https://github.com/yaahc
+[@Freax13]: https://github.com/Freax13
+[@repnop]: https://github.com/repnop
+[@bmisiak]: https://github.com/bmisiak
+[@oeb25]: https://github.com/oeb25
+[@PoiScript]: https://github.com/PoiScript
+[@utter-step]: https://github.com/utter-step
+[@sidred]: https://github.com/sidred
