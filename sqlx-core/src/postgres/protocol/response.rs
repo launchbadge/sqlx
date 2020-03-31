@@ -228,7 +228,6 @@ impl Response {
 #[cfg(test)]
 mod tests {
     use super::{Response, Severity};
-    use matches::assert_matches;
 
     const RESPONSE: &[u8] = b"SNOTICE\0VNOTICE\0C42710\0Mextension \"uuid-ossp\" already exists, \
           skipping\0Fextension.c\0L1656\0RCreateExtension\0\0";
@@ -237,7 +236,7 @@ mod tests {
     fn it_decodes_response() {
         let message = Response::read(RESPONSE).unwrap();
 
-        assert_matches!(message.severity, Severity::Notice);
+        assert!(matches!(message.severity, Severity::Notice));
         assert_eq!(&*message.code, "42710");
         assert_eq!(&*message.file.unwrap(), "extension.c");
         assert_eq!(message.line, Some(1656));

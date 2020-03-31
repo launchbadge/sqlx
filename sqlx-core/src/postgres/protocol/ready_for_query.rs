@@ -42,7 +42,6 @@ impl ReadyForQuery {
 #[cfg(test)]
 mod tests {
     use super::{ReadyForQuery, TransactionStatus};
-    use matches::assert_matches;
 
     const READY_FOR_QUERY: &[u8] = b"E";
 
@@ -50,6 +49,6 @@ mod tests {
     fn it_decodes_ready_for_query() {
         let message = ReadyForQuery::read(READY_FOR_QUERY).unwrap();
 
-        assert_matches!(message.status, TransactionStatus::Error);
+        assert!(matches!(message.status, TransactionStatus::Error));
     }
 }
