@@ -1,0 +1,30 @@
+[package]
+name = "sqlx-example-realworld"
+version = "0.1.0"
+authors = ["Samani G. Gikandi <samani@gojulas.com>"]
+edition = "2018"
+workspace = "../../"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+sqlite = ["sqlx/sqlite"]
+postgres = ["sqlx/postgres"]
+
+[dependencies]
+anyhow = "1.0.28"
+async-std = "1.5.0"
+chrono = "0.4.11"
+env_logger = "0.7.1"
+jsonwebtoken = "6.0"
+rand = "0.7.3"
+rust-argon2 = "0.6.1"
+serde = { version = "1.0.105", features = ["derive"] }
+sqlx = { path = "../../" }
+tide = "0.6.0"
+log = "0.4.8"
+async-trait = "0.1.27"
+thiserror = "1.0.14"
+paw = "1.0"
+structopt = { version = "0.3", features = ["paw"] }
