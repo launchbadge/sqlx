@@ -91,7 +91,7 @@ ORDER BY id
     for rec in recs {
         println!(
             "- [{}] {}: {}",
-            if rec.done > 0 { "x" } else { " " },
+            if rec.done != 0 { "x" } else { " " },
             rec.id,
             &rec.description,
         );
