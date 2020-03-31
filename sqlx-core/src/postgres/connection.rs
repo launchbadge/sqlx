@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::ops::Range;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
