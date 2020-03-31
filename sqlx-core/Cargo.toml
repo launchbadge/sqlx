@@ -73,6 +73,3 @@ version = "0.17.1"
 optional = true
 default-features = false
 features = [ "pkg-config", "vcpkg", "bundled" ]
-
-[dev-dependencies]
-matches = "0.1.8"

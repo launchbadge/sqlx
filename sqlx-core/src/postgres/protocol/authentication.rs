@@ -167,7 +167,6 @@ impl AuthenticationSaslContinue {
 mod tests {
     use super::Authentication;
     use crate::postgres::protocol::authentication::AuthenticationMd5;
-    use matches::assert_matches;
 
     const AUTH_OK: &[u8] = b"\0\0\0\0";
     const AUTH_MD5: &[u8] = b"\0\0\0\x05\x93\x189\x98";
@@ -176,7 +175,7 @@ mod tests {
     fn it_reads_auth_ok() {
         let m = Authentication::read(AUTH_OK).unwrap();
 
-        assert_matches!(m, Authentication::Ok);
+        assert!(matches!(m, Authentication::Ok));
     }
 
     #[test]
@@ -184,7 +183,7 @@ mod tests {
         let m = Authentication::read(AUTH_MD5).unwrap();
         let data = AuthenticationMd5::read(&AUTH_MD5[4..]).unwrap();
 
-        assert_matches!(m, Authentication::Md5Password);
+        assert!(matches!(m, Authentication::Md5Password));
         assert_eq!(data.salt, [147, 24, 57, 152]);
     }
 }

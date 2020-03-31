@@ -1712,7 +1712,6 @@ dependencies = [
  "libc",
  "libsqlite3-sys",
  "log",
- "matches",
  "md-5",
  "memchr",
  "num-bigint",
