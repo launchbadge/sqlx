@@ -33,6 +33,7 @@ use crate::runtime::spawn;
 /// [`rollback`]: #method.rollback
 // Transaction<PoolConnection<PgConnection>>
 // Transaction<PgConnection>
+#[must_use = "transaction rolls back if not explicitly `.commit()`ed"]
 pub struct Transaction<C>
 where
     C: Connection,

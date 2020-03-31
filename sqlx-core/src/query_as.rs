@@ -9,6 +9,7 @@ use crate::types::Type;
 /// Raw SQL query with bind parameters, mapped to a concrete type
 /// using [`FromRow`](trait.FromRow.html). Returned
 /// by [`query_as`](fn.query_as.html).
+#[must_use = "query must be executed to affect database"]
 pub struct QueryAs<'q, DB, O>
 where
     DB: Database,

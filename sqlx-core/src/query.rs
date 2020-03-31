@@ -14,6 +14,7 @@ use crate::row::HasRow;
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
+#[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB>
 where
     DB: Database,
@@ -31,6 +32,7 @@ where
 ///
 /// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
 /// before `.try_map()` anyway.
+#[must_use = "query must be executed to affect database"]
 pub struct Map<'q, DB, F>
 where
     DB: Database,
