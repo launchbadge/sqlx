@@ -12,6 +12,8 @@ You can use this document to figure out how and where to start.
   - Make sure to clearly describe it.
   - Including steps to reproduce when it is a bug.
   - Include the version of SQLx used.
+  - Include the database driver and version.
+  - Include the database version.
 
 ## Making changes
 
