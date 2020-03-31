@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteQueryAs;
+use sqlx::SqlitePool;
 use std::env;
 use structopt::StructOpt;
 
@@ -55,11 +55,9 @@ VALUES ( $1 )
     .execute(pool)
     .await?;
 
-    let rec: (i64,) = sqlx::query_as(
-        "SELECT last_insert_rowid()"
-    )
-    .fetch_one(pool)
-    .await?;
+    let rec: (i64,) = sqlx::query_as("SELECT last_insert_rowid()")
+        .fetch_one(pool)
+        .await?;
 
     Ok(rec.0)
 }
