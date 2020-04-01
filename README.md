@@ -111,6 +111,8 @@ SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
 # Cargo.toml
 [dependencies]
 sqlx = "0.3"
+futures = "0.3"
+async-std = { version = "1.5.0", features = [ "attributes" ] }
 ```
 
 **tokio**
@@ -118,7 +120,13 @@ sqlx = "0.3"
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio", "macros" ] }
+sqlx = { version = "0.3.2", default-features = false, features = [
+    "runtime-tokio",
+    "<database>",
+    "macros"
+] }
+futures = "0.3"
+tokio = { version = "0.2.13", features = ["full"] }
 ```
 
 #### Cargo Feature Flags
@@ -163,7 +171,7 @@ async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     let pool = PgPool::builder()
         .max_size(5) // maximum number of connections in the pool
-        .build(env::var("DATABASE_URL")?).await?;
+        .build(&*env::var("DATABASE_URL").unwrap()).await?;
     
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
@@ -247,12 +255,16 @@ let mut stream = sqlx::query("SELECT * FROM users")
 ```
 
 ```rust
-#[sqlx::FromRow]
-struct User { name: String, id: i64 }
+#[derive(sqlx::FromRow)]
+struct User {
+  id: i64 ,
+  username: String,
+  email : String,
+}
 
-let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? OR name = ?")
-    .bind(user_email)
-    .bind(user_name)
+let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? OR username = ?")
+    .bind(email)
+    .bind(username)
     .fetch(&mut conn);
 ```
 
