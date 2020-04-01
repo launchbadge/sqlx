@@ -1,4 +1,4 @@
-use sqlx::Postgres;
+use sqlx::{postgres::PgQueryAs, Executor, Postgres};
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 
@@ -28,16 +28,15 @@ enum Strong {
     Three,
 }
 
-// TODO: Figure out a good solution for custom type testing
 // Records must map to a custom type
 // Note that all types are types in Postgres
-// #[derive(PartialEq, Debug, sqlx::Type)]
-// #[sqlx(rename = "inventory_item")]
-// struct InventoryItem {
-//     name: String,
-//     supplier_id: Option<i32>,
-//     price: Option<i64>
-// }
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "inventory_item")]
+struct InventoryItem {
+    name: String,
+    supplier_id: Option<i32>,
+    price: Option<i64>,
+}
 
 test_type!(transparent(
     Postgres,
@@ -62,29 +61,48 @@ test_type!(strong_enum(
     "'four'::text" == Strong::Three
 ));
 
-// TODO: Figure out a good solution for custom type testing
-// test_type!(record_pg_config(
-//     Postgres,
-//     InventoryItem,
-//     "(SELECT ROW('fuzzy dice', 42, 199)::inventory_item)"
-//         == InventoryItem {
-//             name: "fuzzy dice".to_owned(),
-//             supplier_id: Some(42),
-//             price: Some(199),
-//         },
-//     "(SELECT '(\"fuuzy dice\",,)'::pg_config)"
-//         == InventoryItem {
-//             name: "fuzzy dice".to_owned(),
-//             supplier_id: None,
-//             price: None,
-//         },
-//     "(SELECT '(\"\",,2350)'::pg_config)"
-//         == InventoryItem {
-//             name: "".to_owned(),
-//             supplier_id: None,
-//             price: Some(2350)
-//         }
-// ));
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_record_type() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+DO $$ BEGIN
+
+CREATE TYPE inventory_item AS (
+    name            text,
+    supplier_id     int,
+    price           bigint
+);
+
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+    "#,
+    )
+    .await?;
+
+    let value = InventoryItem {
+        name: "fuzzy dice".to_owned(),
+        supplier_id: Some(42),
+        price: Some(199),
+    };
+
+    let rec: (bool, InventoryItem) = sqlx::query_as(
+        "
+        SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
+        ",
+    )
+    .bind(&value)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, value);
+
+    Ok(())
+}
 
 #[cfg(feature = "macros")]
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
