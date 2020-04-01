@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::Arc;
@@ -110,16 +111,13 @@ pub struct PgConnection {
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
 async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyData> {
     // Defaults to postgres@.../postgres
-    let username = url
-        .username()
-        .map(|c| c.into_owned())
-        .unwrap_or(String::from("postgres"));
+    let username = url.username().unwrap_or(Cow::Borrowed("postgres"));
     let database = url.database().unwrap_or("postgres");
 
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
     let params = &[
-        ("user", username.as_str()),
+        ("user", username.as_ref()),
         ("database", database),
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
@@ -163,7 +161,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
 
                     stream.write(PasswordMessage::Md5 {
                         password: &url.password().unwrap_or_default(),
-                        user: username.as_str(),
+                        user: username.as_ref(),
                         salt: data.salt,
                     });
 
@@ -198,7 +196,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
                         // TODO: Handle -PLUS differently if we're in a TLS stream
                         sasl::authenticate(
                             stream,
-                            username.as_str(),
+                            username.as_ref(),
                             &url.password().unwrap_or_default(),
                         )
                         .await?;
