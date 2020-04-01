@@ -48,13 +48,17 @@ impl Url {
         self.0.port().unwrap_or(default)
     }
 
-    pub fn username(&self) -> Option<&str> {
+    pub fn username(&self) -> Option<Cow<str>> {
         let username = self.0.username();
 
         if username.is_empty() {
             None
         } else {
-            Some(username)
+            Some(
+                percent_encoding::percent_decode_str(username)
+                    .decode_utf8()
+                    .expect("percent-encoded username contained non-UTF-8 bytes"),
+            )
         }
     }
 
@@ -88,5 +92,36 @@ impl Url {
         self.0
             .query_pairs()
             .find_map(|(key_, val)| if key == key_ { Some(val) } else { None })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn azure_connection_string_username_unencoded() {
+        let connection_string =
+            "postgres://username@servername:password@example.postgres.database.azure.com/db";
+
+        let url = Url::try_from(connection_string).expect("Failed to parse URL");
+
+        assert_eq!(
+            url.username().map(|u| u.to_string()),
+            Some(String::from("username@servername"))
+        );
+    }
+
+    #[test]
+    fn azure_connection_string_username_encoded() {
+        let connection_string =
+            "postgres://username%40servername:password@example.postgres.database.azure.com/db";
+
+        let url = Url::try_from(connection_string).expect("Failed to parse URL");
+
+        assert_eq!(
+            url.username().map(|u| u.to_string()),
+            Some(String::from("username@servername"))
+        );
     }
 }

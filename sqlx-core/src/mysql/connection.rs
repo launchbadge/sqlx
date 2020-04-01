@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ops::Range;
@@ -181,7 +182,7 @@ async fn establish(stream: &mut MySqlStream, url: &Url) -> crate::Result<()> {
             HandshakeResponse {
                 client_collation: COLLATE_UTF8MB4_UNICODE_CI,
                 max_packet_size: MAX_PACKET_SIZE,
-                username: url.username().unwrap_or("root"),
+                username: &url.username().unwrap_or(Cow::Borrowed("root")),
                 database: url.database(),
                 auth_plugin: &auth_plugin,
                 auth_response: &auth_response,

@@ -110,13 +110,16 @@ pub struct PgConnection {
 // https://www.postgresql.org/docs/12/protocol-flow.html#id-1.10.5.7.3
 async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyData> {
     // Defaults to postgres@.../postgres
-    let username = url.username().unwrap_or("postgres");
+    let username = url
+        .username()
+        .map(|c| c.into_owned())
+        .unwrap_or(String::from("postgres"));
     let database = url.database().unwrap_or("postgres");
 
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
     let params = &[
-        ("user", username),
+        ("user", username.as_str()),
         ("database", database),
         // Sets the display format for date and time values,
         // as well as the rules for interpreting ambiguous date input values.
@@ -160,7 +163,7 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
 
                     stream.write(PasswordMessage::Md5 {
                         password: &url.password().unwrap_or_default(),
-                        user: username,
+                        user: username.as_str(),
                         salt: data.salt,
                     });
 
@@ -193,8 +196,12 @@ async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyDa
 
                     if has_sasl || has_sasl_plus {
                         // TODO: Handle -PLUS differently if we're in a TLS stream
-                        sasl::authenticate(stream, username, &url.password().unwrap_or_default())
-                            .await?;
+                        sasl::authenticate(
+                            stream,
+                            username.as_str(),
+                            &url.password().unwrap_or_default(),
+                        )
+                        .await?;
                     } else {
                         return Err(protocol_err!(
                             "unsupported SASL auth mechanisms: {:?}",
