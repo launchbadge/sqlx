@@ -135,3 +135,34 @@ test_type!(decimal(
     "CAST(12.34 AS DECIMAL(4, 2))" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
     "CAST(12345.6789 AS DECIMAL(9, 4))" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
+
+#[cfg(feature = "json")]
+mod json_tests {
+    use super::*;
+    use serde_json::{json, Value as JsonValue};
+    use sqlx::types::Json;
+    use sqlx_test::test_type;
+
+    test_type!(json(
+        MySql,
+        JsonValue,
+        "SELECT CAST({0} AS JSON) <=> CAST(? AS JSON), '<UNKNOWN>' as _1, ? as _2, ? as _3",
+        "'\"Hello, World\"'" == json!("Hello, World"),
+        "'\"😎\"'" == json!("😎"),
+        "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
+        "'[\"Hello\", \"World!\"]'" == json!(["Hello", "World!"])
+    ));
+
+    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+    struct Friend {
+        name: String,
+        age: u32,
+    }
+
+    test_type!(json_struct(
+        MySql,
+        Json<Friend>,
+        "SELECT CAST({0} AS JSON) <=> CAST(? AS JSON), '<UNKNOWN>' as _1, ? as _2, ? as _3",
+        "\'{\"name\": \"Joe\", \"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
+    ));
+}

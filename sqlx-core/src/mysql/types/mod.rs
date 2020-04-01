@@ -47,6 +47,13 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
+//! ### [`json`](https://crates.io/crates/json)
+//!
+//! Requires the `json` Cargo feature flag.
+//!
+//! | Rust type                             | MySQL type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `json::JsonValue`             | JSON
 //!
 //! # Nullable
 //!
@@ -69,6 +76,9 @@ mod chrono;
 
 #[cfg(feature = "time")]
 mod time;
+
+#[cfg(feature = "json")]
+mod json;
 
 use crate::decode::Decode;
 use crate::mysql::{MySql, MySqlValue};

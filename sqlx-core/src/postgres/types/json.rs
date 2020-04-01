@@ -23,7 +23,7 @@ impl Type<Postgres> for JsonValue {
 
 impl Encode<Postgres> for JsonValue {
     fn encode(&self, buf: &mut PgRawBuffer) {
-        Json(self).encode(buf)
+        (Box::new(Json(self)) as Box<dyn Encode<Postgres>>).encode(buf)
     }
 }
 
@@ -41,7 +41,7 @@ impl Type<Postgres> for &'_ JsonRawValue {
 
 impl Encode<Postgres> for &'_ JsonRawValue {
     fn encode(&self, buf: &mut PgRawBuffer) {
-        Json(self).encode(buf)
+        (Box::new(Json(self)) as Box<dyn Encode<Postgres>>).encode(buf)
     }
 }
 
