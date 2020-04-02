@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.3 - 2020-04-01
+
+### Fixed
+
+ - [[#214]] Handle percent-encoded usernames in a database URL [[@jamwaffles]]
+
+### Changed
+
+ - [[#216]] Mark `Cursor`, `Query`, `QueryAs`, `query::Map`, and `Transaction` as `#[must_use]` [[@Ace4896]]
+ 
+ - [[#213]] Remove matches dependency and use matches macro from std [[@nrjais]]
+
+[#216]: https://github.com/launchbadge/sqlx/pull/216
+[#214]: https://github.com/launchbadge/sqlx/pull/214
+[#213]: https://github.com/launchbadge/sqlx/pull/213
+
 ## 0.3.2 - 2020-03-31
 
 ### Fixed
@@ -372,3 +388,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@PoiScript]: https://github.com/PoiScript
 [@utter-step]: https://github.com/utter-step
 [@sidred]: https://github.com/sidred
+[@Ace4896]: https://github.com/Ace4896
+[@jamwaffles]: https://github.com/jamwaffles
+[@nrjais]: https://github.com/nrjais
