@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Starting LISTEN loop.");
 
-    listener.listen_all(&["chan0", "chan1", "chan2"]).await?;
+    listener.listen_all(vec!["chan0", "chan1", "chan2"]).await?;
 
     let mut counter = 0usize;
     loop {

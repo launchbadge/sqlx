@@ -72,7 +72,7 @@ WHERE id = $1
     Ok(rows_affected > 0)
 }
 
-async fn list_todos(pool: &mut PgPool) -> anyhow::Result<()> {
+async fn list_todos(pool: &PgPool) -> anyhow::Result<()> {
     let recs = sqlx::query!(
         r#"
 SELECT id, description, done
