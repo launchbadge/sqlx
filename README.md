@@ -190,7 +190,7 @@ Generally, you will want to instead create a connection pool (`sqlx::Pool`) in o
 regulate how many server-side connections it's using.
 
 ```rust
-let pool = MySqlPool::new("mysql://user@pass:host/database").await?;
+let pool = MySqlPool::new("mysql://user:pass@host/database").await?;
 ``` 
 
 ### Querying
