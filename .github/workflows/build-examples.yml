@@ -1,0 +1,251 @@
+name: Build Examples
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  sqlite-todos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      
+      - name: Cache target/
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install sqlite3
+        run: |
+          sudo apt update
+          sudo apt install -yq sqlite3
+
+      - name: Create sqlite db
+        working-directory: examples/sqlite/todos
+        run: echo ".exit" | sqlite3 todos.db -init schema.sql
+
+      - working-directory: examples/sqlite/todos
+        # required because the `env` key does not expand environment variables
+        run: DATABASE_URL=sqlite://$PWD/todos.db cargo build
+
+  postgres-realworld:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: [9.4, 10, 12]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: realworld
+        ports:
+        - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    # -----------------------------------------------------
+    # install the psql client
+    - name: Install PostgreSQL client
+      run: |
+        sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+        wget --quiet -O - http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get -yq install libpq-dev postgresql-client-${{ matrix.postgres }}
+    
+    # load schema.sql
+    - working-directory: examples/postgres/realworld
+      run: psql -d $DATABASE_URL -f ./schema.sql
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
+    
+    # build the example
+    - working-directory: examples/postgres/realworld
+      run: cargo build
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
+  
+  postgres-listen:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: [9.4, 10, 12]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+        - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    # build the example
+    - working-directory: examples/postgres/listen
+      run: cargo build
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/postgres
+    
+  postgres-todos:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: [9.4, 10, 12]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: todos
+        ports:
+        - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    # -----------------------------------------------------
+    
+    # install the psql client
+    - name: Install PostgreSQL client
+      run: |
+        sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+        wget --quiet -O - http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get -yq install libpq-dev postgresql-client-${{ matrix.postgres }}
+    
+    # load schema.sql
+    - working-directory: examples/postgres/todos
+      run: psql -d $DATABASE_URL -f ./schema.sql
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/todos
+    
+    # build the example
+    - working-directory: examples/postgres/todos
+      run: cargo build
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/todos
+  
+  mysql-todos:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: ["mysql:5.7.28", "mysql:8.0.18", "mariadb:10.1.43", "mariadb:10.4.11"]
+
+    services:
+      mysql:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: todos
+        ports:
+        # will assign a random free host port
+        - 3306/tcp
+        # needed because the container does not provide a healthcheck
+        options: >-
+          --health-cmd "mysqladmin ping --silent" --health-interval 30s --health-timeout 30s
+          --health-retries 10 -v /data/mysql:/var/lib/mysql
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Rust ------------------------------------------------
+
+    - name: Install Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Cache target/
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Load schema
+      working-directory: examples/mysql/todos
+      run: |
+        export CONTAINER_ID=$(docker ps --filter "ancestor=${{ matrix.image }}" --format "{{.ID}}")
+        docker cp schema.sql $CONTAINER_ID:/schema.sql
+        docker exec $CONTAINER_ID bash -c "mysql -uroot -ppassword todos < /schema.sql"  
+
+    - working-directory: examples/mysql/todos
+      run: cargo build
+      env:
+        DATABASE_URL: mysql://root:password@localhost:${{ job.services.mysql.ports[3306] }}/todos
+
