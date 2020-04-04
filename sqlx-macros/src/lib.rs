@@ -190,7 +190,7 @@ pub fn derive_type(tokenstream: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_derive(FromRow)]
+#[proc_macro_derive(FromRow, attributes(sqlx))]
 pub fn derive_from_row(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
