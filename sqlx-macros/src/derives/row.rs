@@ -5,6 +5,8 @@ use syn::{
     Fields, FieldsNamed, Lifetime, Stmt,
 };
 
+use super::attributes::parse_child_attributes;
+
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     match &input.data {
         Data::Struct(DataStruct {
@@ -74,7 +76,11 @@ fn expand_derive_from_row_struct(
 
     let reads = fields.iter().filter_map(|field| -> Option<Stmt> {
         let id = &field.ident.as_ref()?;
-        let id_s = id.to_string().trim_start_matches("r#").to_owned();
+        let attributes = parse_child_attributes(&field.attrs).unwrap();
+        let id_s = match attributes.rename {
+            Some(rename) => rename,
+            None => id.to_string().trim_start_matches("r#").to_owned(),
+        };
         let ty = &field.ty;
 
         Some(parse_quote!(

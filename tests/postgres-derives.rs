@@ -183,3 +183,44 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(feature = "macros")]
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_from_row_with_rename() -> anyhow::Result<()> {
+    use sqlx::prelude::*;
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct AccountKeyword {
+        #[sqlx(rename = "type")]
+        own_type: i32,
+
+        #[sqlx(rename = "static")]
+        my_static: String,
+
+        #[sqlx(rename = "let")]
+        custom_let: Option<String>,
+
+        #[sqlx(rename = "struct")]
+        def_struct: Option<String>,
+
+        name: Option<String>,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let account: AccountKeyword = sqlx::query_as(
+        r#"SELECT * from (VALUES (1, 'foo', 'bar', null, null)) accounts(type, static, let, struct, name)"#
+    )
+    .fetch_one(&mut conn)
+    .await?;
+    println!("{:?}", account);
+
+    assert_eq!(1, account.own_type);
+    assert_eq!("foo", account.my_static);
+    assert_eq!(None, account.def_struct);
+    assert_eq!(Some("bar".to_owned()), account.custom_let);
+    assert_eq!(None, account.name);
+
+    Ok(())
+}
