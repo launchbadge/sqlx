@@ -76,19 +76,17 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
     
     # -----------------------------------------------------
-    # install the psql client
-    - name: Install PostgreSQL client
-      run: |
-        sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
-        wget --quiet -O - http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | sudo apt-key add -
-        sudo apt-get update
-        sudo apt-get -yq install libpq-dev postgresql-client-${{ matrix.postgres }}
     
     # load schema.sql
-    - working-directory: examples/postgres/realworld
-      run: psql -d $DATABASE_URL -f ./schema.sql
+    - name: Load schema
+      working-directory: examples/postgres/realworld
+      run: |
+        export CONTAINER_ID=$(docker ps --filter "ancestor=postgres:${{ matrix.postgres }}" --format "{{.ID}}")
+        docker cp schema.sql $CONTAINER_ID:/schema.sql
+        docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
+        # the in-container port is always 5432
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/realworld
     
     # build the example
     - working-directory: examples/postgres/realworld
@@ -178,19 +176,16 @@ jobs:
     
     # -----------------------------------------------------
     
-    # install the psql client
-    - name: Install PostgreSQL client
-      run: |
-        sudo bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
-        wget --quiet -O - http://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | sudo apt-key add -
-        sudo apt-get update
-        sudo apt-get -yq install libpq-dev postgresql-client-${{ matrix.postgres }}
-    
     # load schema.sql
-    - working-directory: examples/postgres/todos
-      run: psql -d $DATABASE_URL -f ./schema.sql
+    - name: Load schema
+      working-directory: examples/postgres/todos
+      run: |
+        export CONTAINER_ID=$(docker ps --filter "ancestor=postgres:${{ matrix.postgres }}" --format "{{.ID}}")
+        docker cp schema.sql $CONTAINER_ID:/schema.sql
+        docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/todos
+        # the in-container port is always 5432
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/todos
     
     # build the example
     - working-directory: examples/postgres/todos
