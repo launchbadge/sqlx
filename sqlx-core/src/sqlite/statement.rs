@@ -3,7 +3,7 @@
 use core::ptr::{null, null_mut, NonNull};
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 use std::ptr;
 
 use libsqlite3_sys::{
@@ -56,11 +56,11 @@ impl Statement {
         persistent: bool,
     ) -> crate::Result<Self> {
         // TODO: Error on queries that are too large
-        let query_ptr = query.as_bytes().as_ptr() as *const i8;
+        let query_ptr = query.as_bytes().as_ptr() as *const c_char;
         let query_len = query.len() as i32;
         let mut statement_handle: *mut sqlite3_stmt = null_mut();
         let mut flags = SQLITE_PREPARE_NO_VTAB;
-        let mut tail: *const i8 = null();
+        let mut tail: *const c_char = null();
 
         if persistent {
             // SQLITE_PREPARE_PERSISTENT
