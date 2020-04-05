@@ -12,6 +12,7 @@ pub(crate) enum SqliteType {
 
     // Non-standard extensions
     Boolean,
+    Timestamp,
 }
 
 // https://www.sqlite.org/datatype3.html#type_affinity
@@ -47,6 +48,7 @@ impl Display for SqliteTypeInfo {
             SqliteType::Integer => "INTEGER",
             SqliteType::Float => "DOUBLE",
             SqliteType::Blob => "BLOB",
+            SqliteType::Timestamp => "TIMESTAMP",
         })
     }
 }

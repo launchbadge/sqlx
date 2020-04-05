@@ -30,7 +30,7 @@ impl<'c> SqliteValue<'c> {
         self.r#type().is_none()
     }
 
-    fn r#type(&self) -> Option<SqliteType> {
+    pub(super) fn r#type(&self) -> Option<SqliteType> {
         let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index) };
 
         // SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL
