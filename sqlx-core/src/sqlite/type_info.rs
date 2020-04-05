@@ -22,6 +22,7 @@ pub(crate) enum DataType {
     // non-standard extensions
     Bool,
     Int64,
+    Timestamp,
 }
 
 /// Type information for a SQLite type.
@@ -47,6 +48,7 @@ impl TypeInfo for SqliteTypeInfo {
             // non-standard extensions
             DataType::Bool => "BOOLEAN",
             DataType::Int64 => "BIGINT",
+            DataType::Timestamp => "TIMESTAMP",
         }
     }
 }
