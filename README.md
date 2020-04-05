@@ -92,7 +92,7 @@ with C, those interactions are `unsafe`.</sup></sub>
  * Simple (unprepared) query execution including fetching results into the same `Row` types used by 
    the high-level API. Supports batch execution and returning results from all statements.
    
- * Transport Level Security (TLS) where supported ([MySQL] and [PostgreSQL]).
+ * Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
  
  * Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
  
