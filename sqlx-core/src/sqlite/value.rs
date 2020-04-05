@@ -63,12 +63,12 @@ impl<'c> SqliteValue<'c> {
     /// Returns the UTF-8 TEXT result.
     pub(super) fn text(&self) -> Option<&'c str> {
         unsafe {
-            let ptr = sqlite3_column_text(self.statement.handle(), self.index) as *const i8;
+            let ptr = sqlite3_column_text(self.statement.handle(), self.index);
 
             if ptr.is_null() {
                 None
             } else {
-                Some(from_utf8_unchecked(CStr::from_ptr(ptr).to_bytes()))
+                Some(from_utf8_unchecked(CStr::from_ptr(ptr as _).to_bytes()))
             }
         }
     }

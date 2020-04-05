@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 use core::mem;
 
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 
 use libsqlite3_sys::{
     sqlite3_bind_blob, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
@@ -96,7 +96,7 @@ impl SqliteArgumentValue {
             SqliteArgumentValue::Text(value) => {
                 // TODO: Handle text that is too large
                 let bytes = value.as_bytes();
-                let bytes_ptr = bytes.as_ptr() as *const i8;
+                let bytes_ptr = bytes.as_ptr() as *const c_char;
                 let bytes_len = bytes.len() as i32;
 
                 unsafe {
