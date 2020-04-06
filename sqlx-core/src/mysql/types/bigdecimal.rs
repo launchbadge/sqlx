@@ -139,3 +139,42 @@ impl Decode<'_, MySql> for BigDecimal {
     }
   }
 }
+
+#[test]
+fn test_encode_decimal() {
+  let v = BigDecimal::new(BigInt::from(-105), 2);
+  let mut buf: Vec<u8> = vec![];
+  v.encode(&mut buf);
+  assert_eq!(buf, vec![0x05, 0x2D, 0x31, 0x2E, 0x30, 0x35]);
+
+  let v = BigDecimal::new(BigInt::from(-105), -3);
+  let mut buf: Vec<u8> = vec![];
+  v.encode(&mut buf);
+  assert_eq!(buf, vec![0x07, 0x2D, 0x31, 0x30, 0x35, 0x30, 0x30, 0x30]);
+
+  let v = BigDecimal::new(BigInt::from(105), 5);
+  let mut buf: Vec<u8> = vec![];
+  v.encode(&mut buf);
+  assert_eq!(buf, vec![0x07, 0x30, 0x2E, 0x30, 0x30, 0x31, 0x30, 0x35]);
+}
+
+#[test]
+fn test_decode_decimal() {
+  let buf: Vec<u8> = vec![0x05, 0x2D, 0x31, 0x2E, 0x30, 0x35];
+  let v = BigDecimal::decode(MySqlValue::binary(
+    MySqlTypeInfo::new(TypeId::NEWDECIMAL), buf.as_slice(),
+  )).unwrap();
+  assert_eq!(v.to_string(), "-1.05");
+
+  let buf: Vec<u8> = vec![0x04, 0x30, 0x2E, 0x30, 0x35];
+  let v = BigDecimal::decode(MySqlValue::binary(
+    MySqlTypeInfo::new(TypeId::NEWDECIMAL), buf.as_slice(),
+  )).unwrap();
+  assert_eq!(v.to_string(), "0.05");
+
+  let buf: Vec<u8> = vec![0x06, 0x2D, 0x39, 0x30, 0x30, 0x30, 0x30];
+  let v = BigDecimal::decode(MySqlValue::binary(
+    MySqlTypeInfo::new(TypeId::NEWDECIMAL), buf.as_slice(),
+  )).unwrap();
+  assert_eq!(v.to_string(), "-90000");
+}
