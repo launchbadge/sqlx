@@ -41,6 +41,13 @@
 //! | `time::Date`                          | DATE                                                 |
 //! | `time::Time`                          | TIME                                                 |
 //!
+//! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
+//! Requires the `bigdecimal` Cargo feature flag.
+//!
+//! | Rust type                             | MySQL type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
+//!
 //! # Nullable
 //!
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
@@ -53,6 +60,9 @@ mod float;
 mod int;
 mod str;
 mod uint;
+
+#[cfg(feature = "bigdecimal")]
+mod bigdecimal;
 
 #[cfg(feature = "chrono")]
 mod chrono;

@@ -136,6 +136,8 @@ impl<'c> Row<'c> {
                         (len_size, len.unwrap_or_default())
                     }
 
+                    TypeId::NEWDECIMAL => (0, 1 + buffer[index] as usize),
+
                     id => {
                         unimplemented!("encountered unknown field type id: {:?}", id);
                     }

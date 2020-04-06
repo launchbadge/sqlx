@@ -40,6 +40,9 @@ impl_database_ext! {
 
         #[cfg(feature = "time")]
         sqlx::types::time::OffsetDateTime,
+
+        #[cfg(feature = "bigdecimal")]
+        sqlx::types::BigDecimal,
     },
     ParamChecking::Weak,
     feature-types: info => info.type_feature_gate(),
