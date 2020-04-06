@@ -17,14 +17,9 @@
 //!
 //! Requires the `chrono` Cargo feature flag.
 //!
-//! | Rust type                             | MySQL type(s)                                        |
+//! | Rust type                             | Sqlite type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `chrono::DateTime<Utc>`               | TIMESTAMP                                            |
-//! | `chrono::DateTime<Local>`             | TIMETAMP                                             |
-//! | `chrono::NaiveDateTime`               | DATETIME                                             |
-//! | `chrono::NaiveDate`                   | DATE                                                 |
-//! | `chrono::NaiveTime`                   | TIME                                                 |
-
+//! | `chrono::NaiveDateTime`               | TIMESTAMP                                             |
 //!
 //! # Nullable
 //!
