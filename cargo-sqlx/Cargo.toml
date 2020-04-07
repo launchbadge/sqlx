@@ -1,0 +1,26 @@
+[package]
+name = "cargo-sqlx"
+version = "0.1.0"
+description = "Simple postgres migrator without support for down migration"
+authors = ["Jesper Axelsson <jesperaxe@gmail.com>"]
+edition = "2018"
+readme = "README.md"
+homepage = "https://github.com/launchbadge/sqlx"
+repository = "https://github.com/launchbadge/sqlx"
+keywords = ["database", "postgres", "database-management", "migration"]
+categories = ["database", "command-line-utilities"]
+
+[[bin]]
+name = "sqlx"
+path = "src/main.rs"
+
+[dependencies]
+dotenv = "0.15"
+
+tokio = { version = "0.2", features = ["macros"] }
+# sqlx = { path = "..", default-features = false, features = [ "runtime-tokio", "macros", "postgres" ] }
+sqlx = { version = "0.2", default-features = false, features = [ "runtime-tokio", "macros", "postgres" ] }
+futures="0.3"
+
+structopt = "0.3"
+chrono = "0.4"
