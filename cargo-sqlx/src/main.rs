@@ -182,19 +182,15 @@ CREATE TABLE IF NOT EXISTS __migrations (
 }
 
 async fn check_if_applied(pool: &mut PgConnection, migration: &str) -> bool {
-    use sqlx::row::Row;
+    use sqlx::postgres::PgRow;
+    use sqlx::Row;
 
-    let row = sqlx::query(
-        "select exists(select migration from __migrations where migration = $1) as exists",
-    )
-    .bind(migration.to_string())
-    .fetch_one(pool)
-    .await
-    .expect("Failed to check migration table");
-
-    let exists: bool = row.get("exists");
-
-    exists
+    sqlx::query("select exists(select migration from __migrations where migration = $1) as exists")
+        .bind(migration.to_string())
+        .try_map(|row: PgRow| row.try_get("exists"))
+        .fetch_one(pool)
+        .await
+        .expect("Failed to check migration table")
 }
 
 async fn save_applied_migration(pool: &mut PgConnection, migration: &str) {

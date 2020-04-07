@@ -294,7 +294,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "futures 0.3.4",
- "sqlx 0.2.6",
+ "sqlx",
  "structopt",
  "tokio 0.2.13",
 ]
