@@ -1,0 +1,4 @@
+/target
+/migrations
+Cargo.lock
+.env
