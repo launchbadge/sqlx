@@ -39,6 +39,17 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_handles_empty_queries() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let affected = conn.execute("").await?;
+
+    assert_eq!(affected, 0);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn it_executes() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
