@@ -337,6 +337,17 @@ macro_rules! impl_from_row_for_tuples {
 #[allow(unused_macros)]
 macro_rules! impl_map_row_for_row {
     ($DB:ident, $R:ident) => {
+        impl<O: Unpin, F> crate::query::MapRow<$DB> for F
+        where
+            F: for<'c> FnMut($R<'c>) -> O,
+        {
+            type Output = O;
+
+            fn map_row(&mut self, row: $R) -> O {
+                (self)(row)
+            }
+        }
+
         impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
         where
             F: for<'c> FnMut($R<'c>) -> crate::Result<O>,
