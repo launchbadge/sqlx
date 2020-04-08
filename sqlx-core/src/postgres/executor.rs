@@ -262,7 +262,7 @@ impl PgConnection {
         // language=SQL
         let (oid,): (u32,) = query_as(
             "
-SElECT oid FROM pg_catalog.pg_type WHERE typname = $1
+SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                 ",
         )
         .bind(name)
