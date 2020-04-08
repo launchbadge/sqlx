@@ -31,7 +31,14 @@ impl<'c> SqliteValue<'c> {
     }
 
     fn r#type(&self) -> Option<SqliteType> {
-        let type_code = unsafe { sqlite3_column_type(self.statement.handle(), self.index) };
+        let type_code = unsafe {
+            if let Some(handle) = self.statement.handle() {
+                sqlite3_column_type(handle, self.index)
+            } else {
+                // unreachable: null statements do not have any values to type
+                return None;
+            }
+        };
 
         // SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_BLOB, or SQLITE_NULL
         match type_code {
@@ -47,41 +54,65 @@ impl<'c> SqliteValue<'c> {
 
     /// Returns the 32-bit INTEGER result.
     pub(super) fn int(&self) -> i32 {
-        unsafe { sqlite3_column_int(self.statement.handle(), self.index) }
+        unsafe {
+            self.statement
+                .handle()
+                .map_or(0, |handle| sqlite3_column_int(handle, self.index))
+        }
     }
 
     /// Returns the 64-bit INTEGER result.
     pub(super) fn int64(&self) -> i64 {
-        unsafe { sqlite3_column_int64(self.statement.handle(), self.index) }
+        unsafe {
+            self.statement
+                .handle()
+                .map_or(0, |handle| sqlite3_column_int64(handle, self.index))
+        }
     }
 
     /// Returns the 64-bit, REAL result.
     pub(super) fn double(&self) -> f64 {
-        unsafe { sqlite3_column_double(self.statement.handle(), self.index) }
+        unsafe {
+            self.statement
+                .handle()
+                .map_or(0.0, |handle| sqlite3_column_double(handle, self.index))
+        }
     }
 
     /// Returns the UTF-8 TEXT result.
     pub(super) fn text(&self) -> Option<&'c str> {
         unsafe {
-            let ptr = sqlite3_column_text(self.statement.handle(), self.index);
+            self.statement.handle().and_then(|handle| {
+                let ptr = sqlite3_column_text(handle, self.index);
 
-            if ptr.is_null() {
-                None
-            } else {
-                Some(from_utf8_unchecked(CStr::from_ptr(ptr as _).to_bytes()))
-            }
+                if ptr.is_null() {
+                    None
+                } else {
+                    Some(from_utf8_unchecked(CStr::from_ptr(ptr as _).to_bytes()))
+                }
+            })
         }
     }
 
     fn bytes(&self) -> usize {
         // Returns the size of the result in bytes.
-        let len = unsafe { sqlite3_column_bytes(self.statement.handle(), self.index) };
-        len as usize
+        unsafe {
+            self.statement
+                .handle()
+                .map_or(0, |handle| sqlite3_column_bytes(handle, self.index)) as usize
+        }
     }
 
     /// Returns the BLOB result.
     pub(super) fn blob(&self) -> &'c [u8] {
-        let ptr = unsafe { sqlite3_column_blob(self.statement.handle(), self.index) };
+        let ptr = unsafe {
+            if let Some(handle) = self.statement.handle() {
+                sqlite3_column_blob(handle, self.index)
+            } else {
+                // Null statements do not exist
+                return &[];
+            }
+        };
 
         if ptr.is_null() {
             // Empty BLOBs are received as null pointers

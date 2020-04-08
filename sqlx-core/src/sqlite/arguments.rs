@@ -71,6 +71,16 @@ impl Arguments for SqliteArguments {
 
 impl SqliteArgumentValue {
     pub(super) fn bind(&self, statement: &mut Statement, index: usize) -> crate::Result<()> {
+        let handle = unsafe {
+            if let Some(handle) = statement.handle() {
+                handle
+            } else {
+                // drop all requested bindings for a null/empty statement
+                // note that this _should_ not happen as argument size for a null statement should be zero
+                return Ok(());
+            }
+        };
+
         // TODO: Handle error of trying to bind too many parameters here
         let index = index as c_int;
 
@@ -83,13 +93,7 @@ impl SqliteArgumentValue {
                 let bytes_len = bytes.len() as i32;
 
                 unsafe {
-                    sqlite3_bind_blob(
-                        statement.handle(),
-                        index,
-                        bytes_ptr,
-                        bytes_len,
-                        SQLITE_TRANSIENT(),
-                    )
+                    sqlite3_bind_blob(handle, index, bytes_ptr, bytes_len, SQLITE_TRANSIENT())
                 }
             }
 
@@ -100,29 +104,21 @@ impl SqliteArgumentValue {
                 let bytes_len = bytes.len() as i32;
 
                 unsafe {
-                    sqlite3_bind_text(
-                        statement.handle(),
-                        index,
-                        bytes_ptr,
-                        bytes_len,
-                        SQLITE_TRANSIENT(),
-                    )
+                    sqlite3_bind_text(handle, index, bytes_ptr, bytes_len, SQLITE_TRANSIENT())
                 }
             }
 
             SqliteArgumentValue::Double(value) => unsafe {
-                sqlite3_bind_double(statement.handle(), index, *value)
+                sqlite3_bind_double(handle, index, *value)
             },
 
-            SqliteArgumentValue::Int(value) => unsafe {
-                sqlite3_bind_int(statement.handle(), index, *value)
-            },
+            SqliteArgumentValue::Int(value) => unsafe { sqlite3_bind_int(handle, index, *value) },
 
             SqliteArgumentValue::Int64(value) => unsafe {
-                sqlite3_bind_int64(statement.handle(), index, *value)
+                sqlite3_bind_int64(handle, index, *value)
             },
 
-            SqliteArgumentValue::Null => unsafe { sqlite3_bind_null(statement.handle(), index) },
+            SqliteArgumentValue::Null => unsafe { sqlite3_bind_null(handle, index) },
         };
 
         if status != SQLITE_OK {

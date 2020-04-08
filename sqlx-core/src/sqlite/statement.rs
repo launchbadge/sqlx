@@ -37,7 +37,7 @@ pub(super) struct SqliteStatementHandle(NonNull<sqlite3_stmt>);
 ///
 /// The statement is finalized ( `sqlite3_finalize` ) on drop.
 pub(super) struct Statement {
-    handle: SqliteStatementHandle,
+    handle: Option<SqliteStatementHandle>,
     pub(super) connection: SqliteConnectionHandle,
     pub(super) worker: Worker,
     pub(super) tail: usize,
@@ -94,7 +94,7 @@ impl Statement {
         let mut self_ = Self {
             worker: conn.worker.clone(),
             connection: conn.handle,
-            handle: SqliteStatementHandle(NonNull::new(statement_handle).unwrap()),
+            handle: NonNull::new(statement_handle).map(SqliteStatementHandle),
             columns: HashMap::new(),
             tail,
         };
@@ -113,8 +113,8 @@ impl Statement {
 
     /// Returns a pointer to the raw C pointer backing this statement.
     #[inline]
-    pub(super) unsafe fn handle(&self) -> *mut sqlite3_stmt {
-        self.handle.0.as_ptr()
+    pub(super) unsafe fn handle(&self) -> Option<*mut sqlite3_stmt> {
+        self.handle.map(|handle| handle.0.as_ptr())
     }
 
     pub(super) fn data_count(&mut self) -> usize {
@@ -126,43 +126,59 @@ impl Statement {
         // The value is correct only if there was a recent call to
         // sqlite3_step that returned SQLITE_ROW.
 
-        let count: c_int = unsafe { sqlite3_data_count(self.handle()) };
-        count as usize
+        unsafe { self.handle().map_or(0, |handle| sqlite3_data_count(handle)) as usize }
     }
 
     pub(super) fn column_count(&mut self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
-        let count = unsafe { sqlite3_column_count(self.handle()) };
-        count as usize
+        unsafe {
+            self.handle()
+                .map_or(0, |handle| sqlite3_column_count(handle)) as usize
+        }
     }
 
     pub(super) fn column_name(&mut self, index: usize) -> &str {
-        // https://sqlite.org/c3ref/column_name.html
-        let name = unsafe {
-            let ptr = sqlite3_column_name(self.handle(), index as c_int);
-            debug_assert!(!ptr.is_null());
+        unsafe {
+            self.handle()
+                .map(|handle| {
+                    // https://sqlite.org/c3ref/column_name.html
+                    let ptr = sqlite3_column_name(handle, index as c_int);
+                    debug_assert!(!ptr.is_null());
 
-            CStr::from_ptr(ptr)
-        };
-
-        name.to_str().unwrap()
+                    CStr::from_ptr(ptr)
+                })
+                .map_or(Ok(""), |name| name.to_str())
+                .unwrap()
+        }
     }
 
     pub(super) fn column_decltype(&mut self, index: usize) -> Option<&str> {
-        let name = unsafe {
-            let ptr = sqlite3_column_decltype(self.handle(), index as c_int);
+        unsafe {
+            self.handle()
+                .and_then(|handle| {
+                    let ptr = sqlite3_column_decltype(handle, index as c_int);
 
-            if ptr.is_null() {
-                None
-            } else {
-                Some(CStr::from_ptr(ptr))
-            }
-        };
-
-        name.map(|s| s.to_str().unwrap())
+                    if ptr.is_null() {
+                        None
+                    } else {
+                        Some(CStr::from_ptr(ptr))
+                    }
+                })
+                .map(|name| name.to_str().unwrap())
+        }
     }
 
     pub(super) fn column_not_null(&mut self, index: usize) -> crate::Result<Option<bool>> {
+        let handle = unsafe {
+            if let Some(handle) = self.handle() {
+                handle
+            } else {
+                // we do not know the nullablility of a column that doesn't exist on a statement
+                // that doesn't exist
+                return Ok(None);
+            }
+        };
+
         unsafe {
             // https://sqlite.org/c3ref/column_database_name.html
             //
@@ -171,9 +187,9 @@ impl Statement {
             // sqlite3_finalize() or until the statement is automatically reprepared by the
             // first call to sqlite3_step() for a particular run or until the same information
             // is requested again in a different encoding.
-            let db_name = sqlite3_column_database_name(self.handle(), index as c_int);
-            let table_name = sqlite3_column_table_name(self.handle(), index as c_int);
-            let origin_name = sqlite3_column_origin_name(self.handle(), index as c_int);
+            let db_name = sqlite3_column_database_name(handle, index as c_int);
+            let table_name = sqlite3_column_table_name(handle, index as c_int);
+            let origin_name = sqlite3_column_origin_name(handle, index as c_int);
 
             if db_name.is_null() || table_name.is_null() || origin_name.is_null() {
                 return Ok(None);
@@ -213,8 +229,10 @@ impl Statement {
 
     pub(super) fn params(&mut self) -> usize {
         // https://www.hwaci.com/sw/sqlite/c3ref/bind_parameter_count.html
-        let num = unsafe { sqlite3_bind_parameter_count(self.handle()) };
-        num as usize
+        unsafe {
+            self.handle()
+                .map_or(0, |handle| sqlite3_bind_parameter_count(handle)) as usize
+        }
     }
 
     pub(super) fn bind(&mut self, arguments: &mut SqliteArguments) -> crate::Result<()> {
@@ -230,36 +248,47 @@ impl Statement {
     }
 
     pub(super) fn reset(&mut self) {
+        let handle = unsafe {
+            if let Some(handle) = self.handle() {
+                handle
+            } else {
+                // nothing to reset if its null
+                return;
+            }
+        };
+
         // https://sqlite.org/c3ref/reset.html
         // https://sqlite.org/c3ref/clear_bindings.html
 
         // the status value of reset is ignored because it merely propagates
         // the status of the most recently invoked step function
 
-        let _ = unsafe { sqlite3_reset(self.handle()) };
-
-        let _ = unsafe { sqlite3_clear_bindings(self.handle()) };
+        let _ = unsafe { sqlite3_reset(handle) };
+        let _ = unsafe { sqlite3_clear_bindings(handle) };
     }
 
     pub(super) async fn step(&mut self) -> crate::Result<Step> {
         // https://sqlite.org/c3ref/step.html
 
-        let handle = self.handle;
+        if let Some(handle) = self.handle {
+            let status = unsafe {
+                self.worker
+                    .run(move || sqlite3_step(handle.0.as_ptr()))
+                    .await
+            };
 
-        let status = unsafe {
-            self.worker
-                .run(move || sqlite3_step(handle.0.as_ptr()))
-                .await
-        };
+            match status {
+                SQLITE_DONE => Ok(Step::Done),
 
-        match status {
-            SQLITE_DONE => Ok(Step::Done),
+                SQLITE_ROW => Ok(Step::Row),
 
-            SQLITE_ROW => Ok(Step::Row),
-
-            _ => {
-                return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
+                _ => {
+                    return Err(SqliteError::from_connection(self.connection.0.as_ptr()).into());
+                }
             }
+        } else {
+            // An empty (null) query will always emit `Step::Done`
+            Ok(Step::Done)
         }
     }
 }
@@ -268,7 +297,9 @@ impl Drop for Statement {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/finalize.html
         unsafe {
-            let _ = sqlite3_finalize(self.handle());
+            if let Some(handle) = self.handle() {
+                let _ = sqlite3_finalize(handle);
+            }
         }
     }
 }
