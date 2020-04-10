@@ -78,20 +78,17 @@ async fn test_enum_type() -> anyhow::Result<()> {
 
     conn.execute(
         r#"
-DO $$ BEGIN
+
+DROP TABLE IF EXISTS people;
+
+DROP TYPE IF EXISTS mood CASCADE;
 
 CREATE TYPE mood AS ENUM ( 'ok', 'happy', 'sad' );
 
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-CREATE TABLE IF NOT EXISTS people (
+CREATE TABLE people (
     id      serial PRIMARY KEY,
     mood    mood not null
 );
-
-TRUNCATE people;
     "#,
     )
     .await?;
