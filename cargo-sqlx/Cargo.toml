@@ -21,3 +21,4 @@ sqlx = { version = "0.3", path = "..", default-features = false, features = [ "r
 futures = "0.3"
 structopt = "0.3"
 chrono = "0.4"
+anyhow = "1.0"
