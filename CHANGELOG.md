@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.4 - 2020-04-10
+
+### Fixed
+
+ - [[#241]] Type name for custom enum is not always attached to TypeInfo in PostgreSQL
+ 
+ - [[#237]] [[#238]] User-defined type name matching is now case-insensitive in PostgreSQL [[@qtbeee]]
+ 
+ - [[#231]] Handle empty queries (and those with comments) in SQLite
+ 
+ - [[#228]] Provide `MapRow` implementations for functions (enables `.map(|row| ...)` over `.try_map(|row| ...)`)
+
+### Added
+
+ - [[#234]] Add support for `NUMERIC` in MySQL with the `bigdecimal` crate [[@xiaopengli89]]
+ 
+ - [[#227]] Support `#[sqlx(rename = "new_name")]` on struct fields within a `FromRow` derive [[@sidred]]
+
+[#228]: https://github.com/launchbadge/sqlx/issues/228
+[#231]: https://github.com/launchbadge/sqlx/issues/231 
+[#237]: https://github.com/launchbadge/sqlx/issues/237
+[#241]: https://github.com/launchbadge/sqlx/issues/241
+
+[#227]: https://github.com/launchbadge/sqlx/pull/227
+[#234]: https://github.com/launchbadge/sqlx/pull/234
+[#238]: https://github.com/launchbadge/sqlx/pull/238
+
 ## 0.3.3 - 2020-04-01
 
 ### Fixed
@@ -391,3 +418,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@Ace4896]: https://github.com/Ace4896
 [@jamwaffles]: https://github.com/jamwaffles
 [@nrjais]: https://github.com/nrjais
+[@qtbeee]: https://github.com/qtbeee
+[@xiaopengli89]: https://github.com/xiaopengli89

@@ -14,7 +14,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.3.3"
+version = "0.3.4"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -62,8 +62,8 @@ json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 
 [dependencies]
-sqlx-core = { version = "0.3.3", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.3.3", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.3.4", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.3.4", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.26"

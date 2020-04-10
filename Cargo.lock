@@ -1681,7 +1681,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "sqlx"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "async-std",
@@ -1701,7 +1701,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-native-tls",
  "async-std",
@@ -1803,7 +1803,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-std",
  "dotenv",
