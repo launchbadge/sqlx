@@ -22,3 +22,4 @@ futures = "0.3"
 structopt = "0.3"
 chrono = "0.4"
 anyhow = "1.0"
+url = { version = "2.1.1", default-features = false }

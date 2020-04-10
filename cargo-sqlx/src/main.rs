@@ -5,12 +5,16 @@ use std::io::prelude::*;
 
 use dotenv::dotenv;
 
+use sqlx::postgres::PgRow;
+use sqlx::Connect;
+use sqlx::Executor;
 use sqlx::PgConnection;
 use sqlx::PgPool;
+use sqlx::Row;
 
 use structopt::StructOpt;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
@@ -131,11 +135,11 @@ fn load_migrations() -> Result<Vec<Migration>> {
     Ok(migrations)
 }
 
-// use sqlx_core::executor::Executor;
-
 async fn run_migrations() -> Result<()> {
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
+
+    check_if_db_exists(&db_url).await?;
 
     let mut pool = PgPool::new(&db_url)
         .await
@@ -146,7 +150,7 @@ async fn run_migrations() -> Result<()> {
     let migrations = load_migrations()?;
 
     for mig in migrations.iter() {
-        let mut tx = pool.begin().await.context("Failed to start transaction")?;
+        let mut tx = pool.begin().await?;
 
         if check_if_applied(&mut tx, &mig.name).await? {
             println!("Already applied migration: '{}'", mig.name);
@@ -154,23 +158,51 @@ async fn run_migrations() -> Result<()> {
         }
         println!("Applying migration: '{}'", mig.name);
 
-        // tx.execute(&*mig.sql).await;
-
-        sqlx::query(&mig.sql)
-            .execute(&mut tx)
+        tx.execute(&*mig.sql)
             .await
             .with_context(|| format!("Failed to run migration {:?}", &mig.name))?;
 
         save_applied_migration(&mut tx, &mig.name).await?;
 
-        tx.commit().await.context("Failed to commit changes")?;
+        tx.commit().await.context("Failed")?;
+    }
+
+    Ok(())
+}
+
+async fn check_if_db_exists(db_url: &str) -> Result<()> {
+    let split: Vec<&str> = db_url.rsplitn(2, '/').collect();
+
+    if split.len() != 2 {
+        return Err(anyhow!("Failed to find database name in connection string"));
+    }
+
+    let db_name = split[0];
+    let base_url = split[1];
+
+    let mut conn = PgConnection::connect(base_url).await?;
+
+    let result: bool =
+        sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
+            .bind(db_name)
+            .try_map(|row: PgRow| row.try_get("exists"))
+            .fetch_one(&mut conn)
+            .await
+            .context("Failed to check if database exists")?;
+
+    if !result {
+        println!("Database not found. Creating database: {}", db_name);
+        sqlx::query(&format!("CREATE DATABASE {}", db_name))
+            .execute(&mut conn)
+            .await
+            .with_context(|| format!("Failed to create database: {}", db_name))?;
     }
 
     Ok(())
 }
 
 async fn create_migration_table(mut pool: &PgPool) -> Result<()> {
-    sqlx::query(
+    pool.execute(
         r#"
 CREATE TABLE IF NOT EXISTS __migrations (
     migration VARCHAR (255) PRIMARY KEY,
@@ -178,22 +210,19 @@ CREATE TABLE IF NOT EXISTS __migrations (
 );
     "#,
     )
-    .execute(&mut pool)
     .await
     .context("Failed to create migration table")?;
+
     Ok(())
 }
 
-async fn check_if_applied(pool: &mut PgConnection, migration: &str) -> Result<bool> {
-    use sqlx::postgres::PgRow;
-    use sqlx::Row;
-
+async fn check_if_applied(connection: &mut PgConnection, migration: &str) -> Result<bool> {
     let result = sqlx::query(
         "select exists(select migration from __migrations where migration = $1) as exists",
     )
     .bind(migration.to_string())
     .try_map(|row: PgRow| row.try_get("exists"))
-    .fetch_one(pool)
+    .fetch_one(connection)
     .await
     .context("Failed to check migration table")?;
 
