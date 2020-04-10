@@ -42,7 +42,7 @@ tls = [ "sqlx-core/tls" ]
 # intended mainly for CI and docs
 all = [ "tls", "all-database", "all-type" ]
 all-database = [ "mysql", "sqlite", "postgres" ]
-all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid", "geo" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
@@ -60,6 +60,7 @@ ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
+geo = [ "sqlx-core/geo", "sqlx-macros/geo" ]
 
 [dependencies]
 sqlx-core = { version = "0.3.4", path = "sqlx-core", default-features = false }

@@ -47,6 +47,8 @@ impl TypeId {
     pub(crate) const CIDR: TypeId = TypeId(650);
     pub(crate) const INET: TypeId = TypeId(869);
 
+    pub(crate) const POINT: TypeId = TypeId(600);
+
     // Arrays
 
     pub(crate) const ARRAY_BOOL: TypeId = TypeId(1000);
@@ -80,6 +82,8 @@ impl TypeId {
 
     pub(crate) const ARRAY_CIDR: TypeId = TypeId(651);
     pub(crate) const ARRAY_INET: TypeId = TypeId(1041);
+    
+    pub(crate) const ARRAY_POINT: TypeId = TypeId(1017);
 
     // JSON
 

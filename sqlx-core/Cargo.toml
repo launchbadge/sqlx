@@ -48,6 +48,7 @@ futures-channel = { version = "0.3.4", default-features = false, features = [ "a
 futures-core = { version = "0.3.4", default-features = false }
 futures-util = { version = "0.3.4", default-features = false }
 generic-array = { version = "0.12.3", default-features = false, optional = true }
+geo = { version = "0.13.0", optional = true }
 hex = "0.4.2"
 hmac = { version = "0.7.1", default-features = false, optional = true }
 ipnetwork = { version = "0.16.0", default-features = false, optional = true }

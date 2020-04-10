@@ -23,7 +23,11 @@ pub trait Buf<'a> {
 
     fn get_u32<T: ByteOrder>(&mut self) -> io::Result<u32>;
 
+    fn get_f32<T: ByteOrder>(&mut self) -> io::Result<f32>;
+
     fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64>;
+
+    fn get_f64<T: ByteOrder>(&mut self) -> io::Result<f64>;
 
     fn get_str(&mut self, len: usize) -> io::Result<&'a str>;
 
@@ -100,8 +104,22 @@ impl<'a> Buf<'a> for &'a [u8] {
         Ok(val)
     }
 
+    fn get_f32<T: ByteOrder>(&mut self) -> io::Result<f32> {
+        let val = T::read_f32(*self);
+        self.advance(4);
+
+        Ok(val)
+    }
+
     fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64> {
         let val = T::read_u64(*self);
+        self.advance(8);
+
+        Ok(val)
+    }
+
+    fn get_f64<T: ByteOrder>(&mut self) -> io::Result<f64> {
+        let val = T::read_f64(*self);
         self.advance(8);
 
         Ok(val)

@@ -33,6 +33,7 @@ time = [ "sqlx/time" ]
 ipnetwork = [ "sqlx/ipnetwork" ]
 uuid = [ "sqlx/uuid" ]
 json = [ "sqlx/json", "serde_json" ]
+geo = [ "sqlx/geo" ]
 
 [dependencies]
 async-std = { version = "1.5.0", default-features = false, optional = true }

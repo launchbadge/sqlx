@@ -669,6 +669,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6315f3b85322e42fc9967e0f080fff8294f65eddfc222f1a1dd694955b04df4d"
+dependencies = [
+ "geo-types",
+ "num-traits",
+ "rstar",
+]
+
+[[package]]
+name = "geo-types"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0ff051e4c51366601441053c37acf84958a795d350fdc02a53a31717f9bae2d"
+dependencies = [
+ "num-traits",
+ "rstar",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1268,6 +1289,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f0b59668fe80c5afe998f0c0bf93322bf2cd66cafeeb80581f291716f3467f2"
 
 [[package]]
+name = "pdqselect"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ec91767ecc0a0bbe558ce8c9da33c068066c57ecc8bb8477ef8c1ad3ef77c27"
+
+[[package]]
 name = "percent-encoding"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1458,6 +1485,16 @@ name = "route-recognizer"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea509065eb0b3c446acdd0102f0d46567dc30902dc0be91d6552035d92b0f4f8"
+
+[[package]]
+name = "rstar"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0650eaaa56cbd1726fd671150fce8ac6ed9d9a25d1624430d7ee9d196052f6b6"
+dependencies = [
+ "num-traits",
+ "pdqselect",
+]
 
 [[package]]
 name = "rust-argon2"
@@ -1718,6 +1755,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "generic-array",
+ "geo",
  "hex",
  "hmac",
  "ipnetwork",
