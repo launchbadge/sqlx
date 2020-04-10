@@ -40,6 +40,7 @@ time = [ "sqlx-core/time" ]
 ipnetwork = [ "sqlx-core/ipnetwork" ]
 uuid = [ "sqlx-core/uuid" ]
 json = [ "sqlx-core/json", "serde_json" ]
+geo = [ "sqlx-core/geo" ]
 
 [dependencies]
 dotenv = { version = "0.15.0", default-features = false }

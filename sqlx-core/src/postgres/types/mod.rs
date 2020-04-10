@@ -94,6 +94,18 @@
 //! [`Json<T>`] can be used for structured JSON data with Postgres.
 //!
 //! [`Json<T>`]: crate::types::Json
+//! 
+//! ### [`geo`](https://crates.io/crates/geo)
+//!
+//! Requires the `geo` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `geo::Coordinate<f64>`                | POINT                                                |
+//! | `geo::Line<f64>`                      | LINE, LSEG                                           |
+//! | `geo::Rect<f64>`                      | BOX                                                  |
+//! | `geo::LineString<f64>`                | PATH                                                 |
+//! | `geo::Polygon<f64>`                   | POLYGON                                              |
 //!
 //! # [Composite types](https://www.postgresql.org/docs/current/rowtypes.html)
 //!
@@ -192,6 +204,9 @@ mod json;
 
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
+
+#[cfg(feature = "geo")]
+mod geo;
 
 pub use interval::PgInterval;
 pub use money::PgMoney;
