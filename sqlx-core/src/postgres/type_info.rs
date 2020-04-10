@@ -3,6 +3,7 @@ use crate::types::TypeInfo;
 use std::borrow::Borrow;
 use std::fmt;
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -135,7 +136,7 @@ impl TypeInfo for PgTypeInfo {
 }
 
 /// Copy of `Cow` but for strings; clones guaranteed to be cheap.
-#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum SharedStr {
     Static(&'static str),
     Arc(Arc<str>),
@@ -149,6 +150,14 @@ impl Deref for SharedStr {
             SharedStr::Static(s) => s,
             SharedStr::Arc(s) => s,
         }
+    }
+}
+
+impl Hash for SharedStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Forward the hash to the string representation of this
+        // A derive(Hash) encodes the enum discriminant
+        (&**self).hash(state);
     }
 }
 

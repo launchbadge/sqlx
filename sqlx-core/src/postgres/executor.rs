@@ -1,5 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Write;
+use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
 use futures_util::{stream, StreamExt, TryStreamExt};
@@ -9,9 +10,11 @@ use crate::cursor::Cursor;
 use crate::describe::{Column, Describe};
 use crate::executor::{Execute, Executor, RefExecutor};
 use crate::postgres::protocol::{
-    self, CommandComplete, Field, Message, ParameterDescription, ReadyForQuery, RowDescription,
+    self, CommandComplete, Message, ParameterDescription, ReadyForQuery, RowDescription,
     StatementId, TypeFormat, TypeId,
 };
+use crate::postgres::row::Column as StatementColumn;
+use crate::postgres::row::Statement;
 use crate::postgres::type_info::SharedStr;
 use crate::postgres::types::try_resolve_type_name;
 use crate::postgres::{
@@ -56,7 +59,134 @@ impl PgConnection {
                 query,
             });
 
+            // [Describe] will return the expected result columns and types
+            self.write_describe(protocol::Describe::Statement(id));
+            self.write_sync();
+
+            // Flush commands and handle ParseComplete and RowDescription
+            self.wait_until_ready().await?;
+            self.stream.flush().await?;
+            self.is_ready = false;
+
+            // wait for `ParseComplete`
+            match self.stream.receive().await? {
+                Message::ParseComplete => {}
+                message => {
+                    return Err(protocol_err!("run: unexpected message: {:?}", message).into());
+                }
+            }
+
+            // expecting a `ParameterDescription` next
+            let pd = self.expect_param_desc().await?;
+
+            // expecting a `RowDescription` next (or `NoData` for an empty statement)
+            let statement = self.expect_row_desc(pd).await?;
+
+            // cache statement ID and statement description
+            self.cache_statement_id.insert(query.into(), id);
+            self.cache_statement.insert(id, Arc::new(statement));
+
             Ok(id)
+        }
+    }
+
+    async fn parse_parameter_description(
+        &mut self,
+        pd: ParameterDescription,
+    ) -> crate::Result<Box<[PgTypeInfo]>> {
+        let mut params = Vec::with_capacity(pd.ids.len());
+
+        for ty in pd.ids.iter() {
+            let type_info = self.get_type_info_by_oid(ty.0, true).await?;
+
+            params.push(type_info);
+        }
+
+        Ok(params.into_boxed_slice())
+    }
+
+    pub(crate) async fn parse_row_description(
+        &mut self,
+        mut rd: RowDescription,
+        params: Box<[PgTypeInfo]>,
+        type_format: Option<TypeFormat>,
+        fetch_type_info: bool,
+    ) -> crate::Result<Statement> {
+        let mut names = HashMap::new();
+        let mut columns = Vec::new();
+
+        columns.reserve(rd.fields.len());
+        names.reserve(rd.fields.len());
+
+        for (index, field) in rd.fields.iter_mut().enumerate() {
+            let name = if let Some(name) = field.name.take() {
+                let name = SharedStr::from(name.into_string());
+                names.insert(name.clone(), index);
+                Some(name)
+            } else {
+                None
+            };
+
+            let type_info = self
+                .get_type_info_by_oid(field.type_id.0, fetch_type_info)
+                .await?;
+
+            columns.push(StatementColumn {
+                type_info,
+                name,
+                format: type_format.unwrap_or(field.type_format),
+                table_id: field.table_id,
+                column_id: field.column_id,
+            });
+        }
+
+        Ok(Statement {
+            params,
+            columns: columns.into_boxed_slice(),
+            names,
+        })
+    }
+
+    async fn expect_param_desc(&mut self) -> crate::Result<ParameterDescription> {
+        let description = match self.stream.receive().await? {
+            Message::ParameterDescription => ParameterDescription::read(self.stream.buffer())?,
+
+            message => {
+                return Err(
+                    protocol_err!("next/describe: unexpected message: {:?}", message).into(),
+                );
+            }
+        };
+
+        Ok(description)
+    }
+
+    // Used to describe the incoming results
+    // We store the column map in an Arc and share it among all rows
+    async fn expect_row_desc(&mut self, pd: ParameterDescription) -> crate::Result<Statement> {
+        let description: Option<_> = match self.stream.receive().await? {
+            Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
+
+            Message::NoData => None,
+
+            message => {
+                return Err(
+                    protocol_err!("next/describe: unexpected message: {:?}", message).into(),
+                );
+            }
+        };
+
+        let params = self.parse_parameter_description(pd).await?;
+
+        if let Some(description) = description {
+            self.parse_row_description(description, params, Some(TypeFormat::Binary), true)
+                .await
+        } else {
+            Ok(Statement {
+                params,
+                names: HashMap::new(),
+                columns: Default::default(),
+            })
         }
     }
 
@@ -132,12 +262,6 @@ impl PgConnection {
             // Next, [Bind] attaches the arguments to the statement and creates a named portal
             self.write_bind("", statement, &mut arguments).await?;
 
-            // Next, [Describe] will return the expected result columns and types
-            // Conditionally run [Describe] only if the results have not been cached
-            if !self.cache_statement.contains_key(&statement) {
-                self.write_describe(protocol::Describe::Portal(""));
-            }
-
             // Next, [Execute] then executes the named portal
             self.write_execute("", 0);
 
@@ -161,24 +285,6 @@ impl PgConnection {
         self.stream.flush().await?;
         self.is_ready = false;
 
-        // only cache
-        if let Some(statement) = statement {
-            // prefer redundant lookup to copying the query string
-            if !self.cache_statement_id.contains_key(query) {
-                // wait for `ParseComplete` on the stream or the
-                // error before we cache the statement
-                match self.stream.receive().await? {
-                    Message::ParseComplete => {
-                        self.cache_statement_id.insert(query.into(), statement);
-                    }
-
-                    message => {
-                        return Err(protocol_err!("run: unexpected message: {:?}", message).into());
-                    }
-                }
-            }
-        }
-
         Ok(statement)
     }
 
@@ -186,71 +292,18 @@ impl PgConnection {
         &'e mut self,
         query: &'q str,
     ) -> crate::Result<Describe<Postgres>> {
-        self.is_ready = false;
-
-        let statement = self.write_prepare(query, &Default::default()).await?;
-
-        self.write_describe(protocol::Describe::Statement(statement));
-        self.write_sync();
-
-        self.stream.flush().await?;
-
-        let params = loop {
-            match self.stream.receive().await? {
-                Message::ParseComplete => {}
-
-                Message::ParameterDescription => {
-                    break ParameterDescription::read(self.stream.buffer())?;
-                }
-
-                message => {
-                    return Err(protocol_err!(
-                        "expected ParameterDescription; received {:?}",
-                        message
-                    )
-                    .into());
-                }
-            };
-        };
-
-        let result = match self.stream.receive().await? {
-            Message::NoData => None,
-            Message::RowDescription => Some(RowDescription::read(self.stream.buffer())?),
-
-            message => {
-                return Err(protocol_err!(
-                    "expected RowDescription or NoData; received {:?}",
-                    message
-                )
-                .into());
-            }
-        };
-
-        self.wait_until_ready().await?;
-
-        let result_fields = result.map_or_else(Default::default, |r| r.fields);
-
-        let type_names = self
-            .get_type_names(
-                params
-                    .ids
-                    .iter()
-                    .cloned()
-                    .chain(result_fields.iter().map(|field| field.type_id)),
-            )
-            .await?;
+        let statement_id = self.write_prepare(query, &Default::default()).await?;
+        let statement = &self.cache_statement[&statement_id];
+        let columns = statement.columns.to_vec();
 
         Ok(Describe {
-            param_types: params
-                .ids
+            param_types: statement
+                .params
                 .iter()
-                .map(|id| Some(PgTypeInfo::new(*id, &type_names[&id.0])))
+                .map(|info| Some(info.clone()))
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            result_columns: self
-                .map_result_columns(result_fields, type_names)
-                .await?
-                .into_boxed_slice(),
+            result_columns: self.map_result_columns(columns).await?.into_boxed_slice(),
         })
     }
 
@@ -277,71 +330,50 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
         Ok(oid)
     }
 
-    pub(crate) fn get_type_info_by_oid(&mut self, oid: u32) -> PgTypeInfo {
+    pub(crate) async fn get_type_info_by_oid(
+        &mut self,
+        oid: u32,
+        fetch_type_info: bool,
+    ) -> crate::Result<PgTypeInfo> {
         if let Some(name) = try_resolve_type_name(oid) {
-            return PgTypeInfo::new(TypeId(oid), name);
+            return Ok(PgTypeInfo::new(TypeId(oid), name));
         }
 
         if let Some(name) = self.cache_type_name.get(&oid) {
-            return PgTypeInfo::new(TypeId(oid), name);
+            return Ok(PgTypeInfo::new(TypeId(oid), name));
         }
 
-        // NOTE: The name isn't too important for the decode lifecycle
-        return PgTypeInfo::new(TypeId(oid), "");
-    }
+        let name = if fetch_type_info {
+            // language=SQL
+            let (name,): (String,) = query_as(
+                "
+    SELECT UPPER(typname) FROM pg_catalog.pg_type WHERE oid = $1
+                    ",
+            )
+            .bind(oid)
+            .fetch_one(&mut *self)
+            .await?;
 
-    async fn get_type_names(
-        &mut self,
-        ids: impl IntoIterator<Item = TypeId>,
-    ) -> crate::Result<HashMap<u32, SharedStr>> {
-        let type_ids: HashSet<u32> = ids.into_iter().map(|id| id.0).collect::<HashSet<u32>>();
+            // Emplace the new type name <-> OID association in the cache
+            let shared = SharedStr::from(name);
 
-        if type_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
+            self.cache_type_oid.insert(shared.clone(), oid);
+            self.cache_type_name.insert(oid, shared.clone());
 
-        // uppercase type names are easier to visually identify
-        let mut query = "select types.type_id, UPPER(pg_type.typname) from (VALUES ".to_string();
-        let mut args = PgArguments::default();
-        let mut pushed = false;
+            shared
+        } else {
+            // NOTE: The name isn't too important for the decode lifecycle of TEXT
+            SharedStr::Static("")
+        };
 
-        // TODO: dedup this with the one below, ideally as an API we can export
-        for (i, (&type_id, bind)) in type_ids.iter().zip((1..).step_by(2)).enumerate() {
-            if pushed {
-                query += ", ";
-            }
-
-            pushed = true;
-            let _ = write!(query, "(${}, ${})", bind, bind + 1);
-
-            // not used in the output but ensures are values are sorted correctly
-            args.add(i as i32);
-            args.add(type_id as i32);
-        }
-
-        query += ") as types(idx, type_id) \
-                  inner join pg_catalog.pg_type on pg_type.oid = type_id \
-                  order by types.idx";
-
-        crate::query::query(&query)
-            .bind_all(args)
-            .try_map(|row: PgRow| -> crate::Result<(u32, SharedStr)> {
-                Ok((
-                    row.try_get::<i32, _>(0)? as u32,
-                    row.try_get::<String, _>(1)?.into(),
-                ))
-            })
-            .fetch(self)
-            .try_collect()
-            .await
+        Ok(PgTypeInfo::new(TypeId(oid), name))
     }
 
     async fn map_result_columns(
         &mut self,
-        fields: Box<[Field]>,
-        type_names: HashMap<u32, SharedStr>,
+        columns: Vec<StatementColumn>,
     ) -> crate::Result<Vec<Column<Postgres>>> {
-        if fields.is_empty() {
+        if columns.is_empty() {
             return Ok(vec![]);
         }
 
@@ -349,7 +381,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
         let mut pushed = false;
         let mut args = PgArguments::default();
 
-        for (i, (field, bind)) in fields.iter().zip((1..).step_by(3)).enumerate() {
+        for (i, (column, bind)) in columns.iter().zip((1..).step_by(3)).enumerate() {
             if pushed {
                 query += ", ";
             }
@@ -364,8 +396,8 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
             );
 
             args.add(i as i32);
-            args.add(field.table_id.map(|id| id as i32));
-            args.add(field.column_id);
+            args.add(column.table_id.map(|id| id as i32));
+            args.add(column.column_id);
         }
 
         query += ") as col(idx, table_id, col_idx) \
@@ -383,23 +415,20 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                 Ok((idx, non_null))
             })
             .fetch(self)
-            .zip(stream::iter(fields.into_vec().into_iter().enumerate()))
-            .map(|(row, (fidx, field))| -> crate::Result<Column<_>> {
+            .zip(stream::iter(columns.into_iter().enumerate()))
+            .map(|(row, (fidx, column))| -> crate::Result<Column<_>> {
                 let (idx, non_null) = row?;
 
                 if idx != fidx as i32 {
                     return Err(
-                        protocol_err!("missing field from query, field: {:?}", field).into(),
+                        protocol_err!("missing field from query, field: {:?}", column).into(),
                     );
                 }
 
                 Ok(Column {
-                    name: field.name,
-                    table_id: field.table_id,
-                    type_info: Some(PgTypeInfo::new(
-                        field.type_id,
-                        &type_names[&field.type_id.0],
-                    )),
+                    name: column.name.map(|name| (&*name).into()),
+                    table_id: column.table_id,
+                    type_info: Some(column.type_info),
                     non_null,
                 })
             })

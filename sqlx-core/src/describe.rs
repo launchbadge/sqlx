@@ -12,6 +12,7 @@ pub struct Describe<DB>
 where
     DB: Database + ?Sized,
 {
+    // TODO: Describe#param_types should probably be Option<TypeInfo[]> as we either know all the params or we know none
     /// The expected types for the parameters of the query.
     pub param_types: Box<[Option<DB::TypeInfo>]>,
 

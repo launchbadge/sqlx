@@ -72,9 +72,11 @@ impl<'c> PgValue<'c> {
 impl<'c> RawValue<'c> for PgValue<'c> {
     type Database = Postgres;
 
+    // The public type_info is used for type compatibility checks
     fn type_info(&self) -> Option<PgTypeInfo> {
-        if let (Some(type_info), Some(_)) = (&self.type_info, &self.data) {
-            Some(type_info.clone())
+        // For TEXT encoding the type defined on the value is unreliable
+        if matches!(self.data, Some(PgData::Binary(_))) {
+            self.type_info.clone()
         } else {
             None
         }

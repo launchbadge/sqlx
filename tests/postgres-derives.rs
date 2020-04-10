@@ -1,4 +1,4 @@
-use sqlx::{postgres::PgQueryAs, Executor, Postgres};
+use sqlx::{postgres::PgQueryAs, Connection, Cursor, Executor, FromRow, Postgres};
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
 
@@ -16,7 +16,7 @@ enum Weak {
     Three = 4,
 }
 
-// "Strong" enums can map to TEXT (25) or a custom enum type
+// "Strong" enums can map to TEXT (25)
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "text")]
 #[sqlx(rename_all = "lowercase")]
@@ -26,6 +26,16 @@ enum Strong {
 
     #[sqlx(rename = "four")]
     Three,
+}
+
+// "Strong" enum can map to a custom type
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "mood")]
+#[sqlx(rename_all = "lowercase")]
+enum Mood {
+    Ok,
+    Happy,
+    Sad,
 }
 
 // Records must map to a custom type
@@ -60,6 +70,100 @@ test_type!(strong_enum(
     "'two'::text" == Strong::Two,
     "'four'::text" == Strong::Three
 ));
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_enum_type() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute(
+        r#"
+DO $$ BEGIN
+
+CREATE TYPE mood AS ENUM ( 'ok', 'happy', 'sad' );
+
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS people (
+    id      serial PRIMARY KEY,
+    mood    mood not null
+);
+
+TRUNCATE people;
+    "#,
+    )
+    .await?;
+
+    // Drop and re-acquire the connection
+    conn.close().await?;
+    let mut conn = new::<Postgres>().await?;
+
+    // Select from table test
+    let (people_id,): (i32,) = sqlx::query_as(
+        "
+INSERT INTO people (mood)
+VALUES ($1)
+RETURNING id
+        ",
+    )
+    .bind(Mood::Sad)
+    .fetch_one(&mut conn)
+    .await?;
+
+    // Drop and re-acquire the connection
+    conn.close().await?;
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(sqlx::FromRow)]
+    struct PeopleRow {
+        id: i32,
+        mood: Mood,
+    }
+
+    let rec: PeopleRow = sqlx::query_as(
+        "
+SELECT id, mood FROM people WHERE id = $1
+        ",
+    )
+    .bind(people_id)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(rec.id, people_id);
+    assert_eq!(rec.mood, Mood::Sad);
+
+    // Drop and re-acquire the connection
+    conn.close().await?;
+    let mut conn = new::<Postgres>().await?;
+
+    let stmt = format!("SELECT id, mood FROM people WHERE id = {}", people_id);
+    dbg!(&stmt);
+    let mut cursor = conn.fetch(&*stmt);
+
+    let row = cursor.next().await?.unwrap();
+    let rec = PeopleRow::from_row(&row)?;
+
+    assert_eq!(rec.id, people_id);
+    assert_eq!(rec.mood, Mood::Sad);
+
+    // Normal type equivalency test
+
+    let rec: (bool, Mood) = sqlx::query_as(
+        "
+SELECT $1 = 'happy'::mood, $1
+        ",
+    )
+    .bind(&Mood::Happy)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, Mood::Happy);
+
+    Ok(())
+}
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]

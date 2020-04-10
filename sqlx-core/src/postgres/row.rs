@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::postgres::protocol::{DataRow, TypeFormat};
+use crate::postgres::type_info::SharedStr;
 use crate::postgres::value::PgValue;
 use crate::postgres::{PgTypeInfo, Postgres};
 use crate::row::{ColumnIndex, Row};
@@ -10,17 +11,24 @@ use crate::row::{ColumnIndex, Row};
 // For Postgres, each column has an OID and a format (binary or text)
 // For simple (unprepared) queries, format will always be text
 // For prepared queries, format will _almost_ always be binary
+#[derive(Clone, Debug)]
 pub(crate) struct Column {
+    pub(crate) name: Option<SharedStr>,
     pub(crate) type_info: PgTypeInfo,
     pub(crate) format: TypeFormat,
+    pub(crate) table_id: Option<u32>,
+    pub(crate) column_id: i16,
 }
 
 // A statement description containing the column information used to
 // properly decode data
 #[derive(Default)]
 pub(crate) struct Statement {
+    // paramaters
+    pub(crate) params: Box<[PgTypeInfo]>,
+
     // column name -> position
-    pub(crate) names: HashMap<Box<str>, usize>,
+    pub(crate) names: HashMap<SharedStr, usize>,
 
     // all columns
     pub(crate) columns: Box<[Column]>,
