@@ -146,20 +146,20 @@ where
     pub fn fetch<'e: 'q, E>(
         mut self,
         executor: E,
-    ) -> impl Stream<Item = crate::Result<F::Output>> + 'e
+    ) -> impl Stream<Item = crate::Result<F::Output>> + Unpin + 'e
     where
         'q: 'e,
         E: RefExecutor<'e, Database = DB> + 'e,
         F: 'e,
         F::Output: 'e,
     {
-        try_stream! {
+        Box::pin(try_stream! {
             let mut cursor = executor.fetch_by_ref(self.query);
             while let Some(next) = cursor.next().await? {
                 let mapped = self.mapper.try_map_row(next)?;
                 yield mapped;
             }
-        }
+        })
     }
 
     /// Get the first row in the result
