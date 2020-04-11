@@ -274,7 +274,7 @@ WHERE organization = ?
         ", 
         organization
     )
-    .fetch_all() // -> Vec<{ country: String, count: i64 }>
+    .fetch_all(&pool) // -> Vec<{ country: String, count: i64 }>
     .await?;
 
 // countries[0].country
