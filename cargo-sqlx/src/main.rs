@@ -216,10 +216,7 @@ fn get_base_url<'a>(db_url: &'a str) -> Result<DbUrl> {
     let db_name = split[0];
     let base_url = split[1];
 
-    Ok(DbUrl {
-        base_url,
-        db_name,
-    })
+    Ok(DbUrl { base_url, db_name })
 }
 
 async fn check_if_db_exists(db_url: &DbUrl<'_>) -> Result<bool> {
