@@ -22,28 +22,34 @@ const MIGRATION_FOLDER: &'static str = "migrations";
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx")]
 enum Opt {
-    // #[structopt(subcommand)]
     Migrate(MigrationCommand),
+
+    #[structopt(alias = "db")]
+    Database(DatabaseCommand),
 }
 
-/// Simple postgres migrator
+/// Adds and runs migrations
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx migrator")]
 enum MigrationCommand {
-    /// Initalizes new migration directory with db create script
-    // Init {
-    //     // #[structopt(long)]
-    //     database_name: String,
-    // },
-
-    /// Add new migration with name <timestamp>_<migration_name>.sql
+     /// Add new migration with name <timestamp>_<migration_name>.sql
     Add {
-        // #[structopt(long)]
         name: String,
     },
 
     /// Run all migrations
     Run,
+}
+
+/// Create or drops database depending on your connection string. Alias: db
+#[derive(StructOpt, Debug)]
+#[structopt(name = "Sqlx migrator")]
+enum DatabaseCommand {
+    /// Create database in url
+    Create,
+
+    /// Drop database in url
+    Drop,
 }
 
 #[tokio::main]
@@ -52,10 +58,16 @@ async fn main() -> Result<()> {
 
     match opt {
         Opt::Migrate(command) => match command {
-            // Opt::Init { database_name } => init_migrations(&database_name),
             MigrationCommand::Add { name } => add_migration_file(&name)?,
             MigrationCommand::Run => run_migrations().await?,
         },
+        Opt::Database(command) => {
+            match command {
+                DatabaseCommand::Create => println!("Creating your database"),
+                DatabaseCommand::Drop => println!("Killing your database"),
+            }
+            
+        }
     };
 
     println!("All done!");
