@@ -247,7 +247,7 @@ let mut stream = sqlx::query("SELECT * FROM users")
 ```
 
 ```rust
-#[sqlx::FromRow]
+#[derive(sqlx::FromRow)]
 struct User { name: String, id: i64 }
 
 let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? OR name = ?")
