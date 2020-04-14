@@ -18,32 +18,38 @@ proc-macro = true
 [features]
 default = [ "runtime-async-std" ]
 
-runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
-runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
+runtime-async-std = [ "sqlx-core/runtime-async-std", "async-std" ]
+runtime-tokio = [ "sqlx-core/runtime-tokio", "tokio", "once_cell" ]
+
+# offline building support
+offline = ["sqlx-core/offline", "serde", "serde_json", "hex", "sha2"]
 
 # database
-mysql = [ "sqlx/mysql" ]
-postgres = [ "sqlx/postgres" ]
-sqlite = [ "sqlx/sqlite" ]
+mysql = [ "sqlx-core/mysql" ]
+postgres = [ "sqlx-core/postgres" ]
+sqlite = [ "sqlx-core/sqlite" ]
 
 # type
-bigdecimal = [ "sqlx/bigdecimal" ]
-chrono = [ "sqlx/chrono" ]
-time = [ "sqlx/time" ]
-ipnetwork = [ "sqlx/ipnetwork" ]
-uuid = [ "sqlx/uuid" ]
-json = [ "sqlx/json", "serde_json" ]
+bigdecimal = [ "sqlx-core/bigdecimal" ]
+chrono = [ "sqlx-core/chrono" ]
+time = [ "sqlx-core/time" ]
+ipnetwork = [ "sqlx-core/ipnetwork" ]
+uuid = [ "sqlx-core/uuid" ]
+json = [ "sqlx-core/json", "serde_json" ]
 
 [dependencies]
 async-std = { version = "1.5.0", default-features = false, optional = true }
 tokio = { version = "0.2.13", default-features = false, features = [ "rt-threaded" ], optional = true }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
+hex = { version = "0.4.2", optional = true }
 heck = "0.3"
 proc-macro2 = { version = "1.0.9", default-features = false }
-sqlx = { version = "0.3.5", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+sqlx-core = { version = "0.3.5", default-features = false, path = "../sqlx-core" }
+serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
+sha2 = { version = "0.8.1", optional = true }
 syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
 url = { version = "2.1.1", default-features = false }
-lazy_static = { version = "1.4.0", optional = true }
+once_cell = { version = "1.3", features = ["std"], optional = true }

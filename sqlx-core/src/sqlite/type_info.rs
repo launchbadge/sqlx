@@ -4,6 +4,7 @@ use crate::types::TypeInfo;
 
 // https://www.sqlite.org/c3ref/c_blob.html
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum SqliteType {
     Integer = 1,
     Float = 2,
@@ -16,6 +17,7 @@ pub(crate) enum SqliteType {
 
 // https://www.sqlite.org/datatype3.html#type_affinity
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum SqliteTypeAffinity {
     Text,
     Numeric,
@@ -25,6 +27,7 @@ pub(crate) enum SqliteTypeAffinity {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct SqliteTypeInfo {
     pub(crate) r#type: SqliteType,
     pub(crate) affinity: Option<SqliteTypeAffinity>,

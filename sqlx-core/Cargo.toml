@@ -32,6 +32,9 @@ runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
 # intended for internal benchmarking, do not use
 bench = []
 
+# support offline/decoupled building (enables serialization of `Describe`)
+offline = ["serde"]
+
 [dependencies]
 async-native-tls = { version = "0.3.2", default-features = false, optional = true }
 async-std = { version = "1.5.0", features = [ "unstable" ], optional = true }

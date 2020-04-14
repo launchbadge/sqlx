@@ -7,6 +7,14 @@ use crate::database::Database;
 /// The return type of [`Executor::describe`].
 ///
 /// [`Executor::describe`]: crate::executor::Executor::describe
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "offline",
+    serde(bound(
+        serialize = "DB::TypeInfo: serde::Serialize, Column<DB>: serde::Serialize",
+        deserialize = "DB::TypeInfo: serde::de::DeserializeOwned, Column<DB>: serde::de::DeserializeOwned"
+    ))
+)]
 #[non_exhaustive]
 pub struct Describe<DB>
 where
@@ -35,6 +43,14 @@ where
 }
 
 /// A single column of a result set.
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "offline",
+    serde(bound(
+        serialize = "DB::TableId: serde::Serialize, DB::TypeInfo: serde::Serialize",
+        deserialize = "DB::TableId: serde::de::DeserializeOwned, DB::TypeInfo: serde::de::DeserializeOwned"
+    ))
+)]
 #[non_exhaustive]
 pub struct Column<DB>
 where
