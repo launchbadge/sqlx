@@ -69,6 +69,7 @@ async fn try_upgrade(
     accept_invalid_host_names: bool,
 ) -> crate::Result<bool> {
     use async_native_tls::TlsConnector;
+    use std::borrow::Cow;
 
     stream.write(crate::postgres::protocol::SslRequest);
     stream.flush().await?;
@@ -105,8 +106,12 @@ async fn try_upgrade(
         }
     }
 
-    let host = url.host().unwrap_or("localhost");
-    stream.stream.upgrade(host, connector).await?;
+    let host = url
+        .host()
+        .map(Cow::Borrowed)
+        .or_else(|| url.param("host"))
+        .unwrap_or("localhost".into());
+    stream.stream.upgrade(&host, connector).await?;
 
     Ok(true)
 }
