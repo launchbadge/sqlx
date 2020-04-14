@@ -34,13 +34,10 @@ impl Url {
         self.0.as_str()
     }
 
-    pub fn host(&self) -> &str {
-        let host = self.0.host_str();
-
-        match host {
-            Some(host) if !host.is_empty() => host,
-
-            _ => "localhost",
+    pub fn host(&self) -> Option<&str> {
+        match self.0.host_str()? {
+            "" => None,
+            host => Some(host),
         }
     }
 

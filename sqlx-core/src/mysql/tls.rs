@@ -116,5 +116,8 @@ async fn try_upgrade(
         )
         .await?;
 
-    stream.stream.upgrade(url, connector).await
+    stream
+        .stream
+        .upgrade(url.host().unwrap_or("localhost"), connector)
+        .await
 }

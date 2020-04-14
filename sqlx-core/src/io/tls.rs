@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::runtime::{AsyncRead, AsyncWrite, TcpStream};
-use crate::url::Url;
 
 use self::Inner::*;
 
@@ -21,8 +20,8 @@ enum Inner {
 }
 
 impl MaybeTlsStream {
-    pub async fn connect(url: &Url, default_port: u16) -> crate::Result<Self> {
-        let conn = TcpStream::connect((url.host(), url.port(default_port))).await?;
+    pub async fn connect(host: &str, port: u16) -> crate::Result<Self> {
+        let conn = TcpStream::connect((host, port)).await?;
         Ok(Self {
             inner: Inner::NotTls(conn),
         })
@@ -43,7 +42,7 @@ impl MaybeTlsStream {
     #[cfg_attr(docsrs, doc(cfg(feature = "tls")))]
     pub async fn upgrade(
         &mut self,
-        url: &Url,
+        host: &str,
         connector: async_native_tls::TlsConnector,
     ) -> crate::Result<()> {
         let conn = match std::mem::replace(&mut self.inner, Upgrading) {
@@ -52,7 +51,7 @@ impl MaybeTlsStream {
             Upgrading => return Err(tls_err!("connection already failed to upgrade").into()),
         };
 
-        self.inner = Tls(connector.connect(url.host(), conn).await?);
+        self.inner = Tls(connector.connect(host, conn).await?);
 
         Ok(())
     }
