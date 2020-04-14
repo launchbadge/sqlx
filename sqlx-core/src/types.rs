@@ -42,9 +42,29 @@ pub mod ipnetwork {
 }
 
 #[cfg(feature = "json")]
-#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-#[derive(Debug, PartialEq)]
-pub struct Json<T>(pub T);
+pub mod json {
+    use std::ops::Deref;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    pub struct Json<T>(pub T);
+
+    impl<T> Deref for Json<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<T> AsRef<T> for Json<T> {
+        fn as_ref(&self) -> &T {
+            &self.0
+        }
+    }
+}
+#[cfg(feature = "json")]
+pub use self::json::Json;
 
 pub trait TypeInfo: PartialEq<Self> + Debug + Display + Clone {
     /// Compares type information to determine if `other` is compatible at the Rust level
