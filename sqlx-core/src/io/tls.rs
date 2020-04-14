@@ -13,6 +13,8 @@ pub struct MaybeTlsStream {
 
 enum Inner {
     NotTls(TcpStream),
+    #[cfg(all(feature = "postgres", unix))]
+    UnixStream(crate::runtime::UnixStream),
     #[cfg(feature = "tls")]
     Tls(async_native_tls::TlsStream<TcpStream>),
     #[cfg(feature = "tls")]
@@ -20,6 +22,13 @@ enum Inner {
 }
 
 impl MaybeTlsStream {
+    #[cfg(all(feature = "postgres", unix))]
+    pub async fn connect_uds<S: AsRef<std::ffi::OsStr>>(p: S) -> crate::Result<Self> {
+        let conn = crate::runtime::UnixStream::connect(p.as_ref()).await?;
+        Ok(Self {
+            inner: Inner::UnixStream(conn),
+        })
+    }
     pub async fn connect(host: &str, port: u16) -> crate::Result<Self> {
         let conn = TcpStream::connect((host, port)).await?;
         Ok(Self {
@@ -31,6 +40,8 @@ impl MaybeTlsStream {
     pub fn is_tls(&self) -> bool {
         match self.inner {
             Inner::NotTls(_) => false,
+            #[cfg(all(feature = "postgres", unix))]
+            Inner::UnixStream(_) => false,
             #[cfg(feature = "tls")]
             Inner::Tls(_) => true,
             #[cfg(feature = "tls")]
@@ -47,6 +58,10 @@ impl MaybeTlsStream {
     ) -> crate::Result<()> {
         let conn = match std::mem::replace(&mut self.inner, Upgrading) {
             NotTls(conn) => conn,
+            #[cfg(all(feature = "postgres", unix))]
+            UnixStream(_) => {
+                return Err(tls_err!("TLS is not supported with unix domain sockets").into())
+            }
             Tls(_) => return Err(tls_err!("connection already upgraded").into()),
             Upgrading => return Err(tls_err!("connection already failed to upgrade").into()),
         };
@@ -59,6 +74,8 @@ impl MaybeTlsStream {
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         match self.inner {
             NotTls(ref conn) => conn.shutdown(how),
+            #[cfg(all(feature = "postgres", unix))]
+            UnixStream(ref conn) => conn.shutdown(how),
             #[cfg(feature = "tls")]
             Tls(ref conn) => conn.get_ref().shutdown(how),
             #[cfg(feature = "tls")]
@@ -72,6 +89,8 @@ macro_rules! forward_pin (
     ($self:ident.$method:ident($($arg:ident),*)) => (
         match &mut $self.inner {
             NotTls(ref mut conn) => Pin::new(conn).$method($($arg),*),
+            #[cfg(all(feature = "postgres", unix))]
+            UnixStream(ref mut conn) => Pin::new(conn).$method($($arg),*),
             #[cfg(feature = "tls")]
             Tls(ref mut conn) => Pin::new(conn).$method($($arg),*),
             #[cfg(feature = "tls")]
