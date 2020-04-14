@@ -23,7 +23,9 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn new(url: &Url) -> crate::Result<Self> {
-        let stream = MaybeTlsStream::connect(&url, 5432).await?;
+        let host = url.host().unwrap_or("localhost");
+        let port = url.port(5432);
+        let stream = MaybeTlsStream::connect(host, port).await?;
 
         Ok(Self {
             notifications: None,
