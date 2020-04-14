@@ -17,6 +17,9 @@ pub(crate) use async_std::{
     task::spawn,
 };
 
+#[cfg(all(feature = "runtime-async-std", feature = "postgres", unix))]
+pub(crate) use async_std::os::unix::net::UnixStream;
+
 #[cfg(feature = "runtime-tokio")]
 pub(crate) use tokio::{
     fs,
@@ -26,3 +29,6 @@ pub(crate) use tokio::{
     time::delay_for as sleep,
     time::timeout,
 };
+
+#[cfg(all(feature = "runtime-tokio", feature = "postgres", unix))]
+pub(crate) use tokio::net::UnixStream;
