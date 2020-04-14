@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use syn::{Ident, Path};
 
 use quote::{format_ident, quote};
-use sqlx::{connection::Connection, database::Database};
+use sqlx_core::{connection::Connection, database::Database};
 
 use super::{args, output, QueryMacroInput};
 use crate::database::DatabaseExt;
@@ -22,7 +22,7 @@ where
     <C::Database as Database>::TypeInfo: Display,
 {
     let describe = input.describe_validate(&mut conn).await?;
-    let sql = &input.source;
+    let sql = &input.src;
 
     let args = args::quote_args(&input, &describe, checked)?;
 
@@ -33,7 +33,7 @@ where
         return Ok(quote! {
             macro_rules! macro_result {
                 (#($#arg_names:expr),*) => {{
-                    use sqlx::arguments::Arguments as _;
+                    use sqlx_core::arguments::Arguments as _;
 
                     #args
 
@@ -69,7 +69,7 @@ where
     Ok(quote! {
         macro_rules! macro_result {
             (#($#arg_names:expr),*) => {{
-                use sqlx::arguments::Arguments as _;
+                use sqlx_core::arguments::Arguments as _;
 
                 #[derive(Debug)]
                 struct #record_type {

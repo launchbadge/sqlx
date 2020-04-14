@@ -39,6 +39,9 @@ default = [ "macros", "runtime-async-std" ]
 macros = [ "sqlx-macros" ]
 tls = [ "sqlx-core/tls" ]
 
+# offline building support in `sqlx-macros`
+offline = ["sqlx-macros/offline", "sqlx-core/offline"]
+
 # intended mainly for CI and docs
 all = [ "tls", "all-database", "all-type" ]
 all-database = [ "mysql", "sqlite", "postgres" ]

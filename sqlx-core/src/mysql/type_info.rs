@@ -4,6 +4,7 @@ use crate::mysql::protocol::{ColumnDefinition, FieldFlags, TypeId};
 use crate::types::TypeInfo;
 
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct MySqlTypeInfo {
     pub(crate) id: TypeId,
     pub(crate) is_unsigned: bool,

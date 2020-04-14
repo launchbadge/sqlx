@@ -1,6 +1,7 @@
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/binary__log__types_8h.html
 // https://mariadb.com/kb/en/library/resultset/#field-types
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct TypeId(pub u8);
 
 // https://github.com/google/mysql/blob/c01fc2134d439282a21a2ddf687566e198ddee28/include/mysql_com.h#L429

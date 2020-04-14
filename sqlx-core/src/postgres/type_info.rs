@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 /// Type information for a Postgres SQL type.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgTypeInfo {
     pub(crate) id: Option<TypeId>,
     pub(crate) name: SharedStr,
@@ -186,8 +187,38 @@ impl From<String> for SharedStr {
     }
 }
 
+impl From<SharedStr> for String {
+    fn from(s: SharedStr) -> Self {
+        String::from(&*s)
+    }
+}
+
 impl fmt::Display for SharedStr {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.pad(self)
+    }
+}
+
+// manual impls because otherwise things get a little screwy with lifetimes
+#[cfg(feature = "offline")]
+impl<'de> serde::Deserialize<'de> for SharedStr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(String::deserialize(deserializer)?.into())
+    }
+}
+
+#[cfg(feature = "offline")]
+impl serde::Serialize for SharedStr {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self)
     }
 }

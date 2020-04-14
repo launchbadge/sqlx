@@ -1,171 +1,122 @@
 use std::env;
+use std::fs;
 
 use proc_macro2::{Ident, Span};
 use quote::{format_ident, ToTokens};
-use syn::parse::{Parse, ParseStream};
+use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Group;
-use syn::{Expr, ExprLit, ExprPath, Lit};
-use syn::{ExprGroup, Token};
+use syn::{Error, Expr, ExprLit, ExprPath, Lit, LitBool, LitStr, Token};
+use syn::{ExprArray, ExprGroup, Type};
 
-use sqlx::connection::Connection;
-use sqlx::describe::Describe;
-
-use crate::runtime::fs;
+use sqlx_core::connection::Connection;
+use sqlx_core::describe::Describe;
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {
-    pub(super) source: String,
-    pub(super) source_span: Span,
+    pub(super) src: String,
+    pub(super) src_span: Span,
+
+    pub(super) data_src: DataSrc,
+
+    pub(super) record_type: RecordType,
+
     // `arg0 .. argN` for N arguments
     pub(super) arg_names: Vec<Ident>,
     pub(super) arg_exprs: Vec<Expr>,
+
+    pub(super) checked: bool,
 }
 
-impl QueryMacroInput {
-    fn from_exprs(input: ParseStream, mut args: impl Iterator<Item = Expr>) -> syn::Result<Self> {
-        fn lit_err<T>(span: Span, unexpected: Expr) -> syn::Result<T> {
-            Err(syn::Error::new(
-                span,
-                format!(
-                    "expected string literal, got {}",
-                    unexpected.to_token_stream()
-                ),
-            ))
-        }
+enum QuerySrc {
+    String(String),
+    File(String),
+}
 
-        let (source, source_span) = match args.next() {
-            Some(Expr::Lit(ExprLit {
-                lit: Lit::Str(sql), ..
-            })) => (sql.value(), sql.span()),
-            Some(Expr::Group(ExprGroup {
-                expr,
-                group_token: Group { span },
-                ..
-            })) => {
-                // this duplication with the above is necessary because `expr` is `Box<Expr>` here
-                // which we can't directly pattern-match without `box_patterns`
-                match *expr {
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(sql), ..
-                    }) => (sql.value(), span),
-                    other_expr => return lit_err(span, other_expr),
-                }
-            }
-            Some(other_expr) => return lit_err(other_expr.span(), other_expr),
-            None => return Err(input.error("expected SQL string literal")),
-        };
+pub enum DataSrc {
+    Env(String),
+    DbUrl(String),
+    File,
+}
 
-        let arg_exprs: Vec<_> = args.collect();
-        let arg_names = (0..arg_exprs.len())
-            .map(|i| format_ident!("arg{}", i))
-            .collect();
-
-        Ok(Self {
-            source,
-            source_span,
-            arg_exprs,
-            arg_names,
-        })
-    }
-
-    pub async fn expand_file_src(self) -> syn::Result<Self> {
-        let source = read_file_src(&self.source, self.source_span).await?;
-
-        Ok(Self { source, ..self })
-    }
-
-    /// Run a parse/describe on the query described by this input and validate that it matches the
-    /// passed number of args
-    pub async fn describe_validate<C: Connection>(
-        &self,
-        conn: &mut C,
-    ) -> crate::Result<Describe<C::Database>> {
-        let describe = conn
-            .describe(&*self.source)
-            .await
-            .map_err(|e| syn::Error::new(self.source_span, e))?;
-
-        if self.arg_names.len() != describe.param_types.len() {
-            return Err(syn::Error::new(
-                Span::call_site(),
-                format!(
-                    "expected {} parameters, got {}",
-                    describe.param_types.len(),
-                    self.arg_names.len()
-                ),
-            )
-            .into());
-        }
-
-        Ok(describe)
-    }
+pub enum RecordType {
+    Given(Type),
+    Generated,
 }
 
 impl Parse for QueryMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter();
+        let mut query_src: Option<(QuerySrc, Span)> = None;
+        let mut data_src = DataSrc::Env("DATABASE_URL".into());
+        let mut args: Option<Vec<Expr>> = None;
+        let mut record_type = RecordType::Generated;
+        let mut checked = true;
 
-        Self::from_exprs(input, args)
-    }
-}
+        let mut expect_comma = false;
 
-/// Macro input shared by `query_as!()` and `query_file_as!()`
-pub struct QueryAsMacroInput {
-    pub(super) as_ty: ExprPath,
-    pub(super) query_input: QueryMacroInput,
-}
+        while !input.is_empty() {
+            if expect_comma {
+                let _ = input.parse::<syn::token::Comma>()?;
+            }
 
-impl QueryAsMacroInput {
-    pub async fn expand_file_src(self) -> syn::Result<Self> {
-        Ok(Self {
-            query_input: self.query_input.expand_file_src().await?,
-            ..self
-        })
-    }
-}
+            let key: Ident = input.parse()?;
 
-impl Parse for QueryAsMacroInput {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        fn path_err<T>(span: Span, unexpected: Expr) -> syn::Result<T> {
-            Err(syn::Error::new(
-                span,
-                format!(
-                    "expected path to a type, got {}",
-                    unexpected.to_token_stream()
-                ),
-            ))
+            let _ = input.parse::<syn::token::Eq>()?;
+
+            if key == "source" {
+                let lit_str = input.parse::<LitStr>()?;
+                query_src = Some((QuerySrc::String(lit_str.value()), lit_str.span()));
+            } else if key == "source_file" {
+                let lit_str = input.parse::<LitStr>()?;
+                query_src = Some((QuerySrc::File(lit_str.value()), lit_str.span()));
+            } else if key == "args" {
+                let exprs = input.parse::<ExprArray>()?;
+                args = Some(exprs.elems.into_iter().collect())
+            } else if key == "record" {
+                record_type = RecordType::Given(input.parse()?);
+            } else if key == "checked" {
+                let lit_bool = input.parse::<LitBool>()?;
+                checked = lit_bool.value;
+            } else {
+                let message = format!("unexpected input key: {}", key);
+                return Err(syn::Error::new_spanned(key, message));
+            }
+
+            expect_comma = true;
         }
 
-        let mut args = Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter();
+        let (src, src_span) =
+            query_src.ok_or_else(|| input.error("expected `source` or `source_file` key"))?;
 
-        let as_ty = match args.next() {
-            Some(Expr::Path(path)) => path,
-            Some(Expr::Group(ExprGroup {
-                expr,
-                group_token: Group { span },
-                ..
-            })) => {
-                // this duplication with the above is necessary because `expr` is `Box<Expr>` here
-                // which we can't directly pattern-match without `box_patterns`
-                match *expr {
-                    Expr::Path(path) => path,
-                    other_expr => return path_err(span, other_expr),
-                }
-            }
-            Some(other_expr) => return path_err(other_expr.span(), other_expr),
-            None => return Err(input.error("expected path to SQL file")),
-        };
+        let arg_exprs = args.unwrap_or_default();
+        let arg_names = (0..arg_exprs.len())
+            .map(|i| format_ident!("arg{}", i))
+            .collect();
 
-        Ok(QueryAsMacroInput {
-            as_ty,
-            query_input: QueryMacroInput::from_exprs(input, args)?,
+        Ok(QueryMacroInput {
+            src: src.resolve(src_span)?,
+            src_span,
+            data_src,
+            record_type,
+            arg_names,
+            arg_exprs,
+            checked,
         })
     }
 }
 
-async fn read_file_src(source: &str, source_span: Span) -> syn::Result<String> {
+impl QuerySrc {
+    /// If the query source is a file, read it to a string. Otherwise return the query string.
+    fn resolve(self, source_span: Span) -> syn::Result<String> {
+        match self {
+            QuerySrc::String(string) => Ok(string),
+            QuerySrc::File(file) => read_file_src(&file, source_span),
+        }
+    }
+}
+
+fn read_file_src(source: &str, source_span: Span) -> syn::Result<String> {
     use std::path::Path;
 
     let path = Path::new(source);
@@ -201,7 +152,7 @@ async fn read_file_src(source: &str, source_span: Span) -> syn::Result<String> {
 
     let file_path = base_dir_path.join(path);
 
-    fs::read_to_string(&file_path).await.map_err(|e| {
+    fs::read_to_string(&file_path).map_err(|e| {
         syn::Error::new(
             source_span,
             format!(
