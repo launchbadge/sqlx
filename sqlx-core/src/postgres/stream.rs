@@ -33,6 +33,7 @@ impl PgStream {
                         .decode_utf8()
                         .expect("percent-encoded hostname contained non-UTF-8 bytes")
                 })
+                .or_else(|| url.param("host"))
                 .unwrap_or("/var/run/postgresql".into());
             if host.starts_with("/") {
                 let path = format!("{}/.s.PGSQL.{}", host, port);
