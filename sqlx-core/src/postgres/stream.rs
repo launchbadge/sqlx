@@ -26,9 +26,20 @@ impl PgStream {
         let host = url.host();
         let port = url.port(5432);
         #[cfg(unix)]
-        let stream = match host {
-            Some(host) => MaybeTlsStream::connect(host, port).await?,
-            None => MaybeTlsStream::connect_uds(format!("/var/run/postgresql/.s.PGSQL.{}", port)).await?,
+        let stream = {
+            let host = host
+                .map(|host| {
+                    percent_encoding::percent_decode_str(host)
+                        .decode_utf8()
+                        .expect("percent-encoded hostname contained non-UTF-8 bytes")
+                })
+                .unwrap_or("/var/run/postgresql".into());
+            if host.starts_with("/") {
+                let path = format!("{}/.s.PGSQL.{}", host, port);
+                MaybeTlsStream::connect_uds(&path).await?
+            } else {
+                MaybeTlsStream::connect(&host, port).await?
+            }
         };
         #[cfg(not(unix))]
         let stream = MaybeTlsStream::connect(host.unwrap_or("localhost"), port).await?;
