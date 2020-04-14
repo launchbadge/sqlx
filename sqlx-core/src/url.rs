@@ -28,6 +28,14 @@ impl<'s> TryFrom<&'s String> for Url {
     }
 }
 
+impl TryFrom<url::Url> for Url {
+    type Error = url::ParseError;
+
+    fn try_from(value: url::Url) -> Result<Self, Self::Error> {
+        Ok(Url(value))
+    }
+}
+
 impl Url {
     #[allow(dead_code)]
     pub(crate) fn as_str(&self) -> &str {

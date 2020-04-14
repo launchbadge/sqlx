@@ -2,6 +2,7 @@ use crate::postgres::types::try_resolve_type_name;
 use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct TypeId(pub(crate) u32);
 
 // DEVELOPER PRO TIP: find builtin type OIDs easily by grepping this file

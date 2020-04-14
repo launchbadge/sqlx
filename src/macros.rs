@@ -122,14 +122,14 @@ macro_rules! query (
     ($query:literal) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query!($query);
+            $crate::sqlx_macros::expand_query!(source = $query);
         }
         macro_result!()
     });
     ($query:literal, $($args:expr),*$(,)?) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source = $query, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -140,19 +140,17 @@ macro_rules! query (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_unchecked (
-    // by emitting a macro definition from our proc-macro containing the result tokens,
-    // we no longer have a need for `proc-macro-hack`
     ($query:literal) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_unchecked!($query);
+            $crate::sqlx_macros::expand_query!(source = $query, checked = false);
         }
         macro_result!()
     });
     ($query:literal, $($args:expr),*$(,)?) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_unchecked!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source = $query, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -203,17 +201,17 @@ macro_rules! query_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file (
-    ($query:literal) => (#[allow(dead_code)]{
+    ($path:literal) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file!($query);
+            $crate::sqlx_macros::expand_query!(source_file = $path);
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
+    ($path:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source_file = $path, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -224,17 +222,17 @@ macro_rules! query_file (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_unchecked (
-    ($query:literal) => (#[allow(dead_code)]{
+    ($path:literal) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_unchecked!($query);
+            $crate::sqlx_macros::query_file_unchecked!(source_file = $path, checked = false);
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
+    ($path:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_unchecked!($query, $($args),*);
+            $crate::sqlx_macros::query_file_unchecked!(source_file = $path, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -298,14 +296,14 @@ macro_rules! query_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query);
         }
         macro_result!()
     });
     ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -347,17 +345,17 @@ macro_rules! query_as (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as (
-    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path);
         }
         macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -371,7 +369,7 @@ macro_rules! query_as_unchecked (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, checked = false);
         }
         macro_result!()
     });
@@ -379,7 +377,7 @@ macro_rules! query_as_unchecked (
     ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -391,18 +389,18 @@ macro_rules! query_as_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as_unchecked (
-    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query);
+            $crate::sqlx_macros::query_file_as_unchecked!(record = $out_struct, source_file = $path, checked = false);
         }
         macro_result!()
     });
 
-    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::query_file_as_unchecked!(record = $out_struct, source_file = $path, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })

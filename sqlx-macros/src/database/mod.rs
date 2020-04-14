@@ -1,4 +1,4 @@
-use sqlx::database::Database;
+use sqlx_core::database::Database;
 
 #[derive(PartialEq, Eq)]
 #[allow(dead_code)]
@@ -10,6 +10,7 @@ pub enum ParamChecking {
 pub trait DatabaseExt: Database {
     const DATABASE_PATH: &'static str;
     const ROW_PATH: &'static str;
+    const NAME: &'static str;
 
     const PARAM_CHECKING: ParamChecking;
 
@@ -34,23 +35,25 @@ macro_rules! impl_database_ext {
             $($(#[$meta:meta])? $ty:ty $(| $input:ty)?),*$(,)?
         },
         ParamChecking::$param_checking:ident,
-        feature-types: $name:ident => $get_gate:expr,
-        row = $row:path
+        feature-types: $ty_info:ident => $get_gate:expr,
+        row = $row:path,
+        name = $db_name:literal
     ) => {
         impl $crate::database::DatabaseExt for $database {
             const DATABASE_PATH: &'static str = stringify!($database);
             const ROW_PATH: &'static str = stringify!($row);
             const PARAM_CHECKING: $crate::database::ParamChecking = $crate::database::ParamChecking::$param_checking;
+            const NAME: &'static str = $db_name;
 
             fn param_type_for_id(info: &Self::TypeInfo) -> Option<&'static str> {
                 match () {
                     $(
                         $(#[$meta])?
-                        _ if <$ty as sqlx::types::Type<$database>>::type_info() == *info => Some(input_ty!($ty $(, $input)?)),
+                        _ if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info => Some(input_ty!($ty $(, $input)?)),
                     )*
                     $(
                         $(#[$meta])?
-                        _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
+                        _ if sqlx_core::types::TypeInfo::compatible(&<$ty as sqlx_core::types::Type<$database>>::type_info(), &info) => Some(input_ty!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
@@ -60,17 +63,17 @@ macro_rules! impl_database_ext {
                 match () {
                     $(
                         $(#[$meta])?
-                        _ if <$ty as sqlx::types::Type<$database>>::type_info() == *info => return Some(stringify!($ty)),
+                        _ if <$ty as sqlx_core::types::Type<$database>>::type_info() == *info => return Some(stringify!($ty)),
                     )*
                     $(
                         $(#[$meta])?
-                        _ if sqlx::types::TypeInfo::compatible(&<$ty as sqlx::types::Type<$database>>::type_info(), &info) => return Some(stringify!($ty)),
+                        _ if sqlx_core::types::TypeInfo::compatible(&<$ty as sqlx_core::types::Type<$database>>::type_info(), &info) => return Some(stringify!($ty)),
                     )*
                     _ => None
                 }
             }
 
-            fn get_feature_gate($name: &Self::TypeInfo) -> Option<&'static str> {
+            fn get_feature_gate($ty_info: &Self::TypeInfo) -> Option<&'static str> {
                 $get_gate
             }
         }

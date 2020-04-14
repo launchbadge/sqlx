@@ -1,11 +1,12 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::Path;
+use syn::{Path, Type};
 
-use sqlx::describe::Describe;
+use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
 
+use crate::query_macros::QueryMacroInput;
 use std::fmt::{self, Display, Formatter};
 
 pub struct RustColumn {
@@ -98,11 +99,10 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 }
 
 pub fn quote_query_as<DB: DatabaseExt>(
-    sql: &str,
-    out_ty: &Path,
+    input: &QueryMacroInput,
+    out_ty: &Type,
     bind_args: &Ident,
     columns: &[RustColumn],
-    checked: bool,
 ) -> TokenStream {
     let instantiations = columns.iter().enumerate().map(
         |(
@@ -116,7 +116,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
             // For "checked" queries, the macro checks these at compile time and using "try_get"
             // would also perform pointless runtime checks
 
-            if checked {
+            if input.checked {
                 quote!( #ident: row.try_get_unchecked::<#type_, _>(#i).try_unwrap_optional()? )
             } else {
                 quote!( #ident: row.try_get_unchecked(#i)? )
@@ -126,6 +126,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
     let db_path = DB::db_path();
     let row_path = DB::row_path();
+    let sql = &input.src;
 
     quote! {
         sqlx::query::<#db_path>(#sql).bind_all(#bind_args).try_map(|row: #row_path| {
