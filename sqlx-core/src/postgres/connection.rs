@@ -112,7 +112,7 @@ pub struct PgConnection {
 async fn startup(stream: &mut PgStream, url: &Url) -> crate::Result<BackendKeyData> {
     // Defaults to postgres@.../postgres
     let username = url.username().unwrap_or(Cow::Borrowed("postgres"));
-    let database = url.database().unwrap_or("postgres");
+    let database = url.database().unwrap_or(&username);
 
     // See this doc for more runtime parameters
     // https://www.postgresql.org/docs/12/runtime-config-client.html
