@@ -135,6 +135,29 @@ macro_rules! query (
     })
 );
 
+/// A variant of [query!] which does not check the input or output types. This still does parse
+/// the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_unchecked (
+    // by emitting a macro definition from our proc-macro containing the result tokens,
+    // we no longer have a need for `proc-macro-hack`
+    ($query:literal) => ({
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_unchecked!($query);
+        }
+        macro_result!()
+    });
+    ($query:literal, $($args:expr),*$(,)?) => ({
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_unchecked!($query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);
+
 /// A variant of [query!] where the SQL query is stored in a separate file.
 ///
 /// Useful for large queries and potentially cleaner than multiline strings.
@@ -191,6 +214,27 @@ macro_rules! query_file (
         #[macro_use]
         mod _macro_result {
             $crate::sqlx_macros::query_file!($query, $($args),*);
+        }
+        macro_result!($($args),*)
+    })
+);
+
+/// A variant of [query_file!] which does not check the input or output types. This still does parse
+/// the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_file_unchecked (
+    ($query:literal) => (#[allow(dead_code)]{
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_unchecked!($query);
+        }
+        macro_result!()
+    });
+    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::query_file_unchecked!($query, $($args),*);
         }
         macro_result!($($args),*)
     })

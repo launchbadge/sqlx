@@ -19,12 +19,13 @@ mod query;
 pub async fn expand_query_file<C: Connection>(
     input: QueryMacroInput,
     conn: C,
+    checked: bool,
 ) -> crate::Result<TokenStream>
 where
     C::Database: DatabaseExt + Sized,
     <C::Database as Database>::TypeInfo: Display,
 {
-    expand_query(input.expand_file_src().await?, conn).await
+    expand_query(input.expand_file_src().await?, conn, checked).await
 }
 
 pub async fn expand_query_as<C: Connection>(
