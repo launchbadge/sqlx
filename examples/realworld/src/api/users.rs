@@ -1,17 +1,22 @@
-use chrono::{Duration, Utc};
-use log::*;
-use rand::{thread_rng, RngCore};
-use tide::{Request, Response, IntoResponse};
-
-use super::{ApiResult, ApiError};
-use crate::db::model::{ProvideUser, UserEntity};
 use std::default::Default;
 
-const SECRET_KEY: &str = "this-is-the-most-secret-key-ever-secreted";
+use chrono::{Duration, Utc};
+use futures::TryFutureExt;
+use log::*;
+use rand::{thread_rng, RngCore};
+use serde::{Deserialize, Serialize, Deserializer};
+use sqlx::pool::PoolConnection;
+use sqlx::{Connect, Connection};
+use tide::{Error, IntoResponse, Request, Response, ResultExt};
 
-// User
-// https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication
-#[derive(Default, serde::Serialize)]
+use crate::api::util::{extract_and_validate_token, to_json_response, TokenClaims, SECRET_KEY};
+use crate::db::model::{ProvideAuthn, UserEntity};
+use crate::db::Db;
+
+/// A User
+///
+/// [User](https://github.com/gothinkster/realworld/tree/master/api#users-for-authentication)
+#[derive(Default, Serialize)]
 pub struct User {
     pub email: String,
     pub token: Option<String>,
@@ -20,34 +25,138 @@ pub struct User {
     pub image: Option<String>,
 }
 
-// Registration
-// https://github.com/gothinkster/realworld/tree/master/api#registration
+impl User {
+    fn token(mut self, token: Option<String>) -> Self {
+        self.token = token;
+        self
+    }
+}
 
-// #[post("/api/users")]
-pub async fn register(req: Request<impl ProvideUser>) -> Response {
-    async fn inner(mut req: Request<impl ProvideUser>) -> ApiResult<Response> {
-        #[derive(serde::Deserialize)]
-        struct RegisterRequestBody {
-            user: NewUser
+/// A field wherein null is significant
+///
+/// The `realworld` API Spec allows for certain fields to be explicitly set to null
+/// (e.g. `image` on [User] objects).
+///
+/// Serde treats missing values and null values as the same so this type is used to capture
+/// that null has meaning. Note that Option<Option<T>> can also be used, however this is slightly
+/// more expressive
+enum Nullable<T> {
+    Data(T),
+    Null,
+    Missing,
+}
+
+impl<T> Nullable<T> {
+    /// Converts the field to option if populated or returns `optb`
+    ///
+    /// Based on [Option::or].
+    fn or(self, optb: Option<T>) -> Option<T> {
+        match self {
+            Nullable::Data(d) => Some(d),
+            Nullable::Null => None,
+            Nullable::Missing => optb,
         }
-        #[derive(serde::Deserialize)]
+    }
+}
+
+impl<T> From<Option<T>> for Nullable<T> {
+    fn from(opt: Option<T>) -> Self {
+        if let Some(data) = opt {
+            Nullable::Data(data)
+        } else {
+            Nullable::Null
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Nullable<T>
+    where T: Deserialize<'de>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+        D: Deserializer<'de>
+    {
+        Option::deserialize(deserializer).map(Nullable::from)
+    }
+}
+
+impl<T> Default for Nullable<T> {
+    fn default() -> Self {
+        Nullable::Missing
+    }
+}
+
+
+/// The response body for User API requests
+#[derive(Serialize)]
+struct UserResponseBody {
+    user: User,
+}
+
+impl From<User> for UserResponseBody {
+    fn from(user: User) -> Self {
+        UserResponseBody { user }
+    }
+}
+
+impl From<UserEntity> for User {
+    fn from(entity: UserEntity) -> Self {
+        let UserEntity {
+            email,
+            username,
+            bio,
+            image,
+            ..
+        } = entity;
+
+        User {
+            email,
+            token: None,
+            username,
+            bio,
+            image,
+        }
+    }
+}
+
+/// Register a new user
+///
+/// [Registration](https://github.com/gothinkster/realworld/tree/master/api#registration)
+pub async fn register(
+    mut req: Request<impl Db<Conn = PoolConnection<impl Connect + ProvideAuthn>>>,
+) -> Response {
+    async {
+        #[derive(Deserialize)]
+        struct RegisterRequestBody {
+            user: NewUser,
+        }
+        #[derive(Deserialize)]
         struct NewUser {
             username: String,
             email: String,
             password: String,
         }
 
-        let RegisterRequestBody {user: NewUser {
-            username, email, password
-        }} = req.body_json().await
-            .map_err(|e| ApiError::Api(Response::new(400).body_string(e.to_string())))?;
+        // n.b. we don't use req.body_json() because it swallows serde's useful error messages
+        let body = req.body_bytes().await.server_err()?;
 
-        let hashed_password = hash_password(&password)?;
+        let RegisterRequestBody {
+            user:
+                NewUser {
+                    username,
+                    email,
+                    password,
+                },
+        } = serde_json::from_slice(&body)
+            .map_err(|e| Response::new(400).body_string(e.to_string()))?;
 
-        let db = req.state();
+        let hashed_password = hash_password(&password).server_err()?;
+
+        let state = req.state();
+        let mut db = state.conn().await.server_err()?;
+
         let id = db.create_user(&username, &email, &hashed_password).await?;
 
-        // This is not a hard failure, the user should simply try to login
+        // n.b. token creation is a soft-failure as the user can try logging in separately
         let token = generate_token(id)
             .map_err(|e| {
                 warn!("Failed to create auth token -- {}", e);
@@ -55,191 +164,189 @@ pub async fn register(req: Request<impl ProvideUser>) -> Response {
             })
             .ok();
 
-        #[derive(serde::Serialize)]
-        struct RegisterResponseBody {
-            user: User,
-        }
+        let user = User {
+            email,
+            token,
+            username,
+            bio: None,
+            image: None,
+        };
+        let resp = to_json_response(&UserResponseBody::from(user))?;
 
-        let resp = Response::new(200)
-            .body_json(&RegisterResponseBody {
-                user: User {
-                    email,
-                    token,
-                    username,
-                    ..Default::default()
-                }
-            })
-            .map_err(anyhow::Error::from)?;
-
-        Ok(resp)
+        Ok::<_, Error>(resp)
     }
-    inner(req).await.unwrap_or_else(IntoResponse::into_response)
+    .await
+    .unwrap_or_else(IntoResponse::into_response)
 }
 
-// Get Current User
-// https://github.com/gothinkster/realworld/tree/master/api#get-current-user
+/// Get the current user based on their authorization
+///
+/// [Get Current User](https://github.com/gothinkster/realworld/tree/master/api#get-current-user)
+pub async fn get_current_user(
+    req: Request<impl Db<Conn = PoolConnection<impl Connect + ProvideAuthn>>>,
+) -> Response {
+    async move {
+        let (user_id, token) = extract_and_validate_token(&req)?;
 
-// #[get("/api/user")]
-pub async fn get_current_user(req: Request<impl ProvideUser>) -> Response {
-    async fn inner(req: Request<impl ProvideUser>) -> ApiResult<Response> {
+        let state = req.state();
+        let mut db = state.conn().await.server_err()?;
 
-        // FIXME(sgg): Replace this with an auth middleware?
-        let auth_header = req.header("authorization")
-            .ok_or_else(|| {
-                ApiError::Api(Response::new(400).body_string("Missing Authorization header".to_owned()))
-            })?;
+        // n.b - the app doesn't support deleting users
+        let user_ent= db.get_user_by_id(user_id).await?;
 
-        let token = get_token_from_request(auth_header);
+        let resp = to_json_response(&UserResponseBody::from(User::from(user_ent).token(Some(token))))?;
 
-        let user_id = authorize(&token).await
-            .map_err(|e| ApiError::Api(Response::new(403).body_string(format!("{}", e))))?;
-
-        debug!("Token is authorized to user {}", user_id);
-
-        let db = req.state();
-
-        let UserEntity { email, username, .. } = db.get_user_by_id(user_id).await?;
-
-        #[derive(serde::Serialize)]
-        struct GetCurrentUserResponseBody {
-            user: User,
-        }
-
-        let resp = Response::new(200)
-            .body_json(&GetCurrentUserResponseBody {
-                user: User {
-                    email,
-                    token: Some(token.to_owned()),
-                    username,
-                    ..Default::default()
-                },
-            })
-            .map_err(anyhow::Error::from)?;
-
-        Ok(resp)
+        Ok::<_, Error>(resp)
     }
-    inner(req).await.unwrap_or_else(IntoResponse::into_response)
+    .await
+    .unwrap_or_else(IntoResponse::into_response)
 }
 
-// Login
-// https://github.com/gothinkster/realworld/tree/master/api#authentication
-pub async fn login(req: Request<impl ProvideUser>) -> Response {
-    async fn inner(mut req: Request<impl ProvideUser>) -> ApiResult<Response> {
-        #[derive(serde::Deserialize)]
+/// Login to Conduit
+///
+/// [Login](https://github.com/gothinkster/realworld/tree/master/api#authentication)
+pub async fn login(
+    mut req: Request<impl Db<Conn = PoolConnection<impl Connect + ProvideAuthn>>>,
+) -> Response {
+    async move {
+        #[derive(Deserialize)]
         struct LoginRequestBody {
-            user: Creds
+            user: Creds,
         }
-        #[derive(serde::Deserialize)]
+        #[derive(Deserialize)]
         struct Creds {
             email: String,
             password: String,
         }
 
-        let LoginRequestBody {user: Creds { email, password }} = req.
-            body_json()
-            .await
-            .map_err(|_| Response::new(400))?;
+        let LoginRequestBody {
+            user: Creds { email, password },
+        } = req.body_json().await.client_err()?;
+
         debug!("Parsed login request for {}", &email);
 
         debug!("Querying DB for user with email {}", &email);
-        let db = req.state();
-        let user = db.get_user_by_email(&email)
-            .await
-            .map_err(|e| {
-                error!("Failed to get user -- {}", e);
-                e
-            })?;
+        let state = req.state();
+        let mut db = state.conn().await.server_err()?;
 
-        debug!("User {} matches email {}", user.id, &email);
+        let user_ent = db.get_user_by_email(&email).await.map_err(|e| {
+            error!("Failed to get user -- {}", e);
+            Response::from(e).set_status(http::StatusCode::FORBIDDEN)
+        })?;
 
-        let hashed_password = user.password.as_ref()
-            .ok_or_else(|| Response::new(403))?;
+        debug!("User {} matches email {}", user_ent.user_id, &email);
 
-        debug!("Authenticating user {}", user.id);
-        let valid = argon2::verify_encoded(hashed_password, &password.as_bytes())
-            .map_err(|_| Response::new(403))?;
+        let hashed_password = user_ent.password.as_str();
 
-        if ! valid {
-            debug!("User {} failed authentication", user.id);
+        debug!("Authenticating user {}", user_ent.user_id);
+        let valid =
+            argon2::verify_encoded(hashed_password, &password.as_bytes()).with_err_status(403)?;
+
+        if !valid {
+            debug!("User {} failed authentication", user_ent.user_id);
             Err(Response::new(403))?
         }
 
-        debug!("Successfully authenticated {}, generating auth token", user.id);
-        let token = generate_token(user.id)?;
+        debug!(
+            "Successfully authenticated {}, generating auth token",
+            user_ent.user_id
+        );
+        let token = generate_token(user_ent.user_id).server_err()?;
 
-        #[derive(serde::Serialize)]
-        struct LoginResponseBody {
-            user: User
+        let user = User {
+            token: Some(token),
+            ..user_ent.into()
+        };
+
+        let resp = to_json_response(&UserResponseBody::from(user))?;
+
+        Ok::<_, tide::Error>(resp)
+    }
+    .await
+    .unwrap_or_else(IntoResponse::into_response)
+}
+
+/// Update a user's email, bio, or image
+///
+/// [Update User](https://github.com/gothinkster/realworld/tree/master/api#update-user)
+pub async fn update_user(
+    mut req: Request<impl Db<Conn = PoolConnection<impl Connect + ProvideAuthn>>>,
+) -> Response {
+    async move {
+        #[derive(Deserialize)]
+        struct UpdateRequestBody {
+            user: UserUpdate,
         }
 
-        let resp = to_json_response(&LoginResponseBody {
-            user: User {
-                email,
-                token: Some(token),
-                username: user.username,
-                ..Default::default()
+        #[derive(Deserialize)]
+        struct UserUpdate {
+            email: Option<String>,
+            #[serde(default)]
+            bio: Nullable<String>,
+            #[serde(default)]
+            image: Nullable<String>,
+        }
+        let (user_id, _) = extract_and_validate_token(&req)?;
+
+        let body = req.body_json().await.server_err()?;
+
+        let state = req.state();
+        let mut tx = state
+            .conn()
+            .and_then(Connection::begin)
+            .await
+            .server_err()?;
+
+        let updated = {
+            let UpdateRequestBody {
+                user: UserUpdate { email, bio, image },
+            } = body;
+
+            let existing = tx.get_user_by_id(user_id).await?;
+            UserEntity {
+                email: email.unwrap_or(existing.email),
+                bio: bio.or(existing.bio),
+                image: image.or(existing.image),
+                ..existing
             }
-        })?;
-        Ok(resp)
+        };
+
+        debug!("Updating user {}", user_id);
+        tx.update_user(&updated).await?;
+        debug!(
+            "Successfully updated user {}. Committing Transaction.",
+            user_id
+        );
+        tx.commit().await.server_err()?;
+
+        let resp = to_json_response(&UserResponseBody::from(User::from(updated)))?;
+
+        Ok::<_, Error>(resp)
     }
-    inner(req).await.unwrap_or_else(IntoResponse::into_response)
+    .await
+    .unwrap_or_else(IntoResponse::into_response)
 }
 
-
-/// Converts a serializable payload into a JSON response
-fn to_json_response<B: serde::Serialize>(body: &B) -> Result<Response, Response> {
-    Response::new(200)
-        .body_json(body)
-        .map_err(|e| {
-            let error_msg = format!("Failed to serialize response -- {}", e);
-            warn!("{}", error_msg);
-            Response::new(500).body_string(error_msg)
-        })
-}
-
-fn get_token_from_request(header: &str) -> String {
-    header
-        .splitn(2, ' ')
-        .nth(1)
-        .unwrap_or_default()
-        .to_owned()
-}
-
-async fn authorize(token: &str) -> anyhow::Result<i32> {
-    let data = jsonwebtoken::decode::<TokenClaims>(
-        token,
-        SECRET_KEY.as_ref(),
-        &jsonwebtoken::Validation::default(),
-    )?;
-
-    Ok(data.claims.sub)
-}
-
-// TODO: Does this need to be spawned in async-std ?
-fn hash_password(password: &str) -> anyhow::Result<String> {
+/// Hashes and salts a password for storage in a DB
+fn hash_password(password: &str) -> argon2::Result<String> {
     let salt = generate_random_salt();
     let hash = argon2::hash_encoded(password.as_bytes(), &salt, &argon2::Config::default())?;
 
     Ok(hash)
 }
 
+/// Generate a salt that will be used on passwords
 fn generate_random_salt() -> [u8; 16] {
     let mut salt = [0; 16];
     thread_rng().fill_bytes(&mut salt);
-
     salt
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-struct TokenClaims {
-    sub: i32,
-    exp: i64,
-}
-
-fn generate_token(user_id: i32) -> anyhow::Result<String> {
+/// Generate a JWT for the user_id
+fn generate_token(user_id: i32) -> jsonwebtoken::errors::Result<String> {
     use jsonwebtoken::Header;
 
-    let exp = Utc::now() + Duration::hours(1);
+    let exp = Utc::now() + Duration::hours(24);  // n.b. (bad for sec, good for testing)
     let token = jsonwebtoken::encode(
         &Header::default(),
         &TokenClaims {
