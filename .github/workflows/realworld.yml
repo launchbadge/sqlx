@@ -1,0 +1,111 @@
+name: Build realworld
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: [9.6, 10, 12]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: realworld
+        ports:
+          - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v1
+
+      # Rust ------------------------------------------------
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache target/
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      # -----------------------------------------------------
+
+      - name: Load schema
+        working-directory: examples/realworld
+        run: |
+          export CONTAINER_ID=$(docker ps --filter "ancestor=postgres:${{ matrix.postgres }}" --format "{{.ID}}")
+          docker cp schema/postgres.sql $CONTAINER_ID:/schema.sql
+          docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
+        env:
+          # the in-container port is always 5432
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/realworld
+
+      - name: cargo build
+        run: cargo build --features postgres
+        working-directory: examples/realworld
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
+
+      - name: run API integration tests
+        working-directory: examples/realworld
+        run: |
+          cargo run --features postgres -- --db postgres &
+          sleep 5;
+          npx newman@latest run https://raw.githubusercontent.com/gothinkster/realworld/master/api/Conduit.postman_collection.json \
+            --global-var "APIURL=http://localhost:8080/api" \
+            --global-var "USERNAME=sqlx_`date +%s`" \
+            --global-var "EMAIL=sqlx_`date +%s`@not.a.real.email" \
+            --global-var "PASSWORD=insecure"
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
+
+  sqlite:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache target/
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install sqlite3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+      - name: Initialize db
+        working-directory: examples/realworld
+        run: |
+          sqlite3 realworld.db < schema/sqlite.sql
+
+      - name: cargo build
+        run: DATABASE_URL=sqlite://${PWD}/realworld.db cargo build --features sqlite
+        working-directory: examples/realworld
+
+      # TODO: run integration tests once #193 is resolved
