@@ -3,15 +3,14 @@ use std::convert::TryFrom;
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
+use sqlx::error::DatabaseError;
 use sqlx::pool::PoolConnection;
-use sqlx::sqlite::{SqliteQueryAs, SqliteError};
+use sqlx::sqlite::{SqliteError, SqliteQueryAs};
 use sqlx::Error as SqlxError;
 use sqlx::{Connection, Cursor, Executor, FromRow, SqliteConnection, SqlitePool};
-use sqlx::error::DatabaseError;
 
 use crate::db::model::*;
 use crate::db::Db;
-
 
 impl TryFrom<&SqliteError> for ProvideError {
     type Error = ();
@@ -30,7 +29,6 @@ impl TryFrom<&SqliteError> for ProvideError {
         Ok(provider_err)
     }
 }
-
 
 #[derive(sqlx::FromRow)]
 struct SqliteArticleEntity {
@@ -478,12 +476,11 @@ WHERE comment_id = $2
             article_slug,
             comment_id,
         )
-            .fetch_one(self)
-            .await?;
+        .fetch_one(self)
+        .await?;
 
         Ok(rec.into())
     }
-
 
     async fn get_comments_on_article(
         &mut self,

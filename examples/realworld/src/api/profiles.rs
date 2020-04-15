@@ -1,14 +1,14 @@
+use futures::TryFutureExt;
 use log::*;
 use serde::Serialize;
 use sqlx::pool::PoolConnection;
 use sqlx::{Connect, Connection};
 use tide::{Error, IntoResponse, Request, Response, ResultExt};
-use futures::TryFutureExt;
 
+use crate::api::model::*;
 use crate::api::util::*;
 use crate::db::model::*;
 use crate::db::Db;
-use crate::api::model::*;
 
 #[derive(Serialize)]
 struct ProfileResponseBody {

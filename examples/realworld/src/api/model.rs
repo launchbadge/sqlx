@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use serde::Serialize;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 
 use crate::db::model::*;
 
@@ -25,7 +25,10 @@ pub(in crate::api) struct Article {
 
 impl Article {
     /// Create an article with the author.following field populated
-    pub fn with_following(entities: (ArticleEntity, ProfileEntity), leader_ids: &HashSet<EntityId>) -> Self {
+    pub fn with_following(
+        entities: (ArticleEntity, ProfileEntity),
+        leader_ids: &HashSet<EntityId>,
+    ) -> Self {
         let is_following = leader_ids.contains(&entities.1.user_id);
         let mut article = Article::from(entities);
         article.author.following = is_following;
@@ -72,7 +75,7 @@ impl From<(ArticleEntity, Profile)> for Article {
             updated_at,
             tag_list: vec![],
             favorited: false,
-            favorites_count: 0
+            favorites_count: 0,
         }
     }
 }
@@ -90,24 +93,24 @@ pub(in crate::api) struct Profile {
 
 impl Profile {
     pub fn following(self, following: bool) -> Self {
-        Profile {
-            following,
-            ..self
-        }
+        Profile { following, ..self }
     }
 }
 
 impl From<ProfileEntity> for Profile {
     fn from(ent: ProfileEntity) -> Self {
         let ProfileEntity {
-            username, bio, image, ..
+            username,
+            bio,
+            image,
+            ..
         } = ent;
 
         Profile {
             username,
             bio,
             image,
-            following: false
+            following: false,
         }
     }
 }

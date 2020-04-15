@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use futures::TryFutureExt;
 use log::*;
 use rand::{thread_rng, RngCore};
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::pool::PoolConnection;
 use sqlx::{Connect, Connection};
 use tide::{Error, IntoResponse, Request, Response, ResultExt};
@@ -70,10 +70,12 @@ impl<T> From<Option<T>> for Nullable<T> {
 }
 
 impl<'de, T> Deserialize<'de> for Nullable<T>
-    where T: Deserialize<'de>
+where
+    T: Deserialize<'de>,
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
-        D: Deserializer<'de>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         Option::deserialize(deserializer).map(Nullable::from)
     }
@@ -84,7 +86,6 @@ impl<T> Default for Nullable<T> {
         Nullable::Missing
     }
 }
-
 
 /// The response body for User API requests
 #[derive(Serialize)]
@@ -192,9 +193,11 @@ pub async fn get_current_user(
         let mut db = state.conn().await.server_err()?;
 
         // n.b - the app doesn't support deleting users
-        let user_ent= db.get_user_by_id(user_id).await?;
+        let user_ent = db.get_user_by_id(user_id).await?;
 
-        let resp = to_json_response(&UserResponseBody::from(User::from(user_ent).token(Some(token))))?;
+        let resp = to_json_response(&UserResponseBody::from(
+            User::from(user_ent).token(Some(token)),
+        ))?;
 
         Ok::<_, Error>(resp)
     }
@@ -346,7 +349,7 @@ fn generate_random_salt() -> [u8; 16] {
 fn generate_token(user_id: i32) -> jsonwebtoken::errors::Result<String> {
     use jsonwebtoken::Header;
 
-    let exp = Utc::now() + Duration::hours(24);  // n.b. (bad for sec, good for testing)
+    let exp = Utc::now() + Duration::hours(24); // n.b. (bad for sec, good for testing)
     let token = jsonwebtoken::encode(
         &Header::default(),
         &TokenClaims {

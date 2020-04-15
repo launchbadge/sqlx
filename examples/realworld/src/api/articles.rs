@@ -280,7 +280,8 @@ pub async fn delete_article(
         let mut tx = state
             .conn()
             .and_then(Connection::begin)
-            .await.server_err()?;
+            .await
+            .server_err()?;
 
         let article = tx.get_article_by_slug(&slug).await?;
 
