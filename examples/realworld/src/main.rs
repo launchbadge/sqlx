@@ -1,10 +1,10 @@
 use async_std::net::ToSocketAddrs;
 
-use sqlx_example_realworld::api::{articles, profiles, users};
-use sqlx_example_realworld::db::Db;
-use sqlx_example_realworld::db::model::{ProvideAuthn, ProvideData};
-use sqlx_example_realworld::db;
 use sqlx::pool::PoolConnection;
+use sqlx_example_realworld::api::{articles, profiles, users};
+use sqlx_example_realworld::db;
+use sqlx_example_realworld::db::model::{ProvideAuthn, ProvideData};
+use sqlx_example_realworld::db::Db;
 use tide::middleware::RequestLogger;
 
 #[derive(structopt::StructOpt)]
@@ -21,8 +21,8 @@ struct Args {
 
 async fn run_server<S, C>(addr: impl ToSocketAddrs, state: S) -> anyhow::Result<()>
 where
-    S: Send + Sync + Db<Conn=PoolConnection<C>> + 'static,
-    C: sqlx::Connect + ProvideAuthn + ProvideData
+    S: Send + Sync + Db<Conn = PoolConnection<C>> + 'static,
+    C: sqlx::Connect + ProvideAuthn + ProvideData,
 {
     let mut server = tide::with_state(state);
 
@@ -31,43 +31,50 @@ where
     // users
     server.at("/api/users").post(users::register);
     server.at("/api/users/login").post(users::login);
-    server.at("/api/user")
+    server
+        .at("/api/user")
         .get(users::get_current_user)
         .put(users::update_user);
 
     // profiles
-    server.at("/api/profiles/:username").get(profiles::get_profile);
-    server.at("/api/profiles/:username/follow")
+    server
+        .at("/api/profiles/:username")
+        .get(profiles::get_profile);
+    server
+        .at("/api/profiles/:username/follow")
         .post(profiles::follow_user)
         .delete(profiles::unfollow_user);
 
     // articles
-    server.at("/api/articles")
+    server
+        .at("/api/articles")
         .get(articles::list_articles)
         .post(articles::create_article);
 
-    server.at("/api/articles/:slug")
+    server
+        .at("/api/articles/:slug")
         .get(articles::get_article)
         .put(articles::update_article)
         .delete(articles::delete_article);
-    server.at("/api/articles/feed")
-        .get(articles::get_feed);
+    server.at("/api/articles/feed").get(articles::get_feed);
 
     // favorites
-    server.at("/api/articles/:slug/favorite")
+    server
+        .at("/api/articles/:slug/favorite")
         .post(articles::favorite_article)
         .delete(articles::unfavorite_article);
 
     // comments
-    server.at("/api/articles/:slug/comments")
+    server
+        .at("/api/articles/:slug/comments")
         .post(articles::add_comment)
         .get(articles::get_comments);
-    server.at("/api/articles/:slug/comments/:comment_id")
+    server
+        .at("/api/articles/:slug/comments/:comment_id")
         .delete(articles::delete_comment);
 
     // tags
-    server.at("/api/tags")
-        .get(articles::get_tags);
+    server.at("/api/tags").get(articles::get_tags);
 
     server.listen(addr).await?;
 

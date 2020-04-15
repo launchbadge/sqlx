@@ -191,16 +191,17 @@ impl From<SqlxError> for ProvideError {
                 {
                     if let Some(pg_err) = db_err.try_downcast_ref::<sqlx::postgres::PgError>() {
                         if let Ok(provide_err) = ProvideError::try_from(pg_err) {
-                            return provide_err
+                            return provide_err;
                         }
                     }
                 }
 
                 #[cfg(feature = "sqlite")]
                 {
-                    if let Some(sqlite_err) = db_err.try_downcast_ref::<sqlx::sqlite::SqliteError>() {
+                    if let Some(sqlite_err) = db_err.try_downcast_ref::<sqlx::sqlite::SqliteError>()
+                    {
                         if let Ok(provide_err) = ProvideError::try_from(sqlite_err) {
-                            return provide_err
+                            return provide_err;
                         }
                     }
                 }
@@ -211,4 +212,3 @@ impl From<SqlxError> for ProvideError {
         }
     }
 }
-

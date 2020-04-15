@@ -1,10 +1,10 @@
 use std::convert::TryFrom;
 
 use async_trait::async_trait;
-use sqlx::pool::PoolConnection;
-use sqlx::{PgConnection, PgPool};
 use sqlx::error::DatabaseError;
+use sqlx::pool::PoolConnection;
 use sqlx::postgres::PgError;
+use sqlx::{PgConnection, PgPool};
 
 use crate::db::model::*;
 use crate::db::Db;
@@ -402,8 +402,8 @@ WHERE comment_id = $2
             article_slug,
             comment_id,
         )
-            .fetch_one(self)
-            .await?;
+        .fetch_one(self)
+        .await?;
 
         Ok(rec)
     }
