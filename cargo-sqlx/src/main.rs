@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -59,40 +60,41 @@ async fn main() -> Result<()> {
             MigrationCommand::Add { name } => add_migration_file(&name)?,
             MigrationCommand::Run => run_migrations().await?,
         },
-        Opt::Database(command) => match command {
-            DatabaseCommand::Create => run_create_database().await?,
-            DatabaseCommand::Drop => run_drop_database().await?,
-        },
+        Opt::Database(command) => {
+            dotenv().ok();
+            let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
+            let database = Postgres { db_url: &db_url };
+            match command {
+                DatabaseCommand::Create => run_create_database(&database).await?,
+                DatabaseCommand::Drop => run_drop_database(&database).await?,
+            }
+        }
     };
 
     println!("All done!");
     Ok(())
 }
 
-async fn run_create_database() -> Result<()> {
-    dotenv().ok();
-    let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
-    let db_url = get_base_url(&db_url)?;
+async fn run_create_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
+    let db_name = db_creator.get_db_name()?;
+    let db_exists = db_creator.check_if_db_exists(&db_name).await?;
 
-    let db_exists = check_if_db_exists(&db_url).await?;
-    if db_exists {
+    if !db_exists {
+        println!("Creating database: {}", db_name);
+        Ok(db_creator.create_database(&db_name).await?)
+    } else {
         println!("Database already exists, aborting");
         Ok(())
-    } else {
-        println!("Creating database: {}", db_url.db_name);
-        Ok(create_database(&db_url).await?)
     }
 }
 
-async fn run_drop_database() -> Result<()> {
-    dotenv().ok();
-    let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
-    let db_url = get_base_url(&db_url)?;
+async fn run_drop_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
+    let db_name = db_creator.get_db_name()?;
+    let db_exists = db_creator.check_if_db_exists(&db_name).await?;
 
-    let db_exists = check_if_db_exists(&db_url).await?;
     if db_exists {
-        println!("Dropping database: {}", db_url.db_name);
-        Ok(drop_database(&db_url).await?)
+        println!("Dropping database: {}", db_name);
+        Ok(db_creator.drop_database(&db_name).await?)
     } else {
         println!("Database does not exists, aborting");
         Ok(())
@@ -219,50 +221,7 @@ fn get_base_url<'a>(db_url: &'a str) -> Result<DbUrl> {
     Ok(DbUrl { base_url, db_name })
 }
 
-async fn check_if_db_exists(db_url: &DbUrl<'_>) -> Result<bool> {
-    let db_name = db_url.db_name;
-    let base_url = db_url.base_url;
 
-    let mut conn = PgConnection::connect(base_url).await?;
-
-    let result: bool =
-        sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
-            .bind(db_name)
-            .try_map(|row: PgRow| row.try_get("exists"))
-            .fetch_one(&mut conn)
-            .await
-            .context("Failed to check if database exists")?;
-
-    Ok(result)
-}
-
-async fn create_database(db_url: &DbUrl<'_>) -> Result<()> {
-    let db_name = db_url.db_name;
-    let base_url = db_url.base_url;
-
-    let mut conn = PgConnection::connect(base_url).await?;
-
-    sqlx::query(&format!("CREATE DATABASE {}", db_name))
-        .execute(&mut conn)
-        .await
-        .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-    Ok(())
-}
-
-async fn drop_database(db_url: &DbUrl<'_>) -> Result<()> {
-    let db_name = db_url.db_name;
-    let base_url = db_url.base_url;
-
-    let mut conn = PgConnection::connect(base_url).await?;
-
-    sqlx::query(&format!("DROP DATABASE {}", db_name))
-        .execute(&mut conn)
-        .await
-        .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-    Ok(())
-}
 
 async fn create_migration_table(mut pool: &PgPool) -> Result<()> {
     pool.execute(
@@ -300,4 +259,78 @@ async fn save_applied_migration(pool: &mut PgConnection, migration: &str) -> Res
         .context("Failed to insert migration")?;
 
     Ok(())
+}
+
+pub struct Postgres<'a> {
+    pub db_url: &'a str,
+}
+
+
+#[async_trait]
+pub trait DatabaseCreator {
+    fn can_create_db(&self) -> Result<bool>;
+     fn get_db_name(&self) -> Result<String>;
+    async fn check_if_db_exists(&self, db_name: &str) -> Result<bool>;
+    async fn create_database(&self, db_name: &str) -> Result<()>;
+    async fn drop_database(&self, db_name: &str) -> Result<()>;
+}
+
+#[async_trait]
+impl DatabaseCreator for Postgres<'_> {
+    fn can_create_db(&self) -> Result<bool> {
+        Ok(true)
+    }
+
+     fn get_db_name(&self) -> Result<String> {
+        let db_url = get_base_url(self.db_url)?;
+        Ok(db_url.db_name.to_string())
+    }
+
+    async fn check_if_db_exists(&self, db_name: &str) -> Result<bool> {
+        let db_url = get_base_url(self.db_url)?;
+
+        let base_url = db_url.base_url;
+    
+        let mut conn = PgConnection::connect(base_url).await?;
+    
+        let result: bool =
+            sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
+                .bind(db_name)
+                .try_map(|row: PgRow| row.try_get("exists"))
+                .fetch_one(&mut conn)
+                .await
+                .context("Failed to check if database exists")?;
+    
+        Ok(result)
+    }
+
+    async fn create_database(&self, db_name: &str) -> Result<()> {
+        let db_url = get_base_url(self.db_url)?;
+
+        let base_url = db_url.base_url;
+    
+        let mut conn = PgConnection::connect(base_url).await?;
+    
+        sqlx::query(&format!("CREATE DATABASE {}", db_name))
+            .execute(&mut conn)
+            .await
+            .with_context(|| format!("Failed to create database: {}", db_name))?;
+    
+        Ok(())
+    }
+
+    async fn drop_database(&self, db_name: &str) -> Result<()> {
+        let db_url = get_base_url(self.db_url)?;
+
+        let base_url = db_url.base_url;
+    
+        let mut conn = PgConnection::connect(base_url).await?;
+    
+        sqlx::query(&format!("DROP DATABASE {}", db_name))
+            .execute(&mut conn)
+            .await
+            .with_context(|| format!("Failed to create database: {}", db_name))?;
+    
+        Ok(())
+    }
 }
