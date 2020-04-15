@@ -39,61 +39,6 @@ jobs:
         # required because the `env` key does not expand environment variables
         run: DATABASE_URL=sqlite://$PWD/todos.db cargo build
 
-  postgres-realworld:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        postgres: [9.4, 10, 12]
-
-    services:
-      postgres:
-        image: postgres:${{ matrix.postgres }}
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: realworld
-        ports:
-        - 5432/tcp
-        # needed because the postgres container does not provide a healthcheck
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
-    steps:
-    - uses: actions/checkout@v1
-
-    # Rust ------------------------------------------------
-
-    - name: Install Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
-    - name: Cache target/
-      uses: actions/cache@v1
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-    
-    # -----------------------------------------------------
-    
-    # load schema.sql
-    - name: Load schema
-      working-directory: examples/postgres/realworld
-      run: |
-        export CONTAINER_ID=$(docker ps --filter "ancestor=postgres:${{ matrix.postgres }}" --format "{{.ID}}")
-        docker cp schema.sql $CONTAINER_ID:/schema.sql
-        docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
-      env:
-        # the in-container port is always 5432
-        DATABASE_URL: postgres://postgres:postgres@localhost:5432/realworld
-    
-    # build the example
-    - working-directory: examples/postgres/realworld
-      run: cargo build
-      env:
-        DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld
-  
   postgres-listen:
     runs-on: ubuntu-latest
 
