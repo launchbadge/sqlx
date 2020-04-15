@@ -6,9 +6,10 @@ Database url is supplied through either env variable or `.env` file containing `
 
 ##### Commands
 - `add <name>` - add new migration to your migrations folder named `<timestamp>_<name>.sql` 
+- `database` - create or drop database based on connection string
 - `run` - Runs all migrations in your migrations folder
 
 
 ##### Limitations
 - No down migrations! If you need down migrations, there are other more feature complete migrators to use.
-- Only support postgres. Could be convinced to add other databases if there is need and easy to use database connection libs.
+- Only support postgres. Other databases is planned
