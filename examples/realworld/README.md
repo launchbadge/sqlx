@@ -51,3 +51,23 @@ This application supports both SQLite and PostgreSQL!
       --header 'content-type: application/json' \
       --data '{"user":{"email":"sqlx_user@foo.baz", "password":"not_secure"}}'
     ```
+
+
+## Unimplemented Features
+
+* Filters via query parameters
+* Unit tests
+
+## Known Issues/Quirks
+
+* This is not a production application, pks are public ids, caveat emptor, etc.
+* Currently you CANNOT compile this crate with multiple DB backends enabled as the query macros
+    will conflict with one another.
+* SQLite locks the tables if there are basically any errors (e.g. constraint violations). This may be related to
+    [#193](https://github.com/launchbadge/sqlx/issues/193)
+* The realworld API tests complain about timestamps in our responses.
+    This is an issue w/ their tests [gothinkster/realworld#490]https://github.com/gothinkster/realworld/pull/490
+* As of `0.6.0`, `tide` has not fully worked out the error handling story.
+    `tide::ResultExt` helps but as of now API endpoint functions can only return `tide::Response`
+* `sqlx::Error` does not carry type information about the Database so some clever downcasting
+    is needed to resolve details from Database errors

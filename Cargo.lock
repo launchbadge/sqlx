@@ -302,12 +302,14 @@ checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 name = "cargo-sqlx"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "dotenv",
  "futures 0.3.4",
  "sqlx",
  "structopt",
  "tokio 0.2.13",
+ "url 2.1.1",
 ]
 
 [[package]]
@@ -330,6 +332,7 @@ checksum = "80094f509cf8b5ae86a4966a39b3ff66cd7e2a3e594accec3743ff3fabeab5b2"
 dependencies = [
  "num-integer",
  "num-traits",
+ "serde",
  "time 0.1.42",
 ]
 
@@ -896,6 +899,15 @@ name = "ipnetwork"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
+
+[[package]]
+name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itoa"
@@ -1813,12 +1825,17 @@ dependencies = [
  "async-trait",
  "chrono",
  "env_logger",
+ "futures 0.3.4",
+ "heck",
+ "http",
+ "itertools",
  "jsonwebtoken",
  "log",
  "paw",
  "rand",
  "rust-argon2",
  "serde",
+ "serde_json",
  "sqlx",
  "structopt",
  "thiserror",
