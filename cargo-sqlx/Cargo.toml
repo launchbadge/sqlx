@@ -24,3 +24,12 @@ chrono = "0.4"
 anyhow = "1.0"
 url = { version = "2.1.1", default-features = false }
 async-trait = "0.1.30"
+
+[features]
+default = [ "postgres", "sqlite" ]
+
+
+# database
+mysql = [ "sqlx/mysql" ]
+postgres = [ "sqlx/postgres" ]
+sqlite = [ "sqlx/sqlite" ]
