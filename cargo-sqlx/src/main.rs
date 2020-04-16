@@ -76,8 +76,15 @@ async fn main() -> Result<()> {
 }
 
 async fn run_create_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
-    let db_name = db_creator.get_db_name()?;
-    let db_exists = db_creator.check_if_db_exists(&db_name).await?;
+    if !db_creator.can_create_database() {
+        return Err(anyhow!(
+            "Database drop is not implemented for {}",
+            db_creator.database_type()
+        ));
+    }
+
+    let db_name = db_creator.get_database_name()?;
+    let db_exists = db_creator.check_if_database_exists(&db_name).await?;
 
     if !db_exists {
         println!("Creating database: {}", db_name);
@@ -89,8 +96,15 @@ async fn run_create_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
 }
 
 async fn run_drop_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
-    let db_name = db_creator.get_db_name()?;
-    let db_exists = db_creator.check_if_db_exists(&db_name).await?;
+    if !db_creator.can_drop_database() {
+        return Err(anyhow!(
+            "Database drop is not implemented for {}",
+            db_creator.database_type()
+        ));
+    }
+
+    let db_name = db_creator.get_database_name()?;
+    let db_exists = db_creator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
         println!("Dropping database: {}", db_name);
