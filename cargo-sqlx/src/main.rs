@@ -6,23 +6,17 @@ use url::Url;
 
 use dotenv::dotenv;
 
-use sqlx::postgres::PgRow;
-use sqlx::Executor;
-use sqlx::PgConnection;
-use sqlx::PgPool;
-use sqlx::Row;
-
 use structopt::StructOpt;
 
 use anyhow::{anyhow, Context, Result};
 
 mod database_migrator;
 mod postgres;
-mod sqlite;
+// mod sqlite;
 
 use database_migrator::DatabaseMigrator;
 use postgres::Postgres;
-use sqlite::Sqlite;
+// use sqlite::Sqlite;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
@@ -69,13 +63,14 @@ async fn main() -> Result<()> {
     // This code is taken from: https://github.com/launchbadge/sqlx/blob/master/sqlx-macros/src/lib.rs#L63
     match db_url.scheme() {
         #[cfg(feature = "sqlite")]
-        "sqlite" => run_command(&Sqlite { db_url: &db_url_raw }).await?,
+        // "sqlite" => run_command(&Sqlite { db_url: &db_url_raw }).await?,
+         "sqlite" => return Err(anyhow!("error")),
         #[cfg(not(feature = "sqlite"))]
         "sqlite" => return Err(anyhow!("Not implemented. DATABASE_URL {} has the scheme of a SQLite database but the `sqlite` feature of sqlx was not enabled",
                             db_url)),
 
         #[cfg(feature = "postgres")]
-        "postgresql" | "postgres" => run_command(&Postgres { db_url: &db_url_raw }).await?,
+        "postgresql" | "postgres" => run_command(&Postgres::new(db_url_raw)).await?,
         #[cfg(not(feature = "postgres"))]
         "postgresql" | "postgres" => Err(anyhow!("DATABASE_URL {} has the scheme of a Postgres database but the `postgres` feature of sqlx was not enabled",
                 db_url)),
@@ -101,7 +96,7 @@ async fn run_command(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     match opt {
         Opt::Migrate(command) => match command {
             MigrationCommand::Add { name } => add_migration_file(&name)?,
-            MigrationCommand::Run => run_migrations().await?,
+            MigrationCommand::Run => run_migrations(db_creator).await?,
         },
         Opt::Database(command) => match command {
             DatabaseCommand::Create => run_create_database(db_creator).await?,
@@ -221,80 +216,37 @@ fn load_migrations() -> Result<Vec<Migration>> {
     Ok(migrations)
 }
 
-async fn run_migrations() -> Result<()> {
-    dotenv().ok();
-    let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
+async fn run_migrations(db_creator: &dyn DatabaseMigrator) -> Result<()> {
+    if !db_creator.can_migrate_database() {
+        return Err(anyhow!(
+            "Database migrations not implemented for {}",
+            db_creator.database_type()
+        ));
+    }
 
-    // if !db_creator.can_create_database() {
-    //     return Err(anyhow!(
-    //         "Database drop is not implemented for {}",
-    //         db_creator.database_type()
-    //     ));
-    // }
-
-    let mut pool = PgPool::new(&db_url)
-        .await
-        .context("Failed to connect to pool")?;
-
-    create_migration_table(&mut pool).await?;
+    db_creator.create_migration_table().await?;
 
     let migrations = load_migrations()?;
 
     for mig in migrations.iter() {
-        let mut tx = pool.begin().await?;
+        let mut tx = db_creator.begin_migration().await?;
 
-        if check_if_applied(&mut tx, &mig.name).await? {
+        if tx.check_if_applied(&mig.name).await? {
             println!("Already applied migration: '{}'", mig.name);
             continue;
         }
         println!("Applying migration: '{}'", mig.name);
 
-        tx.execute(&*mig.sql)
+        tx.execute_migration(&mig.sql)
             .await
             .with_context(|| format!("Failed to run migration {:?}", &mig.name))?;
 
-        save_applied_migration(&mut tx, &mig.name).await?;
+        tx.save_applied_migration(&mig.name)
+            .await
+            .context("Failed to insert migration")?;
 
         tx.commit().await.context("Failed")?;
     }
-
-    Ok(())
-}
-
-async fn create_migration_table(mut pool: &PgPool) -> Result<()> {
-    pool.execute(
-        r#"
-CREATE TABLE IF NOT EXISTS __migrations (
-    migration VARCHAR (255) PRIMARY KEY,
-    created TIMESTAMP NOT NULL DEFAULT current_timestamp
-);
-    "#,
-    )
-    .await
-    .context("Failed to create migration table")?;
-
-    Ok(())
-}
-
-async fn check_if_applied(connection: &mut PgConnection, migration: &str) -> Result<bool> {
-    let result = sqlx::query(
-        "select exists(select migration from __migrations where migration = $1) as exists",
-    )
-    .bind(migration.to_string())
-    .try_map(|row: PgRow| row.try_get("exists"))
-    .fetch_one(connection)
-    .await
-    .context("Failed to check migration table")?;
-
-    Ok(result)
-}
-
-async fn save_applied_migration(pool: &mut PgConnection, migration: &str) -> Result<()> {
-    sqlx::query("insert into __migrations (migration) values ($1)")
-        .bind(migration.to_string())
-        .execute(pool)
-        .await
-        .context("Failed to insert migration")?;
 
     Ok(())
 }
