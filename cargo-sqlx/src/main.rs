@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -8,7 +7,6 @@ use url::Url;
 use dotenv::dotenv;
 
 use sqlx::postgres::PgRow;
-use sqlx::Connect;
 use sqlx::Executor;
 use sqlx::PgConnection;
 use sqlx::PgPool;
@@ -17,6 +15,14 @@ use sqlx::Row;
 use structopt::StructOpt;
 
 use anyhow::{anyhow, Context, Result};
+
+mod database_migrator;
+mod postgres;
+mod sqlite;
+
+use database_migrator::DatabaseMigrator;
+use postgres::Postgres;
+use sqlite::Sqlite;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
@@ -83,13 +89,13 @@ async fn main() -> Result<()> {
         )),
 
         scheme => return Err(anyhow!("unexpected scheme {:?} in DATABASE_URL {}", scheme, db_url)),
-    }    
+    }
 
     println!("All done!");
     Ok(())
 }
 
-async fn run_command(db_creator: &dyn DatabaseCreator) -> Result<()> {
+async fn run_command(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     let opt = Opt::from_args();
 
     match opt {
@@ -106,7 +112,7 @@ async fn run_command(db_creator: &dyn DatabaseCreator) -> Result<()> {
     Ok(())
 }
 
-async fn run_create_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
+async fn run_create_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     if !db_creator.can_create_database() {
         return Err(anyhow!(
             "Database drop is not implemented for {}",
@@ -126,7 +132,7 @@ async fn run_create_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
     }
 }
 
-async fn run_drop_database(db_creator: &dyn DatabaseCreator) -> Result<()> {
+async fn run_drop_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     if !db_creator.can_drop_database() {
         return Err(anyhow!(
             "Database drop is not implemented for {}",
@@ -219,6 +225,13 @@ async fn run_migrations() -> Result<()> {
     dotenv().ok();
     let db_url = env::var("DATABASE_URL").context("Failed to find 'DATABASE_URL'")?;
 
+    // if !db_creator.can_create_database() {
+    //     return Err(anyhow!(
+    //         "Database drop is not implemented for {}",
+    //         db_creator.database_type()
+    //     ));
+    // }
+
     let mut pool = PgPool::new(&db_url)
         .await
         .context("Failed to connect to pool")?;
@@ -246,24 +259,6 @@ async fn run_migrations() -> Result<()> {
     }
 
     Ok(())
-}
-
-struct DbUrl<'a> {
-    base_url: &'a str,
-    db_name: &'a str,
-}
-
-fn get_base_url<'a>(db_url: &'a str) -> Result<DbUrl> {
-    let split: Vec<&str> = db_url.rsplitn(2, '/').collect();
-
-    if split.len() != 2 {
-        return Err(anyhow!("Failed to find database name in connection string"));
-    }
-
-    let db_name = split[0];
-    let base_url = split[1];
-
-    Ok(DbUrl { base_url, db_name })
 }
 
 async fn create_migration_table(mut pool: &PgPool) -> Result<()> {
@@ -302,172 +297,4 @@ async fn save_applied_migration(pool: &mut PgConnection, migration: &str) -> Res
         .context("Failed to insert migration")?;
 
     Ok(())
-}
-
-pub struct Postgres<'a> {
-    pub db_url: &'a str,
-}
-
-pub struct Sqlite<'a> {
-    pub db_url: &'a str,
-}
-
-#[async_trait]
-pub trait DatabaseCreator {
-    fn database_type(&self) -> String;
-
-    fn get_database_name(&self) -> Result<String>;
-
-    fn can_migrate_database(&self) -> bool;
-    fn can_create_database(&self) -> bool;
-    fn can_drop_database(&self) -> bool;
-
-    async fn check_if_database_exists(&self, db_name: &str) -> Result<bool>;
-    async fn create_database(&self, db_name: &str) -> Result<()>;
-    async fn drop_database(&self, db_name: &str) -> Result<()>;
-}
-
-#[async_trait]
-impl DatabaseCreator for Postgres<'_> {
-    fn database_type(&self) -> String {
-        "Postgres".to_string()
-    }
-
-    fn can_migrate_database(&self) -> bool {
-        true
-    }
-
-    fn can_create_database(&self) -> bool {
-        true
-    }
-
-    fn can_drop_database(&self) -> bool {
-        true
-    }
-
-    fn get_database_name(&self) -> Result<String> {
-        let db_url = get_base_url(self.db_url)?;
-        Ok(db_url.db_name.to_string())
-    }
-
-    async fn check_if_database_exists(&self, db_name: &str) -> Result<bool> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        let result: bool =
-            sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
-                .bind(db_name)
-                .try_map(|row: PgRow| row.try_get("exists"))
-                .fetch_one(&mut conn)
-                .await
-                .context("Failed to check if database exists")?;
-
-        Ok(result)
-    }
-
-    async fn create_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        sqlx::query(&format!("CREATE DATABASE {}", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-        Ok(())
-    }
-
-    async fn drop_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        sqlx::query(&format!("DROP DATABASE {}", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-        Ok(())
-    }
-}
-
-
-#[async_trait]
-impl DatabaseCreator for Sqlite<'_> {
-    fn database_type(&self) -> String {
-        "Postgres".to_string()
-    }
-
-    fn can_migrate_database(&self) -> bool {
-        true
-    }
-
-    fn can_create_database(&self) -> bool {
-        true
-    }
-
-    fn can_drop_database(&self) -> bool {
-        true
-    }
-
-    fn get_database_name(&self) -> Result<String> {
-        let db_url = get_base_url(self.db_url)?;
-        Ok(db_url.db_name.to_string())
-    }
-
-    async fn check_if_database_exists(&self, db_name: &str) -> Result<bool> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        let result: bool =
-            sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
-                .bind(db_name)
-                .try_map(|row: PgRow| row.try_get("exists"))
-                .fetch_one(&mut conn)
-                .await
-                .context("Failed to check if database exists")?;
-
-        Ok(result)
-    }
-
-    async fn create_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        sqlx::query(&format!("CREATE DATABASE {}", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-        Ok(())
-    }
-
-    async fn drop_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
-
-        let base_url = db_url.base_url;
-
-        let mut conn = PgConnection::connect(base_url).await?;
-
-        sqlx::query(&format!("DROP DATABASE {}", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to create database: {}", db_name))?;
-
-        Ok(())
-    }
 }
