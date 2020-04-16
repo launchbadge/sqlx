@@ -1,15 +1,26 @@
+use sqlx::pool::PoolConnection;
 use sqlx::postgres::PgRow;
 use sqlx::Connect;
 use sqlx::PgConnection;
+use sqlx::PgPool;
+use sqlx::Executor;
 use sqlx::Row;
 
-use async_trait::async_trait;
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 
-use crate::database_migrator::DatabaseMigrator;
+use crate::database_migrator::{DatabaseMigrator, MigTrans};
 
-pub struct Postgres<'a> {
-    pub db_url: &'a str,
+pub struct Postgres {
+    pub db_url: String,
+}
+
+impl Postgres {
+    pub fn new(db_url: String) -> Self {
+        Postgres {
+            db_url: db_url.clone(),
+        }
+    }
 }
 
 struct DbUrl<'a> {
@@ -30,9 +41,8 @@ fn get_base_url<'a>(db_url: &'a str) -> Result<DbUrl> {
     Ok(DbUrl { base_url, db_name })
 }
 
-
 #[async_trait]
-impl DatabaseMigrator for Postgres<'_> {
+impl DatabaseMigrator for Postgres {
     fn database_type(&self) -> String {
         "Postgres".to_string()
     }
@@ -50,12 +60,12 @@ impl DatabaseMigrator for Postgres<'_> {
     }
 
     fn get_database_name(&self) -> Result<String> {
-        let db_url = get_base_url(self.db_url)?;
+        let db_url = get_base_url(&self.db_url)?;
         Ok(db_url.db_name.to_string())
     }
 
     async fn check_if_database_exists(&self, db_name: &str) -> Result<bool> {
-        let db_url = get_base_url(self.db_url)?;
+        let db_url = get_base_url(&self.db_url)?;
 
         let base_url = db_url.base_url;
 
@@ -73,7 +83,7 @@ impl DatabaseMigrator for Postgres<'_> {
     }
 
     async fn create_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
+        let db_url = get_base_url(&self.db_url)?;
 
         let base_url = db_url.base_url;
 
@@ -88,7 +98,7 @@ impl DatabaseMigrator for Postgres<'_> {
     }
 
     async fn drop_database(&self, db_name: &str) -> Result<()> {
-        let db_url = get_base_url(self.db_url)?;
+        let db_url = get_base_url(&self.db_url)?;
 
         let base_url = db_url.base_url;
 
@@ -99,6 +109,78 @@ impl DatabaseMigrator for Postgres<'_> {
             .await
             .with_context(|| format!("Failed to create database: {}", db_name))?;
 
+        Ok(())
+    }
+
+    async fn create_migration_table(&self) -> Result<()> {
+        let mut conn = PgConnection::connect(&self.db_url).await?;
+
+        sqlx::query(
+            r#"
+    CREATE TABLE IF NOT EXISTS __migrations (
+        migration VARCHAR (255) PRIMARY KEY,
+        created TIMESTAMP NOT NULL DEFAULT current_timestamp
+    );
+        "#,
+        )
+        .execute(&mut conn)
+        .await
+        .context("Failed to create migration table")?;
+
+        Ok(())
+    }
+
+    async fn begin_migration(&self) -> Result<Box<dyn MigTrans>> {
+        let pool = PgPool::new(&self.db_url)
+            .await
+            .context("Failed to connect to pool")?;
+
+        let tx = pool.begin().await?;
+
+        Ok(Box::new(MigTransaction { transaction: tx }))
+    }
+}
+
+pub struct MigTransaction {
+    pub transaction: sqlx::Transaction<PoolConnection<PgConnection>>,
+}
+
+#[async_trait]
+impl MigTrans for MigTransaction {
+    async fn commit(self: Box<Self>) -> Result<()> {
+        self.transaction.commit().await?;
+        Ok(())
+    }
+
+    async fn rollback(self: Box<Self>) -> Result<()> {
+        self.transaction.rollback().await?;
+        Ok(())
+    }
+
+    async fn check_if_applied(&mut self, migration_name: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "select exists(select migration from __migrations where migration = $1) as exists",
+        )
+        .bind(migration_name.to_string())
+        .try_map(|row: PgRow| row.try_get("exists"))
+        .fetch_one(&mut self.transaction)
+        .await
+        .context("Failed to check migration table")?;
+
+        Ok(result)
+    }
+
+    async fn execute_migration(&mut self, migration_sql: &str) -> Result<()> {
+        self.transaction.execute(migration_sql).await?;
+        Ok(())
+    }
+
+    async fn save_applied_migration(&mut self, migration_name: &str) -> Result<()> {
+        sqlx::query("insert into __migrations (migration) values ($1)")
+            .bind(migration_name.to_string())
+            .execute(&mut self.transaction)
+            .await
+            .context("Failed to insert migration")?;
         Ok(())
     }
 }
