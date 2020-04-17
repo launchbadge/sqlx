@@ -17,7 +17,7 @@ path = "src/main.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "0.2", features = ["macros"] }
-sqlx = { version = "0.3", path = "..", default-features = false, features = [ "runtime-tokio", "postgres" ] }
+sqlx = { version = "0.3", path = "..", default-features = false, features = [ "runtime-tokio" ] }
 futures = "0.3"
 structopt = "0.3"
 chrono = "0.4"
