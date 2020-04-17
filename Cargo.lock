@@ -291,12 +291,14 @@ checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 name = "cargo-sqlx"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "dotenv",
  "futures 0.3.4",
  "sqlx",
  "structopt",
  "tokio 0.2.13",
+ "url",
 ]
 
 [[package]]

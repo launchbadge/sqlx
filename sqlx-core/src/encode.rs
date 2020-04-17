@@ -16,7 +16,7 @@ pub enum IsNull {
 }
 
 /// Encode a single value to be sent to the database.
-pub trait Encode<DB>
+pub trait Encode<DB>: Type<DB>
 where
     DB: Database + ?Sized,
 {
