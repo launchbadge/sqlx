@@ -488,11 +488,13 @@ impl Executor for super::PgConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(async move {
-            let (query, arguments) = query.into_parts();
+        log_execution!(query, {
+            Box::pin(async move {
+                let (query, arguments) = query.into_parts();
 
-            self.run(query, arguments).await?;
-            self.affected_rows().await
+                self.run(query, arguments).await?;
+                self.affected_rows().await
+            })
         })
     }
 
@@ -500,7 +502,7 @@ impl Executor for super::PgConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        PgCursor::from_connection(self, query)
+        log_execution!(query, { PgCursor::from_connection(self, query) })
     }
 
     #[doc(hidden)]
@@ -522,6 +524,6 @@ impl<'c> RefExecutor<'c> for &'c mut super::PgConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        PgCursor::from_connection(self, query)
+        log_execution!(query, { PgCursor::from_connection(self, query) })
     }
 }

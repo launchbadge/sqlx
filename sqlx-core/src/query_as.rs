@@ -44,6 +44,12 @@ where
     fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
         (self.query, Some(self.arguments))
     }
+
+    #[inline]
+    #[doc(hidden)]
+    fn query_string(&self) -> &'q str {
+        self.query
+    }
 }
 
 /// Construct a raw SQL query that is mapped to a concrete type
