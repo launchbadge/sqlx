@@ -1,9 +1,9 @@
 use sqlx::pool::PoolConnection;
 use sqlx::postgres::PgRow;
 use sqlx::Connect;
+use sqlx::Executor;
 use sqlx::PgConnection;
 use sqlx::PgPool;
-use sqlx::Executor;
 use sqlx::Row;
 
 use anyhow::{anyhow, Context, Result};

@@ -104,7 +104,7 @@ impl DatabaseMigrator for Sqlite {
         Ok(())
     }
 
-    // 
+    //
     async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>> {
         // let pool = SqlitePool::new(&self.db_url)
         //     .await
