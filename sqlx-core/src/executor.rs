@@ -79,6 +79,10 @@ where
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     fn into_parts(self) -> (&'q str, Option<DB::Arguments>);
+
+    /// Returns the query string, without any parameters replaced.
+    #[doc(hidden)]
+    fn query_string(&self) -> &'q str;
 }
 
 impl<'q, DB> Execute<'q, DB> for &'q str
@@ -88,6 +92,12 @@ where
     #[inline]
     fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
         (self, None)
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    fn query_string(&self) -> &'q str {
+        self
     }
 }
 

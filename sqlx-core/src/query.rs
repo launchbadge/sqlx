@@ -51,6 +51,11 @@ where
     fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
         (self.query, Some(self.arguments))
     }
+
+    #[doc(hidden)]
+    fn query_string(&self) -> &'q str {
+        self.query
+    }
 }
 
 impl<'q, DB> Query<'q, DB>

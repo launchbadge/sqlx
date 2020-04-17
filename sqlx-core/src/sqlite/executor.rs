@@ -91,27 +91,29 @@ impl Executor for SqliteConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        let (mut query, mut arguments) = query.into_parts();
+        log_execution!(query, {
+            let (mut query, mut arguments) = query.into_parts();
 
-        Box::pin(async move {
-            loop {
-                let key = self.prepare(&mut query, arguments.is_some())?;
-                let statement = self.statement_mut(key);
+            Box::pin(async move {
+                loop {
+                    let key = self.prepare(&mut query, arguments.is_some())?;
+                    let statement = self.statement_mut(key);
 
-                if let Some(arguments) = &mut arguments {
-                    statement.bind(arguments)?;
+                    if let Some(arguments) = &mut arguments {
+                        statement.bind(arguments)?;
+                    }
+
+                    while let Step::Row = statement.step().await? {
+                        // We only care about the rows modified; ignore
+                    }
+
+                    if query.is_empty() {
+                        break;
+                    }
                 }
 
-                while let Step::Row = statement.step().await? {
-                    // We only care about the rows modified; ignore
-                }
-
-                if query.is_empty() {
-                    break;
-                }
-            }
-
-            Ok(self.changes())
+                Ok(self.changes())
+            })
         })
     }
 
@@ -119,7 +121,7 @@ impl Executor for SqliteConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        SqliteCursor::from_connection(self, query)
+        log_execution!(query, { SqliteCursor::from_connection(self, query) })
     }
 
     #[doc(hidden)]
@@ -186,6 +188,6 @@ impl<'e> RefExecutor<'e> for &'e mut SqliteConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        SqliteCursor::from_connection(self, query)
+        log_execution!(query, { SqliteCursor::from_connection(self, query) })
     }
 }

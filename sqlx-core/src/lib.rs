@@ -56,6 +56,10 @@ pub mod types;
 #[macro_use]
 pub mod row;
 
+#[cfg(any(feature = "mysql", feature = "postgres", feature = "sqlite"))]
+#[macro_use]
+mod logging;
+
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub mod mysql;

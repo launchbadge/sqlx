@@ -182,11 +182,13 @@ impl Executor for super::MySqlConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(async move {
-            let (query, arguments) = query.into_parts();
+        log_execution!(query, {
+            Box::pin(async move {
+                let (query, arguments) = query.into_parts();
 
-            self.run(query, arguments).await?;
-            self.affected_rows().await
+                self.run(query, arguments).await?;
+                self.affected_rows().await
+            })
         })
     }
 
@@ -194,7 +196,7 @@ impl Executor for super::MySqlConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        MySqlCursor::from_connection(self, query)
+        log_execution!(query, { MySqlCursor::from_connection(self, query) })
     }
 
     #[doc(hidden)]
@@ -216,6 +218,6 @@ impl<'c> RefExecutor<'c> for &'c mut super::MySqlConnection {
     where
         E: Execute<'q, Self::Database>,
     {
-        MySqlCursor::from_connection(self, query)
+        log_execution!(query, { MySqlCursor::from_connection(self, query) })
     }
 }
