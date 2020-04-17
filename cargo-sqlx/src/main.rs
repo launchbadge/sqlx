@@ -24,13 +24,14 @@ const MIGRATION_FOLDER: &'static str = "migrations";
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx")]
 enum Opt {
+    #[structopt(alias = "mig")]
     Migrate(MigrationCommand),
 
     #[structopt(alias = "db")]
     Database(DatabaseCommand),
 }
 
-/// Adds and runs migrations
+/// Adds and runs migrations. Alias: mig
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx migrator")]
 enum MigrationCommand {
