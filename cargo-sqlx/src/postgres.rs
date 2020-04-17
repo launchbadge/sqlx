@@ -9,7 +9,7 @@ use sqlx::Row;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 
-use crate::database_migrator::{DatabaseMigrator, MigTrans};
+use crate::database_migrator::{DatabaseMigrator, MigrationTransaction};
 
 pub struct Postgres {
     pub db_url: String,
@@ -130,23 +130,23 @@ impl DatabaseMigrator for Postgres {
         Ok(())
     }
 
-    async fn begin_migration(&self) -> Result<Box<dyn MigTrans>> {
+    async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>> {
         let pool = PgPool::new(&self.db_url)
             .await
             .context("Failed to connect to pool")?;
 
         let tx = pool.begin().await?;
 
-        Ok(Box::new(MigTransaction { transaction: tx }))
+        Ok(Box::new(PostgresMigration { transaction: tx }))
     }
 }
 
-pub struct MigTransaction {
-    pub transaction: sqlx::Transaction<PoolConnection<PgConnection>>,
+pub struct PostgresMigration {
+    transaction: sqlx::Transaction<PoolConnection<PgConnection>>,
 }
 
 #[async_trait]
-impl MigTrans for MigTransaction {
+impl MigrationTransaction for PostgresMigration {
     async fn commit(self: Box<Self>) -> Result<()> {
         self.transaction.commit().await?;
         Ok(())

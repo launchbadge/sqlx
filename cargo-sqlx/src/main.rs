@@ -12,11 +12,11 @@ use anyhow::{anyhow, Context, Result};
 
 mod database_migrator;
 mod postgres;
-// mod sqlite;
+mod sqlite;
 
 use database_migrator::DatabaseMigrator;
 use postgres::Postgres;
-// use sqlite::Sqlite;
+use sqlite::Sqlite;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
@@ -63,8 +63,7 @@ async fn main() -> Result<()> {
     // This code is taken from: https://github.com/launchbadge/sqlx/blob/master/sqlx-macros/src/lib.rs#L63
     match db_url.scheme() {
         #[cfg(feature = "sqlite")]
-        // "sqlite" => run_command(&Sqlite { db_url: &db_url_raw }).await?,
-         "sqlite" => return Err(anyhow!("error")),
+        "sqlite" => run_command(&Sqlite::new(db_url_raw )).await?,
         #[cfg(not(feature = "sqlite"))]
         "sqlite" => return Err(anyhow!("Not implemented. DATABASE_URL {} has the scheme of a SQLite database but the `sqlite` feature of sqlx was not enabled",
                             db_url)),
@@ -110,7 +109,7 @@ async fn run_command(db_creator: &dyn DatabaseMigrator) -> Result<()> {
 async fn run_create_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     if !db_creator.can_create_database() {
         return Err(anyhow!(
-            "Database drop is not implemented for {}",
+            "Database creation is not implemented for {}",
             db_creator.database_type()
         ));
     }

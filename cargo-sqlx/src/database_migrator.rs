@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait MigTrans {
+pub trait MigrationTransaction {
     async fn commit(self: Box<Self>) -> Result<()>;
     async fn rollback(self: Box<Self>) -> Result<()>;
     async fn check_if_applied(&mut self, migration: &str) -> Result<bool>;
@@ -28,5 +28,5 @@ pub trait DatabaseMigrator {
 
     // Migration
     async fn create_migration_table(&self) -> Result<()>;
-    async fn begin_migration(&self) -> Result<Box<dyn MigTrans>>;
+    async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>>;
 }
