@@ -89,55 +89,55 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn run_command(db_creator: &dyn DatabaseMigrator) -> Result<()> {
+async fn run_command(migrator: &dyn DatabaseMigrator) -> Result<()> {
     let opt = Opt::from_args();
 
     match opt {
         Opt::Migrate(command) => match command {
             MigrationCommand::Add { name } => add_migration_file(&name)?,
-            MigrationCommand::Run => run_migrations(db_creator).await?,
+            MigrationCommand::Run => run_migrations(migrator).await?,
         },
         Opt::Database(command) => match command {
-            DatabaseCommand::Create => run_create_database(db_creator).await?,
-            DatabaseCommand::Drop => run_drop_database(db_creator).await?,
+            DatabaseCommand::Create => run_create_database(migrator).await?,
+            DatabaseCommand::Drop => run_drop_database(migrator).await?,
         },
     };
 
     Ok(())
 }
 
-async fn run_create_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
-    if !db_creator.can_create_database() {
+async fn run_create_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
+    if !migrator.can_create_database() {
         return Err(anyhow!(
             "Database creation is not implemented for {}",
-            db_creator.database_type()
+            migrator.database_type()
         ));
     }
 
-    let db_name = db_creator.get_database_name()?;
-    let db_exists = db_creator.check_if_database_exists(&db_name).await?;
+    let db_name = migrator.get_database_name()?;
+    let db_exists = migrator.check_if_database_exists(&db_name).await?;
 
     if !db_exists {
         println!("Creating database: {}", db_name);
-        Ok(db_creator.create_database(&db_name).await?)
+        Ok(migrator.create_database(&db_name).await?)
     } else {
         println!("Database already exists, aborting");
         Ok(())
     }
 }
 
-async fn run_drop_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
+async fn run_drop_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
     use std::io;
 
-    if !db_creator.can_drop_database() {
+    if !migrator.can_drop_database() {
         return Err(anyhow!(
             "Database drop is not implemented for {}",
-            db_creator.database_type()
+            migrator.database_type()
         ));
     }
 
-    let db_name = db_creator.get_database_name()?;
-    let db_exists = db_creator.check_if_database_exists(&db_name).await?;
+    let db_name = migrator.get_database_name()?;
+    let db_exists = migrator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
 
@@ -159,7 +159,7 @@ async fn run_drop_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
         };
 
         println!("Dropping database: {}", db_name);
-        Ok(db_creator.drop_database(&db_name).await?)
+        Ok(migrator.drop_database(&db_name).await?)
     } else {
         println!("Database does not exists, aborting");
         Ok(())
@@ -235,20 +235,20 @@ fn load_migrations() -> Result<Vec<Migration>> {
     Ok(migrations)
 }
 
-async fn run_migrations(db_creator: &dyn DatabaseMigrator) -> Result<()> {
-    if !db_creator.can_migrate_database() {
+async fn run_migrations(migrator: &dyn DatabaseMigrator) -> Result<()> {
+    if !migrator.can_migrate_database() {
         return Err(anyhow!(
             "Database migrations not implemented for {}",
-            db_creator.database_type()
+            migrator.database_type()
         ));
     }
 
-    db_creator.create_migration_table().await?;
+    migrator.create_migration_table().await?;
 
     let migrations = load_migrations()?;
 
     for mig in migrations.iter() {
-        let mut tx = db_creator.begin_migration().await?;
+        let mut tx = migrator.begin_migration().await?;
 
         if tx.check_if_applied(&mig.name).await? {
             println!("Already applied migration: '{}'", mig.name);
