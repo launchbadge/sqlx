@@ -141,23 +141,25 @@ async fn run_drop_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
     let db_exists = migrator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
-
         loop {
-            println!("\nAre you sure you want to drop the database: {}? Y/n", db_name);
-    
+            println!(
+                "\nAre you sure you want to drop the database: {}? Y/n",
+                db_name
+            );
+
             let mut input = String::new();
-        
+
             io::stdin()
                 .read_line(&mut input)
                 .context("Failed to read line")?;
-        
+
             match input.trim() {
                 "Y" => break,
                 "N" => return Ok(()),
                 "n" => return Ok(()),
                 _ => continue,
             };
-        };
+        }
 
         println!("Dropping database: {}", db_name);
         Ok(migrator.drop_database(&db_name).await?)
