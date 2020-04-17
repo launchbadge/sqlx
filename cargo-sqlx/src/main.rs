@@ -127,6 +127,8 @@ async fn run_create_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
 }
 
 async fn run_drop_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
+    use std::io;
+
     if !db_creator.can_drop_database() {
         return Err(anyhow!(
             "Database drop is not implemented for {}",
@@ -138,6 +140,24 @@ async fn run_drop_database(db_creator: &dyn DatabaseMigrator) -> Result<()> {
     let db_exists = db_creator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
+
+        loop {
+            println!("\nAre you sure you want to drop the database: {}? Y/n", db_name);
+    
+            let mut input = String::new();
+        
+            io::stdin()
+                .read_line(&mut input)
+                .context("Failed to read line")?;
+        
+            match input.trim() {
+                "Y" => break,
+                "N" => return Ok(()),
+                "n" => return Ok(()),
+                _ => continue,
+            };
+        };
+
         println!("Dropping database: {}", db_name);
         Ok(db_creator.drop_database(&db_name).await?)
     } else {
