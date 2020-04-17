@@ -48,15 +48,9 @@ unsafe impl Send for SqliteConnectionHandle {}
 async fn establish(url: Result<Url, url::ParseError>) -> crate::Result<SqliteConnection> {
     let mut worker = Worker::new();
 
-    let url = url?;
-    let url = url
-        .as_str()
-        .trim_start_matches("sqlite:")
-        .trim_start_matches("//");
-
     // By default, we connect to an in-memory database.
     // TODO: Handle the error when there are internal NULs in the database URL
-    let filename = CString::new(url).unwrap();
+    let filename = CString::new(url?.path_decoded().to_string()).unwrap();
 
     let handle = worker
         .run(move || -> crate::Result<SqliteConnectionHandle> {

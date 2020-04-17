@@ -78,6 +78,22 @@ impl Url {
         }
     }
 
+    /// Undo URL percent-encoding and return [authority]path[query]
+    ///
+    /// Mostly a hack to fix special-character handling for SQLite as its connection string is a
+    /// file path and not _really_ a URL
+    pub fn path_decoded(&self) -> Cow<str> {
+        // omit scheme (e.g. `sqlite://`, `mysql://`)
+        let url_str = &self.0.as_str()[self.0.scheme().len()..]
+            .trim_start_matches(':')
+            .trim_start_matches("//");
+
+        // decode
+        percent_encoding::percent_decode_str(url_str)
+            .decode_utf8()
+            .expect("percent-encoded path contained non-UTF-8 bytes")
+    }
+
     pub fn database(&self) -> Option<&str> {
         let database = self.0.path().trim_start_matches('/');
 
