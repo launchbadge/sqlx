@@ -1861,6 +1861,7 @@ dependencies = [
  "async-std",
  "dotenv",
  "futures 0.3.4",
+ "heck",
  "lazy_static",
  "proc-macro2",
  "quote",
