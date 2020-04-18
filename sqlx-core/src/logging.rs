@@ -8,17 +8,25 @@ macro_rules! log_execution {
         let elapsed = timer.elapsed();
         if elapsed >= std::time::Duration::from_secs(1) {
             log::warn!(
-                "{} ..., elapsed: {:.3?}\n\n    {}\n",
+                "{} ..., elapsed: {:.3?}\n\n{}\n",
                 crate::logging::parse_query_summary(query_string),
                 elapsed,
-                query_string
+                sqlformat::format(
+                    query_string,
+                    &sqlformat::QueryParams::None,
+                    sqlformat::FormatOptions::default()
+                )
             );
         } else {
             log::debug!(
-                "{} ..., elapsed: {:.3?}\n\n    {}\n",
+                "{} ..., elapsed: {:.3?}\n\n{}\n",
                 crate::logging::parse_query_summary(query_string),
                 elapsed,
-                query_string
+                sqlformat::format(
+                    query_string,
+                    &sqlformat::QueryParams::None,
+                    sqlformat::FormatOptions::default()
+                )
             );
         }
         result
