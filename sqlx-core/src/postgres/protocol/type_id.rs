@@ -48,6 +48,7 @@ impl TypeId {
     pub(crate) const INET: TypeId = TypeId(869);
 
     pub(crate) const POINT: TypeId = TypeId(600);
+    pub(crate) const LSEG: TypeId = TypeId(601);
 
     // Arrays
 
@@ -82,8 +83,9 @@ impl TypeId {
 
     pub(crate) const ARRAY_CIDR: TypeId = TypeId(651);
     pub(crate) const ARRAY_INET: TypeId = TypeId(1041);
-    
+
     pub(crate) const ARRAY_POINT: TypeId = TypeId(1017);
+    pub(crate) const ARRAY_LSEG: TypeId = TypeId(1018);
 
     // JSON
 
