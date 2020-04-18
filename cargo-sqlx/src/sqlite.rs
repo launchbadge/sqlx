@@ -69,8 +69,6 @@ impl DatabaseMigrator for Sqlite {
     }
 
     async fn create_database(&self, _db_name: &str) -> Result<()> {
-        use std::fs::OpenOptions;
-
         println!("DB {}", self.path);
 
         // Opening a connection to sqlite creates the database.
@@ -102,7 +100,22 @@ impl DatabaseMigrator for Sqlite {
         Ok(())
     }
 
-    //
+    async fn get_migrations(&self) -> Result<Vec<String>> {
+        let mut conn = SqliteConnection::connect(&self.db_url).await?;
+
+        let result = sqlx::query(
+            r#"
+            select migration from __migrations order by created
+        "#,
+        )
+        .try_map(|row: SqliteRow| row.try_get(0))
+        .fetch_all(&mut conn)
+        .await
+        .context("Failed to create migration table")?;
+
+        Ok(result)
+    }
+
     async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>> {
         // let pool = SqlitePool::new(&self.db_url)
         //     .await

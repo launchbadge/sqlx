@@ -28,5 +28,6 @@ pub trait DatabaseMigrator {
 
     // Migration
     async fn create_migration_table(&self) -> Result<()>;
+    async fn get_migrations(&self) -> Result<Vec<String>>;
     async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>>;
 }
