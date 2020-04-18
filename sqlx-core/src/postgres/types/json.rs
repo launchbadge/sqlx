@@ -21,33 +21,9 @@ impl Type<Postgres> for JsonValue {
     }
 }
 
-impl Encode<Postgres> for JsonValue {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        (Box::new(Json(self)) as Box<dyn Encode<Postgres>>).encode(buf)
-    }
-}
-
-impl<'de> Decode<'de, Postgres> for JsonValue {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        <Json<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
-    }
-}
-
 impl Type<Postgres> for &'_ JsonRawValue {
     fn type_info() -> PgTypeInfo {
         <Json<Self> as Type<Postgres>>::type_info()
-    }
-}
-
-impl Encode<Postgres> for &'_ JsonRawValue {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        (Box::new(Json(self)) as Box<dyn Encode<Postgres>>).encode(buf)
-    }
-}
-
-impl<'de> Decode<'de, Postgres> for &'de JsonRawValue {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        <Json<Self> as Decode<Postgres>>::decode(value).map(|item| item.0)
     }
 }
 

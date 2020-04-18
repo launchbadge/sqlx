@@ -14,18 +14,6 @@ impl Type<MySql> for JsonValue {
     }
 }
 
-impl Encode<MySql> for JsonValue {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        (Box::new(Json(self)) as Box<dyn Encode<MySql>>).encode(buf)
-    }
-}
-
-impl<'de> Decode<'de, MySql> for JsonValue {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        <Json<Self> as Decode<MySql>>::decode(value).map(|item| item.0)
-    }
-}
-
 impl<T> Type<MySql> for Json<T> {
     fn type_info() -> MySqlTypeInfo {
         // MySql uses the CHAR type to pass JSON data from and to the client
