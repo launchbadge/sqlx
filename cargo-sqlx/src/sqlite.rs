@@ -73,10 +73,8 @@ impl DatabaseMigrator for Sqlite {
 
         println!("DB {}", self.path);
 
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&self.path)?;
+        // Opening a connection to sqlite creates the database.
+        let _ = SqliteConnection::connect(&self.db_url).await?;
 
         Ok(())
     }
