@@ -90,7 +90,7 @@ impl DatabaseMigrator for Sqlite {
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS __migrations (
-                migration VARCHAR (255) PRIMARY KEY,
+                migration TEXT PRIMARY KEY,
                 created TIMESTAMP NOT NULL DEFAULT current_timestamp
             );
         "#,
