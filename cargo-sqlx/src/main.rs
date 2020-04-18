@@ -9,6 +9,7 @@ use dotenv::dotenv;
 use structopt::StructOpt;
 
 use anyhow::{anyhow, Context, Result};
+use console::style;
 
 mod database_migrator;
 mod postgres;
@@ -40,6 +41,9 @@ enum MigrationCommand {
 
     /// Run all migrations
     Run,
+
+    /// List all migrations
+    List,
 }
 
 /// Create or drops database depending on your connection string. Alias: db
@@ -97,6 +101,7 @@ async fn run_command(migrator: &dyn DatabaseMigrator) -> Result<()> {
         Opt::Migrate(command) => match command {
             MigrationCommand::Add { name } => add_migration_file(&name)?,
             MigrationCommand::Run => run_migrations(migrator).await?,
+            MigrationCommand::List => list_migrations(migrator).await?,
         },
         Opt::Database(command) => match command {
             DatabaseCommand::Create => run_create_database(migrator).await?,
@@ -241,7 +246,7 @@ fn load_migrations() -> Result<Vec<Migration>> {
 async fn run_migrations(migrator: &dyn DatabaseMigrator) -> Result<()> {
     if !migrator.can_migrate_database() {
         return Err(anyhow!(
-            "Database migrations not implemented for {}",
+            "Database migrations not supported for {}",
             migrator.database_type()
         ));
     }
@@ -271,4 +276,77 @@ async fn run_migrations(migrator: &dyn DatabaseMigrator) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn list_migrations(migrator: &dyn DatabaseMigrator) -> Result<()> {
+    if !migrator.can_migrate_database() {
+        return Err(anyhow!(
+            "Database migrations not supported for {}",
+            migrator.database_type()
+        ));
+    }
+
+    let file_migrations = load_migrations()?;
+
+    if migrator
+        .check_if_database_exists(&migrator.get_database_name()?)
+        .await?
+    {
+        let applied_migrations = migrator.get_migrations().await.unwrap_or_else(|_| {
+            println!("Could not retrive data from migration table");
+            Vec::new()
+        });
+
+        let mut width = 0;
+        for mig in file_migrations.iter() {
+            width = std::cmp::max(width, mig.name.len());
+        }
+        for mig in file_migrations.iter() {
+            let status = if applied_migrations
+                .iter()
+                .find(|&m| mig.name == *m)
+                .is_some()
+            {
+                style("Applied").green()
+            } else {
+                style("Not Applied").yellow()
+            };
+
+            println!("{:width$}\t{}", mig.name, status, width = width);
+        }
+
+        let orphans = check_for_orphans(file_migrations, applied_migrations);
+
+        if let Some(orphans) = orphans {
+            println!("\nFound migrations applied in the database that does not have a corresponding migration file:");
+            for name in orphans {
+                println!("{:width$}\t{}", name, style("Orphan").red(), width = width);
+            }
+        }
+    } else {
+        println!("No database found, listing migrations");
+
+        for mig in file_migrations {
+            println!("{}", mig.name);
+        }
+    }
+
+    Ok(())
+}
+
+fn check_for_orphans(
+    file_migrations: Vec<Migration>,
+    applied_migrations: Vec<String>,
+) -> Option<Vec<String>> {
+    let orphans: Vec<String> = applied_migrations
+        .iter()
+        .filter(|m| !file_migrations.iter().any(|fm| fm.name == **m))
+        .cloned()
+        .collect();
+
+    if orphans.len() > 0 {
+        Some(orphans)
+    } else {
+        None
+    }
 }

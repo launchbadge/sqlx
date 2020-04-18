@@ -130,6 +130,22 @@ impl DatabaseMigrator for Postgres {
         Ok(())
     }
 
+    async fn get_migrations(&self) -> Result<Vec<String>> {
+        let mut conn = PgConnection::connect(&self.db_url).await?;
+
+        let result = sqlx::query(
+            r#"
+            select migration from __migrations order by created
+        "#,
+        )
+        .try_map(|row: PgRow| row.try_get(0))
+        .fetch_all(&mut conn)
+        .await
+        .context("Failed to create migration table")?;
+
+        Ok(result)
+    }
+
     async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>> {
         let pool = PgPool::new(&self.db_url)
             .await
