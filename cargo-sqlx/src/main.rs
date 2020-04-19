@@ -10,6 +10,7 @@ use structopt::StructOpt;
 
 use anyhow::{anyhow, Context, Result};
 use console::style;
+use dialoguer::Confirmation;
 
 mod database_migrator;
 mod postgres;
@@ -133,8 +134,6 @@ async fn run_create_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
 }
 
 async fn run_drop_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
-    use std::io;
-
     if !migrator.can_drop_database() {
         return Err(anyhow!(
             "Database drop is not implemented for {}",
@@ -146,24 +145,13 @@ async fn run_drop_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
     let db_exists = migrator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
-        loop {
-            println!(
-                "\nAre you sure you want to drop the database: {}? Y/n",
-                db_name
-            );
-
-            let mut input = String::new();
-
-            io::stdin()
-                .read_line(&mut input)
-                .context("Failed to read line")?;
-
-            match input.trim() {
-                "Y" => break,
-                "N" => return Ok(()),
-                "n" => return Ok(()),
-                _ => continue,
-            };
+        if !Confirmation::new()
+            .with_text("\nAre you sure you want to drop the database: {}?")
+            .default(false)
+            .interact()?
+        {
+            println!("Aborting");
+            return Ok(());
         }
 
         println!("Dropping database: {}", db_name);
