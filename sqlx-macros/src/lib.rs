@@ -11,6 +11,8 @@ use quote::quote;
 #[cfg(feature = "runtime-async-std")]
 use async_std::task::block_on;
 
+use std::path::PathBuf;
+
 use url::Url;
 
 type Error = Box<dyn std::error::Error>;
@@ -59,6 +61,16 @@ macro_rules! async_macro (
 
         let res: Result<proc_macro2::TokenStream> = block_on(async {
             use sqlx::connection::Connect;
+
+            // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
+            // otherwise fallback to default dotenv behaviour.
+            if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
+                let env_path = PathBuf::from(dir).join(".env");
+                if env_path.exists() {
+                    dotenv::from_path(&env_path)
+                        .map_err(|e| format!("failed to load environment from {:?}, {}", env_path, e))?
+                }
+            }
 
             let db_url = Url::parse(&dotenv::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set")?)?;
 
