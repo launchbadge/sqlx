@@ -71,11 +71,11 @@ pub mod json {
 
     impl<DB> Encode<DB> for JsonValue
     where
-        Json<Self>: Encode<DB>,
+        for<'a> Json<&'a Self>: Encode<DB>,
         DB: Database,
     {
         fn encode(&self, buf: &mut DB::RawBuffer) {
-            <Json<Self> as Encode<DB>>::encode(&Json(self.clone()), buf)
+            <Json<&Self> as Encode<DB>>::encode(&Json(self), buf)
         }
     }
 
