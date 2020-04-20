@@ -1,59 +1,60 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::mysql::protocol;
-use crate::mysql::{MySql, MySqlValue};
+use hashbrown::HashMap;
+
+use crate::error::Error;
+use crate::ext::ustr::UStr;
+use crate::mysql::{protocol, MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::row::{ColumnIndex, Row};
 
-pub struct MySqlRow<'c> {
-    pub(super) row: protocol::Row<'c>,
-    pub(super) names: Arc<HashMap<Box<str>, u16>>,
+// TODO: Merge with the other XXColumn types
+#[derive(Debug, Clone)]
+pub(crate) struct MySqlColumn {
+    pub(crate) name: Option<UStr>,
+    pub(crate) type_info: Option<MySqlTypeInfo>,
 }
 
-impl crate::row::private_row::Sealed for MySqlRow<'_> {}
+/// Implementation of [`Row`] for MySQL.
+#[derive(Debug)]
+pub struct MySqlRow {
+    pub(crate) row: protocol::Row,
+    pub(crate) columns: Arc<Vec<MySqlColumn>>,
+    pub(crate) column_names: Arc<HashMap<UStr, usize>>,
+    pub(crate) format: MySqlValueFormat,
+}
 
-impl<'c> Row<'c> for MySqlRow<'c> {
+impl crate::row::private_row::Sealed for MySqlRow {}
+
+impl Row for MySqlRow {
     type Database = MySql;
 
+    #[inline]
     fn len(&self) -> usize {
         self.row.len()
     }
 
-    #[doc(hidden)]
-    fn try_get_raw<I>(&self, index: I) -> crate::Result<MySqlValue<'c>>
+    fn try_get_raw<I>(&self, index: I) -> Result<MySqlValueRef, Error>
     where
-        I: ColumnIndex<'c, Self>,
+        I: ColumnIndex<Self>,
     {
         let index = index.index(self)?;
-        let column_ty = self.row.columns[index].clone();
-        let buffer = self.row.get(index);
-        let value = match (self.row.binary, buffer) {
-            (_, None) => MySqlValue::null(),
-            (true, Some(buf)) => MySqlValue::binary(column_ty, buf),
-            (false, Some(buf)) => MySqlValue::text(column_ty, buf),
-        };
+        let column = &self.columns[index];
+        let value = self.row.get(index);
 
-        Ok(value)
+        Ok(MySqlValueRef {
+            format: self.format,
+            row: Some(&self.row.storage),
+            type_info: column.type_info.clone(),
+            value,
+        })
     }
 }
 
-impl<'c> ColumnIndex<'c, MySqlRow<'c>> for usize {
-    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<usize> {
-        let len = Row::len(row);
-
-        if *self >= len {
-            return Err(crate::Error::ColumnIndexOutOfBounds { len, index: *self });
-        }
-
-        Ok(*self)
-    }
-}
-
-impl<'c> ColumnIndex<'c, MySqlRow<'c>> for str {
-    fn index(&self, row: &MySqlRow<'c>) -> crate::Result<usize> {
-        row.names
-            .get(self)
-            .ok_or_else(|| crate::Error::ColumnNotFound((*self).into()))
-            .map(|&index| index as usize)
+impl ColumnIndex<MySqlRow> for &'_ str {
+    fn index(&self, row: &MySqlRow) -> Result<usize, Error> {
+        row.column_names
+            .get(*self)
+            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
+            .map(|v| *v)
     }
 }

@@ -1,45 +1,31 @@
-use crate::cursor::HasCursor;
-use crate::database::Database;
-use crate::row::HasRow;
-use crate::sqlite::error::SqliteError;
+use crate::database::{Database, HasArguments, HasValueRef};
 use crate::sqlite::{
-    SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteCursor, SqliteRow,
-    SqliteTypeInfo, SqliteValue,
+    SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteRow, SqliteTypeInfo, SqliteValue,
+    SqliteValueRef,
 };
-use crate::value::HasRawValue;
 
-/// **Sqlite** database driver.
+/// Sqlite database driver.
 #[derive(Debug)]
 pub struct Sqlite;
 
 impl Database for Sqlite {
     type Connection = SqliteConnection;
 
-    type Arguments = SqliteArguments;
+    type Row = SqliteRow;
 
     type TypeInfo = SqliteTypeInfo;
 
-    type TableId = String;
-
-    type RawBuffer = Vec<SqliteArgumentValue>;
-
-    type Error = SqliteError;
+    type Value = SqliteValue;
 }
 
-impl<'c> HasRow<'c> for Sqlite {
+impl<'r> HasValueRef<'r> for Sqlite {
     type Database = Sqlite;
 
-    type Row = SqliteRow<'c>;
+    type ValueRef = SqliteValueRef<'r>;
 }
 
-impl<'c, 'q> HasCursor<'c, 'q> for Sqlite {
+impl<'q> HasArguments<'q> for Sqlite {
     type Database = Sqlite;
 
-    type Cursor = SqliteCursor<'c, 'q>;
-}
-
-impl<'c> HasRawValue<'c> for Sqlite {
-    type Database = Sqlite;
-
-    type RawValue = SqliteValue<'c>;
+    type Arguments = SqliteArguments<'q>;
 }

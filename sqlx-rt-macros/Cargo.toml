@@ -1,0 +1,18 @@
+[package]
+name = "sqlx-rt-macros"
+version = "0.1.0-pre"
+repository = "https://github.com/launchbadge/sqlx"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[features]
+runtime-actix = []
+runtime-async-std = []
+runtime-tokio = []
+
+[dependencies]
+quote = "1.0.3"
+syn = { version = "1.0.17", features = ["full"] }

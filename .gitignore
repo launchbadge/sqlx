@@ -8,7 +8,11 @@ target/
 *.vi
 
 # Environment
-.env
+/.env
 
+# Cache from docker compose test runner
+tests/.cache/
+
+# Temporary files from SQLite
 tests/fixtures/*.sqlite-shm
 tests/fixtures/*.sqlite-wal

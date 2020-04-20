@@ -1,26 +1,25 @@
 use std::marker::PhantomData;
+use std::mem;
 
 use async_stream::try_stream;
+use either::Either;
+use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::future::ready;
-use futures_util::TryFutureExt;
+use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::Arguments;
-use crate::cursor::{Cursor, HasCursor};
-use crate::database::Database;
+use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
-use crate::executor::{Execute, Executor, RefExecutor};
-use crate::row::HasRow;
-use crate::types::Type;
+use crate::error::Error;
+use crate::executor::{Execute, Executor};
+use crate::from_row::FromRow;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
-pub struct Query<'q, DB>
-where
-    DB: Database,
-{
-    pub(crate) query: &'q str,
-    pub(crate) arguments: DB::Arguments,
+pub struct Query<'q, DB: Database> {
+    query: &'q str,
+    pub(crate) arguments: <DB as HasArguments<'q>>::Arguments,
     database: PhantomData<DB>,
 }
 
@@ -33,28 +32,23 @@ where
 /// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
 /// before `.try_map()` anyway.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, DB, F>
-where
-    DB: Database,
-{
-    query: Query<'q, DB>,
+pub struct Map<'q, DB: Database, F> {
+    inner: Query<'q, DB>,
     mapper: F,
 }
 
-// necessary because we can't have a blanket impl for `Query<'q, DB>`
-// the compiler thinks that `ImmutableArguments<DB>` could be `DB::Arguments` even though
-// that would be an infinitely recursive type
 impl<'q, DB> Execute<'q, DB> for Query<'q, DB>
 where
     DB: Database,
 {
-    fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
-        (self.query, Some(self.arguments))
+    #[inline]
+    fn query(&self) -> &'q str {
+        self.query
     }
 
-    #[doc(hidden)]
-    fn query_string(&self) -> &'q str {
-        self.query
+    #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        Some(mem::take(&mut self.arguments))
     }
 }
 
@@ -69,181 +63,236 @@ where
     /// will be returned when this query is executed.
     ///
     /// There is no validation that the value is of the type expected by the query. Most SQL
-    /// flavors will perform type coercion (Postgres will return a database error).s
-    pub fn bind<T>(mut self, value: T) -> Self
-    where
-        T: Type<DB>,
-        T: Encode<DB>,
-    {
+    /// flavors will perform type coercion (Postgres will return a database error).
+    pub fn bind<T: 'q + Encode<'q, DB>>(mut self, value: T) -> Self {
         self.arguments.add(value);
         self
     }
 
-    #[doc(hidden)]
-    pub fn bind_all(self, arguments: DB::Arguments) -> Query<'q, DB> {
-        Query {
-            query: self.query,
-            arguments,
-            database: PhantomData,
-        }
-    }
-}
-
-impl<'q, DB> Query<'q, DB>
-where
-    DB: Database,
-{
     /// Map each row in the result to another type.
     ///
-    /// The returned type has most of the same methods but does not have
-    /// [`.execute()`][Query::execute] or [`.bind()][Query::bind].
+    /// See [`try_map`](Query::try_map) for a fallible version of this method.
     ///
-    /// See also: [query_as][crate::query_as::query_as].
-    pub fn map<F, O>(self, mapper: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>>
+    /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](crate::row::FromRow) implementation.
+    #[inline]
+    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl Fn(DB::Row) -> Result<O, Error>>
     where
-        O: Unpin,
-        F: MapRow<DB, Output = O>,
+        F: Fn(DB::Row) -> O,
     {
-        self.try_map(MapRowAdapter(mapper))
+        self.try_map(move |row| Ok(f(row)))
     }
 
     /// Map each row in the result to another type.
     ///
-    /// See also: [query_as][crate::query_as::query_as].
-    pub fn try_map<F>(self, mapper: F) -> Map<'q, DB, F>
+    /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](crate::row::FromRow) implementation.
+    #[inline]
+    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F>
     where
-        F: TryMapRow<DB>,
+        F: Fn(DB::Row) -> Result<O, Error>,
     {
         Map {
-            query: self,
-            mapper,
+            inner: self,
+            mapper: f,
         }
     }
-}
 
-impl<'q, DB> Query<'q, DB>
-where
-    DB: Database,
-    Self: Execute<'q, DB>,
-{
-    pub async fn execute<E>(self, mut executor: E) -> crate::Result<u64>
+    /// Execute the query and return the total number of rows affected.
+    #[inline]
+    pub async fn execute<'c, E>(self, executor: E) -> Result<u64, Error>
     where
-        E: Executor<Database = DB>,
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
     {
         executor.execute(self).await
     }
 
-    pub fn fetch<'e, E>(self, executor: E) -> <DB as HasCursor<'e, 'q>>::Cursor
+    /// Execute multiple queries and return the rows affected from each query, in a stream.
+    #[inline]
+    pub async fn execute_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<u64, Error>>
     where
-        E: RefExecutor<'e, Database = DB>,
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
     {
-        executor.fetch_by_ref(self)
+        executor.execute_many(self)
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    #[inline]
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<DB::Row, Error>>
+    where
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch(self)
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    #[inline]
+    pub fn fetch_many<'c, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'c, Result<Either<u64, DB::Row>, Error>>
+    where
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_many(self)
+    }
+
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    #[inline]
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    where
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_all(self).await
+    }
+
+    /// Execute the query and returns exactly one row.
+    #[inline]
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<DB::Row, Error>
+    where
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_one(self).await
+    }
+
+    /// Execute the query and returns at most one row.
+    #[inline]
+    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
+    where
+        'q: 'c,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_optional(self).await
     }
 }
 
-impl<'q, DB, F> Map<'q, DB, F>
+impl<'q, DB, F: Send> Execute<'q, DB> for Map<'q, DB, F>
 where
     DB: Database,
-    Query<'q, DB>: Execute<'q, DB>,
-    F: TryMapRow<DB>,
 {
-    /// Execute the query and get a [Stream] of the results, returning our mapped type.
-    pub fn fetch<'e: 'q, E>(
-        mut self,
-        executor: E,
-    ) -> impl Stream<Item = crate::Result<F::Output>> + Unpin + 'e
+    #[inline]
+    fn query(&self) -> &'q str {
+        self.inner.query
+    }
+
+    #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        Some(mem::take(&mut self.inner.arguments))
+    }
+}
+
+impl<'q, DB, F, O> Map<'q, DB, F>
+where
+    DB: Database,
+    F: Send + Sync + Fn(DB::Row) -> Result<O, Error>,
+    O: Send + Unpin,
+{
+    // FIXME: This is very close 1:1 with [`Executor::fetch`]
+    // noinspection DuplicatedCode
+    /// Execute the query and return the generated results as a stream.
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
     where
-        'q: 'e,
-        E: RefExecutor<'e, Database = DB> + 'e,
-        F: 'e,
-        F::Output: 'e,
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        F: 'c,
+        O: 'c,
+    {
+        self.fetch_many(executor)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(o) => Some(o),
+                })
+            })
+            .boxed()
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    pub fn fetch_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<Either<u64, O>, Error>>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        F: 'c,
+        O: 'c,
     {
         Box::pin(try_stream! {
-            let mut cursor = executor.fetch_by_ref(self.query);
-            while let Some(next) = cursor.next().await? {
-                let mapped = self.mapper.try_map_row(next)?;
-                yield mapped;
+            let mut s = executor.fetch_many(self.inner);
+            while let Some(v) = s.try_next().await? {
+                match v {
+                    Either::Left(v) => yield Either::Left(v),
+                    Either::Right(row) => {
+                        let mapped = (self.mapper)(row)?;
+                        yield Either::Right(mapped);
+                    }
+                }
             }
         })
     }
 
-    /// Get the first row in the result
-    pub async fn fetch_optional<'e, E>(self, executor: E) -> crate::Result<Option<F::Output>>
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    #[inline]
+    pub fn fetch_all<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Vec<O>, Error>>
     where
-        E: RefExecutor<'e, Database = DB>,
-        'q: 'e,
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        F: 'c,
+        O: 'c,
     {
-        // could be implemented in terms of `fetch()` but this avoids overhead from `try_stream!`
-        let mut cursor = executor.fetch_by_ref(self.query);
-        let mut mapper = self.mapper;
-        let val = cursor.next().await?;
-        val.map(|row| mapper.try_map_row(row)).transpose()
+        self.fetch(executor).try_collect().boxed()
     }
 
-    pub async fn fetch_one<'e, E>(self, executor: E) -> crate::Result<F::Output>
+    // FIXME: This is very close 1:1 with [`Executor::fetch_one`]
+    // noinspection DuplicatedCode
+    /// Execute the query and returns exactly one row.
+    pub fn fetch_one<'c, E>(self, executor: E) -> BoxFuture<'c, Result<O, Error>>
     where
-        E: RefExecutor<'e, Database = DB>,
-        'q: 'e,
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        F: 'c,
+        O: 'c,
     {
         self.fetch_optional(executor)
             .and_then(|row| match row {
-                Some(row) => ready(Ok(row)),
-                None => ready(Err(crate::Error::RowNotFound)),
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
             })
-            .await
+            .boxed()
     }
 
-    pub async fn fetch_all<'e, E>(mut self, executor: E) -> crate::Result<Vec<F::Output>>
+    /// Execute the query and returns at most one row.
+    pub fn fetch_optional<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Option<O>, Error>>
     where
-        E: RefExecutor<'e, Database = DB>,
-        'q: 'e,
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        F: 'c,
+        O: 'c,
     {
-        let mut cursor = executor.fetch_by_ref(self.query);
-        let mut out = vec![];
-
-        while let Some(row) = cursor.next().await? {
-            out.push(self.mapper.try_map_row(row)?);
-        }
-
-        Ok(out)
-    }
-}
-
-// A (hopefully) temporary workaround for an internal compiler error (ICE) involving higher-ranked
-// trait bounds (HRTBs), associated types and closures.
-//
-// See https://github.com/rust-lang/rust/issues/62529
-
-pub trait TryMapRow<DB: Database> {
-    type Output: Unpin;
-
-    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output>;
-}
-
-pub trait MapRow<DB: Database> {
-    type Output: Unpin;
-
-    fn map_row(&mut self, row: <DB as HasRow>::Row) -> Self::Output;
-}
-
-// An adapter that implements [MapRow] in terms of [TryMapRow]
-// Just ends up Ok wrapping it
-
-struct MapRowAdapter<F>(F);
-
-impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
-where
-    O: Unpin,
-    F: MapRow<DB, Output = O>,
-{
-    type Output = O;
-
-    fn try_map_row(&mut self, row: <DB as HasRow>::Row) -> crate::Result<Self::Output> {
-        Ok(self.0.map_row(row))
+        Box::pin(async move {
+            let row = executor.fetch_optional(self.inner).await?;
+            if let Some(row) = row {
+                (self.mapper)(row).map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 }
 
 /// Construct a raw SQL query that can be chained to bind parameters and executed.
+#[inline]
 pub fn query<DB>(sql: &str) -> Query<DB>
 where
     DB: Database,

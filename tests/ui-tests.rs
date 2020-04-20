@@ -1,6 +1,7 @@
 use std::path::Path;
 
 #[test]
+#[ignore]
 fn ui_tests() {
     let t = trybuild::TestCases::new();
 

@@ -1,43 +1,51 @@
+use std::ops::{Deref, DerefMut};
+
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
-use crate::mysql::type_info::MySqlTypeInfo;
-use crate::mysql::MySql;
-use crate::types::Type;
+use crate::mysql::{MySql, MySqlTypeInfo};
 
-#[derive(Default)]
+/// Implementation of [`Arguments`] for MySQL.
+#[derive(Debug, Default)]
 pub struct MySqlArguments {
-    pub(crate) param_types: Vec<MySqlTypeInfo>,
-    pub(crate) params: Vec<u8>,
+    pub(crate) values: Vec<u8>,
+    pub(crate) types: Vec<MySqlTypeInfo>,
     pub(crate) null_bitmap: Vec<u8>,
 }
 
-impl Arguments for MySqlArguments {
+impl<'q> Arguments<'q> for MySqlArguments {
     type Database = MySql;
 
     fn reserve(&mut self, len: usize, size: usize) {
-        self.param_types.reserve(len);
-        self.params.reserve(size);
-
-        // ensure we have enough size in the bitmap to hold at least `len` extra bits
-        // the second `& 7` gives us 0 spare bits when param_types.len() is a multiple of 8
-        let spare_bits = (8 - (self.param_types.len()) & 7) & 7;
-        // ensure that if there are no spare bits left, `len = 1` reserves another byte
-        self.null_bitmap.reserve((len + 7 - spare_bits) / 8);
+        self.types.reserve(len);
+        self.values.reserve(size);
     }
 
     fn add<T>(&mut self, value: T)
     where
-        T: Type<Self::Database>,
-        T: Encode<Self::Database>,
+        T: Encode<'q, Self::Database>,
     {
-        let type_id = <T as Type<MySql>>::type_info();
-        let index = self.param_types.len();
+        let ty = value.produces();
+        let index = self.types.len();
 
-        self.param_types.push(type_id);
+        self.types.push(ty);
         self.null_bitmap.resize((index / 8) + 1, 0);
 
-        if let IsNull::Yes = value.encode_nullable(&mut self.params) {
+        if let IsNull::Yes = value.encode(self) {
             self.null_bitmap[index / 8] |= (1 << index % 8) as u8;
         }
+    }
+}
+
+impl Deref for MySqlArguments {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+
+impl DerefMut for MySqlArguments {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.values
     }
 }

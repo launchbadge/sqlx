@@ -1,45 +1,29 @@
-//! Types which represent various database drivers.
+use crate::database::{Database, HasArguments, HasValueRef};
+use crate::postgres::value::{PgValue, PgValueRef};
+use crate::postgres::{PgArguments, PgConnection, PgRow, PgTypeInfo};
 
-use crate::cursor::HasCursor;
-use crate::database::Database;
-use crate::postgres::{
-    PgArguments, PgConnection, PgCursor, PgError, PgRawBuffer, PgRow, PgTypeInfo, PgValue,
-};
-use crate::row::HasRow;
-use crate::value::HasRawValue;
-
-/// **Postgres** database driver.
+/// PostgreSQL database driver.
 #[derive(Debug)]
 pub struct Postgres;
 
 impl Database for Postgres {
     type Connection = PgConnection;
 
-    type Arguments = PgArguments;
+    type Row = PgRow;
 
     type TypeInfo = PgTypeInfo;
 
-    type TableId = u32;
-
-    type RawBuffer = PgRawBuffer;
-
-    type Error = PgError;
+    type Value = PgValue;
 }
 
-impl<'a> HasRow<'a> for Postgres {
+impl<'r> HasValueRef<'r> for Postgres {
     type Database = Postgres;
 
-    type Row = PgRow<'a>;
+    type ValueRef = PgValueRef<'r>;
 }
 
-impl<'s, 'q> HasCursor<'s, 'q> for Postgres {
+impl HasArguments<'_> for Postgres {
     type Database = Postgres;
 
-    type Cursor = PgCursor<'s, 'q>;
-}
-
-impl<'a> HasRawValue<'a> for Postgres {
-    type Database = Postgres;
-
-    type RawValue = PgValue<'a>;
+    type Arguments = PgArguments;
 }

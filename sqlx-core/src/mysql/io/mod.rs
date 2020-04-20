@@ -1,5 +1,5 @@
-mod buf_ext;
-mod buf_mut_ext;
+mod buf;
+mod buf_mut;
 
-pub use buf_ext::BufExt;
-pub use buf_mut_ext::BufMutExt;
+pub use buf::MySqlBufExt;
+pub use buf_mut::MySqlBufMutExt;

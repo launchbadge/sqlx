@@ -1,64 +1,42 @@
-//! Types for returning SQL type information about queries.
-
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Formatter};
 
 use crate::database::Database;
 
-/// The return type of [`Executor::describe`].
+/// A representation of a statement that _could_ have been executed against the database.
 ///
-/// [`Executor::describe`]: crate::executor::Executor::describe
+/// Returned from [`Executor::describe`](crate::executor::Executor::describe).
+///
+/// The compile-time verification within the query macros utilizes `describe` and this type to
+/// act on an arbitrary query.
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct Describe<DB>
 where
-    DB: Database + ?Sized,
-{
-    // TODO: Describe#param_types should probably be Option<TypeInfo[]> as we either know all the params or we know none
-    /// The expected types for the parameters of the query.
-    pub param_types: Box<[Option<DB::TypeInfo>]>,
-
-    /// The type and table information, if any for the results of the query.
-    pub result_columns: Box<[Column<DB>]>,
-}
-
-impl<DB> Debug for Describe<DB>
-where
     DB: Database,
-    DB::TypeInfo: Debug,
-    Column<DB>: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Describe")
-            .field("param_types", &self.param_types)
-            .field("result_columns", &self.result_columns)
-            .finish()
-    }
+    /// The expected types of the parameters. This is currently always an array of `None` values
+    /// on all databases drivers aside from PostgreSQL.
+    pub parameters: Vec<Option<DB::TypeInfo>>,
+
+    /// The columns that will be found in the results from this query.
+    pub columns: Vec<Column<DB>>,
 }
 
-/// A single column of a result set.
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct Column<DB>
 where
-    DB: Database + ?Sized,
+    DB: Database,
 {
-    pub name: Option<Box<str>>,
-    pub table_id: Option<DB::TableId>,
-    pub type_info: Option<DB::TypeInfo>,
-    /// Whether or not the column cannot be `NULL` (or if that is even knowable).
-    pub non_null: Option<bool>,
-}
+    pub name: String,
 
-impl<DB> Debug for Column<DB>
-where
-    DB: Database + ?Sized,
-    DB::TableId: Debug,
-    DB::TypeInfo: Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Column")
-            .field("name", &self.name)
-            .field("table_id", &self.table_id)
-            .field("type_info", &self.type_info)
-            .field("non_null", &self.non_null)
-            .finish()
-    }
+    /// The type information for the result column.
+    ///
+    /// This may be `None` if the type cannot be determined. This occurs in SQLite when
+    /// the column is an expression.
+    pub type_info: Option<DB::TypeInfo>,
+
+    /// Whether the column cannot be `NULL` (or if that is even knowable).
+    /// This value is only not `None` if received from a call to `describe`.
+    pub not_null: Option<bool>,
 }

@@ -1,39 +1,25 @@
-use core::marker::PhantomData;
+use std::marker::PhantomData;
+
+use async_stream::try_stream;
+use either::Either;
+use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::Arguments;
-use crate::database::Database;
+use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
-use crate::executor::Execute;
-use crate::types::Type;
+use crate::error::Error;
+use crate::executor::{Execute, Executor};
+use crate::from_row::FromRow;
+use crate::query::{query, Map, Query};
 
-/// Raw SQL query with bind parameters, mapped to a concrete type
-/// using [`FromRow`](trait.FromRow.html). Returned
-/// by [`query_as`](fn.query_as.html).
+/// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
+/// Returned from [`query_as`].
 #[must_use = "query must be executed to affect database"]
-pub struct QueryAs<'q, DB, O>
-where
-    DB: Database,
-{
-    query: &'q str,
-    arguments: <DB as Database>::Arguments,
-    database: PhantomData<DB>,
+pub struct QueryAs<'q, DB: Database, O> {
+    pub(crate) inner: Query<'q, DB>,
     output: PhantomData<O>,
-}
-
-impl<'q, DB, O> QueryAs<'q, DB, O>
-where
-    DB: Database,
-{
-    /// Bind a value for use with this SQL query.
-    #[inline]
-    pub fn bind<T>(mut self, value: T) -> Self
-    where
-        T: Type<DB>,
-        T: Encode<DB>,
-    {
-        self.arguments.add(value);
-        self
-    }
 }
 
 impl<'q, DB, O: Send> Execute<'q, DB> for QueryAs<'q, DB, O>
@@ -41,164 +27,126 @@ where
     DB: Database,
 {
     #[inline]
-    fn into_parts(self) -> (&'q str, Option<<DB as Database>::Arguments>) {
-        (self.query, Some(self.arguments))
+    fn query(&self) -> &'q str {
+        self.inner.query()
     }
 
     #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        self.inner.take_arguments()
+    }
+}
+
+// FIXME: This is very close, nearly 1:1 with `Map`
+// noinspection DuplicatedCode
+impl<'q, DB, O> QueryAs<'q, DB, O>
+where
+    DB: Database,
+    O: Send + Unpin + for<'r> FromRow<'r, DB::Row>,
+{
+    /// Bind a value for use with this SQL query.
+    ///
+    /// See [`Query::bind`](crate::query::Query::bind).
+    #[inline]
+    pub fn bind<T: 'q + Encode<'q, DB>>(mut self, value: T) -> Self {
+        self.inner.arguments.add(value);
+        self
+    }
+
     #[doc(hidden)]
-    fn query_string(&self) -> &'q str {
-        self.query
+    pub fn __bind_all(mut self, arguments: <DB as HasArguments<'q>>::Arguments) -> Self {
+        self.inner.arguments = arguments;
+        self
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        O: 'c,
+    {
+        self.fetch_many(executor)
+            .try_filter_map(|step| async move { Ok(step.right()) })
+            .boxed()
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    pub fn fetch_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<Either<u64, O>, Error>>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        O: 'c,
+    {
+        Box::pin(try_stream! {
+            let mut s = executor.fetch_many(self.inner);
+            while let Some(v) = s.try_next().await? {
+                match v {
+                    Either::Left(v) => yield Either::Left(v),
+                    Either::Right(row) => {
+                        let mapped = O::from_row(&row)?;
+                        yield Either::Right(mapped);
+                    }
+                }
+            }
+        })
+    }
+
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    #[inline]
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<O>, Error>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        O: 'c,
+    {
+        self.fetch(executor).try_collect().await
+    }
+
+    /// Execute the query and returns exactly one row.
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<O, Error>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        O: 'c,
+    {
+        self.fetch_optional(executor)
+            .await
+            .and_then(|row| row.ok_or(Error::RowNotFound))
+    }
+
+    /// Execute the query and returns at most one row.
+    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<O>, Error>
+    where
+        'q: 'c,
+        E: 'c + Executor<'c, Database = DB>,
+        DB: 'c,
+        O: 'c,
+    {
+        let row = executor.fetch_optional(self.inner).await?;
+        if let Some(row) = row {
+            O::from_row(&row).map(Some)
+        } else {
+            Ok(None)
+        }
     }
 }
 
 /// Construct a raw SQL query that is mapped to a concrete type
 /// using [`FromRow`](crate::row::FromRow).
-///
-/// Returns [`QueryAs`].
+#[inline]
 pub fn query_as<DB, O>(sql: &str) -> QueryAs<DB, O>
 where
     DB: Database,
+    O: for<'r> FromRow<'r, DB::Row>,
 {
     QueryAs {
-        query: sql,
-        arguments: Default::default(),
-        database: PhantomData,
+        inner: query(sql),
         output: PhantomData,
     }
-}
-
-// We need database-specific QueryAs traits to work around:
-//  https://github.com/rust-lang/rust/issues/62529
-
-// If for some reason we miss that issue being resolved in a _stable_ edition of
-// rust, please open up a 100 issues and shout as loud as you can to remove
-// this unseemly hack.
-
-#[allow(unused_macros)]
-macro_rules! make_query_as {
-    ($name:ident, $db:ident, $row:ident) => {
-        pub trait $name<'q, O> {
-            fn fetch<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e;
-
-            fn fetch_all<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e;
-
-            fn fetch_one<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e;
-
-            fn fetch_optional<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e;
-        }
-
-        impl<'q, O> $name<'q, O> for crate::query_as::QueryAs<'q, $db, O> {
-            fn fetch<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::stream::BoxStream<'e, crate::Result<O>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + Unpin + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e,
-            {
-                use crate::cursor::Cursor;
-
-                Box::pin(async_stream::try_stream! {
-                    let mut cursor = executor.fetch_by_ref(self);
-
-                    while let Some(row) = cursor.next().await? {
-                        let obj = O::from_row(&row)?;
-
-                        yield obj;
-                    }
-                })
-            }
-
-            fn fetch_optional<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Option<O>>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e,
-            {
-                use crate::cursor::Cursor;
-
-                Box::pin(async move {
-                    let mut cursor = executor.fetch_by_ref(self);
-                    let row = cursor.next().await?;
-
-                    row.as_ref().map(O::from_row).transpose()
-                })
-            }
-
-            fn fetch_one<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<O>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e,
-            {
-                use futures_util::TryFutureExt;
-
-                Box::pin(self.fetch_optional(executor).and_then(|row| match row {
-                    Some(row) => futures_util::future::ready(Ok(row)),
-                    None => futures_util::future::ready(Err(crate::Error::RowNotFound)),
-                }))
-            }
-
-            fn fetch_all<'e, E>(
-                self,
-                executor: E,
-            ) -> futures_core::future::BoxFuture<'e, crate::Result<Vec<O>>>
-            where
-                E: 'e + Send + crate::executor::RefExecutor<'e, Database = $db>,
-                O: 'e + Send + for<'c> crate::row::FromRow<'c, $row<'c>>,
-                'q: 'e,
-            {
-                use crate::cursor::Cursor;
-
-                Box::pin(async move {
-                    let mut cursor = executor.fetch_by_ref(self);
-                    let mut out = Vec::new();
-
-                    while let Some(row) = cursor.next().await? {
-                        let obj = O::from_row(&row)?;
-
-                        out.push(obj);
-                    }
-
-                    Ok(out)
-                })
-            }
-        }
-    };
 }

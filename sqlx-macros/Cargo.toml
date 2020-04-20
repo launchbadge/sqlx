@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-macros"
-version = "0.3.5"
+version = "0.4.0-pre"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -18,8 +18,9 @@ proc-macro = true
 [features]
 default = [ "runtime-async-std" ]
 
-runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
-runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
+runtime-async-std = [ "sqlx/runtime-async-std" ]
+runtime-actix = [ "sqlx/runtime-actix" ]
+runtime-tokio = [ "sqlx/runtime-tokio", "lazy_static" ]
 
 # database
 mysql = [ "sqlx/mysql" ]
@@ -35,13 +36,12 @@ uuid = [ "sqlx/uuid" ]
 json = [ "sqlx/json", "serde_json" ]
 
 [dependencies]
-async-std = { version = "1.5.0", default-features = false, optional = true }
-tokio = { version = "0.2.13", default-features = false, features = [ "rt-threaded" ], optional = true }
+sqlx-rt = { path = "../sqlx-rt", version = "0.1.0-pre" }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 heck = "0.3"
 proc-macro2 = { version = "1.0.9", default-features = false }
-sqlx = { version = "0.3.5", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+sqlx = { version = "0.4.0-pre", default-features = false, package = "sqlx-core", path = "../sqlx-core" }
 serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
 syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
