@@ -8,6 +8,7 @@ macro_rules! log_execution {
         let elapsed = timer.elapsed();
         if elapsed >= std::time::Duration::from_secs(1) {
             log::warn!(
+                target: "sqlx::query",
                 "{} ..., elapsed: {:.3?}\n\n{}\n",
                 crate::logging::parse_query_summary(query_string),
                 elapsed,
@@ -19,6 +20,7 @@ macro_rules! log_execution {
             );
         } else {
             log::debug!(
+                target: "sqlx::query",
                 "{} ..., elapsed: {:.3?}\n\n{}\n",
                 crate::logging::parse_query_summary(query_string),
                 elapsed,
