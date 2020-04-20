@@ -4,17 +4,17 @@ members = [
     "sqlx-core",
     "sqlx-macros",
     "sqlx-test",
-    "cargo-sqlx",
-    "examples/mysql/todos",
-    "examples/postgres/listen",
-    "examples/postgres/todos",
-    "examples/sqlite/todos",
-    "examples/realworld",
+#    "cargo-sqlx",
+#    "examples/mysql/todos",
+#    "examples/postgres/listen",
+#    "examples/postgres/todos",
+#    "examples/sqlite/todos",
+#    "examples/realworld",
 ]
 
 [package]
 name = "sqlx"
-version = "0.3.4"
+version = "0.4.0-pre"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -37,10 +37,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = [ "macros", "runtime-async-std" ]
 macros = [ "sqlx-macros" ]
-tls = [ "sqlx-core/tls" ]
 
 # intended mainly for CI and docs
-all = [ "tls", "all-database", "all-type" ]
+all = [ "all-database", "all-type" ]
 all-database = [ "mysql", "sqlite", "postgres" ]
 all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
@@ -62,22 +61,22 @@ json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 
 [dependencies]
-sqlx-core = { version = "0.3.4", path = "sqlx-core", default-features = false }
+sqlx-core = { version = "0.4.0-pre", path = "sqlx-core", default-features = false }
 sqlx-macros = { version = "0.3.4", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.26"
-time_ = { version = "0.2.9", package = "time" }
+anyhow = "1.0.28"
+time_ = { version = "0.2.10", package = "time" }
 futures = "0.3.4"
 env_logger = "0.7.1"
 async-std = { version = "1.5.0", features = [ "attributes" ] }
-tokio = { version = "0.2.13", features = [ "full" ] }
+tokio = { version = "0.2.18", features = [ "full" ] }
 dotenv = "0.15.0"
-trybuild = "1.0.24"
+trybuild = "1.0.25"
 sqlx-test = { path = "./sqlx-test" }
-paste = "0.1.7"
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0.48"
+paste = "0.1.10"
+serde = { version = "1.0.106", features = [ "derive" ] }
+serde_json = "1.0.51"
 
 [[test]]
 name = "postgres-macros"

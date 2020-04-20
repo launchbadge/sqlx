@@ -1,33 +1,27 @@
-use std::future::Future;
-use std::io::{self, BufRead};
+use std::io;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
-use futures_util::ready;
+use bytes::BytesMut;
 
-use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite};
+use crate::error::Error;
+use crate::io::{decode::Decode, encode::Encode};
+use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-const RBUF_SIZE: usize = 8 * 1024;
+pub struct BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    stream: S,
 
-pub struct BufStream<S> {
-    pub(crate) stream: S,
-
-    // Have we reached end-of-file (been disconnected)
-    stream_eof: bool,
-
-    // Buffer used when sending outgoing messages
+    // writes with `write` to the underlying stream are buffered
+    // this can be flushed with `flush`
     wbuf: Vec<u8>,
 
-    // Buffer used when reading incoming messages
-    rbuf: Vec<u8>,
-    rbuf_rindex: usize,
-    rbuf_windex: usize,
-}
-
-pub struct GuardedFlush<'a, S: 'a> {
-    stream: &'a mut S,
-    buf: io::Cursor<&'a mut Vec<u8>>,
+    // we read into the read buffer using 100% safe code
+    // this requires us to store the "real" length as `rbuf.len()`
+    // is now the capacity
+    rbuf: BytesMut,
+    rbuf_len: usize,
 }
 
 impl<S> BufStream<S>
@@ -37,109 +31,69 @@ where
     pub fn new(stream: S) -> Self {
         Self {
             stream,
-            stream_eof: false,
-            wbuf: Vec::with_capacity(1024),
-            rbuf: vec![0; RBUF_SIZE],
-            rbuf_rindex: 0,
-            rbuf_windex: 0,
+            wbuf: Vec::with_capacity(512),
+            rbuf: BytesMut::with_capacity(1024),
+            rbuf_len: 0,
         }
     }
 
-    #[cfg(feature = "postgres")]
-    #[inline]
-    pub fn buffer<'c>(&'c self) -> &'c [u8] {
-        &self.rbuf[self.rbuf_rindex..]
+    pub async fn write<T>(&mut self, value: T) -> Result<(), Error>
+    where
+        T: Encode,
+    {
+        // all writes are done on an empty buffer; this greatly simplifies encoding logic
+        // clearing a Vec is O(1) for Copy typees, it just sets the len to 0
+        self.wbuf.clear();
+
+        value.encode(&mut self.wbuf);
+
+        // this empty buffer is then written to the stream that is internally buffered
+        self.stream.write_all(&self.wbuf).await?;
+
+        Ok(())
     }
 
-    #[inline]
-    pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.wbuf
+    pub async fn flush(&mut self) -> Result<(), Error> {
+        self.stream.flush().await.map_err(Into::into)
     }
 
-    #[inline]
-    #[must_use = "write buffer is cleared on-drop even if future is not polled"]
-    pub fn flush(&mut self) -> GuardedFlush<S> {
-        GuardedFlush {
-            stream: &mut self.stream,
-            buf: io::Cursor::new(&mut self.wbuf),
+    pub async fn read<T>(&mut self, cnt: usize) -> Result<T, Error>
+    where
+        T: Decode,
+    {
+        if (self.rbuf.len() - self.rbuf_len) < cnt {
+            // not enough space remaining in our read buffer
+            // re-allocate the buffer to a larger size
+            // this uses the 2x growing rule so it will allocate much more space than
+            // we _strictly_ need, which is a good thing
+            self.rbuf.resize(self.rbuf.len() + cnt, 0);
         }
-    }
 
-    #[inline]
-    pub fn consume(&mut self, cnt: usize) {
-        self.rbuf_rindex += cnt;
-    }
-
-    pub async fn peek(&mut self, cnt: usize) -> io::Result<&[u8]> {
-        self.try_peek(cnt)
-            .await
-            .transpose()
-            .ok_or(io::ErrorKind::ConnectionAborted)?
-    }
-
-    pub async fn try_peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
-        loop {
-            // Reaching end-of-file (read 0 bytes) will continuously
-            // return None from all future calls to read
-            if self.stream_eof {
-                return Ok(None);
-            }
-
-            // If we have enough bytes in our read buffer,
-            // return immediately
-            if self.rbuf_windex >= (self.rbuf_rindex + cnt) {
-                let buf = &self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)];
-
-                return Ok(Some(buf));
-            }
-
-            // If we are out of space to write to in the read buffer ..
-            if self.rbuf.len() < (self.rbuf_windex + cnt) {
-                if self.rbuf_rindex == self.rbuf_windex {
-                    // We have consumed all data; simply reset the indexes
-                    self.rbuf_rindex = 0;
-                    self.rbuf_windex = 0;
-                } else {
-                    // Allocate a new buffer
-                    let mut new_rbuf = Vec::with_capacity(RBUF_SIZE);
-
-                    // Take the minimum of the read and write indexes
-                    let min_index = self.rbuf_rindex.min(self.rbuf_windex);
-
-                    // Copy the old buffer to our new buffer
-                    new_rbuf.extend_from_slice(&self.rbuf[min_index..]);
-
-                    // Zero-extend the new buffer
-                    new_rbuf.resize(new_rbuf.capacity(), 0);
-
-                    // Replace the old buffer with our new buffer
-                    self.rbuf = new_rbuf;
-
-                    // And reduce the indexes
-                    self.rbuf_rindex -= min_index;
-                    self.rbuf_windex -= min_index;
-                }
-
-                // Do we need more space still
-                if self.rbuf.len() < (self.rbuf_windex + cnt) {
-                    let needed = (self.rbuf_windex + cnt) - self.rbuf.len();
-
-                    self.rbuf.resize(self.rbuf.len() + needed, 0);
-                }
-            }
-
-            let n = self.stream.read(&mut self.rbuf[self.rbuf_windex..]).await?;
-
-            self.rbuf_windex += n;
+        while cnt > self.rbuf_len {
+            let n = self.stream.read(&mut *self.rbuf).await?;
 
             if n == 0 {
-                self.stream_eof = true;
+                // a zero read when we had space in the read buffer
+                // should be treated as an EOF
+
+                // and an unexpected EOF means the server told us to go away
+
+                return Err(io::Error::from(io::ErrorKind::ConnectionAborted).into());
             }
+
+            self.rbuf_len += n;
         }
+
+        self.rbuf_len -= cnt;
+
+        T::decode(self.rbuf.split_to(cnt).freeze())
     }
 }
 
-impl<S> Deref for BufStream<S> {
+impl<S> Deref for BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -147,53 +101,11 @@ impl<S> Deref for BufStream<S> {
     }
 }
 
-impl<S> DerefMut for BufStream<S> {
+impl<S> DerefMut for BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
-    }
-}
-
-// TODO: Find a nicer way to do this
-// Return `Ok(None)` immediately from a function if the wrapped value is `None`
-#[allow(unused)]
-macro_rules! ret_if_none {
-    ($val:expr) => {
-        match $val {
-            Some(val) => val,
-            None => {
-                return Ok(None);
-            }
-        }
-    };
-}
-
-impl<'a, S: AsyncWrite + Unpin> Future for GuardedFlush<'a, S> {
-    type Output = io::Result<()>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self {
-            ref mut stream,
-            ref mut buf,
-        } = *self;
-
-        loop {
-            let read = buf.fill_buf()?;
-
-            if !read.is_empty() {
-                let written = ready!(Pin::new(&mut *stream).poll_write(cx, read)?);
-                buf.consume(written);
-            } else {
-                break;
-            }
-        }
-
-        Pin::new(stream).poll_flush(cx)
-    }
-}
-
-impl<'a, S> Drop for GuardedFlush<'a, S> {
-    fn drop(&mut self) {
-        // clear the buffer regardless of whether the flush succeeded or not
-        self.buf.get_mut().clear();
     }
 }

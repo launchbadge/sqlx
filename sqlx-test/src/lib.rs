@@ -13,7 +13,7 @@ where
 {
     setup_if_needed();
 
-    Ok(DB::Connection::connect(dotenv::var("DATABASE_URL")?).await?)
+    Ok(DB::Connection::connect(&dotenv::var("DATABASE_URL")?).await?)
 }
 
 // Test type encoding and decoding

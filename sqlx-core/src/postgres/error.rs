@@ -1,99 +1,163 @@
-use std::error::Error as StdError;
-use std::fmt::{self, Display};
+use std::error::Error;
+use std::fmt::{self, Debug, Display, Formatter};
+
+use atoi::atoi;
 
 use crate::error::DatabaseError;
-use crate::postgres::protocol::Response;
+use crate::postgres::message::{PgSeverity, Response};
+
+/// An error returned from the PostgreSQL database.
+pub struct PgDatabaseError(pub(crate) Response);
+
+// Error message fields are documented:
+// https://www.postgresql.org/docs/current/protocol-error-fields.html
+
+impl PgDatabaseError {
+    #[inline]
+    pub fn severity(&self) -> PgSeverity {
+        self.0.severity()
+    }
+
+    /// The [SQLSTATE](https://www.postgresql.org/docs/current/errcodes-appendix.html) code for
+    /// this error.
+    #[inline]
+    pub fn code(&self) -> &str {
+        self.0.code()
+    }
+
+    /// The primary human-readable error message. This should be accurate but
+    /// terse (typically one line).
+    #[inline]
+    pub fn message(&self) -> &str {
+        self.0.message()
+    }
+
+    /// An optional secondary error message carrying more detail about the problem.
+    /// Might run to multiple lines.
+    #[inline]
+    pub fn detail(&self) -> Option<&str> {
+        self.0.get(b'D')
+    }
+
+    /// An optional suggestion what to do about the problem. This is intended to differ from
+    /// `detail` in that it offers advice (potentially inappropriate) rather than hard facts.
+    /// Might run to multiple lines.
+    #[inline]
+    pub fn hint(&self) -> Option<&str> {
+        self.0.get(b'H')
+    }
+
+    /// Indicates an error cursor position as an index into the original query string; or,
+    /// a position into an internally generated query.
+    #[inline]
+    pub fn position(&self) -> Option<PgErrorPosition<'_>> {
+        self.0
+            .get_raw(b'P')
+            .and_then(atoi)
+            .map(PgErrorPosition::Original)
+            .or_else(|| {
+                let position = self.0.get_raw(b'p').and_then(atoi)?;
+                let query = self.0.get(b'q')?;
+
+                Some(PgErrorPosition::Internal { position, query })
+            })
+    }
+
+    /// An indication of the context in which the error occurred. Presently this includes a call
+    /// stack traceback of active procedural language functions and internally-generated queries.
+    /// The trace is one entry per line, most recent first.
+    pub fn r#where(&self) -> Option<&str> {
+        self.0.get(b'W')
+    }
+
+    /// If this error is with a specific database object, the
+    /// name of the schema containing that object, if any.
+    pub fn schema(&self) -> Option<&str> {
+        self.0.get(b's')
+    }
+
+    /// If this error is with a specific table, the name of the table.
+    pub fn table(&self) -> Option<&str> {
+        self.0.get(b't')
+    }
+
+    /// If the error is with a specific table column, the name of the column.
+    pub fn column(&self) -> Option<&str> {
+        self.0.get(b'c')
+    }
+
+    /// If the error is with a specific data type, the name of the data type.
+    pub fn data_type(&self) -> Option<&str> {
+        self.0.get(b'd')
+    }
+
+    /// If the error is with a specific constraint, the name of the constraint.
+    /// For this purpose, indexes are constraints, even if they weren't created
+    /// with constraint syntax.
+    pub fn constraint(&self) -> Option<&str> {
+        self.0.get(b'n')
+    }
+
+    /// The file name of the source-code location where this error was reported.
+    pub fn file(&self) -> Option<&str> {
+        self.0.get(b'F')
+    }
+
+    /// The line number of the source-code location where this error was reported.
+    pub fn line(&self) -> Option<usize> {
+        self.0.get_raw(b'L').and_then(atoi)
+    }
+
+    /// The name of the source-code routine reporting this error.
+    pub fn routine(&self) -> Option<&str> {
+        self.0.get(b'R')
+    }
+}
 
 #[derive(Debug)]
-pub struct PgError(pub(super) Response);
+pub enum PgErrorPosition<'a> {
+    /// A position (in characters) into the original query.
+    Original(usize),
 
-impl DatabaseError for PgError {
-    fn message(&self) -> &str {
-        &self.0.message
-    }
+    /// A position into the internally-generated query.
+    Internal {
+        /// The position in characters.
+        position: usize,
 
-    fn code(&self) -> Option<&str> {
-        Some(&self.0.code)
-    }
+        /// The text of a failed internally-generated command. This could be, for example,
+        /// the SQL query issued by a PL/pgSQL function.
+        query: &'a str,
+    },
+}
 
-    fn details(&self) -> Option<&str> {
-        self.0.detail.as_ref().map(|s| &**s)
-    }
-
-    fn hint(&self) -> Option<&str> {
-        self.0.hint.as_ref().map(|s| &**s)
-    }
-
-    fn table_name(&self) -> Option<&str> {
-        self.0.table.as_ref().map(|s| &**s)
-    }
-
-    fn column_name(&self) -> Option<&str> {
-        self.0.column.as_ref().map(|s| &**s)
-    }
-
-    fn constraint_name(&self) -> Option<&str> {
-        self.0.constraint.as_ref().map(|s| &**s)
-    }
-
-    fn as_ref_err(&self) -> &(dyn StdError + Send + Sync + 'static) {
-        self
-    }
-
-    fn as_mut_err(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
-        self
-    }
-
-    fn into_box_err(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
-        self
+impl Debug for PgDatabaseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PgDatabaseError")
+            .field("severity", &self.severity())
+            .field("code", &self.code())
+            .field("message", &self.message())
+            .field("detail", &self.detail())
+            .field("hint", &self.hint())
+            .field("position", &self.position())
+            .field("where", &self.r#where())
+            .field("schema", &self.schema())
+            .field("table", &self.table())
+            .field("column", &self.column())
+            .field("data_type", &self.data_type())
+            .field("constraint", &self.constraint())
+            .field("file", &self.file())
+            .field("line", &self.line())
+            .field("routine", &self.routine())
+            .finish()
     }
 }
 
-impl Display for PgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad(self.message())
+impl Display for PgDatabaseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.message())
     }
 }
 
-impl StdError for PgError {}
+impl Error for PgDatabaseError {}
 
-impl From<PgError> for crate::Error {
-    fn from(err: PgError) -> Self {
-        crate::Error::Database(Box::new(err))
-    }
-}
-
-#[test]
-fn test_error_downcasting() {
-    use super::protocol::Severity;
-
-    let error = PgError(Response {
-        severity: Severity::Panic,
-        code: "".into(),
-        message: "".into(),
-        detail: None,
-        hint: None,
-        position: None,
-        internal_position: None,
-        internal_query: None,
-        where_: None,
-        schema: None,
-        table: None,
-        column: None,
-        data_type: None,
-        constraint: None,
-        file: None,
-        line: None,
-        routine: None,
-    });
-
-    let error = crate::Error::from(error);
-
-    let db_err = match error {
-        crate::Error::Database(db_err) => db_err,
-        e => panic!("expected Error::Database, got {:?}", e),
-    };
-
-    assert_eq!(db_err.downcast_ref::<PgError>().0.severity, Severity::Panic);
-    assert_eq!(db_err.downcast::<PgError>().0.severity, Severity::Panic);
-}
+impl DatabaseError for PgDatabaseError {}

@@ -1,8 +1,6 @@
-//! Types and traits for encoding values to the database.
+use std::mem;
 
 use crate::database::Database;
-use crate::types::Type;
-use std::mem;
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -16,57 +14,46 @@ pub enum IsNull {
 }
 
 /// Encode a single value to be sent to the database.
-pub trait Encode<DB>
-where
-    DB: Database + ?Sized,
-{
+pub trait Encode<DB: Database> {
+    fn produces() -> DB::TypeInfo;
+
     /// Writes the value of `self` into `buf` in the expected format for the database.
-    fn encode(&self, buf: &mut DB::RawBuffer);
+    #[must_use]
+    fn encode(&self, buf: &mut DB::RawBuffer) -> IsNull;
 
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        self.encode(buf);
-
-        IsNull::No
-    }
-
+    #[inline]
     fn size_hint(&self) -> usize {
         mem::size_of_val(self)
     }
 }
 
-impl<T: ?Sized, DB> Encode<DB> for &'_ T
-where
-    DB: Database,
-    T: Type<DB>,
-    T: Encode<DB>,
-{
-    fn encode(&self, buf: &mut DB::RawBuffer) {
+impl<T: Encode<DB> + ?Sized, DB: Database> Encode<DB> for &'_ T {
+    #[inline]
+    fn produces() -> DB::TypeInfo {
+        <T as Encode<DB>>::produces()
+    }
+
+    #[inline]
+    fn encode(&self, buf: &mut DB::RawBuffer) -> IsNull {
         (*self).encode(buf)
     }
 
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        (*self).encode_nullable(buf)
-    }
-
+    #[inline]
     fn size_hint(&self) -> usize {
         (*self).size_hint()
     }
 }
 
-impl<T, DB> Encode<DB> for Option<T>
-where
-    DB: Database,
-    T: Type<DB>,
-    T: Encode<DB>,
-{
-    fn encode(&self, buf: &mut DB::RawBuffer) {
-        // Forward to [encode_nullable] and ignore the result
-        let _ = self.encode_nullable(buf);
+impl<T: Encode<DB>, DB: Database> Encode<DB> for Option<T> {
+    #[inline]
+    fn produces() -> DB::TypeInfo {
+        <T as Encode<DB>>::produces()
     }
 
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        if let Some(self_) = self {
-            self_.encode(buf);
+    #[inline]
+    fn encode(&self, buf: &mut DB::RawBuffer) -> IsNull {
+        if let Some(v) = self {
+            v.encode(buf);
 
             IsNull::No
         } else {
@@ -74,6 +61,7 @@ where
         }
     }
 
+    #[inline]
     fn size_hint(&self) -> usize {
         self.as_ref().map_or(0, Encode::size_hint)
     }

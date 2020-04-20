@@ -2,41 +2,61 @@ use std::fmt::{Debug, Display};
 
 use crate::arguments::Arguments;
 use crate::connection::Connect;
-use crate::cursor::HasCursor;
-use crate::error::DatabaseError;
-use crate::row::HasRow;
-use crate::types::TypeInfo;
-use crate::value::HasRawValue;
+use crate::row::Row;
+use crate::type_info::TypeInfo;
+use crate::value::RawValue;
 
 /// A database driver.
 ///
-/// This trait encapsulates a complete driver implementation to a specific
-/// database (e.g., **MySQL**, **Postgres**).
-pub trait Database
-where
-    Self: Debug + Sized + Send + 'static,
-    Self: for<'c> HasRow<'c, Database = Self>,
-    Self: for<'c> HasRawValue<'c, Database = Self>,
-    Self: for<'c, 'q> HasCursor<'c, 'q, Database = Self>,
+/// This trait encapsulates a complete set of traits that implement a driver for a
+/// specific database (e.g., MySQL, PostgreSQL).
+pub trait Database:
+    Sized
+    + Send
+    + Debug
+    + for<'r> HasRawValue<'r, Database = Self>
+    + for<'q> HasArguments<'q, Database = Self>
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connect<Database = Self>;
 
-    /// The concrete `Arguments` implementation for this database.
-    type Arguments: Arguments<Database = Self>;
+    /// The concrete `Row` implementation for this database.
+    type Row: Row<Database = Self>;
 
     /// The concrete `TypeInfo` implementation for this database.
     type TypeInfo: TypeInfo;
 
-    /// The Rust type of table identifiers for this database.
-    type TableId: Display + Clone;
-
-    /// The Rust type used as the buffer when encoding arguments.
-    ///
-    /// For example, **Postgres** and **MySQL** use `Vec<u8>`;
-    /// however, **SQLite** uses `Vec<SqliteArgumentValue>`.
+    /// The concrete type used to collect values when binding arguments for a prepared query.
     type RawBuffer: Default;
+}
 
-    /// The concrete `DatabaseError` type used to report errors from the database.
-    type Error: DatabaseError + Send + Sync;
+/// Associate [`Database`] with a [`RawValue`] of a generic lifetime.
+///
+/// ---
+///
+/// The upcoming Rust feature, [Generic Associated Types], should obviate
+/// the need for this trait.
+///
+/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
+pub trait HasRawValue<'r> {
+    type Database: Database;
+
+    /// The concrete type used to hold a not-yet-decoded value that has just been
+    /// received from the database.
+    type RawValue: RawValue<'r, Database = Self::Database>;
+}
+
+/// Associate [`Database`] with an [`Arguments`] of a generic lifetime.
+///
+/// ---
+///
+/// The upcoming Rust feature, [Generic Associated Types], should obviate
+/// the need for this trait.
+///
+/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
+pub trait HasArguments<'q> {
+    type Database: Database;
+
+    /// The concrete `Arguments` implementation for this database.
+    type Arguments: Arguments<'q, Database = Self::Database>;
 }

@@ -1,6 +1,7 @@
 //! Tests for the raw (unprepared) query API for Postgres.
 
-use sqlx::{Cursor, Executor, Postgres, Row};
+use futures::TryStreamExt;
+use sqlx::{Executor, Postgres, Row};
 use sqlx_test::new;
 
 /// Tests the edge case of executing a completely empty query string.
@@ -24,8 +25,8 @@ async fn test_empty_query() -> anyhow::Result<()> {
 async fn test_select_expression() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let mut cursor = conn.fetch("SELECT 5");
-    let row = cursor.next().await?.unwrap();
+    let mut s = conn.fetch("SELECT 5");
+    let row = s.try_next().await?.unwrap();
 
     assert!(5i32 == row.try_get::<i32, _>(0)?);
 
@@ -40,7 +41,7 @@ async fn test_select_expression() -> anyhow::Result<()> {
 async fn test_multi_read_write() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let mut cursor = conn.fetch(
+    let mut s = conn.fetch(
         "
 CREATE TABLE IF NOT EXISTS _sqlx_test_postgres_5112 (
     id BIGSERIAL PRIMARY KEY,
@@ -55,11 +56,11 @@ SELECT id, text FROM _sqlx_test_postgres_5112;
     ",
     );
 
-    let row = cursor.next().await?.unwrap();
+    let row = s.try_next().await?.unwrap();
 
     assert!("Hello World" == row.try_get::<&str, _>("_1")?);
 
-    let row = cursor.next().await?.unwrap();
+    let row = s.try_next().await?.unwrap();
 
     let id: i64 = row.try_get("id")?;
     let text: &str = row.try_get("text")?;

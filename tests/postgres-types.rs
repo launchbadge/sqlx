@@ -2,9 +2,9 @@ extern crate time_ as time;
 
 use sqlx::decode::Decode;
 use sqlx::encode::Encode;
-use sqlx::postgres::types::raw::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
-use sqlx::postgres::{PgQueryAs, PgRawBuffer, PgTypeInfo, PgValue};
-use sqlx::{Cursor, Executor, Postgres, Row, Type};
+// use sqlx::postgres::types::raw::{PgNumeric, PgNumericSign, PgRecordDecoder, PgRecordEncoder};
+use sqlx::postgres::{PgRawBuffer, PgTypeInfo, PgValue};
+use sqlx::{Executor, Postgres, Row, Type};
 use sqlx_test::{new, test_prepared_type, test_type};
 
 // TODO: With support for concatenation of sql literals in query! macros this should be updated

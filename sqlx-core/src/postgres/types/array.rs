@@ -1,68 +1,56 @@
-//! Encoding and decoding of Postgres arrays.
-
 use crate::database::Database;
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::postgres::types::raw::{PgArrayDecoder, PgArrayEncoder};
-use crate::postgres::{PgRawBuffer, PgValue, Postgres};
-use crate::types::Type;
+use crate::encode::{Encode, IsNull};
+use crate::postgres::{PgRawBuffer, PgTypeInfo, Postgres};
 
 impl<T> Encode<Postgres> for [T]
 where
-    T: Encode<Postgres>,
-    T: Type<Postgres>,
+    T: PgArrayElement,
 {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        let mut encoder = PgArrayEncoder::new(buf);
+    fn produces() -> PgTypeInfo {
+        T::array_type_info()
+    }
 
-        for item in self {
-            encoder.encode(item);
-        }
-
-        encoder.finish();
+    fn encode(&self, buf: &mut PgRawBuffer) -> IsNull {
+        todo!()
     }
 }
 
 impl<T> Encode<Postgres> for Vec<T>
 where
-    T: Encode<Postgres>,
-    T: Type<Postgres>,
+    T: PgArrayElement,
 {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        self.as_slice().encode(buf)
+    fn produces() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn encode(&self, buf: &mut PgRawBuffer) -> IsNull {
+        <[T] as Encode<Postgres>>::encode(&**self, buf)
     }
 }
 
-impl<'de, T> Decode<'de, Postgres> for Vec<T>
-where
-    T: 'de,
-    T: for<'arr> Decode<'arr, Postgres>,
-    [T]: Type<Postgres>,
-    T: Type<Postgres>,
-{
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        PgArrayDecoder::<T>::new(value)?.collect()
+pub trait PgArrayElement: Encode<Postgres> {
+    fn array_type_info() -> PgTypeInfo;
+}
+
+// generate impls of PgArrayElement
+// declared as: rust type => array type OID
+
+macro_rules! impl_array_elements {
+    ($($ty:ident => $id:ident;)+) => {
+        $(
+            impl PgArrayElement for $ty {
+                fn array_type_info() -> PgTypeInfo {
+                    PgTypeInfo :: $id
+                }
+            }
+        )+
     }
 }
 
-impl<T, DB> Type<DB> for Vec<Option<T>>
-where
-    DB: Database,
-    [T]: Type<DB>,
-{
-    #[inline]
-    fn type_info() -> DB::TypeInfo {
-        <[T] as Type<DB>>::type_info()
-    }
-}
-
-impl<T, DB> Type<DB> for [Option<T>]
-where
-    DB: Database,
-    [T]: Type<DB>,
-{
-    #[inline]
-    fn type_info() -> DB::TypeInfo {
-        <[T] as Type<DB>>::type_info()
-    }
+impl_array_elements! {
+    bool => BOOL_ARRAY;
+    i16 => INT2_ARRAY;
+    i32 => INT4_ARRAY;
+    i64 => INT8_ARRAY;
 }
