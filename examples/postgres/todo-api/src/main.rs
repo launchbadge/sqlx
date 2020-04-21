@@ -63,5 +63,3 @@ async fn main() -> Result<()> {
 
 // export DATABASE_URL="postgres://pguser:zx@192.168.33.11/realworld"
 // systemfd --no-pid -s http::5000 -- cargo watch -x run
-// I would add the example as "todo-api"
-// Under the postgres folder

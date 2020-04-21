@@ -1,5 +1,5 @@
 [package]
-name = "actix_sqlx"
+name = "todo_api"
 version = "0.1.0"
 authors = ["Milan Zivkovic <zivkovic.milan@gmail.com>"]
 edition = "2018"
