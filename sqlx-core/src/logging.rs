@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+pub(crate) const SLOW_QUERY_THRESHOLD: Duration = Duration::from_secs(1);
+
 /// Logs the query and execution time of a statement as it runs.
 macro_rules! log_execution {
     ( $query:expr, $block:expr ) => {{
@@ -6,7 +10,7 @@ macro_rules! log_execution {
         let timer = std::time::Instant::now();
         let result = $block;
         let elapsed = timer.elapsed();
-        if elapsed >= std::time::Duration::from_secs(1) {
+        if elapsed >= crate::logging::SLOW_QUERY_THRESHOLD {
             log::warn!(
                 target: "sqlx::query",
                 "{} ..., elapsed: {:.3?}\n\n{}\n",
