@@ -55,7 +55,7 @@ impl Handshake {
             buf.get_u8()?
         } else {
             // 0x00 : int<1>
-            buf.advance(0);
+            buf.advance(1);
             0
         };
 
