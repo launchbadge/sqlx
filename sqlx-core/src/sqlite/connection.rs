@@ -150,6 +150,7 @@ impl Drop for SqliteConnection {
     fn drop(&mut self) {
         // Drop all statements first
         self.statements.clear();
+        drop(self.statement.take());
 
         // Next close the statement
         // https://sqlite.org/c3ref/close.html
