@@ -7,6 +7,7 @@ pub use sqlx_core::executor::{self, Execute, Executor};
 // TODO: pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
+pub use sqlx_core::query_scalar::{query_scalar, QueryScalar};
 pub use sqlx_core::row::{self, FromRow, Row};
 // TODO: pub use sqlx_core::transaction::Transaction;
 pub use sqlx_core::value;
