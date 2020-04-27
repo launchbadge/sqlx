@@ -122,8 +122,12 @@ impl TryFrom<PgNumeric> for BigDecimal {
             }
         };
 
+        if digits.is_empty() {
+            // Postgres returns an empty digit array for 0 but BigInt expects at least one zero
+            return Ok(0u64.into());
+        }
+
         let sign = match sign {
-            _ if digits.is_empty() => Sign::NoSign,
             PgNumericSign::Positive => Sign::Plus,
             PgNumericSign::Negative => Sign::Minus,
         };
