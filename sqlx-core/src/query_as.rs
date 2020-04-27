@@ -18,7 +18,7 @@ use crate::row::FromRow;
 /// Returned from [`query_as`].
 #[must_use = "query must be executed to affect database"]
 pub struct QueryAs<'q, DB: Database, O> {
-    inner: Query<'q, DB>,
+    pub(crate) inner: Query<'q, DB>,
     output: PhantomData<O>,
 }
 

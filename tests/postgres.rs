@@ -86,6 +86,44 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn it_can_query_scalar() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let scalar: i32 = sqlx::query_scalar("SELECT 42").fetch_one(&mut conn).await?;
+    assert_eq!(scalar, 42);
+
+    let scalar: Option<i32> = sqlx::query_scalar("SELECT 42").fetch_one(&mut conn).await?;
+    assert_eq!(scalar, Some(42));
+
+    let scalar: Option<i32> = sqlx::query_scalar("SELECT NULL").fetch_one(&mut conn).await?;
+    assert_eq!(scalar, None);
+
+    let scalar: Option<i64> = sqlx::query_scalar("SELECT 42::bigint").fetch_optional(&mut conn).await?;
+    assert_eq!(scalar, Some(42));
+
+    let scalar: Option<i16> = sqlx::query_scalar("").fetch_optional(&mut conn).await?;
+    assert_eq!(scalar, None);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+/// This is seperate from `it_can_query_scalar` because while implementing it I ran into a bug which that prevented `Vec<i32>` from compiling but allowed Vec<Option<i32>>.
+async fn it_can_query_all_scalar() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let scalar: Vec<i32> = sqlx::query_scalar("SELECT $1").bind(42).fetch_all(&mut conn).await?;
+    assert_eq!(scalar, vec![42]);
+
+    let scalar: Vec<Option<i32>> = sqlx::query_scalar("SELECT $1 UNION ALL SELECT NULL").bind(42).fetch_all(&mut conn).await?;
+    assert_eq!(scalar, vec![Some(42), None]);
+
+    Ok(())
+}
+
 // #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 // #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 // async fn it_can_work_with_transactions() -> anyhow::Result<()> {

@@ -28,6 +28,7 @@ mod io;
 mod net;
 pub mod query;
 pub mod query_as;
+pub mod query_scalar;
 pub mod row;
 mod runtime;
 pub mod type_info;
