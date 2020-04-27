@@ -166,6 +166,8 @@ test_prepared_type!(numeric(
 test_type!(decimal(
     Postgres,
     sqlx::types::BigDecimal,
+    // https://github.com/launchbadge/sqlx/issues/283
+    "0::numeric" == "0".parse::<sqlx::types::BigDecimal>().unwrap(),
     "1::numeric" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
     "10000::numeric" == "10000".parse::<sqlx::types::BigDecimal>().unwrap(),
     "0.1::numeric" == "0.1".parse::<sqlx::types::BigDecimal>().unwrap(),
