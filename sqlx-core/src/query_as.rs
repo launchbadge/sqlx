@@ -62,12 +62,7 @@ where
         O: 'c,
     {
         self.fetch_many(executor)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(_) => None,
-                    Either::Right(o) => Some(o),
-                })
-            })
+            .try_filter_map(|step| async move { Ok(step.right()) })
             .boxed()
     }
 
@@ -96,18 +91,18 @@ where
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     #[inline]
-    pub fn fetch_all<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Vec<O>, Error>>
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'c,
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         O: 'c,
     {
-        self.fetch(executor).try_collect().boxed()
+        self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
-    pub fn fetch_one<'c, E>(self, executor: E) -> BoxFuture<'c, Result<O, Error>>
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'c,
         E: 'c + Executor<'c, Database = DB>,
@@ -115,29 +110,24 @@ where
         O: 'c,
     {
         self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
-            })
-            .boxed()
+            .await
+            .and_then(|row| row.ok_or(Error::RowNotFound))
     }
 
     /// Execute the query and returns at most one row.
-    pub fn fetch_optional<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Option<O>, Error>>
+    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'c,
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         O: 'c,
     {
-        Box::pin(async move {
-            let row = executor.fetch_optional(self.inner).await?;
-            if let Some(row) = row {
-                O::from_row(&row).map(Some)
-            } else {
-                Ok(None)
-            }
-        })
+        let row = executor.fetch_optional(self.inner).await?;
+        if let Some(row) = row {
+            O::from_row(&row).map(Some)
+        } else {
+            Ok(None)
+        }
     }
 }
 
