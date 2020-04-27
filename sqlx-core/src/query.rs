@@ -100,17 +100,17 @@ where
 
     /// Execute the query and return the total number of rows affected.
     #[inline]
-    pub fn execute<'c, E>(self, executor: E) -> BoxFuture<'c, Result<u64, Error>>
+    pub async fn execute<'c, E>(self, executor: E) -> Result<u64, Error>
     where
         'q: 'c,
         E: Executor<'c, Database = DB>,
     {
-        executor.execute(self)
+        executor.execute(self).await
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
     #[inline]
-    pub fn execute_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<u64, Error>>
+    pub async fn execute_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<u64, Error>>
     where
         'q: 'c,
         E: Executor<'c, Database = DB>,
@@ -144,32 +144,32 @@ where
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     #[inline]
-    pub fn fetch_all<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Vec<DB::Row>, Error>>
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
     where
         'q: 'c,
         E: Executor<'c, Database = DB>,
     {
-        executor.fetch_all(self)
+        executor.fetch_all(self).await
     }
 
     /// Execute the query and returns exactly one row.
     #[inline]
-    pub fn fetch_one<'c, E>(self, executor: E) -> BoxFuture<'c, Result<DB::Row, Error>>
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<DB::Row, Error>
     where
         'q: 'c,
         E: Executor<'c, Database = DB>,
     {
-        executor.fetch_one(self)
+        executor.fetch_one(self).await
     }
 
     /// Execute the query and returns at most one row.
     #[inline]
-    pub fn fetch_optional<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Option<DB::Row>, Error>>
+    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
     where
         'q: 'c,
         E: Executor<'c, Database = DB>,
     {
-        executor.fetch_optional(self)
+        executor.fetch_optional(self).await
     }
 }
 
