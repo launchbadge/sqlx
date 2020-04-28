@@ -62,12 +62,14 @@ jobs:
     # integration test: sqlite + async-std
     - run: cargo test --no-default-features --features 'runtime-async-std sqlite macros tls'
       env:
-        DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
+        # note: absolute path required for UI tests
+        # https://github.com/dtolnay/trybuild/issues/69#issuecomment-620329526
+        DATABASE_URL: ${{ format('sqlite://{0}/tests/fixtures/sqlite.sqlite', github.workspace) }}
 
     # integration test: sqlite + tokio
     - run: cargo test --no-default-features --features 'runtime-tokio sqlite macros tls'
       env:
-        DATABASE_URL: "sqlite://tests/fixtures/sqlite.sqlite"
+        DATABASE_URL: ${{ format('sqlite://{0}/tests/fixtures/sqlite.sqlite', github.workspace) }}
 
     # Rust ------------------------------------------------
 
