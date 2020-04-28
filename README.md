@@ -163,7 +163,7 @@ async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     let pool = PgPool::builder()
         .max_size(5) // maximum number of connections in the pool
-        .build(env::var("DATABASE_URL")?).await?;
+        .build(&env::var("DATABASE_URL")?).await?;
     
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
