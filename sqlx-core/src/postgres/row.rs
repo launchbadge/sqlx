@@ -5,7 +5,7 @@ use crate::postgres::protocol::{DataRow, TypeFormat};
 use crate::postgres::type_info::SharedStr;
 use crate::postgres::value::PgValue;
 use crate::postgres::{PgTypeInfo, Postgres};
-use crate::row::{ColumnIndex, Row};
+use crate::row::{self, ColumnIndex, Row};
 
 // A statement has 0 or more columns being returned from the database
 // For Postgres, each column has an OID and a format (binary or text)
@@ -67,6 +67,10 @@ impl<'c> Row<'c> for PgRow<'c> {
         };
 
         Ok(value)
+    }
+
+    fn columns(&self) -> Box<[row::Column<Self::Database>]> {
+        todo!()
     }
 }
 

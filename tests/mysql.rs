@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use sqlx::{mysql::MySqlQueryAs, Connection, Executor, MySql, MySqlPool};
+use sqlx::{mysql::MySqlQueryAs, Connection, Cursor, Executor, MySql, MySqlPool, Row};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -229,6 +229,40 @@ async fn test_fetch_one_and_ping() -> anyhow::Result<()> {
     let (_id,): (i32,) = sqlx::query_as("SELECT 1 as id")
         .fetch_one(&mut conn)
         .await?;
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_row_columns() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+        CREATE TEMPORARY TABLE row_columns_test (
+            id int primary key auto_increment,
+            name text not null,
+            age int
+        );
+
+        INSERT INTO row_columns_test (name, age) VALUES ('James', 12);
+    "#,
+        )
+        .await?;
+
+    let mut cursor = conn.fetch("SELECT * FROM row_columns_test");
+    let row = cursor.next().await?.unwrap();
+    let columns = row.columns();
+
+    assert_eq!(columns.len(), 3);
+    assert_eq!(columns[0].name, Some("id"));
+    assert_eq!(columns[0].type_info.is_some(), true);
+    assert_eq!(columns[1].name, Some("name"));
+    assert_eq!(columns[1].type_info.is_some(), true);
+    assert_eq!(columns[2].name, Some("age"));
+    assert_eq!(columns[2].type_info.is_some(), true);
 
     Ok(())
 }

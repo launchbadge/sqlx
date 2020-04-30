@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::vec::Vec;
 
 use crate::mysql::protocol;
 use crate::mysql::{MySql, MySqlValue};
-use crate::row::{ColumnIndex, Row};
+use crate::row::{Column, ColumnIndex, Row};
 
 pub struct MySqlRow<'c> {
     pub(super) row: protocol::Row<'c>,
@@ -34,6 +35,24 @@ impl<'c> Row<'c> for MySqlRow<'c> {
         };
 
         Ok(value)
+    }
+
+    fn columns(&self) -> Box<[Column<Self::Database>]> {
+        let mut columns = Vec::with_capacity(self.row.columns.len());
+        for (index, column_type) in self.row.columns.iter().enumerate() {
+            let name = self
+                .names
+                .iter()
+                .find(|(_name, name_index)| (**name_index as usize) == index)
+                .map(|(name, _)| name.as_ref());
+
+            columns.push(Column {
+                name,
+                type_info: Some(column_type),
+            });
+        }
+
+        columns.into_boxed_slice()
     }
 }
 

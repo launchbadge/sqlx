@@ -1,4 +1,4 @@
-use crate::row::{ColumnIndex, Row};
+use crate::row::{Column, ColumnIndex, Row};
 use crate::sqlite::statement::Statement;
 use crate::sqlite::value::SqliteValue;
 use crate::sqlite::{Sqlite, SqliteConnection};
@@ -42,6 +42,10 @@ impl<'c> Row<'c> for SqliteRow<'c> {
             statement: self.statement(),
             index: index.index(self)? as i32,
         })
+    }
+
+    fn columns(&self) -> Box<[Column<Self::Database>]> {
+        todo!()
     }
 }
 

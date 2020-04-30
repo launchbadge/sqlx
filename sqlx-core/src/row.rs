@@ -185,6 +185,9 @@ where
     ) -> crate::Result<<Self::Database as HasRawValue<'c>>::RawValue>
     where
         I: ColumnIndex<'c, Self>;
+
+    /// Get all columns.
+    fn columns(&self) -> Box<[Column<Self::Database>]>;
 }
 
 // Prevent users from implementing the `Row` trait.
@@ -233,6 +236,11 @@ where
 {
     #[allow(missing_docs)]
     fn from_row(row: &R) -> crate::Result<Self>;
+}
+
+pub struct Column<'r, DB: Database> {
+    pub name: Option<&'r str>,
+    pub type_info: Option<&'r DB::TypeInfo>,
 }
 
 // Macros to help unify the internal implementations as a good chunk
