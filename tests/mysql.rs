@@ -1,5 +1,7 @@
 use futures::TryStreamExt;
-use sqlx::{mysql::MySqlQueryAs, Connection, Cursor, Executor, MySql, MySqlPool, Row};
+use sqlx::{
+    mysql::MySqlQueryAs, types::TypeInfo, Connection, Cursor, Executor, MySql, MySqlPool, Row, Type,
+};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -244,10 +246,10 @@ async fn test_row_columns() -> anyhow::Result<()> {
         CREATE TEMPORARY TABLE row_columns_test (
             id int primary key auto_increment,
             name text not null,
-            age int
+            age tinyint
         );
 
-        INSERT INTO row_columns_test (name, age) VALUES ('James', 12);
+        INSERT INTO row_columns_test (name, age) VALUES ('James', 2);
     "#,
         )
         .await?;
@@ -257,12 +259,18 @@ async fn test_row_columns() -> anyhow::Result<()> {
     let columns = row.columns();
 
     assert_eq!(columns.len(), 3);
-    assert_eq!(columns[0].name, Some("id"));
-    assert_eq!(columns[0].type_info.is_some(), true);
-    assert_eq!(columns[1].name, Some("name"));
-    assert_eq!(columns[1].type_info.is_some(), true);
-    assert_eq!(columns[2].name, Some("age"));
-    assert_eq!(columns[2].type_info.is_some(), true);
+
+    let id = &columns[0];
+    assert_eq!(id.name, Some("id"));
+    assert!(id.type_info.unwrap().compatible(&i32::type_info()));
+
+    let name = &columns[1];
+    assert_eq!(name.name, Some("name"));
+    assert!(name.type_info.unwrap().compatible(&str::type_info()));
+
+    let age = &columns[2];
+    assert_eq!(age.name, Some("age"));
+    assert!(age.type_info.unwrap().compatible(&i8::type_info()));
 
     Ok(())
 }
