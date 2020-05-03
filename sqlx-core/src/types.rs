@@ -47,12 +47,14 @@ pub mod json {
     use crate::decode::Decode;
     use crate::encode::Encode;
     use crate::value::HasRawValue;
+    use serde::{Deserialize, Serialize};
     use serde_json::value::RawValue as JsonRawValue;
     use serde_json::Value as JsonValue;
     use std::ops::Deref;
 
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     pub struct Json<T>(pub T);
 
     impl<T> Deref for Json<T> {
