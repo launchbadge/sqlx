@@ -10,6 +10,7 @@ pub(crate) type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 /// Represents all the ways a method can fail within SQLx.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// Error occurred while parsing connection options.
     #[error("error occurred while parsing connection options: {0}")]
@@ -41,6 +42,10 @@ pub enum Error {
     /// More than one row returned by a query that expected to return exactly one row.
     #[error("more than one row returned by a query that expected to return exactly one row")]
     FoundMoreThanOneRow,
+
+    /// More than one column returned by a query that expected to return exactly one column.
+    #[error("more than one column returned by a query that expected to return exactly one column")]
+    FoundMoreThanOneColumn,
 
     /// Column index was out of bounds.
     #[error("column index out of bounds: the len is {len}, but the index is {index}")]

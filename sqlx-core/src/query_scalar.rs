@@ -3,9 +3,9 @@ use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::query::{Map, Query};
-use crate::query_as::{query_as, QueryAs};
-use crate::row::FromRow;
+use crate::query::{query, Map, Query};
+use crate::row::{FromRow, Row};
+use core::marker::PhantomData;
 
 use async_stream::try_stream;
 use either::Either;
@@ -17,7 +17,8 @@ use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 /// Returned from [`query_scalar`].
 #[must_use = "query must be executed to affect database"]
 pub struct QueryScalar<'q, DB: Database, O> {
-    inner: QueryAs<'q, DB, (O,)>,
+    inner: Query<'q, DB>,
+    output: PhantomData<O>,
 }
 
 impl<'q, DB, O: Send> Execute<'q, DB> for QueryScalar<'q, DB, O>
@@ -48,7 +49,7 @@ where
     /// See [`Query::bind`](crate::query::Query::bind).
     #[inline]
     pub fn bind<T: Encode<DB>>(mut self, value: T) -> Self {
-        self.inner.inner.arguments.add(value);
+        self.inner.arguments.add(value);
         self
     }
 
@@ -61,7 +62,9 @@ where
         DB: 'c,
         O: 'c,
     {
-        self.inner.fetch(executor).map_ok(|it| it.0).boxed()
+        self.fetch_many(executor)
+            .try_filter_map(|step| async move { Ok(step.right()) })
+            .boxed()
     }
 
     /// Execute multiple queries and return the generated results as a stream
@@ -74,10 +77,23 @@ where
         DB: 'c,
         O: 'c,
     {
-        self.inner
-            .fetch_many(executor)
-            .map_ok(|v| v.map_right(|it| it.0))
-            .boxed()
+        Box::pin(try_stream! {
+            let mut s = executor.fetch_many(self.inner);
+            while let Some(v) = s.try_next().await? {
+                match v {
+                    Either::Left(v) => yield Either::Left(v),
+                    Either::Right(row) => {
+                        if row.len() > 1 {
+                            // try_stream doesn't support `return Err()` or `yield Err()`, just `?`
+                            Err(Error::FoundMoreThanOneColumn)?;
+                        }
+
+                        let mapped = <(O,)>::from_row(&row)?.0;
+                        yield Either::Right(mapped);
+                    }
+                }
+            }
+        })
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
@@ -89,11 +105,7 @@ where
         DB: 'c,
         (O,): 'c,
     {
-        self.inner
-            .fetch(executor)
-            .map_ok(|it| it.0)
-            .try_collect()
-            .await
+        self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
@@ -105,7 +117,9 @@ where
         DB: 'c,
         O: 'c,
     {
-        self.inner.fetch_one(executor).map_ok(|it| it.0).await
+        self.fetch_optional(executor)
+            .await
+            .and_then(|row| row.ok_or(Error::RowNotFound))
     }
 
     /// Execute the query and returns at most one row.
@@ -117,7 +131,16 @@ where
         DB: 'c,
         O: 'c,
     {
-        Ok(self.inner.fetch_optional(executor).await?.map(|it| it.0))
+        let row = executor.fetch_optional(self.inner).await?;
+        if let Some(row) = row {
+            if row.len() > 1 {
+                return Err(Error::FoundMoreThanOneColumn);
+            }
+
+            Ok(Some(<(O,)>::from_row(&row)?.0))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -130,6 +153,7 @@ where
     (O,): for<'r> FromRow<'r, DB::Row>,
 {
     QueryScalar {
-        inner: query_as(sql),
+        inner: query(sql),
+        output: PhantomData,
     }
 }

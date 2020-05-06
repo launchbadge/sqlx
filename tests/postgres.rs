@@ -1,5 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
+use sqlx::Error;
 use sqlx::{Connection, Executor, Postgres, Row};
 use sqlx_test::new;
 use std::time::Duration;
@@ -109,6 +110,45 @@ async fn it_can_query_scalar() -> anyhow::Result<()> {
 
     let scalar: Option<i16> = sqlx::query_scalar("").fetch_optional(&mut conn).await?;
     assert_eq!(scalar, None);
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn multi_column_query_scalar() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let scalar: Result<i32, _> = sqlx::query_scalar("SELECT 42, 0")
+        .fetch_one(&mut conn)
+        .await;
+    assert!(matches!(scalar, Err(Error::FoundMoreThanOneColumn)));
+
+    let scalar: Result<Option<i32>, _> = sqlx::query_scalar("SELECT 42, 0")
+        .fetch_one(&mut conn)
+        .await;
+    assert!(matches!(scalar, Err(Error::FoundMoreThanOneColumn)));
+
+    let scalar: Result<Option<i32>, _> = sqlx::query_scalar("SELECT NULL, 0")
+        .fetch_one(&mut conn)
+        .await;
+    assert!(matches!(scalar, Err(Error::FoundMoreThanOneColumn)));
+
+    let scalar: Result<Option<i64>, _> = sqlx::query_scalar("SELECT 42::bigint, 0")
+        .fetch_optional(&mut conn)
+        .await;
+    assert!(matches!(scalar, Err(Error::FoundMoreThanOneColumn)));
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn select_no_columns() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let scalar: Result<i32, _> = sqlx::query_scalar("select;").fetch_one(&mut conn).await;
+    assert!(matches!(scalar, Err(Error::ColumnIndexOutOfBounds { index: 0, len: 0 })));
 
     Ok(())
 }
