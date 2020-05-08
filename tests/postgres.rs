@@ -1,6 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::postgres::{PgPool, PgQueryAs, PgRow};
-use sqlx::{Connection, Cursor, Executor, Postgres, Row};
+use sqlx::types::TypeInfo;
+use sqlx::{Connection, Cursor, Executor, Postgres, Row, Type};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -380,6 +381,46 @@ async fn test_describe() -> anyhow::Result<()> {
             .to_string(),
         "BOOL"
     );
+
+    Ok(())
+}
+
+#[cfg_attr(feature = "runtime-async-std", async_std::test)]
+#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+async fn test_row_columns() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+        CREATE TEMPORARY TABLE row_columns_test (
+            id serial,
+            name text not null,
+            age smallint
+        );
+
+        INSERT INTO row_columns_test (name, age) VALUES ('James', 2);
+    "#,
+        )
+        .await?;
+
+    let mut cursor = conn.fetch("SELECT * FROM row_columns_test");
+    let row = cursor.next().await?.unwrap();
+    let columns = row.columns();
+
+    assert_eq!(columns.len(), 3);
+
+    let id = &columns[0];
+    assert_eq!(id.name, Some("id"));
+    assert!(id.type_info.unwrap().compatible(&i32::type_info()));
+
+    let name = &columns[1];
+    assert_eq!(name.name, Some("name"));
+    assert!(name.type_info.unwrap().compatible(&str::type_info()));
+
+    let age = &columns[2];
+    assert_eq!(age.name, Some("age"));
+    assert!(age.type_info.unwrap().compatible(&i16::type_info()));
 
     Ok(())
 }

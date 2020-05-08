@@ -70,7 +70,14 @@ impl<'c> Row<'c> for PgRow<'c> {
     }
 
     fn columns(&self) -> Box<[row::Column<Self::Database>]> {
-        todo!()
+        let mut columns = Vec::with_capacity(self.statement.columns.len());
+        for column in self.statement.columns.iter() {
+            columns.push(row::Column {
+                name: column.name.as_ref().map(|n| n.as_ref()),
+                type_info: Some(&column.type_info),
+            });
+        }
+        columns.into_boxed_slice()
     }
 }
 
