@@ -32,5 +32,6 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
     match pattern {
         RenameAll::LowerCase => s.to_lowercase(),
         RenameAll::SnakeCase => s.to_snake_case(),
+        RenameAll::UpperCase => s.to_uppercase(),
     }
 }

@@ -30,6 +30,7 @@ macro_rules! try_set {
 pub enum RenameAll {
     LowerCase,
     SnakeCase,
+    UpperCase,
 }
 
 pub struct SqlxContainerAttributes {
@@ -70,6 +71,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 let val = match &*val.value() {
                                     "lowercase" => RenameAll::LowerCase,
                                     "snake_case" => RenameAll::SnakeCase,
+                                    "uppercase" => RenameAll::UpperCase,
 
                                     _ => fail!(meta, "unexpected value for rename_all"),
                                 };
