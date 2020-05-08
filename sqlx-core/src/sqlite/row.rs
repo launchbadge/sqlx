@@ -45,7 +45,18 @@ impl<'c> Row<'c> for SqliteRow<'c> {
     }
 
     fn columns(&self) -> Box<[Column<Self::Database>]> {
-        todo!()
+        let statement = self.statement();
+        let mut sorted_column_names: Vec<(&String, &usize)> = statement.columns.iter().collect();
+        sorted_column_names.sort_by_key(|(_, index)| *index);
+
+        let mut columns = Vec::with_capacity(statement.columns.len());
+        for (column_name, _index) in sorted_column_names {
+            columns.push(Column {
+                name: Some(column_name),
+                type_info: None,
+            });
+        }
+        columns.into_boxed_slice()
     }
 }
 
