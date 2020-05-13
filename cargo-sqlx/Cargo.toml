@@ -9,15 +9,21 @@ homepage = "https://github.com/launchbadge/sqlx"
 repository = "https://github.com/launchbadge/sqlx"
 keywords = ["database", "postgres", "database-management", "migration"]
 categories = ["database", "command-line-utilities"]
+default-run = "sqlx"
 
 [[bin]]
 name = "sqlx"
 path = "src/main.rs"
 
+# enables invocation as `cargo sqlx`; required for `prepare` subcommand
+[[bin]]
+name = "cargo-sqlx"
+path = "src/main.rs"
+
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "0.2", features = ["macros"] }
-sqlx = { version = "0.3", path = "..", default-features = false, features = [ "runtime-tokio" ] }
+sqlx = { version = "0.3", path = "..", default-features = false, features = [ "runtime-tokio", "offline" ] }
 futures = "0.3"
 structopt = "0.3"
 chrono = "0.4"
@@ -26,6 +32,9 @@ url = { version = "2.1.1", default-features = false }
 async-trait = "0.1.30"
 console = "0.10.0"
 dialoguer = "0.5.0"
+serde_json = { version = "1.0.53", features = ["preserve_order"] }
+serde = "1.0.110"
+glob = "0.3.0"
 
 [features]
 default = [ "postgres", "sqlite", "mysql" ]
