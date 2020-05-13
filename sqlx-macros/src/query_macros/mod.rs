@@ -122,7 +122,7 @@ pub fn expand_from_file(input: QueryMacroInput, file: PathBuf) -> crate::Result<
         #[cfg(feature = "sqlite")]
         sqlx_core::sqlite::Sqlite::NAME => expand_with_data(
             input,
-            QueryData::<sqlx::sqlite::Sqlite>::from_dyn_data(query_data)?,
+            QueryData::<sqlx_core::sqlite::Sqlite>::from_dyn_data(query_data)?,
         ),
         _ => Err(format!(
             "found query data for {} but the feature for that database was not enabled",

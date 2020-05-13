@@ -9,7 +9,7 @@ use sqlx::Row;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 
-use crate::database_migrator::{DatabaseMigrator, MigrationTransaction};
+use crate::migrator::{DatabaseMigrator, MigrationTransaction};
 
 pub struct Postgres {
     pub db_url: String,

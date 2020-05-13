@@ -23,6 +23,8 @@ use syn::export::Span;
 pub struct QueryData<DB: Database> {
     pub(super) query: String,
     pub(super) describe: Describe<DB>,
+    #[cfg(feature = "offline")]
+    pub(super) hash: String,
 }
 
 impl<DB: Database> QueryData<DB> {
@@ -33,6 +35,8 @@ impl<DB: Database> QueryData<DB> {
         Ok(QueryData {
             query: query.into(),
             describe: conn.describe(query).await?,
+            #[cfg(feature = "offline")]
+            hash: offline::hash_string(query),
         })
     }
 }
@@ -57,6 +61,8 @@ pub mod offline {
         pub db_name: String,
         pub query: String,
         pub describe: serde_json::Value,
+        #[serde(skip)]
+        pub hash: String,
     }
 
     impl DynQueryData {
@@ -82,11 +88,14 @@ pub mod offline {
     {
         pub fn from_dyn_data(dyn_data: DynQueryData) -> crate::Result<Self> {
             assert!(!dyn_data.db_name.is_empty());
+            assert!(!dyn_data.hash.is_empty());
+
             if DB::NAME == dyn_data.db_name {
                 let describe: Describe<DB> = serde_json::from_value(dyn_data.describe)?;
                 Ok(QueryData {
                     query: dyn_data.query,
                     describe,
+                    hash: dyn_data.hash,
                 })
             } else {
                 Err(format!(
@@ -115,7 +124,7 @@ pub mod offline {
         }
     }
 
-    fn hash_string(query: &str) -> String {
+    pub fn hash_string(query: &str) -> String {
         // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
         use sha2::{Digest, Sha256};
 
@@ -156,6 +165,7 @@ pub mod offline {
 
                     return if query_data.query == self.query {
                         query_data.db_name = db_name;
+                        query_data.hash = self.hash;
                         Ok(query_data)
                     } else {
                         Err(serde::de::Error::custom(format_args!(
