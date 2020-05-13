@@ -47,7 +47,7 @@ heck = "0.3"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.3.5", default-features = false, path = "../sqlx-core" }
 serde = { version = "1.0", optional = true }
-serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
+serde_json = { version = "1.0", features = [ "preserve_order" ], optional = true }
 sha2 = { version = "0.8.1", optional = true }
 syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }
