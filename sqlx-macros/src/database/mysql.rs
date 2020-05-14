@@ -1,5 +1,7 @@
+use sqlx_core as sqlx;
+
 impl_database_ext! {
-    sqlx_core::mysql::MySql {
+    sqlx::mysql::MySql {
         u8,
         u16,
         u32,
@@ -18,34 +20,34 @@ impl_database_ext! {
         Vec<u8>,
 
         #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx_core::types::chrono::NaiveTime,
+        sqlx::types::chrono::NaiveTime,
 
         #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx_core::types::chrono::NaiveDate,
+        sqlx::types::chrono::NaiveDate,
 
         #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx_core::types::chrono::NaiveDateTime,
+        sqlx::types::chrono::NaiveDateTime,
 
         #[cfg(all(feature = "chrono", not(feature = "time")))]
-        sqlx_core::types::chrono::DateTime<sqlx_core::types::chrono::Utc>,
+        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>,
 
         #[cfg(feature = "time")]
-        sqlx_core::types::time::Time,
+        sqlx::types::time::Time,
 
         #[cfg(feature = "time")]
-        sqlx_core::types::time::Date,
+        sqlx::types::time::Date,
 
         #[cfg(feature = "time")]
-        sqlx_core::types::time::PrimitiveDateTime,
+        sqlx::types::time::PrimitiveDateTime,
 
         #[cfg(feature = "time")]
-        sqlx_core::types::time::OffsetDateTime,
+        sqlx::types::time::OffsetDateTime,
 
         #[cfg(feature = "bigdecimal")]
-        sqlx_core::types::BigDecimal,
+        sqlx::types::BigDecimal,
     },
     ParamChecking::Weak,
     feature-types: info => info.type_feature_gate(),
-    row = sqlx_core::mysql::MySqlRow,
+    row = sqlx::mysql::MySqlRow,
     name = "MySQL/MariaDB"
 }

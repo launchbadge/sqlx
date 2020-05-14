@@ -1,16 +1,16 @@
-use std::env;
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use url::Url;
+
+
+
+
+
 
 use dotenv::dotenv;
 
 use structopt::StructOpt;
 
-use anyhow::{anyhow, Context};
-use console::style;
-use dialoguer::Confirmation;
+
+
+
 
 mod migrator;
 
@@ -18,12 +18,12 @@ mod db;
 mod migration;
 mod prepare;
 
-use migrator::DatabaseMigrator;
+
 
 /// Sqlx commandline tool
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx")]
-enum Opt {
+pub enum Command {
     #[structopt(alias = "mig")]
     Migrate(MigrationCommand),
 
@@ -54,7 +54,7 @@ enum Opt {
 /// Adds and runs migrations. Alias: mig
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx migrator")]
-enum MigrationCommand {
+pub enum MigrationCommand {
     /// Add new migration with name <timestamp>_<migration_name>.sql
     Add { name: String },
 
@@ -68,7 +68,7 @@ enum MigrationCommand {
 /// Create or drops database depending on your connection string. Alias: db
 #[derive(StructOpt, Debug)]
 #[structopt(name = "Sqlx migrator")]
-enum DatabaseCommand {
+pub enum DatabaseCommand {
     /// Create database in url
     Create,
 
@@ -76,26 +76,22 @@ enum DatabaseCommand {
     Drop,
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+pub async fn run(cmd: Command) -> anyhow::Result<()> {
     dotenv().ok();
 
-    let opt = Opt::from_args();
-
-    match opt {
-        Opt::Migrate(command) => match command {
+    match cmd {
+        Command::Migrate(migrate) => match migrate {
             MigrationCommand::Add { name } => migration::add_file(&name)?,
             MigrationCommand::Run => migration::run().await?,
             MigrationCommand::List => migration::list().await?,
         },
-        Opt::Database(command) => match command {
+        Command::Database(database) => match database {
             DatabaseCommand::Create => db::run_create().await?,
             DatabaseCommand::Drop => db::run_drop().await?,
         },
-        Opt::Prepare { check: false } => prepare::run()?,
-        Opt::Prepare { check: true } => prepare::check()?,
+        Command::Prepare { check: false } => prepare::run()?,
+        Command::Prepare { check: true } => prepare::check()?,
     };
 
-    println!("All done!");
     Ok(())
 }
