@@ -2,9 +2,11 @@ use anyhow::{anyhow, bail, Context};
 use std::process::Command;
 use std::{env, fs};
 
+use cargo_metadata::MetadataCommand;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::path::Path;
+
+use std::time::SystemTime;
 use url::Url;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
@@ -22,10 +24,17 @@ pub fn run() -> anyhow::Result<()> {
     let data = run_prepare_step()?;
 
     serde_json::to_writer_pretty(
-        File::create("sqlx-data.json")?,
+        File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
         &DataFile { db: db_kind, data },
     )
-    .map_err(Into::into)
+    .context("failed to write to `sqlx-data.json`")?;
+
+    println!(
+        "query data written to `sqlx-data.json` in the current directory; \
+         please check this into version control"
+    );
+
+    Ok(())
 }
 
 pub fn check() -> anyhow::Result<()> {
@@ -66,12 +75,25 @@ fn run_prepare_step() -> anyhow::Result<QueryData> {
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare``")?;
 
-    if !Command::new(cargo).arg("check").status()?.success() {
-        bail!("`cargo check` failed");
+    let check_status = Command::new(&cargo)
+        .arg("check")
+        // set an always-changing env var that the macros depend on via `env!()`
+        .env(
+            "__SQLX_RECOMPILE_TRIGGER",
+            SystemTime::UNIX_EPOCH.elapsed()?.as_millis().to_string(),
+        )
+        .status()?;
+
+    if !check_status.success() {
+        bail!("`cargo check` failed with status: {}", check_status);
     }
 
-    let save_dir = env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/sqlx".into());
-    let pattern = Path::new(&save_dir).join("/query-*.json");
+    let metadata = MetadataCommand::new()
+        .cargo_path(cargo)
+        .exec()
+        .context("failed to execute `cargo metadata`")?;
+
+    let pattern = metadata.target_directory.join("sqlx/query-*.json");
 
     let mut data = BTreeMap::new();
 

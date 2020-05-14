@@ -2,23 +2,16 @@ use std::env;
 use std::fs;
 
 use proc_macro2::{Ident, Span};
-use quote::{format_ident, ToTokens};
-use syn::parse::{Parse, ParseBuffer, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Group;
-use syn::{Error, Expr, ExprLit, ExprPath, Lit, LitBool, LitStr, Token};
-use syn::{ExprArray, ExprGroup, Type};
-
-use sqlx_core::connection::Connection;
-use sqlx_core::describe::Describe;
+use quote::format_ident;
+use syn::parse::{Parse, ParseStream};
+use syn::{Expr, LitBool, LitStr};
+use syn::{ExprArray, Type};
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {
     pub(super) src: String,
+    #[cfg_attr(not(feature = "offline"), allow(dead_code))]
     pub(super) src_span: Span,
-
-    pub(super) data_src: DataSrc,
 
     pub(super) record_type: RecordType,
 
@@ -34,12 +27,6 @@ enum QuerySrc {
     File(String),
 }
 
-pub enum DataSrc {
-    Env(String),
-    DbUrl(String),
-    File,
-}
-
 pub enum RecordType {
     Given(Type),
     Generated,
@@ -48,7 +35,6 @@ pub enum RecordType {
 impl Parse for QueryMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut query_src: Option<(QuerySrc, Span)> = None;
-        let mut data_src = DataSrc::Env("DATABASE_URL".into());
         let mut args: Option<Vec<Expr>> = None;
         let mut record_type = RecordType::Generated;
         let mut checked = true;
@@ -97,7 +83,6 @@ impl Parse for QueryMacroInput {
         Ok(QueryMacroInput {
             src: src.resolve(src_span)?,
             src_span,
-            data_src,
             record_type,
             arg_names,
             arg_exprs,

@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::{Path, Type};
+use syn::Type;
 
 use sqlx_core::describe::Describe;
 

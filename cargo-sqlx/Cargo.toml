@@ -13,12 +13,12 @@ default-run = "sqlx"
 
 [[bin]]
 name = "sqlx"
-path = "src/main.rs"
+path = "src/bin/sqlx.rs"
 
 # enables invocation as `cargo sqlx`; required for `prepare` subcommand
 [[bin]]
 name = "cargo-sqlx"
-path = "src/main.rs"
+path = "src/bin/cargo-sqlx.rs"
 
 [dependencies]
 dotenv = "0.15"
@@ -35,6 +35,7 @@ dialoguer = "0.5.0"
 serde_json = { version = "1.0.53", features = ["preserve_order"] }
 serde = "1.0.110"
 glob = "0.3.0"
+cargo_metadata = "0.10.0"
 
 [features]
 default = [ "postgres", "sqlite", "mysql" ]
