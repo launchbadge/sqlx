@@ -1,5 +1,7 @@
+use sqlx_core as sqlx;
+
 impl_database_ext! {
-    sqlx_core::sqlite::Sqlite {
+    sqlx::sqlite::Sqlite {
         bool,
         i32,
         i64,
@@ -10,6 +12,6 @@ impl_database_ext! {
     },
     ParamChecking::Weak,
     feature-types: _info => None,
-    row = sqlx_core::sqlite::SqliteRow,
+    row = sqlx::sqlite::SqliteRow,
     name = "SQLite"
 }

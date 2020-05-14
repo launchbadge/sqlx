@@ -1,16 +1,13 @@
 use std::borrow::Cow;
 use std::env;
-use std::fmt::Display;
-use std::path::PathBuf;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Span, TokenStream};
 use syn::Type;
 use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
 use sqlx_core::connection::Connect;
-use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 
@@ -102,7 +99,10 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 }
 
 #[cfg(feature = "offline")]
-pub fn expand_from_file(input: QueryMacroInput, file: PathBuf) -> crate::Result<TokenStream> {
+pub fn expand_from_file(
+    input: QueryMacroInput,
+    file: std::path::PathBuf,
+) -> crate::Result<TokenStream> {
     use data::offline::DynQueryData;
 
     let query_data = DynQueryData::from_data_file(file, &input.src)?;
@@ -222,6 +222,9 @@ where
             (#($#arg_names:expr),*) => {{
                 use sqlx::arguments::Arguments as _;
 
+                // lets `cargo sqlx prepare` ensure that we can always trigger a recompile
+                const _: Option<&'static str> = option_env!("__SQLX_RECOMPILE_TRIGGER");
+
                 #args_tokens
 
                 #output
@@ -231,8 +234,13 @@ where
 
     #[cfg(feature = "offline")]
     {
-        let save_dir = env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/sqlx".into());
-        std::fs::create_dir_all(&save_dir);
+        let mut save_dir = std::path::PathBuf::from(
+            env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()),
+        );
+
+        save_dir.push("sqlx");
+
+        std::fs::create_dir_all(&save_dir)?;
         data.save_in(save_dir, input.src_span)?;
     }
 

@@ -1,15 +1,6 @@
-use sqlx_core::connection::{Connect, Connection};
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
-use sqlx_core::executor::{Executor, RefExecutor};
-use url::Url;
-
-use std::fmt::{self, Display, Formatter};
-
-use crate::database::DatabaseExt;
-use proc_macro2::TokenStream;
-use std::fs::File;
-use syn::export::Span;
+use sqlx_core::executor::Executor;
 
 // TODO: enable serialization
 #[cfg_attr(feature = "offline", derive(serde::Deserialize, serde::Serialize))]
@@ -21,6 +12,7 @@ use syn::export::Span;
     ))
 )]
 pub struct QueryData<DB: Database> {
+    #[allow(dead_code)]
     pub(super) query: String,
     pub(super) describe: Describe<DB>,
     #[cfg(feature = "offline")]
@@ -49,10 +41,9 @@ pub mod offline {
     use std::fmt::{self, Formatter};
 
     use crate::database::DatabaseExt;
-    use proc_macro2::{Span, TokenStream};
-    use serde::de::{Deserializer, MapAccess, Visitor};
+    use proc_macro2::Span;
+    use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
     use sqlx_core::describe::Describe;
-    use sqlx_core::query::query;
     use std::path::Path;
 
     #[derive(serde::Deserialize)]
@@ -150,9 +141,16 @@ pub mod offline {
         {
             let mut db_name: Option<String> = None;
 
-            // unfortunately we can't avoid this copy because deserializing from `io::Read`
-            // doesn't support deserializing borrowed values
-            while let Some(key) = map.next_key::<String>()? {
+            let query_data = loop {
+                // unfortunately we can't avoid this copy because deserializing from `io::Read`
+                // doesn't support deserializing borrowed values
+                let key = map.next_key::<String>()?.ok_or_else(|| {
+                    serde::de::Error::custom(format_args!(
+                        "failed to find data for query {}",
+                        self.hash
+                    ))
+                })?;
+
                 // lazily deserialize the query data only
                 if key == "db" {
                     db_name = Some(map.next_value::<String>()?);
@@ -163,23 +161,27 @@ pub mod offline {
 
                     let mut query_data: DynQueryData = map.next_value()?;
 
-                    return if query_data.query == self.query {
+                    if query_data.query == self.query {
                         query_data.db_name = db_name;
-                        query_data.hash = self.hash;
-                        Ok(query_data)
+                        query_data.hash = self.hash.clone();
+                        break query_data;
                     } else {
-                        Err(serde::de::Error::custom(format_args!(
+                        return Err(serde::de::Error::custom(format_args!(
                             "hash collision for stored queries:\n{:?}\n{:?}",
                             self.query, query_data.query
-                        )))
+                        )));
                     };
+                } else {
+                    // we don't care about entries that don't match our hash
+                    let _ = map.next_value::<IgnoredAny>()?;
                 }
-            }
+            };
 
-            Err(serde::de::Error::custom(format_args!(
-                "failed to find data for query {}",
-                self.hash
-            )))
+            // Serde expects us to consume the whole map; fortunately they've got a convenient
+            // type to let us do just that
+            while let Some(_) = map.next_entry::<IgnoredAny, IgnoredAny>()? {}
+
+            Ok(query_data)
         }
     }
 }

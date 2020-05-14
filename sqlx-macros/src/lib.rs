@@ -1,5 +1,5 @@
 #![cfg_attr(
-    not(any(feature = "postgres", feature = "mysql")),
+    not(any(feature = "postgres", feature = "mysql", feature = "offline")),
     allow(dead_code, unused_macros, unused_imports)
 )]
 extern crate proc_macro;
@@ -7,11 +7,6 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 
 use quote::quote;
-
-#[cfg(feature = "runtime-async-std")]
-use async_std::task::block_on;
-
-use url::Url;
 
 type Error = Box<dyn std::error::Error>;
 

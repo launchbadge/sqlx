@@ -304,6 +304,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "cargo_metadata",
  "chrono",
  "console",
  "dialoguer",
@@ -316,6 +317,18 @@ dependencies = [
  "structopt",
  "tokio 0.2.13",
  "url 2.1.1",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8de60b887edf6d74370fc8eb177040da4847d971d6234c7b13a6da324ef0caf"
+dependencies = [
+ "semver",
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
@@ -1650,6 +1663,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
+ "serde",
 ]
 
 [[package]]
@@ -1880,6 +1894,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-std",
+ "dotenv",
  "futures 0.3.4",
  "paw",
  "sqlx",
