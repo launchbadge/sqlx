@@ -2,7 +2,6 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
 
-// TODO: enable serialization
 #[cfg_attr(feature = "offline", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(
     feature = "offline",
