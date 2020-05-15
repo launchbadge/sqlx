@@ -1,0 +1,85 @@
+name: cargo-sqlx
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  # tests `cargo sqlx prepare` using `examples/postgres/todos/`
+  test-prepare:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: todos
+        ports:
+          # will assign a random free host port
+          - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v1
+
+      # Rust ------------------------------------------------
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache target/
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Load schema
+        working-directory: examples/postgres/todos
+        env:
+          # the in-container port is always 5432
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/todos
+        run: |
+          export CONTAINER_ID=$(docker ps --filter "ancestor=postgres:12" --format "{{.ID}}")
+          docker cp schema.sql $CONTAINER_ID:/schema.sql
+          docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
+
+      - name: install cargo-sqlx
+        run: cargo install -f --path cargo-sqlx/
+
+      - name: test `cargo sqlx prepare [--check]`
+        working-directory: examples/postgres/todos/
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/todos
+        run: |
+          cargo sqlx prepare &&
+          cargo sqlx prepare --check
+
+      # now we have no connection to the database, we should be able to still build
+      - name: build example without DB
+        working-directory: examples/postgres/todos/
+        run: |
+          cargo clean -p sqlx-example-postgres-todos &&
+          cargo build
+
+      # check that the application works without rebuilding it
+      - name: run example
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/todos
+        run: |
+          ./target/debug/sqlx-example-postgres-todos add "test if `cargo sqlx prepare` worked" &&
+          ./target/debug/sqlx-example-postgres-todos done 1
+
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/debug -maxdepth 1 -type f -delete \
+          && rm -fr ./target/debug/{deps,.fingerprint}/*sqlx* \
+          && rm -f  ./target/.rustc_info.json

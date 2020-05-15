@@ -1,24 +1,12 @@
-
-
-
-
-
-
 use dotenv::dotenv;
 
 use structopt::StructOpt;
-
-
-
-
 
 mod migrator;
 
 mod db;
 mod migration;
 mod prepare;
-
-
 
 /// Sqlx commandline tool
 #[derive(StructOpt, Debug)]
