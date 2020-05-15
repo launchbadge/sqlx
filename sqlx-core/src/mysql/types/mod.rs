@@ -25,7 +25,7 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `chrono::DateTime<Utc>`               | TIMESTAMP                                            |
-//! | `chrono::DateTime<Local>`             | TIMETAMP                                             |
+//! | `chrono::DateTime<Local>`             | TIMESTAMP                                            |
 //! | `chrono::NaiveDateTime`               | DATETIME                                             |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
 //! | `chrono::NaiveTime`                   | TIME                                                 |
