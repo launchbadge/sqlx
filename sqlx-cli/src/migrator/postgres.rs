@@ -89,6 +89,7 @@ impl DatabaseMigrator for Postgres {
 
         let mut conn = PgConnection::connect(base_url).await?;
 
+        // quote database name (quotes in the name are escaped with additional quotes)
         sqlx::query(&format!(
             "CREATE DATABASE \"{}\"",
             db_name.replace('"', "\"\"")

@@ -299,27 +299,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 
 [[package]]
-name = "cargo-sqlx"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "cargo_metadata",
- "chrono",
- "console",
- "dialoguer",
- "dotenv",
- "futures 0.3.4",
- "glob",
- "serde",
- "serde_json",
- "sqlx",
- "structopt",
- "tokio 0.2.13",
- "url 2.1.1",
-]
-
-[[package]]
 name = "cargo_metadata"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1824,6 +1803,27 @@ dependencies = [
  "time 0.2.9",
  "tokio 0.2.13",
  "trybuild",
+]
+
+[[package]]
+name = "sqlx-cli"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "cargo_metadata",
+ "chrono",
+ "console",
+ "dialoguer",
+ "dotenv",
+ "futures 0.3.4",
+ "glob",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "structopt",
+ "tokio 0.2.13",
+ "url 2.1.1",
 ]
 
 [[package]]

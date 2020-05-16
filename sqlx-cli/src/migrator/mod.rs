@@ -3,6 +3,9 @@ use async_trait::async_trait;
 use std::env;
 use url::Url;
 
+#[cfg(feature = "mysql")]
+mod mysql;
+
 #[cfg(feature = "postgres")]
 mod postgres;
 
@@ -60,7 +63,7 @@ pub fn get() -> Result<Box<dyn DatabaseMigrator>> {
                 db_url),
 
         #[cfg(feature = "mysql")]
-        "mysql" | "mariadb" => bail!("Not implemented"),
+        "mysql" | "mariadb" => Ok(Box::new(self::mysql::MySql::new(db_url_raw))),
         #[cfg(not(feature = "mysql"))]
         "mysql" | "mariadb" => bail!(
             "DATABASE_URL {} has the scheme of a MySQL/MariaDB database but the `mysql` feature of sqlx was not enabled",
