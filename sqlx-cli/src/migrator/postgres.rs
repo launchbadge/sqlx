@@ -1,23 +1,23 @@
-use sqlx::mysql::MySqlRow;
 use sqlx::pool::PoolConnection;
+use sqlx::postgres::PgRow;
 use sqlx::Connect;
 use sqlx::Executor;
-use sqlx::MySqlConnection;
-use sqlx::MySqlPool;
+use sqlx::PgConnection;
+use sqlx::PgPool;
 use sqlx::Row;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 
-use crate::database_migrator::{DatabaseMigrator, MigrationTransaction};
+use crate::migrator::{DatabaseMigrator, MigrationTransaction};
 
-pub struct MySql {
+pub struct Postgres {
     pub db_url: String,
 }
 
-impl MySql {
+impl Postgres {
     pub fn new(db_url: String) -> Self {
-        MySql {
+        Postgres {
             db_url: db_url.clone(),
         }
     }
@@ -42,9 +42,9 @@ fn get_base_url<'a>(db_url: &'a str) -> Result<DbUrl> {
 }
 
 #[async_trait]
-impl DatabaseMigrator for MySql {
+impl DatabaseMigrator for Postgres {
     fn database_type(&self) -> String {
-        "MySql".to_string()
+        "Postgres".to_string()
     }
 
     fn can_migrate_database(&self) -> bool {
@@ -69,16 +69,15 @@ impl DatabaseMigrator for MySql {
 
         let base_url = db_url.base_url;
 
-        let mut conn = MySqlConnection::connect(base_url).await?;
+        let mut conn = PgConnection::connect(base_url).await?;
 
-        let result: bool = sqlx::query(
-            "select exists(SELECT 1 from INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?)",
-        )
-        .bind(db_name)
-        .try_map(|row: MySqlRow| row.try_get(0))
-        .fetch_one(&mut conn)
-        .await
-        .context("Failed to check if database exists")?;
+        let result: bool =
+            sqlx::query("select exists(SELECT 1 from pg_database WHERE datname = $1) as exists")
+                .bind(db_name)
+                .try_map(|row: PgRow| row.try_get("exists"))
+                .fetch_one(&mut conn)
+                .await
+                .context("Failed to check if database exists")?;
 
         Ok(result)
     }
@@ -88,12 +87,16 @@ impl DatabaseMigrator for MySql {
 
         let base_url = db_url.base_url;
 
-        let mut conn = MySqlConnection::connect(base_url).await?;
+        let mut conn = PgConnection::connect(base_url).await?;
 
-        sqlx::query(&format!("CREATE DATABASE `{}`", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to create database: {}", db_name))?;
+        // quote database name (quotes in the name are escaped with additional quotes)
+        sqlx::query(&format!(
+            "CREATE DATABASE \"{}\"",
+            db_name.replace('"', "\"\"")
+        ))
+        .execute(&mut conn)
+        .await
+        .with_context(|| format!("Failed to create database: {}", db_name))?;
 
         Ok(())
     }
@@ -103,19 +106,21 @@ impl DatabaseMigrator for MySql {
 
         let base_url = db_url.base_url;
 
-        let mut conn = MySqlConnection::connect(base_url).await?;
+        let mut conn = PgConnection::connect(base_url).await?;
 
-        sqlx::query(&format!("DROP DATABASE `{}`", db_name))
-            .execute(&mut conn)
-            .await
-            .with_context(|| format!("Failed to drop database: {}", db_name))?;
+        sqlx::query(&format!(
+            "DROP DATABASE \"{}\"",
+            db_name.replace('"', "\"\"")
+        ))
+        .execute(&mut conn)
+        .await
+        .with_context(|| format!("Failed to drop database: {}", db_name))?;
 
         Ok(())
     }
 
     async fn create_migration_table(&self) -> Result<()> {
-        let mut conn = MySqlConnection::connect(&self.db_url).await?;
-        println!("Create migration table");
+        let mut conn = PgConnection::connect(&self.db_url).await?;
 
         sqlx::query(
             r#"
@@ -133,14 +138,14 @@ impl DatabaseMigrator for MySql {
     }
 
     async fn get_migrations(&self) -> Result<Vec<String>> {
-        let mut conn = MySqlConnection::connect(&self.db_url).await?;
+        let mut conn = PgConnection::connect(&self.db_url).await?;
 
         let result = sqlx::query(
             r#"
             select migration from __migrations order by created
         "#,
         )
-        .try_map(|row: MySqlRow| row.try_get(0))
+        .try_map(|row: PgRow| row.try_get(0))
         .fetch_all(&mut conn)
         .await
         .context("Failed to create migration table")?;
@@ -149,22 +154,22 @@ impl DatabaseMigrator for MySql {
     }
 
     async fn begin_migration(&self) -> Result<Box<dyn MigrationTransaction>> {
-        let pool = MySqlPool::new(&self.db_url)
+        let pool = PgPool::new(&self.db_url)
             .await
             .context("Failed to connect to pool")?;
 
         let tx = pool.begin().await?;
 
-        Ok(Box::new(MySqlMigration { transaction: tx }))
+        Ok(Box::new(PostgresMigration { transaction: tx }))
     }
 }
 
-pub struct MySqlMigration {
-    transaction: sqlx::Transaction<PoolConnection<MySqlConnection>>,
+pub struct PostgresMigration {
+    transaction: sqlx::Transaction<PoolConnection<PgConnection>>,
 }
 
 #[async_trait]
-impl MigrationTransaction for MySqlMigration {
+impl MigrationTransaction for PostgresMigration {
     async fn commit(self: Box<Self>) -> Result<()> {
         self.transaction.commit().await?;
         Ok(())
@@ -176,13 +181,14 @@ impl MigrationTransaction for MySqlMigration {
     }
 
     async fn check_if_applied(&mut self, migration_name: &str) -> Result<bool> {
-        let result =
-            sqlx::query("select exists(select migration from __migrations where migration = ?)")
-                .bind(migration_name.to_string())
-                .try_map(|row: MySqlRow| row.try_get(0))
-                .fetch_one(&mut self.transaction)
-                .await
-                .context("Failed to check migration table")?;
+        let result = sqlx::query(
+            "select exists(select migration from __migrations where migration = $1) as exists",
+        )
+        .bind(migration_name.to_string())
+        .try_map(|row: PgRow| row.try_get("exists"))
+        .fetch_one(&mut self.transaction)
+        .await
+        .context("Failed to check migration table")?;
 
         Ok(result)
     }
@@ -193,7 +199,7 @@ impl MigrationTransaction for MySqlMigration {
     }
 
     async fn save_applied_migration(&mut self, migration_name: &str) -> Result<()> {
-        sqlx::query("insert into __migrations (migration) values (?)")
+        sqlx::query("insert into __migrations (migration) values ($1)")
             .bind(migration_name.to_string())
             .execute(&mut self.transaction)
             .await

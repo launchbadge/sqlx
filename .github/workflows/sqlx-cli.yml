@@ -1,4 +1,4 @@
-name: cargo-sqlx
+name: sqlx-cli
 
 on:
   pull_request:
@@ -52,8 +52,8 @@ jobs:
           docker cp schema.sql $CONTAINER_ID:/schema.sql
           docker exec $CONTAINER_ID bash -c "psql -d $DATABASE_URL -f ./schema.sql"
 
-      - name: install cargo-sqlx
-        run: cargo install -f --path cargo-sqlx/
+      - name: install sqlx-cli
+        run: cargo install -f --path sqlx-cli/
 
       - name: test `cargo sqlx prepare [--check]`
         working-directory: examples/postgres/todos/

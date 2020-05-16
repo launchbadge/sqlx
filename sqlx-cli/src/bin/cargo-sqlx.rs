@@ -1,11 +1,11 @@
-use cargo_sqlx::Command;
+use sqlx_cli::Command;
 use structopt::{clap, StructOpt};
 
 use std::env;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // when invoked as `cargo sqlx [...]` the args we see are `[...]/cargo-sqlx sqlx prepare`
+    // when invoked as `cargo sqlx [...]` the args we see are `[...]/sqlx-cli sqlx prepare`
     // so we want to notch out that superfluous "sqlx"
     let args = env::args_os().skip(2);
 
@@ -14,5 +14,5 @@ async fn main() -> anyhow::Result<()> {
         .setting(clap::AppSettings::NoBinaryName)
         .get_matches_from(args);
 
-    cargo_sqlx::run(Command::from_clap(&matches)).await
+    sqlx_cli::run(Command::from_clap(&matches)).await
 }

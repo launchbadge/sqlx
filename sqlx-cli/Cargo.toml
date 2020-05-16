@@ -1,8 +1,11 @@
 [package]
-name = "cargo-sqlx"
-version = "0.1.0"
-description = "Simple postgres migrator without support for down migration"
-authors = ["Jesper Axelsson <jesperaxe@gmail.com>"]
+name = "sqlx-cli"
+version = "0.0.1"
+description = "Command-line utility for SQLx, the Rust SQL toolkit."
+authors = [
+    "Jesper Axelsson <jesperaxe@gmail.com>",
+    "Austin Bonander <austin.bonander@gmail.com>" # austin@launchbadge.com
+]
 edition = "2018"
 readme = "README.md"
 homepage = "https://github.com/launchbadge/sqlx"
@@ -39,7 +42,6 @@ cargo_metadata = "0.10.0"
 
 [features]
 default = [ "postgres", "sqlite", "mysql" ]
-
 
 # database
 mysql = [ "sqlx/mysql" ]
