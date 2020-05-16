@@ -4,7 +4,7 @@ members = [
     "sqlx-core",
     "sqlx-macros",
     "sqlx-test",
-    "cargo-sqlx",
+    "sqlx-cli",
     "examples/mysql/todos",
     "examples/postgres/listen",
     "examples/postgres/todos",
