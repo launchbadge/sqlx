@@ -12,8 +12,8 @@ use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
-use crate::query_macros::data::QueryData;
-use crate::query_macros::input::RecordType;
+use crate::query::data::QueryData;
+use crate::query::input::RecordType;
 use crate::runtime::block_on;
 
 // pub use query::expand_query;

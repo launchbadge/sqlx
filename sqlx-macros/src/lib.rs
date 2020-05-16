@@ -14,10 +14,8 @@ type Result<T> = std::result::Result<T, Error>;
 
 mod database;
 mod derives;
-mod query_macros;
+mod query;
 mod runtime;
-
-use query_macros::*;
 
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
     quote!(
@@ -30,9 +28,9 @@ fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn expand_query(input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as QueryMacroInput);
+    let input = syn::parse_macro_input!(input as query::QueryMacroInput);
 
-    match query_macros::expand_input(input) {
+    match query::expand_input(input) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {

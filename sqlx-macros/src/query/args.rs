@@ -6,7 +6,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use sqlx_core::describe::Describe;
 
 use crate::database::{DatabaseExt, ParamChecking};
-use crate::query_macros::QueryMacroInput;
+use crate::query::QueryMacroInput;
 
 /// Returns a tokenstream which typechecks the arguments passed to the macro
 /// and binds them to `DB::Arguments` with the ident `query_args`.
