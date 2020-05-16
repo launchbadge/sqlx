@@ -28,6 +28,25 @@
 /// # fn main() {}
 /// ```
 ///
+/// ## Requirements
+/// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
+/// server with the schema that the query string will be checked against. All variants of `query!()`
+/// use [dotenv] so this can be in a `.env` file instead.
+///
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///       below.
+///
+/// * The query must be a string literal or else it cannot be introspected (and thus cannot
+/// be dynamic or the result of another macro).
+///
+/// * The `QueryAs` instance will be bound to the same database type as `query!()` was compiled
+/// against (e.g. you cannot build against a Postgres database and then run the query against
+/// a MySQL database).
+///
+///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
+///       determine the database type.
+///
+/// [dotenv]: https://crates.io/crates/dotenv
 /// ## Query Arguments
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
@@ -94,22 +113,26 @@
 ///
 /// To override the nullability of an output column, use [query_as!].
 ///
-/// ## Requirements
-/// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
-/// server with the schema that the query string will be checked against. (All variants of
-/// `query!()` use [dotenv] so this can be in a `.env` file instead.)
+/// ### Offline Mode (requires the `offline` feature)
+/// The macros can be configured to not require a live database connection for compilation,
+/// but it requires a couple extra steps:
 ///
-/// * The query must be a string literal or else it cannot be introspected (and thus cannot
-/// be dynamic or the result of another macro).
+/// * Run `cargo install sqlx-cli`.
+/// * In your project with `DATABASE_URL` set (or in a `.env` file) and the database server running,
+///   run `cargo sqlx prepare`.
+/// * Check the generated `sqlx-data.json` file into version control.
+/// * Don't have `DATABASE_URL` set during compilation.
 ///
-/// * The `QueryAs` instance will be bound to the same database type as `query!()` was compiled
-/// against (e.g. you cannot build against a Postgres database and then run the query against
-/// a MySQL database).
+/// Your project can now be built without a database connection (you must omit `DATABASE_URL` or
+/// else it will still try to connect). To update the generated file simply run `cargo sqlx prepare`
+/// again.
 ///
-///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
-///       determine the database type.
+/// To ensure that your `sqlx-data.json` file is kept up-to-date, both with the queries in your
+/// project and your database schema itself, run
+/// `cargo install sqlx-cli && cargo sqlx prepare --check` in your Continuous Integration script.
 ///
-/// [dotenv]: https://crates.io/crates/dotenv
+/// See [the README for `sqlx-cli`](https://crates.io/crate/sqlx-cli) for more information.
+///
 /// ## See Also
 /// * [query_as!] if you want to use a struct you can name,
 /// * [query_file!] if you want to define the SQL query out-of-line,
