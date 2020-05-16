@@ -12,6 +12,7 @@ homepage = "https://github.com/launchbadge/sqlx"
 repository = "https://github.com/launchbadge/sqlx"
 keywords = ["database", "postgres", "database-management", "migration"]
 categories = ["database", "command-line-utilities"]
+license = "MIT OR Apache-2.0"
 default-run = "sqlx"
 
 [[bin]]
