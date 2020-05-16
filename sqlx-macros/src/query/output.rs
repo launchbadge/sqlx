@@ -6,7 +6,7 @@ use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
 
-use crate::query_macros::QueryMacroInput;
+use crate::query::QueryMacroInput;
 use std::fmt::{self, Display, Formatter};
 
 pub struct RustColumn {
