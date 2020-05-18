@@ -28,6 +28,28 @@ enum Strong {
     Three,
 }
 
+// rename_all variants
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+enum ColorLower {
+    Red,
+    Green,
+    Blue,
+}
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "snake_case")]
+enum ColorSnake {
+    RedGreen,
+    BlueBlack,
+}
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "uppercase")]
+enum ColorUpper {
+    Red,
+    Green,
+    Blue,
+}
+
 // "Strong" enum can map to a custom type
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "mood")]
@@ -70,6 +92,11 @@ test_type!(strong_enum(
     "'two'::text" == Strong::Two,
     "'four'::text" == Strong::Three
 ));
+
+test_type!(strong_color_enum(MySql, ColorLower, "'green'" == ColorLower::Green));
+test_type!(strong_color_enum(MySql, ColorSnake, "'red_green'" == ColorSnake::RedGreen));
+test_type!(strong_color_enum(MySql, ColorLower, "'GREEN'" == ColorUpper::Green));
+
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
