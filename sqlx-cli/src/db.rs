@@ -1,4 +1,3 @@
-use crate::migrator::DatabaseMigrator;
 use dialoguer::Confirmation;
 
 use anyhow::bail;
