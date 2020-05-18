@@ -23,7 +23,7 @@ pub enum Command {
     ///
     /// Saves data for all invocations of `query!()` and friends in the project so that it may be
     /// built in offline mode, i.e. so compilation does not require connecting to a running database.
-    /// Outputs to `sqlx-data.json` in the current directory.
+    /// Outputs to `sqlx-data.json` in the current directory, overwriting it if it already exists.
     ///
     /// Offline mode can be activated simply by removing `DATABASE_URL` from the environment or
     /// building without a `.env` file.
@@ -36,6 +36,10 @@ pub enum Command {
         /// Intended for use in CI.
         #[structopt(long)]
         check: bool,
+
+        /// Any arguments to pass to `cargo check`.
+        #[structopt(name = "Cargo args", last = true)]
+        cargo_args: Vec<String>,
     },
 }
 
@@ -77,8 +81,14 @@ pub async fn run(cmd: Command) -> anyhow::Result<()> {
             DatabaseCommand::Create => db::run_create().await?,
             DatabaseCommand::Drop => db::run_drop().await?,
         },
-        Command::Prepare { check: false } => prepare::run()?,
-        Command::Prepare { check: true } => prepare::check()?,
+        Command::Prepare {
+            check: false,
+            cargo_args,
+        } => prepare::run(cargo_args)?,
+        Command::Prepare {
+            check: true,
+            cargo_args,
+        } => prepare::check(cargo_args)?,
     };
 
     Ok(())

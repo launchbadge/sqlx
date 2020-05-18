@@ -12,7 +12,7 @@ use url::Url;
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(cargo_args: Vec<String>) -> anyhow::Result<()> {
     #[derive(serde::Serialize)]
     struct DataFile {
         db: &'static str,
@@ -21,7 +21,7 @@ pub fn run() -> anyhow::Result<()> {
     }
 
     let db_kind = get_db_kind()?;
-    let data = run_prepare_step()?;
+    let data = run_prepare_step(cargo_args)?;
 
     serde_json::to_writer_pretty(
         File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
@@ -37,9 +37,9 @@ pub fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn check() -> anyhow::Result<()> {
+pub fn check(cargo_args: Vec<String>) -> anyhow::Result<()> {
     let db_kind = get_db_kind()?;
-    let data = run_prepare_step()?;
+    let data = run_prepare_step(cargo_args)?;
 
     let data_file = fs::read("sqlx-data.json").context(
         "failed to open `sqlx-data.json`; you may need to run `cargo sqlx prepare` first",
@@ -70,13 +70,14 @@ pub fn check() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_prepare_step() -> anyhow::Result<QueryData> {
+fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     // path to the Cargo executable
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare``")?;
 
     let check_status = Command::new(&cargo)
         .arg("check")
+        .args(cargo_args)
         // set an always-changing env var that the macros depend on via `env!()`
         .env(
             "__SQLX_RECOMPILE_TRIGGER",
