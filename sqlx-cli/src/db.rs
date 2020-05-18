@@ -39,7 +39,10 @@ pub async fn run_drop() -> anyhow::Result<()> {
 
     if db_exists {
         if !Confirmation::new()
-            .with_text("\nAre you sure you want to drop the database: {}?")
+            .with_text(&format!(
+                "\nAre you sure you want to drop the database: {}?",
+                db_name
+            ))
             .default(false)
             .interact()?
         {
