@@ -93,10 +93,21 @@ test_type!(strong_enum(
     "'four'::text" == Strong::Three
 ));
 
-test_type!(strong_color_enum(MySql, ColorLower, "'green'" == ColorLower::Green));
-test_type!(strong_color_enum(MySql, ColorSnake, "'red_green'" == ColorSnake::RedGreen));
-test_type!(strong_color_enum(MySql, ColorLower, "'GREEN'" == ColorUpper::Green));
-
+test_type!(strong_color_enum(
+    MySql,
+    ColorLower,
+    "'green'" == ColorLower::Green
+));
+test_type!(strong_color_enum(
+    MySql,
+    ColorSnake,
+    "'red_green'" == ColorSnake::RedGreen
+));
+test_type!(strong_color_enum(
+    MySql,
+    ColorLower,
+    "'GREEN'" == ColorUpper::Green
+));
 
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
