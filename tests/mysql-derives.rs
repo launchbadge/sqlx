@@ -19,7 +19,20 @@ enum Weak {
 // "Strong" enums can map to TEXT or a custom enum
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
-enum Color {
+enum ColorLower {
+    Red,
+    Green,
+    Blue,
+}
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "snake_case")]
+enum ColorSnake {
+    RedGreen,
+    BlueBlack,
+}
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "uppercase")]
+enum ColorUpper {
     Red,
     Green,
     Blue,
@@ -40,4 +53,6 @@ test_type!(weak_enum(
     "4" == Weak::Three
 ));
 
-test_type!(strong_color_enum(MySql, Color, "'green'" == Color::Green));
+test_type!(strong_color_enum(MySql, ColorLower, "'green'" == ColorLower::Green));
+test_type!(strong_color_enum(MySql, ColorSnake, "'red_green'" == ColorSnake::RedGreen));
+test_type!(strong_color_enum(MySql, ColorLower, "'GREEN'" == ColorUpper::Green));
