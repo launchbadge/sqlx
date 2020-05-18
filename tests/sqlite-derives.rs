@@ -53,6 +53,18 @@ test_type!(weak_enum(
     "4" == Weak::Three
 ));
 
-test_type!(strong_color_enum(MySql, ColorLower, "'green'" == ColorLower::Green));
-test_type!(strong_color_enum(MySql, ColorSnake, "'red_green'" == ColorSnake::RedGreen));
-test_type!(strong_color_enum(MySql, ColorLower, "'GREEN'" == ColorUpper::Green));
+test_type!(strong_color_enum(
+    MySql,
+    ColorLower,
+    "'green'" == ColorLower::Green
+));
+test_type!(strong_color_enum(
+    MySql,
+    ColorSnake,
+    "'red_green'" == ColorSnake::RedGreen
+));
+test_type!(strong_color_enum(
+    MySql,
+    ColorLower,
+    "'GREEN'" == ColorUpper::Green
+));
