@@ -94,17 +94,17 @@ test_type!(strong_enum(
 ));
 
 test_type!(strong_color_lower_enum(
-    MySql,
+    Postgres,
     ColorLower,
     "'green'" == ColorLower::Green
 ));
 test_type!(strong_color_snake_enum(
-    MySql,
+    Postgres,
     ColorSnake,
     "'red_green'" == ColorSnake::RedGreen
 ));
 test_type!(strong_color_upper_enum(
-    MySql,
+    Postgres,
     ColorLower,
     "'GREEN'" == ColorUpper::Green
 ));
