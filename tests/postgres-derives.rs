@@ -96,22 +96,6 @@ test_type!(strong_enum(
     "'four'::text" == Strong::Three
 ));
 
-test_type!(strong_color_lower_enum(
-    Postgres,
-    ColorLower,
-    "'green'" == ColorLower::Green
-));
-test_type!(strong_color_snake_enum(
-    Postgres,
-    ColorSnake,
-    "'red_green'" == ColorSnake::RedGreen
-));
-test_type!(strong_color_upper_enum(
-    Postgres,
-    ColorUpper,
-    "'GREEN'" == ColorUpper::Green
-));
-
 #[cfg_attr(feature = "runtime-async-std", async_std::test)]
 #[cfg_attr(feature = "runtime-tokio", tokio::test)]
 async fn test_enum_type() -> anyhow::Result<()> {
@@ -207,6 +191,42 @@ SELECT $1 = 'happy'::mood, $1
 
     assert!(rec.0);
     assert_eq!(rec.1, Mood::Happy);
+
+    let rec: (bool, ColorLower) = sqlx::query_as(
+        "
+SELECT $1 = 'green'::color_lower, $1
+        ",
+    )
+    .bind(&ColorLower::Green)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorLower::Green);
+
+    let rec: (bool, ColorSnake) = sqlx::query_as(
+        "
+SELECT $1 = 'red_green'::color_snake, $1
+        ",
+    )
+    .bind(&ColorSnake::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorSnake::RedGreen);
+
+    let rec: (bool, ColorUpper) = sqlx::query_as(
+        "
+SELECT $1 = 'RED'::color_upper, $1
+        ",
+    )
+    .bind(&ColorUpper::Red)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorUpper::Red);
 
     Ok(())
 }
