@@ -65,6 +65,6 @@ test_type!(strong_color_snake_enum(
 ));
 test_type!(strong_color_upper_enum(
     MySql,
-    ColorLower,
+    ColorUpper,
     "'GREEN'" == ColorUpper::Green
 ));
