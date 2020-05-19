@@ -54,17 +54,17 @@ test_type!(weak_enum(
 ));
 
 test_type!(strong_color_lower_enum(
-    MySql,
+    Sqlite,
     ColorLower,
     "'green'" == ColorLower::Green
 ));
 test_type!(strong_color_snake_enum(
-    MySql,
+    Sqlite,
     ColorSnake,
     "'red_green'" == ColorSnake::RedGreen
 ));
 test_type!(strong_color_upper_enum(
-    MySql,
+    Sqlite,
     ColorLower,
     "'GREEN'" == ColorUpper::Green
 ));
