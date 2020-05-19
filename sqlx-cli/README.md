@@ -16,6 +16,8 @@ in the current working directory.
 
 `database` and `migrate` subcommands support only Postgres; MySQL and SQLite are TODO.
 
+For more details, run `sqlx <command> --help`.
+
 ```dotenv
 # Postgres
 DATABASE_URL=postgres://postgres@localhost/my_database
