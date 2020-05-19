@@ -30,6 +30,7 @@ enum Strong {
 
 // rename_all variants
 #[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_lower")]
 #[sqlx(rename_all = "lowercase")]
 enum ColorLower {
     Red,
@@ -37,12 +38,14 @@ enum ColorLower {
     Blue,
 }
 #[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_snake")]
 #[sqlx(rename_all = "snake_case")]
 enum ColorSnake {
     RedGreen,
     BlueBlack,
 }
 #[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_upper")]
 #[sqlx(rename_all = "uppercase")]
 enum ColorUpper {
     Red,
@@ -122,6 +125,14 @@ DROP TABLE IF EXISTS people;
 DROP TYPE IF EXISTS mood CASCADE;
 
 CREATE TYPE mood AS ENUM ( 'ok', 'happy', 'sad' );
+
+DROP TYPE IF EXISTS color_lower CASCADE;
+DROP TYPE IF EXISTS color_snake CASCADE;
+DROP TYPE IF EXISTS color_upper CASCADE;
+
+CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
+CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
+CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
 
 CREATE TABLE people (
     id      serial PRIMARY KEY,
