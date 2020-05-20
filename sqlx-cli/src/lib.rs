@@ -37,7 +37,8 @@ pub enum Command {
         #[structopt(long)]
         check: bool,
 
-        /// Any arguments to pass to `cargo check`.
+        /// Any arguments to pass to `cargo rustc`;
+        /// Cargo args (preceding `--` in `cargo rustc ... -- ...`) only.
         #[structopt(name = "Cargo args", last = true)]
         cargo_args: Vec<String>,
     },
