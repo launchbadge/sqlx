@@ -121,6 +121,9 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
                 path.display()
             )
         }
+
+        // lazily remove the file, we don't care too much if we can't
+        let _ = fs::remove_file(&path);
     }
 
     Ok(data)
