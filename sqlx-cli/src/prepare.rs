@@ -76,13 +76,17 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare``")?;
 
     let check_status = Command::new(&cargo)
-        .arg("check")
+        .arg("rustc")
         .args(cargo_args)
-        // set an always-changing env var that the macros depend on via `env!()`
-        .env(
-            "__SQLX_RECOMPILE_TRIGGER",
-            SystemTime::UNIX_EPOCH.elapsed()?.as_millis().to_string(),
-        )
+        .arg("--")
+        .arg("--emit")
+        .arg("dep-info,metadata")
+        // set an always-changing cfg so we can consistently trigger recompile
+        .arg("--cfg")
+        .arg(format!(
+            "__sqlx_recompile_trigger=\"{}\"",
+            SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
+        ))
         .status()?;
 
     if !check_status.success() {

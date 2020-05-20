@@ -222,9 +222,6 @@ where
             (#($#arg_names:expr),*) => {{
                 use sqlx::arguments::Arguments as _;
 
-                // lets `cargo sqlx prepare` ensure that we can always trigger a recompile
-                const _: Option<&'static str> = option_env!("__SQLX_RECOMPILE_TRIGGER");
-
                 #args_tokens
 
                 #output
