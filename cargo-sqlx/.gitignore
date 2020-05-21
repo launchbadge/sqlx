@@ -2,3 +2,5 @@
 /migrations
 Cargo.lock
 .env
+.env-pg
+**/*.sql

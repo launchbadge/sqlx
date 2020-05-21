@@ -89,7 +89,7 @@ impl DatabaseMigrator for Postgres {
 
         let mut conn = PgConnection::connect(base_url).await?;
 
-        sqlx::query(&format!("CREATE DATABASE {}", db_name))
+        sqlx::query(&format!("CREATE DATABASE \"{}\"", db_name))
             .execute(&mut conn)
             .await
             .with_context(|| format!("Failed to create database: {}", db_name))?;
@@ -104,7 +104,7 @@ impl DatabaseMigrator for Postgres {
 
         let mut conn = PgConnection::connect(base_url).await?;
 
-        sqlx::query(&format!("DROP DATABASE {}", db_name))
+        sqlx::query(&format!("DROP DATABASE \"{}\"", db_name))
             .execute(&mut conn)
             .await
             .with_context(|| format!("Failed to drop database: {}", db_name))?;
