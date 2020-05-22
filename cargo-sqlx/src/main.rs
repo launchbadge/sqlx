@@ -13,10 +13,12 @@ use console::style;
 use dialoguer::Confirmation;
 
 mod database_migrator;
+mod mysql;
 mod postgres;
 mod sqlite;
 
 use database_migrator::DatabaseMigrator;
+use mysql::MySql;
 use postgres::Postgres;
 use sqlite::Sqlite;
 
@@ -81,7 +83,7 @@ async fn main() -> Result<()> {
                 db_url)),
 
         #[cfg(feature = "mysql")]
-        "mysql" | "mariadb" => return Err(anyhow!("Not implemented")),
+        "mysql" | "mariadb" => run_command(&MySql::new(db_url_raw)).await?,
         #[cfg(not(feature = "mysql"))]
         "mysql" | "mariadb" => return Err(anyhow!(
             "DATABASE_URL {} has the scheme of a MySQL/MariaDB database but the `mysql` feature of sqlx was not enabled",
@@ -146,7 +148,10 @@ async fn run_drop_database(migrator: &dyn DatabaseMigrator) -> Result<()> {
 
     if db_exists {
         if !Confirmation::new()
-            .with_text("\nAre you sure you want to drop the database: {}?")
+            .with_text(&format!(
+                "\nAre you sure you want to drop the database: {}?",
+                db_name
+            ))
             .default(false)
             .interact()?
         {
