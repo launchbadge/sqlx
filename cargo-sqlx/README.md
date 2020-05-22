@@ -12,4 +12,3 @@ Database url is supplied through either env variable or `.env` file containing `
 
 ##### Limitations
 - No down migrations! If you need down migrations, there are other more feature complete migrators to use.
-- Only support postgres. Other databases is planned
