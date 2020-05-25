@@ -91,6 +91,16 @@ impl TypeId {
 
     pub(crate) const RECORD: TypeId = TypeId(2249);
     pub(crate) const ARRAY_RECORD: TypeId = TypeId(2287);
+
+    // Custom types
+    pub(crate) const NODE_TYPE: TypeId = TypeId(17086);
+    pub(crate) const CARD_RARITY: TypeId = TypeId(17098);
+    pub(crate) const CARD_CATEGORY: TypeId = TypeId(17112);
+    pub(crate) const MODE_TYPE: TypeId = TypeId(17120);
+    pub(crate) const BATTLE_TYPE: TypeId = TypeId(17144);
+    pub(crate) const BATTLE_ICON: TypeId = TypeId(17156);
+    pub(crate) const CHARACTER_TRAIT: TypeId = TypeId(17168);
+    pub(crate) const FACTION: TypeId = TypeId(17194);
 }
 
 impl Display for TypeId {

@@ -98,6 +98,7 @@ impl_database_ext! {
 
     },
     ParamChecking::Strong,
+    get-custom-type: info => info.get_custom_type(),
     feature-types: info => info.type_feature_gate(),
     row = sqlx::postgres::PgRow,
     name = "PostgreSQL"

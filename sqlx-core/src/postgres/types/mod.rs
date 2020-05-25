@@ -252,6 +252,15 @@ pub(crate) fn try_resolve_type_name(oid: u32) -> Option<&'static str> {
         TypeId::RECORD => "RECORD",
         TypeId::ARRAY_RECORD => "RECORD[]",
 
+        TypeId::NODE_TYPE => "NODE_TYPE",
+        TypeId::CARD_RARITY => "CARD_RARITY",
+        TypeId::CARD_CATEGORY => "CARD_CATEGORY",
+        TypeId::MODE_TYPE => "MODE_TYPE",
+        TypeId::BATTLE_TYPE => "BATTLE_TYPE",
+        TypeId::BATTLE_ICON => "BATTLE_ICON",
+        TypeId::CHARACTER_TRAIT => "CHARACTER_TRAIT",
+        TypeId::FACTION => "FACTION",
+
         _ => {
             return None;
         }

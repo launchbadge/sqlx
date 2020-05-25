@@ -35,6 +35,22 @@ impl PgTypeInfo {
     }
 
     #[doc(hidden)]
+    pub fn get_custom_type(&self) -> Option<&'static str> {
+        match self.id? {
+            TypeId::NODE_TYPE => Some("NodeType"),
+            TypeId::CARD_RARITY => Some("CardRarity"),
+            TypeId::CARD_CATEGORY => Some("CardCategory"),
+            TypeId::MODE_TYPE => Some("ModeType"),
+            TypeId::BATTLE_TYPE => Some("BattleType"),
+            TypeId::BATTLE_ICON => Some("BattleIcon"),
+            TypeId::CHARACTER_TRAIT => Some("CharacterTrait"),
+            TypeId::FACTION => Some("Faction"),
+
+            _ => None,
+        }
+    }
+
+    #[doc(hidden)]
     pub fn type_feature_gate(&self) -> Option<&'static str> {
         match self.id? {
             TypeId::DATE | TypeId::TIME | TypeId::TIMESTAMP | TypeId::TIMESTAMPTZ => Some("chrono"),
