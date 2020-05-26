@@ -4,24 +4,23 @@ use std::convert::{TryFrom, TryInto};
 use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 
+use crate::database::Database;
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::postgres::types::numeric::{PgNumeric, PgNumericSign};
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
-
-use super::raw::{PgNumeric, PgNumericSign};
 
 impl Type<Postgres> for BigDecimal {
     fn type_info() -> PgTypeInfo {
-        <PgNumeric as Type<Postgres>>::type_info()
+        PgTypeInfo::NUMERIC
     }
 }
 
 impl Type<Postgres> for [BigDecimal] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_NUMERIC, "NUMERIC[]")
-        // <[PgNumeric] as Type<Postgres>>::type_info()
+        PgTypeInfo::NUMERIC_ARRAY
     }
 }
 
@@ -31,18 +30,62 @@ impl Type<Postgres> for Vec<BigDecimal> {
     }
 }
 
-impl TryFrom<BigDecimal> for PgNumeric {
-    type Error = std::num::TryFromIntError;
+impl TryFrom<PgNumeric> for BigDecimal {
+    type Error = BoxDynError;
 
-    fn try_from(bd: BigDecimal) -> Result<Self, Self::Error> {
+    fn try_from(numeric: PgNumeric) -> Result<Self, BoxDynError> {
+        let (digits, sign, weight) = match numeric {
+            PgNumeric::Number {
+                digits,
+                sign,
+                weight,
+                ..
+            } => (digits, sign, weight),
+
+            PgNumeric::NotANumber => {
+                return Err("BigDecimal does not support NaN values".into());
+            }
+        };
+
+        if digits.is_empty() {
+            // Postgres returns an empty digit array for 0 but BigInt expects at least one zero
+            return Ok(0u64.into());
+        }
+
+        let sign = match sign {
+            PgNumericSign::Positive => Sign::Plus,
+            PgNumericSign::Negative => Sign::Minus,
+        };
+
+        // weight is 0 if the decimal point falls after the first base-10000 digit
+        let scale = (digits.len() as i64 - weight as i64 - 1) * 4;
+
+        // no optimized algorithm for base-10 so use base-100 for faster processing
+        let mut cents = Vec::with_capacity(digits.len() * 2);
+        for digit in &digits {
+            cents.push((digit / 100) as u8);
+            cents.push((digit % 100) as u8);
+        }
+
+        let bigint = BigInt::from_radix_be(sign, &cents, 100)
+            .ok_or("PgNumeric contained an out-of-range digit")?;
+
+        Ok(BigDecimal::new(bigint, scale))
+    }
+}
+
+impl TryFrom<&'_ BigDecimal> for PgNumeric {
+    type Error = BoxDynError;
+
+    fn try_from(decimal: &BigDecimal) -> Result<Self, BoxDynError> {
         let base_10_to_10000 = |chunk: &[u8]| chunk.iter().fold(0i16, |a, &d| a * 10 + d as i16);
 
-        // `.to_bigint_and_exponent()` unfortunately also requires copy so there's no gain to
-        // taking `BigDecimal` by-reference
-        let (bigint, exp) = bd.into_bigint_and_exponent();
+        // NOTE: this unfortunately copies the BigInt internally
+        let (mut integer, exp) = decimal.as_bigint_and_exponent();
 
         // this routine is specifically optimized for base-10
-        let (sign, base_10) = bigint.to_radix_be(10);
+        // FIXME: is there a way to iterate over the digits to avoid the Vec allocation
+        let (sign, base_10) = integer.to_radix_be(10);
 
         // weight is positive power of 10000
         // exp is the negative power of 10
@@ -104,62 +147,15 @@ impl TryFrom<BigDecimal> for PgNumeric {
     }
 }
 
-impl TryFrom<PgNumeric> for BigDecimal {
-    type Error = crate::Error;
-
-    fn try_from(numeric: PgNumeric) -> crate::Result<Self> {
-        let (digits, sign, weight) = match numeric {
-            PgNumeric::Number {
-                digits,
-                sign,
-                weight,
-                ..
-            } => (digits, sign, weight),
-            PgNumeric::NotANumber => {
-                return Err(crate::Error::Decode(
-                    "BigDecimal does not support NaN values".into(),
-                ))
-            }
-        };
-
-        if digits.is_empty() {
-            // Postgres returns an empty digit array for 0 but BigInt expects at least one zero
-            return Ok(0u64.into());
-        }
-
-        let sign = match sign {
-            PgNumericSign::Positive => Sign::Plus,
-            PgNumericSign::Negative => Sign::Minus,
-        };
-
-        // weight is 0 if the decimal point falls after the first base-10000 digit
-        let scale = (digits.len() as i64 - weight as i64 - 1) * 4;
-
-        // no optimized algorithm for base-10 so use base-100 for faster processing
-        let mut cents = Vec::with_capacity(digits.len() * 2);
-        for digit in &digits {
-            cents.push((digit / 100) as u8);
-            cents.push((digit % 100) as u8);
-        }
-
-        let bigint = BigInt::from_radix_be(sign, &cents, 100).ok_or_else(|| {
-            crate::Error::Decode("PgNumeric contained an out-of-range digit".into())
-        })?;
-
-        Ok(BigDecimal::new(bigint, scale))
-    }
-}
-
 /// ### Panics
 /// If this `BigDecimal` cannot be represented by [PgNumeric].
-impl Encode<Postgres> for BigDecimal {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        // this copy is unfortunately necessary because we'd have to use `.to_bigint_and_exponent()`
-        // otherwise which does the exact same thing, so for the explicit impl might as well allow
-        // the user to skip one of the copies if they have an owned value
-        PgNumeric::try_from(self.clone())
+impl Encode<'_, Postgres> for BigDecimal {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        PgNumeric::try_from(self)
             .expect("BigDecimal magnitude too great for Postgres NUMERIC type")
             .encode(buf);
+
+        IsNull::No
     }
 
     fn size_hint(&self) -> usize {
@@ -170,12 +166,10 @@ impl Encode<Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
-    fn decode(value: PgValue) -> crate::Result<Self> {
-        match value.try_get()? {
-            PgData::Binary(binary) => PgNumeric::from_bytes(binary)?.try_into(),
-            PgData::Text(text) => text
-                .parse::<BigDecimal>()
-                .map_err(|e| crate::Error::Decode(e.into())),
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        match value.format() {
+            PgValueFormat::Binary => PgNumeric::decode(value.as_bytes()?)?.try_into(),
+            PgValueFormat::Text => Ok(value.as_str()?.parse::<BigDecimal>()?),
         }
     }
 }
@@ -184,7 +178,7 @@ impl Decode<'_, Postgres> for BigDecimal {
 fn test_bigdecimal_to_pgnumeric() {
     let one: BigDecimal = "1".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(one).unwrap(),
+        PgNumeric::try_from(&one).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -195,7 +189,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let ten: BigDecimal = "10".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(ten).unwrap(),
+        PgNumeric::try_from(&ten).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -206,7 +200,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_hundred: BigDecimal = "100".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(one_hundred).unwrap(),
+        PgNumeric::try_from(&one_hundred).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -218,7 +212,7 @@ fn test_bigdecimal_to_pgnumeric() {
     // BigDecimal doesn't normalize here
     let ten_thousand: BigDecimal = "10000".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(ten_thousand).unwrap(),
+        PgNumeric::try_from(&ten_thousand).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -229,7 +223,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let two_digits: BigDecimal = "12345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(two_digits).unwrap(),
+        PgNumeric::try_from(&two_digits).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 0,
@@ -240,7 +234,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_tenth: BigDecimal = "0.1".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(one_tenth).unwrap(),
+        PgNumeric::try_from(&one_tenth).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 1,
@@ -251,7 +245,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "1.2345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(decimal).unwrap(),
+        PgNumeric::try_from(&decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 4,
@@ -262,7 +256,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "0.12345".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(decimal).unwrap(),
+        PgNumeric::try_from(&decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -273,7 +267,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "0.01234".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(decimal).unwrap(),
+        PgNumeric::try_from(&decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -284,7 +278,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let decimal: BigDecimal = "12345.67890".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(decimal).unwrap(),
+        PgNumeric::try_from(&decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 5,
@@ -295,7 +289,7 @@ fn test_bigdecimal_to_pgnumeric() {
 
     let one_digit_decimal: BigDecimal = "0.00001234".parse().unwrap();
     assert_eq!(
-        PgNumeric::try_from(one_digit_decimal).unwrap(),
+        PgNumeric::try_from(&one_digit_decimal).unwrap(),
         PgNumeric::Number {
             sign: PgNumericSign::Positive,
             scale: 8,

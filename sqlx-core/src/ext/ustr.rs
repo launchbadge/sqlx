@@ -8,6 +8,7 @@ use std::sync::Arc;
 // a micro-string is either a reference-counted string or a static string
 // this guarantees these are cheap to clone everywhere
 #[derive(Debug, Clone, Eq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum UStr {
     Static(&'static str),
     Shared(Arc<str>),

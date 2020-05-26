@@ -1,23 +1,21 @@
-use std::str::FromStr;
-
 use uuid::Uuid;
 
+use crate::database::Database;
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::value::{PgData, PgValue};
-use crate::postgres::{PgRawBuffer, PgTypeInfo, Postgres};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for Uuid {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::UUID, "UUID")
+        PgTypeInfo::UUID
     }
 }
 
 impl Type<Postgres> for [Uuid] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_UUID, "UUID[]")
+        PgTypeInfo::UUID_ARRAY
     }
 }
 
@@ -27,17 +25,20 @@ impl Type<Postgres> for Vec<Uuid> {
     }
 }
 
-impl Encode<Postgres> for Uuid {
-    fn encode(&self, buf: &mut PgRawBuffer) {
+impl Encode<'_, Postgres> for Uuid {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend_from_slice(self.as_bytes());
+
+        IsNull::No
     }
 }
 
-impl<'de> Decode<'de, Postgres> for Uuid {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            PgData::Binary(buf) => Uuid::from_slice(buf).map_err(crate::Error::decode),
-            PgData::Text(s) => Uuid::from_str(s).map_err(crate::Error::decode),
+impl Decode<'_, Postgres> for Uuid {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        match value.format() {
+            PgValueFormat::Binary => Uuid::from_slice(value.as_bytes()?),
+            PgValueFormat::Text => value.as_str()?.parse(),
         }
+        .map_err(Into::into)
     }
 }

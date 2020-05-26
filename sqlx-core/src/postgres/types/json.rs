@@ -1,13 +1,12 @@
-use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::io::{Buf, BufMut};
-use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
-use crate::types::{Json, Type};
-use crate::value::RawValue;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue as JsonRawValue;
 use serde_json::Value as JsonValue;
+
+use crate::decode::Decode;
+use crate::encode::{Encode, IsNull};
+use crate::error::{BoxDynError, Error};
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::types::{Json, Type};
 
 // <https://www.postgresql.org/docs/12/datatype-json.html>
 
@@ -15,60 +14,60 @@ use serde_json::Value as JsonValue;
 // unless there are quite specialized needs, such as legacy assumptions
 // about ordering of object keys.
 
-impl Type<Postgres> for JsonValue {
-    fn type_info() -> PgTypeInfo {
-        <Json<Self> as Type<Postgres>>::type_info()
-    }
-}
-
-impl Type<Postgres> for &'_ JsonRawValue {
-    fn type_info() -> PgTypeInfo {
-        <Json<Self> as Type<Postgres>>::type_info()
-    }
-}
-
 impl<T> Type<Postgres> for Json<T> {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::JSONB, "JSONB")
+        PgTypeInfo::JSONB
     }
 }
 
-impl<T> Encode<Postgres> for Json<T>
+impl<T> Type<Postgres> for [Json<T>] {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::JSONB_ARRAY
+    }
+}
+
+impl<T> Type<Postgres> for Vec<Json<T>> {
+    fn type_info() -> PgTypeInfo {
+        <[Json<T>] as Type<Postgres>>::type_info()
+    }
+}
+
+impl<'q, T> Encode<'q, Postgres> for Json<T>
 where
     T: Serialize,
 {
-    fn encode(&self, buf: &mut PgRawBuffer) {
+    fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'q>>::Arguments) -> IsNull {
         // JSONB version (as of 2020-03-20)
-        buf.put_u8(1);
+        buf.push(1);
 
         serde_json::to_writer(&mut **buf, &self.0)
-            .expect("failed to serialize json for encoding to database");
+            .expect("failed to serialize to JSON for encoding on transmission to the database");
+
+        IsNull::No
     }
 }
 
-impl<'de, T> Decode<'de, Postgres> for Json<T>
+impl<'r, T: 'r> Decode<'r, Postgres> for Json<T>
 where
-    T: 'de,
-    T: Deserialize<'de>,
+    T: Deserialize<'r>,
 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        (match value.try_get()? {
-            PgData::Text(s) => serde_json::from_str(s),
-            PgData::Binary(mut buf) => {
-                if value.type_info().as_ref().and_then(|info| info.id) == Some(TypeId::JSONB) {
-                    let version = buf.get_u8()?;
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSONB
+    }
 
-                    assert_eq!(
-                        version, 1,
-                        "unsupported JSONB format version {}; please open an issue",
-                        version
-                    );
-                }
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        let mut buf = value.as_bytes()?;
 
-                serde_json::from_slice(buf)
-            }
-        })
-        .map(Json)
-        .map_err(crate::Error::decode)
+        if value.format() == PgValueFormat::Binary && value.type_info == PgTypeInfo::JSONB {
+            assert_eq!(
+                buf[0], 1,
+                "unsupported JSONB format version {}; please open an issue",
+                buf[0]
+            );
+
+            buf = &buf[1..];
+        }
+
+        serde_json::from_slice(buf).map(Json).map_err(Into::into)
     }
 }

@@ -1,41 +1,48 @@
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for bool {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::BOOL, "BOOL")
+        PgTypeInfo::BOOL
     }
 }
 
 impl Type<Postgres> for [bool] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_BOOL, "BOOL[]")
+        PgTypeInfo::BOOL_ARRAY
     }
 }
+
 impl Type<Postgres> for Vec<bool> {
     fn type_info() -> PgTypeInfo {
         <[bool] as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<Postgres> for bool {
-    fn encode(&self, buf: &mut PgRawBuffer) {
+impl Encode<'_, Postgres> for bool {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.push(*self as u8);
+
+        IsNull::No
     }
 }
 
-impl<'de> Decode<'de, Postgres> for bool {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            PgData::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
+impl Decode<'_, Postgres> for bool {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(match value.format() {
+            PgValueFormat::Binary => value.as_bytes()?[0] != 0,
 
-            PgData::Text("t") => Ok(true),
-            PgData::Text("f") => Ok(false),
+            PgValueFormat::Text => match value.as_str()? {
+                "t" => true,
+                "f" => false,
 
-            PgData::Text(s) => Err(decode_err!("unexpected value {:?} for boolean", s)),
-        }
+                s => {
+                    return Err(format!("unexpected value {:?} for boolean", s).into());
+                }
+            },
+        })
     }
 }
