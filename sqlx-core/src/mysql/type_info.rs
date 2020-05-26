@@ -21,6 +21,20 @@ impl MySqlTypeInfo {
         }
     }
 
+    #[doc(hidden)]
+    pub fn __type_feature_gate(&self) -> Option<&'static str> {
+        match self.r#type {
+            ColumnType::Date | ColumnType::Time | ColumnType::Timestamp | ColumnType::Datetime => {
+                Some("time")
+            }
+
+            ColumnType::Json => Some("json"),
+            ColumnType::NewDecimal => Some("bigdecimal"),
+
+            _ => None,
+        }
+    }
+
     pub(crate) fn from_column(column: &ColumnDefinition) -> Option<Self> {
         if column.r#type == ColumnType::Null {
             None

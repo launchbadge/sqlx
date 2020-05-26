@@ -17,32 +17,22 @@ pub struct RustColumn {
 struct DisplayColumn<'a> {
     // zero-based index, converted to 1-based number
     idx: usize,
-    name: Option<&'a str>,
+    name: &'a str,
 }
 
 impl Display for DisplayColumn<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let num = self.idx + 1;
-
-        if let Some(name) = self.name {
-            write!(f, "column #{} ({:?})", num, name)
-        } else {
-            write!(f, "column #{}", num)
-        }
+        write!(f, "column #{} ({:?})", self.idx + 1, self.name)
     }
 }
 
 pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
     describe
-        .result_columns
+        .columns
         .iter()
         .enumerate()
         .map(|(i, column)| -> crate::Result<_> {
-            let name = column
-                .name
-                .as_deref()
-                .ok_or_else(|| format!("column at position {} must have a name", i))?;
-
+            let name = &*column.name;
             let ident = parse_ident(name)?;
 
             let mut type_ = if let Some(type_info) = &column.type_info {
@@ -57,7 +47,7 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                                 feat = feature_gate,
                                 col = DisplayColumn {
                                     idx: i,
-                                    name: column.name.as_deref()
+                                    name: &*column.name
                                 }
                             )
                         } else {
@@ -66,7 +56,7 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                                 ty = type_info,
                                 col = DisplayColumn {
                                     idx: i,
-                                    name: column.name.as_deref()
+                                    name: &*column.name
                                 }
                             )
                         };
@@ -82,14 +72,14 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
                      this can happen for columns that are the result of an expression",
                         col = DisplayColumn {
                             idx: i,
-                            name: column.name.as_deref()
+                            name: &*column.name
                         }
                     ),
                 )
                 .to_compile_error()
             };
 
-            if !column.non_null.unwrap_or(false) {
+            if !column.not_null.unwrap_or(false) {
                 type_ = quote! { Option<#type_> };
             }
 

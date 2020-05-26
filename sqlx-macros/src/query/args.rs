@@ -26,7 +26,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     let args_check = if input.checked && DB::PARAM_CHECKING == ParamChecking::Strong {
         describe
-            .param_types
+            .params
             .iter()
             .zip(input.arg_names.iter().zip(&input.arg_exprs))
             .enumerate()

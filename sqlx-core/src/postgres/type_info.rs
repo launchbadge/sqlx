@@ -147,6 +147,48 @@ impl PgTypeInfo {
         self.0.kind()
     }
 
+    #[doc(hidden)]
+    pub fn __type_feature_gate(&self) -> Option<&'static str> {
+        if [
+            PgTypeInfo::DATE,
+            PgTypeInfo::TIME,
+            PgTypeInfo::TIMESTAMP,
+            PgTypeInfo::TIMESTAMPTZ,
+            PgTypeInfo::DATE_ARRAY,
+            PgTypeInfo::TIME_ARRAY,
+            PgTypeInfo::TIMESTAMP_ARRAY,
+            PgTypeInfo::TIMESTAMPTZ_ARRAY,
+        ]
+        .contains(self)
+        {
+            Some("time")
+        } else if [PgTypeInfo::UUID, PgTypeInfo::UUID_ARRAY].contains(self) {
+            Some("uuid")
+        } else if [
+            PgTypeInfo::JSON,
+            PgTypeInfo::JSONB,
+            PgTypeInfo::JSON_ARRAY,
+            PgTypeInfo::JSONB_ARRAY,
+        ]
+        .contains(self)
+        {
+            Some("json")
+        } else if [
+            PgTypeInfo::CIDR,
+            PgTypeInfo::INET,
+            PgTypeInfo::CIDR_ARRAY,
+            PgTypeInfo::INET_ARRAY,
+        ]
+        .contains(self)
+        {
+            Some("ipnetwork")
+        } else if [PgTypeInfo::NUMERIC, PgTypeInfo::NUMERIC_ARRAY].contains(self) {
+            Some("bigdecimal")
+        } else {
+            None
+        }
+    }
+
     /// Create a `PgTypeInfo` from a type name.
     ///
     /// The OID for the type will be fetched from Postgres on use of
