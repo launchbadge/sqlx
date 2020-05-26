@@ -1,11 +1,14 @@
-use futures_core::future::BoxFuture;
 use std::borrow::{Borrow, BorrowMut};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
+use futures_core::future::BoxFuture;
+
 use super::inner::{DecrementSizeGuard, SharedPool};
 use crate::connection::{Connect, Connection};
+use crate::error::Error;
 
 /// A connection checked out from [`Pool`][crate::pool::Pool].
 ///
@@ -35,6 +38,13 @@ pub(super) struct Floating<'p, C> {
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
+
+impl<C: Connect> Debug for PoolConnection<C> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // TODO: Show the type name of the connection ?
+        f.debug_struct("PoolConnection").finish()
+    }
+}
 
 impl<C> Borrow<C> for PoolConnection<C>
 where
@@ -78,7 +88,9 @@ impl<C> Connection for PoolConnection<C>
 where
     C: Connect,
 {
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+    type Database = C::Database;
+
+    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             let live = self.live.take().expect("PoolConnection double-dropped");
             live.float(&self.pool).into_idle().close().await
@@ -86,7 +98,7 @@ where
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+    fn ping(&mut self) -> BoxFuture<Result<(), Error>> {
         Box::pin(self.deref_mut().ping())
     }
 }
@@ -185,7 +197,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
         }
     }
 
-    pub async fn ping(&mut self) -> crate::Result<()>
+    pub async fn ping(&mut self) -> Result<(), Error>
     where
         C: Connection,
     {
@@ -199,7 +211,7 @@ impl<'s, C> Floating<'s, Idle<C>> {
         }
     }
 
-    pub async fn close(self) -> crate::Result<()>
+    pub async fn close(self) -> Result<(), Error>
     where
         C: Connection,
     {

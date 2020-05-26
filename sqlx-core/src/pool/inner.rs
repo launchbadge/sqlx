@@ -8,13 +8,11 @@ use std::time::Instant;
 use crossbeam_queue::{ArrayQueue, SegQueue};
 use futures_core::task::{Poll, Waker};
 use futures_util::future;
+use sqlx_rt::{sleep, spawn, timeout};
 
+use crate::connection::{Connect, Connection};
+use crate::error::Error;
 use crate::pool::deadline_as_timeout;
-use crate::runtime::{sleep, spawn, timeout};
-use crate::{
-    connection::{Connect, Connection},
-    error::Error,
-};
 
 use super::connection::{Floating, Idle, Live};
 use super::Options;
@@ -106,7 +104,7 @@ where
     /// open a new connection, or if an idle connection is returned to the pool.
     ///
     /// Returns an error if `deadline` elapses before we are woken.
-    async fn wait_for_conn(&self, deadline: Instant) -> crate::Result<()> {
+    async fn wait_for_conn(&self, deadline: Instant) -> Result<(), Error> {
         let mut waker_pushed = false;
 
         timeout(
@@ -124,7 +122,7 @@ where
             }),
         )
         .await
-        .map_err(|_| crate::Error::PoolTimedOut(None))
+        .map_err(|_| Error::PoolTimedOut)
     }
 }
 
@@ -132,7 +130,7 @@ impl<C> SharedPool<C>
 where
     C: Connect,
 {
-    pub(super) async fn new_arc(url: &str, options: Options) -> crate::Result<Arc<Self>> {
+    pub(super) async fn new_arc(url: &str, options: Options) -> Result<Arc<Self>, Error> {
         let mut pool = Self {
             url: url.to_owned(),
             idle_conns: ArrayQueue::new(options.max_size as usize),
@@ -151,7 +149,8 @@ where
         Ok(pool)
     }
 
-    pub(super) async fn acquire<'s>(&'s self) -> crate::Result<Floating<'s, Live<C>>> {
+    #[allow(clippy::needless_lifetimes)]
+    pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<C>>, Error> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
 
@@ -185,7 +184,7 @@ where
     }
 
     // takes `&mut self` so this can only be called during init
-    async fn init_min_connections(&mut self) -> crate::Result<()> {
+    async fn init_min_connections(&mut self) -> Result<(), Error> {
         for _ in 0..self.options.min_size {
             let deadline = Instant::now() + self.options.connect_timeout;
 
@@ -208,7 +207,7 @@ where
         &'s self,
         deadline: Instant,
         guard: DecrementSizeGuard<'s>,
-    ) -> crate::Result<Option<Floating<'s, Live<C>>>> {
+    ) -> Result<Option<Floating<'s, Live<C>>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -216,25 +215,25 @@ where
         let timeout = super::deadline_as_timeout::<C::Database>(deadline)?;
 
         // result here is `Result<Result<C, Error>, TimeoutError>`
-        match crate::runtime::timeout(timeout, C::connect(&self.url)).await {
+        match sqlx_rt::timeout(timeout, C::connect(&self.url)).await {
             // successfully established connection
             Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard))),
 
             // an IO error while connecting is assumed to be the system starting up
-            Ok(Err(crate::Error::Io(_))) => Ok(None),
+            Ok(Err(Error::Io(_))) => Ok(None),
 
             // TODO: Handle other database "boot period"s
 
             // [postgres] the database system is starting up
             // TODO: Make this check actually check if this is postgres
-            Ok(Err(crate::Error::Database(error))) if error.code() == Some("57P03") => Ok(None),
+            Ok(Err(Error::Database(error))) if error.code().as_deref() == Some("57P03") => Ok(None),
 
             // Any other error while connection should immediately
             // terminate and bubble the error up
             Ok(Err(e)) => Err(e),
 
             // timed out
-            Err(e) => Err(crate::Error::PoolTimedOut(Some(Box::new(e)))),
+            Err(_) => Err(Error::PoolTimedOut),
         }
     }
 }

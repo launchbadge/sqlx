@@ -1,156 +1,162 @@
+use std::fmt::Debug;
+
+use either::Either;
 use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
-use crate::cursor::HasCursor;
-use crate::database::Database;
+use crate::database::{Database, HasArguments};
 use crate::describe::Describe;
+use crate::error::Error;
 
-/// A type that contains or can provide a database connection to use for executing queries
-/// against the database.
+/// A type that contains or can provide a database
+/// connection to use for executing queries against the database.
 ///
-/// No guarantees are provided that successive queries run on the same physical database
-/// connection. A [`Connection`](trait.Connection.html) is an `Executor` that guarantees that successive
-/// queries are run on the same physical database connection.
+/// No guarantees are provided that successive queries run on the same
+/// physical database connection.
 ///
-/// Implementations are provided for [`&Pool`](struct.Pool.html),
-/// [`&mut PoolConnection`](struct.PoolConnection.html),
-/// and [`&mut Connection`](trait.Connection.html).
-pub trait Executor
-where
-    Self: Send,
-{
-    /// The specific database that this type is implemented for.
+/// A [`Connection`](crate::connection::Connection) is an `Executor` that guarantees that
+/// successive queries are ran on the same physical database connection.
+///
+/// Implemented for the following:
+///
+///  * [`&Pool`]
+///  * [`&mut PoolConnection`]
+///  * [`&mut Connection`]
+///
+pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
 
-    /// Executes the query for its side-effects and
-    /// discarding any potential result rows.
-    ///
-    /// Returns the number of rows affected, or 0 if not applicable.
-    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
-        &'c mut self,
+    /// Execute the query and return the total number of rows affected.
+    fn execute<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<u64, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        self.execute_many(query)
+            .try_fold(0, |acc, x| async move { Ok(acc + x) })
+            .boxed()
+    }
+
+    /// Execute multiple queries and return the rows affected from each query, in a stream.
+    fn execute_many<'q: 'c, E>(self, query: E) -> BoxStream<'c, Result<u64, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(rows) => Some(rows),
+                    Either::Right(_) => None,
+                })
+            })
+            .boxed()
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    fn fetch<'q: 'c, E>(
+        self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<u64>>
+    ) -> BoxStream<'c, Result<<Self::Database as Database>::Row, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(row) => Some(row),
+                })
+            })
+            .boxed()
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    fn fetch_many<'q: 'c, E>(
+        self,
+        query: E,
+    ) -> BoxStream<'c, Result<Either<u64, <Self::Database as Database>::Row>, Error>>
     where
         E: Execute<'q, Self::Database>;
 
-    /// Executes a query for its result.
-    ///
-    /// Returns a [`Cursor`] that can be used to iterate through the [`Row`]s
-    /// of the result.
-    ///
-    /// [`Cursor`]: crate::cursor::Cursor
-    /// [`Row`]: crate::row::Row
-    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    fn fetch_all<'q: 'c, E>(
+        self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Vec<<Self::Database as Database>::Row>, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        self.fetch(query).try_collect().boxed()
+    }
+
+    /// Execute the query and returns exactly one row.
+    fn fetch_one<'q: 'c, E>(
+        self,
+        query: E,
+    ) -> BoxFuture<'c, Result<<Self::Database as Database>::Row, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        self.fetch_optional(query)
+            .and_then(|row| match row {
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
+            })
+            .boxed()
+    }
+
+    /// Execute the query and returns at most one row.
+    fn fetch_optional<'q: 'c, E>(
+        self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Option<<Self::Database as Database>::Row>, Error>>
     where
         E: Execute<'q, Self::Database>;
 
     /// Prepare the SQL query and return type information about its parameters
     /// and results.
     ///
-    /// This is used by the query macros during compilation to
+    /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe<'e, 'q, E: 'e>(
-        &'e mut self,
+    fn describe<'q: 'c, E>(
+        self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
-    where
-        E: Execute<'q, Self::Database>;
-}
-
-// HACK: Generic Associated Types (GATs) will enable us to rework how the Executor bound is done
-//       in Query to remove the need for this.
-pub trait RefExecutor<'e> {
-    type Database: Database;
-
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'e, 'q>>::Cursor
+    ) -> BoxFuture<'c, Result<Describe<Self::Database>, Error>>
     where
         E: Execute<'q, Self::Database>;
 }
 
 /// A type that may be executed against a database connection.
-pub trait Execute<'q, DB>
-where
-    Self: Send,
-    DB: Database,
-{
-    /// Returns the query to be executed and the arguments to bind against the query, if any.
+///
+/// Implemented for the following:
+///
+///  * [`&str`]
+///  * [`Query`]
+///
+pub trait Execute<'q, DB: Database>: Send {
+    /// Returns the query string that will be executed.
+    fn query(&self) -> &'q str;
+
+    /// Returns the arguments to be bound against the query string.
     ///
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn into_parts(self) -> (&'q str, Option<DB::Arguments>);
-
-    /// Returns the query string, without any parameters replaced.
-    #[doc(hidden)]
-    fn query_string(&self) -> &'q str;
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments>;
 }
 
-impl<'q, DB> Execute<'q, DB> for &'q str
-where
-    DB: Database,
-{
+// NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
+//       involved to write `conn.execute(format!("SELECT {}", val))`
+impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     #[inline]
-    fn into_parts(self) -> (&'q str, Option<DB::Arguments>) {
-        (self, None)
-    }
-
-    #[inline]
-    #[doc(hidden)]
-    fn query_string(&self) -> &'q str {
+    fn query(&self) -> &'q str {
         self
     }
-}
-
-impl<T> Executor for &'_ mut T
-where
-    T: Executor,
-{
-    type Database = T::Database;
-
-    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
-        &'c mut self,
-        query: E,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).execute(query)
-    }
-
-    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).fetch(query)
-    }
-
-    #[doc(hidden)]
-    fn describe<'e, 'q, E: 'e>(
-        &'e mut self,
-        query: E,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).describe(query)
-    }
-}
-
-// The following impl lets `&mut &Pool` continue to work
-// This pattern was required in SQLx < 0.3
-// Going forward users will likely naturally use `&Pool` instead
-
-impl<'c, T> RefExecutor<'c> for &'c mut T
-where
-    T: Copy + RefExecutor<'c>,
-{
-    type Database = T::Database;
 
     #[inline]
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (*self).fetch_by_ref(query)
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        None
     }
 }

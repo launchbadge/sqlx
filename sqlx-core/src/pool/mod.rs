@@ -1,4 +1,4 @@
-//! **Pool** for SQLx database connections.
+//! Connection pool for SQLx database connections.
 
 use std::{
     fmt,
@@ -8,13 +8,12 @@ use std::{
 
 use crate::connection::Connect;
 use crate::database::Database;
-use crate::transaction::Transaction;
+use crate::error::Error;
 
 use self::inner::SharedPool;
 use self::options::Options;
 
 mod connection;
-mod executor;
 mod inner;
 mod options;
 
@@ -35,17 +34,15 @@ where
     ///
     /// * MySQL/MariaDB: [crate::mysql::MySqlConnection]
     /// * PostgreSQL: [crate::postgres::PgConnection]
-    pub async fn new(url: &str) -> crate::Result<Self> {
+    pub async fn new(url: &str) -> Result<Self, Error> {
         Self::builder().build(url).await
     }
 
-    async fn with_options(url: &str, options: Options) -> crate::Result<Self> {
-        let inner = SharedPool::<C>::new_arc(url, options).await?;
-
-        Ok(Pool(inner))
+    async fn new_with(url: &str, options: Options) -> Result<Self, Error> {
+        Ok(Pool(SharedPool::<C>::new_arc(url, options).await?))
     }
 
-    /// Returns a [Builder] to configure a new connection pool.
+    /// Returns a [`Builder`] to configure a new connection pool.
     pub fn builder() -> Builder<C> {
         Builder::new()
     }
@@ -53,7 +50,7 @@ where
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> crate::Result<PoolConnection<C>> {
+    pub async fn acquire(&self) -> Result<PoolConnection<C>, Error> {
         self.0.acquire().await.map(|conn| conn.attach(&self.0))
     }
 
@@ -62,11 +59,6 @@ where
     /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
         self.0.try_acquire().map(|conn| conn.attach(&self.0))
-    }
-
-    /// Retrieves a new connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
-        Ok(Transaction::new(0, self.acquire().await?).await?)
     }
 
     /// Ends the use of a connection pool. Prevents any new connections
@@ -143,10 +135,10 @@ where
 /// get the time between the deadline and now and use that as our timeout
 ///
 /// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout<DB: Database>(deadline: Instant) -> crate::Result<Duration> {
+fn deadline_as_timeout<DB: Database>(deadline: Instant) -> Result<Duration, Error> {
     deadline
         .checked_duration_since(Instant::now())
-        .ok_or(crate::Error::PoolTimedOut(None))
+        .ok_or(Error::PoolTimedOut)
 }
 
 #[test]

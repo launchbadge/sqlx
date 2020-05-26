@@ -3,6 +3,7 @@ use std::{marker::PhantomData, time::Duration};
 use super::Pool;
 use crate::connection::Connect;
 use crate::database::Database;
+use crate::error::Error;
 
 /// Builder for [Pool].
 pub struct Builder<C> {
@@ -25,7 +26,7 @@ where
                 max_size: 10,
                 // don't open connections until necessary
                 min_size: 0,
-                // try to connect for 10 seconds before erroring
+                // try to connect for 10 seconds before giving up
                 connect_timeout: Duration::from_secs(60),
                 // reap connections that have been alive > 30 minutes
                 // prevents unbounded live-leaking of memory due to naive prepared statement caching
@@ -113,11 +114,11 @@ where
     /// opened and placed into the pool.
     ///
     /// [`min_size`]: #method.min_size
-    pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
+    pub async fn build(self, url: &str) -> Result<Pool<C>, Error>
     where
         C: Connect,
     {
-        Pool::<C>::with_options(url, self.options).await
+        Pool::<C>::new_with(url, self.options).await
     }
 }
 

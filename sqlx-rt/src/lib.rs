@@ -28,7 +28,7 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
-    task::yield_now,
+    task::yield_now, time::delay_for as sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -89,8 +89,9 @@ macro_rules! blocking {
     not(any(feature = "runtime-actix", feature = "runtime-tokio",))
 ))]
 pub use async_std::{
-    self, fs, io::prelude::ReadExt as AsyncReadExt, io::prelude::WriteExt as AsyncWriteExt,
-    io::Read as AsyncRead, io::Write as AsyncWrite, net::TcpStream, task::spawn, task::yield_now,
+    self, fs, future::timeout, io::prelude::ReadExt as AsyncReadExt,
+    io::prelude::WriteExt as AsyncWriteExt, io::Read as AsyncRead, io::Write as AsyncWrite,
+    net::TcpStream, task::sleep, task::spawn, task::yield_now,
 };
 
 #[cfg(all(

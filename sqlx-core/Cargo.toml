@@ -6,74 +6,80 @@ description = "Core of SQLx, the rust SQL toolkit. Not intended to be used direc
 license = "MIT OR Apache-2.0"
 edition = "2018"
 authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
-    "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
-    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>", # zach@launchbadge.com
-    "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
+    "Ryan Leckey <leckey.ryan@gmail.com>",
+    "Austin Bonander <austin.bonander@gmail.com>",
+    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>",
+    "Daniel Akhterov <akhterovd@gmail.com>",
 ]
 
 [features]
 default = [ "runtime-async-std" ]
-unstable = []
-# intended mainly for CI and docs
-all = ["all-database", "all-type"]
-all-database = ["mysql", "sqlite", "postgres"]
-all-type = ["bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid"]
-# we need a feature which activates `num-bigint` as well because
-# `bigdecimal` uses types from it but does not reexport (tsk tsk)
-bigdecimal = ["bigdecimal_", "num-bigint"]
-postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink", "tokio/uds" ]
-json = ["serde", "serde_json"]
+
+# [deprecated] TLS is not possible to disable due to it being conditional on multiple features
+#              Hopefully Cargo can handle this in the future
+tls = []
+
+# databases
+postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
-tls = [ "async-native-tls" ]
-runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
-runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
-# intended for internal benchmarking, do not use
-bench = []
+
+# types
+all-types = [ "chrono", "time", "bigdecimal", "ipnetwork", "json", "uuid" ]
+bigdecimal = [ "bigdecimal_", "num-bigint" ]
+json = [ "serde", "serde_json" ]
+
+# runtimes
+runtime-async-std = [ "sqlx-rt/runtime-async-std" ]
+runtime-tokio = [ "sqlx-rt/runtime-tokio" ]
+runtime-actix = [ "sqlx-rt/runtime-actix" ]
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde"]
 
 [dependencies]
-async-native-tls = { version = "0.3.2", default-features = false, optional = true }
-async-std = { version = "1.5.0", features = [ "unstable" ], optional = true }
+atoi = "0.3.2"
+sqlx-rt = { path = "../sqlx-rt", version = "0.1.0-pre" }
 async-stream = { version = "0.2.1", default-features = false }
 base64 = { version = "0.12.0", default-features = false, optional = true, features = [ "std" ] }
 bigdecimal_ = { version = "0.1.0", optional = true, package = "bigdecimal" }
 bitflags = { version = "1.2.1", default-features = false }
+bytes = "0.5.4"
 byteorder = { version = "1.3.4", default-features = false, features = [ "std" ] }
-chrono = { version = "0.4.10", default-features = false, features = [ "clock" ], optional = true }
+chrono = { version = "0.4.11", default-features = false, features = [ "clock" ], optional = true }
 crossbeam-queue = "0.2.1"
+crossbeam-channel = "0.4.2"
 crossbeam-utils = { version = "0.7.2", default-features = false }
 digest = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
+either = "1.5.3"
 futures-channel = { version = "0.3.4", default-features = false, features = [ "alloc", "std" ] }
 futures-core = { version = "0.3.4", default-features = false }
-futures-util = { version = "0.3.4", default-features = false }
+futures-util = "0.3.4"
 generic-array = { version = "0.12.3", default-features = false, optional = true }
+hashbrown = "0.7.1"
 hex = "0.4.2"
 hmac = { version = "0.7.1", default-features = false, optional = true }
+itoa = "0.4.5"
 ipnetwork = { version = "0.16.0", default-features = false, optional = true }
-libc = "0.2.68"
+libc = "0.2.69"
+libsqlite3-sys = { version = "0.17.3", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
 num-bigint = { version = "0.2.6", default-features = false, optional = true, features = [ "std" ] }
 percent-encoding = "2.1.0"
+parking_lot = "0.10.2"
+threadpool = "*"
+phf = { version = "0.8.0", features = [ "macros" ] }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
+serde = { version = "1.0.106", features = [ "derive" ], optional = true }
+serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
 sha-1 = { version = "0.8.2", default-features = false, optional = true }
 sha2 = { version = "0.8.1", default-features = false, optional = true }
-tokio = { version = "0.2.13", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true }
+sqlformat = "0.1.0"
+thiserror = "1.0.15"
+time = { version = "0.2.10", optional = true }
+smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
-serde = { version = "1.0", features = [ "derive" ], optional = true }
-time = { version = "0.2.7", optional = true }
-serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
-sqlformat = "0.1.0"
-
-# <https://github.com/jgallagher/rusqlite/tree/master/libsqlite3-sys>
-[dependencies.libsqlite3-sys]
-version = "0.17.1"
-optional = true
-default-features = false
-features = [ "pkg-config", "vcpkg", "bundled" ]
+whoami = "0.8.1"
