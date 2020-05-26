@@ -1,63 +1,64 @@
-use std::error::Error as StdError;
-use std::fmt::{self, Display};
+use std::error::Error;
+use std::fmt::{self, Debug, Display, Formatter};
 
 use crate::error::DatabaseError;
-use crate::mysql::protocol::ErrPacket;
+use crate::mysql::protocol::response::ErrPacket;
+use smallvec::alloc::borrow::Cow;
 
-#[derive(Debug)]
-pub struct MySqlError(pub(super) ErrPacket);
+/// An error returned from the MySQL database.
+pub struct MySqlDatabaseError(pub(super) ErrPacket);
 
-impl Display for MySqlError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.pad(self.message())
-    }
-}
-
-impl DatabaseError for MySqlError {
-    fn message(&self) -> &str {
-        &*self.0.error_message
-    }
-
-    fn code(&self) -> Option<&str> {
+impl MySqlDatabaseError {
+    /// The [SQLSTATE](https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html) code for this error.
+    pub fn code(&self) -> Option<&str> {
         self.0.sql_state.as_deref()
     }
 
-    fn as_ref_err(&self) -> &(dyn StdError + Send + Sync + 'static) {
-        self
+    /// The [number](https://dev.mysql.com/doc/refman/8.0/en/server-error-reference.html)
+    /// for this error.
+    ///
+    /// MySQL tends to use SQLSTATE as a general error category, and the error number as a more
+    /// granular indication of the error.
+    pub fn number(&self) -> u16 {
+        self.0.error_code
     }
 
-    fn as_mut_err(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
-        self
-    }
-
-    fn into_box_err(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
-        self
-    }
-}
-
-impl StdError for MySqlError {}
-
-impl From<MySqlError> for crate::Error {
-    fn from(err: MySqlError) -> Self {
-        crate::Error::Database(Box::new(err))
+    /// The human-readable error message.
+    pub fn message(&self) -> &str {
+        &self.0.error_message
     }
 }
 
-#[test]
-fn test_error_downcasting() {
-    let error = MySqlError(ErrPacket {
-        error_code: 0xABCD,
-        sql_state: None,
-        error_message: "".into(),
-    });
+impl Debug for MySqlDatabaseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MySqlDatabaseError")
+            .field("code", &self.code())
+            .field("number", &self.number())
+            .field("message", &self.message())
+            .finish()
+    }
+}
 
-    let error = crate::Error::from(error);
+impl Display for MySqlDatabaseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Some(code) = &self.code() {
+            write!(f, "{} ({}): {}", self.number(), code, self.message())
+        } else {
+            write!(f, "{}: {}", self.number(), self.message())
+        }
+    }
+}
 
-    let db_err = match error {
-        crate::Error::Database(db_err) => db_err,
-        e => panic!("expected crate::Error::Database, got {:?}", e),
-    };
+impl Error for MySqlDatabaseError {}
 
-    assert_eq!(db_err.downcast_ref::<MySqlError>().0.error_code, 0xABCD);
-    assert_eq!(db_err.downcast::<MySqlError>().0.error_code, 0xABCD);
+impl DatabaseError for MySqlDatabaseError {
+    #[inline]
+    fn message(&self) -> &str {
+        self.message()
+    }
+
+    #[inline]
+    fn code(&self) -> Option<Cow<str>> {
+        self.code().map(Cow::Borrowed)
+    }
 }

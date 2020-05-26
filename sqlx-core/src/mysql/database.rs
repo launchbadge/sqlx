@@ -1,41 +1,31 @@
-use crate::cursor::HasCursor;
-use crate::database::Database;
-use crate::mysql::error::MySqlError;
-use crate::row::HasRow;
-use crate::value::HasRawValue;
+use crate::database::{Database, HasArguments, HasValueRef};
+use crate::mysql::value::{MySqlValue, MySqlValueRef};
+use crate::mysql::{MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo};
 
-/// **MySQL** database driver.
+/// PostgreSQL database driver.
 #[derive(Debug)]
 pub struct MySql;
 
 impl Database for MySql {
-    type Connection = super::MySqlConnection;
+    type Connection = MySqlConnection;
 
-    type Arguments = super::MySqlArguments;
+    type Row = MySqlRow;
 
-    type TypeInfo = super::MySqlTypeInfo;
+    type TypeInfo = MySqlTypeInfo;
 
-    type TableId = Box<str>;
-
-    type RawBuffer = Vec<u8>;
-
-    type Error = MySqlError;
+    type Value = MySqlValue;
 }
 
-impl<'c> HasRow<'c> for MySql {
+impl<'r> HasValueRef<'r> for MySql {
     type Database = MySql;
 
-    type Row = super::MySqlRow<'c>;
+    type ValueRef = MySqlValueRef<'r>;
 }
 
-impl<'c, 'q> HasCursor<'c, 'q> for MySql {
+impl HasArguments<'_> for MySql {
     type Database = MySql;
 
-    type Cursor = super::MySqlCursor<'c, 'q>;
-}
+    type Arguments = MySqlArguments;
 
-impl<'c> HasRawValue<'c> for MySql {
-    type Database = MySql;
-
-    type RawValue = super::MySqlValue<'c>;
+    type ArgumentBuffer = Vec<u8>;
 }

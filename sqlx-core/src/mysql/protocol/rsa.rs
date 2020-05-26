@@ -2,14 +2,16 @@ use digest::Digest;
 use num_bigint::BigUint;
 use rand::{thread_rng, Rng};
 
+use crate::error::Error;
+
 // This is mostly taken from https://github.com/RustCrypto/RSA/pull/18
 // For the love of crypto, please delete as much of this as possible and use the RSA crate
 // directly when that PR is merged
 
-pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> crate::Result<Vec<u8>> {
+pub fn encrypt<D: Digest>(key: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
     let key = std::str::from_utf8(key).map_err(|_err| {
-        // TODO(@abonander): protocol_err doesn't like referring to [err]
-        protocol_err!("unexpected error decoding what should be UTF-8")
+        // TODO(@abonander): err_protocol doesn't like referring to [err]
+        err_protocol!("unexpected error decoding what should be UTF-8")
     })?;
 
     let key = parse(key)?;
@@ -96,7 +98,7 @@ fn oaep_encrypt<R: Rng, D: Digest>(
     rng: &mut R,
     pub_key: &PublicKey,
     msg: &[u8],
-) -> crate::Result<Vec<u8>> {
+) -> Result<Vec<u8>, Error> {
     // size of [n] in bytes
     let k = (pub_key.n.bits() + 7) / 8;
 
@@ -104,7 +106,7 @@ fn oaep_encrypt<R: Rng, D: Digest>(
     let h_size = D::output_size();
 
     if msg.len() > k - 2 * h_size - 2 {
-        return Err(protocol_err!("mysql: password too long").into());
+        return Err(err_protocol!("mysql: password too long"));
     }
 
     let mut em = vec![0u8; k];
@@ -140,13 +142,13 @@ struct PublicKey {
     e: BigUint,
 }
 
-fn parse(key: &str) -> crate::Result<PublicKey> {
+fn parse(key: &str) -> Result<PublicKey, Error> {
     // This takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL
 
     if !key.starts_with("-----BEGIN PUBLIC KEY-----\n") {
-        return Err(protocol_err!(
+        return Err(err_protocol!(
             "unexpected format for RSA Public Key from MySQL (expected PKCS#8); first line: {:?}",
             key.splitn(1, '\n').next()
         )
@@ -158,8 +160,8 @@ fn parse(key: &str) -> crate::Result<PublicKey> {
     let inner_key = key_with_trailer[..trailer_pos].replace('\n', "");
 
     let inner = base64::decode(&inner_key).map_err(|_err| {
-        // TODO(@abonander): protocol_err doesn't like referring to [err]
-        protocol_err!("unexpected error decoding what should be base64-encoded data")
+        // TODO(@abonander): err_protocol doesn't like referring to [err]
+        err_protocol!("unexpected error decoding what should be base64-encoded data")
     })?;
 
     let len = inner.len();
