@@ -1,41 +1,54 @@
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::sqlite::type_info::{SqliteType, SqliteTypeAffinity};
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::sqlite::type_info::DataType;
+use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
 use crate::types::Type;
 
 impl Type<Sqlite> for i32 {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo::new(SqliteType::Integer, SqliteTypeAffinity::Integer)
+        SqliteTypeInfo(DataType::Int)
     }
 }
 
-impl Encode<Sqlite> for i32 {
-    fn encode(&self, values: &mut Vec<SqliteArgumentValue>) {
-        values.push(SqliteArgumentValue::Int((*self).into()));
+impl<'q> Encode<'q, Sqlite> for i32 {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int(*self));
+
+        IsNull::No
     }
 }
 
-impl<'a> Decode<'a, Sqlite> for i32 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<i32> {
+impl<'r> Decode<'r, Sqlite> for i32 {
+    fn accepts(_ty: &SqliteTypeInfo) -> bool {
+        true
+    }
+
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int())
     }
 }
 
 impl Type<Sqlite> for i64 {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo::new(SqliteType::Integer, SqliteTypeAffinity::Integer)
+        SqliteTypeInfo(DataType::Int64)
     }
 }
 
-impl Encode<Sqlite> for i64 {
-    fn encode(&self, values: &mut Vec<SqliteArgumentValue>) {
-        values.push(SqliteArgumentValue::Int64((*self).into()));
+impl<'q> Encode<'q, Sqlite> for i64 {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int64(*self));
+
+        IsNull::No
     }
 }
 
-impl<'a> Decode<'a, Sqlite> for i64 {
-    fn decode(value: SqliteValue<'a>) -> crate::Result<i64> {
+impl<'r> Decode<'r, Sqlite> for i64 {
+    fn accepts(_ty: &SqliteTypeInfo) -> bool {
+        true
+    }
+
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int64())
     }
 }

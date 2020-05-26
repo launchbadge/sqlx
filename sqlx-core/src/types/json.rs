@@ -42,7 +42,7 @@ where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::Arguments) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
 }

@@ -1,45 +1,62 @@
+use std::borrow::Cow;
+
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::error::UnexpectedNullError;
-use crate::sqlite::type_info::{SqliteType, SqliteTypeAffinity};
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::sqlite::type_info::DataType;
+use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
 use crate::types::Type;
 
 impl Type<Sqlite> for str {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo::new(SqliteType::Text, SqliteTypeAffinity::Text)
+        SqliteTypeInfo(DataType::Text)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for &'q str {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Borrowed(*self)));
+
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for &'r str {
+    fn accepts(_ty: &SqliteTypeInfo) -> bool {
+        true
+    }
+
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        value.text()
     }
 }
 
 impl Type<Sqlite> for String {
     fn type_info() -> SqliteTypeInfo {
-        <str as Type<Sqlite>>::type_info()
+        <&str as Type<Sqlite>>::type_info()
     }
 }
 
-impl Encode<Sqlite> for str {
-    fn encode(&self, values: &mut Vec<SqliteArgumentValue>) {
-        // TODO: look into a way to remove this allocation
-        values.push(SqliteArgumentValue::Text(self.to_owned()));
+impl<'q> Encode<'q, Sqlite> for String {
+    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
+
+        IsNull::No
+    }
+
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
+
+        IsNull::No
     }
 }
 
-impl Encode<Sqlite> for String {
-    fn encode(&self, values: &mut Vec<SqliteArgumentValue>) {
-        <str as Encode<Sqlite>>::encode(self, values)
+impl<'r> Decode<'r, Sqlite> for String {
+    fn accepts(_ty: &SqliteTypeInfo) -> bool {
+        true
     }
-}
 
-impl<'de> Decode<'de, Sqlite> for &'de str {
-    fn decode(value: SqliteValue<'de>) -> crate::Result<&'de str> {
-        value
-            .text()
-            .ok_or_else(|| crate::Error::decode(UnexpectedNullError))
-    }
-}
-
-impl<'de> Decode<'de, Sqlite> for String {
-    fn decode(value: SqliteValue<'de>) -> crate::Result<String> {
-        <&str as Decode<Sqlite>>::decode(value).map(ToOwned::to_owned)
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        value.text().map(ToOwned::to_owned)
     }
 }
