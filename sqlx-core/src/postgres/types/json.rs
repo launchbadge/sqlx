@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue as JsonRawValue;
-use serde_json::Value as JsonValue;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::{BoxDynError, Error};
+use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::{Json, Type};
 
@@ -36,7 +34,7 @@ impl<'q, T> Encode<'q, Postgres> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(&self, buf: &mut <Postgres as HasArguments<'q>>::Arguments) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // JSONB version (as of 2020-03-20)
         buf.push(1);
 

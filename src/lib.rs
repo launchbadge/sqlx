@@ -2,14 +2,15 @@
 
 pub use sqlx_core::arguments;
 pub use sqlx_core::connection::{Connect, Connection};
-pub use sqlx_core::cursor::{self, Cursor};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{self, Execute, Executor};
+pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{self, query, Query};
 pub use sqlx_core::query_as::{query_as, QueryAs};
-pub use sqlx_core::row::{self, FromRow, Row};
-pub use sqlx_core::transaction::Transaction;
+pub use sqlx_core::query_scalar::{query_scalar, QueryScalar};
+pub use sqlx_core::row::{self, Row};
+// pub use sqlx_core::transaction::Transaction;
 pub use sqlx_core::value;
 
 #[doc(hidden)]
@@ -72,17 +73,7 @@ pub mod decode {
 pub mod prelude {
     pub use super::Connect;
     pub use super::Connection;
-    pub use super::Cursor;
     pub use super::Executor;
     pub use super::FromRow;
     pub use super::Row;
-
-    #[cfg(feature = "postgres")]
-    pub use super::postgres::PgQueryAs;
-
-    #[cfg(feature = "mysql")]
-    pub use super::mysql::MySqlQueryAs;
-
-    #[cfg(feature = "sqlite")]
-    pub use super::sqlite::SqliteQueryAs;
 }

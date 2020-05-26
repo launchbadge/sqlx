@@ -1,6 +1,5 @@
 use uuid::Uuid;
 
-use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;

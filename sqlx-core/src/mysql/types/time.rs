@@ -190,7 +190,7 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
-                let mut buf = value.as_bytes()?;
+                let buf = value.as_bytes()?;
                 let len = buf[0];
                 let date = decode_date(&buf[1..])?;
 

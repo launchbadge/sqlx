@@ -44,9 +44,9 @@ tls = [ "sqlx-core/tls" ]
 offline = ["sqlx-macros/offline", "sqlx-core/offline"]
 
 # intended mainly for CI and docs
-all = [ "tls", "all-database", "all-type" ]
-all-database = [ "mysql", "sqlite", "postgres" ]
-all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+all = [ "tls", "all-databases", "all-types" ]
+all-databases = [ "mysql", "sqlite", "postgres" ]
+all-types = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]

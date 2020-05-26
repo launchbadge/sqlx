@@ -1,9 +1,5 @@
-use time::{
-    date, offset, Date, Duration, NumericalDuration, OffsetDateTime, PrimitiveDateTime, Time,
-    UtcOffset,
-};
+use time::{date, offset, Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
-use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;

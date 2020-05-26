@@ -3,8 +3,7 @@ use std::convert::TryInto;
 use bytes::Buf;
 
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, Postgres};
-use crate::types::Type;
+use crate::postgres::PgArgumentBuffer;
 
 /// Represents a `NUMERIC` value in the **Postgres** wire protocol.
 #[derive(Debug, PartialEq, Eq)]

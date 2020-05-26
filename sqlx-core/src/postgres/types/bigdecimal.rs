@@ -4,7 +4,6 @@ use std::convert::{TryFrom, TryInto};
 use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 
-use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
@@ -81,7 +80,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
         let base_10_to_10000 = |chunk: &[u8]| chunk.iter().fold(0i16, |a, &d| a * 10 + d as i16);
 
         // NOTE: this unfortunately copies the BigInt internally
-        let (mut integer, exp) = decimal.as_bigint_and_exponent();
+        let (integer, exp) = decimal.as_bigint_and_exponent();
 
         // this routine is specifically optimized for base-10
         // FIXME: is there a way to iterate over the digits to avoid the Vec allocation

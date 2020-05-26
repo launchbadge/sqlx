@@ -1,15 +1,14 @@
 use std::convert::TryFrom;
-use std::str::from_utf8;
 
 use bytes::Buf;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::{BoxDynError, Error};
+use crate::error::BoxDynError;
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::type_info::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlValue, MySqlValueFormat, MySqlValueRef};
+use crate::mysql::{MySql, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
 impl Type<MySql> for DateTime<Utc> {
@@ -181,7 +180,7 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
-                let mut buf = value.as_bytes()?;
+                let buf = value.as_bytes()?;
 
                 let len = buf[0];
                 let date = decode_date(&buf[1..]);

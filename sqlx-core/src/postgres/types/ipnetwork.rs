@@ -2,7 +2,6 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 
-use crate::database::Database;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
