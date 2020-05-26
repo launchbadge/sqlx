@@ -2,6 +2,7 @@
 members = [
     ".",
     "sqlx-core",
+    "sqlx-rt",
     "sqlx-macros",
     "sqlx-test",
     "sqlx-cli",

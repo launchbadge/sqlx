@@ -1,0 +1,20 @@
+[package]
+name = "sqlx-rt"
+version = "0.1.0-pre"
+repository = "https://github.com/launchbadge/sqlx"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[features]
+runtime-actix = [ "actix-rt", "actix-threadpool", "tokio", "tokio-native-tls" ]
+runtime-async-std = [ "async-std", "async-native-tls" ]
+runtime-tokio = [ "tokio", "tokio-native-tls" ]
+
+[dependencies]
+async-native-tls = { version = "0.3.3", optional = true }
+actix-rt = { version = "1.1.0", optional = true }
+actix-threadpool = { version = "0.3.2", optional = true }
+async-std = { version = "1.6.0", features = [ "unstable" ], optional = true }
+tokio = { version = "0.2.17", optional = true, features = [ "blocking", "fs", "tcp", "uds", "macros", "rt-core", "rt-threaded", "time", "dns", "io-util" ] }
+tokio-native-tls = { version = "0.1", optional = true }
+native-tls = "0.2.4"
