@@ -242,7 +242,10 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
 impl<'c> Executor<'c> for &'c mut PgConnection {
     type Database = Postgres;
 
-    fn fetch_many<'q: 'c, E>(self, mut query: E) -> BoxStream<'c, Result<Either<u64, PgRow>, Error>>
+    fn fetch_many<'q: 'c, E: 'c>(
+        self,
+        mut query: E,
+    ) -> BoxStream<'c, Result<Either<u64, PgRow>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -259,7 +262,10 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn fetch_optional<'q: 'c, E>(self, mut query: E) -> BoxFuture<'c, Result<Option<PgRow>, Error>>
+    fn fetch_optional<'q: 'c, E: 'c>(
+        self,
+        mut query: E,
+    ) -> BoxFuture<'c, Result<Option<PgRow>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -281,7 +287,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<Describe<Postgres>, Error>>
+    fn describe<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Describe<Postgres>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {

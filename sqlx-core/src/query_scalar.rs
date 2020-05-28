@@ -2,24 +2,24 @@ use either::Either;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
-use crate::arguments::Arguments;
+use crate::arguments::IntoArguments;
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
-use crate::query_as::{query_as, QueryAs};
+use crate::query_as::{query_as, query_as_with, QueryAs};
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`] on `(O,)`.
 /// Returned from [`query_scalar`].
 #[must_use = "query must be executed to affect database"]
-pub struct QueryScalar<'q, DB: Database, O> {
-    inner: QueryAs<'q, DB, (O,)>,
+pub struct QueryScalar<'q, DB: Database, O, A> {
+    inner: QueryAs<'q, DB, (O,), A>,
 }
 
-impl<'q, DB, O: Send> Execute<'q, DB> for QueryScalar<'q, DB, O>
+impl<'q, DB: Database, O: Send, A: Send> Execute<'q, DB> for QueryScalar<'q, DB, O, A>
 where
-    DB: Database,
+    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn query(&self) -> &'q str {
@@ -32,23 +32,25 @@ where
     }
 }
 
-// FIXME: This is very close, nearly 1:1 with `Map`
-// noinspection DuplicatedCode
-impl<'q, DB, O> QueryScalar<'q, DB, O>
-where
-    DB: Database,
-    O: Send + Unpin,
-    (O,): Send + Unpin + for<'r> FromRow<'r, DB::Row>,
-{
+impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    #[inline]
     pub fn bind<T: 'q + Encode<'q, DB>>(mut self, value: T) -> Self {
-        self.inner.inner.arguments.add(value);
+        self.inner = self.inner.bind(value);
         self
     }
+}
 
+// FIXME: This is very close, nearly 1:1 with `Map`
+// noinspection DuplicatedCode
+impl<'q, DB, O, A> QueryScalar<'q, DB, O, A>
+where
+    DB: Database,
+    O: Send + Unpin,
+    A: IntoArguments<'q, DB>,
+    (O,): Send + Unpin + for<'r> FromRow<'r, DB::Row>,
+{
     /// Execute the query and return the generated results as a stream.
     #[inline]
     pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
@@ -56,6 +58,7 @@ where
         'q: 'c,
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
+        A: 'c,
         O: 'c,
     {
         self.inner.fetch(executor).map_ok(|it| it.0).boxed()
@@ -70,6 +73,7 @@ where
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         O: 'c,
+        A: 'c,
     {
         self.inner
             .fetch_many(executor)
@@ -85,6 +89,7 @@ where
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         (O,): 'c,
+        A: 'c,
     {
         self.inner
             .fetch(executor)
@@ -101,6 +106,7 @@ where
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         O: 'c,
+        A: 'c,
     {
         self.inner.fetch_one(executor).map_ok(|it| it.0).await
     }
@@ -113,20 +119,37 @@ where
         E: 'c + Executor<'c, Database = DB>,
         DB: 'c,
         O: 'c,
+        A: 'c,
     {
         Ok(self.inner.fetch_optional(executor).await?.map(|it| it.0))
     }
 }
 
-/// Construct a raw SQL query that is mapped to a concrete type
-/// using [`FromRow`](crate::row::FromRow) on `(O,)`.
+/// Make a SQL query that is mapped to a single concrete type
+/// using [`FromRow`](crate::row::FromRow).
 #[inline]
-pub fn query_scalar<DB, O>(sql: &str) -> QueryScalar<DB, O>
+pub fn query_scalar<'q, DB, O>(
+    sql: &'q str,
+) -> QueryScalar<DB, O, <DB as HasArguments<'q>>::Arguments>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
 {
     QueryScalar {
         inner: query_as(sql),
+    }
+}
+
+/// Make a SQL query, with the given arguments, that is mapped to a single concrete type
+/// using [`FromRow`](crate::row::FromRow).
+#[inline]
+pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScalar<DB, O, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+    (O,): for<'r> FromRow<'r, DB::Row>,
+{
+    QueryScalar {
+        inner: query_as_with(sql, arguments),
     }
 }

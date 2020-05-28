@@ -1,17 +1,17 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use sqlx_core::arguments;
+pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::database::{self, Database};
-pub use sqlx_core::executor::{self, Execute, Executor};
+pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
-pub use sqlx_core::query::{self, query, Query};
-pub use sqlx_core::query_as::{query_as, QueryAs};
-pub use sqlx_core::query_scalar::{query_scalar, QueryScalar};
-pub use sqlx_core::row::{self, Row};
+pub use sqlx_core::query::{query, query_with};
+pub use sqlx_core::query_as::{query_as, query_as_with};
+pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
+pub use sqlx_core::row::{ColumnIndex, Row};
 // pub use sqlx_core::transaction::Transaction;
-pub use sqlx_core::value;
+pub use sqlx_core::value::{Value, ValueRef};
 
 #[doc(hidden)]
 pub use sqlx_core::describe;
@@ -69,11 +69,19 @@ pub mod decode {
     pub use sqlx_macros::Decode;
 }
 
+pub mod query {
+    pub use sqlx_core::query::{query, query_with, Map, Query};
+    pub use sqlx_core::query_as::{query_as, query_as_with, QueryAs};
+    pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with, QueryScalar};
+}
+
 /// Convenience re-export of common traits.
 pub mod prelude {
     pub use super::Connect;
     pub use super::Connection;
     pub use super::Executor;
     pub use super::FromRow;
+    pub use super::IntoArguments;
     pub use super::Row;
+    pub use super::Type;
 }

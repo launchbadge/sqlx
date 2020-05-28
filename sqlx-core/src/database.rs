@@ -11,7 +11,8 @@ use crate::value::{Value, ValueRef};
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database (e.g., MySQL, PostgreSQL).
 pub trait Database:
-    Sized
+    'static
+    + Sized
     + Send
     + Debug
     + for<'r> HasValueRef<'r, Database = Self>

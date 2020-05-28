@@ -13,6 +13,9 @@ use crate::error::Error;
 use self::inner::SharedPool;
 use self::options::Options;
 
+#[macro_use]
+mod executor;
+
 mod connection;
 mod inner;
 mod options;

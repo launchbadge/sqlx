@@ -198,7 +198,7 @@ impl MySqlConnection {
 impl<'c> Executor<'c> for &'c mut MySqlConnection {
     type Database = MySql;
 
-    fn fetch_many<'q: 'c, E>(
+    fn fetch_many<'q: 'c, E: 'c>(
         self,
         mut query: E,
     ) -> BoxStream<'c, Result<Either<u64, MySqlRow>, Error>>
@@ -218,7 +218,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         })
     }
 
-    fn fetch_optional<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<Option<MySqlRow>, Error>>
+    fn fetch_optional<'q: 'c, E: 'c>(
+        self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Option<MySqlRow>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -236,7 +239,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<Describe<MySql>, Error>>
+    fn describe<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Describe<MySql>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {

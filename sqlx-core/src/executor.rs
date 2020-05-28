@@ -28,7 +28,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<u64, Error>>
+    fn execute<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<u64, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -38,7 +38,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'q: 'c, E>(self, query: E) -> BoxStream<'c, Result<u64, Error>>
+    fn execute_many<'q: 'c, E: 'c>(self, query: E) -> BoxStream<'c, Result<u64, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -53,7 +53,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and return the generated results as a stream.
-    fn fetch<'q: 'c, E>(
+    fn fetch<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxStream<'c, Result<<Self::Database as Database>::Row, Error>>
@@ -72,7 +72,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    fn fetch_many<'q: 'c, E>(
+    fn fetch_many<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxStream<'c, Result<Either<u64, <Self::Database as Database>::Row>, Error>>
@@ -80,7 +80,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         E: Execute<'q, Self::Database>;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'q: 'c, E>(
+    fn fetch_all<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxFuture<'c, Result<Vec<<Self::Database as Database>::Row>, Error>>
@@ -91,7 +91,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and returns exactly one row.
-    fn fetch_one<'q: 'c, E>(
+    fn fetch_one<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxFuture<'c, Result<<Self::Database as Database>::Row, Error>>
@@ -107,7 +107,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and returns at most one row.
-    fn fetch_optional<'q: 'c, E>(
+    fn fetch_optional<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxFuture<'c, Result<Option<<Self::Database as Database>::Row>, Error>>
@@ -120,7 +120,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe<'q: 'c, E>(
+    fn describe<'q: 'c, E: 'c>(
         self,
         query: E,
     ) -> BoxFuture<'c, Result<Describe<Self::Database>, Error>>
@@ -135,7 +135,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
 ///  * [`&str`]
 ///  * [`Query`]
 ///
-pub trait Execute<'q, DB: Database>: Send {
+pub trait Execute<'q, DB: Database>: Send + Sized {
     /// Returns the query string that will be executed.
     fn query(&self) -> &'q str;
 

@@ -18,7 +18,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     if input.arg_names.is_empty() {
         return Ok(quote! {
-            let query_args = <#db_path as sqlx::Database>::Arguments::default();
+            let query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
         });
     }
 
@@ -88,7 +88,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
         // bind as a local expression, by-ref
         #(let #arg_name = &$#arg_name;)*
-        let mut query_args = <#db_path as sqlx::Database>::Arguments::default();
+        let mut query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
         query_args.reserve(
             #args_count,
             0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*

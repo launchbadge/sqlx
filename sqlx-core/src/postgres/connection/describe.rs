@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::mem;
 use std::sync::Arc;
 
 use futures_util::{stream, StreamExt, TryStreamExt};
@@ -12,10 +13,9 @@ use crate::postgres::message::{ParameterDescription, RowDescription};
 use crate::postgres::row::PgColumn;
 use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
 use crate::postgres::{PgArguments, PgConnection, PgTypeInfo, Postgres};
-use crate::query_as::query_as;
+use crate::query_as::{query_as, query_as_with};
 use crate::query_scalar::query_scalar;
 use futures_core::future::BoxFuture;
-use std::mem;
 
 impl PgConnection {
     pub(super) async fn handle_row_description(
@@ -242,8 +242,7 @@ ORDER BY attnum
             ORDER BY col.idx",
         );
 
-        query_as::<_, (i32, Option<bool>)>(&query)
-            .__bind_all(args)
+        query_as_with::<_, (i32, Option<bool>), _>(&query, args)
             .fetch(self)
             .zip(stream::iter(columns.into_iter().enumerate()))
             .map(|(row, (field_idx, column))| -> Result<Column<_>, Error> {

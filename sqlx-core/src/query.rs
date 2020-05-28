@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::mem;
 
 use async_stream::try_stream;
 use either::Either;
@@ -7,7 +6,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
-use crate::arguments::Arguments;
+use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::error::Error;
@@ -15,10 +14,10 @@ use crate::executor::{Execute, Executor};
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
-pub struct Query<'q, DB: Database> {
-    query: &'q str,
-    pub(crate) arguments: <DB as HasArguments<'q>>::Arguments,
-    database: PhantomData<DB>,
+pub struct Query<'q, DB: Database, A> {
+    pub(crate) query: &'q str,
+    pub(crate) arguments: Option<A>,
+    pub(crate) database: PhantomData<DB>,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -30,14 +29,15 @@ pub struct Query<'q, DB: Database> {
 /// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
 /// before `.try_map()`.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, DB: Database, F> {
-    inner: Query<'q, DB>,
+pub struct Map<'q, DB: Database, F, A> {
+    inner: Query<'q, DB, A>,
     mapper: F,
 }
 
-impl<'q, DB> Execute<'q, DB> for Query<'q, DB>
+impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
 where
     DB: Database,
+    A: Send + IntoArguments<'q, DB>,
 {
     #[inline]
     fn query(&self) -> &'q str {
@@ -46,14 +46,11 @@ where
 
     #[inline]
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
-        Some(mem::take(&mut self.arguments))
+        self.arguments.take().map(IntoArguments::into_arguments)
     }
 }
 
-impl<'q, DB> Query<'q, DB>
-where
-    DB: Database,
-{
+impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that
@@ -63,10 +60,19 @@ where
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
     pub fn bind<T: 'q + Encode<'q, DB>>(mut self, value: T) -> Self {
-        self.arguments.add(value);
+        if let Some(arguments) = &mut self.arguments {
+            arguments.add(value);
+        }
+
         self
     }
+}
 
+impl<'q, DB, A: Send> Query<'q, DB, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
     /// Map each row in the result to another type.
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
@@ -74,7 +80,7 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl Fn(DB::Row) -> Result<O, Error>>
+    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl Fn(DB::Row) -> Result<O, Error>, A>
     where
         F: Fn(DB::Row) -> O,
     {
@@ -86,7 +92,7 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F>
+    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
     where
         F: Fn(DB::Row) -> Result<O, Error>,
     {
@@ -101,6 +107,7 @@ where
     pub async fn execute<'c, E>(self, executor: E) -> Result<u64, Error>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.execute(self).await
@@ -111,6 +118,7 @@ where
     pub async fn execute_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<u64, Error>>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.execute_many(self)
@@ -121,6 +129,7 @@ where
     pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<DB::Row, Error>>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch(self)
@@ -135,6 +144,7 @@ where
     ) -> BoxStream<'c, Result<Either<u64, DB::Row>, Error>>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_many(self)
@@ -145,6 +155,7 @@ where
     pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_all(self).await
@@ -155,6 +166,7 @@ where
     pub async fn fetch_one<'c, E>(self, executor: E) -> Result<DB::Row, Error>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_one(self).await
@@ -165,32 +177,35 @@ where
     pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
     where
         'q: 'c,
+        A: 'c,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_optional(self).await
     }
 }
 
-impl<'q, DB, F: Send> Execute<'q, DB> for Map<'q, DB, F>
+impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
 where
     DB: Database,
+    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn query(&self) -> &'q str {
-        self.inner.query
+        self.inner.query()
     }
 
     #[inline]
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
-        Some(mem::take(&mut self.inner.arguments))
+        self.inner.take_arguments()
     }
 }
 
-impl<'q, DB, F, O> Map<'q, DB, F>
+impl<'q, DB, F, O, A> Map<'q, DB, F, A>
 where
     DB: Database,
     F: Send + Sync + Fn(DB::Row) -> Result<O, Error>,
     O: Send + Unpin,
+    A: 'q + Send + IntoArguments<'q, DB>,
 {
     // FIXME: This is very close 1:1 with [`Executor::fetch`]
     // noinspection DuplicatedCode
@@ -289,15 +304,29 @@ where
     }
 }
 
-/// Construct a raw SQL query that can be chained to bind parameters and executed.
+/// Make a SQL query.
 #[inline]
-pub fn query<DB>(sql: &str) -> Query<DB>
+pub fn query<'q, DB>(sql: &'q str) -> Query<DB, <DB as HasArguments<'q>>::Arguments>
 where
     DB: Database,
 {
     Query {
         database: PhantomData,
         arguments: Default::default(),
+        query: sql,
+    }
+}
+
+/// Make a SQL query, with the given arguments.
+#[inline]
+pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
+    Query {
+        database: PhantomData,
+        arguments: Some(arguments),
         query: sql,
     }
 }

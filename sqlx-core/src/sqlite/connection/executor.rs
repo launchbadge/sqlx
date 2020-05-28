@@ -74,7 +74,7 @@ fn emplace_row_metadata(
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
 
-    fn fetch_many<'q: 'c, E>(
+    fn fetch_many<'q: 'c, E: 'c>(
         self,
         mut query: E,
     ) -> BoxStream<'c, Result<Either<u64, SqliteRow>, Error>>
@@ -148,7 +148,10 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         })
     }
 
-    fn fetch_optional<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<Option<SqliteRow>, Error>>
+    fn fetch_optional<'q: 'c, E: 'c>(
+        self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Option<SqliteRow>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -166,7 +169,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E>(self, query: E) -> BoxFuture<'c, Result<Describe<Sqlite>, Error>>
+    fn describe<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Describe<Sqlite>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
