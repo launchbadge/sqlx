@@ -31,6 +31,7 @@ impl MaybeTlsStream {
     }
     pub async fn connect(host: &str, port: u16) -> crate::Result<Self> {
         let conn = TcpStream::connect((host, port)).await?;
+
         Ok(Self {
             inner: Inner::NotTls(conn),
         })
@@ -108,7 +109,7 @@ impl AsyncRead for MaybeTlsStream {
         forward_pin!(self.poll_read(cx, buf))
     }
 
-    #[cfg(feature = "runtime-async-std")]
+    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
     fn poll_read_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
@@ -131,7 +132,7 @@ impl AsyncWrite for MaybeTlsStream {
         forward_pin!(self.poll_flush(cx))
     }
 
-    #[cfg(feature = "runtime-async-std")]
+    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         forward_pin!(self.poll_close(cx))
     }
@@ -141,7 +142,7 @@ impl AsyncWrite for MaybeTlsStream {
         forward_pin!(self.poll_shutdown(cx))
     }
 
-    #[cfg(feature = "runtime-async-std")]
+    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,

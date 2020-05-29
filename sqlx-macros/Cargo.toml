@@ -19,6 +19,7 @@ proc-macro = true
 default = [ "runtime-async-std" ]
 
 runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
+runtime-smol = [ "sqlx/runtime-smol", "smol" ]
 runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
 
 # database
@@ -42,6 +43,7 @@ futures = { version = "0.3.4", default-features = false, features = [ "executor"
 heck = "0.3"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx = { version = "0.3.5", default-features = false, path = "../sqlx-core", package = "sqlx-core" }
+smol = { version = "0.1.10", optional = true }
 serde_json = { version = "1.0", features = [ "raw_value" ], optional = true }
 syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.2", default-features = false }

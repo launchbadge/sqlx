@@ -28,6 +28,7 @@ mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "r
 sqlite = [ "libsqlite3-sys" ]
 tls = [ "async-native-tls" ]
 runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
+runtime-smol = [ "async-native-tls/runtime-async-std", "smol", "pin-project-lite" ]
 runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
 # intended for internal benchmarking, do not use
 bench = []
@@ -57,9 +58,11 @@ md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
 num-bigint = { version = "0.2.6", default-features = false, optional = true, features = [ "std" ] }
 percent-encoding = "2.1.0"
+pin-project-lite = { version = "0.1.5", optional = true }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
 sha-1 = { version = "0.8.2", default-features = false, optional = true }
 sha2 = { version = "0.8.1", default-features = false, optional = true }
+smol = { version = "0.1.10", optional = true }
 tokio = { version = "0.2.13", default-features = false, features = [ "dns", "fs", "time", "tcp" ], optional = true }
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }

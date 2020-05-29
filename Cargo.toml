@@ -46,6 +46,7 @@ all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
+runtime-smol = [ "sqlx-core/runtime-smol", "sqlx-macros/runtime-smol" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 
 # database

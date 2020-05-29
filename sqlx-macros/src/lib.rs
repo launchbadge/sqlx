@@ -11,6 +11,9 @@ use quote::quote;
 #[cfg(feature = "runtime-async-std")]
 use async_std::task::block_on;
 
+#[cfg(feature = "runtime-smol")]
+use smol::block_on;
+
 use std::path::PathBuf;
 
 use url::Url;
