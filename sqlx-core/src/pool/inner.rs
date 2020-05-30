@@ -76,6 +76,7 @@ where
         self.idle_conns
             .push(floating.into_idle().into_leakable())
             .expect("BUG: connection queue overflow in release()");
+
         if let Ok(waker) = self.waiters.pop() {
             waker.wake();
         }

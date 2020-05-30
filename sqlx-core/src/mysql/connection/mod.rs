@@ -3,6 +3,7 @@ use std::net::Shutdown;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
 use hashbrown::HashMap;
 
 use crate::connection::{Connect, Connection};
@@ -30,7 +31,7 @@ pub struct MySqlConnection {
     // underlying TCP stream,
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
-    stream: MySqlStream,
+    pub(crate) stream: MySqlStream,
 
     // cache by query string to the statement id
     cache_statement: HashMap<String, u32>,
@@ -68,6 +69,10 @@ impl Connection for MySqlConnection {
 
             Ok(())
         })
+    }
+
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        self.stream.wait_until_ready().boxed()
     }
 
     #[doc(hidden)]

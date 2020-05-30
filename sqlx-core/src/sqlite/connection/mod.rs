@@ -52,6 +52,11 @@ impl Connection for SqliteConnection {
         Box::pin(future::ok(()))
     }
 
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        // For SQLite, FLUSH does effectively nothing
+        Box::pin(future::ok(()))
+    }
+
     #[doc(hidden)]
     fn get_ref(&self) -> &Self {
         self

@@ -33,3 +33,4 @@ pub type SqlitePool = crate::pool::Pool<SqliteConnection>;
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_executor_for_pool_connection!(Sqlite, SqliteConnection, SqliteRow);
+impl_executor_for_transaction!(Sqlite, SqliteRow);

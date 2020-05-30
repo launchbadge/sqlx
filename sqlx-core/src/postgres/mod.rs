@@ -32,3 +32,4 @@ pub type PgPool = crate::pool::Pool<PgConnection>;
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(PgArguments);
 impl_executor_for_pool_connection!(Postgres, PgConnection, PgRow);
+impl_executor_for_transaction!(Postgres, PgRow);

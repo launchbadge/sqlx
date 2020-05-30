@@ -16,7 +16,7 @@ use crate::error::Error;
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     live: Option<Live<C>>,
     pub(crate) pool: Arc<SharedPool<C>>,
@@ -103,23 +103,43 @@ where
         Box::pin(self.deref_mut().ping())
     }
 
+    #[doc(hidden)]
     fn get_ref(&self) -> &<Self::Database as Database>::Connection {
         self.deref().get_ref()
     }
 
+    #[doc(hidden)]
     fn get_mut(&mut self) -> &mut <Self::Database as Database>::Connection {
         self.deref_mut().get_mut()
+    }
+
+    #[doc(hidden)]
+    fn flush(&mut self) -> BoxFuture<Result<(), Error>> {
+        self.get_mut().flush()
     }
 }
 
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
 impl<C> Drop for PoolConnection<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     fn drop(&mut self) {
-        if let Some(live) = self.live.take() {
-            self.pool.release(live.float(&self.pool));
+        if let Some(mut live) = self.live.take() {
+            let pool = self.pool.clone();
+            sqlx_rt::spawn(async move {
+                // flush the connection (will immediately return if not needed) before
+                // we fully release to the pool
+                if let Err(e) = live.raw.flush().await {
+                    log::error!("error occurred while flushing the connection: {}", e);
+
+                    // we now consider the connection to be broken
+                    // close the connection and drop from the pool
+                    let _ = live.float(&pool).into_idle().close().await;
+                } else {
+                    pool.release(live.float(&pool));
+                }
+            });
         }
     }
 }

@@ -24,7 +24,7 @@ pub trait Connection: Send {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self>, Error>> {
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database, Self>, Error>> {
         Transaction::begin(self)
     }
 
@@ -59,6 +59,10 @@ pub trait Connection: Send {
             }
         })
     }
+
+    /// Flush any pending commands to the database.
+    #[doc(hidden)]
+    fn flush(&mut self) -> BoxFuture<Result<(), Error>>;
 
     #[doc(hidden)]
     fn get_ref(&self) -> &<Self::Database as Database>::Connection;

@@ -25,6 +25,10 @@ pub mod arguments;
 pub mod pool;
 
 pub mod connection;
+
+#[macro_use]
+pub mod transaction;
+
 pub mod database;
 pub mod decode;
 pub mod describe;
@@ -38,7 +42,6 @@ pub mod query;
 pub mod query_as;
 pub mod query_scalar;
 pub mod row;
-pub mod transaction;
 pub mod type_info;
 pub mod types;
 pub mod value;

@@ -29,3 +29,4 @@ pub type MySqlPool = crate::pool::Pool<MySqlConnection>;
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);
 impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
+impl_executor_for_transaction!(MySql, MySqlRow);

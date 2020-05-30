@@ -12,7 +12,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    CommandComplete, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::row::PgColumn;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
@@ -66,6 +66,10 @@ pub struct PgConnection {
 impl PgConnection {
     // will return when the connection is ready for another query
     async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if !self.stream.wbuf.is_empty() {
+            self.stream.flush().await?;
+        }
+
         while self.pending_ready_for_query_count > 0 {
             loop {
                 let message = self.stream.recv().await?;
@@ -117,7 +121,12 @@ impl Connection for PgConnection {
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.execute("SELECT 1").map_ok(drop).boxed()
+        self.execute("SELECT 1").map_ok(|_| ()).boxed()
+    }
+
+    #[doc(hidden)]
+    fn flush(&mut self) -> BoxFuture<Result<(), Error>> {
+        self.wait_until_ready().boxed()
     }
 
     #[doc(hidden)]

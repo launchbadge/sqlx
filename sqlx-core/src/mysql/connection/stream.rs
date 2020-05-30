@@ -13,7 +13,7 @@ use crate::net::MaybeTlsStream;
 pub struct MySqlStream {
     stream: BufStream<MaybeTlsStream<TcpStream>>,
     pub(super) capabilities: Capabilities,
-    pub(super) sequence_id: u8,
+    pub(crate) sequence_id: u8,
     pub(crate) busy: bool,
 }
 
@@ -47,11 +47,15 @@ impl MySqlStream {
     }
 
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if !self.stream.wbuf.is_empty() {
+            self.stream.flush().await?;
+        }
+
         if self.busy {
             loop {
                 let packet = self.recv_packet().await?;
                 match packet[0] {
-                    0xfe if packet.len() < 9 => {
+                    0x00 | 0xfe if packet.len() < 9 => {
                         // OK or EOF packet
                         self.busy = false;
                         break;
