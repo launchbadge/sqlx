@@ -22,6 +22,7 @@ pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {
 }
 
 // NOTE: required due to lack of lazy normalization
+#[allow(unused_macros)]
 macro_rules! impl_into_arguments_for_arguments {
     ($Arguments:path) => {
         impl<'q>

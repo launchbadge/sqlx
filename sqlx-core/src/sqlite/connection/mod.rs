@@ -51,6 +51,16 @@ impl Connection for SqliteConnection {
         // For SQLite connections, PING does effectively nothing
         Box::pin(future::ok(()))
     }
+
+    #[doc(hidden)]
+    fn get_ref(&self) -> &Self {
+        self
+    }
+
+    #[doc(hidden)]
+    fn get_mut(&mut self) -> &mut Self {
+        self
+    }
 }
 
 impl Connect for SqliteConnection {

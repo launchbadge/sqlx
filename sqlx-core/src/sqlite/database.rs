@@ -1,7 +1,7 @@
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::sqlite::{
-    SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteRow, SqliteTypeInfo, SqliteValue,
-    SqliteValueRef,
+    SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteRow, SqliteTransactionManager,
+    SqliteTypeInfo, SqliteValue, SqliteValueRef,
 };
 
 /// Sqlite database driver.
@@ -10,6 +10,8 @@ pub struct Sqlite;
 
 impl Database for Sqlite {
     type Connection = SqliteConnection;
+
+    type TransactionManager = SqliteTransactionManager;
 
     type Row = SqliteRow;
 

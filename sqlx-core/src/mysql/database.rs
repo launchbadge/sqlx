@@ -1,6 +1,8 @@
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::mysql::value::{MySqlValue, MySqlValueRef};
-use crate::mysql::{MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo};
+use crate::mysql::{
+    MySqlArguments, MySqlConnection, MySqlRow, MySqlTransactionManager, MySqlTypeInfo,
+};
 
 /// PostgreSQL database driver.
 #[derive(Debug)]
@@ -8,6 +10,8 @@ pub struct MySql;
 
 impl Database for MySql {
     type Connection = MySqlConnection;
+
+    type TransactionManager = MySqlTransactionManager;
 
     type Row = MySqlRow;
 

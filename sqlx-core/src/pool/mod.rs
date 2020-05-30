@@ -28,7 +28,7 @@ pub struct Pool<C>(pub(crate) Arc<SharedPool<C>>);
 
 impl<C> Pool<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     /// Creates a connection pool with the default configuration.
     ///

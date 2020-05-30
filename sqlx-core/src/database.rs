@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::arguments::Arguments;
 use crate::connection::Connect;
 use crate::row::Row;
+use crate::transaction::TransactionManager;
 use crate::type_info::TypeInfo;
 use crate::value::{Value, ValueRef};
 
@@ -20,6 +21,10 @@ pub trait Database:
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connect<Database = Self>;
+
+    /// The concrete `TransactionManager` implementation for this database.
+    #[doc(hidden)]
+    type TransactionManager: TransactionManager<Database = Self>;
 
     /// The concrete `Row` implementation for this database.
     type Row: Row<Database = Self>;
@@ -39,7 +44,7 @@ pub trait Database:
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
-/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
+/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasValueRef<'r> {
     type Database: Database;
 
@@ -55,7 +60,7 @@ pub trait HasValueRef<'r> {
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
-/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
+/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasArguments<'q> {
     type Database: Database;
 

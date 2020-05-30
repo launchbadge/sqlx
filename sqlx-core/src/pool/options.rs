@@ -13,7 +13,7 @@ pub struct Builder<C> {
 
 impl<C> Builder<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     /// Get a new builder with default options.
     ///
@@ -124,7 +124,7 @@ where
 
 impl<C, DB> Default for Builder<C>
 where
-    C: Connect<Database = DB>,
+    C: 'static + Connect<Database = DB>,
     DB: Database<Connection = C>,
 {
     fn default() -> Self {

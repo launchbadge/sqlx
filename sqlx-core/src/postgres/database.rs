@@ -1,7 +1,7 @@
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::postgres::arguments::PgArgumentBuffer;
 use crate::postgres::value::{PgValue, PgValueRef};
-use crate::postgres::{PgArguments, PgConnection, PgRow, PgTypeInfo};
+use crate::postgres::{PgArguments, PgConnection, PgRow, PgTransactionManager, PgTypeInfo};
 
 /// PostgreSQL database driver.
 #[derive(Debug)]
@@ -9,6 +9,8 @@ pub struct Postgres;
 
 impl Database for Postgres {
     type Connection = PgConnection;
+
+    type TransactionManager = PgTransactionManager;
 
     type Row = PgRow;
 

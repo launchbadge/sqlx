@@ -8,6 +8,7 @@ use futures_core::future::BoxFuture;
 
 use super::inner::{DecrementSizeGuard, SharedPool};
 use crate::connection::{Connect, Connection};
+use crate::database::Database;
 use crate::error::Error;
 
 /// A connection checked out from [`Pool`][crate::pool::Pool].
@@ -86,7 +87,7 @@ where
 
 impl<C> Connection for PoolConnection<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     type Database = C::Database;
 
@@ -100,6 +101,14 @@ where
     #[inline]
     fn ping(&mut self) -> BoxFuture<Result<(), Error>> {
         Box::pin(self.deref_mut().ping())
+    }
+
+    fn get_ref(&self) -> &<Self::Database as Database>::Connection {
+        self.deref().get_ref()
+    }
+
+    fn get_mut(&mut self) -> &mut <Self::Database as Database>::Connection {
+        self.deref_mut().get_mut()
     }
 }
 

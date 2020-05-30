@@ -119,6 +119,16 @@ impl Connection for PgConnection {
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.execute("SELECT 1").map_ok(drop).boxed()
     }
+
+    #[doc(hidden)]
+    fn get_ref(&self) -> &Self {
+        self
+    }
+
+    #[doc(hidden)]
+    fn get_mut(&mut self) -> &mut Self {
+        self
+    }
 }
 
 impl Connect for PgConnection {

@@ -69,6 +69,16 @@ impl Connection for MySqlConnection {
             Ok(())
         })
     }
+
+    #[doc(hidden)]
+    fn get_ref(&self) -> &Self {
+        self
+    }
+
+    #[doc(hidden)]
+    fn get_mut(&mut self) -> &mut Self {
+        self
+    }
 }
 
 impl Connect for MySqlConnection {

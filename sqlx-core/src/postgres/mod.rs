@@ -9,6 +9,7 @@ mod listener;
 mod message;
 mod options;
 mod row;
+mod transaction;
 mod type_info;
 pub mod types;
 mod value;
@@ -21,6 +22,7 @@ pub use listener::{PgListener, PgNotification};
 pub use message::PgSeverity;
 pub use options::{PgConnectOptions, PgSslMode};
 pub use row::PgRow;
+pub use transaction::PgTransactionManager;
 pub use type_info::{PgTypeInfo, PgTypeKind};
 pub use value::{PgValue, PgValueFormat, PgValueRef};
 

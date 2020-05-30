@@ -128,7 +128,7 @@ where
 
 impl<C> SharedPool<C>
 where
-    C: Connect,
+    C: 'static + Connect,
 {
     pub(super) async fn new_arc(url: &str, options: Options) -> Result<Arc<Self>, Error> {
         let mut pool = Self {
@@ -288,7 +288,7 @@ where
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
 fn spawn_reaper<C>(pool: &Arc<SharedPool<C>>)
 where
-    C: Connection,
+    C: 'static + Connection,
 {
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,

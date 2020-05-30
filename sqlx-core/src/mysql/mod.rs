@@ -8,6 +8,7 @@ mod io;
 mod options;
 mod protocol;
 mod row;
+mod transaction;
 mod type_info;
 pub mod types;
 mod value;
@@ -18,6 +19,7 @@ pub use database::MySql;
 pub use error::MySqlDatabaseError;
 pub use options::{MySqlConnectOptions, MySqlSslMode};
 pub use row::MySqlRow;
+pub use transaction::MySqlTransactionManager;
 pub use type_info::MySqlTypeInfo;
 pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
 

@@ -12,6 +12,7 @@ mod error;
 mod options;
 mod row;
 mod statement;
+mod transaction;
 mod type_info;
 pub mod types;
 mod value;
@@ -22,6 +23,7 @@ pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::SqliteConnectOptions;
 pub use row::SqliteRow;
+pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
 
