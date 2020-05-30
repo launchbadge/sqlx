@@ -3,17 +3,16 @@ use syn::spanned::Spanned;
 use syn::Expr;
 
 use quote::{quote, quote_spanned, ToTokens};
-use sqlx::describe::Describe;
+use sqlx_core::describe::Describe;
 
 use crate::database::{DatabaseExt, ParamChecking};
-use crate::query_macros::QueryMacroInput;
+use crate::query::QueryMacroInput;
 
 /// Returns a tokenstream which typechecks the arguments passed to the macro
 /// and binds them to `DB::Arguments` with the ident `query_args`.
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
     describe: &Describe<DB>,
-    checked: bool,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
 
@@ -25,7 +24,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     let arg_name = &input.arg_names;
 
-    let args_check = if checked && DB::PARAM_CHECKING == ParamChecking::Strong {
+    let args_check = if input.checked && DB::PARAM_CHECKING == ParamChecking::Strong {
         describe
             .param_types
             .iter()

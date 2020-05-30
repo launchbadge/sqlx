@@ -229,7 +229,7 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 ```rust
 let mut cursor = sqlx::query("SELECT * FROM users WHERE email = ?")
     .bind(email)
-    .fetch(&mut conn).await?;
+    .fetch(&mut conn);
 
 while let Some(row) = cursor.next().await? {
     // map the row into a user-defined domain type 

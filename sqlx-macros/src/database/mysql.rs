@@ -1,3 +1,5 @@
+use sqlx_core as sqlx;
+
 impl_database_ext! {
     sqlx::mysql::MySql {
         u8,
@@ -46,5 +48,6 @@ impl_database_ext! {
     },
     ParamChecking::Weak,
     feature-types: info => info.type_feature_gate(),
-    row = sqlx::mysql::MySqlRow
+    row = sqlx::mysql::MySqlRow,
+    name = "MySQL/MariaDB"
 }

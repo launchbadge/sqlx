@@ -9,7 +9,7 @@ use sqlx::Row;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 
-use crate::database_migrator::{DatabaseMigrator, MigrationTransaction};
+use crate::migrator::{DatabaseMigrator, MigrationTransaction};
 
 pub struct Postgres {
     pub db_url: String,
@@ -89,6 +89,7 @@ impl DatabaseMigrator for Postgres {
 
         let mut conn = PgConnection::connect(base_url).await?;
 
+        // quote database name (quotes in the name are escaped with additional quotes)
         sqlx::query(&format!(
             "CREATE DATABASE \"{}\"",
             db_name.replace('"', "\"\"")
