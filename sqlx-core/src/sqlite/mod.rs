@@ -28,7 +28,7 @@ pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
-pub type SqlitePool = crate::pool::Pool<SqliteConnection>;
+pub type SqlitePool = crate::pool::Pool<Sqlite>;
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);

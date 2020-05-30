@@ -27,7 +27,7 @@ pub use type_info::{PgTypeInfo, PgTypeKind};
 pub use value::{PgValue, PgValueFormat, PgValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for Postgres.
-pub type PgPool = crate::pool::Pool<PgConnection>;
+pub type PgPool = crate::pool::Pool<Postgres>;
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(PgArguments);

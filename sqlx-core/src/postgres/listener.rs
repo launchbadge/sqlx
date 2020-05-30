@@ -22,8 +22,8 @@ use either::Either;
 /// new connection, will re-subscribe to all of the originally specified channels, and will resume
 /// operations as normal.
 pub struct PgListener {
-    pool: Pool<PgConnection>,
-    connection: Option<PoolConnection<PgConnection>>,
+    pool: Pool<Postgres>,
+    connection: Option<PoolConnection<Postgres>>,
     buffer_rx: mpsc::UnboundedReceiver<Notification>,
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
@@ -36,7 +36,7 @@ impl PgListener {
     pub async fn new(url: &str) -> Result<Self, Error> {
         // Create a pool of 1 without timeouts (as they don't apply here)
         // We only use the pool to handle re-connections
-        let pool = Pool::<PgConnection>::builder()
+        let pool = Pool::<Postgres>::builder()
             .max_size(1)
             .max_lifetime(None)
             .idle_timeout(None)
@@ -46,7 +46,7 @@ impl PgListener {
         Self::from_pool(&pool).await
     }
 
-    pub async fn from_pool(pool: &Pool<PgConnection>) -> Result<Self, Error> {
+    pub async fn from_pool(pool: &Pool<Postgres>) -> Result<Self, Error> {
         // Pull out an initial connection
         let mut connection = pool.acquire().await?;
 

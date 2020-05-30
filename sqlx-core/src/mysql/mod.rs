@@ -24,7 +24,7 @@ pub use type_info::MySqlTypeInfo;
 pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for MySQL.
-pub type MySqlPool = crate::pool::Pool<MySqlConnection>;
+pub type MySqlPool = crate::pool::Pool<MySql>;
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);

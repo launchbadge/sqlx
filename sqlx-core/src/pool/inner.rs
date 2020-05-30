@@ -10,26 +10,24 @@ use futures_core::task::{Poll, Waker};
 use futures_util::future;
 use sqlx_rt::{sleep, spawn, timeout};
 
-use crate::connection::{Connect, Connection};
+use crate::connection::Connect;
+use crate::database::Database;
 use crate::error::Error;
 use crate::pool::deadline_as_timeout;
 
 use super::connection::{Floating, Idle, Live};
 use super::Options;
 
-pub(crate) struct SharedPool<C> {
+pub(crate) struct SharedPool<DB: Database> {
     url: String,
-    idle_conns: ArrayQueue<Idle<C>>,
+    idle_conns: ArrayQueue<Idle<DB>>,
     waiters: SegQueue<Waker>,
     pub(super) size: AtomicU32,
     is_closed: AtomicBool,
     options: Options,
 }
 
-impl<C> SharedPool<C>
-where
-    C: Connection,
-{
+impl<DB: Database> SharedPool<DB> {
     pub fn options(&self) -> &Options {
         &self.options
     }
@@ -60,11 +58,11 @@ where
     }
 
     #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Floating<Live<C>>> {
+    pub(super) fn try_acquire(&self) -> Option<Floating<Live<DB>>> {
         Some(self.pop_idle()?.into_live())
     }
 
-    fn pop_idle(&self) -> Option<Floating<Idle<C>>> {
+    fn pop_idle(&self) -> Option<Floating<Idle<DB>>> {
         if self.is_closed.load(Ordering::Acquire) {
             return None;
         }
@@ -72,7 +70,7 @@ where
         Some(Floating::from_idle(self.idle_conns.pop().ok()?, self))
     }
 
-    pub(super) fn release(&self, floating: Floating<Live<C>>) {
+    pub(super) fn release(&self, floating: Floating<Live<DB>>) {
         self.idle_conns
             .push(floating.into_idle().into_leakable())
             .expect("BUG: connection queue overflow in release()");
@@ -109,7 +107,7 @@ where
         let mut waker_pushed = false;
 
         timeout(
-            deadline_as_timeout::<C::Database>(deadline)?,
+            deadline_as_timeout::<DB>(deadline)?,
             // `poll_fn` gets us easy access to a `Waker` that we can push to our queue
             future::poll_fn(|ctx| -> Poll<()> {
                 if !waker_pushed {
@@ -125,12 +123,7 @@ where
         .await
         .map_err(|_| Error::PoolTimedOut)
     }
-}
 
-impl<C> SharedPool<C>
-where
-    C: 'static + Connect,
-{
     pub(super) async fn new_arc(url: &str, options: Options) -> Result<Arc<Self>, Error> {
         let mut pool = Self {
             url: url.to_owned(),
@@ -151,7 +144,7 @@ where
     }
 
     #[allow(clippy::needless_lifetimes)]
-    pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<C>>, Error> {
+    pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<DB>>, Error> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
 
@@ -208,15 +201,15 @@ where
         &'s self,
         deadline: Instant,
         guard: DecrementSizeGuard<'s>,
-    ) -> Result<Option<Floating<'s, Live<C>>>, Error> {
+    ) -> Result<Option<Floating<'s, Live<DB>>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
 
-        let timeout = super::deadline_as_timeout::<C::Database>(deadline)?;
+        let timeout = super::deadline_as_timeout::<DB>(deadline)?;
 
         // result here is `Result<Result<C, Error>, TimeoutError>`
-        match sqlx_rt::timeout(timeout, C::connect(&self.url)).await {
+        match sqlx_rt::timeout(timeout, DB::Connection::connect(&self.url)).await {
             // successfully established connection
             Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard))),
 
@@ -241,27 +234,24 @@ where
 
 // NOTE: Function names here are bizzare. Helpful help would be appreciated.
 
-fn is_beyond_lifetime<C>(live: &Live<C>, options: &Options) -> bool {
+fn is_beyond_lifetime<DB: Database>(live: &Live<DB>, options: &Options) -> bool {
     // check if connection was within max lifetime (or not set)
     options
         .max_lifetime
         .map_or(false, |max| live.created.elapsed() > max)
 }
 
-fn is_beyond_idle<C>(idle: &Idle<C>, options: &Options) -> bool {
+fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &Options) -> bool {
     // if connection wasn't idle too long (or not set)
     options
         .idle_timeout
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
-async fn check_conn<'s: 'p, 'p, C>(
-    mut conn: Floating<'s, Idle<C>>,
+async fn check_conn<'s: 'p, 'p, DB: Database>(
+    mut conn: Floating<'s, Idle<DB>>,
     options: &'p Options,
-) -> Option<Floating<'s, Live<C>>>
-where
-    C: Connection,
-{
+) -> Option<Floating<'s, Live<DB>>> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_lifetime(&conn, options) {
@@ -287,10 +277,7 @@ where
 }
 
 /// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn spawn_reaper<C>(pool: &Arc<SharedPool<C>>)
-where
-    C: 'static + Connection,
-{
+fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,
 
@@ -341,7 +328,7 @@ pub(in crate::pool) struct DecrementSizeGuard<'a> {
 }
 
 impl<'a> DecrementSizeGuard<'a> {
-    pub fn new<C>(pool: &'a SharedPool<C>) -> Self {
+    pub fn new<DB: Database>(pool: &'a SharedPool<DB>) -> Self {
         Self {
             size: &pool.size,
             waiters: &pool.waiters,
@@ -350,7 +337,7 @@ impl<'a> DecrementSizeGuard<'a> {
     }
 
     /// Return `true` if the internal references point to the same fields in `SharedPool`.
-    pub fn same_pool<C>(&self, pool: &'a SharedPool<C>) -> bool {
+    pub fn same_pool<DB: Database>(&self, pool: &'a SharedPool<DB>) -> bool {
         ptr::eq(self.size, &pool.size) && ptr::eq(self.waiters, &pool.waiters)
     }
 

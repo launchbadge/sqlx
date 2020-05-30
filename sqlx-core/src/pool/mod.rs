@@ -6,7 +6,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::connection::Connect;
 use crate::database::Database;
 use crate::error::Error;
 
@@ -24,12 +23,9 @@ pub use self::connection::PoolConnection;
 pub use self::options::Builder;
 
 /// A pool of database connections.
-pub struct Pool<C>(pub(crate) Arc<SharedPool<C>>);
+pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
 
-impl<C> Pool<C>
-where
-    C: 'static + Connect,
-{
+impl<DB: Database> Pool<DB> {
     /// Creates a connection pool with the default configuration.
     ///
     /// The connection URL syntax is documented on the connection type for the respective
@@ -42,25 +38,25 @@ where
     }
 
     async fn new_with(url: &str, options: Options) -> Result<Self, Error> {
-        Ok(Pool(SharedPool::<C>::new_arc(url, options).await?))
+        Ok(Pool(SharedPool::<DB>::new_arc(url, options).await?))
     }
 
     /// Returns a [`Builder`] to configure a new connection pool.
-    pub fn builder() -> Builder<C> {
+    pub fn builder() -> Builder<DB> {
         Builder::new()
     }
 
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> Result<PoolConnection<C>, Error> {
+    pub async fn acquire(&self) -> Result<PoolConnection<DB>, Error> {
         self.0.acquire().await.map(|conn| conn.attach(&self.0))
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
-    pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
+    pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
         self.0.try_acquire().map(|conn| conn.attach(&self.0))
     }
 
@@ -114,16 +110,13 @@ where
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
-impl<C> Clone for Pool<C> {
+impl<DB: Database> Clone for Pool<DB> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<C> fmt::Debug for Pool<C>
-where
-    C: Connect,
-{
+impl<DB: Database> fmt::Debug for Pool<DB> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
             .field("url", &self.0.url())

@@ -4,19 +4,17 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
-use crate::connection::Connect;
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
 
-impl<'p, C> Executor<'p> for &'_ Pool<C>
+impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
-    C: 'static + Connect,
-    for<'c> &'c mut C: Executor<'c, Database = C::Database>,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
 {
-    type Database = C::Database;
+    type Database = DB;
 
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
@@ -67,7 +65,7 @@ where
 #[allow(unused_macros)]
 macro_rules! impl_executor_for_pool_connection {
     ($DB:ident, $C:ident, $R:ident) => {
-        impl<'c> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<$C> {
+        impl<'c> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<$DB> {
             type Database = $DB;
 
             #[inline]

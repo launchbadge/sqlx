@@ -12,7 +12,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    CommandComplete, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::row::PgColumn;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
