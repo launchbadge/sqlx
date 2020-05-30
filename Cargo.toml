@@ -78,67 +78,65 @@ async-std = { version = "1.5.0", features = [ "attributes" ] }
 tokio = { version = "0.2.13", features = [ "full" ] }
 dotenv = "0.15.0"
 trybuild = "1.0.24"
+sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
 paste = "0.1.7"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0.48"
 
-[[test]]
-name = "postgres-macros"
-required-features = [ "postgres", "macros" ]
-
-[[test]]
-name = "mysql-macros"
-required-features = [ "mysql", "macros" ]
+#
+# SQLite
+#
 
 [[test]]
 name = "sqlite"
+path = "tests/sqlite/sqlite.rs"
 required-features = [ "sqlite" ]
-
-[[test]]
-name = "sqlite-macros"
-required-features = [ "sqlite", "macros" ]
-
-[[test]]
-name = "sqlite-raw"
-required-features = [ "sqlite" ]
-
-[[test]]
-name = "sqlite-derives"
-required-features = [ "sqlite", "macros" ]
 
 [[test]]
 name = "sqlite-types"
+path = "tests/sqlite/types.rs"
 required-features = [ "sqlite" ]
 
 [[test]]
+name = "sqlite-describe"
+path = "tests/sqlite/describe.rs"
+required-features = [ "sqlite" ]
+
+#
+# MySQL
+#
+
+[[test]]
 name = "mysql"
+path = "tests/mysql/mysql.rs"
 required-features = [ "mysql" ]
 
 [[test]]
-name = "mysql-raw"
+name = "mysql-types"
+path = "tests/mysql/types.rs"
 required-features = [ "mysql" ]
 
 [[test]]
-name = "mysql-derives"
-required-features = [ "mysql", "macros" ]
+name = "mysql-describe"
+path = "tests/mysql/describe.rs"
+required-features = [ "mysql" ]
+
+#
+# PostgreSQL
+#
 
 [[test]]
 name = "postgres"
-required-features = [ "postgres" ]
-
-[[test]]
-name = "postgres-raw"
+path = "tests/postgres/postgres.rs"
 required-features = [ "postgres" ]
 
 [[test]]
 name = "postgres-types"
+path = "tests/postgres/types.rs"
 required-features = [ "postgres" ]
 
 [[test]]
-name = "postgres-derives"
-required-features = [ "postgres", "macros" ]
-
-[[test]]
-name = "mysql-types"
-required-features = [ "mysql" ]
+name = "postgres-describe"
+path = "tests/postgres/describe.rs"
+required-features = [ "postgres" ]

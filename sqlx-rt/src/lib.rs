@@ -28,7 +28,7 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
-    task::yield_now, time::delay_for as sleep, time::timeout,
+    task::spawn, task::yield_now, time::delay_for as sleep, time::timeout,
 };
 
 #[cfg(all(

@@ -118,14 +118,6 @@ fn test_encodes_string_lenenc() {
 }
 
 #[test]
-fn test_encodes_string_null() {
-    let mut buf = Vec::with_capacity(1024);
-    buf.put_str_nul("random_string");
-
-    assert_eq!(&buf[..], b"random_string\0");
-}
-
-#[test]
 fn test_encodes_byte_lenenc() {
     let mut buf = Vec::with_capacity(1024);
     buf.put_bytes_lenenc(b"random_string");

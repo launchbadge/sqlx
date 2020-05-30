@@ -1,22 +1,31 @@
-use std::ptr::null_mut;
-use std::sync::atomic::{spin_loop_hint, AtomicI32, AtomicPtr, Ordering};
-use std::sync::Arc;
-use std::thread::{self, park, spawn, JoinHandle};
-
 use either::Either;
-use libsqlite3_sys::{sqlite3_step, sqlite3_stmt, SQLITE_DONE, SQLITE_ROW};
-use sqlx_rt::yield_now;
+use libsqlite3_sys::{sqlite3_step, SQLITE_DONE, SQLITE_ROW};
 
 use crate::error::Error;
 use crate::sqlite::statement::StatementHandle;
+
+#[cfg(not(feature = "runtime-tokio"))]
+use {
+    libsqlite3_sys::sqlite3_stmt,
+    sqlx_rt::yield_now,
+    std::ptr::null_mut,
+    std::sync::atomic::{spin_loop_hint, AtomicI32, AtomicPtr, Ordering},
+    std::sync::Arc,
+    std::thread::{self, park, spawn, JoinHandle},
+};
 
 // For async-std and actix, the worker maintains a dedicated thread for each SQLite connection
 // All invocations of [sqlite3_step] are run on this thread
 
 // For tokio, the worker is a thin wrapper around an invocation to [block_in_place]
 
+#[cfg(not(feature = "runtime-tokio"))]
 const STATE_CLOSE: i32 = -1;
+
+#[cfg(not(feature = "runtime-tokio"))]
 const STATE_READY: i32 = 0;
+
+#[cfg(not(feature = "runtime-tokio"))]
 const STATE_INITIAL: i32 = 1;
 
 #[cfg(not(feature = "runtime-tokio"))]
@@ -156,7 +165,7 @@ impl StatementWorker {
 
     pub(crate) async fn step(&self, statement: &StatementHandle) -> Result<Either<u64, ()>, Error> {
         let statement = *statement;
-        let status = sqlx_rt::blocking!({ unsafe { sqlite3_step(statement.0.as_ptr()) } });
+        let status = sqlx_rt::blocking!(unsafe { sqlite3_step(statement.0.as_ptr()) });
 
         match status {
             // a row was found

@@ -3,8 +3,7 @@ use sqlx_test::new;
 
 use futures::TryStreamExt;
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_query() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -20,8 +19,7 @@ async fn test_query() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_no_result() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -32,8 +30,7 @@ async fn test_no_result() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_text_var_char_char_n() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -64,8 +61,7 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn _file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -84,8 +80,7 @@ struct Account {
     name: Option<String>,
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_query_as() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -111,8 +106,7 @@ struct RawAccount {
     name: Option<String>,
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_query_as_raw() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -131,8 +125,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_query_file_as() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -145,8 +138,7 @@ async fn test_query_file_as() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn query_by_string() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -172,8 +164,7 @@ async fn query_by_string() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_nullable_err() -> anyhow::Result<()> {
     #[derive(Debug)]
     struct Account {
@@ -200,8 +191,7 @@ async fn test_nullable_err() -> anyhow::Result<()> {
     panic!("expected `UnexpectedNullError`, got {}", err)
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_many_args() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -221,8 +211,7 @@ async fn test_many_args() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_array_from_slice() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -247,8 +236,7 @@ async fn test_array_from_slice() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn fetch_is_usable_issue_224() -> anyhow::Result<()> {
     // ensures that the stream returned by `query::Map::fetch()` is usable with `TryStreamExt`
     let mut conn = new::<Postgres>().await?;

@@ -2042,6 +2042,7 @@ dependencies = [
  "serde_json",
  "sqlx-core",
  "sqlx-macros",
+ "sqlx-rt",
  "sqlx-test",
  "time 0.2.16",
  "tokio 0.2.21",

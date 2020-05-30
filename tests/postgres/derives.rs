@@ -96,8 +96,7 @@ test_type!(strong_enum(
     "'four'::text" == Strong::Three
 ));
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_enum_type() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -231,8 +230,7 @@ SELECT $1 = 'RED'::color_upper, $1
     Ok(())
 }
 
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_record_type() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -275,8 +273,7 @@ END $$;
 }
 
 #[cfg(feature = "macros")]
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_from_row() -> anyhow::Result<()> {
     // Needed for PgQueryAs
     use sqlx::prelude::*;
@@ -322,8 +319,7 @@ async fn test_from_row() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "macros")]
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_from_row_with_keyword() -> anyhow::Result<()> {
     use sqlx::prelude::*;
 
@@ -355,8 +351,7 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "macros")]
-#[cfg_attr(feature = "runtime-async-std", async_std::test)]
-#[cfg_attr(feature = "runtime-tokio", tokio::test)]
+#[sqlx_macros::test]
 async fn test_from_row_with_rename() -> anyhow::Result<()> {
     use sqlx::prelude::*;
 

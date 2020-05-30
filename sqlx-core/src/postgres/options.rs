@@ -88,8 +88,9 @@ impl FromStr for PgSslMode {
 /// # use sqlx_core::connection::Connect;
 /// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
-/// # #[sqlx_rt::main]
-/// # async fn main() -> Result<(), Error> {
+/// # fn main() {
+/// # #[cfg(feature = "runtime-async-std")]
+/// # sqlx_rt::async_std::task::block_on(async move {
 /// // URI connection string
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
 ///
@@ -101,7 +102,7 @@ impl FromStr for PgSslMode {
 ///     .password("secret-password")
 ///     .ssl_mode(PgSslMode::Require)
 /// ).await?;
-/// # Ok(())
+/// # }).unwrap();
 /// # }
 /// ```
 #[derive(Debug, Clone)]

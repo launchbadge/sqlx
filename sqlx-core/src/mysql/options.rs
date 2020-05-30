@@ -75,8 +75,9 @@ impl FromStr for MySqlSslMode {
 /// # use sqlx_core::connection::Connect;
 /// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 /// #
-/// # #[sqlx_rt::main]
-/// # async fn main() -> Result<(), Error> {
+/// # fn main() {
+/// # #[cfg(feature = "runtime-async-std")]
+/// # sqlx_rt::async_std::task::block_on(async move {
 /// // URI connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
@@ -87,7 +88,7 @@ impl FromStr for MySqlSslMode {
 ///     .password("password")
 ///     .database("db")
 /// ).await?;
-/// # Ok(())
+/// # }).unwrap();
 /// # }
 /// ```
 #[derive(Debug, Clone)]

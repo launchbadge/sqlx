@@ -29,9 +29,9 @@ impl Decode<'_> for Notification {
 fn test_decode_notification_response() {
     const NOTIFICATION_RESPONSE: &[u8] = b"\x34\x20\x10\x02TEST-CHANNEL\0THIS IS A TEST\0";
 
-    let message = Notification::read(NOTIFICATION_RESPONSE).unwrap();
+    let message = Notification::decode(Bytes::from(NOTIFICATION_RESPONSE)).unwrap();
 
     assert_eq!(message.process_id, 0x34201002);
-    assert_eq!(&*message.channel, b"TEST-CHANNEL"[..]);
-    assert_eq!(&*message.payload, b"THIS IS A TEST"[..]);
+    assert_eq!(&*message.channel, &b"TEST-CHANNEL"[..]);
+    assert_eq!(&*message.payload, &b"THIS IS A TEST"[..]);
 }

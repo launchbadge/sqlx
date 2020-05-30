@@ -308,7 +308,7 @@ where
 {
     Query {
         database: PhantomData,
-        arguments: Default::default(),
+        arguments: Some(Default::default()),
         query: sql,
     }
 }
