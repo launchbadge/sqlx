@@ -5,7 +5,7 @@ compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be e
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
 #[cfg(feature = "runtime-async-std")]
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
+pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
     // builds a runtime, but only for use at compile time, not app runtime?
     smol::run(future)
 }
@@ -20,6 +20,7 @@ pub(crate) mod fs {
         let path = path.as_ref().to_owned();
         smol::Task::blocking(async move { fs::read_to_string(&path) }).await
     }
+}
 
 #[cfg(feature = "runtime-tokio")]
 pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
