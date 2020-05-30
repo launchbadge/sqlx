@@ -21,12 +21,7 @@ pub(crate) use tokio::net::UnixStream;
 
 #[cfg(feature = "runtime-async-std")]
 pub(crate) use smol_shim::{
-    fs,
-    AsyncRead, AsyncReadExt, AsyncWrite,
-    TcpStream,
-    spawn,
-    sleep,
-    timeout,
+    fs, sleep, spawn, timeout, AsyncRead, AsyncReadExt, AsyncWrite, TcpStream,
 };
 
 #[cfg(all(feature = "runtime-async-std", feature = "postgres", unix))]
@@ -170,10 +165,7 @@ mod smol_shim {
 
         pub async fn read<P: AsRef<Path>>(path: P) -> std::io::Result<Vec<u8>> {
             let path = path.as_ref().to_owned();
-            smol::Task::blocking(async move {
-                fs::read(&path)
-            })
-            .await
+            smol::Task::blocking(async move { fs::read(&path) }).await
         }
     }
 
@@ -187,7 +179,10 @@ mod smol_shim {
         smol::Timer::after(dur).await;
     }
 
-    pub(crate) async fn timeout<T>(dur: Duration, f: impl Future<Output = T>) -> Result<T, TimeoutError> {
+    pub(crate) async fn timeout<T>(
+        dur: Duration,
+        f: impl Future<Output = T>,
+    ) -> Result<T, TimeoutError> {
         TimeoutFuture::new(f, dur).await
     }
 

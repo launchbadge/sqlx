@@ -15,9 +15,6 @@ pub(crate) mod fs {
     // Only need read_to_string
     pub async fn read_to_string<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
         let path = path.as_ref().to_owned();
-        smol::Task::blocking(async move {
-            fs::read_to_string(&path)
-        })
-        .await
+        smol::Task::blocking(async move { fs::read_to_string(&path) }).await
     }
 }
