@@ -61,4 +61,19 @@ impl DatabaseError for MySqlDatabaseError {
     fn code(&self) -> Option<Cow<str>> {
         self.code().map(Cow::Borrowed)
     }
+
+    #[doc(hidden)]
+    fn as_error(&self) -> &(dyn Error + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn as_error_mut(&mut self) -> &mut (dyn Error + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn into_error(self: Box<Self>) -> Box<dyn Error + Send + Sync + 'static> {
+        self
+    }
 }

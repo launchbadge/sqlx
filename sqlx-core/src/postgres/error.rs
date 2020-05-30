@@ -2,10 +2,10 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display, Formatter};
 
 use atoi::atoi;
+use smallvec::alloc::borrow::Cow;
 
 use crate::error::DatabaseError;
 use crate::postgres::message::{Notice, PgSeverity};
-use smallvec::alloc::borrow::Cow;
 
 /// An error returned from the PostgreSQL database.
 pub struct PgDatabaseError(pub(crate) Notice);
@@ -115,7 +115,7 @@ impl PgDatabaseError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum PgErrorPosition<'a> {
     /// A position (in characters) into the original query.
     Original(usize),
@@ -168,5 +168,20 @@ impl DatabaseError for PgDatabaseError {
 
     fn code(&self) -> Option<Cow<str>> {
         Some(Cow::Borrowed(self.code()))
+    }
+
+    #[doc(hidden)]
+    fn as_error(&self) -> &(dyn Error + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn as_error_mut(&mut self) -> &mut (dyn Error + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn into_error(self: Box<Self>) -> Box<dyn Error + Send + Sync + 'static> {
+        self
     }
 }

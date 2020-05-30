@@ -85,7 +85,7 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
 
 # before we start, we clean previous profile data
 # keeping these around can cause weird errors
-for path in glob(os.path.join(os.path.dirname(__file__), "../target/**/*.gc*"), recursive=True):
+for path in glob(os.path.join(os.path.dirname(__file__), "target/**/*.gc*"), recursive=True):
     os.remove(path)
 
 #

@@ -8,6 +8,7 @@ services:
             - "$HOME/.cargo/registry:/usr/local/cargo/registry"
         working_dir: "/home/rust/src"
         environment:
+            CARGO_TARGET_DIR: "/home/rust/src/tests/target"
             CARGO_INCREMENTAL: "0"
             RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
             RUSTDOCFLAGS: "-Cpanic=abort"

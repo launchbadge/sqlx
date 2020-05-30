@@ -50,4 +50,19 @@ impl DatabaseError for SqliteError {
     fn message(&self) -> &str {
         &self.message
     }
+
+    #[doc(hidden)]
+    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+        self
+    }
 }
