@@ -24,7 +24,10 @@ pub trait Connection: Send {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database, Self>, Error>> {
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database, Self>, Error>>
+    where
+        Self: Sized,
+    {
         Transaction::begin(self)
     }
 
@@ -34,6 +37,7 @@ pub trait Connection: Send {
     /// return an error, the transaction will be committed.
     fn transaction<'c: 'f, 'f, T, E, F, Fut>(&'c mut self, f: F) -> BoxFuture<'f, Result<T, E>>
     where
+        Self: Sized,
         T: Send,
         F: FnOnce(&mut <Self::Database as Database>::Connection) -> Fut + Send + 'f,
         E: From<Error> + Send,

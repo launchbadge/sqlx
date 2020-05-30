@@ -8,6 +8,7 @@ use std::{
 
 use crate::database::Database;
 use crate::error::Error;
+use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
 use self::options::Options;
@@ -58,6 +59,22 @@ impl<DB: Database> Pool<DB> {
     /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
         self.0.try_acquire().map(|conn| conn.attach(&self.0))
+    }
+
+    /// Retrieves a new connection and immediately begins a new transaction.
+    pub async fn begin(&self) -> Result<Transaction<'static, DB, PoolConnection<DB>>, Error> {
+        Ok(Transaction::begin(self.acquire().await?).await?)
+    }
+
+    /// Attempts to retrieve a new connection and immediately begins a new transaction if there
+    /// is one available.
+    pub async fn try_begin(
+        &self,
+    ) -> Result<Option<Transaction<'static, DB, PoolConnection<DB>>>, Error> {
+        match self.try_acquire() {
+            Some(conn) => Transaction::begin(conn).await.map(Some),
+            None => Ok(None),
+        }
     }
 
     /// Ends the use of a connection pool. Prevents any new connections
