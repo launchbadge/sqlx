@@ -1891,7 +1891,6 @@ name = "sqlx-core"
 version = "0.3.5"
 dependencies = [
  "async-native-tls",
- "async-std",
  "async-stream",
  "base64 0.12.1",
  "bigdecimal",
@@ -2004,7 +2003,6 @@ dependencies = [
 name = "sqlx-macros"
 version = "0.3.5"
 dependencies = [
- "async-std",
  "dotenv",
  "futures 0.3.5",
  "heck",

@@ -18,8 +18,7 @@ proc-macro = true
 [features]
 default = [ "runtime-async-std" ]
 
-runtime-async-std = [ "sqlx/runtime-async-std", "async-std" ]
-runtime-smol = [ "sqlx/runtime-smol", "smol" ]
+runtime-async-std = [ "sqlx/runtime-async-std", "smol" ]
 runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
 
 # database
@@ -36,7 +35,6 @@ uuid = [ "sqlx/uuid" ]
 json = [ "sqlx/json", "serde_json" ]
 
 [dependencies]
-async-std = { version = "1.5.0", default-features = false, optional = true }
 tokio = { version = "0.2.13", default-features = false, features = [ "rt-threaded" ], optional = true }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }

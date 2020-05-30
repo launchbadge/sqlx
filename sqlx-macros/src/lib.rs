@@ -8,9 +8,6 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-#[cfg(feature = "runtime-async-std")]
-use async_std::task::block_on;
-
 use std::path::PathBuf;
 
 use url::Url;
@@ -26,7 +23,7 @@ mod runtime;
 
 use query_macros::*;
 
-#[cfg(feature = "runtime-smol")]
+#[cfg(feature = "runtime-async-std")]
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
     // builds a runtime, but only for use at compile time, not app runtime?
     smol::run(future)

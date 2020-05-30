@@ -27,15 +27,13 @@ json = ["serde", "serde_json"]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
 tls = [ "async-native-tls" ]
-runtime-async-std = [ "async-native-tls/runtime-async-std", "async-std" ]
-runtime-smol = [ "async-native-tls/runtime-async-std", "smol", "pin-project-lite" ]
+runtime-async-std = [ "async-native-tls/runtime-async-std", "smol", "pin-project-lite" ]
 runtime-tokio = [ "async-native-tls/runtime-tokio", "tokio" ]
 # intended for internal benchmarking, do not use
 bench = []
 
 [dependencies]
 async-native-tls = { version = "0.3.2", default-features = false, optional = true }
-async-std = { version = "1.5.0", features = [ "unstable" ], optional = true }
 async-stream = { version = "0.2.1", default-features = false }
 base64 = { version = "0.12.0", default-features = false, optional = true, features = [ "std" ] }
 bigdecimal_ = { version = "0.1.0", optional = true, package = "bigdecimal" }

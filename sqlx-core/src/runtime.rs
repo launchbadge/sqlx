@@ -1,25 +1,10 @@
 #![allow(unused_imports)]
 
-#[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std", feature = "runtime-smol")))]
+#[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
 compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
 
-// TODO add smol to combos
 #[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
 compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
-
-#[cfg(feature = "runtime-async-std")]
-pub(crate) use async_std::{
-    fs,
-    future::timeout,
-    io::prelude::ReadExt as AsyncReadExt,
-    io::{Read as AsyncRead, Write as AsyncWrite},
-    net::TcpStream,
-    task::sleep,
-    task::spawn,
-};
-
-#[cfg(all(feature = "runtime-async-std", feature = "postgres", unix))]
-pub(crate) use async_std::os::unix::net::UnixStream;
 
 #[cfg(feature = "runtime-tokio")]
 pub(crate) use tokio::{
@@ -34,7 +19,7 @@ pub(crate) use tokio::{
 #[cfg(all(feature = "runtime-tokio", feature = "postgres", unix))]
 pub(crate) use tokio::net::UnixStream;
 
-#[cfg(feature = "runtime-smol")]
+#[cfg(feature = "runtime-async-std")]
 pub(crate) use smol_shim::{
     fs,
     AsyncRead, AsyncReadExt, AsyncWrite,
@@ -44,10 +29,10 @@ pub(crate) use smol_shim::{
     timeout,
 };
 
-#[cfg(all(feature = "runtime-smol", feature = "postgres", unix))]
+#[cfg(all(feature = "runtime-async-std", feature = "postgres", unix))]
 pub(crate) use smol_shim::UnixStream;
 
-#[cfg(feature = "runtime-smol")]
+#[cfg(feature = "runtime-async-std")]
 mod smol_shim {
     use futures_core::Future;
     use smol::Async;
