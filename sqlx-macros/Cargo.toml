@@ -18,16 +18,11 @@ proc-macro = true
 [features]
 default = [ "runtime-async-std" ]
 
-<<<<<<< HEAD
-runtime-async-std = [ "sqlx/runtime-async-std", "smol" ]
-runtime-tokio = [ "sqlx/runtime-tokio", "tokio", "lazy_static" ]
-=======
-runtime-async-std = [ "sqlx-core/runtime-async-std", "async-std" ]
+runtime-async-std = [ "sqlx-core/runtime-async-std", "smol" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "tokio", "once_cell" ]
 
 # offline building support
 offline = ["sqlx-core/offline", "serde", "serde_json", "hex", "sha2"]
->>>>>>> master
 
 # database
 mysql = [ "sqlx-core/mysql" ]
