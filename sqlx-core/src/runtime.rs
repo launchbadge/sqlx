@@ -52,10 +52,10 @@ mod smol_shim {
             let addrs = addr.to_socket_addrs()?;
 
             for addr in addrs {
-                match  Async::<StdTcpStream>::connect(&addr).await {
+                match Async::<StdTcpStream>::connect(&addr).await {
                     Ok(stream) => {
                         return Ok(TcpStream(stream));
-                    },
+                    }
                     Err(err) => {
                         last_err = Some(err);
                         continue;
