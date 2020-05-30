@@ -195,26 +195,35 @@ impl PgListener {
 impl<'c> Executor<'c> for &'c mut PgListener {
     type Database = Postgres;
 
-    fn fetch_many<'q: 'c, E: 'c>(self, query: E) -> BoxStream<'c, Result<Either<u64, PgRow>, Error>>
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<Either<u64, PgRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         self.connection().fetch_many(query)
     }
 
-    fn fetch_optional<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Option<PgRow>, Error>>
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         self.connection().fetch_optional(query)
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E: 'c>(
+    fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'c, Result<Describe<Self::Database>, Error>>
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         self.connection().describe(query)

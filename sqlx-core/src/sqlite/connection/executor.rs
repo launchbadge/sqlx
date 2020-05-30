@@ -74,11 +74,12 @@ fn emplace_row_metadata(
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
 
-    fn fetch_many<'q: 'c, E: 'c>(
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'c, Result<Either<u64, SqliteRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<u64, SqliteRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let s = query.query();
@@ -148,11 +149,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         })
     }
 
-    fn fetch_optional<'q: 'c, E: 'c>(
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'c, Result<Option<SqliteRow>, Error>>
+    ) -> BoxFuture<'e, Result<Option<SqliteRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let mut s = self.fetch_many(query);
@@ -169,8 +171,9 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Describe<Sqlite>, Error>>
+    fn describe<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let query = query.query();

@@ -24,7 +24,7 @@ pub struct QueryAs<'q, DB: Database, O, A> {
 impl<'q, DB, O: Send, A: Send> Execute<'q, DB> for QueryAs<'q, DB, O, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: 'q + IntoArguments<'q, DB>,
 {
     #[inline]
     fn query(&self) -> &'q str {
@@ -52,17 +52,17 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments
 impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: 'q + IntoArguments<'q, DB>,
     O: Send + Unpin + for<'r> FromRow<'r, DB::Row>,
 {
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        O: 'c,
-        A: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        O: 'e,
+        A: 'e,
     {
         self.fetch_many(executor)
             .try_filter_map(|step| async move { Ok(step.right()) })
@@ -71,13 +71,16 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<Either<u64, O>, Error>>
+    pub fn fetch_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<Either<u64, O>, Error>>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        O: 'c,
-        A: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        O: 'e,
+        A: 'e,
     {
         Box::pin(try_stream! {
             let mut s = executor.fetch_many(self.inner);
@@ -95,25 +98,25 @@ where
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     #[inline]
-    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        A: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        O: 'e,
+        A: 'e,
     {
         self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<O, Error>
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        O: 'c,
-        A: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        O: 'e,
+        A: 'e,
     {
         self.fetch_optional(executor)
             .await
@@ -121,13 +124,13 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        O: 'c,
-        A: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        O: 'e,
+        A: 'e,
     {
         let row = executor.fetch_optional(self.inner).await?;
         if let Some(row) = row {

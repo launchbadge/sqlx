@@ -2,9 +2,8 @@ use std::marker::PhantomData;
 
 use async_stream::try_stream;
 use either::Either;
-use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
 use crate::database::{Database, HasArguments};
@@ -71,7 +70,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
 impl<'q, DB, A: Send> Query<'q, DB, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: 'q + IntoArguments<'q, DB>,
 {
     /// Map each row in the result to another type.
     ///
@@ -104,10 +103,10 @@ where
 
     /// Execute the query and return the total number of rows affected.
     #[inline]
-    pub async fn execute<'c, E>(self, executor: E) -> Result<u64, Error>
+    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<u64, Error>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.execute(self).await
@@ -115,10 +114,10 @@ where
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
     #[inline]
-    pub async fn execute_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<u64, Error>>
+    pub async fn execute_many<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<u64, Error>>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.execute_many(self)
@@ -126,10 +125,10 @@ where
 
     /// Execute the query and return the generated results as a stream.
     #[inline]
-    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<DB::Row, Error>>
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<DB::Row, Error>>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch(self)
@@ -138,13 +137,13 @@ where
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
     #[inline]
-    pub fn fetch_many<'c, E>(
+    pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'c, Result<Either<u64, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<u64, DB::Row>, Error>>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_many(self)
@@ -152,10 +151,10 @@ where
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     #[inline]
-    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_all(self).await
@@ -163,10 +162,10 @@ where
 
     /// Execute the query and returns exactly one row.
     #[inline]
-    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<DB::Row, Error>
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_one(self).await
@@ -174,10 +173,10 @@ where
 
     /// Execute the query and returns at most one row.
     #[inline]
-    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
+    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
     where
-        'q: 'c,
-        A: 'c,
+        'q: 'e,
+        A: 'e,
         E: Executor<'c, Database = DB>,
     {
         executor.fetch_optional(self).await
@@ -207,16 +206,14 @@ where
     O: Send + Unpin,
     A: 'q + Send + IntoArguments<'q, DB>,
 {
-    // FIXME: This is very close 1:1 with [`Executor::fetch`]
-    // noinspection DuplicatedCode
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        F: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
     {
         self.fetch_many(executor)
             .try_filter_map(|step| async move {
@@ -230,13 +227,16 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'c, E>(self, executor: E) -> BoxStream<'c, Result<Either<u64, O>, Error>>
+    pub fn fetch_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<Either<u64, O>, Error>>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        F: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
     {
         Box::pin(try_stream! {
             let mut s = executor.fetch_many(self.inner);
@@ -253,54 +253,50 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    #[inline]
-    pub fn fetch_all<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Vec<O>, Error>>
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        F: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
     {
-        self.fetch(executor).try_collect().boxed()
+        self.fetch(executor).try_collect().await
     }
 
-    // FIXME: This is very close 1:1 with [`Executor::fetch_one`]
-    // noinspection DuplicatedCode
     /// Execute the query and returns exactly one row.
-    pub fn fetch_one<'c, E>(self, executor: E) -> BoxFuture<'c, Result<O, Error>>
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        F: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
     {
         self.fetch_optional(executor)
             .and_then(|row| match row {
                 Some(row) => future::ok(row),
                 None => future::err(Error::RowNotFound),
             })
-            .boxed()
+            .await
     }
 
     /// Execute the query and returns at most one row.
-    pub fn fetch_optional<'c, E>(self, executor: E) -> BoxFuture<'c, Result<Option<O>, Error>>
+    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
-        'q: 'c,
-        E: 'c + Executor<'c, Database = DB>,
-        DB: 'c,
-        F: 'c,
-        O: 'c,
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
     {
-        Box::pin(async move {
-            let row = executor.fetch_optional(self.inner).await?;
-            if let Some(row) = row {
-                (self.mapper)(row).map(Some)
-            } else {
-                Ok(None)
-            }
-        })
+        let row = executor.fetch_optional(self.inner).await?;
+
+        if let Some(row) = row {
+            (self.mapper)(row).map(Some)
+        } else {
+            Ok(None)
+        }
     }
 }
 

@@ -242,11 +242,12 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
 impl<'c> Executor<'c> for &'c mut PgConnection {
     type Database = Postgres;
 
-    fn fetch_many<'q: 'c, E: 'c>(
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'c, Result<Either<u64, PgRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<u64, PgRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let s = query.query();
@@ -262,11 +263,12 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    fn fetch_optional<'q: 'c, E: 'c>(
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxFuture<'c, Result<Option<PgRow>, Error>>
+    ) -> BoxFuture<'e, Result<Option<PgRow>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let s = query.query();
@@ -287,8 +289,12 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'q: 'c, E: 'c>(self, query: E) -> BoxFuture<'c, Result<Describe<Postgres>, Error>>
+    fn describe<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Describe<Postgres>, Error>>
     where
+        'c: 'e,
         E: Execute<'q, Self::Database>,
     {
         let s = query.query();
