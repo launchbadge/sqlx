@@ -47,11 +47,28 @@ mod smol_shim {
 
     impl TcpStream {
         pub async fn connect<A: ToSocketAddrs>(addr: A) -> std::io::Result<Self> {
-            let addr = addr.to_socket_addrs()?.nth(0).unwrap(); //TODO hack
-            let addr = format!("{}:{}", addr.ip(), addr.port());
+            let mut last_err = None;
+            // even async-std implementation may just block during resolution anyways?
+            let addrs = addr.to_socket_addrs()?;
 
-            let stream = Async::<StdTcpStream>::connect(addr).await?;
-            Ok(TcpStream(stream))
+            for addr in addrs {
+                match  Async::<StdTcpStream>::connect(&addr).await {
+                    Ok(stream) => {
+                        return Ok(TcpStream(stream));
+                    },
+                    Err(err) => {
+                        last_err = Some(err);
+                        continue;
+                    }
+                }
+            }
+
+            Err(last_err.unwrap_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "could not resolve to any addresses",
+                )
+            }))
         }
 
         pub fn shutdown(&self, how: std::net::Shutdown) -> std::io::Result<()> {
