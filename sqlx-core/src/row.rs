@@ -195,11 +195,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
     ///
-    // noinspection RsNeedlessLifetimes
-    fn try_get_raw<'r, I>(
-        &'r self,
-        index: I,
-    ) -> Result<<Self::Database as HasValueRef<'r>>::ValueRef, Error>
+    fn try_get_raw<I>(&self, index: I) -> Result<<Self::Database as HasValueRef>::ValueRef, Error>
     where
         I: ColumnIndex<Self>;
 }

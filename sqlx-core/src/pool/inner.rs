@@ -51,7 +51,7 @@ impl<DB: Database> SharedPool<DB> {
 
     pub(super) async fn close(&self) {
         self.is_closed.store(true, Ordering::Release);
-        while let Ok(_) = self.idle_conns.pop() {}
+        while self.idle_conns.pop().is_ok() {}
         while let Ok(waker) = self.waiters.pop() {
             waker.wake();
         }

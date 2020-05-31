@@ -75,6 +75,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
+    #[allow(clippy::type_complexity)]
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,

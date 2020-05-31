@@ -122,11 +122,11 @@ pub(crate) fn mismatched_types<DB: Database, T>(
 ) -> BoxDynError {
     let ty_name = type_name::<T>();
 
-    return format!(
+    format!(
         "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
         ty_name, actual, expected
     )
-    .into();
+    .into()
 }
 
 /// An error that was returned from the database.

@@ -19,7 +19,7 @@ where
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<u64, <Self::Database as Database>::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<u64, DB::Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -38,7 +38,7 @@ where
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
+    ) -> BoxFuture<'e, Result<Option<DB::Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
