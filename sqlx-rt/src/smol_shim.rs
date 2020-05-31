@@ -148,13 +148,11 @@ impl AsyncWrite for UnixStream {
     }
 }
 
+#[allow(dead_code)] // some features don't use
 pub mod fs {
-    #[cfg(feature = "tls")]
     use std::fs;
-    #[cfg(feature = "tls")]
     use std::path::Path;
 
-    #[cfg(feature = "tls")]
     pub async fn read<P: AsRef<Path>>(path: P) -> std::io::Result<Vec<u8>> {
         let path = path.as_ref().to_owned();
         smol::Task::blocking(async move { fs::read(&path) }).await
