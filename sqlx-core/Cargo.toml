@@ -72,7 +72,7 @@ parking_lot = "0.10.2"
 threadpool = "*"
 phf = { version = "0.8.0", features = [ "macros" ] }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
-serde = { version = "1.0.106", features = [ "derive" ], optional = true }
+serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
 serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
 sha-1 = { version = "0.8.2", default-features = false, optional = true }
 sha2 = { version = "0.8.1", default-features = false, optional = true }

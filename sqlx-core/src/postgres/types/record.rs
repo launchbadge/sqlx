@@ -3,7 +3,6 @@ use bytes::Buf;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::{mismatched_types, BoxDynError};
-use crate::ext::ustr::UStr;
 use crate::postgres::type_info::PgType;
 use crate::postgres::{
     PgArgumentBuffer, PgTypeInfo, PgTypeKind, PgValueFormat, PgValueRef, Postgres,
@@ -44,7 +43,7 @@ impl<'a> PgRecordEncoder<'a> {
         if let PgType::DeclareWithName(name) = ty.0 {
             // push a hole for this type ID
             // to be filled in on query execution
-            self.buf.push_type_hole(&UStr::Static(name));
+            self.buf.push_type_hole(&name);
         } else {
             // write type id
             self.buf.extend(&ty.0.oid().to_be_bytes());

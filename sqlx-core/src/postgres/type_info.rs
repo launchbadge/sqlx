@@ -109,7 +109,7 @@ pub(crate) enum PgType {
     Custom(Arc<PgCustomType>),
 
     // From [`PgTypeInfo::with_name`]
-    DeclareWithName(&'static str),
+    DeclareWithName(UStr),
 
     // NOTE: Do we want to bring back type declaration by ID? It's notoriously fragile but
     //       someone may have a user for it
@@ -194,7 +194,7 @@ impl PgTypeInfo {
     /// The OID for the type will be fetched from Postgres on use of
     /// a value of this type. The fetched OID will be cached per-connection.
     pub const fn with_name(name: &'static str) -> Self {
-        Self(PgType::DeclareWithName(name))
+        Self(PgType::DeclareWithName(UStr::Static(name)))
     }
 
     pub(crate) const fn with_oid(oid: u32) -> Self {

@@ -8,7 +8,6 @@ use std::sync::Arc;
 // a micro-string is either a reference-counted string or a static string
 // this guarantees these are cheap to clone everywhere
 #[derive(Debug, Clone, Eq)]
-#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum UStr {
     Static(&'static str),
     Shared(Arc<str>),
@@ -73,5 +72,30 @@ impl Display for UStr {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self)
+    }
+}
+
+// manual impls because otherwise things get a little screwy with lifetimes
+
+#[cfg(feature = "offline")]
+impl<'de> serde::Deserialize<'de> for UStr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(String::deserialize(deserializer)?.into())
+    }
+}
+
+#[cfg(feature = "offline")]
+impl serde::Serialize for UStr {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self)
     }
 }

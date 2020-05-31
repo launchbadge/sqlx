@@ -3,7 +3,6 @@ use bytes::Buf;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::ext::ustr::UStr;
 use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
@@ -49,7 +48,7 @@ where
 
         // element type
         match T::type_info().0 {
-            PgType::DeclareWithName(name) => buf.push_type_hole(&UStr::Static(name)),
+            PgType::DeclareWithName(name) => buf.push_type_hole(&name),
 
             ty => {
                 buf.extend(&ty.oid().to_be_bytes());
