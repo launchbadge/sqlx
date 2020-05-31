@@ -58,6 +58,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 }
 
+#[allow(unused_variables)] // input not used when no feature is selected.
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
     let db_url = Url::parse(db_url)?;
     match db_url.scheme() {

@@ -41,10 +41,10 @@ mod smol_shim {
     use std::task::{Context, Poll};
     use std::time::Duration;
 
-    // TODO only used with tls, check later
     pub(crate) struct TcpStream(smol::Async<StdTcpStream>);
     pub(crate) struct UnixStream(smol::Async<StdUnixStream>);
 
+    #[cfg(any(feature = "mysql", feature = "postgres"))]
     impl TcpStream {
         pub async fn connect<A: ToSocketAddrs>(addr: A) -> std::io::Result<Self> {
             let mut last_err = None;
@@ -120,6 +120,7 @@ mod smol_shim {
         }
     }
 
+    #[cfg(any(feature = "mysql", feature = "postgres"))]
     impl UnixStream {
         pub async fn connect<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
             let stream = Async::<StdUnixStream>::connect(path).await?;
@@ -180,6 +181,7 @@ mod smol_shim {
         use std::fs;
         use std::path::Path;
 
+        #[cfg(feature = "tls")]
         pub async fn read<P: AsRef<Path>>(path: P) -> std::io::Result<Vec<u8>> {
             let path = path.as_ref().to_owned();
             smol::Task::blocking(async move { fs::read(&path) }).await
