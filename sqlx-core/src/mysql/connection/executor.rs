@@ -104,6 +104,7 @@ impl MySqlConnection {
         Ok(())
     }
 
+    #[allow(clippy::needless_lifetimes)]
     async fn run<'c>(
         &'c mut self,
         query: &str,

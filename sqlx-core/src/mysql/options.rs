@@ -102,6 +102,12 @@ pub struct MySqlConnectOptions {
     pub(crate) ssl_ca: Option<PathBuf>,
 }
 
+impl Default for MySqlConnectOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MySqlConnectOptions {
     /// Creates a new, default set of options ready for configuration
     pub fn new() -> Self {

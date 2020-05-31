@@ -74,13 +74,9 @@ impl PgConnection {
             loop {
                 let message = self.stream.recv().await?;
 
-                match message.format {
-                    MessageFormat::ReadyForQuery => {
-                        self.handle_ready_for_query(message)?;
-                        break;
-                    }
-
-                    _ => {}
+                if let MessageFormat::ReadyForQuery = message.format {
+                    self.handle_ready_for_query(message)?;
+                    break;
                 }
             }
         }

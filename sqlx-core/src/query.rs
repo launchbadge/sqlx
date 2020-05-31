@@ -302,7 +302,7 @@ where
 
 /// Make a SQL query.
 #[inline]
-pub fn query<'q, DB>(sql: &'q str) -> Query<'q, DB, <DB as HasArguments<'q>>::Arguments>
+pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as HasArguments<'_>>::Arguments>
 where
     DB: Database,
 {

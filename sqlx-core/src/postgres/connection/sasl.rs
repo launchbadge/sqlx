@@ -9,11 +9,11 @@ use rand::Rng;
 use sha2::digest::Digest;
 use sha2::Sha256;
 
-const GS2_HEADER: &'static str = "n,,";
-const CHANNEL_ATTR: &'static str = "c";
-const USERNAME_ATTR: &'static str = "n";
-const CLIENT_PROOF_ATTR: &'static str = "p";
-const NONCE_ATTR: &'static str = "r";
+const GS2_HEADER: &str = "n,,";
+const CHANNEL_ATTR: &str = "c";
+const USERNAME_ATTR: &str = "n";
+const CLIENT_PROOF_ATTR: &str = "p";
+const NONCE_ATTR: &str = "r";
 
 pub(crate) async fn authenticate(
     stream: &mut PgStream,

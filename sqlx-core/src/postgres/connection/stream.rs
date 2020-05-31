@@ -77,7 +77,7 @@ impl PgStream {
 
         let contents = self.inner.read(size).await?;
 
-        return Ok(Message { format, contents });
+        Ok(Message { format, contents })
     }
 
     // Get the next message from the server

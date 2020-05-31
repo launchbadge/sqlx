@@ -179,12 +179,8 @@ impl Decode<'_> for AuthenticationSaslFinal {
             let key = item[0];
             let value = &item[2..];
 
-            match key {
-                b'v' => {
-                    verifier = base64::decode(value).map_err(Error::protocol)?;
-                }
-
-                _ => {}
+            if let b'v' = key {
+                verifier = base64::decode(value).map_err(Error::protocol)?;
             }
         }
 

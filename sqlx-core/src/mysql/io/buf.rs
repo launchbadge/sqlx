@@ -21,8 +21,8 @@ impl MySqlBufExt for Bytes {
     fn get_uint_lenenc(&mut self) -> u64 {
         match self.get_u8() {
             0xfc => u64::from(self.get_u16_le()),
-            0xfd => u64::from(self.get_uint_le(3)),
-            0xfe => u64::from(self.get_u64_le()),
+            0xfd => self.get_uint_le(3),
+            0xfe => self.get_u64_le(),
 
             v => u64::from(v),
         }

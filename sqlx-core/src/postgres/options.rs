@@ -116,6 +116,12 @@ pub struct PgConnectOptions {
     pub(crate) ssl_root_cert: Option<PathBuf>,
 }
 
+impl Default for PgConnectOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PgConnectOptions {
     /// Creates a new, default set of options ready for configuration.
     ///
@@ -289,16 +295,14 @@ fn default_host(port: u16) -> String {
         "/tmp",                // Default
     ];
 
-    'outer: loop {
-        for candidate in &candidates {
-            if Path::new(candidate).join(&socket).exists() {
-                break 'outer candidate.to_string();
-            }
+    for candidate in &candidates {
+        if Path::new(candidate).join(&socket).exists() {
+            return candidate.to_string();
         }
-
-        // fallback to localhost if no socket was found
-        break "localhost".to_owned();
     }
+
+    // fallback to localhost if no socket was found
+    "localhost".to_owned()
 }
 
 impl FromStr for PgConnectOptions {

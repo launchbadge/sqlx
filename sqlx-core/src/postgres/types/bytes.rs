@@ -59,7 +59,7 @@ impl<'r> Decode<'r, Postgres> for &'r [u8] {
         match value.format() {
             PgValueFormat::Binary => value.as_bytes(),
             PgValueFormat::Text => {
-                return Err("unsupported decode to `&[u8]` of BYTEA in a simple query; use a prepared query or decode to `Vec<u8>`".into());
+                Err("unsupported decode to `&[u8]` of BYTEA in a simple query; use a prepared query or decode to `Vec<u8>`".into())
             }
         }
     }

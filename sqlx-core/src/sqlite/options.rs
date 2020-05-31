@@ -12,6 +12,12 @@ pub struct SqliteConnectOptions {
     pub(crate) in_memory: bool,
 }
 
+impl Default for SqliteConnectOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SqliteConnectOptions {
     pub fn new() -> Self {
         Self {

@@ -128,6 +128,6 @@ impl Decode<'_, Postgres> for IpNetwork {
             }
         }
 
-        return Err(format!("invalid data received when expecting an INET").into());
+        Err("invalid data received when expecting an INET".into())
     }
 }

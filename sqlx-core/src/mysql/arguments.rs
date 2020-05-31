@@ -31,7 +31,7 @@ impl<'q> Arguments<'q> for MySqlArguments {
         self.null_bitmap.resize((index / 8) + 1, 0);
 
         if let IsNull::Yes = value.encode(self) {
-            self.null_bitmap[index / 8] |= (1 << index % 8) as u8;
+            self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
         }
     }
 }

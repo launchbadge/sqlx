@@ -32,7 +32,7 @@ impl Encode<'_, Postgres> for &'_ str {
 
 impl Encode<'_, Postgres> for String {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        <&str as Encode<Postgres>>::encode(&mut &**self, buf)
+        <&str as Encode<Postgres>>::encode(&**self, buf)
     }
 }
 

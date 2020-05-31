@@ -115,7 +115,7 @@ impl PgListener {
 
     #[inline]
     async fn connect_if_needed(&mut self) -> Result<(), Error> {
-        if let None = self.connection {
+        if self.connection.is_none() {
             let mut connection = self.pool.acquire().await?;
             connection.stream.notifications = self.buffer_tx.take();
 

@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 use digest::Digest;
 use num_bigint::BigUint;
 use rand::{thread_rng, Rng};

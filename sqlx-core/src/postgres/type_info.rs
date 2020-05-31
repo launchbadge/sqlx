@@ -603,7 +603,7 @@ impl TypeInfo for PgTypeInfo {}
 
 impl PartialEq<PgCustomType> for PgCustomType {
     fn eq(&self, other: &PgCustomType) -> bool {
-        return other.oid == self.oid;
+        other.oid == self.oid
     }
 }
 

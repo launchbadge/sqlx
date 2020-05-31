@@ -32,11 +32,11 @@ impl Decode<'_, Capabilities> for ErrPacket {
             // If the next byte is '#' then we have a SQL STATE
             if buf.get(0) == Some(&0x23) {
                 buf.advance(1);
-                sql_state = Some(buf.get_str(5)?.to_owned());
+                sql_state = Some(buf.get_str(5)?);
             }
         }
 
-        let error_message = buf.get_str(buf.len())?.to_owned();
+        let error_message = buf.get_str(buf.len())?;
 
         Ok(Self {
             error_code,

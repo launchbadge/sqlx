@@ -244,7 +244,7 @@ ORDER BY attnum
 
         query_as_with::<_, (i32, Option<bool>), _>(&query, args)
             .fetch(self)
-            .zip(stream::iter(columns.into_iter().enumerate()))
+            .zip(stream::iter(columns.iter().enumerate()))
             .map(|(row, (field_idx, column))| -> Result<Column<_>, Error> {
                 let (idx, not_null) = row?;
 

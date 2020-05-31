@@ -191,7 +191,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 columns.reserve(num_columns);
 
                 for i in 0..num_columns {
-                    let name = statement.column_name(i).to_owned().into();
+                    let name = statement.column_name(i).to_owned();
                     let type_info = statement.column_decltype(i);
                     let not_null = statement.column_not_null(i)?;
 
