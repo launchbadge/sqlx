@@ -109,7 +109,7 @@ impl AsyncRead for MaybeTlsStream {
         forward_pin!(self.poll_read(cx, buf))
     }
 
-    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
+    #[cfg(any(feature = "runtime-async-std"))]
     fn poll_read_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
@@ -132,7 +132,7 @@ impl AsyncWrite for MaybeTlsStream {
         forward_pin!(self.poll_flush(cx))
     }
 
-    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
+    #[cfg(any(feature = "runtime-async-std"))]
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         forward_pin!(self.poll_close(cx))
     }
@@ -142,7 +142,7 @@ impl AsyncWrite for MaybeTlsStream {
         forward_pin!(self.poll_shutdown(cx))
     }
 
-    #[cfg(any(feature = "runtime-async-std", feature = "runtime-smol"))]
+    #[cfg(any(feature = "runtime-async-std"))]
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
         cx: &mut Context,
