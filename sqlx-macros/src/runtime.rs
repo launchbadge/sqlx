@@ -6,7 +6,7 @@ compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must
 
 #[cfg(feature = "runtime-async-std")]
 pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-    // builds a runtime, but only for use at compile time, not app runtime?
+    // builds a runtime on each run
     smol::run(future)
 }
 
