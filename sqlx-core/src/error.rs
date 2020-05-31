@@ -135,7 +135,7 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     fn message(&self) -> &str;
 
     /// The (SQLSTATE) code for the error.
-    fn code(&self) -> Option<Cow<str>> {
+    fn code(&self) -> Option<Cow<'_, str>> {
         None
     }
 

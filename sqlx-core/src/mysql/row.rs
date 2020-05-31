@@ -33,7 +33,7 @@ impl Row for MySqlRow {
         self.row.len()
     }
 
-    fn try_get_raw<I>(&self, index: I) -> Result<MySqlValueRef, Error>
+    fn try_get_raw<I>(&self, index: I) -> Result<MySqlValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
     {

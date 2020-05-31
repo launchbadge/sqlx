@@ -21,19 +21,19 @@ pub trait TransactionManager {
     fn begin(
         conn: &mut <Self::Database as Database>::Connection,
         depth: usize,
-    ) -> BoxFuture<Result<(), Error>>;
+    ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
         conn: &mut <Self::Database as Database>::Connection,
         depth: usize,
-    ) -> BoxFuture<Result<(), Error>>;
+    ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Abort the active transaction or restore from the most recent savepoint.
     fn rollback(
         conn: &mut <Self::Database as Database>::Connection,
         depth: usize,
-    ) -> BoxFuture<Result<(), Error>>;
+    ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
     fn start_rollback(conn: &mut <Self::Database as Database>::Connection, depth: usize);
@@ -116,7 +116,7 @@ where
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<Result<(), Error>> {
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.get_mut().flush()
     }
 

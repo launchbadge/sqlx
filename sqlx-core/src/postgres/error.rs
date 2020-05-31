@@ -166,7 +166,7 @@ impl DatabaseError for PgDatabaseError {
         self.message()
     }
 
-    fn code(&self) -> Option<Cow<str>> {
+    fn code(&self) -> Option<Cow<'_, str>> {
         Some(Cow::Borrowed(self.code()))
     }
 

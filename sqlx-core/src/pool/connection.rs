@@ -69,12 +69,12 @@ impl<DB: Database> Connection for PoolConnection<DB> {
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<Result<(), Error>> {
+    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(self.deref_mut().ping())
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<Result<(), Error>> {
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.get_mut().flush()
     }
 
@@ -112,7 +112,7 @@ impl<DB: Database> Drop for PoolConnection<DB> {
 }
 
 impl<DB: Database> Live<DB> {
-    pub fn float(self, pool: &SharedPool<DB>) -> Floating<Self> {
+    pub fn float(self, pool: &SharedPool<DB>) -> Floating<'_, Self> {
         Floating {
             inner: self,
             guard: DecrementSizeGuard::new(pool),

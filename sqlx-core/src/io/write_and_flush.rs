@@ -8,12 +8,12 @@ use std::task::{Context, Poll};
 
 // Atomic operation that writes the full buffer to the stream, flushes the stream, and then
 // clears the buffer (even if either of the two previous operations failed).
-pub struct WriteAndFlush<'a, S: 'a> {
+pub struct WriteAndFlush<'a, S> {
     pub(super) stream: &'a mut S,
     pub(super) buf: Cursor<&'a mut Vec<u8>>,
 }
 
-impl<'a, S: AsyncWrite + Unpin> Future for WriteAndFlush<'a, S> {
+impl<S: AsyncWrite + Unpin> Future for WriteAndFlush<'_, S> {
     type Output = Result<(), Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

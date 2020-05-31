@@ -58,11 +58,11 @@ impl<DB: Database> SharedPool<DB> {
     }
 
     #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Floating<Live<DB>>> {
+    pub(super) fn try_acquire(&self) -> Option<Floating<'_, Live<DB>>> {
         Some(self.pop_idle()?.into_live())
     }
 
-    fn pop_idle(&self) -> Option<Floating<Idle<DB>>> {
+    fn pop_idle(&self) -> Option<Floating<'_, Idle<DB>>> {
         if self.is_closed.load(Ordering::Acquire) {
             return None;
         }
@@ -70,7 +70,7 @@ impl<DB: Database> SharedPool<DB> {
         Some(Floating::from_idle(self.idle_conns.pop().ok()?, self))
     }
 
-    pub(super) fn release(&self, floating: Floating<Live<DB>>) {
+    pub(super) fn release(&self, floating: Floating<'_, Live<DB>>) {
         self.idle_conns
             .push(floating.into_idle().into_leakable())
             .expect("BUG: connection queue overflow in release()");
@@ -83,7 +83,7 @@ impl<DB: Database> SharedPool<DB> {
     /// Try to atomically increment the pool size for a new connection.
     ///
     /// Returns `None` if we are at max_size.
-    fn try_increment_size(&self) -> Option<DecrementSizeGuard> {
+    fn try_increment_size(&self) -> Option<DecrementSizeGuard<'_>> {
         let mut size = self.size();
 
         while size < self.options.max_size {

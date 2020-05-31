@@ -37,7 +37,7 @@ impl Row for PgRow {
         self.data.len()
     }
 
-    fn try_get_raw<I>(&self, index: I) -> Result<PgValueRef, Error>
+    fn try_get_raw<I>(&self, index: I) -> Result<PgValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
     {

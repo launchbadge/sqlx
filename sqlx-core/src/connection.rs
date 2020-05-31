@@ -19,7 +19,7 @@ pub trait Connection: Send {
     fn close(self) -> BoxFuture<'static, Result<(), Error>>;
 
     /// Checks if a connection to the database is still valid.
-    fn ping(&mut self) -> BoxFuture<Result<(), Error>>;
+    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
@@ -66,7 +66,7 @@ pub trait Connection: Send {
 
     /// Flush any pending commands to the database.
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<Result<(), Error>>;
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>>;
 
     #[doc(hidden)]
     fn get_ref(&self) -> &<Self::Database as Database>::Connection;

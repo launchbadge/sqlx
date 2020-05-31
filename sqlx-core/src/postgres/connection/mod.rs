@@ -125,7 +125,7 @@ impl Connection for PgConnection {
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<Result<(), Error>> {
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.wait_until_ready().boxed()
     }
 

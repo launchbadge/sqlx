@@ -133,7 +133,7 @@ where
 #[inline]
 pub fn query_scalar<'q, DB, O>(
     sql: &'q str,
-) -> QueryScalar<DB, O, <DB as HasArguments<'q>>::Arguments>
+) -> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments>
 where
     DB: Database,
     (O,): for<'r> FromRow<'r, DB::Row>,
@@ -146,7 +146,7 @@ where
 /// Make a SQL query, with the given arguments, that is mapped to a single concrete type
 /// using [`FromRow`](crate::row::FromRow).
 #[inline]
-pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScalar<DB, O, A>
+pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScalar<'q, DB, O, A>
 where
     DB: Database,
     A: IntoArguments<'q, DB>,

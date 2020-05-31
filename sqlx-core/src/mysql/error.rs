@@ -58,7 +58,7 @@ impl DatabaseError for MySqlDatabaseError {
     }
 
     #[inline]
-    fn code(&self) -> Option<Cow<str>> {
+    fn code(&self) -> Option<Cow<'_, str>> {
         self.code().map(Cow::Borrowed)
     }
 

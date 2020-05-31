@@ -1,6 +1,7 @@
 //! Core of SQLx, the rust SQL toolkit.
 //! Not intended to be used directly.
 #![recursion_limit = "512"]
+#![warn(future_incompatible, rust_2018_idioms)]
 //
 // Allows an API be documented as only available in some specific platforms.
 // <https://doc.rust-lang.org/unstable-book/language-features/doc-cfg.html>
