@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-cli"
-version = "0.0.1"
+version = "0.1.0-pre"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
 edition = "2018"
 readme = "README.md"
@@ -27,7 +27,7 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "0.2", features = ["macros"] }
-sqlx = { version = "0.3", path = "..", default-features = false, features = [ "runtime-tokio", "offline" ] }
+sqlx = { version = "0.4.0-pre", path = "..", default-features = false, features = [ "runtime-tokio", "offline" ] }
 futures = "0.3"
 structopt = "0.3"
 chrono = "0.4"

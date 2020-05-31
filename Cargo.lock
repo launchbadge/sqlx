@@ -2030,7 +2030,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.3.5"
+version = "0.4.0-pre"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2051,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.0.1"
+version = "0.1.0-pre"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2072,7 +2072,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.3.5"
+version = "0.4.0-pre"
 dependencies = [
  "async-stream",
  "atoi",
@@ -2195,7 +2195,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.3.5"
+version = "0.4.0-pre"
 dependencies = [
  "async-std",
  "dotenv",
