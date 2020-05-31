@@ -149,7 +149,9 @@ impl AsyncWrite for UnixStream {
 }
 
 pub mod fs {
+    #[cfg(feature = "tls")]
     use std::fs;
+    #[cfg(feature = "tls")]
     use std::path::Path;
 
     #[cfg(feature = "tls")]
