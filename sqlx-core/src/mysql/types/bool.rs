@@ -1,34 +1,28 @@
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::mysql::protocol::TypeId;
-use crate::mysql::type_info::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlData, MySqlValue};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
 
 impl Type<MySql> for bool {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::new(TypeId::TINY_INT)
+        // MySQL has no actual `BOOLEAN` type, the type is an alias of `TINYINT(1)`
+        <i8 as Type<MySql>>::type_info()
     }
 }
 
-impl Encode<MySql> for bool {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        buf.push(*self as u8);
+impl Encode<'_, MySql> for bool {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        <i8 as Encode<MySql>>::encode(*self as i8, buf)
     }
 }
 
-impl<'de> Decode<'de, MySql> for bool {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            MySqlData::Binary(buf) => Ok(buf.get(0).map(|&b| b != 0).unwrap_or_default()),
+impl Decode<'_, MySql> for bool {
+    fn accepts(ty: &MySqlTypeInfo) -> bool {
+        <i8 as Decode<MySql>>::accepts(ty)
+    }
 
-            MySqlData::Text(b"0") => Ok(false),
-
-            MySqlData::Text(b"1") => Ok(true),
-
-            MySqlData::Text(s) => Err(crate::Error::Decode(
-                format!("unexpected value {:?} for boolean", s).into(),
-            )),
-        }
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(<i8 as Decode<MySql>>::decode(value)? != 0)
     }
 }

@@ -1,116 +1,115 @@
+use async_stream::try_stream;
+use either::Either;
 use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::TryStreamExt;
 
-use super::PoolConnection;
-use crate::connection::Connect;
-use crate::cursor::{Cursor, HasCursor};
 use crate::database::Database;
 use crate::describe::Describe;
-use crate::executor::Execute;
-use crate::executor::{Executor, RefExecutor};
+use crate::error::Error;
+use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
 
-impl<'p, C, DB> Executor for &'p Pool<C>
+impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
-    DB: for<'c, 'q> HasCursor<'c, 'q, Database = DB>,
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
 {
     type Database = DB;
 
-    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
-        &'c mut self,
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
+        self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<u64>>
+    ) -> BoxStream<'e, Result<Either<u64, DB::Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(async move { self.acquire().await?.execute(query).await })
+        let pool = self.clone();
+
+        Box::pin(try_stream! {
+            let mut conn = pool.acquire().await?;
+            let mut s = conn.fetch_many(query);
+
+            for v in s.try_next().await? {
+                yield v;
+            }
+        })
     }
 
-    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <Self::Database as HasCursor<'_, 'q>>::Cursor
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Option<DB::Row>, Error>>
     where
-        E: Execute<'q, DB>,
+        E: Execute<'q, Self::Database>,
     {
-        DB::Cursor::from_pool(self, query)
+        let pool = self.clone();
+
+        Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q, E: 'e>(
-        &'e mut self,
+    fn describe<'e, 'q: 'e, E: 'q>(
+        self,
         query: E,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
-        Box::pin(async move { self.acquire().await?.describe(query).await })
+        let pool = self.clone();
+
+        Box::pin(async move { pool.acquire().await?.describe(query).await })
     }
 }
 
-impl<'p, C, DB> RefExecutor<'p> for &'p Pool<C>
-where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
-    DB: for<'c, 'q> HasCursor<'c, 'q>,
-    for<'c> &'c mut C: RefExecutor<'c>,
-{
-    type Database = DB;
+// NOTE: required due to lack of lazy normalization
+#[allow(unused_macros)]
+macro_rules! impl_executor_for_pool_connection {
+    ($DB:ident, $C:ident, $R:ident) => {
+        impl<'c> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<$DB> {
+            type Database = $DB;
 
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'p, 'q>>::Cursor
-    where
-        E: Execute<'q, DB>,
-    {
-        DB::Cursor::from_pool(self, query)
-    }
-}
+            #[inline]
+            fn fetch_many<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::stream::BoxStream<
+                'e,
+                Result<either::Either<u64, $R>, crate::error::Error>,
+            >
+            where
+                'c: 'e,
+                E: crate::executor::Execute<'q, $DB>,
+            {
+                (&mut **self).fetch_many(query)
+            }
 
-impl<C> Executor for PoolConnection<C>
-where
-    C: Connect,
-{
-    type Database = C::Database;
+            #[inline]
+            fn fetch_optional<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::future::BoxFuture<'e, Result<Option<$R>, crate::error::Error>>
+            where
+                'c: 'e,
+                E: crate::executor::Execute<'q, $DB>,
+            {
+                (&mut **self).fetch_optional(query)
+            }
 
-    fn execute<'e, 'q: 'e, 'c: 'e, E: 'e>(
-        &'c mut self,
-        query: E,
-    ) -> BoxFuture<'e, crate::Result<u64>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).execute(query)
-    }
-
-    fn fetch<'e, 'q, E>(&'e mut self, query: E) -> <C::Database as HasCursor<'_, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).fetch(query)
-    }
-
-    #[doc(hidden)]
-    fn describe<'e, 'q, E: 'e>(
-        &'e mut self,
-        query: E,
-    ) -> BoxFuture<'e, crate::Result<Describe<Self::Database>>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).describe(query)
-    }
-}
-
-impl<'c, C, DB> RefExecutor<'c> for &'c mut PoolConnection<C>
-where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
-    DB: for<'c2, 'q> HasCursor<'c2, 'q, Database = DB>,
-    &'c mut C: RefExecutor<'c, Database = DB>,
-{
-    type Database = DB;
-
-    fn fetch_by_ref<'q, E>(self, query: E) -> <Self::Database as HasCursor<'c, 'q>>::Cursor
-    where
-        E: Execute<'q, Self::Database>,
-    {
-        (**self).fetch(query)
-    }
+            #[doc(hidden)]
+            #[inline]
+            fn describe<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::future::BoxFuture<
+                'e,
+                Result<crate::describe::Describe<$DB>, crate::error::Error>,
+            >
+            where
+                'c: 'e,
+                E: crate::executor::Execute<'q, $DB>,
+            {
+                (&mut **self).describe(query)
+            }
+        }
+    };
 }

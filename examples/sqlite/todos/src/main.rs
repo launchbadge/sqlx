@@ -1,5 +1,4 @@
 use anyhow::Context;
-use sqlx::sqlite::SqliteQueryAs;
 use sqlx::SqlitePool;
 use std::env;
 use structopt::StructOpt;
@@ -48,6 +47,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
 }
 
 async fn add_todo(pool: &SqlitePool, description: String) -> anyhow::Result<i64> {
+    let mut conn = pool.acquire().await?;
+
     // Insert the TODO, then obtain the ID of this row
     sqlx::query!(
         r#"
@@ -56,11 +57,11 @@ VALUES ( $1 )
         "#,
         description
     )
-    .execute(pool)
+    .execute(&mut conn)
     .await?;
 
     let rec: (i64,) = sqlx::query_as("SELECT last_insert_rowid()")
-        .fetch_one(pool)
+        .fetch_one(&mut conn)
         .await?;
 
     Ok(rec.0)

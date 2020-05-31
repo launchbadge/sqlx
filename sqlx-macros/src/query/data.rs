@@ -20,7 +20,7 @@ pub struct QueryData<DB: Database> {
 
 impl<DB: Database> QueryData<DB> {
     pub async fn from_db(
-        conn: &mut impl Executor<Database = DB>,
+        conn: impl Executor<'_, Database = DB>,
         query: &str,
     ) -> crate::Result<Self> {
         Ok(QueryData {

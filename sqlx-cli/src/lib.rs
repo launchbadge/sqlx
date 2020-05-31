@@ -8,9 +8,7 @@ mod db;
 mod migration;
 mod prepare;
 
-/// Sqlx commandline tool
 #[derive(StructOpt, Debug)]
-#[structopt(name = "Sqlx")]
 pub enum Command {
     #[structopt(alias = "mig")]
     Migrate(MigrationCommand),
@@ -44,23 +42,22 @@ pub enum Command {
     },
 }
 
-/// Adds and runs migrations. Alias: mig
+/// Generate and run migrations
 #[derive(StructOpt, Debug)]
-#[structopt(name = "Sqlx migrator")]
 pub enum MigrationCommand {
-    /// Add new migration with name <timestamp>_<migration_name>.sql
+    /// Create a new migration with the given name,
+    /// using the current time as the version
     Add { name: String },
 
-    /// Run all migrations
+    /// Run all pending migrations
     Run,
 
     /// List all migrations
     List,
 }
 
-/// Create or drops database depending on your connection string. Alias: db
+/// Create or drops database depending on your connection string
 #[derive(StructOpt, Debug)]
-#[structopt(name = "Sqlx migrator")]
 pub enum DatabaseCommand {
     /// Create database in url
     Create,
@@ -78,14 +75,17 @@ pub async fn run(cmd: Command) -> anyhow::Result<()> {
             MigrationCommand::Run => migration::run().await?,
             MigrationCommand::List => migration::list().await?,
         },
+
         Command::Database(database) => match database {
             DatabaseCommand::Create => db::run_create().await?,
             DatabaseCommand::Drop => db::run_drop().await?,
         },
+
         Command::Prepare {
             check: false,
             cargo_args,
         } => prepare::run(cargo_args)?,
+
         Command::Prepare {
             check: true,
             cargo_args,

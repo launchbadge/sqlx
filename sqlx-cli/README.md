@@ -3,10 +3,14 @@
 SQLx's associated command-line utility for managing databases, migrations, and enabling "offline"
 mode with `sqlx::query!()` and friends.
 
-### Installation
+### Install
 
 ```bash
+# supports all databases supported by SQLx
 $ cargo install sqlx-cli
+
+# only for postgres
+$ cargo install sqlx-cli --no-default-features --features postgres
 ```
 
 ### Commands

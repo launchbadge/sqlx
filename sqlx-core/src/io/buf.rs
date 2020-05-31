@@ -1,144 +1,58 @@
-use byteorder::ByteOrder;
+use std::str::from_utf8;
+
+use bytes::{Buf, Bytes};
 use memchr::memchr;
-use std::{io, slice, str};
 
-pub trait Buf<'a> {
-    fn advance(&mut self, cnt: usize);
+use crate::error::Error;
 
-    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64>;
+pub trait BufExt: Buf {
+    // Read a nul-terminated byte sequence
+    fn get_bytes_nul(&mut self) -> Result<Bytes, Error>;
 
-    fn get_i8(&mut self) -> io::Result<i8>;
+    // Read a byte sequence of the exact length
+    fn get_bytes(&mut self, len: usize) -> Bytes;
 
-    fn get_u8(&mut self) -> io::Result<u8>;
+    // Read a nul-terminated string
+    fn get_str_nul(&mut self) -> Result<String, Error>;
 
-    fn get_u16<T: ByteOrder>(&mut self) -> io::Result<u16>;
-
-    fn get_i16<T: ByteOrder>(&mut self) -> io::Result<i16>;
-
-    fn get_u24<T: ByteOrder>(&mut self) -> io::Result<u32>;
-
-    fn get_i32<T: ByteOrder>(&mut self) -> io::Result<i32>;
-
-    fn get_i64<T: ByteOrder>(&mut self) -> io::Result<i64>;
-
-    fn get_u32<T: ByteOrder>(&mut self) -> io::Result<u32>;
-
-    fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64>;
-
-    fn get_str(&mut self, len: usize) -> io::Result<&'a str>;
-
-    fn get_str_nul(&mut self) -> io::Result<&'a str>;
-
-    fn get_bytes(&mut self, len: usize) -> io::Result<&'a [u8]>;
+    // Read a string of the exact length
+    fn get_str(&mut self, len: usize) -> Result<String, Error>;
 }
 
-impl<'a> Buf<'a> for &'a [u8] {
-    fn advance(&mut self, cnt: usize) {
-        *self = &self[cnt..];
+impl BufExt for Bytes {
+    fn get_bytes_nul(&mut self) -> Result<Bytes, Error> {
+        let nul = memchr(b'\0', self.bytes())
+            .ok_or_else(|| err_protocol!("expected NUL in byte sequence"))?;
+
+        let v = self.slice(0..nul);
+
+        self.advance(nul + 1);
+
+        Ok(v)
     }
 
-    fn get_uint<T: ByteOrder>(&mut self, n: usize) -> io::Result<u64> {
-        let val = T::read_uint(*self, n);
-        self.advance(n);
-
-        Ok(val)
-    }
-
-    fn get_i8(&mut self) -> io::Result<i8> {
-        let val = self[0];
-        self.advance(1);
-
-        Ok(val as i8)
-    }
-
-    fn get_u8(&mut self) -> io::Result<u8> {
-        let val = self[0];
-        self.advance(1);
-
-        Ok(val)
-    }
-
-    fn get_u16<T: ByteOrder>(&mut self) -> io::Result<u16> {
-        let val = T::read_u16(*self);
-        self.advance(2);
-
-        Ok(val)
-    }
-
-    fn get_i16<T: ByteOrder>(&mut self) -> io::Result<i16> {
-        let val = T::read_i16(*self);
-        self.advance(2);
-
-        Ok(val)
-    }
-
-    fn get_u24<T: ByteOrder>(&mut self) -> io::Result<u32> {
-        let val = T::read_u24(*self);
-        self.advance(3);
-
-        Ok(val)
-    }
-
-    fn get_i32<T: ByteOrder>(&mut self) -> io::Result<i32> {
-        let val = T::read_i32(*self);
-        self.advance(4);
-
-        Ok(val)
-    }
-
-    fn get_i64<T: ByteOrder>(&mut self) -> io::Result<i64> {
-        let val = T::read_i64(*self);
-        self.advance(4);
-
-        Ok(val)
-    }
-
-    fn get_u32<T: ByteOrder>(&mut self) -> io::Result<u32> {
-        let val = T::read_u32(*self);
-        self.advance(4);
-
-        Ok(val)
-    }
-
-    fn get_u64<T: ByteOrder>(&mut self) -> io::Result<u64> {
-        let val = T::read_u64(*self);
-        self.advance(8);
-
-        Ok(val)
-    }
-
-    fn get_str(&mut self, len: usize) -> io::Result<&'a str> {
-        str::from_utf8(self.get_bytes(len)?)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
-    }
-
-    fn get_str_nul(&mut self) -> io::Result<&'a str> {
-        let len = memchr(b'\0', &*self).ok_or(io::ErrorKind::InvalidData)?;
-        let s = &self.get_str(len + 1)?[..len];
-
-        Ok(s)
-    }
-
-    fn get_bytes(&mut self, len: usize) -> io::Result<&'a [u8]> {
-        let buf = &self[..len];
+    fn get_bytes(&mut self, len: usize) -> Bytes {
+        let v = self.slice(..len);
         self.advance(len);
 
-        Ok(buf)
+        v
     }
-}
 
-pub trait ToBuf {
-    fn to_buf(&self) -> &[u8];
-}
-
-impl ToBuf for [u8] {
-    fn to_buf(&self) -> &[u8] {
-        self
+    fn get_str_nul(&mut self) -> Result<String, Error> {
+        self.get_bytes_nul().and_then(|bytes| {
+            from_utf8(&*bytes)
+                .map(ToOwned::to_owned)
+                .map_err(|err| err_protocol!("{}", err))
+        })
     }
-}
 
-impl ToBuf for u8 {
-    fn to_buf(&self) -> &[u8] {
-        slice::from_ref(self)
+    fn get_str(&mut self, len: usize) -> Result<String, Error> {
+        let v = from_utf8(&self[..len])
+            .map_err(|err| err_protocol!("{}", err))
+            .map(ToOwned::to_owned)?;
+
+        self.advance(len);
+
+        Ok(v)
     }
 }

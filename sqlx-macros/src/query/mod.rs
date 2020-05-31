@@ -39,6 +39,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     // if `dotenv` wasn't initialized by the above we make sure to do it here
     match dotenv::var("DATABASE_URL").ok() {
         Some(db_url) => expand_from_db(input, &db_url),
+
         #[cfg(feature = "offline")]
         None => {
             let data_file_path = std::path::Path::new(&manifest_dir).join("sqlx-data.json");
@@ -53,19 +54,23 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
                 )
             }
         }
+
         #[cfg(not(feature = "offline"))]
         None => Err("`DATABASE_URL` must be set to use query macros".into()),
     }
 }
 
-#[allow(unused_variables)] // input not used when no feature is selected.
+#[allow(unused_variables)]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
+    // FIXME: Introduce [sqlx::any::AnyConnection] and [sqlx::any::AnyDatabase] to support
+    //        runtime determinism here
+
     let db_url = Url::parse(db_url)?;
     match db_url.scheme() {
         #[cfg(feature = "postgres")]
         "postgres" | "postgresql" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::postgres::PgConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
@@ -76,7 +81,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         #[cfg(feature = "mysql")]
         "mysql" | "mariadb" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
@@ -87,7 +92,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         #[cfg(feature = "sqlite")]
         "sqlite" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
@@ -157,12 +162,12 @@ where
     Describe<DB>: DescribeExt,
 {
     // validate at the minimum that our args match the query's input parameters
-    if input.arg_names.len() != data.describe.param_types.len() {
+    if input.arg_names.len() != data.describe.params.len() {
         return Err(syn::Error::new(
             Span::call_site(),
             format!(
                 "expected {} parameters, got {}",
-                data.describe.param_types.len(),
+                data.describe.params.len(),
                 input.arg_names.len()
             ),
         )
@@ -173,7 +178,7 @@ where
 
     let query_args = format_ident!("query_args");
 
-    let output = if data.describe.result_columns.is_empty() {
+    let output = if data.describe.columns.is_empty() {
         let db_path = DB::db_path();
         let sql = &input.src;
 

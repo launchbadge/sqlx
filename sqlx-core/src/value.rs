@@ -1,23 +1,121 @@
-use crate::database::Database;
+use std::borrow::Cow;
 
-/// Associate [`Database`] with a `RawValue` of a generic lifetime.
-///
-/// ---
-///
-/// The upcoming Rust feature, [Generic Associated Types], should obviate
-/// the need for this trait.
-///
-/// [Generic Associated Types]: https://www.google.com/search?q=generic+associated+types+rust&oq=generic+associated+types+rust&aqs=chrome..69i57j0l5.3327j0j7&sourceid=chrome&ie=UTF-8
-pub trait HasRawValue<'c> {
+use crate::database::{Database, HasValueRef};
+use crate::decode::Decode;
+use crate::error::{mismatched_types, Error};
+
+/// An owned value from the database.
+pub trait Value {
     type Database: Database;
 
-    /// The Rust type used to hold a not-yet-decoded value that has just been
-    /// received from the database.
-    type RawValue: RawValue<'c, Database = Self::Database>;
+    /// Get this value as a reference.
+    fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef;
+
+    /// Get the type information, if available, for this value.
+    ///
+    /// Some database implementations do not implement type deduction for
+    /// expressions (`SELECT 2 + 5`); and, this will return `None` in those cases.
+    fn type_info(&self) -> Option<Cow<'_, <Self::Database as Database>::TypeInfo>>;
+
+    /// Returns `true` if the SQL value is `NULL`.
+    fn is_null(&self) -> bool;
+
+    /// Decode this single value into the requested type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value cannot be decoded into the requested type.
+    /// See [`try_decode`](#method.try_decode) for a non-panicking version.
+    ///
+    #[inline]
+    fn decode<'r, T>(&'r self) -> T
+    where
+        T: Decode<'r, Self::Database>,
+    {
+        self.try_decode::<T>().unwrap()
+    }
+
+    /// Decode this single value into the requested type.
+    ///
+    /// Unlike [`decode`](#method.decode), this method does not check that the type of this
+    /// value is compatible with the Rust type and blindly tries to decode the value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value cannot be decoded into the requested type.
+    /// See [`try_decode_unchecked`](#method.try_decode_unchecked) for a non-panicking version.
+    ///
+    #[inline]
+    fn decode_unchecked<'r, T>(&'r self) -> T
+    where
+        T: Decode<'r, Self::Database>,
+    {
+        self.try_decode_unchecked::<T>().unwrap()
+    }
+
+    /// Decode this single value into the requested type.
+    ///
+    /// # Errors
+    ///
+    ///  * [`Decode`] if the value could not be decoded into the requested type.
+    ///
+    /// [`Decode`]: crate::Error::Decode
+    ///
+    #[inline]
+    fn try_decode<'r, T>(&'r self) -> Result<T, Error>
+    where
+        T: Decode<'r, Self::Database>,
+    {
+        if !self.is_null() {
+            if let Some(actual_ty) = self.type_info() {
+                if !T::accepts(&actual_ty) {
+                    return Err(Error::Decode(mismatched_types::<Self::Database, T>(
+                        &T::type_info(),
+                        &actual_ty,
+                    )));
+                }
+            }
+        }
+
+        self.try_decode_unchecked()
+    }
+
+    /// Decode this single value into the requested type.
+    ///
+    /// Unlike [`try_decode`](#method.try_decode), this method does not check that the type of this
+    /// value is compatible with the Rust type and blindly tries to decode the value.
+    ///
+    /// # Errors
+    ///
+    ///  * [`Decode`] if the value could not be decoded into the requested type.
+    ///
+    /// [`Decode`]: crate::Error::Decode
+    ///
+    #[inline]
+    fn try_decode_unchecked<'r, T>(&'r self) -> Result<T, Error>
+    where
+        T: Decode<'r, Self::Database>,
+    {
+        T::decode(self.as_ref()).map_err(Error::Decode)
+    }
 }
 
-pub trait RawValue<'c> {
+/// A reference to a single value from the database.
+pub trait ValueRef<'r>: Sized {
     type Database: Database;
 
-    fn type_info(&self) -> Option<<Self::Database as Database>::TypeInfo>;
+    /// Creates an owned value from this value reference.
+    ///
+    /// This is just a reference increment in PostgreSQL and MySQL and thus is `O(1)`. In SQLite,
+    /// this is a copy.
+    fn to_owned(&self) -> <Self::Database as Database>::Value;
+
+    /// Get the type information, if available, for this value.
+    ///
+    /// Some database implementations do not implement type deduction for
+    /// expressions (`SELECT 2 + 5`); and, this will return `None` in those cases.
+    fn type_info(&self) -> Option<Cow<'_, <Self::Database as Database>::TypeInfo>>;
+
+    /// Returns `true` if the SQL value is `NULL`.
+    fn is_null(&self) -> bool;
 }

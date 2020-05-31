@@ -98,7 +98,7 @@ impl_database_ext! {
 
     },
     ParamChecking::Strong,
-    feature-types: info => info.type_feature_gate(),
+    feature-types: info => info.__type_feature_gate(),
     row = sqlx::postgres::PgRow,
     name = "PostgreSQL"
 }

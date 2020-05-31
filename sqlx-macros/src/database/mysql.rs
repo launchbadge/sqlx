@@ -47,7 +47,7 @@ impl_database_ext! {
         sqlx::types::BigDecimal,
     },
     ParamChecking::Weak,
-    feature-types: info => info.type_feature_gate(),
+    feature-types: info => info.__type_feature_gate(),
     row = sqlx::mysql::MySqlRow,
-    name = "MySQL/MariaDB"
+    name = "MySQL"
 }

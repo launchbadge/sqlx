@@ -4,7 +4,7 @@
 //!
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `bool`                                | TINYINT(1)                                           |
+//! | `bool`                                | TINYINT(1), BOOLEAN                                  |
 //! | `i8`                                  | TINYINT                                              |
 //! | `i16`                                 | SMALLINT                                             |
 //! | `i32`                                 | INT                                                  |
@@ -47,6 +47,7 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
+//!
 //! ### [`json`](https://crates.io/crates/json)
 //!
 //! Requires the `json` Cargo feature flag.
@@ -79,19 +80,3 @@ mod time;
 
 #[cfg(feature = "json")]
 mod json;
-
-use crate::decode::Decode;
-use crate::mysql::{MySql, MySqlValue};
-
-impl<'de, T> Decode<'de, MySql> for Option<T>
-where
-    T: Decode<'de, MySql>,
-{
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        Ok(if value.get().is_some() {
-            Some(<T as Decode<MySql>>::decode(value)?)
-        } else {
-            None
-        })
-    }
-}

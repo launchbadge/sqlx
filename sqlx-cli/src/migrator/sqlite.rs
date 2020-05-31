@@ -132,7 +132,7 @@ impl DatabaseMigrator for Sqlite {
 
 pub struct SqliteMigration {
     db_url: String,
-    // pub transaction: sqlx::Transaction<PoolConnection<SqliteConnection>>,
+    // pub transaction: sqlx::Transaction<'static, sqlx::Sqlite, PoolConnection<sqlx::Sqlite>>,
 }
 
 #[async_trait]
