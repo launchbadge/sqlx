@@ -2,18 +2,18 @@
 name = "sqlx-cli"
 version = "0.0.1"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
-authors = [
-    "Jesper Axelsson <jesperaxe@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>" # austin@launchbadge.com
-]
 edition = "2018"
 readme = "README.md"
 homepage = "https://github.com/launchbadge/sqlx"
 repository = "https://github.com/launchbadge/sqlx"
-keywords = ["database", "postgres", "database-management", "migration"]
-categories = ["database", "command-line-utilities"]
+keywords = [ "database", "postgres", "database-management", "migration"]
+categories = [ "database", "command-line-utilities" ]
 license = "MIT OR Apache-2.0"
 default-run = "sqlx"
+authors = [
+    "Jesper Axelsson <jesperaxe@gmail.com>",
+    "Austin Bonander <austin.bonander@gmail.com>"
+]
 
 [[bin]]
 name = "sqlx"

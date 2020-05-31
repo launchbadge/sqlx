@@ -165,7 +165,7 @@ impl DatabaseMigrator for Postgres {
 }
 
 pub struct PostgresMigration {
-    transaction: sqlx::Transaction<PoolConnection<PgConnection>>,
+    transaction: sqlx::Transaction<'static, sqlx::Postgres, PoolConnection<sqlx::Postgres>>,
 }
 
 #[async_trait]

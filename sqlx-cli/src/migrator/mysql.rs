@@ -160,7 +160,7 @@ impl DatabaseMigrator for MySql {
 }
 
 pub struct MySqlMigration {
-    transaction: sqlx::Transaction<PoolConnection<MySqlConnection>>,
+    transaction: sqlx::Transaction<'static, sqlx::MySql, PoolConnection<sqlx::MySql>>,
 }
 
 #[async_trait]
