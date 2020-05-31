@@ -10,18 +10,6 @@ pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
     smol::run(future)
 }
 
-#[cfg(feature = "runtime-async-std")]
-pub(crate) mod fs {
-    use std::fs;
-    use std::path::Path;
-
-    // Only need read_to_string
-    pub async fn read_to_string<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
-        let path = path.as_ref().to_owned();
-        smol::Task::blocking(async move { fs::read_to_string(&path) }).await
-    }
-}
-
 #[cfg(feature = "runtime-tokio")]
 pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
     use once_cell::sync::Lazy;
