@@ -73,7 +73,7 @@ macro_rules! impl_database_ext {
                 }
             }
 
-            fn get_feature_gate($name: &Self::TypeInfo) -> Option<&'static str> {
+            fn get_feature_gate($ty_info: &Self::TypeInfo) -> Option<&'static str> {
                 $get_gate
             }
         }

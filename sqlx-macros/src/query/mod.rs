@@ -62,12 +62,15 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
 #[allow(unused_variables)]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
+    // FIXME: Introduce [sqlx::any::AnyConnection] and [sqlx::any::AnyDatabase] to support
+    //        runtime determinism here
+
     let db_url = Url::parse(db_url)?;
     match db_url.scheme() {
         #[cfg(feature = "postgres")]
         "postgres" | "postgresql" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::postgres::PgConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
@@ -78,7 +81,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         #[cfg(feature = "mysql")]
         "mysql" | "mariadb" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
@@ -89,7 +92,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         #[cfg(feature = "sqlite")]
         "sqlite" => {
             let data = block_on(async {
-                let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url).await?;
+                let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
