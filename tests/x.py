@@ -1,9 +1,9 @@
-#!/usr/bin/env python
 import subprocess
 import os
 import sys
 import time
 import argparse
+import getpass
 from glob import glob
 
 parser = argparse.ArgumentParser()
@@ -64,12 +64,19 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
 
     print(f"\x1b[93m $ {command} {' '.join(command_args)}\x1b[0m")
 
+    # try and rebind the user by id
+    # this only matters on *nix
+
+    try:
+        user = ["--user", f"{os.getuid()}:{os.getgid()}"]
+    except:  # noqa
+        user = []
+
     res = subprocess.run(
         [
             "docker-compose",
             "run",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
+            *user,
             "--rm",
             *environ,
             "sqlx",
