@@ -30,6 +30,20 @@ async fn it_maths() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_fail_at_querying() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let _ = conn.execute(sqlx::query("SELECT 1")).await?;
+
+    // we are testing that this does not cause a panic!
+    let _ = conn
+        .execute(sqlx::query("SELECT non_existence_table"))
+        .await;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_executes() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
