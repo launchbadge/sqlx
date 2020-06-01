@@ -18,8 +18,10 @@ proc-macro = true
 [features]
 default = [ "runtime-async-std" ]
 
+# runtimes
 runtime-async-std = [ "sqlx-core/runtime-async-std", "async-std" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "tokio", "once_cell" ]
+runtime-actix = [ "sqlx-core/runtime-actix", "tokio", "once_cell" ]
 
 # offline building support
 offline = ["sqlx-core/offline", "serde", "serde_json", "hex", "sha2"]

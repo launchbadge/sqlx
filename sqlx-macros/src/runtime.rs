@@ -1,13 +1,9 @@
-#[cfg(not(any(feature = "runtime-tokio", feature = "runtime-async-std")))]
-compile_error!("one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
-
-#[cfg(all(feature = "runtime-tokio", feature = "runtime-async-std"))]
-compile_error!("only one of 'runtime-async-std' or 'runtime-tokio' features must be enabled");
+// NOTE: this is separate from sqlx-rt because of the non-production nature of it
 
 #[cfg(feature = "runtime-async-std")]
 pub(crate) use async_std::task::block_on;
 
-#[cfg(feature = "runtime-tokio")]
+#[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
 pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
     use once_cell::sync::Lazy;
     use tokio::runtime::{self, Runtime};
