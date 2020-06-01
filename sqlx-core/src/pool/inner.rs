@@ -260,7 +260,6 @@ async fn check_conn<'s: 'p, 'p, DB: Database>(
         let _ = conn.close().await;
         return None;
     } else if options.test_on_acquire {
-        // TODO: Check on acquire should be a configuration setting
         // Check that the connection is still live
         if let Err(e) = conn.ping().await {
             // an error here means the other end has hung up or we lost connectivity
