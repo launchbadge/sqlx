@@ -173,3 +173,33 @@ services:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    #
+    # Microsoft SQL Server (MSSQL)
+    # https://hub.docker.com/_/microsoft-mssql-server
+    #
+
+    mssql_2019:
+        image: microsoft-mssql-server:2019-latest
+        environment:
+            ACCEPT_EULA: Y
+            SA_PASSWORD: Password123!
+
+    mssql_2017:
+        image: microsoft-mssql-server:2017-latest
+        environment:
+            ACCEPT_EULA: Y
+            SA_PASSWORD: Password123!
+
+    #
+    # IBM Db2
+    # https://hub.docker.com/r/ibmcom/db2
+    #
+
+    db2_11:
+        image: ibmcom/db2:11.5.1.0-CN1
+        privileged: true
+        environment:
+            LICENSE: accept
+            DB2INST1_PASSWORD: password
+            DBNAME: sqlx
