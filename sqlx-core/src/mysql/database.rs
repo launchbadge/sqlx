@@ -4,7 +4,7 @@ use crate::mysql::{
     MySqlArguments, MySqlConnection, MySqlRow, MySqlTransactionManager, MySqlTypeInfo,
 };
 
-/// PostgreSQL database driver.
+/// MySQL database driver.
 #[derive(Debug)]
 pub struct MySql;
 
