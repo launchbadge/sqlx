@@ -19,6 +19,7 @@ default = [ "runtime-async-std" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
+mssql = [ ]
 
 # types
 all-types = [ "chrono", "time", "bigdecimal", "ipnetwork", "json", "uuid" ]
