@@ -3,7 +3,7 @@
 /// This expands to an instance of [QueryAs] that outputs an ad-hoc anonymous struct type,
 /// if the query has output columns, or `()` (unit) otherwise:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -51,7 +51,7 @@
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -199,7 +199,7 @@ macro_rules! query_unchecked (
 /// ```
 ///
 /// `src/my_query.rs`:
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -276,7 +276,7 @@ macro_rules! query_file_unchecked (
 /// * Neither the query nor the struct may have unused fields.
 ///
 /// The only modification to the syntax is that the struct name is given before the SQL string:
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -336,7 +336,7 @@ macro_rules! query_as (
 ///
 /// Enforces requirements of both macros; see them for details.
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
