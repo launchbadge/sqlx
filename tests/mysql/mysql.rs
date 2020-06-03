@@ -8,7 +8,6 @@ async fn it_connects() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     conn.ping().await?;
-
     conn.close().await?;
 
     Ok(())

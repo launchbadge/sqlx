@@ -1,9 +1,10 @@
 use std::fmt::{self, Display, Formatter};
 
+use crate::mssql::protocol::type_info::TypeInfo as ProtocolTypeInfo;
 use crate::type_info::TypeInfo;
 
-#[derive(Debug, Clone)]
-pub struct MsSqlTypeInfo {}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MsSqlTypeInfo(pub(crate) ProtocolTypeInfo);
 
 impl TypeInfo for MsSqlTypeInfo {}
 
@@ -12,11 +13,3 @@ impl Display for MsSqlTypeInfo {
         unimplemented!()
     }
 }
-
-impl PartialEq<MsSqlTypeInfo> for MsSqlTypeInfo {
-    fn eq(&self, other: &MsSqlTypeInfo) -> bool {
-        unimplemented!()
-    }
-}
-
-impl Eq for MsSqlTypeInfo {}

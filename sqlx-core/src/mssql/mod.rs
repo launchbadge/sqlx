@@ -4,10 +4,13 @@ mod arguments;
 mod connection;
 mod database;
 mod error;
+mod io;
 mod options;
+mod protocol;
 mod row;
 mod transaction;
 mod type_info;
+pub mod types;
 mod value;
 
 pub use arguments::MsSqlArguments;

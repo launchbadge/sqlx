@@ -180,13 +180,13 @@ services:
     #
 
     mssql_2019:
-        image: microsoft-mssql-server:2019-latest
+        image: mcr.microsoft.com/mssql/server:2019-latest
         environment:
             ACCEPT_EULA: Y
             SA_PASSWORD: Password123!
 
     mssql_2017:
-        image: microsoft-mssql-server:2017-latest
+        image: mcr.microsoft.com/mssql/server:2017-latest
         environment:
             ACCEPT_EULA: Y
             SA_PASSWORD: Password123!

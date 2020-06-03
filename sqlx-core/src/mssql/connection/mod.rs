@@ -4,11 +4,16 @@ use futures_core::future::BoxFuture;
 
 use crate::connection::{Connect, Connection};
 use crate::error::{BoxDynError, Error};
+use crate::mssql::connection::stream::MsSqlStream;
 use crate::mssql::{MsSql, MsSqlConnectOptions};
 
+mod establish;
 mod executor;
+mod stream;
 
-pub struct MsSqlConnection {}
+pub struct MsSqlConnection {
+    stream: MsSqlStream,
+}
 
 impl Debug for MsSqlConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -44,6 +49,6 @@ impl Connect for MsSqlConnection {
     type Options = MsSqlConnectOptions;
 
     fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        unimplemented!()
+        Box::pin(MsSqlConnection::establish(options))
     }
 }

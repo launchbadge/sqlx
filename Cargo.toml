@@ -60,6 +60,7 @@ runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
+mssql = [ "sqlx-core/mssql" ]
 
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
@@ -144,3 +145,12 @@ required-features = [ "postgres" ]
 name = "postgres-describe"
 path = "tests/postgres/describe.rs"
 required-features = [ "postgres" ]
+
+#
+# Microsoft SQL Server (MSSQL)
+#
+
+[[test]]
+name = "mssql"
+path = "tests/mssql/mssql.rs"
+required-features = [ "mssql" ]
