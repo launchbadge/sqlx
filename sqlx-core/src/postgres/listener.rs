@@ -64,9 +64,10 @@ impl PgListener {
     }
 
     /// Starts listening for notifications on a channel.
+    /// The channel name is quoted here to ensure case sensitivity.
     pub async fn listen(&mut self, channel: &str) -> Result<(), Error> {
         self.connection()
-            .execute(&*format!("LISTEN {}", ident(channel)))
+            .execute(&*format!(r#"LISTEN "{}""#, ident(channel)))
             .await?;
 
         self.channels.push(channel.to_owned());
@@ -92,9 +93,10 @@ impl PgListener {
     }
 
     /// Stops listening for notifications on a channel.
+    /// The channel name is quoted here to ensure case sensitivity.
     pub async fn unlisten(&mut self, channel: &str) -> Result<(), Error> {
         self.connection()
-            .execute(&*format!("UNLISTEN {}", ident(channel)))
+            .execute(&*format!(r#"UNLISTEN "{}""#, ident(channel)))
             .await?;
 
         if let Some(pos) = self.channels.iter().position(|s| s == channel) {
