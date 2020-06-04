@@ -62,7 +62,6 @@ mod private_column_index {
 /// This trait is sealed and cannot be implemented for types outside of SQLx.
 ///
 /// [`FromRow`]: crate::row::FromRow
-/// [`Cursor`]: crate::cursor::Cursor
 /// [`Query::fetch`]: crate::query::Query::fetch
 pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     type Database: Database;

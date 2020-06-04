@@ -3,12 +3,13 @@ use super::attributes::{
     check_weak_enum_attributes, parse_child_attributes, parse_container_attributes,
 };
 use super::rename_all;
+use proc_macro2::Span;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
     parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Stmt, Variant,
+    FieldsUnnamed, Lifetime, Stmt, Variant,
 };
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -61,22 +62,25 @@ fn expand_derive_encode_transparent(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     // add db type for impl generics & where clause
+    let lifetime = Lifetime::new("'q", Span::call_site());
     let mut generics = generics.clone();
     generics.params.insert(0, parse_quote!(DB: sqlx::Database));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: sqlx::encode::Encode<DB>));
+        .push(parse_quote!(#ty: sqlx::encode::Encode<#lifetime, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
-        impl #impl_generics sqlx::encode::Encode<DB> for #ident #ty_generics #where_clause {
-            fn encode(&self, buf: &mut DB::RawBuffer) {
-                sqlx::encode::Encode::encode(&self.0, buf)
+        impl<#lifetime> #impl_generics sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics #where_clause {
+            fn encode(self, buf: &mut <DB as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                sqlx::encode::Encode::encode(self.0, buf)
             }
-            fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> sqlx::encode::IsNull {
-                sqlx::encode::Encode::encode_nullable(&self.0, buf)
+
+            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                sqlx::encode::Encode::encode_by_ref(&self.0, buf)
             }
+
             fn size_hint(&self) -> usize {
                 sqlx::encode::Encode::size_hint(&self.0)
             }
@@ -94,13 +98,13 @@ fn expand_derive_encode_weak_enum(
     let ident = &input.ident;
 
     Ok(quote!(
-        impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where #repr: sqlx::encode::Encode<DB> {
-            fn encode(&self, buf: &mut DB::RawBuffer) {
-                sqlx::encode::Encode::encode(&(*self as #repr), buf)
+        impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where #repr: sqlx::encode::Encode<'q, DB> {
+            fn encode(self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                sqlx::encode::Encode::encode((self as #repr), buf)
             }
 
-            fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> sqlx::encode::IsNull {
-                sqlx::encode::Encode::encode_nullable(&(*self as #repr), buf)
+            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                sqlx::encode::Encode::encode_by_ref(&(*self as #repr), buf)
             }
 
             fn size_hint(&self) -> usize {
@@ -136,19 +140,20 @@ fn expand_derive_encode_strong_enum(
     }
 
     Ok(quote!(
-        impl<DB: sqlx::Database> sqlx::encode::Encode<DB> for #ident where str: sqlx::encode::Encode<DB> {
-            fn encode(&self, buf: &mut DB::RawBuffer) {
+        impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where str: sqlx::encode::Encode<'q, DB> {
+            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
                 };
-                <str as sqlx::encode::Encode<DB>>::encode(val, buf)
+
+                <str as sqlx::encode::Encode<'q, DB>>::encode_by_ref(val, buf)
             }
 
             fn size_hint(&self) -> usize {
                 let val = match self {
                     #(#value_arms)*
                 };
-                <str as sqlx::encode::Encode<DB>>::size_hint(val)
+                <str as sqlx::encode::Encode<'q, DB>>::size_hint(val)
             }
         }
     ))
@@ -177,8 +182,8 @@ fn expand_derive_encode_struct(
         for field in fields {
             let ty = &field.ty;
 
-            predicates.push(parse_quote!(#ty: sqlx::encode::Encode<sqlx::Postgres>));
-            predicates.push(parse_quote!(#ty: sqlx::types::Type<sqlx::Postgres>));
+            predicates.push(parse_quote!(#ty: sqlx::encode::Encode<'q, sqlx::Postgres>));
+            predicates.push(parse_quote!(#ty: sqlx::types::Type<'q, sqlx::Postgres>));
         }
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -202,13 +207,13 @@ fn expand_derive_encode_struct(
         });
 
         tts.extend(quote!(
-            impl #impl_generics sqlx::encode::Encode<sqlx::Postgres> for #ident #ty_generics #where_clause {
-                fn encode(&self, buf: &mut sqlx::postgres::PgRawBuffer) {
+            impl<'q> #impl_generics sqlx::encode::Encode<'q, sqlx::Postgres> for #ident #ty_generics #where_clause {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
                     let mut encoder = sqlx::postgres::types::raw::PgRecordEncoder::new(buf);
 
                     #(#writes)*
 
-                    encoder.finish();
+                    encoder.finish()
                 }
 
                 fn size_hint(&self) -> usize {

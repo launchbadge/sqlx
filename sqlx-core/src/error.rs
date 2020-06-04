@@ -11,7 +11,7 @@ use crate::database::Database;
 pub type Result<T> = StdResult<T, Error>;
 
 // Convenience type alias for usage within SQLx.
-pub(crate) type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
+pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 /// An unexpected `NULL` was encountered during decoding.
 ///
