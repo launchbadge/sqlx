@@ -226,7 +226,7 @@ where
     let ret_tokens = quote! {
         macro_rules! macro_result {
             (#($#arg_names:expr),*) => {{
-                use sqlx::arguments::Arguments as _;
+                use sqlx::Arguments as _;
 
                 #args_tokens
 

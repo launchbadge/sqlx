@@ -64,12 +64,12 @@ fn expand_derive_has_sql_type_transparent(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: sqlx::types::Type<DB>));
+        .push(parse_quote!(#ty: sqlx::Type<DB>));
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
-        impl #impl_generics sqlx::types::Type< DB > for #ident #ty_generics #where_clause {
+        impl #impl_generics sqlx::Type< DB > for #ident #ty_generics #where_clause {
             fn type_info() -> DB::TypeInfo {
                 <#ty as sqlx::Type<DB>>::type_info()
             }
@@ -154,7 +154,7 @@ fn expand_derive_has_sql_type_struct(
         let ty_name = attributes.rename.unwrap_or_else(|| ident.to_string());
 
         tts.extend(quote!(
-            impl sqlx::types::Type< sqlx::Postgres > for #ident {
+            impl sqlx::Type< sqlx::Postgres > for #ident {
                 fn type_info() -> sqlx::postgres::PgTypeInfo {
                     sqlx::postgres::PgTypeInfo::with_name(#ty_name)
                 }
