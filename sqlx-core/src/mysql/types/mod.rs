@@ -66,8 +66,11 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod mysql_zero_date;
 mod str;
 mod uint;
+
+pub use mysql_zero_date::MysqlZeroDate;
 
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;

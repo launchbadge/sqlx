@@ -41,6 +41,7 @@ test_type!(bytes<Vec<u8>>(MySql,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
+    use sqlx::mysql::types::MysqlZeroDate;
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
     test_type!(chrono_date<NaiveDate>(
@@ -67,6 +68,143 @@ mod chrono {
                 Utc,
             )
     ));
+
+    test_type!(chrono_maybe_zero_datetime<MysqlZeroDate<NaiveDateTime>>(
+        MySql,
+        "TIMESTAMP '2019-01-02 05:10:20'" == MysqlZeroDate::NotZero(NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20))
+    ));
+
+    #[sqlx_macros::test]
+    async fn test_prepared_type_chrono_zero_datetime() -> anyhow::Result<()> {
+        use sqlx::Executor;
+        use sqlx::Row;
+
+        let mut conn = sqlx_test::new::<MySql>().await?;
+
+        // In order for this test to work we need to allow zero dates on the connection
+        // which is disabled by default
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_IN_DATE', '');")
+            .await?;
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_DATE', '');")
+            .await?;
+
+        let query = format!(
+            "SELECT {0} <=> ?, {0} as _2, ? as _3;",
+            "TIMESTAMP '0000-00-00 00:00:00'"
+        );
+
+        let row = sqlx::query(&query)
+            .bind(MysqlZeroDate::<NaiveDateTime>::Zero)
+            .bind(MysqlZeroDate::<NaiveDateTime>::Zero)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let matches: i32 = row.try_get(0)?;
+        let returned: MysqlZeroDate<NaiveDateTime> =
+            row.try_get::<MysqlZeroDate<NaiveDateTime>, _>(1)?;
+        let round_trip: MysqlZeroDate<NaiveDateTime> =
+            row.try_get::<MysqlZeroDate<NaiveDateTime>, _>(2)?;
+
+        assert!(
+            matches != 0,
+            "[1] DB value mismatch; given value: {:?}\n\
+                 as returned: {:?}\n\
+                 round-trip: {:?}",
+            MysqlZeroDate::<NaiveDateTime>::Zero,
+            returned,
+            round_trip
+        );
+
+        assert_eq!(
+            MysqlZeroDate::<NaiveDateTime>::Zero,
+            returned,
+            "[2] DB value mismatch; given value: {:?}\n\
+                         as returned: {:?}\n\
+                         round-trip: {:?}",
+            MysqlZeroDate::<NaiveDateTime>::Zero,
+            returned,
+            round_trip
+        );
+
+        assert_eq!(
+            MysqlZeroDate::<NaiveDateTime>::Zero,
+            round_trip,
+            "[3] DB value mismatch; given value: {:?}\n\
+                         as returned: {:?}\n\
+                         round-trip: {:?}",
+            MysqlZeroDate::<NaiveDateTime>::Zero,
+            returned,
+            round_trip
+        );
+
+        Ok(())
+    }
+
+    test_type!(chrono_maybe_zero_date<MysqlZeroDate<NaiveDate>>(
+        MySql,
+        "DATE '2019-01-02'" == MysqlZeroDate::NotZero(NaiveDate::from_ymd(2019, 1, 2))
+    ));
+
+    #[sqlx_macros::test]
+    async fn test_prepared_type_chrono_zero_date() -> anyhow::Result<()> {
+        use sqlx::Executor;
+        use sqlx::Row;
+
+        let mut conn = sqlx_test::new::<MySql>().await?;
+
+        // In order for this test to work we need to allow zero dates on the connection
+        // which is disabled by default
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_IN_DATE', '');")
+            .await?;
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_DATE', '');")
+            .await?;
+
+        let query = format!("SELECT {0} <=> ?, {0} as _2, ? as _3;", "DATE '0000-00-00'");
+
+        let row = sqlx::query(&query)
+            .bind(MysqlZeroDate::<NaiveDate>::Zero)
+            .bind(MysqlZeroDate::<NaiveDate>::Zero)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let matches: i32 = row.try_get(0)?;
+        let returned: MysqlZeroDate<NaiveDate> = row.try_get::<MysqlZeroDate<NaiveDate>, _>(1)?;
+        let round_trip: MysqlZeroDate<NaiveDate> = row.try_get::<MysqlZeroDate<NaiveDate>, _>(2)?;
+
+        assert!(
+            matches != 0,
+            "[1] DB value mismatch; given value: {:?}\n\
+                 as returned: {:?}\n\
+                 round-trip: {:?}",
+            MysqlZeroDate::<NaiveDate>::Zero,
+            returned,
+            round_trip
+        );
+
+        assert_eq!(
+            MysqlZeroDate::<NaiveDate>::Zero,
+            returned,
+            "[2] DB value mismatch; given value: {:?}\n\
+                         as returned: {:?}\n\
+                         round-trip: {:?}",
+            MysqlZeroDate::<NaiveDate>::Zero,
+            returned,
+            round_trip
+        );
+
+        assert_eq!(
+            MysqlZeroDate::<NaiveDate>::Zero,
+            round_trip,
+            "[3] DB value mismatch; given value: {:?}\n\
+                         as returned: {:?}\n\
+                         round-trip: {:?}",
+            MysqlZeroDate::<NaiveDate>::Zero,
+            returned,
+            round_trip
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "time")]

@@ -8,8 +8,20 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::type_info::MySqlTypeInfo;
+use crate::mysql::types::MysqlZeroDate;
 use crate::mysql::{MySql, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
+
+#[derive(Debug, Clone)]
+struct ZeroDateError;
+
+impl std::fmt::Display for ZeroDateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unexpected ZERO_DATE encountered!")
+    }
+}
+
+impl std::error::Error for ZeroDateError {}
 
 impl Type<MySql> for DateTime<Utc> {
     fn type_info() -> MySqlTypeInfo {
@@ -29,7 +41,10 @@ impl Encode<'_, MySql> for DateTime<Utc> {
 
 impl<'r> Decode<'r, MySql> for DateTime<Utc> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
+        let naive: NaiveDateTime = match Decode::<MySql>::decode(value)? {
+            MysqlZeroDate::Zero => return Err(Box::new(ZeroDateError)),
+            MysqlZeroDate::NotZero(date) => date,
+        };
 
         Ok(DateTime::from_utc(naive, Utc))
     }
@@ -97,9 +112,41 @@ impl<'r> Decode<'r, MySql> for NaiveTime {
     }
 }
 
+impl Type<MySql> for MysqlZeroDate<NaiveDate> {
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::binary(ColumnType::Date)
+    }
+}
+
 impl Type<MySql> for NaiveDate {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Date)
+    }
+}
+
+impl Encode<'_, MySql> for MysqlZeroDate<NaiveDateTime> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        match *self {
+            MysqlZeroDate::Zero => {
+                buf.push(0);
+
+                IsNull::No
+            }
+            MysqlZeroDate::NotZero(date) => Encode::<MySql>::encode(date, buf),
+        }
+    }
+}
+
+impl Encode<'_, MySql> for MysqlZeroDate<NaiveDate> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        match *self {
+            MysqlZeroDate::Zero => {
+                buf.push(0);
+
+                IsNull::No
+            }
+            MysqlZeroDate::NotZero(date) => Encode::<MySql>::encode(date, buf),
+        }
     }
 }
 
@@ -119,14 +166,41 @@ impl Encode<'_, MySql> for NaiveDate {
 
 impl<'r> Decode<'r, MySql> for NaiveDate {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        let naive: NaiveDate = match Decode::<MySql>::decode(value)? {
+            MysqlZeroDate::Zero => return Err(Box::new(ZeroDateError)),
+            MysqlZeroDate::NotZero(date) => date,
+        };
+
+        Ok(naive)
+    }
+}
+
+impl<'r> Decode<'r, MySql> for MysqlZeroDate<NaiveDate> {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
-            MySqlValueFormat::Binary => Ok(decode_date(&value.as_bytes()?[1..])),
+            MySqlValueFormat::Binary => {
+                let buf = value.as_bytes()?;
+                let len = buf[0];
+                if len == 0 {
+                    Ok(MysqlZeroDate::Zero)
+                } else {
+                    Ok(MysqlZeroDate::NotZero(decode_date(&value.as_bytes()?[1..])))
+                }
+            }
 
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
-                NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(Into::into)
+                NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .map(MysqlZeroDate::NotZero)
+                    .map_err(Into::into)
             }
         }
+    }
+}
+
+impl Type<MySql> for MysqlZeroDate<NaiveDateTime> {
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::binary(ColumnType::Datetime)
     }
 }
 
@@ -171,14 +245,29 @@ impl Encode<'_, MySql> for NaiveDateTime {
         }
     }
 }
-
 impl<'r> Decode<'r, MySql> for NaiveDateTime {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        let naive: NaiveDateTime = match Decode::<MySql>::decode(value)? {
+            MysqlZeroDate::Zero => return Err(Box::new(ZeroDateError)),
+            MysqlZeroDate::NotZero(date) => date,
+        };
+
+        Ok(naive)
+    }
+}
+
+impl<'r> Decode<'r, MySql> for MysqlZeroDate<NaiveDateTime> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
 
                 let len = buf[0];
+
+                if len == 0 {
+                    return Ok(MysqlZeroDate::Zero);
+                }
+
                 let date = decode_date(&buf[1..]);
 
                 let dt = if len > 4 {
@@ -187,12 +276,14 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
                     date.and_hms(0, 0, 0)
                 };
 
-                Ok(dt)
+                Ok(MysqlZeroDate::NotZero(dt))
             }
 
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
-                NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").map_err(Into::into)
+                NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f")
+                    .map(MysqlZeroDate::NotZero)
+                    .map_err(Into::into)
             }
         }
     }
