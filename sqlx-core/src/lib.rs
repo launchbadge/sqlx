@@ -59,11 +59,3 @@ pub mod sqlite;
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub mod mysql;
-
-// #[cfg(feature = "mssql")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-// pub mod mssql;
-
-#[cfg(feature = "db2")]
-#[cfg_attr(docsrs, doc(cfg(feature = "db2")))]
-pub mod db2;
