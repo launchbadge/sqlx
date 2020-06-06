@@ -1,3 +1,4 @@
+use futures::TryStreamExt;
 use sqlx::mssql::MsSql;
 use sqlx::{Connection, Executor, Row};
 use sqlx_core::mssql::MsSqlRow;
@@ -37,6 +38,38 @@ async fn it_maths() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(6_i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_executes() -> anyhow::Result<()> {
+    let mut conn = new::<MsSql>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TABLE #users (id INTEGER PRIMARY KEY);
+            "#,
+        )
+        .await?;
+
+    for index in 1..=10_i32 {
+        let cnt = sqlx::query("INSERT INTO #users (id) VALUES (@p1)")
+            .bind(index * 2)
+            .execute(&mut conn)
+            .await?;
+
+        assert_eq!(cnt, 1);
+    }
+
+    let sum: i32 = sqlx::query("SELECT id FROM #users")
+        .try_map(|row: MsSqlRow| row.try_get::<i32, _>(0))
+        .fetch(&mut conn)
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
+        .await?;
+
+    assert_eq!(sum, 110);
 
     Ok(())
 }

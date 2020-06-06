@@ -76,6 +76,9 @@ impl MsSqlConnection {
             }
         }
 
-        Ok(Self { stream })
+        Ok(Self {
+            stream,
+            pending_done_count: 0,
+        })
     }
 }

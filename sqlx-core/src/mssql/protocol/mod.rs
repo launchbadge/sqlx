@@ -9,6 +9,7 @@ pub(crate) mod login_ack;
 pub(crate) mod message;
 pub(crate) mod packet;
 pub(crate) mod pre_login;
+pub(crate) mod return_status;
 pub(crate) mod row;
 pub(crate) mod rpc;
 pub(crate) mod sql_batch;

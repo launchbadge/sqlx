@@ -16,6 +16,9 @@ mod stream;
 
 pub struct MsSqlConnection {
     stream: MsSqlStream,
+
+    // number of Done* messages that we are currently expecting
+    pub(crate) pending_done_count: usize,
 }
 
 impl Debug for MsSqlConnection {

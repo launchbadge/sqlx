@@ -7,6 +7,7 @@ use futures_util::TryStreamExt;
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::mssql::protocol::done::Done;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
@@ -14,7 +15,31 @@ use crate::mssql::protocol::sql_batch::SqlBatch;
 use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow};
 
 impl MsSqlConnection {
+    async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if !self.stream.wbuf.is_empty() {
+            self.stream.flush().await?;
+        }
+
+        while self.pending_done_count > 0 {
+            if let Message::DoneProc(done) | Message::Done(done) =
+                self.stream.recv_message().await?
+            {
+                // finished RPC procedure *OR* SQL batch
+                self.handle_done(done);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn handle_done(&mut self, _: Done) {
+        self.pending_done_count -= 1;
+    }
+
     async fn run(&mut self, query: &str, arguments: Option<MsSqlArguments>) -> Result<(), Error> {
+        self.wait_until_ready().await?;
+        self.pending_done_count += 1;
+
         if let Some(mut arguments) = arguments {
             let proc = Either::Right(Procedure::ExecuteSql);
             let mut proc_args = MsSqlArguments::default();
@@ -22,12 +47,14 @@ impl MsSqlConnection {
             // SQL
             proc_args.add_unnamed(query);
 
-            // Declarations
-            //  NAME TYPE, NAME TYPE, ...
-            proc_args.add_unnamed(&*arguments.declarations);
+            if !arguments.data.is_empty() {
+                // Declarations
+                //  NAME TYPE, NAME TYPE, ...
+                proc_args.add_unnamed(&*arguments.declarations);
 
-            // Add the list of SQL parameters _after_ our RPC parameters
-            proc_args.append(&mut arguments);
+                // Add the list of SQL parameters _after_ our RPC parameters
+                proc_args.append(&mut arguments);
+            }
 
             self.stream.write_packet(
                 PacketType::Rpc,
@@ -72,10 +99,19 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
                         yield v;
                     }
 
-                    Message::Done(done) => {
+                    Message::DoneProc(done) => {
+                        self.handle_done(done);
+                        break;
+                    }
+
+                    Message::DoneInProc(done) => {
+                        // finished SQL query *within* procedure
                         let v = Either::Left(done.affected_rows);
                         yield v;
+                    }
 
+                    Message::Done(done) => {
+                        self.handle_done(done);
                         break;
                     }
 

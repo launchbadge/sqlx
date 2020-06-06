@@ -3,21 +3,11 @@ use bytes::{Buf, Bytes};
 
 use crate::error::Error;
 
-// Token Stream Function:
-//      Indicates the completion status of a SQL statementwithin a stored procedure.
-
-// Token Stream Definition:
-//      DONEINPROC =
-//          TokenType
-//          Status
-//          CurCmd
-//          DoneRowCount
-
 #[derive(Debug)]
 pub(crate) struct Done {
     status: Status,
 
-    // The token of the current SQL statement. The token value is provided andcontrolled by the
+    // The token of the current SQL statement. The token value is provided and controlled by the
     // application layer, which utilizes TDS. The TDS layer does not evaluate the value.
     cursor_command: u16,
 

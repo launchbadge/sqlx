@@ -6,6 +6,7 @@ use crate::mssql::protocol::env_change::EnvChange;
 use crate::mssql::protocol::error::Error;
 use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
+use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::row::Row;
 
 #[derive(Debug)]
@@ -14,7 +15,10 @@ pub(crate) enum Message {
     LoginAck(LoginAck),
     EnvChange(EnvChange),
     Done(Done),
+    DoneInProc(Done),
+    DoneProc(Done),
     Row(Row),
+    ReturnStatus(ReturnStatus),
 }
 
 #[derive(Debug)]
@@ -23,9 +27,12 @@ pub(crate) enum MessageType {
     LoginAck,
     EnvChange,
     Done,
+    DoneProc,
+    DoneInProc,
     Row,
     Error,
     ColMetaData,
+    ReturnStatus,
 }
 
 impl MessageType {
@@ -37,7 +44,10 @@ impl MessageType {
             0xad => MessageType::LoginAck,
             0xd1 => MessageType::Row,
             0xe3 => MessageType::EnvChange,
+            0x79 => MessageType::ReturnStatus,
             0xfd => MessageType::Done,
+            0xfe => MessageType::DoneProc,
+            0xff => MessageType::DoneInProc,
 
             ty => {
                 return Err(err_protocol!(

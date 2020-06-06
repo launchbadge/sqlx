@@ -13,6 +13,7 @@ use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::{Message, MessageType};
 use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
+use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::row::Row;
 use crate::mssql::{MsSqlConnectOptions, MsSqlDatabaseError};
 use crate::net::MaybeTlsStream;
@@ -106,13 +107,15 @@ impl MsSqlStream {
                 };
 
                 let ty = MessageType::get(buf)?;
-
-                return Ok(match ty {
+                let message = match ty {
                     MessageType::EnvChange => Message::EnvChange(EnvChange::get(buf)?),
                     MessageType::Info => Message::Info(Info::get(buf)?),
                     MessageType::Row => Message::Row(Row::get(buf, &self.columns)?),
                     MessageType::LoginAck => Message::LoginAck(LoginAck::get(buf)?),
+                    MessageType::ReturnStatus => Message::ReturnStatus(ReturnStatus::get(buf)?),
                     MessageType::Done => Message::Done(Done::get(buf)?),
+                    MessageType::DoneInProc => Message::DoneInProc(Done::get(buf)?),
+                    MessageType::DoneProc => Message::DoneProc(Done::get(buf)?),
 
                     MessageType::Error => {
                         let err = ProtocolError::get(buf)?;
@@ -125,7 +128,9 @@ impl MsSqlStream {
                         ColMetaData::get(buf, &mut self.columns)?;
                         continue;
                     }
-                });
+                };
+
+                return Ok(message);
             }
 
             // no packet from the server to iterate (or its empty); fill our buffer
