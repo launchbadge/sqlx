@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
-use sqlx_rt::{TcpStream, TlsStream};
+use sqlx_rt::TcpStream;
 
 use crate::error::Error;
 use crate::io::{BufStream, Encode};
@@ -21,6 +21,10 @@ use crate::net::MaybeTlsStream;
 pub(crate) struct MsSqlStream {
     inner: BufStream<MaybeTlsStream<TcpStream>>,
 
+    // current transaction descriptor
+    // set from ENVCHANGE on `BEGIN` and reset to `0` on a ROLLBACK
+    pub(crate) transaction_descriptor: u64,
+
     // current TabularResult from the server that we are iterating over
     response: Option<(PacketHeader, Bytes)>,
 
@@ -39,12 +43,13 @@ impl MsSqlStream {
             inner,
             columns: Vec::new(),
             response: None,
+            transaction_descriptor: 0,
         })
     }
 
     // writes the packet out to the write buffer
     // will (eventually) handle packet chunking
-    pub(super) fn write_packet<'en, T: Encode<'en>>(&mut self, ty: PacketType, payload: T) {
+    pub(crate) fn write_packet<'en, T: Encode<'en>>(&mut self, ty: PacketType, payload: T) {
         // TODO: Support packet chunking for large packet sizes
         //       We likely need to double-buffer the writes so we know to chunk
 
@@ -98,7 +103,7 @@ impl MsSqlStream {
     pub(super) async fn recv_message(&mut self) -> Result<Message, Error> {
         loop {
             while self.response.as_ref().map_or(false, |r| !r.1.is_empty()) {
-                let mut buf = if let Some((_, buf)) = self.response.as_mut() {
+                let buf = if let Some((_, buf)) = self.response.as_mut() {
                     buf
                 } else {
                     // this shouldn't be reachable but just nope out
@@ -108,8 +113,27 @@ impl MsSqlStream {
 
                 let ty = MessageType::get(buf)?;
                 let message = match ty {
-                    MessageType::EnvChange => Message::EnvChange(EnvChange::get(buf)?),
-                    MessageType::Info => Message::Info(Info::get(buf)?),
+                    MessageType::EnvChange => {
+                        match EnvChange::get(buf)? {
+                            EnvChange::BeginTransaction(desc) => {
+                                self.transaction_descriptor = desc;
+                            }
+
+                            EnvChange::CommitTransaction(_) | EnvChange::RollbackTransaction(_) => {
+                                self.transaction_descriptor = 0;
+                            }
+
+                            _ => {}
+                        }
+
+                        continue;
+                    }
+
+                    MessageType::Info => {
+                        let _ = Info::get(buf)?;
+                        continue;
+                    }
+
                     MessageType::Row => Message::Row(Row::get(buf, &self.columns)?),
                     MessageType::LoginAck => Message::LoginAck(LoginAck::get(buf)?),
                     MessageType::ReturnStatus => Message::ReturnStatus(ReturnStatus::get(buf)?),

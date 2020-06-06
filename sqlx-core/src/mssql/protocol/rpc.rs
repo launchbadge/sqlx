@@ -7,6 +7,8 @@ use crate::mssql::protocol::header::{AllHeaders, Header};
 use crate::mssql::MsSqlArguments;
 
 pub(crate) struct RpcRequest<'a> {
+    pub(crate) transaction_descriptor: u64,
+
     // the procedure can be encoded as a u16 of a built-in or the name for a custom one
     pub(crate) procedure: Either<&'a str, Procedure>,
     pub(crate) options: OptionFlags,
@@ -67,7 +69,7 @@ impl Encode<'_> for RpcRequest<'_> {
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
         AllHeaders(&[Header::TransactionDescriptor {
             outstanding_request_count: 1,
-            transaction_descriptor: 0,
+            transaction_descriptor: self.transaction_descriptor,
         }])
         .encode(buf);
 

@@ -2,7 +2,6 @@ use crate::error::Error;
 use crate::io::Decode;
 use crate::mssql::connection::stream::MsSqlStream;
 use crate::mssql::protocol::login::Login7;
-use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::pre_login::{Encrypt, PreLogin, Version};

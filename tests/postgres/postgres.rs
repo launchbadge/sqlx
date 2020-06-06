@@ -179,165 +179,121 @@ async fn it_can_query_all_scalar() -> anyhow::Result<()> {
     Ok(())
 }
 
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn it_can_work_with_transactions() -> anyhow::Result<()> {
-//     let mut conn = new::<Postgres>().await?;
-//
-//     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
-//         .await?;
-//
-//     conn.execute("TRUNCATE _sqlx_users_1922").await?;
-//
-//     // begin .. rollback
-//
-//     let mut tx = conn.begin().await?;
-//
-//     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
-//         .bind(10_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     conn = tx.rollback().await?;
-//
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
-//         .fetch_one(&mut conn)
-//         .await?;
-//
-//     assert_eq!(count, 0);
-//
-//     // begin .. commit
-//
-//     let mut tx = conn.begin().await?;
-//
-//     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
-//         .bind(10_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     conn = tx.commit().await?;
-//
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
-//         .fetch_one(&mut conn)
-//         .await?;
-//
-//     assert_eq!(count, 1);
-//
-//     // begin .. (drop)
-//
-//     {
-//         let mut tx = conn.begin().await?;
-//
-//         sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
-//             .bind(20_i32)
-//             .execute(&mut tx)
-//             .await?;
-//     }
-//
-//     conn = new::<Postgres>().await?;
-//
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
-//         .fetch_one(&mut conn)
-//         .await?;
-//
-//     assert_eq!(count, 1);
-//
-//     Ok(())
-// }
-//
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
-//     let mut conn = new::<Postgres>().await?;
-//
-//     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
-//         .await?;
-//
-//     conn.execute("TRUNCATE _sqlx_users_2523").await?;
-//
-//     // begin
-//     let mut tx = conn.begin().await?;
-//
-//     // insert a user
-//     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
-//         .bind(50_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     // begin once more
-//     let mut tx = tx.begin().await?;
-//
-//     // insert another user
-//     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
-//         .bind(10_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     // never mind, rollback
-//     let mut tx = tx.rollback().await?;
-//
-//     // did we really?
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
-//         .fetch_one(&mut tx)
-//         .await?;
-//
-//     assert_eq!(count, 1);
-//
-//     // actually, commit
-//     let mut conn = tx.commit().await?;
-//
-//     // did we really?
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
-//         .fetch_one(&mut conn)
-//         .await?;
-//
-//     assert_eq!(count, 1);
-//
-//     Ok(())
-// }
-//
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn it_can_rollback_nested_transactions() -> anyhow::Result<()> {
-//     let mut conn = new::<Postgres>().await?;
-//
-//     conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_512412 (id INTEGER PRIMARY KEY)")
-//         .await?;
-//
-//     conn.execute("TRUNCATE _sqlx_users_512412").await?;
-//
-//     // begin
-//     let mut tx = conn.begin().await?;
-//
-//     // insert a user
-//     sqlx::query("INSERT INTO _sqlx_users_512412 (id) VALUES ($1)")
-//         .bind(50_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     // begin once more
-//     let mut tx = tx.begin().await?;
-//
-//     // insert another user
-//     sqlx::query("INSERT INTO _sqlx_users_512412 (id) VALUES ($1)")
-//         .bind(10_i32)
-//         .execute(&mut tx)
-//         .await?;
-//
-//     // stop the phone, drop the entire transaction
-//     tx.close().await?;
-//
-//     // did we really?
-//     let mut conn = new::<Postgres>().await?;
-//     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_512412")
-//         .fetch_one(&mut conn)
-//         .await?;
-//
-//     assert_eq!(count, 0);
-//
-//     Ok(())
-// }
-//
+#[sqlx_macros::test]
+async fn it_can_work_with_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
+        .await?;
+
+    conn.execute("TRUNCATE _sqlx_users_1922").await?;
+
+    // begin .. rollback
+
+    let mut tx = conn.begin().await?;
+
+    sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+        .bind(10_i32)
+        .execute(&mut tx)
+        .await?;
+
+    tx.rollback().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 0);
+
+    // begin .. commit
+
+    let mut tx = conn.begin().await?;
+
+    sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+        .bind(10_i32)
+        .execute(&mut tx)
+        .await?;
+
+    tx.commit().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 1);
+
+    // begin .. (drop)
+
+    {
+        let mut tx = conn.begin().await?;
+
+        sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
+            .bind(20_i32)
+            .execute(&mut tx)
+            .await?;
+    }
+
+    conn = new::<Postgres>().await?;
+
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
+        .await?;
+
+    conn.execute("TRUNCATE _sqlx_users_2523").await?;
+
+    // begin
+    let mut tx = conn.begin().await?;
+
+    // insert a user
+    sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
+        .bind(50_i32)
+        .execute(&mut tx)
+        .await?;
+
+    // begin once more
+    let mut tx2 = tx.begin().await?;
+
+    // insert another user
+    sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
+        .bind(10_i32)
+        .execute(&mut tx2)
+        .await?;
+
+    // never mind, rollback
+    tx2.rollback().await?;
+
+    // did we really?
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
+        .fetch_one(&mut tx)
+        .await?;
+
+    assert_eq!(count, 1);
+
+    // actually, commit
+    tx.commit().await?;
+
+    // did we really?
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 1);
+
+    Ok(())
+}
+
 // // run with `cargo test --features postgres -- --ignored --nocapture pool_smoke_test`
 // #[ignore]
 // #[cfg_attr(feature = "runtime-async-std", async_std::test)]

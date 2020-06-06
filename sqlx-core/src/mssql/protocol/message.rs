@@ -1,19 +1,13 @@
 use bytes::{Buf, Bytes};
 
-use crate::mssql::protocol::col_meta_data::ColMetaData;
 use crate::mssql::protocol::done::Done;
-use crate::mssql::protocol::env_change::EnvChange;
-use crate::mssql::protocol::error::Error;
-use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::row::Row;
 
 #[derive(Debug)]
 pub(crate) enum Message {
-    Info(Info),
     LoginAck(LoginAck),
-    EnvChange(EnvChange),
     Done(Done),
     DoneInProc(Done),
     DoneProc(Done),

@@ -1,25 +1,5 @@
-use hex::encode;
-use std::mem::size_of;
-
 use crate::io::Encode;
 use crate::mssql::io::MsSqlBufMutExt;
-
-// Stream definition
-//  LOGIN7 = Length
-//           TDSVersion
-//           PacketSize
-//           ClientProgVer
-//           ClientPID
-//           ConnectionID
-//           OptionFlags1
-//           OptionFlags2
-//           TypeFlags
-//           OptionFlags3
-//           ClientTimeZone
-//           ClientLCID
-//           OffsetLength
-//           Data
-//           FeatureExt
 
 #[derive(Debug)]
 pub struct Login7<'a> {
@@ -156,10 +136,6 @@ impl Encode<'_> for Login7<'_> {
 
         // [ChangePassword] New password for the specified login
         write_offset(buf, &mut offsets, beg);
-        offsets += 2;
-
-        // [SSPILong] Used for large SSPI data
-        offsets += 4;
 
         // Establish the length of the entire structure
         let len = buf.len();

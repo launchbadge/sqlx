@@ -1,10 +1,8 @@
-use std::ops::Range;
-
 use bytes::Bytes;
 
 use crate::error::Error;
 use crate::mssql::protocol::col_meta_data::ColumnData;
-use crate::mssql::{MsSql, MsSqlTypeInfo};
+use crate::mssql::MsSqlTypeInfo;
 
 #[derive(Debug)]
 pub(crate) struct Row {

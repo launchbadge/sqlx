@@ -1,4 +1,3 @@
-use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;

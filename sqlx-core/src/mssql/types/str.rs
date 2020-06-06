@@ -1,12 +1,8 @@
-use byteorder::{ByteOrder, LittleEndian};
-use bytes::Buf;
-
-use crate::database::{Database, HasArguments, HasValueRef};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mssql::io::MsSqlBufMutExt;
-use crate::mssql::protocol::type_info::{Collation, DataType, TypeInfo};
+use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{MsSql, MsSqlTypeInfo, MsSqlValueRef};
 use crate::types::Type;
 

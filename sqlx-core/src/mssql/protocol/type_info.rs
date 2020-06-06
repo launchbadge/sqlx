@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 use encoding_rs::Encoding;

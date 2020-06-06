@@ -15,15 +15,16 @@ use crate::mssql::protocol::sql_batch::SqlBatch;
 use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow};
 
 impl MsSqlConnection {
-    async fn wait_until_ready(&mut self) -> Result<(), Error> {
+    pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
+            self.pending_done_count += 1;
             self.stream.flush().await?;
         }
 
         while self.pending_done_count > 0 {
-            if let Message::DoneProc(done) | Message::Done(done) =
-                self.stream.recv_message().await?
-            {
+            let message = self.stream.recv_message().await?;
+
+            if let Message::DoneProc(done) | Message::Done(done) = message {
                 // finished RPC procedure *OR* SQL batch
                 self.handle_done(done);
             }
@@ -59,14 +60,20 @@ impl MsSqlConnection {
             self.stream.write_packet(
                 PacketType::Rpc,
                 RpcRequest {
+                    transaction_descriptor: self.stream.transaction_descriptor,
                     arguments: &proc_args,
                     procedure: proc,
                     options: OptionFlags::empty(),
                 },
             );
         } else {
-            self.stream
-                .write_packet(PacketType::SqlBatch, SqlBatch { sql: query });
+            self.stream.write_packet(
+                PacketType::SqlBatch,
+                SqlBatch {
+                    transaction_descriptor: self.stream.transaction_descriptor,
+                    sql: query,
+                },
+            );
         }
 
         self.stream.flush().await?;

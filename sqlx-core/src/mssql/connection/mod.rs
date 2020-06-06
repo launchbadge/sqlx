@@ -5,7 +5,7 @@ use futures_core::future::BoxFuture;
 use futures_util::{future::ready, FutureExt, TryFutureExt};
 
 use crate::connection::{Connect, Connection};
-use crate::error::{BoxDynError, Error};
+use crate::error::Error;
 use crate::executor::Executor;
 use crate::mssql::connection::stream::MsSqlStream;
 use crate::mssql::{MsSql, MsSqlConnectOptions};
@@ -15,7 +15,7 @@ mod executor;
 mod stream;
 
 pub struct MsSqlConnection {
-    stream: MsSqlStream,
+    pub(crate) stream: MsSqlStream,
 
     // number of Done* messages that we are currently expecting
     pub(crate) pending_done_count: usize,
@@ -42,7 +42,7 @@ impl Connection for MsSqlConnection {
 
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        unimplemented!()
+        self.wait_until_ready().boxed()
     }
 
     #[doc(hidden)]

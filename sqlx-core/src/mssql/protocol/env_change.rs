@@ -1,7 +1,6 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::Decode;
 use crate::mssql::io::MsSqlBufExt;
 
 #[derive(Debug)]
@@ -16,9 +15,9 @@ pub(crate) enum EnvChange {
     SqlCollation(Bytes),
 
     // TDS 7.2+
-    BeginTransaction,
-    CommitTransaction,
-    RollbackTransaction,
+    BeginTransaction(u64),
+    CommitTransaction(u64),
+    RollbackTransaction(u64),
     EnlistDtcTransaction,
     DefectTransaction,
     RealTimeLogShipping,
@@ -46,6 +45,17 @@ impl EnvChange {
             5 => EnvChange::UnicodeDataSortingLocalId(data.get_b_varchar()?),
             6 => EnvChange::UnicodeDataSortingComparisonFlags(data.get_b_varchar()?),
             7 => EnvChange::SqlCollation(data.get_b_varbyte()),
+            8 => EnvChange::BeginTransaction(data.get_b_varbyte().get_u64_le()),
+
+            9 => {
+                let _ = data.get_u8();
+                EnvChange::CommitTransaction(data.get_u64_le())
+            }
+
+            10 => {
+                let _ = data.get_u8();
+                EnvChange::RollbackTransaction(data.get_u64_le())
+            }
 
             _ => {
                 return Err(err_protocol!("unexpected value {} for ENVCHANGE Type", ty));

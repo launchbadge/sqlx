@@ -1,9 +1,7 @@
 use std::borrow::Cow;
-use std::marker::PhantomData;
 
 use bytes::Bytes;
 
-use crate::database::HasValueRef;
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::mssql::{MsSql, MsSqlTypeInfo};
 use crate::value::{Value, ValueRef};
