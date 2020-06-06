@@ -78,6 +78,18 @@ impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
                     == other.flags.contains(ColumnFlags::UNSIGNED);
             }
 
+            // for string types, check that our charset matches
+            ColumnType::VarChar
+            | ColumnType::Blob
+            | ColumnType::TinyBlob
+            | ColumnType::MediumBlob
+            | ColumnType::LongBlob
+            | ColumnType::String
+            | ColumnType::VarString
+            | ColumnType::Enum => {
+                return self.char_set == other.char_set;
+            }
+
             _ => {}
         }
 

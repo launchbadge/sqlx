@@ -36,7 +36,7 @@ impl<'r> Decode<'r, MySql> for &'r str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        )
+        ) && ty.char_set == 224
     }
 
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {

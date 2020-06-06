@@ -13,6 +13,7 @@ impl_database_ext! {
         f32,
         f64,
 
+        // ordering is important here as otherwise we might infer strings to be binary
         // CHAR, VAR_CHAR, TEXT
         String,
 

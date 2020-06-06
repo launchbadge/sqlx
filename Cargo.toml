@@ -107,6 +107,11 @@ name = "sqlite-describe"
 path = "tests/sqlite/describe.rs"
 required-features = [ "sqlite" ]
 
+[[test]]
+name = "sqlite-macros"
+path = "tests/sqlite/macros.rs"
+required-features = [ "sqlite", "macros" ]
+
 #
 # MySQL
 #
@@ -125,6 +130,11 @@ required-features = [ "mysql" ]
 name = "mysql-describe"
 path = "tests/mysql/describe.rs"
 required-features = [ "mysql" ]
+
+[[test]]
+name = "mysql-macros"
+path = "tests/mysql/macros.rs"
+required-features = [ "mysql", "macros" ]
 
 #
 # PostgreSQL
