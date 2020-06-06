@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{DatabaseError, Error};
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
     Authentication, AuthenticationSasl, MessageFormat, SaslInitialResponse, SaslResponse,
@@ -8,6 +8,8 @@ use hmac::{Hmac, Mac};
 use rand::Rng;
 use sha2::digest::Digest;
 use sha2::Sha256;
+use std::error::Error as StdError;
+use stringprep::saslprep;
 
 const GS2_HEADER: &str = "n,,";
 const CHANNEL_ATTR: &str = "c";
@@ -52,6 +54,7 @@ pub(crate) async fn authenticate(
 
     // "n=" saslname ;; Usernames are prepared using SASLprep.
     let username = format!("{}={}", USERNAME_ATTR, options.username);
+    let username = saslprep(&username)?;
 
     // nonce = "r=" c-nonce [s-nonce] ;; Second part provided by server.
     let nonce = gen_nonce();
@@ -207,4 +210,25 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
     }
 
     Ok(hi.into())
+}
+
+impl DatabaseError for stringprep::Error {
+    fn message(&self) -> &str {
+        "Failed to saslprep username"
+    }
+
+    #[doc(hidden)]
+    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+        Box::new(self)
+    }
 }

@@ -84,3 +84,4 @@ smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
 whoami = "0.8.1"
+stringprep = "0.1.2"
