@@ -146,11 +146,11 @@ macro_rules! __test_prepared_type {
                         .fetch_one(&mut conn)
                         .await?;
 
-                    let matches: bool = row.try_get(0)?;
+                    let matches: i32 = row.try_get(0)?;
                     let returned: $ty = row.try_get(1)?;
                     let round_trip: $ty = row.try_get(2)?;
 
-                    assert!(matches,
+                    assert!(matches != 0,
                             "[1] DB value mismatch; given value: {:?}\n\
                              as returned: {:?}\n\
                              round-trip: {:?}",
@@ -179,6 +179,13 @@ macro_rules! __test_prepared_type {
 macro_rules! MySql_query_for_test_prepared_type {
     () => {
         "SELECT {0} <=> ?, {0}, ?"
+    };
+}
+
+#[macro_export]
+macro_rules! MsSql_query_for_test_prepared_type {
+    () => {
+        "SELECT CASE WHEN {0} = @p1 THEN 1 ELSE 0 END, {0}, @p2"
     };
 }
 
