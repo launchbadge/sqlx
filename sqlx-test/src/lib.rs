@@ -199,6 +199,6 @@ macro_rules! Sqlite_query_for_test_prepared_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
-        "SELECT {0} is not distinct from $1, {0}, $2"
+        "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
     };
 }
