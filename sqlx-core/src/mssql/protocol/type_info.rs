@@ -2,11 +2,11 @@ use std::borrow::Cow;
 
 use bitflags::bitflags;
 use bytes::{Buf, Bytes};
+use encoding_rs::Encoding;
 
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::mssql::MsSql;
-use url::quirks::set_search;
 
 bitflags! {
     pub(crate) struct CollationFlags: u8 {
@@ -103,6 +103,31 @@ impl TypeInfo {
             scale: 0,
             precision: 0,
             collation: None,
+        }
+    }
+
+    pub(crate) fn encoding(&self) -> Result<&'static Encoding, Error> {
+        match self.ty {
+            DataType::NChar | DataType::NVarChar => Ok(encoding_rs::UTF_16LE),
+
+            DataType::VarChar | DataType::Char | DataType::BigChar | DataType::BigVarChar => {
+                // unwrap: impossible to unwrap here, collation will be set
+                Ok(match self.collation.unwrap().locale {
+                    // This is the Western encoding for Windows. It is an extension of ISO-8859-1,
+                    // which is known as Latin 1.
+                    0x0409 => encoding_rs::WINDOWS_1252,
+
+                    locale => {
+                        return Err(err_protocol!("unsupported locale 0x{:?}", locale));
+                    }
+                })
+            }
+
+            _ => {
+                // default to UTF-8 for anything
+                // else coming in here
+                Ok(encoding_rs::UTF_8)
+            }
         }
     }
 
@@ -445,13 +470,35 @@ impl TypeInfo {
                 _ => unreachable!("invalid size {} for float"),
             }),
 
-            DataType::NVarChar => {
-                s.push_str("nvarchar(");
-                let _ = itoa::fmt(&mut *s, self.size / 2);
-                s.push_str(")");
+            DataType::VarChar
+            | DataType::NVarChar
+            | DataType::BigVarChar
+            | DataType::Char
+            | DataType::BigChar
+            | DataType::NChar => {
+                // name
+                s.push_str(match self.ty {
+                    DataType::VarChar => "varchar",
+                    DataType::NVarChar => "nvarchar",
+                    DataType::BigVarChar => "bigvarchar",
+                    DataType::Char => "char",
+                    DataType::BigChar => "bigchar",
+                    DataType::NChar => "nchar",
+
+                    _ => unreachable!(),
+                });
+
+                // size
+                if self.size < 8000 && self.size > 0 {
+                    s.push_str("(");
+                    let _ = itoa::fmt(&mut *s, self.size);
+                    s.push_str(")");
+                } else {
+                    s.push_str("(max)");
+                }
             }
 
-            _ => unimplemented!("unsupported data type {:?}", self.ty),
+            _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),
         }
     }
 }
@@ -511,8 +558,8 @@ impl DataType {
 
 impl Collation {
     pub(crate) fn get(buf: &mut Bytes) -> Collation {
-        let locale_sort_version = buf.get_u32();
-        let locale = locale_sort_version & 0xF_FFFF;
+        let locale_sort_version = buf.get_u32_le();
+        let locale = locale_sort_version & 0xfffff;
         let flags = CollationFlags::from_bits_truncate(((locale_sort_version >> 20) & 0xFF) as u8);
         let version = (locale_sort_version >> 28) as u8;
         let sort = buf.get_u8();

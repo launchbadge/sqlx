@@ -19,7 +19,7 @@ default = [ "runtime-async-std" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
-mssql = [ "uuid" ]
+mssql = [ "uuid", "encoding_rs" ]
 
 # types
 all-types = [ "chrono", "time", "bigdecimal", "ipnetwork", "json", "uuid" ]
@@ -48,6 +48,7 @@ crossbeam-queue = "0.2.1"
 crossbeam-channel = "0.4.2"
 crossbeam-utils = { version = "0.7.2", default-features = false }
 digest = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
+encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
 futures-channel = { version = "0.3.4", default-features = false, features = [ "alloc", "std" ] }
 futures-core = { version = "0.3.4", default-features = false }
