@@ -144,3 +144,8 @@ required-features = [ "postgres" ]
 name = "postgres-describe"
 path = "tests/postgres/describe.rs"
 required-features = [ "postgres" ]
+
+[[test]]
+name = "postgres-macros"
+path = "tests/postgres/macros.rs"
+required-features = [ "postgres", "macros" ]
