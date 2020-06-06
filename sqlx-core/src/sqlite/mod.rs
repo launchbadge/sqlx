@@ -1,4 +1,48 @@
 //! **SQLite** database driver.
+//!
+//! Query example:
+//!
+//!```rust,ignore
+//! use sqlx::sqlite::SqlitePool;
+//!
+//! let pool = SqlitePool::builder()
+//!     .max_size(3)
+//!     .build("sqlite://tests/sqlite/sqlite.db")
+//!     .await?;
+//!
+//! let row: (String,) = sqlx::query_as("SELECT text FROM tweet")
+//!     .fetch_one(&pool)
+//!     .await?;
+//!
+//! assert_eq!(row.0, "Hi!");
+//! ```
+//!
+//! Custom decoder:
+//!
+//! ```rust,ignore
+//! use sqlx::decode::Decode;
+//! use sqlx::sqlite::{Sqlite, SqliteTypeInfo, SqliteValue};
+//!
+//! pub struct HexBlob(pub String);
+//!
+//! impl sqlx::Type<Sqlite> for HexBlob {
+//!     fn type_info() -> SqliteTypeInfo {
+//!         <Vec<u8> as sqlx::Type<Sqlite>>::type_info()
+//!     }
+//! }
+//!
+//! impl<'de> Decode<'de, Sqlite> for HexBlob {
+//!     fn decode(value: SqliteValue<'de>) -> sqlx::Result<Self> {
+//!         let blob = <Vec<u8> as Decode<Sqlite>>::decode(value)?;
+//!         let hex = blob
+//!             .into_iter()
+//!             .map(|b| format!("{:x}", b))
+//!             .collect::<Vec<String>>()
+//!             .join("");
+//!         Ok(HexBlob(hex))
+//!     }
+//! }
+//! ```
 
 // SQLite is a C library. All interactions require FFI which is unsafe.
 // All unsafe blocks should have comments pointing to SQLite docs and ensuring that we maintain
