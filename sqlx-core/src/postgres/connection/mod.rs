@@ -117,7 +117,8 @@ impl Connection for PgConnection {
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.execute("SELECT 1").map_ok(|_| ()).boxed()
+        // By sending a comment we avoid an error if the connection was in the middle of a rowset
+        self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
     }
 
     #[doc(hidden)]

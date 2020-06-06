@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
-use sqlx::{postgres::Postgres, Executor, Row};
+use sqlx::{postgres::Postgres, Connection, Executor, Row};
 use sqlx_core::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
 use sqlx_test::new;
 
@@ -14,6 +14,15 @@ async fn it_connects() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_pings() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.ping().await?;
 
     Ok(())
 }
