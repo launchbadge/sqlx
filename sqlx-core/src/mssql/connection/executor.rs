@@ -9,13 +9,38 @@ use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
+use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
-use crate::mssql::{MsSql, MsSqlConnection, MsSqlRow};
+use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow};
 
 impl MsSqlConnection {
-    async fn run(&mut self, query: &str) -> Result<(), Error> {
-        self.stream
-            .write_packet(PacketType::SqlBatch, SqlBatch { sql: query });
+    async fn run(&mut self, query: &str, arguments: Option<MsSqlArguments>) -> Result<(), Error> {
+        if let Some(mut arguments) = arguments {
+            let proc = Either::Right(Procedure::ExecuteSql);
+            let mut proc_args = MsSqlArguments::default();
+
+            // SQL
+            proc_args.add_unnamed(query);
+
+            // Declarations
+            //  NAME TYPE, NAME TYPE, ...
+            proc_args.add_unnamed(&*arguments.declarations);
+
+            // Add the list of SQL parameters _after_ our RPC parameters
+            proc_args.append(&mut arguments);
+
+            self.stream.write_packet(
+                PacketType::Rpc,
+                RpcRequest {
+                    arguments: &proc_args,
+                    procedure: proc,
+                    options: OptionFlags::empty(),
+                },
+            );
+        } else {
+            self.stream
+                .write_packet(PacketType::SqlBatch, SqlBatch { sql: query });
+        }
 
         self.stream.flush().await?;
 
@@ -35,10 +60,10 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
         E: Execute<'q, Self::Database>,
     {
         let s = query.query();
-        // TODO: let arguments = query.take_arguments();
+        let arguments = query.take_arguments();
 
         Box::pin(try_stream! {
-            self.run(s).await?;
+            self.run(s, arguments).await?;
 
             loop {
                 match self.stream.recv_message().await? {

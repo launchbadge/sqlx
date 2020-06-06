@@ -21,7 +21,7 @@ pub(crate) struct PreLogin<'a> {
 }
 
 impl<'de> Decode<'de> for PreLogin<'de> {
-    fn decode_with(mut buf: Bytes, _: ()) -> Result<Self, Error> {
+    fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
         let mut version = None;
         let mut encryption = None;
 

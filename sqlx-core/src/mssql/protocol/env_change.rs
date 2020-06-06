@@ -5,6 +5,7 @@ use crate::io::Decode;
 use crate::mssql::io::MsSqlBufExt;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) enum EnvChange {
     Database(String),
     Language(String),

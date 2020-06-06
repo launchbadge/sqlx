@@ -1,42 +1,52 @@
-use crate::error::DatabaseError;
-use std::error::Error;
+use std::error::Error as StdError;
 use std::fmt::{self, Debug, Display, Formatter};
 
+use crate::error::DatabaseError;
+use crate::mssql::protocol::error::Error;
+
 /// An error returned from the MSSQL database.
-pub struct MsSqlDatabaseError {}
+pub struct MsSqlDatabaseError(pub(crate) Error);
 
 impl Debug for MsSqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        unimplemented!()
+        f.debug_struct("MsSqlDatabaseError")
+            .field("message", &self.0.message)
+            .field("number", &self.0.number)
+            .field("state", &self.0.state)
+            .field("class", &self.0.class)
+            .field("server", &self.0.server)
+            .field("procedure", &self.0.procedure)
+            .field("line", &self.0.line)
+            .finish()
     }
 }
 
 impl Display for MsSqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        unimplemented!()
+        f.pad(self.message())
     }
 }
 
-impl Error for MsSqlDatabaseError {}
+impl StdError for MsSqlDatabaseError {}
 
 impl DatabaseError for MsSqlDatabaseError {
     #[inline]
     fn message(&self) -> &str {
-        unimplemented!()
+        &self.0.message
     }
 
     #[doc(hidden)]
-    fn as_error(&self) -> &(dyn Error + Send + Sync + 'static) {
+    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
         self
     }
 
     #[doc(hidden)]
-    fn as_error_mut(&mut self) -> &mut (dyn Error + Send + Sync + 'static) {
+    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
         self
     }
 
     #[doc(hidden)]
-    fn into_error(self: Box<Self>) -> Box<dyn Error + Send + Sync + 'static> {
+    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
         self
     }
 }

@@ -10,6 +10,9 @@ impl TypeInfo for MsSqlTypeInfo {}
 
 impl Display for MsSqlTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        unimplemented!()
+        let mut buf = String::new();
+        self.0.fmt(&mut buf);
+
+        f.pad(&*buf)
     }
 }

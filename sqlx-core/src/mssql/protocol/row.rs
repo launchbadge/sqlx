@@ -25,7 +25,7 @@ impl Row {
             if column.type_info.is_null() {
                 values.push(None);
             } else {
-                values.push(Some(buf.split_to(column.type_info.size())));
+                values.push(Some(column.type_info.get_value(buf)));
             }
         }
 

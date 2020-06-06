@@ -1,9 +1,12 @@
 use std::fmt::{self, Debug, Formatter};
+use std::net::Shutdown;
 
 use futures_core::future::BoxFuture;
+use futures_util::{future::ready, FutureExt, TryFutureExt};
 
 use crate::connection::{Connect, Connection};
 use crate::error::{BoxDynError, Error};
+use crate::executor::Executor;
 use crate::mssql::connection::stream::MsSqlStream;
 use crate::mssql::{MsSql, MsSqlConnectOptions};
 
@@ -25,23 +28,28 @@ impl Connection for MsSqlConnection {
     type Database = MsSql;
 
     fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        unimplemented!()
+        // NOTE: there does not seem to be a clean shutdown packet to send to MSSQL
+        ready(self.stream.shutdown(Shutdown::Both).map_err(Into::into)).boxed()
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        unimplemented!()
+        // NOTE: we do not use `SELECT 1` as that *could* interact with any ongoing transactions
+        self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
     }
 
+    #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         unimplemented!()
     }
 
+    #[doc(hidden)]
     fn get_ref(&self) -> &MsSqlConnection {
-        unimplemented!()
+        self
     }
 
+    #[doc(hidden)]
     fn get_mut(&mut self) -> &mut MsSqlConnection {
-        unimplemented!()
+        self
     }
 }
 

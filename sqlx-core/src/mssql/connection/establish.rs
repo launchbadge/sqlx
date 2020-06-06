@@ -31,14 +31,7 @@ impl MsSqlConnection {
         stream.flush().await?;
 
         let (_, packet) = stream.recv_packet().await?;
-        let pl = PreLogin::decode(packet)?;
-
-        log::trace!(
-            "acknowledged PRELOGIN from MSSQL v{}.{}.{}",
-            pl.version.major,
-            pl.version.minor,
-            pl.version.build
-        );
+        let _ = PreLogin::decode(packet)?;
 
         // LOGIN7 defines the authentication rules for use between client and server
 
@@ -70,12 +63,9 @@ impl MsSqlConnection {
             //       all messages are mostly informational (ENVCHANGE, INFO, LOGINACK)
 
             match stream.recv_message().await? {
-                Message::LoginAck(ack) => {
-                    log::trace!(
-                        "established connection to {} {}",
-                        ack.program_name,
-                        ack.program_version
-                    );
+                Message::LoginAck(_) => {
+                    // indicates that the login was successful
+                    // no action is needed, we are just going to keep waiting till we hit <Done>
                 }
 
                 Message::Done(_) => {

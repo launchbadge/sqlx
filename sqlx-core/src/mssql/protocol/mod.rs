@@ -1,6 +1,8 @@
 pub(crate) mod col_meta_data;
 pub(crate) mod done;
 pub(crate) mod env_change;
+pub(crate) mod error;
+pub(crate) mod header;
 pub(crate) mod info;
 pub(crate) mod login;
 pub(crate) mod login_ack;
@@ -8,5 +10,6 @@ pub(crate) mod message;
 pub(crate) mod packet;
 pub(crate) mod pre_login;
 pub(crate) mod row;
+pub(crate) mod rpc;
 pub(crate) mod sql_batch;
 pub(crate) mod type_info;

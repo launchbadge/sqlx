@@ -8,12 +8,13 @@ use crate::io::{BufStream, Encode};
 use crate::mssql::protocol::col_meta_data::{ColMetaData, ColumnData};
 use crate::mssql::protocol::done::Done;
 use crate::mssql::protocol::env_change::EnvChange;
+use crate::mssql::protocol::error::Error as ProtocolError;
 use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::{Message, MessageType};
 use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
 use crate::mssql::protocol::row::Row;
-use crate::mssql::MsSqlConnectOptions;
+use crate::mssql::{MsSqlConnectOptions, MsSqlDatabaseError};
 use crate::net::MaybeTlsStream;
 
 pub(crate) struct MsSqlStream {
@@ -104,12 +105,19 @@ impl MsSqlStream {
                     break;
                 };
 
-                return Ok(match MessageType::get(buf)? {
+                let ty = MessageType::get(buf)?;
+
+                return Ok(match ty {
                     MessageType::EnvChange => Message::EnvChange(EnvChange::get(buf)?),
                     MessageType::Info => Message::Info(Info::get(buf)?),
                     MessageType::Row => Message::Row(Row::get(buf, &self.columns)?),
                     MessageType::LoginAck => Message::LoginAck(LoginAck::get(buf)?),
                     MessageType::Done => Message::Done(Done::get(buf)?),
+
+                    MessageType::Error => {
+                        let err = ProtocolError::get(buf)?;
+                        return Err(MsSqlDatabaseError(err).into());
+                    }
 
                     MessageType::ColMetaData => {
                         // NOTE: there isn't anything to return as the data gets
