@@ -1,0 +1,117 @@
+name: SQLx
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      # this is cheaper than requesting the non-minimal profile
+      - run: rustup component add rustfmt
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  check:
+    name: Check
+    runs-on: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      # check > sqlx-core > default set of features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --manifest-path sqlx-core/Cargo.toml
+
+      # check > sqlx-core > async-std
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --manifest-path sqlx-core/Cargo.toml
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-async-std
+
+      # check > sqlx-core > tokio
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --manifest-path sqlx-core/Cargo.toml
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-tokio
+
+      # check > sqlx-core > actix
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --manifest-path sqlx-core/Cargo.toml
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-actix
+
+      # check > sqlx > async-std
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-async-std,macros
+
+      # check > sqlx > tokio
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-tokio,macros
+
+      # check > sqlx > actix
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: >
+            --no-default-features
+            --features offline,all-databases,all-types,runtime-actix,macros
+
+  test:
+    name: Unit Test
+    runs-on: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --manifest-path sqlx-core/Cargo.toml
+            --features offline,all-databases,all-types

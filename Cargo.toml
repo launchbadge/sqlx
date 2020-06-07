@@ -44,11 +44,11 @@ macros = [ "sqlx-macros" ]
 tls = [ ]
 
 # offline building support in `sqlx-macros`
-offline = ["sqlx-macros/offline", "sqlx-core/offline"]
+offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
-all-databases = [ "mysql", "sqlite", "postgres" ]
+all-databases = [ "mysql", "sqlite", "postgres", "mssql" ]
 all-types = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
 # runtime
