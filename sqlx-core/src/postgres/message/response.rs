@@ -104,7 +104,7 @@ impl Decode<'_> for Notice {
             }
 
             match field {
-                b'V' => {
+                b'S' | b'V' => {
                     // unwrap: impossible to fail at this point
                     severity = match from_utf8(&buf[v.0 as usize..v.1 as usize]).unwrap() {
                         "PANIC" => PgSeverity::Panic,
