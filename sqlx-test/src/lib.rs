@@ -146,11 +146,11 @@ macro_rules! __test_prepared_type {
                         .fetch_one(&mut conn)
                         .await?;
 
-                    let matches: bool = row.try_get(0)?;
+                    let matches: i32 = row.try_get(0)?;
                     let returned: $ty = row.try_get(1)?;
                     let round_trip: $ty = row.try_get(2)?;
 
-                    assert!(matches,
+                    assert!(matches != 0,
                             "[1] DB value mismatch; given value: {:?}\n\
                              as returned: {:?}\n\
                              round-trip: {:?}",
@@ -183,6 +183,13 @@ macro_rules! MySql_query_for_test_prepared_type {
 }
 
 #[macro_export]
+macro_rules! MsSql_query_for_test_prepared_type {
+    () => {
+        "SELECT CASE WHEN {0} = @p1 THEN 1 ELSE 0 END, {0}, @p2"
+    };
+}
+
+#[macro_export]
 macro_rules! Sqlite_query_for_test_prepared_type {
     () => {
         "SELECT {0} is ?, {0}, ?"
@@ -192,6 +199,6 @@ macro_rules! Sqlite_query_for_test_prepared_type {
 #[macro_export]
 macro_rules! Postgres_query_for_test_prepared_type {
     () => {
-        "SELECT {0} is not distinct from $1, {0}, $2"
+        "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
     };
 }

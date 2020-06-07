@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
+use std::mem;
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
@@ -89,12 +90,22 @@ where
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
-        DB::TransactionManager::commit(self.connection.get_mut(), self.depth).await
+        DB::TransactionManager::commit(self.connection.get_mut(), self.depth).await?;
+
+        // opt-out of the automatic rollback
+        mem::forget(self);
+
+        Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
-        DB::TransactionManager::rollback(self.connection.get_mut(), self.depth).await
+        DB::TransactionManager::rollback(self.connection.get_mut(), self.depth).await?;
+
+        // opt-out of the automatic rollback
+        mem::forget(self);
+
+        Ok(())
     }
 }
 
@@ -243,28 +254,31 @@ where
 }
 
 #[allow(dead_code)]
-pub(crate) fn begin_ansi_transaction_sql(index: usize) -> Cow<'static, str> {
-    if index == 0 {
+pub(crate) fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+    if depth == 0 {
         Cow::Borrowed("BEGIN")
     } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", index))
+        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", depth))
     }
 }
 
 #[allow(dead_code)]
-pub(crate) fn commit_ansi_transaction_sql(index: usize) -> Cow<'static, str> {
-    if index == 1 {
+pub(crate) fn commit_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+    if depth == 1 {
         Cow::Borrowed("COMMIT")
     } else {
-        Cow::Owned(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", index))
+        Cow::Owned(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1))
     }
 }
 
 #[allow(dead_code)]
-pub(crate) fn rollback_ansi_transaction_sql(index: usize) -> Cow<'static, str> {
-    if index == 1 {
+pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
+    if depth == 1 {
         Cow::Borrowed("ROLLBACK")
     } else {
-        Cow::Owned(format!("ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}", index))
+        Cow::Owned(format!(
+            "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
+            depth - 1
+        ))
     }
 }

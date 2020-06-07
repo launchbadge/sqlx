@@ -26,6 +26,10 @@ pub use sqlx_core::error::{self, BoxDynError, Error, Result};
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 
+#[cfg(feature = "mssql")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
+pub use sqlx_core::mssql::{self, MsSql, MsSqlConnection, MsSqlPool};
+
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};

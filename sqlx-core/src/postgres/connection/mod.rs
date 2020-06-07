@@ -71,13 +71,11 @@ impl PgConnection {
         }
 
         while self.pending_ready_for_query_count > 0 {
-            loop {
-                let message = self.stream.recv().await?;
+            let message = self.stream.recv().await?;
 
-                if let MessageFormat::ReadyForQuery = message.format {
-                    self.handle_ready_for_query(message)?;
-                    break;
-                }
+            if let MessageFormat::ReadyForQuery = message.format {
+                self.handle_ready_for_query(message)?;
+                break;
             }
         }
 

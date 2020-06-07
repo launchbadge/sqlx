@@ -31,10 +31,12 @@ pub mod connection;
 #[macro_use]
 pub mod transaction;
 
+#[macro_use]
+pub mod encode;
+
 pub mod database;
 pub mod decode;
 pub mod describe;
-pub mod encode;
 pub mod executor;
 mod ext;
 pub mod from_row;
@@ -59,3 +61,7 @@ pub mod sqlite;
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub mod mysql;
+
+#[cfg(feature = "mssql")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
+pub mod mssql;

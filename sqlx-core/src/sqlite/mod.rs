@@ -34,3 +34,7 @@ pub type SqlitePool = crate::pool::Pool<Sqlite>;
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_executor_for_pool_connection!(Sqlite, SqliteConnection, SqliteRow);
 impl_executor_for_transaction!(Sqlite, SqliteRow);
+
+// required because some databases have a different handling
+// of NULL
+impl_encode_for_option!(Postgres);

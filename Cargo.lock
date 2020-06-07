@@ -612,6 +612,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8ac63f94732332f44fe654443c46f6375d1939684c17b0afb6cb56b0456e171"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2087,6 +2096,7 @@ dependencies = [
  "crossbeam-utils 0.7.2",
  "digest",
  "either",
+ "encoding_rs",
  "futures-channel",
  "futures-core",
  "futures-util",
@@ -2102,10 +2112,12 @@ dependencies = [
  "md-5",
  "memchr",
  "num-bigint",
+ "once_cell",
  "parking_lot 0.10.2",
  "percent-encoding 2.1.0",
  "phf",
  "rand",
+ "regex",
  "serde",
  "serde_json",
  "sha-1",

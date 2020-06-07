@@ -1,0 +1,32 @@
+use sqlx::mssql::MsSql;
+use sqlx_test::test_type;
+
+test_type!(i8(
+    MsSql,
+    "CAST(5 AS TINYINT)" == 5_i8,
+    "CAST(0 AS TINYINT)" == 0_i8
+));
+
+test_type!(i16(MsSql, "CAST(21415 AS SMALLINT)" == 21415_i16));
+
+test_type!(i32(MsSql, "CAST(2141512 AS INT)" == 2141512_i32));
+
+test_type!(i64(MsSql, "CAST(32324324432 AS BIGINT)" == 32324324432_i64));
+
+test_type!(f32(
+    MsSql,
+    "CAST(3.1410000324249268 AS REAL)" == 3.141f32 as f64 as f32
+));
+
+test_type!(f64(
+    MsSql,
+    "CAST(939399419.1225182 AS FLOAT)" == 939399419.1225182_f64
+));
+
+test_type!(str_nvarchar<String>(MsSql,
+    "CAST('this is foo' as NVARCHAR)" == "this is foo",
+));
+
+test_type!(str<String>(MsSql,
+    "'this is foo'" == "this is foo",
+));
