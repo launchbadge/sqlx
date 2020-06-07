@@ -261,7 +261,7 @@ mod json {
 
     test_type!(json<JsonValue>(
         Postgres,
-        "SELECT {0}::jsonb is not distinct from $1::jsonb, {0} as _2, $2 as _3",
+        "SELECT ({0}::jsonb is not distinct from $1::jsonb)::int4, {0} as _2, $2 as _3",
         "'\"Hello, World\"'::json" == json!("Hello, World"),
         "'\"😎\"'::json" == json!("😎"),
         "'\"🙋‍♀️\"'::json" == json!("🙋‍♀️"),
