@@ -30,6 +30,9 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
     steps:
       - uses: actions/checkout@v2
 
@@ -39,63 +42,20 @@ jobs:
           toolchain: stable
           override: true
 
-      # check > sqlx-core > default set of features
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --manifest-path sqlx-core/Cargo.toml
-
-      # check > sqlx-core > async-std
       - uses: actions-rs/cargo@v1
         with:
           command: check
           args: >
             --manifest-path sqlx-core/Cargo.toml
             --no-default-features
-            --features offline,all-databases,all-types,runtime-async-std
+            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}
 
-      # check > sqlx-core > tokio
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --manifest-path sqlx-core/Cargo.toml
-            --no-default-features
-            --features offline,all-databases,all-types,runtime-tokio
-
-      # check > sqlx-core > actix
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --manifest-path sqlx-core/Cargo.toml
-            --no-default-features
-            --features offline,all-databases,all-types,runtime-actix
-
-      # check > sqlx > async-std
       - uses: actions-rs/cargo@v1
         with:
           command: check
           args: >
             --no-default-features
-            --features offline,all-databases,all-types,runtime-async-std,macros
-
-      # check > sqlx > tokio
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --no-default-features
-            --features offline,all-databases,all-types,runtime-tokio,macros
-
-      # check > sqlx > actix
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: >
-            --no-default-features
-            --features offline,all-databases,all-types,runtime-actix,macros
+            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }},macros
 
   test:
     name: Unit Test
