@@ -136,7 +136,8 @@ impl MssqlStream {
                         continue;
                     }
 
-                    MessageType::Row => Message::Row(Row::get(buf, &self.columns)?),
+                    MessageType::Row => Message::Row(Row::get(buf, false, &self.columns)?),
+                    MessageType::NbcRow => Message::Row(Row::get(buf, true, &self.columns)?),
                     MessageType::LoginAck => Message::LoginAck(LoginAck::get(buf)?),
                     MessageType::ReturnStatus => Message::ReturnStatus(ReturnStatus::get(buf)?),
                     MessageType::ReturnValue => Message::ReturnValue(ReturnValue::get(buf)?),

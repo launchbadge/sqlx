@@ -37,7 +37,7 @@ impl ValueRef<'_> for MssqlValueRef<'_> {
     }
 
     fn is_null(&self) -> bool {
-        self.data.is_none()
+        self.data.is_none() || self.type_info.0.is_null()
     }
 }
 
@@ -63,6 +63,6 @@ impl Value for MssqlValue {
     }
 
     fn is_null(&self) -> bool {
-        self.data.is_none()
+        self.data.is_none() || self.type_info.0.is_null()
     }
 }

@@ -2,7 +2,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mssql::io::MssqlBufMutExt;
-use crate::mssql::protocol::type_info::{DataType, TypeInfo};
+use crate::mssql::protocol::type_info::{Collation, CollationFlags, DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo, MssqlValueRef};
 use crate::types::Type;
 
@@ -20,7 +20,21 @@ impl Type<Mssql> for String {
 
 impl Encode<'_, Mssql> for &'_ str {
     fn produces(&self) -> MssqlTypeInfo {
-        MssqlTypeInfo(TypeInfo::new(DataType::NVarChar, (self.len() * 2) as u32))
+        // an empty string needs to be encoded as `nvarchar(2)`
+        MssqlTypeInfo(TypeInfo {
+            ty: DataType::NVarChar,
+            size: ((self.len() * 2) as u32).max(2),
+            scale: 0,
+            precision: 0,
+            collation: Some(Collation {
+                locale: 1033,
+                flags: CollationFlags::IGNORE_CASE
+                    | CollationFlags::IGNORE_WIDTH
+                    | CollationFlags::IGNORE_KANA,
+                sort: 52,
+                version: 0,
+            }),
+        })
     }
 
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {

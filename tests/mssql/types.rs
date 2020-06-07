@@ -1,6 +1,10 @@
 use sqlx::mssql::Mssql;
 use sqlx_test::test_type;
 
+test_type!(null<Option<i32>>(Mssql,
+    "CAST(NULL as INT)" == None::<i32>
+));
+
 test_type!(i8(
     Mssql,
     "CAST(5 AS TINYINT)" == 5_i8,
@@ -29,4 +33,5 @@ test_type!(str_nvarchar<String>(Mssql,
 
 test_type!(str<String>(Mssql,
     "'this is foo'" == "this is foo",
+    "''" == "",
 ));

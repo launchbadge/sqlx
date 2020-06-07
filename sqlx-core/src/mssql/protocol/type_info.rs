@@ -303,8 +303,8 @@ impl TypeInfo {
         matches!(self.ty, DataType::Null)
     }
 
-    pub(crate) fn get_value(&self, buf: &mut Bytes) -> Bytes {
-        let size = match self.ty {
+    pub(crate) fn get_value(&self, buf: &mut Bytes) -> Option<Bytes> {
+        match self.ty {
             DataType::Null
             | DataType::TinyInt
             | DataType::Bit
@@ -316,7 +316,7 @@ impl TypeInfo {
             | DataType::DateTime
             | DataType::Float
             | DataType::SmallMoney
-            | DataType::BigInt => self.size as usize,
+            | DataType::BigInt => Some(buf.split_to(self.size as usize)),
 
             DataType::Guid
             | DataType::IntN
@@ -331,11 +331,25 @@ impl TypeInfo {
             | DataType::DateN
             | DataType::TimeN
             | DataType::DateTime2N
-            | DataType::DateTimeOffsetN
-            | DataType::Char
-            | DataType::VarChar
-            | DataType::Binary
-            | DataType::VarBinary => buf.get_u8() as usize,
+            | DataType::DateTimeOffsetN => {
+                let size = buf.get_u8();
+
+                if size == 0 || size == 0xFF {
+                    None
+                } else {
+                    Some(buf.split_to(size as usize))
+                }
+            }
+
+            DataType::Char | DataType::VarChar | DataType::Binary | DataType::VarBinary => {
+                let size = buf.get_u8();
+
+                if size == 0xFF {
+                    None
+                } else {
+                    Some(buf.split_to(size as usize))
+                }
+            }
 
             DataType::BigVarBinary
             | DataType::BigVarChar
@@ -344,14 +358,26 @@ impl TypeInfo {
             | DataType::NVarChar
             | DataType::NChar
             | DataType::Xml
-            | DataType::UserDefined => buf.get_u16_le() as usize,
+            | DataType::UserDefined => {
+                let size = buf.get_u16_le();
+
+                if size == 0xFF_FF {
+                    None
+                } else {
+                    Some(buf.split_to(size as usize))
+                }
+            }
 
             DataType::Text | DataType::Image | DataType::NText | DataType::Variant => {
-                buf.get_u32_le() as usize
-            }
-        };
+                let size = buf.get_u32_le();
 
-        buf.split_to(size)
+                if size == 0xFFFF_FFFF {
+                    None
+                } else {
+                    Some(buf.split_to(size as usize))
+                }
+            }
+        }
     }
 
     pub(crate) fn put_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
@@ -501,13 +527,13 @@ impl TypeInfo {
                 });
 
                 // size
-                if self.size < 8000 && self.size > 0 {
-                    s.push_str("(");
-                    let _ = itoa::fmt(&mut *s, self.size);
-                    s.push_str(")");
-                } else {
-                    s.push_str("(max)");
-                }
+                // if self.size < 8000 && self.size > 0 {
+                s.push_str("(");
+                let _ = itoa::fmt(&mut *s, self.size);
+                s.push_str(")");
+                // } else {
+                //     s.push_str("(max)");
+                // }
             }
 
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),

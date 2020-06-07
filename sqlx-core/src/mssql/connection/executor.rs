@@ -105,7 +105,9 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
             self.run(s, arguments).await?;
 
             loop {
-                match self.stream.recv_message().await? {
+                let message = self.stream.recv_message().await?;
+
+                match message {
                     Message::Row(row) => {
                         let v = Either::Right(MssqlRow { row });
                         yield v;

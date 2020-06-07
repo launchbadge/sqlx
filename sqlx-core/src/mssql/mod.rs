@@ -30,3 +30,6 @@ pub type MssqlPool = crate::pool::Pool<Mssql>;
 impl_into_arguments_for_arguments!(MssqlArguments);
 impl_executor_for_pool_connection!(Mssql, MssqlConnection, MssqlRow);
 impl_executor_for_transaction!(Mssql, MssqlRow);
+
+// FIXME: RPC NULL parameter values / results
+// FIXME: RPC Empty String parameter values

@@ -14,7 +14,7 @@ pub(crate) struct ReturnValue {
     user_type: u32,
     flags: Flags,
     type_info: TypeInfo,
-    value: Bytes,
+    value: Option<Bytes>,
 }
 
 bitflags! {

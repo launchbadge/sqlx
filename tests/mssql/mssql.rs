@@ -75,6 +75,39 @@ CREATE TABLE #users (id INTEGER PRIMARY KEY);
 }
 
 #[sqlx_macros::test]
+async fn it_selects_null() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+
+    let (_, val): (i32, Option<i32>) = sqlx::query_as("SELECT 5, NULL")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(val.is_none());
+
+    let val: Option<i32> = conn.fetch_one("SELECT 10, NULL").await?.try_get(1)?;
+
+    assert!(val.is_none());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_binds_empty_string_and_null() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+
+    let (val, val2): (String, Option<String>) = sqlx::query_as("SELECT @p1, @p2")
+        .bind("")
+        .bind(None::<String>)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert!(val.is_empty());
+    assert!(val2.is_none());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
