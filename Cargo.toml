@@ -60,7 +60,7 @@ runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
-mssql = [ "sqlx-core/mssql" ]
+mssql = [ "sqlx-core/mssql", "sqlx-macros/mssql" ]
 
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
@@ -75,19 +75,19 @@ sqlx-core = { version = "0.4.0-pre", path = "sqlx-core", default-features = fals
 sqlx-macros = { version = "0.4.0-pre", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.26"
-time_ = { version = "0.2.9", package = "time" }
-futures = "0.3.4"
+anyhow = "1.0.31"
+time_ = { version = "0.2.16", package = "time" }
+futures = "0.3.5"
 env_logger = "0.7.1"
-async-std = { version = "1.5.0", features = [ "attributes" ] }
-tokio = { version = "0.2.13", features = [ "full" ] }
+async-std = { version = "1.6.0", features = [ "attributes" ] }
+tokio = { version = "0.2.21", features = [ "full" ] }
 dotenv = "0.15.0"
 trybuild = "1.0.24"
 sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
-paste = "0.1.7"
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0.48"
+paste = "0.1.16"
+serde = { version = "1.0.111", features = [ "derive" ] }
+serde_json = "1.0.53"
 
 #
 # SQLite
@@ -179,3 +179,8 @@ required-features = [ "mssql" ]
 name = "mssql-describe"
 path = "tests/mssql/describe.rs"
 required-features = [ "mssql" ]
+
+[[test]]
+name = "mssql-macros"
+path = "tests/mssql/macros.rs"
+required-features = [ "mssql", "macros" ]

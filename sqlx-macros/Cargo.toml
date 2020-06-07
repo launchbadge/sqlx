@@ -30,6 +30,7 @@ offline = ["sqlx-core/offline", "serde", "serde_json", "hex", "sha2"]
 mysql = [ "sqlx-core/mysql" ]
 postgres = [ "sqlx-core/postgres" ]
 sqlite = [ "sqlx-core/sqlite" ]
+mssql = [ "sqlx-core/mssql" ]
 
 # type
 bigdecimal = [ "sqlx-core/bigdecimal" ]
@@ -40,18 +41,18 @@ uuid = [ "sqlx-core/uuid" ]
 json = [ "sqlx-core/json", "serde_json" ]
 
 [dependencies]
-async-std = { version = "1.5.0", default-features = false, optional = true }
-tokio = { version = "0.2.13", default-features = false, features = [ "rt-threaded" ], optional = true }
+async-std = { version = "1.6.0", default-features = false, optional = true }
+tokio = { version = "0.2.21", default-features = false, features = [ "rt-threaded" ], optional = true }
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 hex = { version = "0.4.2", optional = true }
-heck = "0.3"
+heck = "0.3.1"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.4.0-pre", default-features = false, path = "../sqlx-core" }
-serde = { version = "1.0", optional = true }
-serde_json = { version = "1.0", features = [ "preserve_order" ], optional = true }
-sha2 = { version = "0.8.1", optional = true }
-syn = { version = "1.0.16", default-features = false, features = [ "full" ] }
-quote = { version = "1.0.2", default-features = false }
+serde = { version = "1.0.111", optional = true }
+serde_json = { version = "1.0.30", features = [ "preserve_order" ], optional = true }
+sha2 = { version = "0.8.2", optional = true }
+syn = { version = "1.0.30", default-features = false, features = [ "full" ] }
+quote = { version = "1.0.6", default-features = false }
 url = { version = "2.1.1", default-features = false }
 once_cell = { version = "1.3", features = ["std"], optional = true }

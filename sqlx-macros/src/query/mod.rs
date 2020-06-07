@@ -16,13 +16,10 @@ use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use crate::runtime::block_on;
 
-// pub use query::expand_query;
-
 mod args;
 mod data;
 mod input;
 mod output;
-// mod query;
 
 pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     let manifest_dir =
@@ -76,8 +73,23 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 
             expand_with_data(input, data)
         },
+
         #[cfg(not(feature = "postgres"))]
         "postgres" | "postgresql" => Err(format!("database URL has the scheme of a PostgreSQL database but the `postgres` feature is not enabled").into()),
+
+        #[cfg(feature = "mssql")]
+        "mssql" | "sqlserver" => {
+            let data = block_on(async {
+                let mut conn = sqlx_core::mssql::MssqlConnection::connect(db_url.as_str()).await?;
+                QueryData::from_db(&mut conn, &input.src).await
+            })?;
+
+            expand_with_data(input, data)
+        },
+
+        #[cfg(not(feature = "mssql"))]
+        "mssql" | "sqlserver" => Err(format!("database URL has the scheme of a MSSQL database but the `mssql` feature is not enabled").into()),
+
         #[cfg(feature = "mysql")]
         "mysql" | "mariadb" => {
             let data = block_on(async {
@@ -87,8 +99,10 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 
             expand_with_data(input, data)
         },
+
         #[cfg(not(feature = "mysql"))]
         "mysql" | "mariadb" => Err(format!("database URL has the scheme of a MySQL/MariaDB database but the `mysql` feature is not enabled").into()),
+
         #[cfg(feature = "sqlite")]
         "sqlite" => {
             let data = block_on(async {
@@ -98,8 +112,10 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 
             expand_with_data(input, data)
         },
+
         #[cfg(not(feature = "sqlite"))]
         "sqlite" => Err(format!("database URL has the scheme of a SQLite database but the `sqlite` feature is not enabled").into()),
+
         scheme => Err(format!("unknown database URL scheme {:?}", scheme).into())
     }
 }
