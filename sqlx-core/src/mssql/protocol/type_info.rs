@@ -7,6 +7,7 @@ use crate::error::Error;
 use crate::mssql::MsSql;
 
 bitflags! {
+    #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
     pub(crate) struct CollationFlags: u8 {
         const IGNORE_CASE = (1 << 0);
         const IGNORE_ACCENT = (1 << 1);
@@ -18,6 +19,7 @@ bitflags! {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Collation {
     pub(crate) locale: u32,
     pub(crate) flags: CollationFlags,
@@ -26,6 +28,7 @@ pub(crate) struct Collation {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub(crate) enum DataType {
     // fixed-length data types
@@ -85,6 +88,7 @@ pub(crate) enum DataType {
 
 // http://msdn.microsoft.com/en-us/library/dd358284.aspx
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct TypeInfo {
     pub(crate) ty: DataType,
     pub(crate) size: u32,

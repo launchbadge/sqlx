@@ -4,6 +4,7 @@ use crate::mssql::protocol::type_info::TypeInfo as ProtocolTypeInfo;
 use crate::type_info::TypeInfo;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct MsSqlTypeInfo(pub(crate) ProtocolTypeInfo);
 
 impl TypeInfo for MsSqlTypeInfo {}
