@@ -115,3 +115,30 @@ jobs:
           args: >
             --manifest-path sqlx-core/Cargo.toml
             --features offline,all-databases,all-types
+
+  postgres_12:
+    name: Postgres 12
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --features postgres,all-types
+
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_12
+      - run: sleep 10
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --features postgres,all-types
