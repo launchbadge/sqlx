@@ -14,6 +14,7 @@ use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::{Message, MessageType};
 use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
 use crate::mssql::protocol::return_status::ReturnStatus;
+use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
 use crate::mssql::{MsSqlConnectOptions, MsSqlDatabaseError};
 use crate::net::MaybeTlsStream;
@@ -30,7 +31,7 @@ pub(crate) struct MsSqlStream {
 
     // most recent column data from ColMetaData
     // we need to store this as its needed when decoding <Row>
-    columns: Vec<ColumnData>,
+    pub(crate) columns: Vec<ColumnData>,
 }
 
 impl MsSqlStream {
@@ -112,6 +113,7 @@ impl MsSqlStream {
                 };
 
                 let ty = MessageType::get(buf)?;
+
                 let message = match ty {
                     MessageType::EnvChange => {
                         match EnvChange::get(buf)? {
@@ -137,6 +139,7 @@ impl MsSqlStream {
                     MessageType::Row => Message::Row(Row::get(buf, &self.columns)?),
                     MessageType::LoginAck => Message::LoginAck(LoginAck::get(buf)?),
                     MessageType::ReturnStatus => Message::ReturnStatus(ReturnStatus::get(buf)?),
+                    MessageType::ReturnValue => Message::ReturnValue(ReturnValue::get(buf)?),
                     MessageType::Done => Message::Done(Done::get(buf)?),
                     MessageType::DoneInProc => Message::DoneInProc(Done::get(buf)?),
                     MessageType::DoneProc => Message::DoneProc(Done::get(buf)?),

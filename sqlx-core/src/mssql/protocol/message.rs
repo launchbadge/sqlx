@@ -3,6 +3,7 @@ use bytes::{Buf, Bytes};
 use crate::mssql::protocol::done::Done;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::return_status::ReturnStatus;
+use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
 
 #[derive(Debug)]
@@ -13,6 +14,7 @@ pub(crate) enum Message {
     DoneProc(Done),
     Row(Row),
     ReturnStatus(ReturnStatus),
+    ReturnValue(ReturnValue),
 }
 
 #[derive(Debug)]
@@ -27,6 +29,7 @@ pub(crate) enum MessageType {
     Error,
     ColMetaData,
     ReturnStatus,
+    ReturnValue,
 }
 
 impl MessageType {
@@ -35,6 +38,7 @@ impl MessageType {
             0x81 => MessageType::ColMetaData,
             0xaa => MessageType::Error,
             0xab => MessageType::Info,
+            0xac => MessageType::ReturnValue,
             0xad => MessageType::LoginAck,
             0xd1 => MessageType::Row,
             0xe3 => MessageType::EnvChange,

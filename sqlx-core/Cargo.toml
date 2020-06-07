@@ -19,7 +19,7 @@ default = [ "runtime-async-std" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
-mssql = [ "uuid", "encoding_rs" ]
+mssql = [ "uuid", "encoding_rs", "regex" ]
 
 # types
 all-types = [ "chrono", "time", "bigdecimal", "ipnetwork", "json", "uuid" ]
@@ -65,11 +65,13 @@ log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.8.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
 num-bigint = { version = "0.2.6", default-features = false, optional = true, features = [ "std" ] }
+once_cell = "1.4.0"
 percent-encoding = "2.1.0"
 parking_lot = "0.10.2"
 threadpool = "*"
 phf = { version = "0.8.0", features = [ "macros" ] }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
+regex = { version = "1.3.9", optional = true }
 serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
 serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
 sha-1 = { version = "0.8.2", default-features = false, optional = true }

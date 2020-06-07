@@ -1,3 +1,5 @@
 *
 !certs/*
 !keys/*
+!mssql/*.sh
+!*/*.sql

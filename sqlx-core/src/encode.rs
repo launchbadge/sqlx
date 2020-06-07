@@ -68,36 +68,49 @@ where
     }
 }
 
-impl<'q, T: 'q + Encode<'q, DB>, DB: Database> Encode<'q, DB> for Option<T> {
-    #[inline]
-    fn produces(&self) -> DB::TypeInfo {
-        if let Some(v) = self {
-            v.produces()
-        } else {
-            T::type_info()
-        }
-    }
+#[allow(unused_macros)]
+macro_rules! impl_encode_for_option {
+    ($DB:ident) => {
+        impl<'q, T: 'q + crate::encode::Encode<'q, $DB>> crate::encode::Encode<'q, $DB>
+            for Option<T>
+        {
+            #[inline]
+            fn produces(&self) -> <$DB as crate::database::Database>::TypeInfo {
+                if let Some(v) = self {
+                    v.produces()
+                } else {
+                    T::type_info()
+                }
+            }
 
-    #[inline]
-    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        if let Some(v) = self {
-            v.encode(buf)
-        } else {
-            IsNull::Yes
-        }
-    }
+            #[inline]
+            fn encode(
+                self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                if let Some(v) = self {
+                    v.encode(buf)
+                } else {
+                    crate::encode::IsNull::Yes
+                }
+            }
 
-    #[inline]
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        if let Some(v) = self {
-            v.encode_by_ref(buf)
-        } else {
-            IsNull::Yes
-        }
-    }
+            #[inline]
+            fn encode_by_ref(
+                &self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                if let Some(v) = self {
+                    v.encode_by_ref(buf)
+                } else {
+                    crate::encode::IsNull::Yes
+                }
+            }
 
-    #[inline]
-    fn size_hint(&self) -> usize {
-        self.as_ref().map_or(0, Encode::size_hint)
-    }
+            #[inline]
+            fn size_hint(&self) -> usize {
+                self.as_ref().map_or(0, crate::encode::Encode::size_hint)
+            }
+        }
+    };
 }

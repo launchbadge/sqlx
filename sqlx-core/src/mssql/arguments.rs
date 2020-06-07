@@ -2,6 +2,7 @@ use crate::arguments::Arguments;
 use crate::encode::Encode;
 use crate::mssql::database::MsSql;
 use crate::mssql::io::MsSqlBufMutExt;
+use crate::mssql::protocol::rpc::StatusFlags;
 
 #[derive(Default)]
 pub struct MsSqlArguments {
@@ -29,6 +30,19 @@ impl MsSqlArguments {
 
     pub(crate) fn add_unnamed<'q, T: Encode<'q, MsSql>>(&mut self, value: T) {
         self.add_named("", value);
+    }
+
+    pub(crate) fn declare<'q, T: Encode<'q, MsSql>>(&mut self, name: &str, initial_value: T) {
+        let ty = initial_value.produces();
+
+        let mut ty_name = String::new();
+        ty.0.fmt(&mut ty_name);
+
+        self.data.put_b_varchar(name); // [ParamName]
+        self.data.push(StatusFlags::BY_REF_VALUE.bits()); // [StatusFlags]
+
+        ty.0.put(&mut self.data); // [TYPE_INFO]
+        ty.0.put_value(&mut self.data, initial_value); // [ParamLenData]
     }
 
     pub(crate) fn append(&mut self, arguments: &mut MsSqlArguments) {

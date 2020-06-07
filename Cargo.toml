@@ -159,3 +159,8 @@ required-features = [ "mssql" ]
 name = "mssql-types"
 path = "tests/mssql/types.rs"
 required-features = [ "mssql" ]
+
+[[test]]
+name = "mssql-describe"
+path = "tests/mssql/describe.rs"
+required-features = [ "mssql" ]

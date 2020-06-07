@@ -49,8 +49,7 @@ impl MsSqlConnection {
                 server_name: "",
                 client_interface_name: "",
                 language: "",
-                // FIXME: connect this to options.database
-                database: "",
+                database: &*options.database,
                 client_id: [0; 6],
             },
         );

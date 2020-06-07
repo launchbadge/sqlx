@@ -9,6 +9,7 @@ pub struct MsSqlConnectOptions {
     pub(crate) host: String,
     pub(crate) port: u16,
     pub(crate) username: String,
+    pub(crate) database: String,
     pub(crate) password: Option<String>,
 }
 
@@ -23,6 +24,7 @@ impl MsSqlConnectOptions {
         Self {
             port: 1433,
             host: String::from("localhost"),
+            database: String::from("master"),
             username: String::from("sa"),
             password: None,
         }
@@ -45,6 +47,11 @@ impl MsSqlConnectOptions {
 
     pub fn password(mut self, password: &str) -> Self {
         self.password = Some(password.to_owned());
+        self
+    }
+
+    pub fn database(mut self, database: &str) -> Self {
+        self.database = database.to_owned();
         self
     }
 }
@@ -71,6 +78,11 @@ impl FromStr for MsSqlConnectOptions {
 
         if let Some(password) = url.password() {
             options = options.password(password);
+        }
+
+        let path = url.path().trim_start_matches('/');
+        if !path.is_empty() {
+            options = options.database(path);
         }
 
         Ok(options)

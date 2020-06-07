@@ -5,7 +5,7 @@ use crate::error::Error;
 
 #[derive(Debug)]
 pub(crate) struct Done {
-    status: Status,
+    pub(crate) status: Status,
 
     // The token of the current SQL statement. The token value is provided and controlled by the
     // application layer, which utilizes TDS. The TDS layer does not evaluate the value.

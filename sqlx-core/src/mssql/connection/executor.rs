@@ -3,16 +3,19 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
-use crate::describe::Describe;
+use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::mssql::protocol::done::Done;
+use crate::mssql::protocol::col_meta_data::Flags;
+use crate::mssql::protocol::done::{Done, Status};
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
-use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow};
+use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow, MsSqlTypeInfo};
 
 impl MsSqlConnection {
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
@@ -25,8 +28,10 @@ impl MsSqlConnection {
             let message = self.stream.recv_message().await?;
 
             if let Message::DoneProc(done) | Message::Done(done) = message {
-                // finished RPC procedure *OR* SQL batch
-                self.handle_done(done);
+                if !done.status.contains(Status::DONE_MORE) {
+                    // finished RPC procedure *OR* SQL batch
+                    self.handle_done(done);
+                }
             }
         }
 
@@ -106,20 +111,23 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
                         yield v;
                     }
 
-                    Message::DoneProc(done) => {
-                        self.handle_done(done);
-                        break;
+                    Message::Done(done) | Message::DoneProc(done) => {
+                        if done.status.contains(Status::DONE_COUNT) {
+                            let v = Either::Left(done.affected_rows);
+                            yield v;
+                        }
+
+                        if !done.status.contains(Status::DONE_MORE) {
+                            self.handle_done(done);
+                            break;
+                        }
                     }
 
                     Message::DoneInProc(done) => {
-                        // finished SQL query *within* procedure
-                        let v = Either::Left(done.affected_rows);
-                        yield v;
-                    }
-
-                    Message::Done(done) => {
-                        self.handle_done(done);
-                        break;
+                        if done.status.contains(Status::DONE_COUNT) {
+                            let v = Either::Left(done.affected_rows);
+                            yield v;
+                        }
                     }
 
                     _ => {}
@@ -157,6 +165,90 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        unimplemented!()
+        let s = query.query();
+
+        // [sp_prepare] will emit the column meta data
+        // small issue is that we need to declare all the used placeholders with a "fallback" type
+        // we currently use regex to collect them; false positives are *okay* but false
+        // negatives would break the query
+        let proc = Either::Right(Procedure::Prepare);
+
+        // NOTE: this does not support unicode identifiers; as we don't even support
+        //       named parameters (yet) this is probably fine, for now
+
+        static PARAMS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"@p[[:alnum:]]+").unwrap());
+
+        let mut params = String::new();
+        let mut num_params = 0;
+
+        for m in PARAMS_RE.captures_iter(s) {
+            if !params.is_empty() {
+                params.push_str(",");
+            }
+
+            params.push_str(&m[0]);
+
+            // NOTE: this means that a query! of `SELECT @p1` will have the macros believe
+            //       it will return nvarchar(1); this is a greater issue with `query!` that we
+            //       we need to circle back to. This doesn't happen much in practice however.
+            params.push_str(" nvarchar(1)");
+
+            num_params += 1;
+        }
+
+        let params = if params.is_empty() {
+            None
+        } else {
+            Some(&*params)
+        };
+
+        let mut args = MsSqlArguments::default();
+
+        args.declare("", 0_i32);
+        args.add_unnamed(params);
+        args.add_unnamed(s);
+        args.add_unnamed(0x0001_i32); // 1 = SEND_METADATA
+
+        self.stream.write_packet(
+            PacketType::Rpc,
+            RpcRequest {
+                transaction_descriptor: self.stream.transaction_descriptor,
+                arguments: &args,
+                procedure: proc,
+                options: OptionFlags::empty(),
+            },
+        );
+
+        Box::pin(async move {
+            self.stream.flush().await?;
+
+            loop {
+                match self.stream.recv_message().await? {
+                    Message::DoneProc(done) | Message::Done(done) => {
+                        if !done.status.contains(Status::DONE_MORE) {
+                            // done with prepare
+                            break;
+                        }
+                    }
+
+                    _ => {}
+                }
+            }
+
+            let mut columns = Vec::with_capacity(self.stream.columns.len());
+
+            for col in &self.stream.columns {
+                columns.push(Column {
+                    name: col.col_name.clone(),
+                    type_info: Some(MsSqlTypeInfo(col.type_info.clone())),
+                    not_null: Some(!col.flags.contains(Flags::NULLABLE)),
+                });
+            }
+
+            Ok(Describe {
+                params: vec![None; num_params],
+                columns,
+            })
+        })
     }
 }

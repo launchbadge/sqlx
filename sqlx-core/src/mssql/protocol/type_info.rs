@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 use encoding_rs::Encoding;
 
-use crate::encode::Encode;
+use crate::encode::{Encode, IsNull};
 use crate::error::Error;
 use crate::mssql::MsSql;
 
@@ -413,9 +413,13 @@ impl TypeInfo {
         let offset = buf.len();
         buf.push(0);
 
-        let _ = value.encode(buf);
+        let size = if let IsNull::Yes = value.encode(buf) {
+            0xFF
+        } else {
+            (buf.len() - offset - 1) as u8
+        };
 
-        buf[offset] = (buf.len() - offset - 1) as u8;
+        buf[offset] = size;
     }
 
     pub(crate) fn put_short_len_value<'q, T: Encode<'q, MsSql>>(
@@ -426,9 +430,12 @@ impl TypeInfo {
         let offset = buf.len();
         buf.extend(&0_u16.to_le_bytes());
 
-        let _ = value.encode(buf);
+        let size = if let IsNull::Yes = value.encode(buf) {
+            0xFFFF
+        } else {
+            (buf.len() - offset - 2) as u16
+        };
 
-        let size = (buf.len() - offset - 2) as u16;
         buf[offset..(offset + 2)].copy_from_slice(&size.to_le_bytes());
     }
 
@@ -436,9 +443,12 @@ impl TypeInfo {
         let offset = buf.len();
         buf.extend(&0_u32.to_le_bytes());
 
-        let _ = value.encode(buf);
+        let size = if let IsNull::Yes = value.encode(buf) {
+            0xFFFF_FFFF
+        } else {
+            (buf.len() - offset - 4) as u32
+        };
 
-        let size = (buf.len() - offset - 4) as u32;
         buf[offset..(offset + 4)].copy_from_slice(&size.to_le_bytes());
     }
 
