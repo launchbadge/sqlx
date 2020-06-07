@@ -5,6 +5,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::{PgConnection, PgTypeInfo, Postgres};
+use crate::types::Type;
 
 #[derive(Default)]
 pub struct PgArgumentBuffer {
@@ -40,10 +41,11 @@ impl<'q> Arguments<'q> for PgArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        T: Encode<'q, Self::Database>,
+        T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
         // remember the type information for this value
-        self.types.push(value.produces());
+        self.types
+            .push(value.produces().unwrap_or_else(T::type_info));
 
         // reserve space to write the prefixed length of the value
         let offset = self.buffer.len();

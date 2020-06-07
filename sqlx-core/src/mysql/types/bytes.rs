@@ -18,6 +18,10 @@ impl Encode<'_, MySql> for &'_ [u8] {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
+    }
 }
 
 impl<'r> Decode<'r, MySql> for &'r [u8] {
@@ -49,6 +53,10 @@ impl Type<MySql> for Vec<u8> {
 impl Encode<'_, MySql> for Vec<u8> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
         <&[u8] as Encode<MySql>>::encode(&**self, buf)
+    }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
     }
 }
 

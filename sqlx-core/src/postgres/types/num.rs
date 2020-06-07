@@ -30,9 +30,17 @@ impl Encode<'_, Postgres> for i8 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for i8 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         // note: in the TEXT encoding, a value of "0" here is encoded as an empty string
         Ok(value.as_bytes()?.get(0).copied().unwrap_or_default() as i8)
@@ -63,9 +71,17 @@ impl Encode<'_, Postgres> for i16 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for i16 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_i16(value.as_bytes()?),
@@ -98,9 +114,17 @@ impl Encode<'_, Postgres> for u32 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for u32 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_u32(value.as_bytes()?),
@@ -133,9 +157,17 @@ impl Encode<'_, Postgres> for i32 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for i32 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_i32(value.as_bytes()?),
@@ -168,9 +200,17 @@ impl Encode<'_, Postgres> for i64 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for i64 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_i64(value.as_bytes()?),

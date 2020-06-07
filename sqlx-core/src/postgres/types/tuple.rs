@@ -33,6 +33,10 @@ macro_rules! impl_type_for_tuple {
             $($T: Type<Postgres>,)*
             $($T: for<'a> Decode<'a, Postgres>,)*
         {
+            fn accepts(ty: &PgTypeInfo) -> bool {
+                *ty == <Self as Type<Postgres>>::type_info()
+            }
+
             fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
                 #[allow(unused)]
                 let mut decoder = PgRecordDecoder::new(value)?;

@@ -157,6 +157,10 @@ impl Encode<'_, Postgres> for BigDecimal {
         IsNull::No
     }
 
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
+
     fn size_hint(&self) -> usize {
         // BigDecimal::digits() gives us base-10 digits, so we divide by 4 to get base-10000 digits
         // and since this is just a hint we just always round up
@@ -165,6 +169,10 @@ impl Encode<'_, Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.format() {
             PgValueFormat::Binary => PgNumeric::decode(value.as_bytes()?)?.try_into(),

@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::mysql::{MySql, MySqlTypeInfo};
+use crate::types::Type;
 
 /// Implementation of [`Arguments`] for MySQL.
 #[derive(Debug, Default)]
@@ -22,9 +23,9 @@ impl<'q> Arguments<'q> for MySqlArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        T: Encode<'q, Self::Database>,
+        T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        let ty = value.produces();
+        let ty = value.produces().unwrap_or_else(T::type_info);
         let index = self.types.len();
 
         self.types.push(ty);

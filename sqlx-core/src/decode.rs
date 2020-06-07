@@ -2,16 +2,13 @@
 
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
-use crate::types::Type;
 use crate::value::ValueRef;
 
 /// A type that can be decoded from the database.
-pub trait Decode<'r, DB: Database>: Sized + Type<DB> {
+pub trait Decode<'r, DB: Database>: Sized {
     /// Determines if a value of this type can be created from a value with the
     /// given type information.
-    fn accepts(ty: &DB::TypeInfo) -> bool {
-        *ty == Self::type_info()
-    }
+    fn accepts(ty: &DB::TypeInfo) -> bool;
 
     /// Decode a new value of this type using a raw value from the database.
     fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError>;

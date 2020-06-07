@@ -7,12 +7,12 @@ mod int;
 mod str;
 
 impl<'q, T: 'q + Encode<'q, Mssql>> Encode<'q, Mssql> for Option<T> {
-    fn produces(&self) -> MssqlTypeInfo {
+    fn produces(&self) -> Option<MssqlTypeInfo> {
         if let Some(v) = self {
             v.produces()
         } else {
             // MSSQL requires a special NULL type ID
-            MssqlTypeInfo(TypeInfo::new(DataType::Null, 0))
+            Some(MssqlTypeInfo(TypeInfo::new(DataType::Null, 0)))
         }
     }
 

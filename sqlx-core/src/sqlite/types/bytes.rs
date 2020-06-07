@@ -19,6 +19,10 @@ impl<'q> Encode<'q, Sqlite> for &'q [u8] {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<SqliteTypeInfo> {
+        <Self as Type<Sqlite>>::type_info().into()
+    }
 }
 
 impl<'r> Decode<'r, Sqlite> for &'r [u8] {
@@ -48,6 +52,10 @@ impl<'q> Encode<'q, Sqlite> for Vec<u8> {
         args.push(SqliteArgumentValue::Blob(Cow::Owned(self.clone())));
 
         IsNull::No
+    }
+
+    fn produces(&self) -> Option<SqliteTypeInfo> {
+        <Self as Type<Sqlite>>::type_info().into()
     }
 }
 

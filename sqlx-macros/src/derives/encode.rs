@@ -83,7 +83,9 @@ fn expand_derive_encode_transparent(
             fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
                 sqlx::encode::Encode::encode_by_ref(&self.0, buf)
             }
-
+            fn produces(&self) -> Option<DB::TypeInfo> {
+                <#ty as sqlx::encode::Encode<DB>>::produces(&self.0)
+            }
             fn size_hint(&self) -> usize {
                 sqlx::encode::Encode::size_hint(&self.0)
             }
@@ -110,11 +112,15 @@ fn expand_derive_encode_weak_enum(
                 sqlx::encode::Encode::encode_by_ref(&(*self as #repr), buf)
             }
 
-            fn size_hint(&self) -> usize {
-                sqlx::encode::Encode::size_hint(&(*self as #repr))
+                fn produces(&self) -> Option<DB::TypeInfo> {
+                    <Self as Type<MySql>>::type_info().into()
+                }
+
+                fn size_hint(&self) -> usize {
+                    sqlx::encode::Encode::size_hint(&(*self as #repr))
+                }
             }
-        }
-    ))
+        ))
 }
 
 fn expand_derive_encode_strong_enum(
@@ -150,6 +156,10 @@ fn expand_derive_encode_strong_enum(
                 };
 
                 <str as sqlx::encode::Encode<'q, DB>>::encode_by_ref(val, buf)
+            }
+
+            fn produces(&self) -> Option<DB::TypeInfo> {
+                <Self as Type<MySql>>::type_info().into()
             }
 
             fn size_hint(&self) -> usize {
@@ -218,6 +228,10 @@ fn expand_derive_encode_struct(
                     #(#writes)*
 
                     encoder.finish()
+                }
+
+                fn produces(&self) -> Option<DB::TypeInfo> {
+                    <Self as Type<MySql>>::type_info().into()
                 }
 
                 fn size_hint(&self) -> usize {

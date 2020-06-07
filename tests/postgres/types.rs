@@ -333,3 +333,36 @@ test_type!(decimal<sqlx::types::BigDecimal>(Postgres,
     "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
+
+mod ranges {
+    use super::*;
+    use core::ops::Bound;
+    use sqlx::postgres::types::{Int4Range, PgRange};
+
+    const EXC2: Bound<i32> = Bound::Excluded(2);
+    const EXC3: Bound<i32> = Bound::Excluded(3);
+    const INC1: Bound<i32> = Bound::Included(1);
+    const INC2: Bound<i32> = Bound::Included(2);
+    const UNB: Bound<i32> = Bound::Unbounded;
+
+    // int4range display is hard-coded into [l, u)
+    test_type!(int4range<PgRange<i32>>(Postgres,
+
+        "'(,)'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
+        "'(,]'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
+        "'(,2)'::int4range" == Int4Range(PgRange::new([UNB, EXC2])),
+        "'(,2]'::int4range" == Int4Range(PgRange::new([UNB, EXC3])),
+        "'(1,)'::int4range" == Int4Range(PgRange::new([INC2, UNB])),
+        "'(1,]'::int4range" == Int4Range(PgRange::new([INC2, UNB])),
+        "'(1,2]'::int4range" == Int4Range(PgRange::new([INC2, EXC3])),
+
+        "'[,)'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
+        "'[,]'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
+        "'[,2)'::int4range" == Int4Range(PgRange::new([UNB, EXC2])),
+        "'[,2]'::int4range" == Int4Range(PgRange::new([UNB, EXC3])),
+        "'[1,)'::int4range" == Int4Range(PgRange::new([INC1, UNB])),
+        "'[1,]'::int4range" == Int4Range(PgRange::new([INC1, UNB])),
+        "'[1,2)'::int4range" == Int4Range(PgRange::new([INC1, EXC2])),
+        "'[1,2]'::int4range" == Int4Range(PgRange::new([INC1, EXC3])),
+    ));
+}

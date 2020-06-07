@@ -28,11 +28,19 @@ impl Encode<'_, Postgres> for &'_ str {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Encode<'_, Postgres> for String {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         <&str as Encode<Postgres>>::encode(&**self, buf)
+    }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
     }
 }
 

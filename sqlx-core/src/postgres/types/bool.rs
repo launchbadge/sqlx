@@ -28,9 +28,17 @@ impl Encode<'_, Postgres> for bool {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Decode<'_, Postgres> for bool {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => value.as_bytes()?[0] != 0,

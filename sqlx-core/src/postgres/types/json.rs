@@ -43,6 +43,10 @@ where
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl<'r, T: 'r> Decode<'r, Postgres> for Json<T>

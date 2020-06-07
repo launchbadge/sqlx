@@ -33,7 +33,7 @@ macro_rules! impl_from_row_for_tuple {
         impl<'r, R, $($T,)+> FromRow<'r, R> for ($($T,)+)
         where
             R: Row,
-            $($T: crate::decode::Decode<'r, R::Database>,)+
+            $($T: crate::decode::Decode<'r, R::Database> + crate::types::Type<R::Database>,)+
         {
             #[inline]
             fn from_row(row: &'r R) -> Result<Self, Error> {

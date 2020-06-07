@@ -138,7 +138,7 @@ impl PgConnection {
 
             b'P' => Err(err_protocol!("pseudo types are unsupported")),
 
-            b'R' => Err(err_protocol!("user-defined range types are unsupported")),
+            b'R' => self.fetch_range_by_oid(oid, name).await,
 
             b'E' => self.fetch_enum_by_oid(oid, name).await,
 
@@ -207,6 +207,27 @@ ORDER BY attnum
                 kind: PgTypeKind::Composite(Arc::from(fields)),
             }))))
         })
+    }
+
+    async fn fetch_range_by_oid(&mut self, oid: u32, name: String) -> Result<PgTypeInfo, Error> {
+        let _: i32 = query_scalar(
+            r#"
+SELECT 1
+FROM pg_catalog.pg_range
+WHERE rngtypid = $1
+            "#,
+        )
+        .bind(oid)
+        .fetch_one(self)
+        .await?;
+
+        let pg_type = PgType::try_from_oid(oid).ok_or_else(|| err_protocol!("Trying to retrieve a DB type that doesn't exist in SQLx"))?;
+
+        Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+            kind: PgTypeKind::Range(PgTypeInfo(pg_type)),
+            name: name.into(),
+            oid,
+        }))))
     }
 
     pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<u32, Error> {

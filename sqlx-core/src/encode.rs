@@ -2,7 +2,6 @@
 use std::mem;
 
 use crate::database::{Database, HasArguments};
-use crate::types::Type;
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -16,11 +15,7 @@ pub enum IsNull {
 }
 
 /// Encode a single value to be sent to the database.
-pub trait Encode<'q, DB: Database>: Type<DB> {
-    fn produces(&self) -> DB::TypeInfo {
-        Self::type_info()
-    }
-
+pub trait Encode<'q, DB: Database> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
     #[must_use]
     fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull
@@ -37,6 +32,10 @@ pub trait Encode<'q, DB: Database>: Type<DB> {
     #[must_use]
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull;
 
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        None
+    }
+
     #[inline]
     fn size_hint(&self) -> usize {
         mem::size_of_val(self)
@@ -48,7 +47,7 @@ where
     T: Encode<'q, DB>,
 {
     #[inline]
-    fn produces(&self) -> DB::TypeInfo {
+    fn produces(&self) -> Option<DB::TypeInfo> {
         (**self).produces()
     }
 
@@ -68,18 +67,18 @@ where
     }
 }
 
-#[allow(unused_macros)]
 macro_rules! impl_encode_for_option {
     ($DB:ident) => {
-        impl<'q, T: 'q + crate::encode::Encode<'q, $DB>> crate::encode::Encode<'q, $DB>
-            for Option<T>
+        impl<'q, T> crate::encode::Encode<'q, $DB> for Option<T>
+        where
+            T: crate::encode::Encode<'q, $DB> + crate::types::Type<$DB> + 'q,
         {
             #[inline]
-            fn produces(&self) -> <$DB as crate::database::Database>::TypeInfo {
+            fn produces(&self) -> Option<<$DB as crate::database::Database>::TypeInfo> {
                 if let Some(v) = self {
                     v.produces()
                 } else {
-                    T::type_info()
+                    T::type_info().into()
                 }
             }
 
