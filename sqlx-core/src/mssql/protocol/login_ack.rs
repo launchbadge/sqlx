@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::mssql::io::MsSqlBufExt;
+use crate::mssql::io::MssqlBufExt;
 use crate::mssql::protocol::pre_login::Version;
 
 #[derive(Debug)]

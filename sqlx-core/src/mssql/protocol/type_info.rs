@@ -4,7 +4,7 @@ use encoding_rs::Encoding;
 
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
-use crate::mssql::MsSql;
+use crate::mssql::Mssql;
 
 bitflags! {
     #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
@@ -354,7 +354,7 @@ impl TypeInfo {
         buf.split_to(size)
     }
 
-    pub(crate) fn put_value<'q, T: Encode<'q, MsSql>>(&self, buf: &mut Vec<u8>, value: T) {
+    pub(crate) fn put_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
         match self.ty {
             DataType::Null
             | DataType::TinyInt
@@ -409,11 +409,11 @@ impl TypeInfo {
         }
     }
 
-    pub(crate) fn put_fixed_value<'q, T: Encode<'q, MsSql>>(&self, buf: &mut Vec<u8>, value: T) {
+    pub(crate) fn put_fixed_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
         let _ = value.encode(buf);
     }
 
-    pub(crate) fn put_byte_len_value<'q, T: Encode<'q, MsSql>>(&self, buf: &mut Vec<u8>, value: T) {
+    pub(crate) fn put_byte_len_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
         let offset = buf.len();
         buf.push(0);
 
@@ -426,7 +426,7 @@ impl TypeInfo {
         buf[offset] = size;
     }
 
-    pub(crate) fn put_short_len_value<'q, T: Encode<'q, MsSql>>(
+    pub(crate) fn put_short_len_value<'q, T: Encode<'q, Mssql>>(
         &self,
         buf: &mut Vec<u8>,
         value: T,
@@ -443,7 +443,7 @@ impl TypeInfo {
         buf[offset..(offset + 2)].copy_from_slice(&size.to_le_bytes());
     }
 
-    pub(crate) fn put_long_len_value<'q, T: Encode<'q, MsSql>>(&self, buf: &mut Vec<u8>, value: T) {
+    pub(crate) fn put_long_len_value<'q, T: Encode<'q, Mssql>>(&self, buf: &mut Vec<u8>, value: T) {
         let offset = buf.len();
         buf.extend(&0_u32.to_le_bytes());
 

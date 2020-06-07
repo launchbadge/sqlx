@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::mssql::io::MsSqlBufExt;
+use crate::mssql::io::MssqlBufExt;
 use crate::mssql::protocol::type_info::TypeInfo;
 
 #[derive(Debug)]

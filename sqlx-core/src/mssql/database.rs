@@ -1,35 +1,35 @@
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::mssql::{
-    MsSqlArguments, MsSqlConnection, MsSqlRow, MsSqlTransactionManager, MsSqlTypeInfo, MsSqlValue,
-    MsSqlValueRef,
+    MssqlArguments, MssqlConnection, MssqlRow, MssqlTransactionManager, MssqlTypeInfo, MssqlValue,
+    MssqlValueRef,
 };
 
 /// MSSQL database driver.
 #[derive(Debug)]
-pub struct MsSql;
+pub struct Mssql;
 
-impl Database for MsSql {
-    type Connection = MsSqlConnection;
+impl Database for Mssql {
+    type Connection = MssqlConnection;
 
-    type TransactionManager = MsSqlTransactionManager;
+    type TransactionManager = MssqlTransactionManager;
 
-    type Row = MsSqlRow;
+    type Row = MssqlRow;
 
-    type TypeInfo = MsSqlTypeInfo;
+    type TypeInfo = MssqlTypeInfo;
 
-    type Value = MsSqlValue;
+    type Value = MssqlValue;
 }
 
-impl<'r> HasValueRef<'r> for MsSql {
-    type Database = MsSql;
+impl<'r> HasValueRef<'r> for Mssql {
+    type Database = Mssql;
 
-    type ValueRef = MsSqlValueRef<'r>;
+    type ValueRef = MssqlValueRef<'r>;
 }
 
-impl HasArguments<'_> for MsSql {
-    type Database = MsSql;
+impl HasArguments<'_> for Mssql {
+    type Database = Mssql;
 
-    type Arguments = MsSqlArguments;
+    type Arguments = MssqlArguments;
 
     type ArgumentBuffer = Vec<u8>;
 }

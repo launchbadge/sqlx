@@ -16,10 +16,10 @@ use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
 use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
-use crate::mssql::{MsSqlConnectOptions, MsSqlDatabaseError};
+use crate::mssql::{MssqlConnectOptions, MssqlDatabaseError};
 use crate::net::MaybeTlsStream;
 
-pub(crate) struct MsSqlStream {
+pub(crate) struct MssqlStream {
     inner: BufStream<MaybeTlsStream<TcpStream>>,
 
     // current transaction descriptor
@@ -34,8 +34,8 @@ pub(crate) struct MsSqlStream {
     pub(crate) columns: Vec<ColumnData>,
 }
 
-impl MsSqlStream {
-    pub(super) async fn connect(options: &MsSqlConnectOptions) -> Result<Self, Error> {
+impl MssqlStream {
+    pub(super) async fn connect(options: &MssqlConnectOptions) -> Result<Self, Error> {
         let inner = BufStream::new(MaybeTlsStream::Raw(
             TcpStream::connect((&*options.host, options.port)).await?,
         ));
@@ -146,7 +146,7 @@ impl MsSqlStream {
 
                     MessageType::Error => {
                         let err = ProtocolError::get(buf)?;
-                        return Err(MsSqlDatabaseError(err).into());
+                        return Err(MssqlDatabaseError(err).into());
                     }
 
                     MessageType::ColMetaData => {
@@ -166,7 +166,7 @@ impl MsSqlStream {
     }
 }
 
-impl Deref for MsSqlStream {
+impl Deref for MssqlStream {
     type Target = BufStream<MaybeTlsStream<TcpStream>>;
 
     fn deref(&self) -> &Self::Target {
@@ -174,7 +174,7 @@ impl Deref for MsSqlStream {
     }
 }
 
-impl DerefMut for MsSqlStream {
+impl DerefMut for MssqlStream {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }

@@ -3,7 +3,7 @@ use bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::io::BufExt;
 
-pub trait MsSqlBufExt: Buf {
+pub trait MssqlBufExt: Buf {
     fn get_utf16_str(&mut self, n: usize) -> Result<String, Error>;
 
     fn get_b_varchar(&mut self) -> Result<String, Error>;
@@ -13,7 +13,7 @@ pub trait MsSqlBufExt: Buf {
     fn get_b_varbyte(&mut self) -> Bytes;
 }
 
-impl MsSqlBufExt for Bytes {
+impl MssqlBufExt for Bytes {
     fn get_utf16_str(&mut self, mut n: usize) -> Result<String, Error> {
         let mut raw = Vec::with_capacity(n * 2);
 

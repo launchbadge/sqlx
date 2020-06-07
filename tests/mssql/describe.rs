@@ -1,8 +1,8 @@
-use sqlx::mssql::MsSql;
+use sqlx::mssql::Mssql;
 use sqlx::{describe::Column, Executor};
 use sqlx_test::new;
 
-fn type_names(columns: &[Column<MsSql>]) -> Vec<String> {
+fn type_names(columns: &[Column<Mssql>]) -> Vec<String> {
     columns
         .iter()
         .filter_map(|col| Some(col.type_info.as_ref()?.to_string()))
@@ -11,7 +11,7 @@ fn type_names(columns: &[Column<MsSql>]) -> Vec<String> {
 
 #[sqlx_macros::test]
 async fn it_describes_simple() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     let d = conn.describe("SELECT * FROM tweet").await?;
     let columns = d.columns;

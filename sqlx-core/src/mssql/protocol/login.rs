@@ -1,5 +1,5 @@
 use crate::io::Encode;
-use crate::mssql::io::MsSqlBufMutExt;
+use crate::mssql::io::MssqlBufMutExt;
 
 #[derive(Debug)]
 pub struct Login7<'a> {

@@ -5,11 +5,11 @@ use crate::type_info::TypeInfo;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub struct MsSqlTypeInfo(pub(crate) ProtocolTypeInfo);
+pub struct MssqlTypeInfo(pub(crate) ProtocolTypeInfo);
 
-impl TypeInfo for MsSqlTypeInfo {}
+impl TypeInfo for MssqlTypeInfo {}
 
-impl Display for MsSqlTypeInfo {
+impl Display for MssqlTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buf = String::new();
         self.0.fmt(&mut buf);

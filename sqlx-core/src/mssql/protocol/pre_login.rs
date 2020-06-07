@@ -99,7 +99,7 @@ impl Encode<'_> for PreLogin<'_> {
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
         use PreLoginOptionToken::*;
 
-        // NOTE: Packet headers are written in MsSqlStream::write
+        // NOTE: Packet headers are written in MssqlStream::write
 
         // Rules
         //  PRELOGIN = (*PRELOGIN_OPTION *PL_OPTION_DATA) / SSL_PAYLOAD

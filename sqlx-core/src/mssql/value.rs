@@ -3,17 +3,17 @@ use std::borrow::Cow;
 use bytes::Bytes;
 
 use crate::error::{BoxDynError, UnexpectedNullError};
-use crate::mssql::{MsSql, MsSqlTypeInfo};
+use crate::mssql::{Mssql, MssqlTypeInfo};
 use crate::value::{Value, ValueRef};
 
 /// Implementation of [`ValueRef`] for MSSQL.
 #[derive(Clone)]
-pub struct MsSqlValueRef<'r> {
-    pub(crate) type_info: MsSqlTypeInfo,
+pub struct MssqlValueRef<'r> {
+    pub(crate) type_info: MssqlTypeInfo,
     pub(crate) data: Option<&'r Bytes>,
 }
 
-impl<'r> MsSqlValueRef<'r> {
+impl<'r> MssqlValueRef<'r> {
     pub(crate) fn as_bytes(&self) -> Result<&'r [u8], BoxDynError> {
         match &self.data {
             Some(v) => Ok(v),
@@ -22,17 +22,17 @@ impl<'r> MsSqlValueRef<'r> {
     }
 }
 
-impl ValueRef<'_> for MsSqlValueRef<'_> {
-    type Database = MsSql;
+impl ValueRef<'_> for MssqlValueRef<'_> {
+    type Database = Mssql;
 
-    fn to_owned(&self) -> MsSqlValue {
-        MsSqlValue {
+    fn to_owned(&self) -> MssqlValue {
+        MssqlValue {
             data: self.data.cloned(),
             type_info: self.type_info.clone(),
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MsSqlTypeInfo>> {
+    fn type_info(&self) -> Option<Cow<'_, MssqlTypeInfo>> {
         Some(Cow::Borrowed(&self.type_info))
     }
 
@@ -43,22 +43,22 @@ impl ValueRef<'_> for MsSqlValueRef<'_> {
 
 /// Implementation of [`Value`] for MSSQL.
 #[derive(Clone)]
-pub struct MsSqlValue {
-    pub(crate) type_info: MsSqlTypeInfo,
+pub struct MssqlValue {
+    pub(crate) type_info: MssqlTypeInfo,
     pub(crate) data: Option<Bytes>,
 }
 
-impl Value for MsSqlValue {
-    type Database = MsSql;
+impl Value for MssqlValue {
+    type Database = Mssql;
 
-    fn as_ref(&self) -> MsSqlValueRef<'_> {
-        MsSqlValueRef {
+    fn as_ref(&self) -> MssqlValueRef<'_> {
+        MssqlValueRef {
             data: self.data.as_ref(),
             type_info: self.type_info.clone(),
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MsSqlTypeInfo>> {
+    fn type_info(&self) -> Option<Cow<'_, MssqlTypeInfo>> {
         Some(Cow::Borrowed(&self.type_info))
     }
 

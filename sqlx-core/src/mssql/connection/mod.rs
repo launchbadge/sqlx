@@ -7,28 +7,28 @@ use futures_util::{future::ready, FutureExt, TryFutureExt};
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::mssql::connection::stream::MsSqlStream;
-use crate::mssql::{MsSql, MsSqlConnectOptions};
+use crate::mssql::connection::stream::MssqlStream;
+use crate::mssql::{Mssql, MssqlConnectOptions};
 
 mod establish;
 mod executor;
 mod stream;
 
-pub struct MsSqlConnection {
-    pub(crate) stream: MsSqlStream,
+pub struct MssqlConnection {
+    pub(crate) stream: MssqlStream,
 
     // number of Done* messages that we are currently expecting
     pub(crate) pending_done_count: usize,
 }
 
-impl Debug for MsSqlConnection {
+impl Debug for MssqlConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MsSqlConnection").finish()
+        f.debug_struct("MssqlConnection").finish()
     }
 }
 
-impl Connection for MsSqlConnection {
-    type Database = MsSql;
+impl Connection for MssqlConnection {
+    type Database = Mssql;
 
     fn close(self) -> BoxFuture<'static, Result<(), Error>> {
         // NOTE: there does not seem to be a clean shutdown packet to send to MSSQL
@@ -46,20 +46,20 @@ impl Connection for MsSqlConnection {
     }
 
     #[doc(hidden)]
-    fn get_ref(&self) -> &MsSqlConnection {
+    fn get_ref(&self) -> &MssqlConnection {
         self
     }
 
     #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut MsSqlConnection {
+    fn get_mut(&mut self) -> &mut MssqlConnection {
         self
     }
 }
 
-impl Connect for MsSqlConnection {
-    type Options = MsSqlConnectOptions;
+impl Connect for MssqlConnection {
+    type Options = MssqlConnectOptions;
 
     fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(MsSqlConnection::establish(options))
+        Box::pin(MssqlConnection::establish(options))
     }
 }

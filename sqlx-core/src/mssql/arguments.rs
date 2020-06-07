@@ -1,11 +1,11 @@
 use crate::arguments::Arguments;
 use crate::encode::Encode;
-use crate::mssql::database::MsSql;
-use crate::mssql::io::MsSqlBufMutExt;
+use crate::mssql::database::Mssql;
+use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::rpc::StatusFlags;
 
 #[derive(Default)]
-pub struct MsSqlArguments {
+pub struct MssqlArguments {
     // next ordinal to be used when formatting a positional parameter name
     pub(crate) ordinal: usize,
     // temporary string buffer used to format parameter names
@@ -14,8 +14,8 @@ pub struct MsSqlArguments {
     pub(crate) declarations: String,
 }
 
-impl MsSqlArguments {
-    pub(crate) fn add_named<'q, T: Encode<'q, MsSql>>(&mut self, name: &str, value: T) {
+impl MssqlArguments {
+    pub(crate) fn add_named<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, value: T) {
         let ty = value.produces();
 
         let mut ty_name = String::new();
@@ -28,11 +28,11 @@ impl MsSqlArguments {
         ty.0.put_value(&mut self.data, value); // [ParamLenData]
     }
 
-    pub(crate) fn add_unnamed<'q, T: Encode<'q, MsSql>>(&mut self, value: T) {
+    pub(crate) fn add_unnamed<'q, T: Encode<'q, Mssql>>(&mut self, value: T) {
         self.add_named("", value);
     }
 
-    pub(crate) fn declare<'q, T: Encode<'q, MsSql>>(&mut self, name: &str, initial_value: T) {
+    pub(crate) fn declare<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, initial_value: T) {
         let ty = initial_value.produces();
 
         let mut ty_name = String::new();
@@ -45,14 +45,14 @@ impl MsSqlArguments {
         ty.0.put_value(&mut self.data, initial_value); // [ParamLenData]
     }
 
-    pub(crate) fn append(&mut self, arguments: &mut MsSqlArguments) {
+    pub(crate) fn append(&mut self, arguments: &mut MssqlArguments) {
         self.ordinal += arguments.ordinal;
         self.data.append(&mut arguments.data);
     }
 }
 
-impl<'q> Arguments<'q> for MsSqlArguments {
-    type Database = MsSql;
+impl<'q> Arguments<'q> for MssqlArguments {
+    type Database = Mssql;
 
     fn reserve(&mut self, _additional: usize, size: usize) {
         self.data.reserve(size + 10); // est. 4 chars for name, 1 for status, 1 for TYPE_INFO
@@ -73,7 +73,7 @@ impl<'q> Arguments<'q> for MsSqlArguments {
         self.ordinal += 1;
         let _ = itoa::fmt(&mut self.name, self.ordinal);
 
-        let MsSqlArguments {
+        let MssqlArguments {
             ref name,
             ref mut declarations,
             ref mut data,

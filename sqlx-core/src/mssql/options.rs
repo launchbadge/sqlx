@@ -5,7 +5,7 @@ use url::Url;
 use crate::error::BoxDynError;
 
 #[derive(Debug, Clone)]
-pub struct MsSqlConnectOptions {
+pub struct MssqlConnectOptions {
     pub(crate) host: String,
     pub(crate) port: u16,
     pub(crate) username: String,
@@ -13,13 +13,13 @@ pub struct MsSqlConnectOptions {
     pub(crate) password: Option<String>,
 }
 
-impl Default for MsSqlConnectOptions {
+impl Default for MssqlConnectOptions {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MsSqlConnectOptions {
+impl MssqlConnectOptions {
     pub fn new() -> Self {
         Self {
             port: 1433,
@@ -56,7 +56,7 @@ impl MsSqlConnectOptions {
     }
 }
 
-impl FromStr for MsSqlConnectOptions {
+impl FromStr for MssqlConnectOptions {
     type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

@@ -1,18 +1,18 @@
 use crate::encode::{Encode, IsNull};
 use crate::mssql::protocol::type_info::{DataType, TypeInfo};
-use crate::mssql::{MsSql, MsSqlTypeInfo};
+use crate::mssql::{Mssql, MssqlTypeInfo};
 
 mod float;
 mod int;
 mod str;
 
-impl<'q, T: 'q + Encode<'q, MsSql>> Encode<'q, MsSql> for Option<T> {
-    fn produces(&self) -> MsSqlTypeInfo {
+impl<'q, T: 'q + Encode<'q, Mssql>> Encode<'q, Mssql> for Option<T> {
+    fn produces(&self) -> MssqlTypeInfo {
         if let Some(v) = self {
             v.produces()
         } else {
             // MSSQL requires a special NULL type ID
-            MsSqlTypeInfo(TypeInfo::new(DataType::Null, 0))
+            MssqlTypeInfo(TypeInfo::new(DataType::Null, 0))
         }
     }
 

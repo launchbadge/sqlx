@@ -1,9 +1,9 @@
-pub trait MsSqlBufMutExt {
+pub trait MssqlBufMutExt {
     fn put_b_varchar(&mut self, s: &str);
     fn put_utf16_str(&mut self, s: &str);
 }
 
-impl MsSqlBufMutExt for Vec<u8> {
+impl MssqlBufMutExt for Vec<u8> {
     fn put_utf16_str(&mut self, s: &str) {
         let mut enc = s.encode_utf16();
         while let Some(ch) = enc.next() {

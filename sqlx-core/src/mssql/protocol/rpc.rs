@@ -2,9 +2,9 @@ use bitflags::bitflags;
 use either::Either;
 
 use crate::io::Encode;
-use crate::mssql::io::MsSqlBufMutExt;
+use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::header::{AllHeaders, Header};
-use crate::mssql::MsSqlArguments;
+use crate::mssql::MssqlArguments;
 
 pub(crate) struct RpcRequest<'a> {
     pub(crate) transaction_descriptor: u64,
@@ -12,7 +12,7 @@ pub(crate) struct RpcRequest<'a> {
     // the procedure can be encoded as a u16 of a built-in or the name for a custom one
     pub(crate) procedure: Either<&'a str, Procedure>,
     pub(crate) options: OptionFlags,
-    pub(crate) arguments: &'a MsSqlArguments,
+    pub(crate) arguments: &'a MssqlArguments,
 }
 
 #[derive(Debug, Copy, Clone)]

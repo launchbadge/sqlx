@@ -5,11 +5,11 @@ use crate::error::DatabaseError;
 use crate::mssql::protocol::error::Error;
 
 /// An error returned from the MSSQL database.
-pub struct MsSqlDatabaseError(pub(crate) Error);
+pub struct MssqlDatabaseError(pub(crate) Error);
 
-impl Debug for MsSqlDatabaseError {
+impl Debug for MssqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MsSqlDatabaseError")
+        f.debug_struct("MssqlDatabaseError")
             .field("message", &self.0.message)
             .field("number", &self.0.number)
             .field("state", &self.0.state)
@@ -21,15 +21,15 @@ impl Debug for MsSqlDatabaseError {
     }
 }
 
-impl Display for MsSqlDatabaseError {
+impl Display for MssqlDatabaseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self.message())
     }
 }
 
-impl StdError for MsSqlDatabaseError {}
+impl StdError for MssqlDatabaseError {}
 
-impl DatabaseError for MsSqlDatabaseError {
+impl DatabaseError for MssqlDatabaseError {
     #[inline]
     fn message(&self) -> &str {
         &self.0.message

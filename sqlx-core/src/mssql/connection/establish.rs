@@ -1,15 +1,15 @@
 use crate::error::Error;
 use crate::io::Decode;
-use crate::mssql::connection::stream::MsSqlStream;
+use crate::mssql::connection::stream::MssqlStream;
 use crate::mssql::protocol::login::Login7;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::pre_login::{Encrypt, PreLogin, Version};
-use crate::mssql::{MsSqlConnectOptions, MsSqlConnection};
+use crate::mssql::{MssqlConnectOptions, MssqlConnection};
 
-impl MsSqlConnection {
-    pub(crate) async fn establish(options: &MsSqlConnectOptions) -> Result<Self, Error> {
-        let mut stream: MsSqlStream = MsSqlStream::connect(options).await?;
+impl MssqlConnection {
+    pub(crate) async fn establish(options: &MssqlConnectOptions) -> Result<Self, Error> {
+        let mut stream: MssqlStream = MssqlStream::connect(options).await?;
 
         // Send PRELOGIN to set up the context for login. The server should immediately
         // respond with a PRELOGIN message of its own.

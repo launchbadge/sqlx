@@ -28,7 +28,7 @@ pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 
 #[cfg(feature = "mssql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-pub use sqlx_core::mssql::{self, MsSql, MsSqlConnection, MsSqlPool};
+pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlPool};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]

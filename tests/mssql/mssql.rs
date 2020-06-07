@@ -1,12 +1,12 @@
 use futures::TryStreamExt;
-use sqlx::mssql::MsSql;
+use sqlx::mssql::Mssql;
 use sqlx::{Connection, Executor, Row};
-use sqlx_core::mssql::MsSqlRow;
+use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     conn.ping().await?;
 
@@ -17,9 +17,9 @@ async fn it_connects() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_select_expression() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
-    let row: MsSqlRow = conn.fetch_one("SELECT 4").await?;
+    let row: MssqlRow = conn.fetch_one("SELECT 4").await?;
     let v: i32 = row.try_get(0)?;
 
     assert_eq!(v, 4);
@@ -29,11 +29,11 @@ async fn it_can_select_expression() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_maths() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     let value = sqlx::query("SELECT 1 + @p1")
         .bind(5_i32)
-        .try_map(|row: MsSqlRow| row.try_get::<i32, _>(0))
+        .try_map(|row: MssqlRow| row.try_get::<i32, _>(0))
         .fetch_one(&mut conn)
         .await?;
 
@@ -44,7 +44,7 @@ async fn it_maths() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_executes() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     let _ = conn
         .execute(
@@ -64,7 +64,7 @@ CREATE TABLE #users (id INTEGER PRIMARY KEY);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM #users")
-        .try_map(|row: MsSqlRow| row.try_get::<i32, _>(0))
+        .try_map(|row: MssqlRow| row.try_get::<i32, _>(0))
         .fetch(&mut conn)
         .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
         .await?;
@@ -76,7 +76,7 @@ CREATE TABLE #users (id INTEGER PRIMARY KEY);
 
 #[sqlx_macros::test]
 async fn it_can_work_with_transactions() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     conn.execute("IF OBJECT_ID('_sqlx_users_1922', 'U') IS NULL CREATE TABLE _sqlx_users_1922 (id INTEGER PRIMARY KEY)")
         .await?;
@@ -128,7 +128,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
             .await?;
     }
 
-    conn = new::<MsSql>().await?;
+    conn = new::<Mssql>().await?;
 
     let (count,): (i32,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_1922")
         .fetch_one(&mut conn)
@@ -141,7 +141,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
-    let mut conn = new::<MsSql>().await?;
+    let mut conn = new::<Mssql>().await?;
 
     conn.execute("IF OBJECT_ID('_sqlx_users_2523', 'U') IS NULL CREATE TABLE _sqlx_users_2523 (id INTEGER PRIMARY KEY)")
         .await?;

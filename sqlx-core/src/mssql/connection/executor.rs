@@ -15,9 +15,9 @@ use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
-use crate::mssql::{MsSql, MsSqlArguments, MsSqlConnection, MsSqlRow, MsSqlTypeInfo};
+use crate::mssql::{Mssql, MssqlArguments, MssqlConnection, MssqlRow, MssqlTypeInfo};
 
-impl MsSqlConnection {
+impl MssqlConnection {
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
             self.pending_done_count += 1;
@@ -42,13 +42,13 @@ impl MsSqlConnection {
         self.pending_done_count -= 1;
     }
 
-    async fn run(&mut self, query: &str, arguments: Option<MsSqlArguments>) -> Result<(), Error> {
+    async fn run(&mut self, query: &str, arguments: Option<MssqlArguments>) -> Result<(), Error> {
         self.wait_until_ready().await?;
         self.pending_done_count += 1;
 
         if let Some(mut arguments) = arguments {
             let proc = Either::Right(Procedure::ExecuteSql);
-            let mut proc_args = MsSqlArguments::default();
+            let mut proc_args = MssqlArguments::default();
 
             // SQL
             proc_args.add_unnamed(query);
@@ -87,13 +87,13 @@ impl MsSqlConnection {
     }
 }
 
-impl<'c> Executor<'c> for &'c mut MsSqlConnection {
-    type Database = MsSql;
+impl<'c> Executor<'c> for &'c mut MssqlConnection {
+    type Database = Mssql;
 
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, MsSqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<u64, MssqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -107,7 +107,7 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
             loop {
                 match self.stream.recv_message().await? {
                     Message::Row(row) => {
-                        let v = Either::Right(MsSqlRow { row });
+                        let v = Either::Right(MssqlRow { row });
                         yield v;
                     }
 
@@ -139,7 +139,7 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Option<MsSqlRow>, Error>>
+    ) -> BoxFuture<'e, Result<Option<MssqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -202,7 +202,7 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
             Some(&*params)
         };
 
-        let mut args = MsSqlArguments::default();
+        let mut args = MssqlArguments::default();
 
         args.declare("", 0_i32);
         args.add_unnamed(params);
@@ -240,7 +240,7 @@ impl<'c> Executor<'c> for &'c mut MsSqlConnection {
             for col in &self.stream.columns {
                 columns.push(Column {
                     name: col.col_name.clone(),
-                    type_info: Some(MsSqlTypeInfo(col.type_info.clone())),
+                    type_info: Some(MssqlTypeInfo(col.type_info.clone())),
                     not_null: Some(!col.flags.contains(Flags::NULLABLE)),
                 });
             }

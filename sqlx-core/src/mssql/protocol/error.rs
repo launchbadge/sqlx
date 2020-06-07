@@ -1,4 +1,4 @@
-use crate::mssql::io::MsSqlBufExt;
+use crate::mssql::io::MssqlBufExt;
 use bytes::{Buf, Bytes};
 
 #[derive(Debug)]

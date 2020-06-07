@@ -6,16 +6,16 @@ use crate::error::Error;
 use crate::executor::Executor;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::sql_batch::SqlBatch;
-use crate::mssql::{MsSql, MsSqlConnection};
+use crate::mssql::{Mssql, MssqlConnection};
 use crate::transaction::TransactionManager;
 
 /// Implementation of [`TransactionManager`] for MSSQL.
-pub struct MsSqlTransactionManager;
+pub struct MssqlTransactionManager;
 
-impl TransactionManager for MsSqlTransactionManager {
-    type Database = MsSql;
+impl TransactionManager for MssqlTransactionManager {
+    type Database = Mssql;
 
-    fn begin(conn: &mut MsSqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin(conn: &mut MssqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let query = if depth == 0 {
                 Cow::Borrowed("BEGIN TRAN ")
@@ -29,7 +29,7 @@ impl TransactionManager for MsSqlTransactionManager {
         })
     }
 
-    fn commit(conn: &mut MsSqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn commit(conn: &mut MssqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             if depth == 1 {
                 // savepoints are not released in MSSQL
@@ -40,7 +40,7 @@ impl TransactionManager for MsSqlTransactionManager {
         })
     }
 
-    fn rollback(conn: &mut MsSqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn rollback(conn: &mut MssqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let query = if depth == 1 {
                 Cow::Borrowed("ROLLBACK TRAN")
@@ -54,7 +54,7 @@ impl TransactionManager for MsSqlTransactionManager {
         })
     }
 
-    fn start_rollback(conn: &mut MsSqlConnection, depth: usize) {
+    fn start_rollback(conn: &mut MssqlConnection, depth: usize) {
         let query = if depth == 1 {
             Cow::Borrowed("ROLLBACK TRAN")
         } else {

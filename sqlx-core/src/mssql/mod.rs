@@ -13,20 +13,20 @@ mod type_info;
 pub mod types;
 mod value;
 
-pub use arguments::MsSqlArguments;
-pub use connection::MsSqlConnection;
-pub use database::MsSql;
-pub use error::MsSqlDatabaseError;
-pub use options::MsSqlConnectOptions;
-pub use row::MsSqlRow;
-pub use transaction::MsSqlTransactionManager;
-pub use type_info::MsSqlTypeInfo;
-pub use value::{MsSqlValue, MsSqlValueRef};
+pub use arguments::MssqlArguments;
+pub use connection::MssqlConnection;
+pub use database::Mssql;
+pub use error::MssqlDatabaseError;
+pub use options::MssqlConnectOptions;
+pub use row::MssqlRow;
+pub use transaction::MssqlTransactionManager;
+pub use type_info::MssqlTypeInfo;
+pub use value::{MssqlValue, MssqlValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for MySQL.
-pub type MsSqlPool = crate::pool::Pool<MsSql>;
+pub type MssqlPool = crate::pool::Pool<Mssql>;
 
 // NOTE: required due to the lack of lazy normalization
-impl_into_arguments_for_arguments!(MsSqlArguments);
-impl_executor_for_pool_connection!(MsSql, MsSqlConnection, MsSqlRow);
-impl_executor_for_transaction!(MsSql, MsSqlRow);
+impl_into_arguments_for_arguments!(MssqlArguments);
+impl_executor_for_pool_connection!(Mssql, MssqlConnection, MssqlRow);
+impl_executor_for_transaction!(Mssql, MssqlRow);
