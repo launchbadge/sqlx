@@ -9,7 +9,7 @@ on:
 jobs:
   format:
     name: Format
-    runs-on: ubuntu:latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -29,7 +29,7 @@ jobs:
 
   check:
     name: Check
-    runs-on: ubuntu:latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -99,7 +99,7 @@ jobs:
 
   test:
     name: Unit Test
-    runs-on: ubuntu:latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
