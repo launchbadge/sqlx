@@ -71,7 +71,7 @@ fn expand_derive_decode_transparent(
 
     let tts = quote!(
         impl #impl_generics sqlx::decode::Decode<'de, DB> for #ident #ty_generics #where_clause {
-            fn decode(value: <DB as sqlx::value::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
+            fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 <#ty as sqlx::decode::Decode<'de, DB>>::decode(value).map(Self)
             }
         }
@@ -100,13 +100,13 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         impl<'de, DB: sqlx::Database> sqlx::decode::Decode<'de, DB> for #ident where #repr: sqlx::decode::Decode<'de, DB> {
-            fn decode(value: <DB as sqlx::value::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
+            fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 let value = <#repr as sqlx::decode::Decode<'de, DB>>::decode(value)?;
 
                 match value {
                     #(#arms)*
 
-                    _ => Err(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into()))
+                    _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
                 }
             }
         }
@@ -140,12 +140,12 @@ fn expand_derive_decode_strong_enum(
 
     Ok(quote!(
         impl<'de, DB: sqlx::Database> sqlx::decode::Decode<'de, DB> for #ident where &'de str: sqlx::decode::Decode<'de, DB> {
-            fn decode(value: <DB as sqlx::value::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
+            fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 let value = <&'de str as sqlx::decode::Decode<'de, DB>>::decode(value)?;
                 match value {
                     #(#value_arms)*
 
-                    _ => Err(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into()))
+                    _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
                 }
             }
         }

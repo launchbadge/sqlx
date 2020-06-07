@@ -20,7 +20,7 @@ pub use sqlx_core::describe;
 pub use sqlx_core::types::{self, Type};
 
 #[doc(inline)]
-pub use sqlx_core::error::{self, Error, Result};
+pub use sqlx_core::error::{self, BoxDynError, Error, Result};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
