@@ -76,9 +76,13 @@ jobs:
             --manifest-path sqlx-core/Cargo.toml
             --features offline,all-databases,all-types
 
-  postgres_12:
-    name: Postgres 12
+  postgres:
+    name: Postgres
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
+        postgres: [12, 10, 9_6, 9_5]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -95,13 +99,23 @@ jobs:
           args: >
             --features postgres,all-types
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_12
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_${{ matrix.postgres }}
       - run: sleep 10
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: >
-            --features postgres,all-types
+            --no-default-features
+            --features postgres,all-types,runtime-${{ matrix.runtime }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --features postgres,all-types,runtime-${{ matrix.runtime }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
