@@ -119,6 +119,7 @@ jobs:
   postgres_12:
     name: Postgres 12
     runs-on: ubuntu-20.04
+    needs: check
     steps:
       - uses: actions/checkout@v2
 
@@ -142,3 +143,5 @@ jobs:
           command: test
           args: >
             --features postgres,all-types
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
