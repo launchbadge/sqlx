@@ -65,7 +65,8 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
 async fn _file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let account = sqlx::query_file!("tests/test-query.sql",)
+    // keep trailing comma as a test
+    let account = sqlx::query_file!("tests/postgres/test-query.sql",)
         .fetch_one(&mut conn)
         .await?;
 
@@ -129,7 +130,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 async fn test_query_file_as() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let account = sqlx::query_file_as!(Account, "tests/test-query.sql",)
+    let account = sqlx::query_file_as!(Account, "tests/postgres/test-query.sql",)
         .fetch_one(&mut conn)
         .await?;
 

@@ -108,6 +108,11 @@ name = "sqlite-describe"
 path = "tests/sqlite/describe.rs"
 required-features = [ "sqlite" ]
 
+[[test]]
+name = "sqlite-macros"
+path = "tests/sqlite/macros.rs"
+required-features = [ "sqlite", "macros" ]
+
 #
 # MySQL
 #
@@ -127,6 +132,11 @@ name = "mysql-describe"
 path = "tests/mysql/describe.rs"
 required-features = [ "mysql" ]
 
+[[test]]
+name = "mysql-macros"
+path = "tests/mysql/macros.rs"
+required-features = [ "mysql", "macros" ]
+
 #
 # PostgreSQL
 #
@@ -145,6 +155,11 @@ required-features = [ "postgres" ]
 name = "postgres-describe"
 path = "tests/postgres/describe.rs"
 required-features = [ "postgres" ]
+
+[[test]]
+name = "postgres-macros"
+path = "tests/postgres/macros.rs"
+required-features = [ "postgres", "macros" ]
 
 #
 # Microsoft SQL Server (MSSQL)

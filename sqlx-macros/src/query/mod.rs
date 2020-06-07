@@ -183,7 +183,7 @@ where
         let sql = &input.src;
 
         quote! {
-            sqlx::query::<#db_path>(#sql).bind_all(#query_args)
+            sqlx::query_with::<#db_path, _>(#sql, #query_args)
         }
     } else {
         let columns = output::columns_to_rust::<DB>(&data.describe)?;

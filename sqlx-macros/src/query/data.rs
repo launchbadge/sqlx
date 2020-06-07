@@ -10,6 +10,7 @@ use sqlx_core::executor::Executor;
         deserialize = "Describe<DB>: serde::de::DeserializeOwned"
     ))
 )]
+#[derive(Debug)]
 pub struct QueryData<DB: Database> {
     #[allow(dead_code)]
     pub(super) query: String,
