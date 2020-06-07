@@ -16,6 +16,7 @@ authors = [
 default = [ "runtime-async-std" ]
 
 # databases
+all-databases = [ "postgres", "mysql", "sqlite", "mssql" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
 sqlite = [ "libsqlite3-sys" ]
@@ -32,7 +33,7 @@ runtime-tokio = [ "sqlx-rt/runtime-tokio" ]
 runtime-actix = [ "sqlx-rt/runtime-actix" ]
 
 # support offline/decoupled building (enables serialization of `Describe`)
-offline = ["serde"]
+offline = [ "serde" ]
 
 [dependencies]
 atoi = "0.3.2"
