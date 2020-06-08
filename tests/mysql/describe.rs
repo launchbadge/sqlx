@@ -36,3 +36,18 @@ async fn it_describes_simple() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn uses_alias_name() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let d = conn
+        .describe("SELECT text AS tweet_text FROM tweet")
+        .await?;
+
+    let columns = d.columns;
+
+    assert_eq!(columns[0].name, "tweet_text");
+
+    Ok(())
+}
