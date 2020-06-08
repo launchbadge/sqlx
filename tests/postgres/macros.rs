@@ -1,4 +1,4 @@
-use sqlx::Postgres;
+use sqlx::{Connection, Postgres};
 use sqlx_test::new;
 
 use futures::TryStreamExt;
@@ -22,10 +22,11 @@ async fn test_query() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_no_result() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    let mut tx = conn.begin().await?;
 
-    let _ = sqlx::query!("DELETE FROM pg_enum")
-        .execute(&mut conn)
-        .await?;
+    let _ = sqlx::query!("DELETE FROM tweet").execute(&mut tx).await?;
+
+    // let the transaction rollback so we don't actually delete the tweets
 
     Ok(())
 }
@@ -62,7 +63,7 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
-async fn _file() -> anyhow::Result<()> {
+async fn test_query_file() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // keep trailing comma as a test
