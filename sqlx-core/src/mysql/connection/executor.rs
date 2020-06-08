@@ -276,10 +276,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
                 for _ in 0..(ok.columns as usize) {
                     let def: ColumnDefinition = self.stream.recv().await?;
                     let ty = MySqlTypeInfo::from_column(&def);
-                    let name = def.name()?;
+                    let alias = def.alias()?;
 
                     columns.push(Column {
-                        name: if name.is_empty() { def.alias()? } else { name }.to_owned(),
+                        name: if alias.is_empty() { def.name()? } else { alias }.to_owned(),
                         type_info: ty,
                         not_null: Some(def.flags.contains(ColumnFlags::NOT_NULL)),
                     })
