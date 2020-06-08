@@ -1,6 +1,5 @@
-use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlRow};
-use sqlx::{Connection, Executor, Row};
+use sqlx::mysql::MySql;
+use sqlx::Executor;
 use sqlx_core::describe::Column;
 use sqlx_test::new;
 
