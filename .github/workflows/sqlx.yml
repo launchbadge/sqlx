@@ -222,7 +222,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [2019, 2017]
+        mssql: [2019, 2017]
         runtime: [async-std, tokio, actix]
     needs: check
     steps:
