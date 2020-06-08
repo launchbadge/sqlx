@@ -100,8 +100,8 @@ jobs:
             --features sqlite,all-types,runtime-${{ matrix.runtime }}
             --
             --test-threads=1
-          env:
-            DATABASE_URL: sqlite://tests/sqlite/sqlite.db
+        env:
+          DATABASE_URL: sqlite://tests/sqlite/sqlite.db
 
   postgres:
     name: Postgres
