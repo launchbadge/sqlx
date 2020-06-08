@@ -170,7 +170,7 @@ jobs:
           args: >
             --features mysql,all-types
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 mysql_${{ matrix.mysql }}
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
       - run: sleep 30
 
       - uses: actions-rs/cargo@v1
@@ -180,7 +180,7 @@ jobs:
             --no-default-features
             --features mysql,macros,all-types,runtime-${{ matrix.runtime }}
         env:
-          DATABASE_URL: mysql://root:password@localhost:5432/sqlx
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
   mariadb:
     name: MariaDB
@@ -205,7 +205,7 @@ jobs:
           args: >
             --features mysql,all-types
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 mariadb_${{ matrix.mariadb }}
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}
       - run: sleep 30
 
       - uses: actions-rs/cargo@v1
@@ -215,7 +215,7 @@ jobs:
             --no-default-features
             --features mysql,macros,all-types,runtime-${{ matrix.runtime }}
         env:
-          DATABASE_URL: mysql://root:password@localhost:5432/sqlx
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
   mssql:
     name: MSSQL
