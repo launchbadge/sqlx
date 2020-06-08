@@ -1,7 +1,8 @@
 use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlRow};
+use sqlx::mysql::{MySql, MySqlRow, MySqlPool};
 use sqlx::{Connection, Executor, Row};
 use sqlx_test::new;
+use std::env;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -70,6 +71,53 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         .await?;
 
     assert_eq!(sum, 55);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_executes_2() -> anyhow::Result<()> {
+    let pool: MySqlPool = MySqlPool::builder()
+        .max_size(2)
+        .build(&env::var("DATABASE_URL")?)
+        .await?;
+
+    let mut conn = pool.acquire().await?;
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct User { id: i32 };
+
+let _ = sqlx::query(
+             r#"
+ CREATE TABLE users (id INTEGER PRIMARY KEY);
+             "#,
+         )
+         .execute(&mut conn)
+         .await?;
+
+     for index in 1..=10_i32 {
+         let cnt = sqlx::query("INSERT INTO users (id) VALUES (?)")
+             .bind(index)
+             .execute(&mut conn)
+             .await?;
+
+         assert_eq!(cnt, 1);
+     }
+    
+
+
+    let users: Vec<User> = sqlx::query_as::<MySql, User>(
+        "SELECT
+            id
+        FROM
+            users"
+    )
+    .fetch_all(&pool)
+    .await?;
+
+assert_eq!(users.len(), 10);
+
+   sqlx::query("drop table users;").execute(&mut conn).await?; 
 
     Ok(())
 }
