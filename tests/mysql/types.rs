@@ -141,4 +141,14 @@ mod json_tests {
         "SELECT CAST({0} AS BINARY) <=> CAST(? AS BINARY), CAST({0} AS BINARY) as _2, ? as _3",
         "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
+
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+    struct Customer {
+        json_column: Json<Vec<i64>>,
+    }
+
+    test_type!(json_struct_json_column<Json<Customer>>(
+        MySql,
+        "\'{ \"json_column\": [1, 2] }\'" == Json(Customer { json_column: Json(vec![1, 2]) })
+    ));
 }
