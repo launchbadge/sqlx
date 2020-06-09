@@ -1,10 +1,9 @@
 //! Connection pool for SQLx database connections.
 
-use std::{
-    fmt,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::fmt;
+use std::future::Future;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::database::Database;
 use crate::error::Error;
@@ -50,8 +49,9 @@ impl<DB: Database> Pool<DB> {
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> Result<PoolConnection<DB>, Error> {
-        self.0.acquire().await.map(|conn| conn.attach(&self.0))
+    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
+        let shared = self.0.clone();
+        async move { shared.acquire().await.map(|conn| conn.attach(&shared)) }
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.

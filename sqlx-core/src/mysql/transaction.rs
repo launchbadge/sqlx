@@ -2,6 +2,7 @@ use futures_core::future::BoxFuture;
 
 use crate::error::Error;
 use crate::executor::Executor;
+use crate::mysql::connection::Busy;
 use crate::mysql::protocol::text::Query;
 use crate::mysql::{MySql, MySqlConnection};
 use crate::transaction::{
@@ -40,7 +41,7 @@ impl TransactionManager for MySqlTransactionManager {
     }
 
     fn start_rollback(conn: &mut MySqlConnection, depth: usize) {
-        conn.stream.busy = true;
+        conn.stream.busy = Busy::Result;
         conn.stream.sequence_id = 0;
         conn.stream
             .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));

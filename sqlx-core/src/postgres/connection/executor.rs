@@ -1,4 +1,3 @@
-use async_stream::try_stream;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -181,7 +180,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
         self.pending_ready_for_query_count += 1;
         self.stream.flush().await?;
 
-        Ok(try_stream! {
+        Ok(try_stream2! {
             loop {
                 let message = self.stream.recv().await?;
 
@@ -194,7 +193,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                         // a SQL command completed normally
                         let cc: CommandComplete = message.decode()?;
 
-                        yield Either::Left(cc.rows_affected());
+                        r#yield!(Either::Left(cc.rows_affected()));
                     }
 
                     MessageFormat::EmptyQueryResponse => {
@@ -218,7 +217,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                             column_names: Arc::clone(&self.scratch_row_column_names),
                         };
 
-                        yield Either::Right(row);
+                        r#yield!(Either::Right(row));
                     }
 
                     MessageFormat::ReadyForQuery => {
@@ -235,6 +234,8 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                     }
                 }
             }
+
+            Ok(())
         })
     }
 }
@@ -253,13 +254,15 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             let s = self.run(s, arguments, 0).await?;
             pin_mut!(s);
 
-            while let Some(s) = s.try_next().await? {
-                yield s;
+            while let Some(v) = s.try_next().await? {
+                r#yield!(v);
             }
+
+            Ok(())
         })
     }
 

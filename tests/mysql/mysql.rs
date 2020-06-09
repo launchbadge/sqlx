@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlRow, MySqlPool};
+use sqlx::mysql::{MySql, MySqlPool, MySqlRow};
 use sqlx::{Connection, Executor, Row};
 use sqlx_test::new;
 use std::env;
@@ -74,50 +74,25 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 
     Ok(())
 }
-
 #[sqlx_macros::test]
-async fn it_executes_2() -> anyhow::Result<()> {
+async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool: MySqlPool = MySqlPool::builder()
+        .min_size(2)
         .max_size(2)
-        .build(&env::var("DATABASE_URL")?)
+        .test_on_acquire(false)
+        .build(&dotenv::var("DATABASE_URL")?)
         .await?;
 
-    let mut conn = pool.acquire().await?;
+    let rows = pool.fetch_all("SELECT 1; SELECT 2").await?;
 
-    #[derive(Debug, sqlx::FromRow)]
-    struct User { id: i32 };
+    assert_eq!(rows.len(), 2);
 
-let _ = sqlx::query(
-             r#"
- CREATE TABLE users (id INTEGER PRIMARY KEY);
-             "#,
-         )
-         .execute(&mut conn)
-         .await?;
+    let count = pool
+        .fetch("SELECT 1; SELECT 2")
+        .try_fold(0, |acc, _| async move { Ok(acc + 1) })
+        .await?;
 
-     for index in 1..=10_i32 {
-         let cnt = sqlx::query("INSERT INTO users (id) VALUES (?)")
-             .bind(index)
-             .execute(&mut conn)
-             .await?;
-
-         assert_eq!(cnt, 1);
-     }
-    
-
-
-    let users: Vec<User> = sqlx::query_as::<MySql, User>(
-        "SELECT
-            id
-        FROM
-            users"
-    )
-    .fetch_all(&pool)
-    .await?;
-
-assert_eq!(users.len(), 10);
-
-   sqlx::query("drop table users;").execute(&mut conn).await?; 
+    assert_eq!(count, 2);
 
     Ok(())
 }

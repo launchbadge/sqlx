@@ -1,5 +1,7 @@
 use futures::TryStreamExt;
-use sqlx::{query, sqlite::Sqlite, Connect, Connection, Executor, Row, SqliteConnection};
+use sqlx::{
+    query, sqlite::Sqlite, Connect, Connection, Executor, Row, SqliteConnection, SqlitePool,
+};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -83,6 +85,22 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
         assert_eq!(v[0].0, 1);
     }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_executes_with_pool() -> anyhow::Result<()> {
+    let pool: SqlitePool = SqlitePool::builder()
+        .min_size(2)
+        .max_size(2)
+        .test_on_acquire(false)
+        .build(&dotenv::var("DATABASE_URL")?)
+        .await?;
+
+    let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
+
+    assert_eq!(rows.len(), 2);
 
     Ok(())
 }

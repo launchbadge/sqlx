@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
+use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgPool, PgSeverity};
 use sqlx::{postgres::Postgres, Connection, Executor, Row};
-use sqlx_core::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -95,6 +95,22 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         .await?;
 
     assert_eq!(sum, 55);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_executes_with_pool() -> anyhow::Result<()> {
+    let pool: PgPool = PgPool::builder()
+        .min_size(2)
+        .max_size(2)
+        .test_on_acquire(false)
+        .build(&dotenv::var("DATABASE_URL")?)
+        .await?;
+
+    let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
+
+    assert_eq!(rows.len(), 2);
 
     Ok(())
 }

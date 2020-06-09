@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_stream::try_stream;
 use bytes::Bytes;
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -12,6 +11,7 @@ use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
+use crate::mysql::connection::stream::Busy;
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::Status;
 use crate::mysql::protocol::statement::{
@@ -111,7 +111,7 @@ impl MySqlConnection {
         arguments: Option<MySqlArguments>,
     ) -> Result<impl Stream<Item = Result<Either<u64, MySqlRow>, Error>> + 'c, Error> {
         self.stream.wait_until_ready().await?;
-        self.stream.busy = true;
+        self.stream.busy = Busy::Result;
 
         let format = if let Some(arguments) = arguments {
             let statement = self.prepare(query).await?;
@@ -132,30 +132,30 @@ impl MySqlConnection {
             MySqlValueFormat::Text
         };
 
-        Ok(try_stream! {
+        Ok(Box::pin(try_stream2! {
             loop {
                 // query response is a meta-packet which may be one of:
                 //  Ok, Err, ResultSet, or (unhandled) LocalInfileRequest
-                let mut packet = self.stream.recv_packet().await?;
+                let packet = self.stream.recv_packet().await?;
 
                 if packet[0] == 0x00 || packet[0] == 0xff {
                     // first packet in a query response is OK or ERR
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
-                    let v = Either::Left(ok.affected_rows);
 
-                    yield v;
+                    r#yield!(Either::Left(ok.affected_rows));
 
                     if ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                         // more result sets exist, continue to the next one
                         continue;
                     }
 
-                    self.stream.busy = false;
-                    return;
+                    self.stream.busy = Busy::NotBusy;
+                    return Ok(());
                 }
 
                 // otherwise, this first packet is the start of the result-set metadata,
+                self.stream.busy = Busy::Row;
                 self.recv_result_metadata(packet).await?;
 
                 // finally, there will be none or many result-rows
@@ -164,17 +164,16 @@ impl MySqlConnection {
 
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
-                        let v = Either::Left(0);
-
-                        yield v;
+                        r#yield!(Either::Left(0));
 
                         if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             // more result sets exist, continue to the next one
+                            self.stream.busy = Busy::Result;
                             break;
                         }
 
-                        self.stream.busy = false;
-                        return;
+                        self.stream.busy = Busy::NotBusy;
+                        return Ok(());
                     }
 
                     let row = match format {
@@ -189,10 +188,10 @@ impl MySqlConnection {
                         column_names: Arc::clone(&self.scratch_row_column_names),
                     });
 
-                    yield v;
+                    r#yield!(v);
                 }
             }
-        })
+        }))
     }
 }
 
@@ -210,13 +209,15 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             let s = self.run(s, arguments).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
-                yield v;
+                r#yield!(v);
             }
+
+            Ok(())
         })
     }
 

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_stream::try_stream;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -85,7 +84,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             let SqliteConnection {
                 handle: ref mut conn,
                 ref mut statements,
@@ -125,8 +124,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                         match worker.step(handle).await? {
                             Either::Left(changes) => {
-                                let v = Either::Left(changes);
-                                yield v;
+                                r#yield!(Either::Left(changes));
 
                                 break;
                             }
@@ -140,12 +138,14 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                                 let v = Either::Right(row);
                                 *last_row_values = Some(weak_values_ref);
 
-                                yield v;
+                                r#yield!(v);
                             }
                         }
                     }
                 }
             }
+
+            Ok(())
         })
     }
 

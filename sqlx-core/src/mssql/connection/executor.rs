@@ -1,4 +1,3 @@
-use async_stream::try_stream;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -101,7 +100,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             self.run(s, arguments).await?;
 
             loop {
@@ -109,14 +108,12 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
                 match message {
                     Message::Row(row) => {
-                        let v = Either::Right(MssqlRow { row });
-                        yield v;
+                        r#yield!(Either::Right(MssqlRow { row }));
                     }
 
                     Message::Done(done) | Message::DoneProc(done) => {
                         if done.status.contains(Status::DONE_COUNT) {
-                            let v = Either::Left(done.affected_rows);
-                            yield v;
+                            r#yield!(Either::Left(done.affected_rows));
                         }
 
                         if !done.status.contains(Status::DONE_MORE) {
@@ -127,14 +124,15 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
                     Message::DoneInProc(done) => {
                         if done.status.contains(Status::DONE_COUNT) {
-                            let v = Either::Left(done.affected_rows);
-                            yield v;
+                            r#yield!(Either::Left(done.affected_rows));
                         }
                     }
 
                     _ => {}
                 }
             }
+
+            Ok(())
         })
     }
 

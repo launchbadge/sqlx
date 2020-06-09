@@ -2,7 +2,6 @@ use std::fmt::{self, Debug};
 use std::io;
 use std::str::from_utf8;
 
-use async_stream::try_stream;
 use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
@@ -185,10 +184,9 @@ impl PgListener {
 
     /// Consume this listener, returning a `Stream` of notifications.
     pub fn into_stream(mut self) -> impl Stream<Item = Result<PgNotification, Error>> + Unpin {
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             loop {
-                let notification = self.recv().await?;
-                yield notification;
+                r#yield!(self.recv().await?);
             }
         })
     }

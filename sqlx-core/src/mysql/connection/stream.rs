@@ -5,7 +5,8 @@ use sqlx_rt::TcpStream;
 
 use crate::error::Error;
 use crate::io::{BufStream, Decode, Encode};
-use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket};
+use crate::mysql::io::MySqlBufExt;
+use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
 use crate::net::MaybeTlsStream;
@@ -14,7 +15,18 @@ pub struct MySqlStream {
     stream: BufStream<MaybeTlsStream<TcpStream>>,
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
-    pub(crate) busy: bool,
+    pub(crate) busy: Busy,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Busy {
+    NotBusy,
+
+    // waiting for a result set
+    Result,
+
+    // waiting for a row within a result set
+    Row,
 }
 
 impl MySqlStream {
@@ -39,7 +51,7 @@ impl MySqlStream {
         }
 
         Ok(Self {
-            busy: false,
+            busy: Busy::NotBusy,
             capabilities,
             sequence_id: 0,
             stream: BufStream::new(MaybeTlsStream::Raw(stream)),
@@ -51,19 +63,33 @@ impl MySqlStream {
             self.stream.flush().await?;
         }
 
-        if self.busy {
-            loop {
+        while self.busy != Busy::NotBusy {
+            while self.busy == Busy::Row {
                 let packet = self.recv_packet().await?;
-                match packet[0] {
-                    0x00 | 0xfe if packet.len() < 9 => {
-                        // OK or EOF packet
-                        self.busy = false;
-                        break;
-                    }
 
-                    _ => {
-                        // Something else; skip
+                if packet[0] == 0xfe && packet.len() < 9 {
+                    let eof = packet.eof(self.capabilities)?;
+
+                    self.busy = if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
+                        Busy::Result
+                    } else {
+                        Busy::NotBusy
+                    };
+                }
+            }
+
+            while self.busy == Busy::Result {
+                let packet = self.recv_packet().await?;
+
+                if packet[0] == 0x00 || packet[0] == 0xff {
+                    let ok = packet.ok()?;
+
+                    if !ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
+                        self.busy = Busy::NotBusy;
                     }
+                } else {
+                    self.busy = Busy::Row;
+                    self.skip_result_metadata(packet).await?;
                 }
             }
         }
@@ -107,7 +133,7 @@ impl MySqlStream {
         // TODO: packet joining
 
         if payload[0] == 0xff {
-            self.busy = false;
+            self.busy = Busy::NotBusy;
 
             // instead of letting this packet be looked at everywhere, we check here
             // and emit a proper Error
@@ -136,6 +162,18 @@ impl MySqlStream {
         } else {
             self.recv().await.map(Some)
         }
+    }
+
+    async fn skip_result_metadata(&mut self, mut packet: Packet<Bytes>) -> Result<(), Error> {
+        let num_columns: u64 = packet.get_uint_lenenc(); // column count
+
+        for _ in 0..num_columns {
+            let _ = self.recv_packet().await?;
+        }
+
+        self.maybe_recv_eof().await?;
+
+        Ok(())
     }
 }
 

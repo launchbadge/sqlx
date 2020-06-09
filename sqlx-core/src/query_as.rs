@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use async_stream::try_stream;
 use either::Either;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
@@ -82,17 +81,17 @@ where
         O: 'e,
         A: 'e,
     {
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             let mut s = executor.fetch_many(self.inner);
+
             while let Some(v) = s.try_next().await? {
-                match v {
-                    Either::Left(v) => yield Either::Left(v),
-                    Either::Right(row) => {
-                        let mapped = O::from_row(&row)?;
-                        yield Either::Right(mapped);
-                    }
-                }
+                r#yield!(match v {
+                    Either::Left(v) => Either::Left(v),
+                    Either::Right(row) => Either::Right(O::from_row(&row)?),
+                });
             }
+
+            Ok(())
         })
     }
 

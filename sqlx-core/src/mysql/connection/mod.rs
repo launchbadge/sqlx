@@ -20,7 +20,7 @@ mod executor;
 mod stream;
 mod tls;
 
-pub(crate) use stream::MySqlStream;
+pub(crate) use stream::{Busy, MySqlStream};
 
 const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 
@@ -120,10 +120,10 @@ impl Connect for MySqlConnection {
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
             conn.execute(r#"
-SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'));
-SET time_zone = '+00:00';
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
-        "#).await?;
+            SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'));
+            SET time_zone = '+00:00';
+            SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+                    "#).await?;
 
             Ok(conn)
         })

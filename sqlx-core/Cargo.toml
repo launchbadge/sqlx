@@ -38,7 +38,6 @@ offline = [ "serde" ]
 [dependencies]
 atoi = "0.3.2"
 sqlx-rt = { path = "../sqlx-rt", version = "0.1.0-pre" }
-async-stream = { version = "0.2.1", default-features = false }
 base64 = { version = "0.12.1", default-features = false, optional = true, features = [ "std" ] }
 bigdecimal_ = { version = "0.1.0", optional = true, package = "bigdecimal" }
 bitflags = { version = "1.2.1", default-features = false }
@@ -51,9 +50,9 @@ crossbeam-utils = { version = "0.7.2", default-features = false }
 digest = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
 encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
-futures-channel = { version = "0.3.5", default-features = false, features = [ "alloc", "std" ] }
+futures-channel = { version = "0.3.5", default-features = false, features = [ "sink", "alloc", "std" ] }
 futures-core = { version = "0.3.5", default-features = false }
-futures-util = "0.3.5"
+futures-util = { version = "0.3.5", features = [ "sink" ] }
 generic-array = { version = "0.12.3", default-features = false, optional = true }
 hashbrown = "0.7.2"
 hex = "0.4.2"

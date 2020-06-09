@@ -1,4 +1,3 @@
-use async_stream::try_stream;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -25,13 +24,15 @@ where
     {
         let pool = self.clone();
 
-        Box::pin(try_stream! {
+        Box::pin(try_stream2! {
             let mut conn = pool.acquire().await?;
             let mut s = conn.fetch_many(query);
 
-            for v in s.try_next().await? {
-                yield v;
+            while let Some(v) = s.try_next().await? {
+                r#yield!(v);
             }
+
+            Ok(())
         })
     }
 
@@ -80,7 +81,7 @@ macro_rules! impl_executor_for_pool_connection {
                 'c: 'e,
                 E: crate::executor::Execute<'q, $DB>,
             {
-                (&mut **self).fetch_many(query)
+                (**self).fetch_many(query)
             }
 
             #[inline]
@@ -92,7 +93,7 @@ macro_rules! impl_executor_for_pool_connection {
                 'c: 'e,
                 E: crate::executor::Execute<'q, $DB>,
             {
-                (&mut **self).fetch_optional(query)
+                (**self).fetch_optional(query)
             }
 
             #[doc(hidden)]
@@ -108,7 +109,7 @@ macro_rules! impl_executor_for_pool_connection {
                 'c: 'e,
                 E: crate::executor::Execute<'q, $DB>,
             {
-                (&mut **self).describe(query)
+                (**self).describe(query)
             }
         }
     };
