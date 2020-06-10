@@ -180,7 +180,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
         self.pending_ready_for_query_count += 1;
         self.stream.flush().await?;
 
-        Ok(try_stream2! {
+        Ok(try_stream! {
             loop {
                 let message = self.stream.recv().await?;
 
@@ -254,7 +254,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             let s = self.run(s, arguments, 0).await?;
             pin_mut!(s);
 

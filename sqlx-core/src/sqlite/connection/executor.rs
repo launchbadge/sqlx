@@ -84,7 +84,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             let SqliteConnection {
                 handle: ref mut conn,
                 ref mut statements,

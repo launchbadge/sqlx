@@ -100,7 +100,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             self.run(s, arguments).await?;
 
             loop {

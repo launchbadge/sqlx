@@ -184,7 +184,7 @@ impl PgListener {
 
     /// Consume this listener, returning a `Stream` of notifications.
     pub fn into_stream(mut self) -> impl Stream<Item = Result<PgNotification, Error>> + Unpin {
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             loop {
                 r#yield!(self.recv().await?);
             }

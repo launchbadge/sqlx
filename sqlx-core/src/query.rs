@@ -237,7 +237,7 @@ where
         F: 'e,
         O: 'e,
     {
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             let mut s = executor.fetch_many(self.inner);
 
             while let Some(v) = s.try_next().await? {

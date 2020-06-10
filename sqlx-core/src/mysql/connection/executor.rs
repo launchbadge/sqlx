@@ -132,7 +132,7 @@ impl MySqlConnection {
             MySqlValueFormat::Text
         };
 
-        Ok(Box::pin(try_stream2! {
+        Ok(Box::pin(try_stream! {
             loop {
                 // query response is a meta-packet which may be one of:
                 //  Ok, Err, ResultSet, or (unhandled) LocalInfileRequest
@@ -209,7 +209,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             let s = self.run(s, arguments).await?;
             pin_mut!(s);
 

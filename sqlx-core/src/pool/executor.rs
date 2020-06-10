@@ -24,7 +24,7 @@ where
     {
         let pool = self.clone();
 
-        Box::pin(try_stream2! {
+        Box::pin(try_stream! {
             let mut conn = pool.acquire().await?;
             let mut s = conn.fetch_many(query);
 
