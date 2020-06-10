@@ -9,7 +9,7 @@ use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::mssql::protocol::col_meta_data::Flags;
-use crate::mssql::protocol::done::{Done, Status};
+use crate::mssql::protocol::done::Status;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
@@ -17,33 +17,9 @@ use crate::mssql::protocol::sql_batch::SqlBatch;
 use crate::mssql::{Mssql, MssqlArguments, MssqlConnection, MssqlRow, MssqlTypeInfo};
 
 impl MssqlConnection {
-    pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.stream.wbuf.is_empty() {
-            self.pending_done_count += 1;
-            self.stream.flush().await?;
-        }
-
-        while self.pending_done_count > 0 {
-            let message = self.stream.recv_message().await?;
-
-            if let Message::DoneProc(done) | Message::Done(done) = message {
-                if !done.status.contains(Status::DONE_MORE) {
-                    // finished RPC procedure *OR* SQL batch
-                    self.handle_done(done);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn handle_done(&mut self, _: Done) {
-        self.pending_done_count -= 1;
-    }
-
     async fn run(&mut self, query: &str, arguments: Option<MssqlArguments>) -> Result<(), Error> {
-        self.wait_until_ready().await?;
-        self.pending_done_count += 1;
+        self.stream.wait_until_ready().await?;
+        self.stream.pending_done_count += 1;
 
         if let Some(mut arguments) = arguments {
             let proc = Either::Right(Procedure::ExecuteSql);
@@ -112,12 +88,15 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                     }
 
                     Message::Done(done) | Message::DoneProc(done) => {
+                        if !done.status.contains(Status::DONE_MORE) {
+                            self.stream.handle_done(&done);
+                        }
+
                         if done.status.contains(Status::DONE_COUNT) {
                             r#yield!(Either::Left(done.affected_rows));
                         }
 
                         if !done.status.contains(Status::DONE_MORE) {
-                            self.handle_done(done);
                             break;
                         }
                     }
@@ -221,12 +200,15 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
         Box::pin(async move {
             self.stream.flush().await?;
+            self.stream.wait_until_ready().await?;
+            self.stream.pending_done_count += 1;
 
             loop {
                 match self.stream.recv_message().await? {
                     Message::DoneProc(done) | Message::Done(done) => {
                         if !done.status.contains(Status::DONE_MORE) {
                             // done with prepare
+                            self.stream.handle_done(&done);
                             break;
                         }
                     }

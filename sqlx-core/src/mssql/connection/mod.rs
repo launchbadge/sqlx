@@ -16,9 +16,6 @@ mod stream;
 
 pub struct MssqlConnection {
     pub(crate) stream: MssqlStream,
-
-    // number of Done* messages that we are currently expecting
-    pub(crate) pending_done_count: usize,
 }
 
 impl Debug for MssqlConnection {
@@ -42,7 +39,7 @@ impl Connection for MssqlConnection {
 
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.wait_until_ready().boxed()
+        self.stream.wait_until_ready().boxed()
     }
 
     #[doc(hidden)]

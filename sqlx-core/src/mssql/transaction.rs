@@ -61,7 +61,7 @@ impl TransactionManager for MssqlTransactionManager {
             Cow::Owned(format!("ROLLBACK TRAN _sqlx_savepoint_{}", depth - 1))
         };
 
-        conn.pending_done_count += 1;
+        conn.stream.pending_done_count += 1;
         conn.stream.write_packet(
             PacketType::SqlBatch,
             SqlBatch {

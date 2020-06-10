@@ -6,7 +6,7 @@ use sqlx_rt::TcpStream;
 use crate::error::Error;
 use crate::io::{BufStream, Encode};
 use crate::mssql::protocol::col_meta_data::{ColMetaData, ColumnData};
-use crate::mssql::protocol::done::Done;
+use crate::mssql::protocol::done::{Done, Status as DoneStatus};
 use crate::mssql::protocol::env_change::EnvChange;
 use crate::mssql::protocol::error::Error as ProtocolError;
 use crate::mssql::protocol::info::Info;
@@ -21,6 +21,9 @@ use crate::net::MaybeTlsStream;
 
 pub(crate) struct MssqlStream {
     inner: BufStream<MaybeTlsStream<TcpStream>>,
+
+    // how many Done (or Error) we are currently waiting for
+    pub(crate) pending_done_count: usize,
 
     // current transaction descriptor
     // set from ENVCHANGE on `BEGIN` and reset to `0` on a ROLLBACK
@@ -44,6 +47,7 @@ impl MssqlStream {
             inner,
             columns: Vec::new(),
             response: None,
+            pending_done_count: 0,
             transaction_descriptor: 0,
         })
     }
@@ -146,8 +150,8 @@ impl MssqlStream {
                     MessageType::DoneProc => Message::DoneProc(Done::get(buf)?),
 
                     MessageType::Error => {
-                        let err = ProtocolError::get(buf)?;
-                        return Err(MssqlDatabaseError(err).into());
+                        let error = ProtocolError::get(buf)?;
+                        return self.handle_error(error);
                     }
 
                     MessageType::ColMetaData => {
@@ -164,6 +168,35 @@ impl MssqlStream {
             // no packet from the server to iterate (or its empty); fill our buffer
             self.response = Some(self.recv_packet().await?);
         }
+    }
+
+    pub(crate) fn handle_done(&mut self, _done: &Done) {
+        self.pending_done_count -= 1;
+    }
+
+    pub(crate) fn handle_error<T>(&mut self, error: ProtocolError) -> Result<T, Error> {
+        // error is sent _instead_ of a done
+        self.pending_done_count -= 1;
+        Err(MssqlDatabaseError(error).into())
+    }
+
+    pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if !self.wbuf.is_empty() {
+            self.flush().await?;
+        }
+
+        while self.pending_done_count > 0 {
+            let message = self.recv_message().await?;
+
+            if let Message::DoneProc(done) | Message::Done(done) = message {
+                if !done.status.contains(DoneStatus::DONE_MORE) {
+                    // finished RPC procedure *OR* SQL batch
+                    self.handle_done(&done);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
