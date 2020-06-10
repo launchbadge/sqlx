@@ -3,8 +3,9 @@ use std::ptr::{null, null_mut};
 
 use hashbrown::HashMap;
 use libsqlite3_sys::{
-    sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK, SQLITE_OPEN_CREATE,
-    SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READWRITE,
+    sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE,
+    SQLITE_OPEN_READWRITE,
 };
 use sqlx_rt::blocking;
 
@@ -41,7 +42,7 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        let status = unsafe {
+        let mut status = unsafe {
             sqlite3_open_v2(
                 filename.as_bytes().as_ptr() as *const _,
                 &mut handle,
@@ -56,6 +57,7 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         }
 
         // SAFE: tested for NULL just above
+        // This allows any returns below to close this handle with RAII
         let handle = unsafe { ConnectionHandle::new(handle) };
 
         if status != SQLITE_OK {
@@ -65,7 +67,18 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
         unsafe {
+            // NOTE: ignore the failure here
             sqlite3_extended_result_codes(handle.0.as_ptr(), 1);
+        }
+
+        // Configure a busy timeout
+        // This causes SQLite to automatically sleep in increasing intervals until the time
+        // when there is something locked during [sqlite3_step]. This is sync. but we only
+        // run [sqlite3_step] in [blocking!] so its okay.
+        // TODO: Allow this timeout to be configured in SqliteOptions
+        status = unsafe { sqlite3_busy_timeout(handle.0.as_ptr(), 5000) };
+        if status != SQLITE_OK {
+            return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
         }
 
         Ok(handle)
