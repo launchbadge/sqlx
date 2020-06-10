@@ -6,7 +6,7 @@ use crate::database::Database;
 use crate::error::Error;
 use crate::pool::inner::SharedPool;
 
-/// Builder for [Pool].
+/// [`Pool`] factory, which can be used to configure the properties of a new connection pool.
 pub struct Builder<DB: Database> {
     phantom: PhantomData<DB>,
     options: Options,

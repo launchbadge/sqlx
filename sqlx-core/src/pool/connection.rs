@@ -11,7 +11,7 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 
-/// A connection checked out from [`Pool`][crate::pool::Pool].
+/// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection<DB: Database> {

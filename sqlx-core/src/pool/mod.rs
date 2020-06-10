@@ -1,4 +1,49 @@
-//! Connection pool for SQLx database connections.
+//! Provides the connection pool for asynchronous SQLx connections.
+//!
+//! Opening a database connection for each and every operation to the database can quickly
+//! become expensive. Furthermore, sharing a database connection between threads and functions
+//! can be difficult to express in Rust.
+//!
+//! A connection pool is a standard technique that can manage opening and re-using connections.
+//! Normally it also enforces a maximum number of connections as these are an expensive resource
+//! on the database server.
+//!
+//! SQLx provides a canonical connection pool implementation intended to satisfy the majority
+//! of use cases.
+//!
+//! # Opening a connection pool
+//!
+//! A new connection pool with a default configuration can be created by supplying `Pool`
+//! with the database driver and a connection string.
+//!
+//! ```rust,ignore
+//! use sqlx::Pool;
+//! use sqlx::postgres::Postgres;
+//!
+//! let pool = Pool::<Postgres>::new("postgres://").await?;
+//! ```
+//!
+//! For convenience, database-specific type aliases are provided:
+//!
+//! ```rust,ignore
+//! use sqlx::mssql::MssqlPool;
+//!
+//! let pool = MssqlPool::new("mssql://").await?;
+//! ```
+//!
+//! # Using a connection pool
+//!
+//! A connection pool implements [`Executor`](../trait.Executor.html) and can be used directly
+//! when executing a query. Notice that only an immutable reference (`&Pool`) is needed.
+//!
+//! ```rust,ignore
+//! sqlx::query("DELETE FROM articles").execute(&pool).await?;
+//! ```
+//!
+//! A connection or transaction may also be manually acquired with
+//! [`Pool::acquire`](struct.Pool.html#method.acquire) or
+//! [`Pool::begin`](struct.Pool.html#method.begin).
+//!
 
 use std::fmt;
 use std::future::Future;
@@ -23,7 +68,10 @@ mod options;
 pub use self::connection::PoolConnection;
 pub use self::options::Builder;
 
-/// A pool of database connections.
+/// An alias for [`Transaction`] when returned from [`Pool::begin`].
+pub type PoolTransaction<DB, C = PoolConnection<DB>> = Transaction<'static, DB, C>;
+
+/// An asynchronous pool of SQLx database connections.
 pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
 
 impl<DB: Database> Pool<DB> {
