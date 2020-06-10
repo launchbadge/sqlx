@@ -19,7 +19,7 @@ use super::connection::{Floating, Idle, Live};
 use super::Options;
 
 pub(crate) struct SharedPool<DB: Database> {
-    url: String,
+    connect_options: <DB::Connection as Connect>::Options,
     idle_conns: ArrayQueue<Idle<DB>>,
     waiters: SegQueue<Waker>,
     pub(super) size: AtomicU32,
@@ -30,10 +30,6 @@ pub(crate) struct SharedPool<DB: Database> {
 impl<DB: Database> SharedPool<DB> {
     pub fn options(&self) -> &Options {
         &self.options
-    }
-
-    pub(super) fn url(&self) -> &str {
-        &self.url
     }
 
     pub(super) fn size(&self) -> u32 {
@@ -124,9 +120,12 @@ impl<DB: Database> SharedPool<DB> {
         .map_err(|_| Error::PoolTimedOut)
     }
 
-    pub(super) async fn new_arc(url: &str, options: Options) -> Result<Arc<Self>, Error> {
+    pub(super) async fn new_arc(
+        connect_options: <DB::Connection as Connect>::Options,
+        options: Options,
+    ) -> Result<Arc<Self>, Error> {
         let mut pool = Self {
-            url: url.to_owned(),
+            connect_options,
             idle_conns: ArrayQueue::new(options.max_size as usize),
             waiters: SegQueue::new(),
             size: AtomicU32::new(0),
@@ -209,7 +208,7 @@ impl<DB: Database> SharedPool<DB> {
         let timeout = super::deadline_as_timeout::<DB>(deadline)?;
 
         // result here is `Result<Result<C, Error>, TimeoutError>`
-        match sqlx_rt::timeout(timeout, DB::Connection::connect(&self.url)).await {
+        match sqlx_rt::timeout(timeout, DB::Connection::connect_with(&self.connect_options)).await {
             // successfully established connection
             Ok(Ok(raw)) => Ok(Some(Floating::new_live(raw, guard))),
 

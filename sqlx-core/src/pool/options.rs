@@ -1,8 +1,10 @@
 use std::{marker::PhantomData, time::Duration};
 
 use super::Pool;
+use crate::connection::Connect;
 use crate::database::Database;
 use crate::error::Error;
+use crate::pool::inner::SharedPool;
 
 /// Builder for [Pool].
 pub struct Builder<DB: Database> {
@@ -104,14 +106,37 @@ impl<DB: Database> Builder<DB> {
         self
     }
 
-    /// Spin up the connection pool.
+    /// Consumes the builder, returning a new, initialized connection pool with the given
+    /// connection string.
     ///
-    /// If [`min_size`] was set to a non-zero value, that many connections will be immediately
-    /// opened and placed into the pool.
+    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
+    /// to resolve until that number of connections are connected and available in the pool.
     ///
     /// [`min_size`]: #method.min_size
     pub async fn build(self, url: &str) -> Result<Pool<DB>, Error> {
-        Pool::<DB>::new_with(url, self.options).await
+        Ok(Pool(
+            SharedPool::<DB>::new_arc(
+                url.parse().map_err(Error::ParseConnectOptions)?,
+                self.options,
+            )
+            .await?,
+        ))
+    }
+
+    /// Consumes the builder, returning a new, initialized connection pool with the given connection
+    /// options.
+    ///
+    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
+    /// to resolve until that number of connections are connected and available in the pool.
+    ///
+    /// [`min_size`]: #method.min_size
+    pub async fn build_with(
+        self,
+        options: <DB::Connection as Connect>::Options,
+    ) -> Result<Pool<DB>, Error> {
+        Ok(Pool(
+            SharedPool::<DB>::new_arc(options, self.options).await?,
+        ))
     }
 }
 

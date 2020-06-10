@@ -5,6 +5,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::connection::Connect;
 use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::Transaction;
@@ -26,19 +27,19 @@ pub use self::options::Builder;
 pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
 
 impl<DB: Database> Pool<DB> {
-    /// Creates a connection pool with the default configuration.
+    /// Creates a new connection pool with the default pool configuration and the given connection
+    /// string.
     ///
-    /// The connection URL syntax is documented on the connection type for the respective
-    /// database you're connecting to:
-    ///
-    /// * MySQL/MariaDB: [crate::mysql::MySqlConnection]
-    /// * PostgreSQL: [crate::postgres::PgConnection]
+    /// The connection string is parsed according to the connection options for
+    /// the current database.
     pub async fn new(url: &str) -> Result<Self, Error> {
         Self::builder().build(url).await
     }
 
-    async fn new_with(url: &str, options: Options) -> Result<Self, Error> {
-        Ok(Pool(SharedPool::<DB>::new_arc(url, options).await?))
+    /// Creates a new connection pool with the default pool configuration and the given connection
+    /// options.
+    pub async fn new_with(options: <DB::Connection as Connect>::Options) -> Result<Self, Error> {
+        Self::builder().build_with(options).await
     }
 
     /// Returns a [`Builder`] to configure a new connection pool.
@@ -136,7 +137,6 @@ impl<DB: Database> Clone for Pool<DB> {
 impl<DB: Database> fmt::Debug for Pool<DB> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
-            .field("url", &self.0.url())
             .field("size", &self.0.size())
             .field("num_idle", &self.0.num_idle())
             .field("is_closed", &self.0.is_closed())
