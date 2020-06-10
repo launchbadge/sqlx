@@ -527,13 +527,13 @@ impl TypeInfo {
                 });
 
                 // size
-                // if self.size < 8000 && self.size > 0 {
-                s.push_str("(");
-                let _ = itoa::fmt(&mut *s, self.size);
-                s.push_str(")");
-                // } else {
-                //     s.push_str("(max)");
-                // }
+                if self.size < 8000 && self.size > 0 {
+                    s.push_str("(");
+                    let _ = itoa::fmt(&mut *s, self.size);
+                    s.push_str(")");
+                } else {
+                    s.push_str("(max)");
+                }
             }
 
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),
