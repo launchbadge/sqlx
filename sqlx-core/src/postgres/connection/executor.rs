@@ -14,7 +14,6 @@ use crate::postgres::message::{
 };
 use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgValueFormat, Postgres};
-use crate::query_as::query_as;
 
 async fn prepare(
     conn: &mut PgConnection,
@@ -93,26 +92,6 @@ impl PgConnection {
         self.cache_statement.insert(query.to_owned(), statement);
 
         Ok(statement)
-    }
-
-    pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<u32, Error> {
-        if let Some(oid) = self.cache_type_oid.get(name) {
-            return Ok(*oid);
-        }
-
-        // language=SQL
-        let (oid,): (u32,) = query_as(
-            "
-SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
-                ",
-        )
-        .bind(name)
-        .fetch_one(&mut *self)
-        .await?;
-
-        self.cache_type_oid.insert(name.to_string().into(), oid);
-
-        Ok(oid)
     }
 
     async fn run(

@@ -134,16 +134,21 @@ impl PgConnection {
         .await?;
 
         match category as u8 {
-            b'S' => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+            b'A' => Err(err_protocol!("user-defined array types are unsupported")),
+
+            b'P' => Err(err_protocol!("pseudo types are unsupported")),
+
+            b'R' => Err(err_protocol!("user-defined range types are unsupported")),
+
+            b'E' => self.fetch_enum_by_oid(oid, name).await,
+
+            b'C' => self.fetch_composite_by_oid(oid, relation_id, name).await,
+
+            _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
                 kind: PgTypeKind::Simple,
                 name: name.into(),
                 oid,
             })))),
-
-            b'E' => self.fetch_enum_by_oid(oid, name).await,
-            b'C' => self.fetch_composite_by_oid(oid, relation_id, name).await,
-
-            c => Err(err_protocol!("unknown type category: {:?}", c as char)),
         }
     }
 
@@ -202,6 +207,26 @@ ORDER BY attnum
                 kind: PgTypeKind::Composite(Arc::from(fields)),
             }))))
         })
+    }
+
+    pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<u32, Error> {
+        if let Some(oid) = self.cache_type_oid.get(name) {
+            return Ok(*oid);
+        }
+
+        // language=SQL
+        let (oid,): (u32,) = query_as(
+            "
+SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
+                ",
+        )
+        .bind(name)
+        .fetch_one(&mut *self)
+        .await?;
+
+        self.cache_type_oid.insert(name.to_string().into(), oid);
+
+        Ok(oid)
     }
 
     pub(crate) async fn map_result_columns(
