@@ -2,7 +2,6 @@ use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlPool, MySqlRow};
 use sqlx::{Connection, Executor, Row};
 use sqlx_test::new;
-use std::env;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {

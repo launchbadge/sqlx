@@ -123,11 +123,11 @@ mod json_tests {
 
     test_type!(json<JsonValue>(
         MySql,
-        "SELECT CAST({0} AS JSON) <=> CAST(? AS JSON), CAST({0} AS JSON) as _2, ? as _3",
+        "SELECT CAST({0} AS BINARY) <=> CAST(? AS BINARY), CAST({0} AS BINARY) as _2, ? as _3",
         "'\"Hello, World\"'" == json!("Hello, World"),
         "'\"😎\"'" == json!("😎"),
         "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
-        "'[\"Hello\", \"World!\"]'" == json!(["Hello", "World!"])
+        "'[\"Hello\",\"World!\"]'" == json!(["Hello", "World!"])
     ));
 
     #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
@@ -138,7 +138,7 @@ mod json_tests {
 
     test_type!(json_struct<Json<Friend>>(
         MySql,
-        "SELECT CAST({0} AS JSON) <=> CAST(? AS JSON), CAST({0} AS JSON) as _2, ? as _3",
-        "\'{\"name\": \"Joe\", \"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
+        "SELECT CAST({0} AS BINARY) <=> CAST(? AS BINARY), CAST({0} AS BINARY) as _2, ? as _3",
+        "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 }

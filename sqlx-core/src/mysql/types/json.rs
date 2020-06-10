@@ -34,7 +34,9 @@ where
     T: 'r + DeserializeOwned,
 {
     fn accepts(ty: &MySqlTypeInfo) -> bool {
-        ty.r#type == ColumnType::Json || <&str as Decode<MySql>>::accepts(ty)
+        ty.r#type == ColumnType::Json
+            || <&str as Decode<MySql>>::accepts(ty)
+            || <&[u8] as Decode<MySql>>::accepts(ty)
     }
 
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
