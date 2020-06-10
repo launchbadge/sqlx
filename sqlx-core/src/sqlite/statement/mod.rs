@@ -6,7 +6,7 @@ use std::sync::{atomic::AtomicPtr, Weak};
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
     sqlite3, sqlite3_clear_bindings, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset,
-    sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_NO_VTAB, SQLITE_PREPARE_PERSISTENT,
+    sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
 use smallvec::SmallVec;
 
@@ -47,7 +47,7 @@ fn prepare(
     query: &mut Bytes,
     persistent: bool,
 ) -> Result<Option<StatementHandle>, Error> {
-    let mut flags = SQLITE_PREPARE_NO_VTAB;
+    let mut flags = 0;
 
     if persistent {
         // SQLITE_PREPARE_PERSISTENT
