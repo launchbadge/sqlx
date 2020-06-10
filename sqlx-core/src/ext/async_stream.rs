@@ -26,7 +26,7 @@ impl<'a, T> TryAsyncStream<'a, T> {
         let future = f(sender.clone());
         let future = async move {
             if let Err(error) = future.await {
-                let _ = sender.send(Err(error));
+                let _ = sender.send(Err(error)).await;
             }
 
             Ok(())
@@ -67,7 +67,7 @@ macro_rules! try_stream2 {
                 }
             }
 
-            {$($block)*}
+            $($block)*
         })
     }
 }
