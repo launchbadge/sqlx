@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use syn::spanned::Spanned;
-use syn::Expr;
+use syn::{Expr, Type};
 
 use quote::{quote, quote_spanned, ToTokens};
 use sqlx_core::describe::Describe;
@@ -34,26 +34,29 @@ pub fn quote_args<DB: DatabaseExt>(
                 // TODO: We could remove the ParamChecking flag and just filter to only test params that are non-null
                 let param_ty = param_ty.as_ref().unwrap();
 
-                let param_ty = get_type_override(expr)
-                    .or_else(|| {
-                        Some(
-                            DB::param_type_for_id(&param_ty)?
+                let param_ty = match get_type_override(expr) {
+                        // don't emit typechecking code for this binding
+                        Some(Type::Infer(_)) => return Ok(quote!()),
+                        Some(ty) => ty.to_token_stream(),
+                        None => {
+                            DB::param_type_for_id(&param_ty)
+                                .ok_or_else(|| {
+                                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
+                                        format!(
+                                            "optional feature `{}` required for type {} of param #{}",
+                                            feature_gate,
+                                            param_ty,
+                                            i + 1,
+                                        )
+                                    } else {
+                                        format!("unsupported type {} for param #{}", param_ty, i + 1)
+                                    }
+                                })?
                                 .parse::<proc_macro2::TokenStream>()
-                                .unwrap(),
-                        )
-                    })
-                    .ok_or_else(|| {
-                        if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
-                            format!(
-                                "optional feature `{}` required for type {} of param #{}",
-                                feature_gate,
-                                param_ty,
-                                i + 1,
-                            )
-                        } else {
-                            format!("unsupported type {} for param #{}", param_ty, i + 1)
+                                .map_err(|_| format!("Rust type mapping for {} not parsable", param_ty))?
+
                         }
-                    })?;
+                    };
 
                 Ok(quote_spanned!(expr.span() =>
                     // this shouldn't actually run
@@ -97,10 +100,11 @@ pub fn quote_args<DB: DatabaseExt>(
     })
 }
 
-fn get_type_override(expr: &Expr) -> Option<TokenStream> {
+fn get_type_override(expr: &Expr) -> Option<&Type> {
     match expr {
-        Expr::Cast(cast) => Some(cast.ty.to_token_stream()),
-        Expr::Type(ascription) => Some(ascription.ty.to_token_stream()),
+        Expr::Group(group) => get_type_override(&group.expr),
+        Expr::Cast(cast) => Some(&cast.ty),
+        Expr::Type(ascription) => Some(&ascription.ty),
         _ => None,
     }
 }
