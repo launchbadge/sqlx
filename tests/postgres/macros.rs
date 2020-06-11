@@ -254,3 +254,50 @@ async fn fetch_is_usable_issue_224() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_column_override_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let record = sqlx::query!(r#"select 1 as "id!""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, 1);
+
+    Ok(())
+}
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct MyInt4(i32);
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard() -> anyhow::Result<()> {
+    struct Record {
+        id: MyInt4,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let record = sqlx::query_as!(Record, r#"select 1 as "id: _""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt4(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let record = sqlx::query!(r#"select 1 as "id: MyInt4""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt4(1));
+
+    Ok(())
+}

@@ -208,6 +208,15 @@ where
             RecordType::Generated => {
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
+                for rust_col in &columns {
+                    if rust_col.type_.is_none() {
+                        return Err(
+                            "columns may not have wildcard overrides in `query!()` or `query_as!()"
+                                .into(),
+                        );
+                    }
+                }
+
                 let record_fields = columns.iter().map(
                     |&output::RustColumn {
                          ref ident,
