@@ -71,6 +71,10 @@ fn expand_derive_decode_transparent(
 
     let tts = quote!(
         impl #impl_generics sqlx::decode::Decode<'de, DB> for #ident #ty_generics #where_clause {
+            fn accepts(ty: &DB::TypeInfo) -> bool {
+                <#ty as sqlx::decode::Decode<'de, DB>>::accepts(ty)
+            }
+
             fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 <#ty as sqlx::decode::Decode<'de, DB>>::decode(value).map(Self)
             }
@@ -100,6 +104,10 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         impl<'de, DB: sqlx::Database> sqlx::decode::Decode<'de, DB> for #ident where #repr: sqlx::decode::Decode<'de, DB> {
+            fn accepts(ty: &MySqlTypeInfo) -> bool {
+                *ty == Self::type_info()
+            }
+
             fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 let value = <#repr as sqlx::decode::Decode<'de, DB>>::decode(value)?;
 
@@ -140,6 +148,10 @@ fn expand_derive_decode_strong_enum(
 
     Ok(quote!(
         impl<'de, DB: sqlx::Database> sqlx::decode::Decode<'de, DB> for #ident where &'de str: sqlx::decode::Decode<'de, DB> {
+            fn accepts(ty: &MySqlTypeInfo) -> bool {
+                *ty == Self::type_info()
+            }
+
             fn decode(value: <DB as sqlx::database::HasValueRef<'de>>::ValueRef) -> std::result::Result<Self, sqlx::BoxDynError> {
                 let value = <&'de str as sqlx::decode::Decode<'de, DB>>::decode(value)?;
                 match value {
@@ -195,6 +207,10 @@ fn expand_derive_decode_struct(
 
         tts.extend(quote!(
             impl #impl_generics sqlx::decode::Decode<'de, sqlx::Postgres> for #ident #ty_generics #where_clause {
+                fn accepts(ty: &MySqlTypeInfo) -> bool {
+                    *ty == Self::type_info()
+                }
+
                 fn decode(value: <sqlx::Postgres as sqlx::value::HasRawValue<'de>>::RawValue) -> sqlx::Result<Self> {
                     let mut decoder = sqlx::postgres::types::raw::PgRecordDecoder::new(value)?;
 

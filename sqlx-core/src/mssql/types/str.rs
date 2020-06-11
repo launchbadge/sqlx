@@ -19,7 +19,7 @@ impl Type<Mssql> for String {
 }
 
 impl Encode<'_, Mssql> for &'_ str {
-    fn produces(&self) -> MssqlTypeInfo {
+    fn produces(&self) -> Option<MssqlTypeInfo> {
         // an empty string needs to be encoded as `nvarchar(2)`
         MssqlTypeInfo(TypeInfo {
             ty: DataType::NVarChar,
@@ -35,6 +35,7 @@ impl Encode<'_, Mssql> for &'_ str {
                 version: 0,
             }),
         })
+        .into()
     }
 
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
@@ -45,7 +46,7 @@ impl Encode<'_, Mssql> for &'_ str {
 }
 
 impl Encode<'_, Mssql> for String {
-    fn produces(&self) -> MssqlTypeInfo {
+    fn produces(&self) -> Option<MssqlTypeInfo> {
         <&str as Encode<Mssql>>::produces(&self.as_str())
     }
 

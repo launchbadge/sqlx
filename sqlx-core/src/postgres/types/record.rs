@@ -7,6 +7,7 @@ use crate::postgres::type_info::PgType;
 use crate::postgres::{
     PgArgumentBuffer, PgTypeInfo, PgTypeKind, PgValueFormat, PgValueRef, Postgres,
 };
+use crate::types::Type;
 
 #[doc(hidden)]
 pub struct PgRecordEncoder<'a> {
@@ -36,7 +37,7 @@ impl<'a> PgRecordEncoder<'a> {
     pub fn encode<'q, T>(&mut self, value: T) -> &mut Self
     where
         'a: 'q,
-        T: Encode<'q, Postgres>,
+        T: Encode<'q, Postgres> + Type<Postgres>,
     {
         let ty = T::type_info();
 
@@ -101,7 +102,7 @@ impl<'r> PgRecordDecoder<'r> {
     #[doc(hidden)]
     pub fn try_decode<T>(&mut self) -> Result<T, BoxDynError>
     where
-        T: for<'a> Decode<'a, Postgres>,
+        T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
     {
         if self.buf.is_empty() {
             return Err(format!("no field `{0}` found on record", self.ind).into());

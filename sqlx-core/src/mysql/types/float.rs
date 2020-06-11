@@ -29,6 +29,10 @@ impl Encode<'_, MySql> for f32 {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
+    }
 }
 
 impl Encode<'_, MySql> for f64 {
@@ -36,6 +40,10 @@ impl Encode<'_, MySql> for f64 {
         buf.extend(&self.to_le_bytes());
 
         IsNull::No
+    }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
     }
 }
 

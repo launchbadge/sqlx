@@ -46,15 +46,27 @@ impl Encode<'_, Postgres> for &'_ [u8] {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl Encode<'_, Postgres> for Vec<u8> {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         <&[u8] as Encode<Postgres>>::encode(self, buf)
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl<'r> Decode<'r, Postgres> for &'r [u8] {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             PgValueFormat::Binary => value.as_bytes(),
@@ -66,6 +78,10 @@ impl<'r> Decode<'r, Postgres> for &'r [u8] {
 }
 
 impl Decode<'_, Postgres> for Vec<u8> {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => value.as_bytes()?.to_owned(),

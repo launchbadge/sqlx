@@ -16,7 +16,7 @@ pub struct MssqlArguments {
 
 impl MssqlArguments {
     pub(crate) fn add_named<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, value: T) {
-        let ty = value.produces();
+        let ty = value.produces().unwrap();
 
         let mut ty_name = String::new();
         ty.0.fmt(&mut ty_name);
@@ -33,7 +33,7 @@ impl MssqlArguments {
     }
 
     pub(crate) fn declare<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, initial_value: T) {
-        let ty = initial_value.produces();
+        let ty = initial_value.produces().unwrap();
 
         let mut ty_name = String::new();
         ty.0.fmt(&mut ty_name);
@@ -62,7 +62,7 @@ impl<'q> Arguments<'q> for MssqlArguments {
     where
         T: 'q + Encode<'q, Self::Database>,
     {
-        let ty = value.produces();
+        let ty = value.produces().unwrap();
 
         // produce an ordinal parameter name
         //  @p1, @p2, ... @pN

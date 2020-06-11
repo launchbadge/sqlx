@@ -19,6 +19,10 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<SqliteTypeInfo> {
+        <Self as Type<Sqlite>>::type_info().into()
+    }
 }
 
 impl<'r> Decode<'r, Sqlite> for &'r str {
@@ -48,6 +52,10 @@ impl<'q> Encode<'q, Sqlite> for String {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
 
         IsNull::No
+    }
+
+    fn produces(&self) -> Option<SqliteTypeInfo> {
+        <Self as Type<Sqlite>>::type_info().into()
     }
 }
 

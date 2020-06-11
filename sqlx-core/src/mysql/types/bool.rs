@@ -15,6 +15,10 @@ impl Encode<'_, MySql> for bool {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
         <i8 as Encode<MySql>>::encode(*self as i8, buf)
     }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
+    }
 }
 
 impl Decode<'_, MySql> for bool {

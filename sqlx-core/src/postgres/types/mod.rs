@@ -133,6 +133,7 @@ mod bool;
 mod bytes;
 mod float;
 mod num;
+mod ranges;
 mod record;
 mod str;
 mod tuple;
@@ -158,4 +159,7 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
-pub use record::{PgRecordDecoder, PgRecordEncoder};
+pub use {
+    ranges::{pg_range::PgRange, pg_ranges::*},
+    record::{PgRecordDecoder, PgRecordEncoder},
+};

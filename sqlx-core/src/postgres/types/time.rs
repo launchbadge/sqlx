@@ -90,12 +90,20 @@ impl Encode<'_, Postgres> for Time {
         Encode::<Postgres>::encode(&us, buf)
     }
 
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
+
     fn size_hint(&self) -> usize {
         mem::size_of::<u64>()
     }
 }
 
 impl<'r> Decode<'r, Postgres> for Time {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -131,12 +139,20 @@ impl Encode<'_, Postgres> for Date {
         Encode::<Postgres>::encode(&days, buf)
     }
 
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
+
     fn size_hint(&self) -> usize {
         mem::size_of::<i32>()
     }
 }
 
 impl<'r> Decode<'r, Postgres> for Date {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -157,12 +173,20 @@ impl Encode<'_, Postgres> for PrimitiveDateTime {
         Encode::<Postgres>::encode(&us, buf)
     }
 
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
+
     fn size_hint(&self) -> usize {
         mem::size_of::<i64>()
     }
 }
 
 impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -214,12 +238,20 @@ impl Encode<'_, Postgres> for OffsetDateTime {
         Encode::<Postgres>::encode(&primitive, buf)
     }
 
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
+
     fn size_hint(&self) -> usize {
         mem::size_of::<i64>()
     }
 }
 
 impl<'r> Decode<'r, Postgres> for OffsetDateTime {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(<PrimitiveDateTime as Decode<Postgres>>::decode(value)?.assume_utc())
     }

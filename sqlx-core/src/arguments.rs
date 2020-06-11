@@ -2,6 +2,7 @@
 
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
+use crate::types::Type;
 
 /// A tuple of arguments to be sent to the database.
 pub trait Arguments<'q>: Send + Sized + Default {
@@ -14,7 +15,7 @@ pub trait Arguments<'q>: Send + Sized + Default {
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Encode<'q, Self::Database>;
+        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
 }
 
 pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
+use crate::types::Type;
 use crate::value::ValueRef;
 
 /// A type that can be used to index into a [`Row`].
@@ -89,7 +90,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
@@ -132,7 +133,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         let value = self.try_get_raw(&index)?;
 

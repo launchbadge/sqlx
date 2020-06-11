@@ -11,6 +11,7 @@ use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::from_row::FromRow;
 use crate::query::{query, query_with, Query};
+use crate::types::Type;
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
 /// Returned from [`query_as`].
@@ -40,7 +41,7 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    pub fn bind<T: 'q + Encode<'q, DB>>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }

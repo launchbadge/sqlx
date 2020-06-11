@@ -20,9 +20,17 @@ impl Encode<'_, MySql> for BigDecimal {
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<MySqlTypeInfo> {
+        <Self as Type<MySql>>::type_info().into()
+    }
 }
 
 impl Decode<'_, MySql> for BigDecimal {
+    fn accepts(ty: &MySqlTypeInfo) -> bool {
+        *ty == <Self as Type<MySql>>::type_info()
+    }
+
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_str()?.parse()?)
     }

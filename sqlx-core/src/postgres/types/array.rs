@@ -35,11 +35,15 @@ where
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         self.as_slice().encode_by_ref(buf)
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 impl<'q, T> Encode<'q, Postgres> for &'_ [T]
 where
-    T: Encode<'q, Postgres>,
+    T: Encode<'q, Postgres> + Type<Postgres>,
     Self: Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
@@ -79,6 +83,10 @@ where
 
         IsNull::No
     }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <Self as Type<Postgres>>::type_info().into()
+    }
 }
 
 // TODO: Array decoding in PostgreSQL *could* allow 'r (row) lifetime of elements if we can figure
@@ -86,9 +94,13 @@ where
 
 impl<'r, T> Decode<'r, Postgres> for Vec<T>
 where
-    T: for<'a> Decode<'a, Postgres>,
+    T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
     Self: Type<Postgres>,
 {
+    fn accepts(ty: &PgTypeInfo) -> bool {
+        *ty == <Self as Type<Postgres>>::type_info()
+    }
+
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let element_type_info = T::type_info();
         let format = value.format();
