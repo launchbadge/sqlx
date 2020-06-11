@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use byteorder::{ByteOrder, LittleEndian};
 
 use crate::decode::Decode;
@@ -13,17 +15,6 @@ fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
         flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
         char_set: 63,
     }
-}
-
-fn uint_accepts(ty: &MySqlTypeInfo) -> bool {
-    matches!(
-        ty.r#type,
-        ColumnType::Tiny
-            | ColumnType::Short
-            | ColumnType::Long
-            | ColumnType::Int24
-            | ColumnType::LongLong
-    ) && ty.flags.contains(ColumnFlags::UNSIGNED)
 }
 
 impl Type<MySql> for u8 {
@@ -82,16 +73,34 @@ impl Encode<'_, MySql> for u64 {
     }
 }
 
+fn uint_accepts(ty: &MySqlTypeInfo) -> bool {
+    matches!(
+        ty.r#type,
+        ColumnType::Tiny
+            | ColumnType::Short
+            | ColumnType::Long
+            | ColumnType::Int24
+            | ColumnType::LongLong
+    ) && ty.flags.contains(ColumnFlags::UNSIGNED)
+}
+
+fn uint_decode(value: MySqlValueRef<'_>) -> Result<u64, BoxDynError> {
+    Ok(match value.format() {
+        MySqlValueFormat::Text => value.as_str()?.parse()?,
+        MySqlValueFormat::Binary => {
+            let buf = value.as_bytes()?;
+            LittleEndian::read_uint(buf, buf.len())
+        }
+    })
+}
+
 impl Decode<'_, MySql> for u8 {
     fn accepts(ty: &MySqlTypeInfo) -> bool {
         uint_accepts(ty)
     }
 
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => value.as_bytes()?[0] as u8,
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -101,10 +110,7 @@ impl Decode<'_, MySql> for u16 {
     }
 
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => LittleEndian::read_u16(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -114,10 +120,7 @@ impl Decode<'_, MySql> for u32 {
     }
 
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => LittleEndian::read_u32(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
@@ -127,9 +130,6 @@ impl Decode<'_, MySql> for u64 {
     }
 
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => LittleEndian::read_u64(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
