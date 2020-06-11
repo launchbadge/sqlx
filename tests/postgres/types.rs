@@ -337,7 +337,10 @@ test_type!(decimal<sqlx::types::BigDecimal>(Postgres,
 mod ranges {
     use super::*;
     use core::ops::Bound;
-    use sqlx::postgres::{PgValueFormat, types::{Int4Range, PgRange}};
+    use sqlx::postgres::{
+        types::{Int4Range, PgRange},
+        PgValueFormat,
+    };
 
     const EXC2: Bound<i32> = Bound::Excluded(2);
     const EXC3: Bound<i32> = Bound::Excluded(3);

@@ -48,8 +48,8 @@ impl_range!(RangeToInclusive);
 
 #[test]
 fn test_decode_str_bounds() {
+    use crate::postgres::{type_info::PgType, PgValueFormat};
     use core::ops::Bound;
-    use crate::postgres::{PgValueFormat, type_info::PgType};
 
     const EXC1: Bound<i32> = Bound::Excluded(1);
     const EXC2: Bound<i32> = Bound::Excluded(2);
