@@ -11,17 +11,17 @@ use core::{
 };
 
 bitflags::bitflags! {
-    struct RangeFlags: u8 {
-        const EMPTY = 0x01;
-        const LB_INC = 0x02;
-        const UB_INC = 0x04;
-        const LB_INF = 0x08;
-        const UB_INF = 0x10;
-        const LB_NULL = 0x20;
-        const UB_NULL = 0x40;
-        const CONTAIN_EMPTY = 0x80;
-    }
+  struct RangeFlags: u8 {
+      const EMPTY = 0x01;
+      const LB_INC = 0x02;
+      const UB_INC = 0x04;
+      const LB_INF = 0x08;
+      const UB_INF = 0x10;
+      const LB_NULL = 0x20;
+      const UB_NULL = 0x40;
+      const CONTAIN_EMPTY = 0x80;
   }
+}
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct PgRange<T> {
@@ -31,10 +31,7 @@ pub struct PgRange<T> {
 
 impl<T> PgRange<T> {
     pub fn new(start: Bound<T>, end: Bound<T>) -> Self {
-        Self {
-            start,
-            end
-        }
+        Self { start, end }
     }
 }
 

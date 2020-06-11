@@ -103,24 +103,24 @@ fn expand_derive_encode_weak_enum(
     let ident = &input.ident;
 
     Ok(quote!(
-        impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where #repr: sqlx::encode::Encode<'q, DB> {
-            fn encode(self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                sqlx::encode::Encode::encode((self as #repr), buf)
+    impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where #repr: sqlx::encode::Encode<'q, DB> {
+        fn encode(self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+            sqlx::encode::Encode::encode((self as #repr), buf)
+        }
+
+        fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+            sqlx::encode::Encode::encode_by_ref(&(*self as #repr), buf)
+        }
+
+            fn produces(&self) -> Option<DB::TypeInfo> {
+                <Self as Type<MySql>>::type_info().into()
             }
 
-            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                sqlx::encode::Encode::encode_by_ref(&(*self as #repr), buf)
+            fn size_hint(&self) -> usize {
+                sqlx::encode::Encode::size_hint(&(*self as #repr))
             }
-
-                fn produces(&self) -> Option<DB::TypeInfo> {
-                    <Self as Type<MySql>>::type_info().into()
-                }
-
-                fn size_hint(&self) -> usize {
-                    sqlx::encode::Encode::size_hint(&(*self as #repr))
-                }
-            }
-        ))
+        }
+    ))
 }
 
 fn expand_derive_encode_strong_enum(

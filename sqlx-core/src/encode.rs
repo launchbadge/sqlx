@@ -67,6 +67,7 @@ where
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! impl_encode_for_option {
     ($DB:ident) => {
         impl<'q, T> crate::encode::Encode<'q, $DB> for Option<T>

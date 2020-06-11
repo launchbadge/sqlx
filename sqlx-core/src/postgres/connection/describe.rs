@@ -221,7 +221,9 @@ WHERE rngtypid = $1
         .fetch_one(self)
         .await?;
 
-        let pg_type = PgType::try_from_oid(oid).ok_or_else(|| err_protocol!("Trying to retrieve a DB type that doesn't exist in SQLx"))?;
+        let pg_type = PgType::try_from_oid(oid).ok_or_else(|| {
+            err_protocol!("Trying to retrieve a DB type that doesn't exist in SQLx")
+        })?;
 
         Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
             kind: PgTypeKind::Range(PgTypeInfo(pg_type)),
