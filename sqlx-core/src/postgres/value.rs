@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::str::from_utf8;
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::postgres::{PgTypeInfo, Postgres};
@@ -32,6 +32,26 @@ pub struct PgValue {
 }
 
 impl<'r> PgValueRef<'r> {
+    pub(crate) fn get(buf: &mut &'r [u8], format: PgValueFormat, ty: PgTypeInfo) -> Self {
+        let mut element_len = buf.get_i32();
+
+        let element_val = if element_len == -1 {
+            element_len = 0;
+            None
+        } else {
+            Some(&buf[..(element_len as usize)])
+        };
+
+        buf.advance(element_len as usize);
+
+        PgValueRef {
+            value: element_val,
+            row: None,
+            type_info: ty,
+            format,
+        }
+    }
+
     pub(crate) fn format(&self) -> PgValueFormat {
         self.format
     }
@@ -62,7 +82,13 @@ impl Value for PgValue {
     }
 
     fn type_info(&self) -> Option<Cow<'_, PgTypeInfo>> {
-        Some(Cow::Borrowed(&self.type_info))
+        if self.format == PgValueFormat::Text {
+            // For TEXT encoding the type defined on the value is unreliable
+            // We don't even bother to return it so type checking is implicitly opted-out
+            None
+        } else {
+            Some(Cow::Borrowed(&self.type_info))
+        }
     }
 
     fn is_null(&self) -> bool {
@@ -90,7 +116,13 @@ impl<'r> ValueRef<'r> for PgValueRef<'r> {
     }
 
     fn type_info(&self) -> Option<Cow<'_, PgTypeInfo>> {
-        Some(Cow::Borrowed(&self.type_info))
+        if self.format == PgValueFormat::Text {
+            // For TEXT encoding the type defined on the value is unreliable
+            // We don't even bother to return it so type checking is implicitly opted-out
+            None
+        } else {
+            Some(Cow::Borrowed(&self.type_info))
+        }
     }
 
     fn is_null(&self) -> bool {

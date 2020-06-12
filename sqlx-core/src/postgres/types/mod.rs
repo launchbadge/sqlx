@@ -132,8 +132,8 @@ mod array;
 mod bool;
 mod bytes;
 mod float;
-mod num;
-mod ranges;
+mod int;
+mod range;
 mod record;
 mod str;
 mod tuple;
@@ -159,7 +159,9 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
-pub use {
-    ranges::{pg_range::PgRange, pg_ranges::*},
-    record::{PgRecordDecoder, PgRecordEncoder},
-};
+pub use range::PgRange;
+
+// used in derive(Type) for `struct`
+// but the interface is not considered part of the public API
+#[doc(hidden)]
+pub use record::{PgRecordDecoder, PgRecordEncoder};

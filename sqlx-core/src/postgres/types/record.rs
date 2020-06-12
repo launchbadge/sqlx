@@ -1,7 +1,7 @@
 use bytes::Buf;
 
 use crate::decode::Decode;
-use crate::encode::{Encode, IsNull};
+use crate::encode::Encode;
 use crate::error::{mismatched_types, BoxDynError};
 use crate::postgres::type_info::PgType;
 use crate::postgres::{
@@ -30,7 +30,7 @@ impl<'a> PgRecordEncoder<'a> {
     #[doc(hidden)]
     pub fn finish(&mut self) {
         // fill in the record length
-        self.buf[self.off..].copy_from_slice(&self.num.to_be_bytes());
+        self.buf[self.off..(self.off + 4)].copy_from_slice(&self.num.to_be_bytes());
     }
 
     #[doc(hidden)]
@@ -50,16 +50,8 @@ impl<'a> PgRecordEncoder<'a> {
             self.buf.extend(&ty.0.oid().to_be_bytes());
         }
 
-        let offset = self.buf.len();
-        self.buf.extend(&(0_u32).to_be_bytes());
-
-        let size = if let IsNull::Yes = value.encode(self.buf) {
-            -1
-        } else {
-            (self.buf.len() - offset + 4) as i32
-        };
-
-        self.buf[offset..].copy_from_slice(&size.to_be_bytes());
+        self.buf.encode(value);
+        self.num += 1;
 
         self
     }
@@ -133,6 +125,8 @@ impl<'r> PgRecordDecoder<'r> {
                     }
                 };
 
+                self.ind += 1;
+
                 if let Some(ty) = &element_type_opt {
                     if !T::accepts(ty) {
                         return Err(mismatched_types::<Postgres, T>(&T::type_info(), ty));
@@ -142,23 +136,7 @@ impl<'r> PgRecordDecoder<'r> {
                 let element_type =
                     element_type_opt.unwrap_or_else(|| PgTypeInfo::with_oid(element_type_oid));
 
-                let mut element_len = self.buf.get_i32();
-                let element_buf = if element_len < 0 {
-                    element_len = 0;
-                    None
-                } else {
-                    Some(&self.buf[..(element_len as usize)])
-                };
-
-                self.buf.advance(element_len as usize);
-                self.ind += 1;
-
-                T::decode(PgValueRef {
-                    type_info: element_type,
-                    format: self.fmt,
-                    value: element_buf,
-                    row: None,
-                })
+                T::decode(PgValueRef::get(&mut self.buf, self.fmt, element_type))
             }
 
             PgValueFormat::Text => {

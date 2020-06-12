@@ -49,32 +49,48 @@ fn expand_derive_has_sql_type_transparent(
     input: &DeriveInput,
     field: &Field,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    check_transparent_attributes(input, field)?;
+    let attr = check_transparent_attributes(input, field)?;
 
     let ident = &input.ident;
     let ty = &field.ty;
 
-    // extract type generics
     let generics = &input.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
 
-    // add db type for clause
-    let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(DB: sqlx::Database));
-    generics
-        .make_where_clause()
-        .predicates
-        .push(parse_quote!(#ty: sqlx::Type<DB>));
+    if attr.transparent {
+        let mut generics = generics.clone();
+        generics.params.insert(0, parse_quote!(DB: sqlx::Database));
+        generics
+            .make_where_clause()
+            .predicates
+            .push(parse_quote!(#ty: sqlx::Type<DB>));
 
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-    Ok(quote!(
-        impl #impl_generics sqlx::Type< DB > for #ident #ty_generics #where_clause {
-            fn type_info() -> DB::TypeInfo {
-                <#ty as sqlx::Type<DB>>::type_info()
+        return Ok(quote!(
+            impl #impl_generics sqlx::Type< DB > for #ident #ty_generics #where_clause {
+                fn type_info() -> DB::TypeInfo {
+                    <#ty as sqlx::Type<DB>>::type_info()
+                }
             }
-        }
-    ))
+        ));
+    }
+
+    let mut tts = proc_macro2::TokenStream::new();
+
+    if cfg!(feature = "postgres") {
+        let ty_name = attr.rename.unwrap_or_else(|| ident.to_string());
+
+        tts.extend(quote!(
+            impl sqlx::Type< sqlx::postgres::Postgres > for #ident #ty_generics {
+                fn type_info() -> sqlx::postgres::PgTypeInfo {
+                    sqlx::postgres::PgTypeInfo::with_name(#ty_name)
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_has_sql_type_weak_enum(
@@ -84,8 +100,7 @@ fn expand_derive_has_sql_type_weak_enum(
     let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
     let ident = &input.ident;
-
-    Ok(quote!(
+    let ts = quote!(
         impl<DB: sqlx::Database> sqlx::Type<DB> for #ident
         where
             #repr: sqlx::Type<DB>,
@@ -94,7 +109,9 @@ fn expand_derive_has_sql_type_weak_enum(
                 <#repr as sqlx::Type<DB>>::type_info()
             }
         }
-    ))
+    );
+
+    Ok(ts)
 }
 
 fn expand_derive_has_sql_type_strong_enum(
@@ -110,7 +127,7 @@ fn expand_derive_has_sql_type_strong_enum(
         tts.extend(quote!(
             impl sqlx::Type< sqlx::MySql > for #ident {
                 fn type_info() -> sqlx::mysql::MySqlTypeInfo {
-                    sqlx::mysql::MySqlTypeInfo::r#enum()
+                    sqlx::mysql::MySqlTypeInfo::__enum()
                 }
             }
         ));

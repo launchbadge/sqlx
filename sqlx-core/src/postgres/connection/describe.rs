@@ -209,27 +209,31 @@ ORDER BY attnum
         })
     }
 
-    async fn fetch_range_by_oid(&mut self, oid: u32, name: String) -> Result<PgTypeInfo, Error> {
-        let _: i32 = query_scalar(
-            r#"
-SELECT 1
+    fn fetch_range_by_oid(
+        &mut self,
+        oid: u32,
+        name: String,
+    ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
+        Box::pin(async move {
+            let element_oid: u32 = query_scalar(
+                r#"
+SELECT rngsubtype
 FROM pg_catalog.pg_range
 WHERE rngtypid = $1
-            "#,
-        )
-        .bind(oid)
-        .fetch_one(self)
-        .await?;
+                "#,
+            )
+            .bind(oid)
+            .fetch_one(&mut *self)
+            .await?;
 
-        let pg_type = PgType::try_from_oid(oid).ok_or_else(|| {
-            err_protocol!("Trying to retrieve a DB type that doesn't exist in SQLx")
-        })?;
+            let element = self.maybe_fetch_type_info_by_oid(element_oid, true).await?;
 
-        Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-            kind: PgTypeKind::Range(PgTypeInfo(pg_type)),
-            name: name.into(),
-            oid,
-        }))))
+            Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                kind: PgTypeKind::Range(element),
+                name: name.into(),
+                oid,
+            }))))
+        })
     }
 
     pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<u32, Error> {

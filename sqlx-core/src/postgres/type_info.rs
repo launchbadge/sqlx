@@ -11,7 +11,7 @@ use crate::type_info::TypeInfo;
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgTypeInfo(pub(crate) PgType);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u32)]
 pub(crate) enum PgType {
@@ -197,7 +197,12 @@ impl PgTypeInfo {
         Self(PgType::DeclareWithName(UStr::Static(name)))
     }
 
-    pub(crate) const fn with_oid(oid: u32) -> Self {
+    /// Create a `PgTypeInfo` from an OID.
+    ///
+    /// Note that the OID for a type is very dependent on the environment. If you only ever use
+    /// one database or if this is an unhandled build-in type, you should be fine. Otherwise,
+    /// you will be better served using [`with_name`](#method.with_name).
+    pub const fn with_oid(oid: u32) -> Self {
         Self(PgType::DeclareWithOid(oid))
     }
 }
@@ -308,7 +313,14 @@ impl PgType {
     }
 
     pub(crate) fn oid(&self) -> u32 {
-        match self {
+        match self.try_oid() {
+            Some(oid) => oid,
+            None => unreachable!("(bug) use of unresolved type declaration [oid]"),
+        }
+    }
+
+    pub(crate) fn try_oid(&self) -> Option<u32> {
+        Some(match self {
             PgType::Bool => 16,
             PgType::Bytea => 17,
             PgType::Char => 18,
@@ -400,8 +412,10 @@ impl PgType {
             PgType::Custom(ty) => ty.oid,
 
             PgType::DeclareWithOid(oid) => *oid,
-            PgType::DeclareWithName(_) => unreachable!("(bug) use of unresolved type declaration"),
-        }
+            PgType::DeclareWithName(_) => {
+                return None;
+            }
+        })
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -576,24 +590,24 @@ impl PgType {
             PgType::UuidArray => &PgTypeKind::Array(PgTypeInfo(PgType::Uuid)),
             PgType::Jsonb => &PgTypeKind::Simple,
             PgType::JsonbArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonb)),
-            PgType::Int4Range => &PgTypeKind::Simple,
+            PgType::Int4Range => &PgTypeKind::Range(PgTypeInfo::INT4),
             PgType::Int4RangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::Int4Range)),
-            PgType::NumRange => &PgTypeKind::Simple,
+            PgType::NumRange => &PgTypeKind::Range(PgTypeInfo::NUMERIC),
             PgType::NumRangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::NumRange)),
-            PgType::TsRange => &PgTypeKind::Simple,
+            PgType::TsRange => &PgTypeKind::Range(PgTypeInfo::TIMESTAMP),
             PgType::TsRangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::TsRange)),
-            PgType::TstzRange => &PgTypeKind::Simple,
+            PgType::TstzRange => &PgTypeKind::Range(PgTypeInfo::TIMESTAMPTZ),
             PgType::TstzRangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::TstzRange)),
-            PgType::DateRange => &PgTypeKind::Simple,
+            PgType::DateRange => &PgTypeKind::Range(PgTypeInfo::DATE),
             PgType::DateRangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::DateRange)),
-            PgType::Int8Range => &PgTypeKind::Simple,
+            PgType::Int8Range => &PgTypeKind::Range(PgTypeInfo::INT8),
             PgType::Int8RangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::Int8Range)),
             PgType::Jsonpath => &PgTypeKind::Simple,
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
             PgType::Custom(ty) => &ty.kind,
 
             PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
-                unreachable!("(bug) use of unresolved type declaration")
+                unreachable!("(bug) use of unresolved type declaration [kind]")
             }
         }
     }
@@ -815,5 +829,17 @@ impl PgTypeInfo {
 impl Display for PgTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self.0.name())
+    }
+}
+
+impl PartialEq<PgType> for PgType {
+    fn eq(&self, other: &PgType) -> bool {
+        if let (Some(a), Some(b)) = (self.try_oid(), other.try_oid()) {
+            // If there are OIDs available, use OIDs to perform a direct match
+            a == b
+        } else {
+            // Otherwise, perform a match on the name
+            self.name().eq_ignore_ascii_case(other.name())
+        }
     }
 }

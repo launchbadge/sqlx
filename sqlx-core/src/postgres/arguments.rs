@@ -47,26 +47,34 @@ impl<'q> Arguments<'q> for PgArguments {
         self.types
             .push(value.produces().unwrap_or_else(T::type_info));
 
-        // reserve space to write the prefixed length of the value
-        let offset = self.buffer.len();
-        self.buffer.extend(&[0; 4]);
-
         // encode the value into our buffer
-        let len = if let IsNull::No = value.encode(&mut self.buffer) {
-            (self.buffer.len() - offset - 4) as i32
-        } else {
-            // Write a -1 to indicate NULL
-            // NOTE: It is illegal for [encode] to write any data
-            debug_assert_eq!(self.buffer.len(), offset + 4);
-            -1_i32
-        };
-
-        // write the len to the beginning of the value
-        self.buffer.buffer[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+        self.buffer.encode(value);
     }
 }
 
 impl PgArgumentBuffer {
+    pub(crate) fn encode<'q, T>(&mut self, value: T)
+    where
+        T: Encode<'q, Postgres>,
+    {
+        // reserve space to write the prefixed length of the value
+        let offset = self.len();
+        self.extend(&[0; 4]);
+
+        // encode the value into our buffer
+        let len = if let IsNull::No = value.encode(self) {
+            (self.len() - offset - 4) as i32
+        } else {
+            // Write a -1 to indicate NULL
+            // NOTE: It is illegal for [encode] to write any data
+            debug_assert_eq!(self.len(), offset + 4);
+            -1_i32
+        };
+
+        // write the len to the beginning of the value
+        self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+    }
+
     // Extends the inner buffer by enough space to have an OID
     // Remembers where the OID goes and type name for the OID
     pub(crate) fn push_type_hole(&mut self, type_name: &UStr) {
@@ -81,7 +89,7 @@ impl PgArgumentBuffer {
     pub(crate) async fn patch_type_holes(&mut self, conn: &mut PgConnection) -> Result<(), Error> {
         for (offset, name) in &self.type_holes {
             let oid = conn.fetch_type_id_by_name(&*name).await?;
-            self.buffer[*offset..].copy_from_slice(&oid.to_be_bytes());
+            self.buffer[*offset..(*offset + 4)].copy_from_slice(&oid.to_be_bytes());
         }
 
         Ok(())

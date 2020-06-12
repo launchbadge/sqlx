@@ -22,6 +22,15 @@ impl MySqlTypeInfo {
     }
 
     #[doc(hidden)]
+    pub const fn __enum() -> Self {
+        Self {
+            r#type: ColumnType::Enum,
+            flags: ColumnFlags::BINARY,
+            char_set: 63,
+        }
+    }
+
+    #[doc(hidden)]
     pub fn __type_feature_gate(&self) -> Option<&'static str> {
         match self.r#type {
             ColumnType::Date | ColumnType::Time | ColumnType::Timestamp | ColumnType::Datetime => {

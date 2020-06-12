@@ -1,6 +1,9 @@
-use sqlx::{postgres::PgQueryAs, Connection, Cursor, Executor, FromRow, Postgres};
+use futures::TryStreamExt;
+use sqlx::{Connection, Executor, FromRow, Postgres};
+use sqlx_core::postgres::types::PgRange;
 use sqlx_test::{new, test_type};
 use std::fmt::Debug;
+use std::ops::Bound;
 
 // Transparent types are rust-side wrappers over DB types
 #[derive(PartialEq, Debug, sqlx::Type)]
@@ -37,6 +40,7 @@ enum ColorLower {
     Green,
     Blue,
 }
+
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_snake")]
 #[sqlx(rename_all = "snake_case")]
@@ -44,6 +48,7 @@ enum ColorSnake {
     RedGreen,
     BlueBlack,
 }
+
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_upper")]
 #[sqlx(rename_all = "uppercase")]
@@ -73,27 +78,35 @@ struct InventoryItem {
     price: Option<i64>,
 }
 
-test_type!(transparent(
-    Postgres,
-    Transparent,
+// Custom range type
+#[derive(sqlx::Type, Debug, PartialEq)]
+#[sqlx(rename = "float_range")]
+struct FloatRange(PgRange<f64>);
+
+// Custom domain type
+#[derive(sqlx::Type, Debug)]
+#[sqlx(rename = "int4rangeL0pC")]
+struct RangeInclusive(PgRange<i32>);
+
+test_type!(transparent<Transparent>(Postgres,
     "0" == Transparent(0),
     "23523" == Transparent(23523)
 ));
 
-test_type!(weak_enum(
-    Postgres,
-    Weak,
+test_type!(weak_enum<Weak>(Postgres,
     "0::int4" == Weak::One,
     "2::int4" == Weak::Two,
     "4::int4" == Weak::Three
 ));
 
-test_type!(strong_enum(
-    Postgres,
-    Strong,
+test_type!(strong_enum<Strong>(Postgres,
     "'one'::text" == Strong::One,
     "'two'::text" == Strong::Two,
     "'four'::text" == Strong::Three
+));
+
+test_type!(floatrange<FloatRange>(Postgres,
+    "'[1.234, 5.678]'::float_range" == FloatRange(PgRange::from((Bound::Included(1.234), Bound::Included(5.678)))),
 ));
 
 #[sqlx_macros::test]
@@ -102,7 +115,6 @@ async fn test_enum_type() -> anyhow::Result<()> {
 
     conn.execute(
         r#"
-
 DROP TABLE IF EXISTS people;
 
 DROP TYPE IF EXISTS mood CASCADE;
@@ -154,7 +166,7 @@ RETURNING id
     let rec: PeopleRow = sqlx::query_as(
         "
 SELECT id, mood FROM people WHERE id = $1
-        ",
+            ",
     )
     .bind(people_id)
     .fetch_one(&mut conn)
@@ -169,20 +181,23 @@ SELECT id, mood FROM people WHERE id = $1
 
     let stmt = format!("SELECT id, mood FROM people WHERE id = {}", people_id);
     dbg!(&stmt);
+
     let mut cursor = conn.fetch(&*stmt);
 
-    let row = cursor.next().await?.unwrap();
+    let row = cursor.try_next().await?.unwrap();
     let rec = PeopleRow::from_row(&row)?;
 
     assert_eq!(rec.id, people_id);
     assert_eq!(rec.mood, Mood::Sad);
 
+    drop(cursor);
+
     // Normal type equivalency test
 
     let rec: (bool, Mood) = sqlx::query_as(
         "
-SELECT $1 = 'happy'::mood, $1
-        ",
+    SELECT $1 = 'happy'::mood, $1
+            ",
     )
     .bind(&Mood::Happy)
     .fetch_one(&mut conn)
@@ -193,8 +208,8 @@ SELECT $1 = 'happy'::mood, $1
 
     let rec: (bool, ColorLower) = sqlx::query_as(
         "
-SELECT $1 = 'green'::color_lower, $1
-        ",
+    SELECT $1 = 'green'::color_lower, $1
+            ",
     )
     .bind(&ColorLower::Green)
     .fetch_one(&mut conn)
@@ -205,8 +220,8 @@ SELECT $1 = 'green'::color_lower, $1
 
     let rec: (bool, ColorSnake) = sqlx::query_as(
         "
-SELECT $1 = 'red_green'::color_snake, $1
-        ",
+    SELECT $1 = 'red_green'::color_snake, $1
+            ",
     )
     .bind(&ColorSnake::RedGreen)
     .fetch_one(&mut conn)
@@ -217,8 +232,8 @@ SELECT $1 = 'red_green'::color_snake, $1
 
     let rec: (bool, ColorUpper) = sqlx::query_as(
         "
-SELECT $1 = 'RED'::color_upper, $1
-        ",
+    SELECT $1 = 'RED'::color_upper, $1
+            ",
     )
     .bind(&ColorUpper::Red)
     .fetch_one(&mut conn)
@@ -234,23 +249,6 @@ SELECT $1 = 'RED'::color_upper, $1
 async fn test_record_type() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    conn.execute(
-        r#"
-DO $$ BEGIN
-
-CREATE TYPE inventory_item AS (
-    name            text,
-    supplier_id     int,
-    price           bigint
-);
-
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-    "#,
-    )
-    .await?;
-
     let value = InventoryItem {
         name: "fuzzy dice".to_owned(),
         supplier_id: Some(42),
@@ -259,7 +257,7 @@ END $$;
 
     let rec: (bool, InventoryItem) = sqlx::query_as(
         "
-        SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
+SELECT $1 = ROW('fuzzy dice', 42, 199)::inventory_item, $1
         ",
     )
     .bind(&value)
@@ -275,9 +273,6 @@ END $$;
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row() -> anyhow::Result<()> {
-    // Needed for PgQueryAs
-    use sqlx::prelude::*;
-
     let mut conn = new::<Postgres>().await?;
 
     #[derive(sqlx::FromRow)]
@@ -310,7 +305,8 @@ async fn test_from_row() -> anyhow::Result<()> {
     .bind(1_i32)
     .fetch(&mut conn);
 
-    let account = RefAccount::from_row(&cursor.next().await?.unwrap())?;
+    let row = cursor.try_next().await?.unwrap();
+    let account = RefAccount::from_row(&row)?;
 
     assert_eq!(account.id, 1);
     assert_eq!(account.name, "Herp Derpinson");
@@ -321,8 +317,6 @@ async fn test_from_row() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row_with_keyword() -> anyhow::Result<()> {
-    use sqlx::prelude::*;
-
     #[derive(Debug, sqlx::FromRow)]
     struct AccountKeyword {
         r#type: i32,
@@ -353,8 +347,6 @@ async fn test_from_row_with_keyword() -> anyhow::Result<()> {
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
 async fn test_from_row_with_rename() -> anyhow::Result<()> {
-    use sqlx::prelude::*;
-
     #[derive(Debug, sqlx::FromRow)]
     struct AccountKeyword {
         #[sqlx(rename = "type")]

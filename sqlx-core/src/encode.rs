@@ -33,6 +33,8 @@ pub trait Encode<'q, DB: Database> {
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull;
 
     fn produces(&self) -> Option<DB::TypeInfo> {
+        // `produces` is inherently a hook to allow database drivers to produce value-dependent
+        // type information; if the driver doesn't need this, it can leave this as `None`
         None
     }
 

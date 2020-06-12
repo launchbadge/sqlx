@@ -1,5 +1,8 @@
 extern crate time_ as time;
 
+use std::ops::Bound;
+
+use sqlx::postgres::types::PgRange;
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 
@@ -334,35 +337,26 @@ test_type!(decimal<sqlx::types::BigDecimal>(Postgres,
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
-mod ranges {
-    use super::*;
-    use core::ops::Bound;
-    use sqlx::postgres::types::{Int4Range, PgRange};
+const EXC2: Bound<i32> = Bound::Excluded(2);
+const EXC3: Bound<i32> = Bound::Excluded(3);
+const INC1: Bound<i32> = Bound::Included(1);
+const INC2: Bound<i32> = Bound::Included(2);
+const UNB: Bound<i32> = Bound::Unbounded;
 
-    const EXC2: Bound<i32> = Bound::Excluded(2);
-    const EXC3: Bound<i32> = Bound::Excluded(3);
-    const INC1: Bound<i32> = Bound::Included(1);
-    const INC2: Bound<i32> = Bound::Included(2);
-    const UNB: Bound<i32> = Bound::Unbounded;
-
-    // int4range display is hard-coded into [l, u)
-    test_type!(int4range<PgRange<i32>>(Postgres,
-
-        "'(,)'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
-        "'(,]'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
-        "'(,2)'::int4range" == Int4Range(PgRange::new([UNB, EXC2])),
-        "'(,2]'::int4range" == Int4Range(PgRange::new([UNB, EXC3])),
-        "'(1,)'::int4range" == Int4Range(PgRange::new([INC2, UNB])),
-        "'(1,]'::int4range" == Int4Range(PgRange::new([INC2, UNB])),
-        "'(1,2]'::int4range" == Int4Range(PgRange::new([INC2, EXC3])),
-
-        "'[,)'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
-        "'[,]'::int4range" == Int4Range(PgRange::new([UNB, UNB])),
-        "'[,2)'::int4range" == Int4Range(PgRange::new([UNB, EXC2])),
-        "'[,2]'::int4range" == Int4Range(PgRange::new([UNB, EXC3])),
-        "'[1,)'::int4range" == Int4Range(PgRange::new([INC1, UNB])),
-        "'[1,]'::int4range" == Int4Range(PgRange::new([INC1, UNB])),
-        "'[1,2)'::int4range" == Int4Range(PgRange::new([INC1, EXC2])),
-        "'[1,2]'::int4range" == Int4Range(PgRange::new([INC1, EXC3])),
-    ));
-}
+test_type!(int4range<PgRange<i32>>(Postgres,
+    "'(,)'::int4range" == PgRange::from((UNB, UNB)),
+    "'(,]'::int4range" == PgRange::from((UNB, UNB)),
+    "'(,2)'::int4range" == PgRange::from((UNB, EXC2)),
+    "'(,2]'::int4range" == PgRange::from((UNB, EXC3)),
+    "'(1,)'::int4range" == PgRange::from((INC2, UNB)),
+    "'(1,]'::int4range" == PgRange::from((INC2, UNB)),
+    "'(1,2]'::int4range" == PgRange::from((INC2, EXC3)),
+    "'[,)'::int4range" == PgRange::from((UNB, UNB)),
+    "'[,]'::int4range" == PgRange::from((UNB, UNB)),
+    "'[,2)'::int4range" == PgRange::from((UNB, EXC2)),
+    "'[,2]'::int4range" == PgRange::from((UNB, EXC3)),
+    "'[1,)'::int4range" == PgRange::from((INC1, UNB)),
+    "'[1,]'::int4range" == PgRange::from((INC1, UNB)),
+    "'[1,2)'::int4range" == PgRange::from((INC1, EXC2)),
+    "'[1,2]'::int4range" == PgRange::from((INC1, EXC3)),
+));

@@ -11,16 +11,14 @@ pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::{ColumnIndex, Row};
 pub use sqlx_core::transaction::{Transaction, TransactionManager};
+pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
 
 #[doc(hidden)]
 pub use sqlx_core::describe;
 
 #[doc(inline)]
-pub use sqlx_core::types::{self, Type};
-
-#[doc(inline)]
-pub use sqlx_core::error::{self, BoxDynError, Error, Result};
+pub use sqlx_core::error::{self, Error, Result};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
@@ -42,6 +40,7 @@ pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
 #[doc(hidden)]
 pub extern crate sqlx_macros;
 
+// derives
 #[cfg(feature = "macros")]
 pub use sqlx_macros::{FromRow, Type};
 
@@ -56,6 +55,13 @@ pub mod ty_match;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub mod result_ext;
+
+pub mod types {
+    pub use sqlx_core::types::*;
+
+    #[cfg(feature = "macros")]
+    pub use sqlx_macros::Type;
+}
 
 /// Types and traits for encoding values for the database.
 pub mod encode {

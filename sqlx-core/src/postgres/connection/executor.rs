@@ -28,13 +28,20 @@ async fn prepare(
     // additional queries here to get any missing OIDs
 
     let mut param_types = Vec::with_capacity(arguments.types.len());
+    let mut has_fetched = false;
 
     for ty in &arguments.types {
         param_types.push(if let PgType::DeclareWithName(name) = &ty.0 {
+            has_fetched = true;
             conn.fetch_type_id_by_name(name).await?
         } else {
             ty.0.oid()
         });
+    }
+
+    // flush and wait until we are re-ready
+    if has_fetched {
+        conn.wait_until_ready().await?;
     }
 
     // next we send the PARSE command to the server
@@ -111,6 +118,18 @@ impl PgConnection {
             // patch holes created during encoding
             arguments.buffer.patch_type_holes(self).await?;
 
+            // describe the statement and, again, ask the server to immediately respond
+            // we need to fully realize the types
+            self.stream.write(message::Describe::Statement(statement));
+            self.stream.write(message::Flush);
+            self.stream.flush().await?;
+
+            let _ = recv_desc_params(self).await?;
+            let rows = recv_desc_rows(self).await?;
+
+            self.handle_row_description(rows, true).await?;
+            self.wait_until_ready().await?;
+
             // bind to attach the arguments to the statement and create a portal
             self.stream.write(Bind {
                 portal: None,
@@ -120,17 +139,6 @@ impl PgConnection {
                 params: &*arguments.buffer,
                 result_formats: &[PgValueFormat::Binary],
             });
-
-            // describe the portal and, again, ask the server to immediately respond
-            // we need to fully realize the types
-            self.stream.write(message::Describe::UnnamedPortal);
-            self.stream.write(Flush);
-            self.stream.flush().await?;
-
-            let _ = self.stream.recv_expect(MessageFormat::BindComplete).await?;
-
-            let rows = recv_desc_rows(self).await?;
-            self.handle_row_description(rows, true).await?;
 
             // executes the portal up to the passed limit
             // the protocol-level limit acts nearly identically to the `LIMIT` in SQL

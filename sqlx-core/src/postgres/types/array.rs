@@ -63,22 +63,7 @@ where
         buf.extend(&1_i32.to_be_bytes()); // lower bound
 
         for element in self.iter() {
-            // allocate space for the length of the encoded element
-            let el_len_offset = buf.len();
-            buf.extend(&0_i32.to_be_bytes());
-
-            let el_start = buf.len();
-
-            if let IsNull::Yes = element.encode_by_ref(buf) {
-                // NULL is encoded as -1 for a length
-                buf[el_len_offset..el_start].copy_from_slice(&(-1_i32).to_be_bytes());
-            } else {
-                let el_end = buf.len();
-                let el_len = el_end - el_start;
-
-                // now we can go back and update the length
-                buf[el_len_offset..el_start].copy_from_slice(&(el_len as i32).to_be_bytes());
-            }
+            buf.encode(element);
         }
 
         IsNull::No
@@ -144,23 +129,11 @@ where
                 let mut elements = Vec::with_capacity(len as usize);
 
                 for _ in 0..len {
-                    let mut element_len = buf.get_i32();
-
-                    let element_val = if element_len == -1 {
-                        element_len = 0;
-                        None
-                    } else {
-                        Some(&buf[..(element_len as usize)])
-                    };
-
-                    elements.push(T::decode(PgValueRef {
-                        value: element_val,
-                        row: None,
-                        type_info: element_type_info.clone(),
+                    elements.push(T::decode(PgValueRef::get(
+                        &mut buf,
                         format,
-                    })?);
-
-                    buf.advance(element_len as usize);
+                        element_type_info.clone(),
+                    ))?)
                 }
 
                 Ok(elements)

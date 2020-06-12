@@ -17,3 +17,9 @@ CREATE TABLE tweet
     text       TEXT        NOT NULL,
     owner_id   BIGINT
 );
+
+CREATE TYPE float_range AS RANGE
+(
+    subtype = float8,
+    subtype_diff = float8mi
+);
