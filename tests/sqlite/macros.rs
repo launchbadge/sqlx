@@ -132,3 +132,5 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// we don't emit bind parameter typechecks for SQLite so testing the overrides is redundant
