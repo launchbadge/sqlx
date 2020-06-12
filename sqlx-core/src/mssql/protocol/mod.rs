@@ -7,6 +7,7 @@ pub(crate) mod info;
 pub(crate) mod login;
 pub(crate) mod login_ack;
 pub(crate) mod message;
+pub(crate) mod order;
 pub(crate) mod packet;
 pub(crate) mod pre_login;
 pub(crate) mod return_status;

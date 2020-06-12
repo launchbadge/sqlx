@@ -12,6 +12,7 @@ use crate::mssql::protocol::error::Error as ProtocolError;
 use crate::mssql::protocol::info::Info;
 use crate::mssql::protocol::login_ack::LoginAck;
 use crate::mssql::protocol::message::{Message, MessageType};
+use crate::mssql::protocol::order::Order;
 use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
 use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
@@ -148,6 +149,7 @@ impl MssqlStream {
                     MessageType::Done => Message::Done(Done::get(buf)?),
                     MessageType::DoneInProc => Message::DoneInProc(Done::get(buf)?),
                     MessageType::DoneProc => Message::DoneProc(Done::get(buf)?),
+                    MessageType::Order => Message::Order(Order::get(buf)?),
 
                     MessageType::Error => {
                         let error = ProtocolError::get(buf)?;
