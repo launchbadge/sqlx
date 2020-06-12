@@ -92,3 +92,50 @@ async fn test_query_bytes() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_column_override_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query!("select * from (select 1 as `id!`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, 1);
+
+    Ok(())
+}
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct MyInt4(i32);
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard() -> anyhow::Result<()> {
+    struct Record {
+        id: MyInt4,
+    }
+
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query_as!(Record, "select * from (select 1 as `id: _`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt4(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query!("select * from (select 1 as `id: MyInt4`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt4(1));
+
+    Ok(())
+}
