@@ -11,7 +11,7 @@ async fn macro_select() -> anyhow::Result<()> {
 
     assert_eq!(1, account.id);
     assert_eq!("Herp Derpinson", account.name);
-    assert_eq!(account.is_active, None);
+    assert_eq!(account.is_active, Some(true));
 
     Ok(())
 }
@@ -29,7 +29,7 @@ async fn macro_select_bind() -> anyhow::Result<()> {
 
     assert_eq!(1, account.id);
     assert_eq!("Herp Derpinson", account.name);
-    assert_eq!(account.is_active, None);
+    assert_eq!(account.is_active, Some(true));
 
     Ok(())
 }
@@ -51,7 +51,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 
     assert_eq!(account.id, 1);
     assert_eq!(account.name, "Herp Derpinson");
-    assert_eq!(account.is_active, None);
+    assert_eq!(account.is_active, Some(true));
 
     Ok(())
 }
@@ -67,7 +67,68 @@ async fn macro_select_from_view() -> anyhow::Result<()> {
     // SQLite tells us the true origin of these columns even through the view
     assert_eq!(account.id, 1);
     assert_eq!(account.name, "Herp Derpinson");
-    assert_eq!(account.is_active, None);
+    assert_eq!(account.is_active, Some(true));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query!(r#"select is_active as "is_active!" from accounts"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.is_active, true);
+
+    Ok(())
+}
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct MyInt(i32);
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard() -> anyhow::Result<()> {
+    struct Record {
+        id: MyInt,
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query_as!(Record, r#"select id as "id: _" from accounts"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    // this syntax is also useful for expressions
+    let record = sqlx::query_as!(Record, r#"select 1 as "id: _""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query!(r#"select id as "id: MyInt" from accounts"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    // we can also support this syntax for expressions
+    let record = sqlx::query!(r#"select 1 as "id: MyInt""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
 
     Ok(())
 }
