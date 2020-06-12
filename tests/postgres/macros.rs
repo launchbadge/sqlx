@@ -301,3 +301,49 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_bind_arg_override_exact() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let my_int = MyInt4(1);
+
+    // this query should require a bind parameter override as we would otherwise expect the bind
+    // to be the same type
+    let record = sqlx::query!(
+        "select * from (select 1::int4) records(id) where id = $1",
+        my_int as MyInt4
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(record.id, Some(1i32));
+
+    // test that we're actually emitting the typecast by requiring the bound type to be the same
+    let record = sqlx::query!("select $1::int8 as id", 1i32 as i64)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(1i64));
+
+    Ok(())
+}
+
+// we can't test this yet but will want to when 1.45 drops and we can strip casts to `_`
+// #[sqlx_macros::test]
+// async fn test_bind_arg_override_wildcard() -> anyhow::Result<()> {
+//     let mut conn = new::<Postgres>().await?;
+//
+//     let my_int = MyInt4(1);
+//
+//     let record = sqlx::query!(
+//         "select * from (select 1::int4) records(id) where id = $1",
+//         my_int as _
+//     )
+//     .fetch_one(&mut conn)
+//     .await?;
+//
+//     assert_eq!(record.id, 1i32);
+//
+//     Ok(())
+// }
