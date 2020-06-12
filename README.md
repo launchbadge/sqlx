@@ -227,7 +227,7 @@ by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow
 The `fetch` query finalizer returns a stream-like type that iterates through the rows in the result sets.
 
 ```rust
-let mut cursor = sqlx::query("SELECT * FROM users WHERE email = ?")
+let mut cursor = sqlx::query("SELECT * FROM users WHERE email = $1")
     .bind(email)
     .fetch(&mut conn);
 
@@ -250,7 +250,7 @@ let mut stream = sqlx::query("SELECT * FROM users")
 #[derive(sqlx::FromRow)]
 struct User { name: String, id: i64 }
 
-let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? OR name = ?")
+let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1 OR name = $2")
     .bind(user_email)
     .bind(user_name)
     .fetch(&mut conn);
@@ -270,7 +270,7 @@ let countries = sqlx::query!(
 SELECT country, COUNT(*) as count 
 FROM users 
 GROUP BY country 
-WHERE organization = ?
+WHERE organization = $1
         ", 
         organization
     )
@@ -316,7 +316,7 @@ let countries = sqlx::query_as!(Country,
 SELECT country, COUNT(*) as count 
 FROM users 
 GROUP BY country 
-WHERE organization = ?
+WHERE organization = $1
         ", 
         organization
     )
