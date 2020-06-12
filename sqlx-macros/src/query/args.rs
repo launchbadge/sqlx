@@ -35,28 +35,34 @@ pub fn quote_args<DB: DatabaseExt>(
                 let param_ty = param_ty.as_ref().unwrap();
 
                 let param_ty = match get_type_override(expr) {
-                        // don't emit typechecking code for this binding
-                        Some(Type::Infer(_)) => return Ok(quote!()),
-                        Some(ty) => ty.to_token_stream(),
-                        None => {
-                            DB::param_type_for_id(&param_ty)
-                                .ok_or_else(|| {
-                                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
-                                        format!(
-                                            "optional feature `{}` required for type {} of param #{}",
-                                            feature_gate,
-                                            param_ty,
-                                            i + 1,
-                                        )
-                                    } else {
-                                        format!("unsupported type {} for param #{}", param_ty, i + 1)
-                                    }
-                                })?
-                                .parse::<proc_macro2::TokenStream>()
-                                .map_err(|_| format!("Rust type mapping for {} not parsable", param_ty))?
+                    // TODO: enable this in 1.45 when we can strip `as _`
+                    // without stripping these we get some pretty nasty type errors
+                    Some(Type::Infer(_)) => return Err(
+                        syn::Error::new_spanned(
+                            expr,
+                            "casts to `_` are not allowed in bind parameters yet"
+                        ).into()
+                    ),
+                    Some(ty) => ty.to_token_stream(),
+                    None => {
+                        DB::param_type_for_id(&param_ty)
+                            .ok_or_else(|| {
+                                if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&param_ty) {
+                                    format!(
+                                        "optional feature `{}` required for type {} of param #{}",
+                                        feature_gate,
+                                        param_ty,
+                                        i + 1,
+                                    )
+                                } else {
+                                    format!("unsupported type {} for param #{}", param_ty, i + 1)
+                                }
+                            })?
+                            .parse::<proc_macro2::TokenStream>()
+                            .map_err(|_| format!("Rust type mapping for {} not parsable", param_ty))?
 
-                        }
-                    };
+                    }
+                };
 
                 Ok(quote_spanned!(expr.span() =>
                     // this shouldn't actually run
