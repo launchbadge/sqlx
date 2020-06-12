@@ -161,6 +161,11 @@ name = "postgres-macros"
 path = "tests/postgres/macros.rs"
 required-features = [ "postgres", "macros" ]
 
+[[test]]
+name = "postgres-derives"
+path = "tests/postgres/derives.rs"
+required-features = [ "postgres", "macros" ]
+
 #
 # Microsoft SQL Server (MSSQL)
 #
