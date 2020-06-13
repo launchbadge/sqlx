@@ -30,6 +30,7 @@ struct ColumnDecl {
 
 enum ColumnOverride {
     NonNull,
+    Nullable,
     Wildcard,
     Exact(Type),
 }
@@ -53,14 +54,19 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let type_ = match decl.r#override {
                 Some(ColumnOverride::Exact(ty)) => Some(ty.to_token_stream()),
                 Some(ColumnOverride::Wildcard) => None,
+                // these three could be combined but I prefer the clarity here
                 Some(ColumnOverride::NonNull) => Some(get_column_type(i, column)),
+                Some(ColumnOverride::Nullable) => {
+                    let type_ = get_column_type(i, column);
+                    Some(quote! { Option<#type_> })
+                }
                 None => {
                     let type_ = get_column_type(i, column);
 
-                    if !column.not_null.unwrap_or(false) {
-                        Some(quote! { Option<#type_> })
-                    } else {
+                    if column.not_null.unwrap_or(false) {
                         Some(type_)
+                    } else {
+                        Some(quote! { Option<#type_> })
                     }
                 }
             };
@@ -165,7 +171,7 @@ impl ColumnDecl {
         // find the end of the identifier because we want to use our own logic to parse it
         // if we tried to feed this into `syn::parse_str()` we might get an un-great error
         // for some kinds of invalid identifiers
-        let (ident, remainder) = if let Some(i) = col_name.find(&[':', '!'][..]) {
+        let (ident, remainder) = if let Some(i) = col_name.find(&[':', '!', '?'][..]) {
             let (ident, remainder) = col_name.split_at(i);
 
             (parse_ident(ident)?, remainder)
@@ -202,6 +208,10 @@ impl Parse for ColumnOverride {
             input.parse::<Token![!]>()?;
 
             Ok(ColumnOverride::NonNull)
+        } else if lookahead.peek(Token![?]) {
+            input.parse::<Token![?]>()?;
+
+            Ok(ColumnOverride::Nullable)
         } else {
             Err(lookahead.error())
         }

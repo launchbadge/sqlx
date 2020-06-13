@@ -106,6 +106,20 @@ async fn test_column_override_not_null() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn test_column_override_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    // MySQL by default tells us `id` is not-null
+    let record = sqlx::query!("select * from (select 1 as `id?`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(1));
+
+    Ok(())
+}
+
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
 struct MyInt4(i32);

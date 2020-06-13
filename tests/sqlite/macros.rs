@@ -76,11 +76,24 @@ async fn macro_select_from_view() -> anyhow::Result<()> {
 async fn test_column_override_not_null() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let record = sqlx::query!(r#"select is_active as "is_active!" from accounts"#)
+    let record = sqlx::query!(r#"select owner_id as `owner_id!` from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.is_active, true);
+    assert_eq!(record.owner_id, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query!(r#"select text as `text?` from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.text.as_deref(), Some("#sqlx is pretty cool!"));
 
     Ok(())
 }
@@ -97,7 +110,7 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
 
     let mut conn = new::<Sqlite>().await?;
 
-    let record = sqlx::query_as!(Record, r#"select id as "id: _" from accounts"#)
+    let record = sqlx::query_as!(Record, r#"select id as "id: _" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
@@ -117,7 +130,7 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
 async fn test_column_override_exact() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let record = sqlx::query!(r#"select id as "id: MyInt" from accounts"#)
+    let record = sqlx::query!(r#"select id as "id: MyInt" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 

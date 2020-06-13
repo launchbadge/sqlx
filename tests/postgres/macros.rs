@@ -268,6 +268,23 @@ async fn test_column_override_not_null() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn test_column_override_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // workaround for https://github.com/launchbadge/sqlx/issues/367
+    // declare a `NOT NULL` column from a left-joined table to be nullable
+    let record = sqlx::query!(
+        r#"select text as "text?" from (values (1)) foo(id) left join tweet on false"#
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(record.text, None);
+
+    Ok(())
+}
+
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
 struct MyInt4(i32);
