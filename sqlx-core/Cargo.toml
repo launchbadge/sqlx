@@ -18,7 +18,7 @@ default = [ "runtime-async-std" ]
 # databases
 all-databases = [ "postgres", "mysql", "sqlite", "mssql" ]
 postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink" ]
-mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand" ]
+mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand", "rsa" ]
 sqlite = [ "libsqlite3-sys" ]
 mssql = [ "uuid", "encoding_rs", "regex" ]
 
@@ -47,22 +47,22 @@ chrono = { version = "0.4.11", default-features = false, features = [ "clock" ],
 crossbeam-queue = "0.2.1"
 crossbeam-channel = "0.4.2"
 crossbeam-utils = { version = "0.7.2", default-features = false }
-digest = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
+digest = { version = "0.9.0", default-features = false, optional = true, features = [ "std" ] }
 encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
 futures-channel = { version = "0.3.5", default-features = false, features = [ "sink", "alloc", "std" ] }
 futures-core = { version = "0.3.5", default-features = false }
 futures-util = { version = "0.3.5", features = [ "sink" ] }
-generic-array = { version = "0.12.3", default-features = false, optional = true }
+generic-array = { version = "0.14.2", default-features = false, optional = true }
 hashbrown = "0.7.2"
 hex = "0.4.2"
-hmac = { version = "0.7.1", default-features = false, optional = true }
+hmac = { version = "0.8.0", default-features = false, optional = true }
 itoa = "0.4.5"
 ipnetwork = { version = "0.16.0", default-features = false, optional = true }
 libc = "0.2.71"
-libsqlite3-sys = { version = "0.17.3", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
+libsqlite3-sys = { version = "0.18.0", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
 log = { version = "0.4.8", default-features = false }
-md-5 = { version = "0.8.0", default-features = false, optional = true }
+md-5 = { version = "0.9.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
 num-bigint = { version = "0.2.6", default-features = false, optional = true, features = [ "std" ] }
 once_cell = "1.4.0"
@@ -71,10 +71,11 @@ parking_lot = "0.10.2"
 phf = { version = "0.8.0", features = [ "macros" ] }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
 regex = { version = "1.3.9", optional = true }
+rsa = { version = "0.3.0", optional = true }
 serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
 serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
-sha-1 = { version = "0.8.2", default-features = false, optional = true }
-sha2 = { version = "0.8.2", default-features = false, optional = true }
+sha-1 = { version = "0.9.0", default-features = false, optional = true }
+sha2 = { version = "0.9.0", default-features = false, optional = true }
 sqlformat = "0.1.0"
 thiserror = "1.0.19"
 time = { version = "0.2.16", optional = true }
