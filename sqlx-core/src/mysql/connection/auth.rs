@@ -2,13 +2,14 @@ use bytes::buf::ext::Chain;
 use bytes::Bytes;
 use digest::{Digest, FixedOutput};
 use generic_array::GenericArray;
+use rand::thread_rng;
+use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
 use crate::error::Error;
 use crate::mysql::connection::stream::MySqlStream;
 use crate::mysql::protocol::auth::AuthPlugin;
-use crate::mysql::protocol::rsa;
 use crate::mysql::protocol::Packet;
 
 impl AuthPlugin {
@@ -76,19 +77,19 @@ fn scramble_sha1(
 
     let mut ctx = Sha1::new();
 
-    ctx.input(password);
+    ctx.update(password);
 
-    let mut pw_hash = ctx.result_reset();
+    let mut pw_hash = ctx.finalize_reset();
 
-    ctx.input(&pw_hash);
+    ctx.update(&pw_hash);
 
-    let pw_hash_hash = ctx.result_reset();
+    let pw_hash_hash = ctx.finalize_reset();
 
-    ctx.input(nonce.first_ref());
-    ctx.input(nonce.last_ref());
-    ctx.input(pw_hash_hash);
+    ctx.update(nonce.first_ref());
+    ctx.update(nonce.last_ref());
+    ctx.update(pw_hash_hash);
 
-    let pw_seed_hash_hash = ctx.result();
+    let pw_seed_hash_hash = ctx.finalize();
 
     xor_eq(&mut pw_hash, &pw_seed_hash_hash);
 
@@ -103,19 +104,19 @@ fn scramble_sha256(
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/#sha-2-encrypted-password
     let mut ctx = Sha256::new();
 
-    ctx.input(password);
+    ctx.update(password);
 
-    let mut pw_hash = ctx.result_reset();
+    let mut pw_hash = ctx.finalize_reset();
 
-    ctx.input(&pw_hash);
+    ctx.update(&pw_hash);
 
-    let pw_hash_hash = ctx.result_reset();
+    let pw_hash_hash = ctx.finalize_reset();
 
-    ctx.input(nonce.first_ref());
-    ctx.input(nonce.last_ref());
-    ctx.input(pw_hash_hash);
+    ctx.update(nonce.first_ref());
+    ctx.update(nonce.last_ref());
+    ctx.update(pw_hash_hash);
 
-    let pw_seed_hash_hash = ctx.result();
+    let pw_seed_hash_hash = ctx.finalize();
 
     xor_eq(&mut pw_hash, &pw_seed_hash_hash);
 
@@ -154,7 +155,10 @@ async fn encrypt_rsa<'s>(
     xor_eq(&mut pass, &*nonce);
 
     // client sends an RSA encrypted password
-    rsa::encrypt::<Sha1>(rsa_pub_key, &pass)
+    let pkey = parse_rsa_pub_key(rsa_pub_key)?;
+    let padding = PaddingScheme::new_oaep::<sha1::Sha1>();
+    pkey.encrypt(&mut thread_rng(), padding, &pass[..])
+        .map_err(Error::protocol)
 }
 
 // XOR(x, y)
@@ -173,4 +177,25 @@ fn to_asciz(s: &str) -> Vec<u8> {
     z.push('\0');
 
     z.into_bytes()
+}
+
+// https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
+fn parse_rsa_pub_key(key: &[u8]) -> Result<RSAPublicKey, Error> {
+    let key = std::str::from_utf8(key).map_err(Error::protocol)?;
+
+    // This takes advantage of the knowledge that we know
+    // we are receiving a PKCS#8 RSA Public Key at all
+    // times from MySQL
+
+    let encoded =
+        key.lines()
+            .filter(|line| !line.starts_with("-"))
+            .fold(String::new(), |mut data, line| {
+                data.push_str(&line);
+                data
+            });
+
+    let der = base64::decode(&encoded).map_err(Error::protocol)?;
+
+    RSAPublicKey::from_pkcs8(&der).map_err(Error::protocol)
 }

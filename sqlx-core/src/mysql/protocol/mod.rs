@@ -4,7 +4,6 @@ pub(crate) mod connect;
 mod packet;
 pub(crate) mod response;
 mod row;
-pub(crate) mod rsa;
 pub(crate) mod statement;
 pub(crate) mod text;
 

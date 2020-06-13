@@ -7,7 +7,7 @@ use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
 use crate::mysql::protocol::Capabilities;
-use crate::mysql::{MySqlConnectOptions, MySqlConnection};
+use crate::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 use bytes::buf::BufExt;
 
 impl MySqlConnection {
@@ -24,6 +24,11 @@ impl MySqlConnection {
 
         stream.capabilities &= handshake.server_capabilities;
         stream.capabilities |= Capabilities::PROTOCOL_41;
+
+        if matches!(options.ssl_mode, MySqlSslMode::Disabled) {
+            // remove the SSL capability if SSL has been explicitly disabled
+            stream.capabilities.remove(Capabilities::SSL);
+        }
 
         // Upgrade to TLS if we were asked to and the server supports it
         tls::maybe_upgrade(&mut stream, options).await?;
