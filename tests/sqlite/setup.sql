@@ -6,3 +6,5 @@ CREATE TABLE tweet
     is_sent  BOOLEAN NOT NULL DEFAULT TRUE,
     owner_id BIGINT
 );
+
+insert into tweet(id, text, owner_id) values (1, '#sqlx is pretty cool!', 1);

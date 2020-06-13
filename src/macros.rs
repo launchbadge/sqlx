@@ -152,7 +152,53 @@
 /// // For Postgres this would have been inferred to be Option<i32> instead
 /// assert_eq!(record.id, 1i32);
 /// # }
+///
 /// ```
+/// * selecting a column `foo as "foo?"` (Postgres / SQLite) or `` foo as `foo?` `` overrides
+/// inferred nullability and forces the column to be treated as nullable; this is provided mainly
+/// for symmetry with `!`, but also because nullability inference currently has some holes and false
+/// negatives that may not be completely fixable without doing our own complex analysis on the given
+/// query.
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// // Postgres:
+/// // Note that this query wouldn't work in SQLite as we still don't know the exact type of `id`
+/// let record = sqlx::query!(r#"select 1 as "id?""#) // MySQL: use "select 1 as `id?`" instead
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// // For Postgres this would have been inferred to be Option<i32> anyway
+/// // but this is just a basic example
+/// assert_eq!(record.id, Some(1i32));
+/// # }
+/// ```
+///
+/// One current such hole is exposed by left-joins involving `NOT NULL` columns in Postgres and
+/// SQLite; as we only know nullability for a given column based on the `NOT NULL` constraint
+/// of its original column in a table, if that column is then brought in via a `LEFT JOIN`
+/// we have no good way to know and so continue assuming it may not be null which may result
+/// in some `UnexpectedNull` errors at runtime.
+///
+/// Using `?` as an override we can fix this for columns we know to be nullable in practice:
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// // Ironically this is the exact column we look at to determine nullability in Postgres
+/// let record = sqlx::query!(
+///     r#"select attnotnull as "attnotnull?" from (values (1)) ids left join pg_attribute on false"#
+/// )
+/// .fetch_one(&mut conn)
+/// .await?;
+///
+/// // For Postgres this would have been inferred to be `bool` and we would have gotten an error
+/// assert_eq!(record.attnotnull, None);
+/// # }
+/// ```
+///
+/// See [launchbadge/sqlx#367](https://github.com/launchbadge/sqlx/issues/367) for more details on this issue.
 ///
 /// * selecting a column `foo as "foo: T"` (Postgres / SQLite) or `` foo as `foo: T` `` (MySQL)
 /// overrides the inferred type which is useful when selecting user-defined custom types
