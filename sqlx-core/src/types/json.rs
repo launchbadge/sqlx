@@ -45,10 +45,6 @@ where
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
-
-    fn produces(&self) -> Option<DB::TypeInfo> {
-        <Self as Type<DB>>::type_info().into()
-    }
 }
 
 impl<'r, DB> Decode<'r, DB> for JsonValue

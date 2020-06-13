@@ -17,10 +17,6 @@ impl<'q> Encode<'q, Sqlite> for bool {
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<SqliteTypeInfo> {
-        <Self as Type<Sqlite>>::type_info().into()
-    }
 }
 
 impl<'r> Decode<'r, Sqlite> for bool {

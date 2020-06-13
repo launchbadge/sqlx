@@ -3,6 +3,7 @@ use crate::encode::Encode;
 use crate::mssql::database::Mssql;
 use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::rpc::StatusFlags;
+use crate::types::Type;
 
 #[derive(Default)]
 pub struct MssqlArguments {
@@ -15,8 +16,12 @@ pub struct MssqlArguments {
 }
 
 impl MssqlArguments {
-    pub(crate) fn add_named<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, value: T) {
-        let ty = value.produces();
+    pub(crate) fn add_named<'q, T: Encode<'q, Mssql> + Type<Mssql>>(
+        &mut self,
+        name: &str,
+        value: T,
+    ) {
+        let ty = value.produces().unwrap_or_else(T::type_info);
 
         let mut ty_name = String::new();
         ty.0.fmt(&mut ty_name);
@@ -28,12 +33,16 @@ impl MssqlArguments {
         ty.0.put_value(&mut self.data, value); // [ParamLenData]
     }
 
-    pub(crate) fn add_unnamed<'q, T: Encode<'q, Mssql>>(&mut self, value: T) {
+    pub(crate) fn add_unnamed<'q, T: Encode<'q, Mssql> + Type<Mssql>>(&mut self, value: T) {
         self.add_named("", value);
     }
 
-    pub(crate) fn declare<'q, T: Encode<'q, Mssql>>(&mut self, name: &str, initial_value: T) {
-        let ty = initial_value.produces();
+    pub(crate) fn declare<'q, T: Encode<'q, Mssql> + Type<Mssql>>(
+        &mut self,
+        name: &str,
+        initial_value: T,
+    ) {
+        let ty = initial_value.produces().unwrap_or_else(T::type_info);
 
         let mut ty_name = String::new();
         ty.0.fmt(&mut ty_name);
@@ -60,9 +69,9 @@ impl<'q> Arguments<'q> for MssqlArguments {
 
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Encode<'q, Self::Database>,
+        T: 'q + Encode<'q, Self::Database> + Type<Mssql>,
     {
-        let ty = value.produces();
+        let ty = value.produces().unwrap_or_else(T::type_info);
 
         // produce an ordinal parameter name
         //  @p1, @p2, ... @pN

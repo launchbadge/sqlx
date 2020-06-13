@@ -39,10 +39,6 @@ impl Encode<'_, MySql> for i8 {
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
-    }
 }
 
 impl Encode<'_, MySql> for i16 {
@@ -50,10 +46,6 @@ impl Encode<'_, MySql> for i16 {
         buf.extend(&self.to_le_bytes());
 
         IsNull::No
-    }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
     }
 }
 
@@ -63,10 +55,6 @@ impl Encode<'_, MySql> for i32 {
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
-    }
 }
 
 impl Encode<'_, MySql> for i64 {
@@ -74,10 +62,6 @@ impl Encode<'_, MySql> for i64 {
         buf.extend(&self.to_le_bytes());
 
         IsNull::No
-    }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
     }
 }
 

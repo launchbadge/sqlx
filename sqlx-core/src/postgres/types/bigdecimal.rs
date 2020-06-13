@@ -4,7 +4,7 @@ use std::convert::{TryFrom, TryInto};
 use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 
-use crate::decode::Decode;
+use crate::decode::{accepts, Decode};
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::numeric::{PgNumeric, PgNumericSign};
@@ -157,10 +157,6 @@ impl Encode<'_, Postgres> for BigDecimal {
         IsNull::No
     }
 
-    fn produces(&self) -> Option<PgTypeInfo> {
-        <Self as Type<Postgres>>::type_info().into()
-    }
-
     fn size_hint(&self) -> usize {
         // BigDecimal::digits() gives us base-10 digits, so we divide by 4 to get base-10000 digits
         // and since this is just a hint we just always round up
@@ -170,7 +166,7 @@ impl Encode<'_, Postgres> for BigDecimal {
 
 impl Decode<'_, Postgres> for BigDecimal {
     fn accepts(ty: &PgTypeInfo) -> bool {
-        *ty == <Self as Type<Postgres>>::type_info()
+        accepts::<Postgres, Self>(ty)
     }
 
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {

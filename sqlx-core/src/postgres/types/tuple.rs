@@ -1,4 +1,4 @@
-use crate::decode::Decode;
+use crate::decode::{accepts, Decode};
 use crate::error::BoxDynError;
 use crate::postgres::types::PgRecordDecoder;
 use crate::postgres::{PgTypeInfo, PgValueRef, Postgres};
@@ -34,7 +34,7 @@ macro_rules! impl_type_for_tuple {
             $($T: for<'a> Decode<'a, Postgres>,)*
         {
             fn accepts(ty: &PgTypeInfo) -> bool {
-                *ty == <Self as Type<Postgres>>::type_info()
+                accepts::<Postgres, Self>(ty)
             }
 
             fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {

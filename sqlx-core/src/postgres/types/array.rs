@@ -1,6 +1,6 @@
 use bytes::Buf;
 
-use crate::decode::Decode;
+use crate::decode::{accepts, Decode};
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgType;
@@ -35,10 +35,6 @@ where
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         self.as_slice().encode_by_ref(buf)
     }
-
-    fn produces(&self) -> Option<PgTypeInfo> {
-        <Self as Type<Postgres>>::type_info().into()
-    }
 }
 
 impl<'q, T> Encode<'q, Postgres> for &'_ [T]
@@ -68,10 +64,6 @@ where
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<PgTypeInfo> {
-        <Self as Type<Postgres>>::type_info().into()
-    }
 }
 
 // TODO: Array decoding in PostgreSQL *could* allow 'r (row) lifetime of elements if we can figure
@@ -83,7 +75,7 @@ where
     Self: Type<Postgres>,
 {
     fn accepts(ty: &PgTypeInfo) -> bool {
-        *ty == <Self as Type<Postgres>>::type_info()
+        accepts::<Postgres, Self>(ty)
     }
 
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {

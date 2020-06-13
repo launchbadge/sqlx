@@ -2,6 +2,7 @@
 
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
+use crate::types::Type;
 use crate::value::ValueRef;
 
 /// A type that can be decoded from the database.
@@ -31,4 +32,10 @@ where
             Ok(Some(T::decode(value)?))
         }
     }
+}
+
+// default implementation of `accepts`
+#[allow(dead_code)]
+pub(crate) fn accepts<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> bool {
+    *ty == T::type_info()
 }

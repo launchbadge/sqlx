@@ -17,10 +17,6 @@ impl<'q> Encode<'q, Sqlite> for f32 {
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<SqliteTypeInfo> {
-        <Self as Type<Sqlite>>::type_info().into()
-    }
 }
 
 impl<'r> Decode<'r, Sqlite> for f32 {
@@ -44,10 +40,6 @@ impl<'q> Encode<'q, Sqlite> for f64 {
         args.push(SqliteArgumentValue::Double(*self));
 
         IsNull::No
-    }
-
-    fn produces(&self) -> Option<SqliteTypeInfo> {
-        <Self as Type<Sqlite>>::type_info().into()
     }
 }
 

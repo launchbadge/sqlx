@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::decode::Decode;
+use crate::decode::{accepts, Decode};
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -30,15 +30,11 @@ impl Encode<'_, Postgres> for Uuid {
 
         IsNull::No
     }
-
-    fn produces(&self) -> Option<PgTypeInfo> {
-        <Self as Type<Postgres>>::type_info().into()
-    }
 }
 
 impl Decode<'_, Postgres> for Uuid {
     fn accepts(ty: &PgTypeInfo) -> bool {
-        *ty == <Self as Type<Postgres>>::type_info()
+        accepts::<Postgres, Self>(ty)
     }
 
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {

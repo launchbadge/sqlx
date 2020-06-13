@@ -74,10 +74,6 @@ impl Encode<'_, Postgres> for IpNetwork {
             IpNetwork::V6(_) => 20,
         }
     }
-
-    fn produces(&self) -> Option<PgTypeInfo> {
-        <Self as Type<Postgres>>::type_info().into()
-    }
 }
 
 impl Decode<'_, Postgres> for IpNetwork {

@@ -27,10 +27,6 @@ where
 
         <&str as Encode<MySql>>::encode(json_string_value.as_str(), buf)
     }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
-    }
 }
 
 impl<'r, T> Decode<'r, MySql> for Json<T>

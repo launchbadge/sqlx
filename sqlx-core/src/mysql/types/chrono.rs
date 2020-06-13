@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use bytes::Buf;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
-use crate::decode::Decode;
+use crate::decode::{accepts, Decode};
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::protocol::text::ColumnType;
@@ -20,10 +20,6 @@ impl Type<MySql> for DateTime<Utc> {
 impl Encode<'_, MySql> for DateTime<Utc> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
         Encode::<MySql>::encode(&self.naive_utc(), buf)
-    }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
     }
 }
 
@@ -62,10 +58,6 @@ impl Encode<'_, MySql> for NaiveTime {
         IsNull::No
     }
 
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
-    }
-
     fn size_hint(&self) -> usize {
         if self.nanosecond() == 0 {
             // if micro_seconds is 0, length is 8 and micro_seconds is not sent
@@ -79,7 +71,7 @@ impl Encode<'_, MySql> for NaiveTime {
 
 impl<'r> Decode<'r, MySql> for NaiveTime {
     fn accepts(ty: &MySqlTypeInfo) -> bool {
-        *ty == <Self as Type<MySql>>::type_info()
+        accepts::<MySql, Self>(ty)
     }
 
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
@@ -124,10 +116,6 @@ impl Encode<'_, MySql> for NaiveDate {
         IsNull::No
     }
 
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
-    }
-
     fn size_hint(&self) -> usize {
         5
     }
@@ -135,7 +123,7 @@ impl Encode<'_, MySql> for NaiveDate {
 
 impl<'r> Decode<'r, MySql> for NaiveDate {
     fn accepts(ty: &MySqlTypeInfo) -> bool {
-        *ty == <Self as Type<MySql>>::type_info()
+        accepts::<MySql, Self>(ty)
     }
 
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
@@ -168,10 +156,6 @@ impl Encode<'_, MySql> for NaiveDateTime {
         }
 
         IsNull::No
-    }
-
-    fn produces(&self) -> Option<MySqlTypeInfo> {
-        <Self as Type<MySql>>::type_info().into()
     }
 
     fn size_hint(&self) -> usize {
