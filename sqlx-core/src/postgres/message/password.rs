@@ -49,19 +49,19 @@ impl Encode<'_> for Password<'_> {
 
                     let mut hasher = Md5::new();
 
-                    hasher.input(password);
-                    hasher.input(username);
+                    hasher.update(password);
+                    hasher.update(username);
 
                     let mut output = String::with_capacity(35);
 
-                    let _ = write!(output, "{:x}", hasher.result_reset());
+                    let _ = write!(output, "{:x}", hasher.finalize_reset());
 
-                    hasher.input(&output);
-                    hasher.input(salt);
+                    hasher.update(&output);
+                    hasher.update(salt);
 
                     output.clear();
 
-                    let _ = write!(output, "md5{:x}", hasher.result());
+                    let _ = write!(output, "md5{:x}", hasher.finalize());
 
                     buf.put_str_nul(&output);
                 }
