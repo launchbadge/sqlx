@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
-use std::mem;
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
@@ -66,6 +65,8 @@ where
     // the depth of ~this~ transaction, depth directly equates to how many times [`begin()`]
     // was called without a corresponding [`commit()`] or [`rollback()`]
     depth: usize,
+
+    open: bool,
 }
 
 impl<'c, DB, C> Transaction<'c, DB, C>
@@ -84,6 +85,7 @@ where
             Ok(Self {
                 depth: depth + 1,
                 connection: conn,
+                open: true,
             })
         })
     }
@@ -91,20 +93,14 @@ where
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
         DB::TransactionManager::commit(self.connection.get_mut(), self.depth).await?;
-
-        // opt-out of the automatic rollback
-        mem::forget(self);
-
+        self.open = false;
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
         DB::TransactionManager::rollback(self.connection.get_mut(), self.depth).await?;
-
-        // opt-out of the automatic rollback
-        mem::forget(self);
-
+        self.open = false;
         Ok(())
     }
 }
@@ -242,14 +238,16 @@ where
     C: Sized + Connection<Database = DB>,
 {
     fn drop(&mut self) {
-        // starts a rollback operation
-        // what this does depends on the database but generally this means we queue a rollback
-        // operation that will happen on the next asynchronous invocation of the underlying
-        // connection (including if the connection is returned to a pool)
-        <C::Database as Database>::TransactionManager::start_rollback(
-            self.connection.get_mut(),
-            self.depth,
-        );
+        if self.open {
+            // starts a rollback operation
+            // what this does depends on the database but generally this means we queue a rollback
+            // operation that will happen on the next asynchronous invocation of the underlying
+            // connection (including if the connection is returned to a pool)
+            <C::Database as Database>::TransactionManager::start_rollback(
+                self.connection.get_mut(),
+                self.depth,
+            );
+        }
     }
 }
 
