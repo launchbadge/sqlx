@@ -90,7 +90,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database> + Type<Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
@@ -133,7 +133,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database> + Type<Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         let value = self.try_get_raw(&index)?;
 
@@ -144,7 +144,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
                 if !T::accepts(&actual_ty) {
                     return Err(Error::ColumnDecode {
                         index: format!("{:?}", index),
-                        source: mismatched_types::<Self::Database, T>(&T::type_info(), &actual_ty),
+                        source: mismatched_types::<Self::Database, T>(&actual_ty),
                     });
                 }
             }

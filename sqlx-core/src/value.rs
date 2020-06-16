@@ -31,7 +31,7 @@ pub trait Value {
     #[inline]
     fn decode<'r, T>(&'r self) -> T
     where
-        T: Decode<'r, Self::Database> + Type<Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         self.try_decode::<T>().unwrap()
     }
@@ -65,13 +65,12 @@ pub trait Value {
     #[inline]
     fn try_decode<'r, T>(&'r self) -> Result<T, Error>
     where
-        T: Decode<'r, Self::Database> + Type<Self::Database>,
+        T: Decode<'r, Self::Database>,
     {
         if !self.is_null() {
             if let Some(actual_ty) = self.type_info() {
                 if !T::accepts(&actual_ty) {
                     return Err(Error::Decode(mismatched_types::<Self::Database, T>(
-                        &T::type_info(),
                         &actual_ty,
                     )));
                 }

@@ -1,3 +1,5 @@
+//! Traits to represent various database drivers.
+
 use std::fmt::Debug;
 
 use crate::arguments::Arguments;
@@ -44,6 +46,7 @@ pub trait Database:
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
+/// [`Database`]: trait.Database.html
 /// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasValueRef<'r> {
     type Database: Database;
@@ -60,6 +63,7 @@ pub trait HasValueRef<'r> {
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
+/// [`Database`]: trait.Database.html
 /// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasArguments<'q> {
     type Database: Database;

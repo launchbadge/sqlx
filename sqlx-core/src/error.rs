@@ -117,15 +117,12 @@ impl Error {
     }
 }
 
-pub(crate) fn mismatched_types<DB: Database, T>(
-    actual: &DB::TypeInfo,
-    expected: &DB::TypeInfo,
-) -> BoxDynError {
+pub(crate) fn mismatched_types<DB: Database, T>(expected: &DB::TypeInfo) -> BoxDynError {
     let ty_name = type_name::<T>();
 
     format!(
-        "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
-        ty_name, actual, expected
+        "mismatched types; Rust type `{}` is not compatible with SQL type `{}`",
+        ty_name, expected
     )
     .into()
 }

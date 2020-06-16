@@ -11,6 +11,7 @@ pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::{ColumnIndex, Row};
 pub use sqlx_core::transaction::{Transaction, TransactionManager};
+pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
 
@@ -42,6 +43,7 @@ pub extern crate sqlx_macros;
 
 // derives
 #[cfg(feature = "macros")]
+#[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
 
 #[cfg(feature = "macros")]
@@ -60,6 +62,7 @@ pub mod types {
     pub use sqlx_core::types::*;
 
     #[cfg(feature = "macros")]
+    #[doc(hidden)]
     pub use sqlx_macros::Type;
 }
 
@@ -68,14 +71,16 @@ pub mod encode {
     pub use sqlx_core::encode::{Encode, IsNull};
 
     #[cfg(feature = "macros")]
+    #[doc(hidden)]
     pub use sqlx_macros::Encode;
 }
 
-/// Types and traits for decoding values from the database.
+/// Provides [`Decode`](trait.Decode.html) for decoding values from the database.
 pub mod decode {
     pub use sqlx_core::decode::Decode;
 
     #[cfg(feature = "macros")]
+    #[doc(hidden)]
     pub use sqlx_macros::Decode;
 }
 
