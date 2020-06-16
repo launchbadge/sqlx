@@ -2,6 +2,7 @@ use sqlx_core as sqlx;
 
 impl_database_ext! {
     sqlx::mssql::Mssql {
+        bool,
         i8,
         i16,
         i32,
