@@ -2,6 +2,7 @@ use crate::encode::{Encode, IsNull};
 use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo};
 
+mod bool;
 mod float;
 mod int;
 mod str;
