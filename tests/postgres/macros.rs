@@ -343,6 +343,18 @@ async fn test_bind_arg_override_exact() -> anyhow::Result<()> {
 
     assert_eq!(record.id, Some(1i64));
 
+    // test the override with `Option`
+    let my_opt_int = Some(MyInt4(1));
+
+    let record = sqlx::query!(
+        "select * from (select 1::int4) records(id) where id = $1",
+        my_opt_int as Option<MyInt4>
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(record.id, Some(1i32));
+
     Ok(())
 }
 

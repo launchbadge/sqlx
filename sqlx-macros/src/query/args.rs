@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use syn::spanned::Spanned;
 use syn::{Expr, Type};
 
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use sqlx_core::describe::Describe;
 
 use crate::database::{DatabaseExt, ParamChecking};
@@ -43,7 +43,8 @@ pub fn quote_args<DB: DatabaseExt>(
                             "casts to `_` are not allowed in bind parameters yet"
                         ).into()
                     ),
-                    Some(ty) => ty.to_token_stream(),
+                    // cast or type ascription will fail to compile if the type does not match
+                    Some(_) => return Ok(quote!()),
                     None => {
                         DB::param_type_for_id(&param_ty)
                             .ok_or_else(|| {
