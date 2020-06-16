@@ -35,3 +35,9 @@ test_type!(str<String>(Mssql,
     "'this is foo'" == "this is foo",
     "''" == "",
 ));
+
+test_type!(bool(
+    Mssql,
+    "CAST(1 as BIT)" == true,
+    "CAST(0 as BIT)" == false
+));

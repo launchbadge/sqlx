@@ -491,6 +491,7 @@ impl TypeInfo {
             DataType::BigInt => s.push_str("bigint"),
             DataType::Real => s.push_str("real"),
             DataType::Float => s.push_str("float"),
+            DataType::Bit => s.push_str("bit"),
 
             DataType::IntN => s.push_str(match self.size {
                 1 => "tinyint",
@@ -534,6 +535,10 @@ impl TypeInfo {
                 } else {
                     s.push_str("(max)");
                 }
+            }
+
+            DataType::BitN => {
+                s.push_str("bit");
             }
 
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),
