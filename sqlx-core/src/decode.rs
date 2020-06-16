@@ -1,16 +1,21 @@
 //! Provides [`Decode`](trait.Decode.html) for decoding values from the database.
 
+use std::result::Result as StdResult;
+
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
 use crate::types::Type;
 use crate::value::ValueRef;
+
+/// A specialized result type representing the result of decoding a value from the database.
+pub type Result<T> = StdResult<T, BoxDynError>;
 
 /// A type that can be decoded from the database.
 ///
 /// ## Derivable
 ///
 /// This trait can be derived to provide user-defined types where supported by
-/// the database driver; or, to provide transparent Rust type wrappers over defined SQL types.
+/// the database driver.
 ///
 /// ```rust,ignore
 /// // `UserId` can now be decoded from the database where
@@ -84,7 +89,7 @@ pub trait Decode<'r, DB: Database>: Sized {
     fn accepts(ty: &DB::TypeInfo) -> bool;
 
     /// Decode a new value of this type using a raw value from the database.
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError>;
+    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self>;
 }
 
 // implement `Decode` for Option<T> for all SQL types
@@ -97,7 +102,7 @@ where
         T::accepts(ty)
     }
 
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self> {
         if value.is_null() {
             Ok(None)
         } else {

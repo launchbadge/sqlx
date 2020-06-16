@@ -66,7 +66,7 @@ pub mod types {
     pub use sqlx_macros::Type;
 }
 
-/// Types and traits for encoding values for the database.
+/// Provides [`Encode`](encode/trait.Encode.html) for encoding values for the database.
 pub mod encode {
     pub use sqlx_core::encode::{Encode, IsNull};
 
@@ -75,9 +75,9 @@ pub mod encode {
     pub use sqlx_macros::Encode;
 }
 
-/// Provides [`Decode`](trait.Decode.html) for decoding values from the database.
+/// Provides [`Decode`](decode/trait.Decode.html) for decoding values from the database.
 pub mod decode {
-    pub use sqlx_core::decode::Decode;
+    pub use sqlx_core::decode::{Decode, Result};
 
     #[cfg(feature = "macros")]
     #[doc(hidden)]

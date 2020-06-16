@@ -1,4 +1,5 @@
-//! Types and traits for encoding values to the database.
+//! Provides [`Encode`](trait.Encode.html) for encoding values for the database.
+
 use std::mem;
 
 use crate::database::{Database, HasArguments};
@@ -49,11 +50,6 @@ where
     T: Encode<'q, DB>,
 {
     #[inline]
-    fn produces(&self) -> Option<DB::TypeInfo> {
-        (**self).produces()
-    }
-
-    #[inline]
     fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
         <T as Encode<DB>>::encode_by_ref(self, buf)
     }
@@ -61,6 +57,11 @@ where
     #[inline]
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
         <&T as Encode<DB>>::encode(self, buf)
+    }
+
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
     }
 
     #[inline]
