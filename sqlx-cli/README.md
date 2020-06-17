@@ -61,6 +61,7 @@ cargo sqlx prepare
 ```
 Saves query data to `sqlx-data.json` in the current directory; check this file into version control
 and an active database connection will no longer be needed to build your project.
+
 ----
 ```bash
 cargo sqlx prepare --check
