@@ -62,6 +62,14 @@ cargo sqlx prepare
 Saves query data to `sqlx-data.json` in the current directory; check this file into version control
 and an active database connection will no longer be needed to build your project.
 
+Has no effect unless the `offline` feature of `sqlx` is enabled in your project. Omitting that feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
+
+```json
+{
+    "database": "PostgreSQL"
+}
+```
+
 ----
 ```bash
 cargo sqlx prepare --check
