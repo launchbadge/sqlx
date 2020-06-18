@@ -5,7 +5,7 @@ use crate::row::Row;
 ///
 /// In order to use [`query_as`] the output type must implement `FromRow`.
 ///
-/// # Deriving
+/// ## Derivable
 ///
 /// This trait can be automatically derived by SQLx for any struct. The generated implementation
 /// will consist of a sequence of calls to [`Row::try_get`] using the name from each

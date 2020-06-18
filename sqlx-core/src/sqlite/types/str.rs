@@ -22,10 +22,6 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
 }
 
 impl<'r> Decode<'r, Sqlite> for &'r str {
-    fn accepts(_ty: &SqliteTypeInfo) -> bool {
-        true
-    }
-
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text()
     }
@@ -52,10 +48,6 @@ impl<'q> Encode<'q, Sqlite> for String {
 }
 
 impl<'r> Decode<'r, Sqlite> for String {
-    fn accepts(_ty: &SqliteTypeInfo) -> bool {
-        true
-    }
-
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(ToOwned::to_owned)
     }

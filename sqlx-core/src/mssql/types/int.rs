@@ -11,6 +11,10 @@ impl Type<Mssql> for i8 {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::IntN, 1))
     }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::TinyInt | DataType::IntN) && ty.0.size == 1
+    }
 }
 
 impl Encode<'_, Mssql> for i8 {
@@ -22,10 +26,6 @@ impl Encode<'_, Mssql> for i8 {
 }
 
 impl Decode<'_, Mssql> for i8 {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::TinyInt | DataType::IntN) && ty.0.size == 1
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_bytes()?[0] as i8)
     }
@@ -34,6 +34,10 @@ impl Decode<'_, Mssql> for i8 {
 impl Type<Mssql> for i16 {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::IntN, 2))
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::SmallInt | DataType::IntN) && ty.0.size == 2
     }
 }
 
@@ -46,10 +50,6 @@ impl Encode<'_, Mssql> for i16 {
 }
 
 impl Decode<'_, Mssql> for i16 {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::SmallInt | DataType::IntN) && ty.0.size == 2
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(LittleEndian::read_i16(value.as_bytes()?))
     }
@@ -58,6 +58,10 @@ impl Decode<'_, Mssql> for i16 {
 impl Type<Mssql> for i32 {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::IntN, 4))
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::Int | DataType::IntN) && ty.0.size == 4
     }
 }
 
@@ -70,10 +74,6 @@ impl Encode<'_, Mssql> for i32 {
 }
 
 impl Decode<'_, Mssql> for i32 {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::Int | DataType::IntN) && ty.0.size == 4
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(LittleEndian::read_i32(value.as_bytes()?))
     }
@@ -82,6 +82,10 @@ impl Decode<'_, Mssql> for i32 {
 impl Type<Mssql> for i64 {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::IntN, 8))
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::BigInt | DataType::IntN) && ty.0.size == 8
     }
 }
 
@@ -94,10 +98,6 @@ impl Encode<'_, Mssql> for i64 {
 }
 
 impl Decode<'_, Mssql> for i64 {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::BigInt | DataType::IntN) && ty.0.size == 8
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(LittleEndian::read_i64(value.as_bytes()?))
     }

@@ -2,7 +2,7 @@ use std::mem;
 
 use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -96,10 +96,6 @@ impl Encode<'_, Postgres> for NaiveTime {
 }
 
 impl<'r> Decode<'r, Postgres> for NaiveTime {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -126,10 +122,6 @@ impl Encode<'_, Postgres> for NaiveDate {
 }
 
 impl<'r> Decode<'r, Postgres> for NaiveDate {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -160,10 +152,6 @@ impl Encode<'_, Postgres> for NaiveDateTime {
 }
 
 impl<'r> Decode<'r, Postgres> for NaiveDateTime {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -202,10 +190,6 @@ impl<Tz: TimeZone> Encode<'_, Postgres> for DateTime<Tz> {
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<Local> {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
         Ok(Local.from_utc_datetime(&naive))
@@ -213,10 +197,6 @@ impl<'r> Decode<'r, Postgres> for DateTime<Local> {
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<Utc> {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
         Ok(Utc.from_utc_datetime(&naive))

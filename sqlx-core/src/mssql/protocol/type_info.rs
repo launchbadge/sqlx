@@ -482,6 +482,43 @@ impl TypeInfo {
         buf[offset..(offset + 4)].copy_from_slice(&size.to_le_bytes());
     }
 
+    pub(crate) fn name(&self) -> &'static str {
+        match self.ty {
+            DataType::Null => "NULL",
+            DataType::TinyInt => "TINYINT",
+            DataType::SmallInt => "SMALLINT",
+            DataType::Int => "INT",
+            DataType::BigInt => "BIGINT",
+            DataType::Real => "REAL",
+            DataType::Float => "FLOAT",
+
+            DataType::IntN => match self.size {
+                1 => "TINYINT",
+                2 => "SMALLINT",
+                4 => "INT",
+                8 => "BIGINT",
+
+                _ => unreachable!("invalid size {} for int"),
+            },
+
+            DataType::FloatN => match self.size {
+                4 => "REAL",
+                8 => "FLOAT",
+
+                _ => unreachable!("invalid size {} for float"),
+            },
+
+            DataType::VarChar => "VARCHAR",
+            DataType::NVarChar => "NVARCHAR",
+            DataType::BigVarChar => "BIGVARCHAR",
+            DataType::Char => "CHAR",
+            DataType::BigChar => "BIGCHAR",
+            DataType::NChar => "NCHAR",
+
+            _ => unimplemented!("name: unsupported data type {:?}", self.ty),
+        }
+    }
+
     pub(crate) fn fmt(&self, s: &mut String) {
         match self.ty {
             DataType::Null => s.push_str("nvarchar(1)"),

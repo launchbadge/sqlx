@@ -71,10 +71,6 @@ fn expand_derive_decode_transparent(
 
     let tts = quote!(
         impl #impl_generics sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
-            fn accepts(ty: &DB::TypeInfo) -> bool {
-                <#ty as sqlx::decode::Decode<'r, DB>>::accepts(ty)
-            }
-
             fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                 <#ty as sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
             }
@@ -104,10 +100,6 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         impl<'r, DB: sqlx::Database> sqlx::decode::Decode<'r, DB> for #ident where #repr: sqlx::decode::Decode<'r, DB> {
-            fn accepts(ty: &DB::TypeInfo) -> bool {
-                <#repr as sqlx::decode::Decode<'r, DB>>::accepts(ty)
-            }
-
             fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                 let value = <#repr as sqlx::decode::Decode<'r, DB>>::decode(value)?;
 
@@ -159,10 +151,6 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
             impl<'r> sqlx::decode::Decode<'r, sqlx::mysql::MySql> for #ident {
-                fn accepts(ty: &sqlx::mysql::MySqlTypeInfo) -> bool {
-                    ty == sqlx::mysql::MySqlTypeInfo::__enum()
-                }
-
                 fn decode(value: sqlx::mysql::MySqlValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                     let value = <&'r str as sqlx::decode::Decode<'r, sqlx::mysql::MySql>>::decode(value)?;
 
@@ -175,10 +163,6 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "postgres") {
         tts.extend(quote!(
             impl<'r> sqlx::decode::Decode<'r, sqlx::postgres::Postgres> for #ident {
-                fn accepts(ty: &sqlx::postgres::PgTypeInfo) -> bool {
-                    *ty == <#ident as sqlx::Type<sqlx::postgres::Postgres>>::type_info()
-                }
-
                 fn decode(value: sqlx::postgres::PgValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                     let value = <&'r str as sqlx::decode::Decode<'r, sqlx::postgres::Postgres>>::decode(value)?;
 
@@ -191,10 +175,6 @@ fn expand_derive_decode_strong_enum(
     if cfg!(feature = "sqlite") {
         tts.extend(quote!(
             impl<'r> sqlx::decode::Decode<'r, sqlx::sqlite::Sqlite> for #ident {
-                fn accepts(ty: &sqlx::sqlite::SqliteTypeInfo) -> bool {
-                    <&str as sqlx::decode::Decode<'r, DB>>::accepts(ty)
-                }
-
                 fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                     let value = <&'r str as sqlx::decode::Decode<'r, sqlx::sqlite::Sqlite>>::decode(value)?;
 
@@ -250,10 +230,6 @@ fn expand_derive_decode_struct(
 
         tts.extend(quote!(
             impl #impl_generics sqlx::decode::Decode<'r, sqlx::Postgres> for #ident #ty_generics #where_clause {
-                fn accepts(ty: &sqlx::postgres::PgTypeInfo) -> bool {
-                    *ty == <Self as sqlx::Type<sqlx::postgres::Postgres>>::type_info()
-                }
-
                 fn decode(value: sqlx::postgres::PgValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
                     let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
 

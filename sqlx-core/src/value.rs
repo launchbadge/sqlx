@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
+use crate::types::Type;
 
 /// An owned value from the database.
 pub trait Value {
@@ -30,7 +31,7 @@ pub trait Value {
     #[inline]
     fn decode<'r, T>(&'r self) -> T
     where
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         self.try_decode::<T>().unwrap()
     }
@@ -64,14 +65,12 @@ pub trait Value {
     #[inline]
     fn try_decode<'r, T>(&'r self) -> Result<T, Error>
     where
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         if !self.is_null() {
-            if let Some(actual_ty) = self.type_info() {
-                if !T::accepts(&actual_ty) {
-                    return Err(Error::Decode(mismatched_types::<Self::Database, T>(
-                        &actual_ty,
-                    )));
+            if let Some(ty) = self.type_info() {
+                if !T::compatible(&ty) {
+                    return Err(Error::Decode(mismatched_types::<Self::Database, T>(&ty)));
                 }
             }
         }

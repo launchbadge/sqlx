@@ -23,7 +23,7 @@ pub use message::PgSeverity;
 pub use options::{PgConnectOptions, PgSslMode};
 pub use row::PgRow;
 pub use transaction::PgTransactionManager;
-pub use type_info::{PgTypeInfo, PgTypeKind};
+pub use type_info::PgTypeInfo;
 pub use value::{PgValue, PgValueFormat, PgValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for Postgres.

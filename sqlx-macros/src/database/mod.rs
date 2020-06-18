@@ -53,7 +53,7 @@ macro_rules! impl_database_ext {
                     )*
                     $(
                         $(#[$meta])?
-                        _ if <$ty as sqlx_core::decode::Decode<$database>>::accepts(&info) => Some(input_ty!($ty $(, $input)?)),
+                        _ if <$ty as sqlx_core::types::Type<$database>>::compatible(info) => Some(input_ty!($ty $(, $input)?)),
                     )*
                     _ => None
                 }
@@ -67,7 +67,7 @@ macro_rules! impl_database_ext {
                     )*
                     $(
                         $(#[$meta])?
-                        _ if <$ty as sqlx_core::decode::Decode<$database>>::accepts(&info) => return Some(stringify!($ty)),
+                        _ if <$ty as sqlx_core::types::Type<$database>>::compatible(info) => return Some(stringify!($ty)),
                     )*
                     _ => None
                 }

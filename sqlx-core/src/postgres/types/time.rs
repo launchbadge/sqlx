@@ -1,6 +1,6 @@
 use time::{date, offset, Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -96,10 +96,6 @@ impl Encode<'_, Postgres> for Time {
 }
 
 impl<'r> Decode<'r, Postgres> for Time {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -141,10 +137,6 @@ impl Encode<'_, Postgres> for Date {
 }
 
 impl<'r> Decode<'r, Postgres> for Date {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -171,10 +163,6 @@ impl Encode<'_, Postgres> for PrimitiveDateTime {
 }
 
 impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => {
@@ -232,10 +220,6 @@ impl Encode<'_, Postgres> for OffsetDateTime {
 }
 
 impl<'r> Decode<'r, Postgres> for OffsetDateTime {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(<PrimitiveDateTime as Decode<Postgres>>::decode(value)?.assume_utc())
     }

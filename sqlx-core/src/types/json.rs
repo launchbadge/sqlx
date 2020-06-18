@@ -34,6 +34,10 @@ where
     fn type_info() -> DB::TypeInfo {
         <Json<Self> as Type<DB>>::type_info()
     }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <Json<Self> as Type<DB>>::compatible(ty)
+    }
 }
 
 impl<'q, DB> Encode<'q, DB> for JsonValue
@@ -53,10 +57,6 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn accepts(ty: &DB::TypeInfo) -> bool {
-        <Json<Self> as Decode<DB>>::accepts(ty)
-    }
-
     fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
@@ -70,6 +70,10 @@ where
     fn type_info() -> DB::TypeInfo {
         <Json<&Self> as Type<DB>>::type_info()
     }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <Json<&Self> as Type<DB>>::compatible(ty)
+    }
 }
 
 // We don't have to implement Encode for JsonRawValue because that's covered by the default
@@ -80,10 +84,6 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn accepts(ty: &DB::TypeInfo) -> bool {
-        <Json<Self> as Decode<DB>>::accepts(ty)
-    }
-
     fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }

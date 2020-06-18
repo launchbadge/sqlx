@@ -1,4 +1,4 @@
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -55,10 +55,6 @@ impl Encode<'_, Postgres> for Vec<u8> {
 }
 
 impl<'r> Decode<'r, Postgres> for &'r [u8] {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             PgValueFormat::Binary => value.as_bytes(),
@@ -70,10 +66,6 @@ impl<'r> Decode<'r, Postgres> for &'r [u8] {
 }
 
 impl Decode<'_, Postgres> for Vec<u8> {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => value.as_bytes()?.to_owned(),

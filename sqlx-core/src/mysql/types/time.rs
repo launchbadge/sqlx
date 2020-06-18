@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use bytes::Buf;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::protocol::text::ColumnType;
@@ -16,6 +16,10 @@ use crate::types::Type;
 impl Type<MySql> for OffsetDateTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Timestamp)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
     }
 }
 
@@ -29,10 +33,6 @@ impl Encode<'_, MySql> for OffsetDateTime {
 }
 
 impl<'r> Decode<'r, MySql> for OffsetDateTime {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let primitive: PrimitiveDateTime = Decode::<MySql>::decode(value)?;
 
@@ -75,10 +75,6 @@ impl Encode<'_, MySql> for Time {
 }
 
 impl<'r> Decode<'r, MySql> for Time {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        accepts::<MySql, Self>(ty)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
@@ -138,10 +134,6 @@ impl Encode<'_, MySql> for Date {
 }
 
 impl<'r> Decode<'r, MySql> for Date {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        accepts::<MySql, Self>(ty)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => decode_date(&value.as_bytes()?[1..]),
@@ -191,10 +183,6 @@ impl Encode<'_, MySql> for PrimitiveDateTime {
 }
 
 impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {

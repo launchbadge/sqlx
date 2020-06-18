@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -33,10 +33,6 @@ impl Encode<'_, Postgres> for Uuid {
 }
 
 impl Decode<'_, Postgres> for Uuid {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.format() {
             PgValueFormat::Binary => Uuid::from_slice(value.as_bytes()?),

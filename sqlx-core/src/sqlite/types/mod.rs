@@ -19,10 +19,6 @@
 //! a potentially `NULL` value from SQLite.
 //!
 
-// NOTE: all types are compatible with all other types in SQLite
-//       so we explicitly opt-out of runtime type assertions by returning [true] for
-//       all implementations of [Decode::accepts]
-
 mod bool;
 mod bytes;
 mod float;

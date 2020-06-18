@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
+use crate::types::Type;
 use crate::value::ValueRef;
 
 /// A type that can be used to index into a [`Row`].
@@ -16,6 +17,7 @@ use crate::value::ValueRef;
 /// [`Row`]: trait.Row.html
 /// [`get`]: trait.Row.html#method.get
 /// [`try_get`]: trait.Row.html#method.try_get
+///
 pub trait ColumnIndex<R: Row + ?Sized>: private_column_index::Sealed + Debug {
     /// Returns a valid positional index into the row, [`ColumnIndexOutOfBounds`], or,
     /// [`ColumnNotFound`].
@@ -89,7 +91,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
@@ -132,18 +134,18 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         let value = self.try_get_raw(&index)?;
 
         if !value.is_null() {
-            if let Some(actual_ty) = value.type_info() {
+            if let Some(ty) = value.type_info() {
                 // NOTE: we opt-out of asserting the type equivalency of NULL because of the
                 //       high false-positive rate (e.g., `NULL` in Postgres is `TEXT`).
-                if !T::accepts(&actual_ty) {
+                if !T::compatible(&ty) {
                     return Err(Error::ColumnDecode {
                         index: format!("{:?}", index),
-                        source: mismatched_types::<Self::Database, T>(&actual_ty),
+                        source: mismatched_types::<Self::Database, T>(&ty),
                     });
                 }
             }

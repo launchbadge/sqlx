@@ -10,11 +10,27 @@ impl Type<Mssql> for str {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::NVarChar, 0))
     }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(
+            ty.0.ty,
+            DataType::NVarChar
+                | DataType::NChar
+                | DataType::BigVarChar
+                | DataType::VarChar
+                | DataType::BigChar
+                | DataType::Char
+        )
+    }
 }
 
 impl Type<Mssql> for String {
     fn type_info() -> MssqlTypeInfo {
         <str as Type<Mssql>>::type_info()
+    }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        <str as Type<Mssql>>::compatible(ty)
     }
 }
 
@@ -55,18 +71,6 @@ impl Encode<'_, Mssql> for String {
 }
 
 impl Decode<'_, Mssql> for String {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(
-            ty.0.ty,
-            DataType::NVarChar
-                | DataType::NChar
-                | DataType::BigVarChar
-                | DataType::VarChar
-                | DataType::BigChar
-                | DataType::Char
-        )
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value
             .type_info

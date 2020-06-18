@@ -14,18 +14,8 @@ impl Type<MySql> for str {
             flags: ColumnFlags::empty(),
         }
     }
-}
 
-impl Encode<'_, MySql> for &'_ str {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.put_str_lenenc(self);
-
-        IsNull::No
-    }
-}
-
-impl<'r> Decode<'r, MySql> for &'r str {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
         matches!(
             ty.r#type,
             ColumnType::VarChar
@@ -38,7 +28,17 @@ impl<'r> Decode<'r, MySql> for &'r str {
                 | ColumnType::Enum
         ) && ty.char_set == 224
     }
+}
 
+impl Encode<'_, MySql> for &'_ str {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.put_str_lenenc(self);
+
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, MySql> for &'r str {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         value.as_str()
     }
@@ -47,6 +47,10 @@ impl<'r> Decode<'r, MySql> for &'r str {
 impl Type<MySql> for String {
     fn type_info() -> MySqlTypeInfo {
         <str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <str as Type<MySql>>::compatible(ty)
     }
 }
 
@@ -57,10 +61,6 @@ impl Encode<'_, MySql> for String {
 }
 
 impl Decode<'_, MySql> for String {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        <&str as Decode<MySql>>::accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }

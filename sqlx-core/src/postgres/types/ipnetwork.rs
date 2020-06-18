@@ -28,6 +28,10 @@ impl Type<Postgres> for IpNetwork {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INET
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::CIDR || *ty == PgTypeInfo::INET
+    }
 }
 
 impl Type<Postgres> for [IpNetwork] {
@@ -39,6 +43,10 @@ impl Type<Postgres> for [IpNetwork] {
 impl Type<Postgres> for Vec<IpNetwork> {
     fn type_info() -> PgTypeInfo {
         <[IpNetwork] as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <[IpNetwork] as Type<Postgres>>::compatible(ty)
     }
 }
 
@@ -77,10 +85,6 @@ impl Encode<'_, Postgres> for IpNetwork {
 }
 
 impl Decode<'_, Postgres> for IpNetwork {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        *ty == PgTypeInfo::CIDR || *ty == PgTypeInfo::INET
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         let bytes = match value.format() {
             PgValueFormat::Binary => value.as_bytes()?,

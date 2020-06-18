@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use bytes::Buf;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::protocol::text::ColumnType;
@@ -15,6 +15,10 @@ impl Type<MySql> for DateTime<Utc> {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Timestamp)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
+    }
 }
 
 impl Encode<'_, MySql> for DateTime<Utc> {
@@ -24,10 +28,6 @@ impl Encode<'_, MySql> for DateTime<Utc> {
 }
 
 impl<'r> Decode<'r, MySql> for DateTime<Utc> {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
 
@@ -70,10 +70,6 @@ impl Encode<'_, MySql> for NaiveTime {
 }
 
 impl<'r> Decode<'r, MySql> for NaiveTime {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        accepts::<MySql, Self>(ty)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {
@@ -122,10 +118,6 @@ impl Encode<'_, MySql> for NaiveDate {
 }
 
 impl<'r> Decode<'r, MySql> for NaiveDate {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        accepts::<MySql, Self>(ty)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => Ok(decode_date(&value.as_bytes()?[1..])),
@@ -181,10 +173,6 @@ impl Encode<'_, MySql> for NaiveDateTime {
 }
 
 impl<'r> Decode<'r, MySql> for NaiveDateTime {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
             MySqlValueFormat::Binary => {

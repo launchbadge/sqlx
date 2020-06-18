@@ -8,6 +8,8 @@ use std::io;
 use std::result::Result as StdResult;
 
 use crate::database::Database;
+use crate::type_info::TypeInfo;
+use crate::types::Type;
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T> = StdResult<T, Error>;
@@ -119,12 +121,12 @@ impl Error {
     }
 }
 
-pub(crate) fn mismatched_types<DB: Database, T>(expected: &DB::TypeInfo) -> BoxDynError {
-    let ty_name = type_name::<T>();
-
+pub(crate) fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
     format!(
-        "mismatched types; Rust type `{}` is not compatible with SQL type `{}`",
-        ty_name, expected
+        "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
+        type_name::<T>(),
+        T::type_info().name(),
+        ty.name()
     )
     .into()
 }

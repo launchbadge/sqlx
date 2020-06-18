@@ -17,9 +17,24 @@ fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
     }
 }
 
+fn uint_compatible(ty: &MySqlTypeInfo) -> bool {
+    matches!(
+        ty.r#type,
+        ColumnType::Tiny
+            | ColumnType::Short
+            | ColumnType::Long
+            | ColumnType::Int24
+            | ColumnType::LongLong
+    ) && ty.flags.contains(ColumnFlags::UNSIGNED)
+}
+
 impl Type<MySql> for u8 {
     fn type_info() -> MySqlTypeInfo {
         uint_type_info(ColumnType::Tiny)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
@@ -27,17 +42,29 @@ impl Type<MySql> for u16 {
     fn type_info() -> MySqlTypeInfo {
         uint_type_info(ColumnType::Short)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
+    }
 }
 
 impl Type<MySql> for u32 {
     fn type_info() -> MySqlTypeInfo {
         uint_type_info(ColumnType::Long)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
+    }
 }
 
 impl Type<MySql> for u64 {
     fn type_info() -> MySqlTypeInfo {
         uint_type_info(ColumnType::LongLong)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
@@ -73,17 +100,6 @@ impl Encode<'_, MySql> for u64 {
     }
 }
 
-fn uint_accepts(ty: &MySqlTypeInfo) -> bool {
-    matches!(
-        ty.r#type,
-        ColumnType::Tiny
-            | ColumnType::Short
-            | ColumnType::Long
-            | ColumnType::Int24
-            | ColumnType::LongLong
-    ) && ty.flags.contains(ColumnFlags::UNSIGNED)
-}
-
 fn uint_decode(value: MySqlValueRef<'_>) -> Result<u64, BoxDynError> {
     Ok(match value.format() {
         MySqlValueFormat::Text => value.as_str()?.parse()?,
@@ -95,40 +111,24 @@ fn uint_decode(value: MySqlValueRef<'_>) -> Result<u64, BoxDynError> {
 }
 
 impl Decode<'_, MySql> for u8 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        uint_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for u16 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        uint_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for u32 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        uint_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         uint_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for u64 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        uint_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         uint_decode(value)?.try_into().map_err(Into::into)
     }

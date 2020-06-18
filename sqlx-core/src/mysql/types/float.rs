@@ -7,7 +7,7 @@ use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
-fn real_accepts(ty: &MySqlTypeInfo) -> bool {
+fn real_compatible(ty: &MySqlTypeInfo) -> bool {
     matches!(ty.r#type, ColumnType::Float | ColumnType::Double)
 }
 
@@ -15,11 +15,19 @@ impl Type<MySql> for f32 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Float)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        real_compatible(ty)
+    }
 }
 
 impl Type<MySql> for f64 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Double)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        real_compatible(ty)
     }
 }
 
@@ -40,10 +48,6 @@ impl Encode<'_, MySql> for f64 {
 }
 
 impl Decode<'_, MySql> for f32 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        real_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             MySqlValueFormat::Binary => {
@@ -64,10 +68,6 @@ impl Decode<'_, MySql> for f32 {
 }
 
 impl Decode<'_, MySql> for f64 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        real_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             MySqlValueFormat::Binary => LittleEndian::read_f64(value.as_bytes()?),

@@ -159,18 +159,25 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
 }
 
 impl ColumnType {
-    pub(crate) fn name(self, char_set: u16) -> &'static str {
+    pub(crate) fn name(self, char_set: u16, flags: ColumnFlags) -> &'static str {
         let is_binary = char_set == 63;
+        let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
+
         match self {
+            ColumnType::Tiny if is_unsigned => "TINYINT UNSIGNED",
+            ColumnType::Short if is_unsigned => "SMALLINT UNSIGNED",
+            ColumnType::Long if is_unsigned => "INT UNSIGNED",
+            ColumnType::Int24 if is_unsigned => "MEDIUMINT UNSIGNED",
+            ColumnType::LongLong if is_unsigned => "BIGINT UNSIGNED",
             ColumnType::Tiny => "TINYINT",
             ColumnType::Short => "SMALLINT",
             ColumnType::Long => "INT",
+            ColumnType::Int24 => "MEDIUMINT",
+            ColumnType::LongLong => "BIGINT",
             ColumnType::Float => "FLOAT",
             ColumnType::Double => "DOUBLE",
             ColumnType::Null => "NULL",
             ColumnType::Timestamp => "TIMESTAMP",
-            ColumnType::LongLong => "BIGINT",
-            ColumnType::Int24 => "MEDIUMINT",
             ColumnType::Date => "DATE",
             ColumnType::Time => "TIME",
             ColumnType::Datetime => "DATETIME",

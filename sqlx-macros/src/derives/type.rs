@@ -129,6 +129,10 @@ fn expand_derive_has_sql_type_strong_enum(
                 fn type_info() -> sqlx::mysql::MySqlTypeInfo {
                     sqlx::mysql::MySqlTypeInfo::__enum()
                 }
+
+                fn compatible(ty: &sqlx::mysql::MySqlTypeInfo) -> bool {
+                    ty == sqlx::mysql::MySqlTypeInfo::__enum()
+                }
             }
         ));
     }
@@ -150,6 +154,10 @@ fn expand_derive_has_sql_type_strong_enum(
             impl sqlx::Type< sqlx::Sqlite > for #ident {
                 fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
                     <str as sqlx::Type<sqlx::Sqlite>>::type_info()
+                }
+
+                fn compatible(ty: &sqlx::sqlite::SqliteTypeInfo) -> bool {
+                    <&str as sqlx::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
                 }
             }
         ));

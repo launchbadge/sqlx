@@ -31,15 +31,13 @@ pub struct SqliteTypeInfo(pub(crate) DataType);
 
 impl Display for SqliteTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.pad(self.name())
     }
 }
 
-impl TypeInfo for SqliteTypeInfo {}
-
-impl Display for DataType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
+impl TypeInfo for SqliteTypeInfo {
+    fn name(&self) -> &str {
+        match self.0 {
             DataType::Text => "TEXT",
             DataType::Float => "FLOAT",
             DataType::Blob => "BLOB",
@@ -49,7 +47,7 @@ impl Display for DataType {
             // non-standard extensions
             DataType::Bool => "BOOLEAN",
             DataType::Int64 => "BIGINT",
-        })
+        }
     }
 }
 

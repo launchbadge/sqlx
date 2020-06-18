@@ -4,7 +4,7 @@ use std::convert::{TryFrom, TryInto};
 use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::numeric::{PgNumeric, PgNumericSign};
@@ -165,10 +165,6 @@ impl Encode<'_, Postgres> for BigDecimal {
 }
 
 impl Decode<'_, Postgres> for BigDecimal {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         match value.format() {
             PgValueFormat::Binary => PgNumeric::decode(value.as_bytes()?)?.try_into(),

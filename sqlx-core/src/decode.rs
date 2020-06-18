@@ -1,28 +1,10 @@
 //! Provides [`Decode`](trait.Decode.html) for decoding values from the database.
 
-use std::result::Result as StdResult;
-
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
-use crate::types::Type;
 use crate::value::ValueRef;
 
-/// A specialized result type representing the result of decoding a value from the database.
-pub type Result<T> = StdResult<T, BoxDynError>;
-
 /// A type that can be decoded from the database.
-///
-/// ## Derivable
-///
-/// This trait can be derived to provide user-defined types where supported by
-/// the database driver.
-///
-/// ```rust,ignore
-/// // `UserId` can now be decoded from the database where
-/// // an `i64` was expected.
-/// #[derive(Decode)]
-/// struct UserId(i64);
-/// ```
 ///
 /// ## How can I implement `Decode`?
 ///
@@ -58,14 +40,6 @@ pub type Result<T> = StdResult<T, BoxDynError>;
 ///     // are supported by the database
 ///     &'r str: Decode<'r, DB>
 /// {
-///     fn accepts(ty: &DB::TypeInfo) -> bool {
-///         // accepts is intended to provide runtime type checking and assert that our decode
-///         // function can handle the incoming value from the database
-///
-///         // as we are delegating to String
-///         <&str as Decode<DB>>::accepts(ty)
-///     }
-///
 ///     fn decode(
 ///         value: <DB as HasValueRef<'r>>::ValueRef,
 ///     ) -> Result<MyType, Box<dyn Error + 'static + Send + Sync>> {
@@ -84,12 +58,8 @@ pub type Result<T> = StdResult<T, BoxDynError>;
 /// }
 /// ```
 pub trait Decode<'r, DB: Database>: Sized {
-    /// Determines if a value of this type can be created from a value with the
-    /// given type information.
-    fn accepts(ty: &DB::TypeInfo) -> bool;
-
     /// Decode a new value of this type using a raw value from the database.
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self>;
+    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError>;
 }
 
 // implement `Decode` for Option<T> for all SQL types
@@ -98,22 +68,11 @@ where
     DB: Database,
     T: Decode<'r, DB>,
 {
-    fn accepts(ty: &DB::TypeInfo) -> bool {
-        T::accepts(ty)
-    }
-
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self> {
+    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
         if value.is_null() {
             Ok(None)
         } else {
             Ok(Some(T::decode(value)?))
         }
     }
-}
-
-// default implementation of `accepts`
-// this can be trivially removed once min_specialization is stable
-#[allow(dead_code)]
-pub(crate) fn accepts<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> bool {
-    *ty == T::type_info()
 }

@@ -20,10 +20,6 @@ impl<'q> Encode<'q, Sqlite> for i32 {
 }
 
 impl<'r> Decode<'r, Sqlite> for i32 {
-    fn accepts(_ty: &SqliteTypeInfo) -> bool {
-        true
-    }
-
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int())
     }
@@ -44,10 +40,6 @@ impl<'q> Encode<'q, Sqlite> for i64 {
 }
 
 impl<'r> Decode<'r, Sqlite> for i64 {
-    fn accepts(_ty: &SqliteTypeInfo) -> bool {
-        true
-    }
-
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int64())
     }

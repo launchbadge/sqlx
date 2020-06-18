@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
+use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::{Json, Type};
 
@@ -16,11 +17,19 @@ impl<T> Type<Postgres> for Json<T> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::JSONB
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSONB
+    }
 }
 
 impl<T> Type<Postgres> for [Json<T>] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::JSONB_ARRAY
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        array_compatible::<Json<T>>(ty)
     }
 }
 
@@ -49,10 +58,6 @@ impl<'r, T: 'r> Decode<'r, Postgres> for Json<T>
 where
     T: Deserialize<'r>,
 {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSONB
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let mut buf = value.as_bytes()?;
 

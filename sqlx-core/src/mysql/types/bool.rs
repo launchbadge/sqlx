@@ -9,6 +9,10 @@ impl Type<MySql> for bool {
         // MySQL has no actual `BOOLEAN` type, the type is an alias of `TINYINT(1)`
         <i8 as Type<MySql>>::type_info()
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <i8 as Type<MySql>>::compatible(ty)
+    }
 }
 
 impl Encode<'_, MySql> for bool {
@@ -18,10 +22,6 @@ impl Encode<'_, MySql> for bool {
 }
 
 impl Decode<'_, MySql> for bool {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        <i8 as Decode<MySql>>::accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(<i8 as Decode<MySql>>::decode(value)? != 0)
     }

@@ -59,21 +59,15 @@ impl MySqlTypeInfo {
 
 impl Display for MySqlTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(self.r#type.name(self.char_set))?;
-
-        // NOTE: MariaDB flags timestamp columns as UNSIGNED but the type name
-        //       does not have that suffix
-        if self.flags.contains(ColumnFlags::UNSIGNED)
-            && !self.flags.contains(ColumnFlags::TIMESTAMP)
-        {
-            f.write_str(" UNSIGNED")?;
-        }
-
-        Ok(())
+        f.pad(self.name())
     }
 }
 
-impl TypeInfo for MySqlTypeInfo {}
+impl TypeInfo for MySqlTypeInfo {
+    fn name(&self) -> &str {
+        self.r#type.name(self.char_set, self.flags)
+    }
+}
 
 impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
     fn eq(&self, other: &MySqlTypeInfo) -> bool {

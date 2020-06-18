@@ -20,10 +20,6 @@ impl<'q> Encode<'q, Sqlite> for bool {
 }
 
 impl<'r> Decode<'r, Sqlite> for bool {
-    fn accepts(_ty: &SqliteTypeInfo) -> bool {
-        true
-    }
-
     fn decode(value: SqliteValueRef<'r>) -> Result<bool, BoxDynError> {
         Ok(value.int() != 0)
     }

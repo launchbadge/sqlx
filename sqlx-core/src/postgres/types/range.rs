@@ -7,9 +7,8 @@ use bytes::Buf;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{
-    PgArgumentBuffer, PgTypeInfo, PgTypeKind, PgValueFormat, PgValueRef, Postgres,
-};
+use crate::postgres::type_info::PgTypeKind;
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
 // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/include/utils/rangetypes.h#L35-L44
@@ -116,11 +115,19 @@ impl Type<Postgres> for PgRange<i32> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INT4_RANGE
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<i32>(ty)
+    }
 }
 
 impl Type<Postgres> for PgRange<i64> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INT8_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<i64>(ty)
     }
 }
 
@@ -129,12 +136,20 @@ impl Type<Postgres> for PgRange<bigdecimal::BigDecimal> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::NUM_RANGE
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<bigdecimal::BigDecimal>(ty)
+    }
 }
 
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for PgRange<chrono::NaiveDate> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::DATE_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<chrono::NaiveDate>(ty)
     }
 }
 
@@ -143,12 +158,20 @@ impl Type<Postgres> for PgRange<chrono::NaiveDateTime> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::TS_RANGE
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<chrono::NaiveDateTime>(ty)
+    }
 }
 
 #[cfg(feature = "chrono")]
 impl<Tz: chrono::TimeZone> Type<Postgres> for PgRange<chrono::DateTime<Tz>> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::TSTZ_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<chrono::DateTime<Tz>>(ty)
     }
 }
 
@@ -157,6 +180,10 @@ impl Type<Postgres> for PgRange<time::Date> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::DATE_RANGE
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<time::Date>(ty)
+    }
 }
 
 #[cfg(feature = "time")]
@@ -164,12 +191,20 @@ impl Type<Postgres> for PgRange<time::PrimitiveDateTime> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::TS_RANGE
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<time::PrimitiveDateTime>(ty)
+    }
 }
 
 #[cfg(feature = "time")]
 impl Type<Postgres> for PgRange<time::OffsetDateTime> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::TSTZ_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<time::OffsetDateTime>(ty)
     }
 }
 
@@ -335,16 +370,6 @@ impl<'r, T> Decode<'r, Postgres> for PgRange<T>
 where
     T: Type<Postgres> + for<'a> Decode<'a, Postgres>,
 {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        // we require the declared type to be a _range_ with an
-        // element type that is acceptable
-        if let PgTypeKind::Range(element) = &ty.0.kind() {
-            return T::accepts(&element);
-        }
-
-        false
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format {
             PgValueFormat::Binary => {
@@ -527,4 +552,14 @@ where
 
         Ok(())
     }
+}
+
+fn range_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
+    // we require the declared type to be a _range_ with an
+    // element type that is acceptable
+    if let PgTypeKind::Range(element) = &ty.kind() {
+        return E::compatible(&element);
+    }
+
+    false
 }

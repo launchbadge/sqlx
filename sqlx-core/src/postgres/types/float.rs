@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
@@ -33,10 +33,6 @@ impl Encode<'_, Postgres> for f32 {
 }
 
 impl Decode<'_, Postgres> for f32 {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_f32(value.as_bytes()?),
@@ -72,10 +68,6 @@ impl Encode<'_, Postgres> for f64 {
 }
 
 impl Decode<'_, Postgres> for f64 {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
             PgValueFormat::Binary => BigEndian::read_f64(value.as_bytes()?),

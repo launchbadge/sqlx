@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::fmt::{self, Display, Formatter};
+use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::ext::ustr::UStr;
@@ -11,10 +12,18 @@ use crate::type_info::TypeInfo;
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgTypeInfo(pub(crate) PgType);
 
+impl Deref for PgTypeInfo {
+    type Target = PgType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u32)]
-pub(crate) enum PgType {
+pub enum PgType {
     Bool,
     Bytea,
     Char,
@@ -118,7 +127,7 @@ pub(crate) enum PgType {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) struct PgCustomType {
+pub struct PgCustomType {
     pub(crate) oid: u32,
     pub(crate) name: UStr,
     pub(crate) kind: PgTypeKind,
@@ -418,6 +427,102 @@ impl PgType {
         })
     }
 
+    pub(crate) fn display_name(&self) -> &str {
+        match self {
+            PgType::Bool => "BOOL",
+            PgType::Bytea => "BYTEA",
+            PgType::Char => "\"CHAR\"",
+            PgType::Name => "NAME",
+            PgType::Int8 => "INT8",
+            PgType::Int2 => "INT2",
+            PgType::Int4 => "INT4",
+            PgType::Text => "TEXT",
+            PgType::Oid => "OID",
+            PgType::Json => "JSON",
+            PgType::JsonArray => "JSON[]",
+            PgType::Point => "POINT",
+            PgType::Lseg => "LSEG",
+            PgType::Path => "PATH",
+            PgType::Box => "BOX",
+            PgType::Polygon => "POLYGON",
+            PgType::Line => "LINE",
+            PgType::LineArray => "LINE[]",
+            PgType::Cidr => "CIDR",
+            PgType::CidrArray => "CIDR[]",
+            PgType::Float4 => "FLOAT4",
+            PgType::Float8 => "FLOAT8",
+            PgType::Unknown => "UNKNOWN",
+            PgType::Circle => "CIRCLE",
+            PgType::CircleArray => "CIRCLE[]",
+            PgType::Macaddr8 => "MACADDR8",
+            PgType::Macaddr8Array => "MACADDR8[]",
+            PgType::Macaddr => "MACADDR",
+            PgType::Inet => "INET",
+            PgType::BoolArray => "BOOL[]",
+            PgType::ByteaArray => "BYTEA[]",
+            PgType::CharArray => "\"CHAR\"[]",
+            PgType::NameArray => "NAME[]",
+            PgType::Int2Array => "INT2[]",
+            PgType::Int4Array => "INT4[]",
+            PgType::TextArray => "TEXT[]",
+            PgType::BpcharArray => "CHAR[]",
+            PgType::VarcharArray => "VARCHAR[]",
+            PgType::Int8Array => "INT8[]",
+            PgType::PointArray => "POINT[]",
+            PgType::LsegArray => "LSEG[]",
+            PgType::PathArray => "PATH[]",
+            PgType::BoxArray => "BOX[]",
+            PgType::Float4Array => "FLOAT4[]",
+            PgType::Float8Array => "FLOAT8[]",
+            PgType::PolygonArray => "POLYGON[]",
+            PgType::OidArray => "OID[]",
+            PgType::MacaddrArray => "MACADDR[]",
+            PgType::InetArray => "INET[]",
+            PgType::Bpchar => "CHAR",
+            PgType::Varchar => "VARCHAR",
+            PgType::Date => "DATE",
+            PgType::Time => "TIME",
+            PgType::Timestamp => "TIMESTAMP",
+            PgType::TimestampArray => "TIMESTAMP[]",
+            PgType::DateArray => "DATE[]",
+            PgType::TimeArray => "TIME[]",
+            PgType::Timestamptz => "TIMESTAMPTZ",
+            PgType::TimestamptzArray => "TIMESTAMPTZ[]",
+            PgType::NumericArray => "NUMERIC[]",
+            PgType::Timetz => "TIMETZ",
+            PgType::TimetzArray => "TIMETZ[]",
+            PgType::Bit => "BIT",
+            PgType::BitArray => "BIT[]",
+            PgType::Varbit => "VARBIT",
+            PgType::VarbitArray => "VARBIT[]",
+            PgType::Numeric => "NUMERIC",
+            PgType::Record => "RECORD",
+            PgType::Interval => "INTERVAL",
+            PgType::RecordArray => "RECORD[]",
+            PgType::Uuid => "UUID",
+            PgType::UuidArray => "UUID[]",
+            PgType::Jsonb => "JSONB",
+            PgType::JsonbArray => "JSONB[]",
+            PgType::Int4Range => "INT4RANGE",
+            PgType::Int4RangeArray => "INT4RANGE[]",
+            PgType::NumRange => "NUMRANGE",
+            PgType::NumRangeArray => "NUMRANGE[]",
+            PgType::TsRange => "TSRANGE",
+            PgType::TsRangeArray => "TSRANGE[]",
+            PgType::TstzRange => "TSTZRANGE",
+            PgType::TstzRangeArray => "TSTZRANGE[]",
+            PgType::DateRange => "DATERANGE",
+            PgType::DateRangeArray => "DATERANGE[]",
+            PgType::Int8Range => "INT8RANGE",
+            PgType::Int8RangeArray => "INT8RANGE[]",
+            PgType::Jsonpath => "JSONPATH",
+            PgType::JsonpathArray => "JSONPATH[]",
+            PgType::Custom(ty) => &*ty.name,
+            PgType::DeclareWithOid(_) => "?",
+            PgType::DeclareWithName(name) => name,
+        }
+    }
+
     pub(crate) fn name(&self) -> &str {
         match self {
             PgType::Bool => "bool",
@@ -613,7 +718,11 @@ impl PgType {
     }
 }
 
-impl TypeInfo for PgTypeInfo {}
+impl TypeInfo for PgTypeInfo {
+    fn name(&self) -> &str {
+        self.0.display_name()
+    }
+}
 
 impl PartialEq<PgCustomType> for PgCustomType {
     fn eq(&self, other: &PgCustomType) -> bool {

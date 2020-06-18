@@ -9,9 +9,24 @@ use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
+fn int_compatible(ty: &MySqlTypeInfo) -> bool {
+    matches!(
+        ty.r#type,
+        ColumnType::Tiny
+            | ColumnType::Short
+            | ColumnType::Long
+            | ColumnType::Int24
+            | ColumnType::LongLong
+    ) && !ty.flags.contains(ColumnFlags::UNSIGNED)
+}
+
 impl Type<MySql> for i8 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Tiny)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        int_compatible(ty)
     }
 }
 
@@ -19,17 +34,29 @@ impl Type<MySql> for i16 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Short)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        int_compatible(ty)
+    }
 }
 
 impl Type<MySql> for i32 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Long)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        int_compatible(ty)
+    }
 }
 
 impl Type<MySql> for i64 {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::LongLong)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        int_compatible(ty)
     }
 }
 
@@ -65,17 +92,6 @@ impl Encode<'_, MySql> for i64 {
     }
 }
 
-fn int_accepts(ty: &MySqlTypeInfo) -> bool {
-    matches!(
-        ty.r#type,
-        ColumnType::Tiny
-            | ColumnType::Short
-            | ColumnType::Long
-            | ColumnType::Int24
-            | ColumnType::LongLong
-    ) && !ty.flags.contains(ColumnFlags::UNSIGNED)
-}
-
 fn int_decode(value: MySqlValueRef<'_>) -> Result<i64, BoxDynError> {
     Ok(match value.format() {
         MySqlValueFormat::Text => value.as_str()?.parse()?,
@@ -87,40 +103,24 @@ fn int_decode(value: MySqlValueRef<'_>) -> Result<i64, BoxDynError> {
 }
 
 impl Decode<'_, MySql> for i8 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        int_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for i16 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        int_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for i32 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        int_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         int_decode(value)?.try_into().map_err(Into::into)
     }
 }
 
 impl Decode<'_, MySql> for i64 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        int_accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         int_decode(value)?.try_into().map_err(Into::into)
     }

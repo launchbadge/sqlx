@@ -15,6 +15,12 @@ impl<T> Type<MySql> for Json<T> {
         //       and has nothing to do with the native storage ability of MySQL v8+
         MySqlTypeInfo::binary(ColumnType::String)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        ty.r#type == ColumnType::Json
+            || <&str as Type<MySql>>::compatible(ty)
+            || <&[u8] as Type<MySql>>::compatible(ty)
+    }
 }
 
 impl<T> Encode<'_, MySql> for Json<T>
@@ -33,12 +39,6 @@ impl<'r, T> Decode<'r, MySql> for Json<T>
 where
     T: 'r + DeserializeOwned,
 {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        ty.r#type == ColumnType::Json
-            || <&str as Decode<MySql>>::accepts(ty)
-            || <&[u8] as Decode<MySql>>::accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let string_value = <&str as Decode<MySql>>::decode(value)?;
 

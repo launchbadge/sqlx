@@ -10,18 +10,8 @@ impl Type<MySql> for [u8] {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Blob)
     }
-}
 
-impl Encode<'_, MySql> for &'_ [u8] {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.put_bytes_lenenc(self);
-
-        IsNull::No
-    }
-}
-
-impl<'r> Decode<'r, MySql> for &'r [u8] {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
         matches!(
             ty.r#type,
             ColumnType::VarChar
@@ -34,7 +24,17 @@ impl<'r> Decode<'r, MySql> for &'r [u8] {
                 | ColumnType::Enum
         )
     }
+}
 
+impl Encode<'_, MySql> for &'_ [u8] {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.put_bytes_lenenc(self);
+
+        IsNull::No
+    }
+}
+
+impl<'r> Decode<'r, MySql> for &'r [u8] {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         value.as_bytes()
     }
@@ -43,6 +43,10 @@ impl<'r> Decode<'r, MySql> for &'r [u8] {
 impl Type<MySql> for Vec<u8> {
     fn type_info() -> MySqlTypeInfo {
         <[u8] as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&[u8] as Type<MySql>>::compatible(ty)
     }
 }
 
@@ -53,10 +57,6 @@ impl Encode<'_, MySql> for Vec<u8> {
 }
 
 impl Decode<'_, MySql> for Vec<u8> {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        <&[u8] as Decode<MySql>>::accepts(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&[u8] as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }

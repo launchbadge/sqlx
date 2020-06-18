@@ -1,6 +1,6 @@
 use bytes::Buf;
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgType;
@@ -14,6 +14,10 @@ where
     fn type_info() -> PgTypeInfo {
         <[T] as Type<Postgres>>::type_info()
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <[T] as Type<Postgres>>::compatible(ty)
+    }
 }
 
 impl<T> Type<Postgres> for Vec<Option<T>>
@@ -22,6 +26,10 @@ where
 {
     fn type_info() -> PgTypeInfo {
         <Vec<T> as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <Vec<T> as Type<Postgres>>::compatible(ty)
     }
 }
 
@@ -66,18 +74,11 @@ where
     }
 }
 
-// TODO: Array decoding in PostgreSQL *could* allow 'r (row) lifetime of elements if we can figure
-//       out a way for the TEXT encoding to use some shared memory somewhere.
-
 impl<'r, T> Decode<'r, Postgres> for Vec<T>
 where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
     Self: Type<Postgres>,
 {
-    fn accepts(ty: &PgTypeInfo) -> bool {
-        accepts::<Postgres, Self>(ty)
-    }
-
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let element_type_info = T::type_info();
         let format = value.format();

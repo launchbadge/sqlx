@@ -77,7 +77,7 @@ pub mod encode {
 
 /// Provides [`Decode`](decode/trait.Decode.html) for decoding values from the database.
 pub mod decode {
-    pub use sqlx_core::decode::{Decode, Result};
+    pub use sqlx_core::decode::Decode;
 
     #[cfg(feature = "macros")]
     #[doc(hidden)]

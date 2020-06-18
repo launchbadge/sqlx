@@ -128,6 +128,10 @@
 //! a potentially `NULL` value from Postgres.
 //!
 
+use crate::postgres::type_info::PgTypeKind;
+use crate::postgres::{PgTypeInfo, Postgres};
+use crate::types::Type;
+
 mod array;
 mod bool;
 mod bytes;
@@ -165,3 +169,14 @@ pub use range::PgRange;
 // but the interface is not considered part of the public API
 #[doc(hidden)]
 pub use record::{PgRecordDecoder, PgRecordEncoder};
+
+// Type::compatible impl appropriate for arrays
+fn array_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
+    // we require the declared type to be an _array_ with an
+    // element type that is acceptable
+    if let PgTypeKind::Array(element) = &ty.kind() {
+        return E::compatible(&element);
+    }
+
+    false
+}

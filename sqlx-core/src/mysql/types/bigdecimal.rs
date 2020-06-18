@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 
-use crate::decode::{accepts, Decode};
+use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::io::MySqlBufMutExt;
@@ -23,10 +23,6 @@ impl Encode<'_, MySql> for BigDecimal {
 }
 
 impl Decode<'_, MySql> for BigDecimal {
-    fn accepts(ty: &MySqlTypeInfo) -> bool {
-        accepts::<MySql, Self>(ty)
-    }
-
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_str()?.parse()?)
     }

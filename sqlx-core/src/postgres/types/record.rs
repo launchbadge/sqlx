@@ -3,10 +3,8 @@ use bytes::Buf;
 use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::error::{mismatched_types, BoxDynError};
-use crate::postgres::type_info::PgType;
-use crate::postgres::{
-    PgArgumentBuffer, PgTypeInfo, PgTypeKind, PgValueFormat, PgValueRef, Postgres,
-};
+use crate::postgres::type_info::{PgType, PgTypeKind};
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
 #[doc(hidden)]
@@ -128,8 +126,8 @@ impl<'r> PgRecordDecoder<'r> {
                 self.ind += 1;
 
                 if let Some(ty) = &element_type_opt {
-                    if !T::accepts(ty) {
-                        return Err(mismatched_types::<Postgres, T>(&T::type_info(), ty));
+                    if !T::compatible(ty) {
+                        return Err(mismatched_types::<Postgres, T>(ty));
                     }
                 }
 
