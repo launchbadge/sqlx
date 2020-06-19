@@ -1,5 +1,4 @@
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -37,7 +36,7 @@ where
 
 impl<'r, T> Decode<'r, MySql> for Json<T>
 where
-    T: 'r + DeserializeOwned,
+    T: 'r + Deserialize<'r>,
 {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let string_value = <&str as Decode<MySql>>::decode(value)?;
