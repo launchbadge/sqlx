@@ -58,6 +58,21 @@ pub mod ty_match;
 #[doc(hidden)]
 pub mod result_ext;
 
+/// Conversions between Rust and SQL types.
+///
+/// To see how each SQL type maps to a Rust type, see the corresponding `types` module for each
+/// database:
+///
+///  * [PostgreSQL](../postgres/types/index.html)
+///  * [MySQL](../mysql/types/index.html)
+///  * [SQLite](../sqlite/types/index.html)
+///  * [MSSQL](../mssql/types/index.html)
+///
+/// Any external types that have had [`Type`] implemented for, are re-exported in this module
+/// for convenience as downstream users need to use a compatible version of the external crate
+/// to take advantage of the implementation.
+///
+/// [`Type`]: types/trait.Type.html
 pub mod types {
     pub use sqlx_core::types::*;
 
@@ -84,10 +99,11 @@ pub mod decode {
     pub use sqlx_macros::Decode;
 }
 
+/// Return types for the `query` family of functions and macros.
 pub mod query {
-    pub use sqlx_core::query::{query, query_with, Map, Query};
-    pub use sqlx_core::query_as::{query_as, query_as_with, QueryAs};
-    pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with, QueryScalar};
+    pub use sqlx_core::query::{Map, Query};
+    pub use sqlx_core::query_as::QueryAs;
+    pub use sqlx_core::query_scalar::QueryScalar;
 }
 
 /// Convenience re-export of common traits.
