@@ -21,7 +21,7 @@ impl<'a, T> TryAsyncStream<'a, T> {
         Fut: 'a + Future<Output = Result<(), Error>> + Send,
         T: 'a + Send,
     {
-        let (mut sender, receiver) = mpsc::channel(1);
+        let (mut sender, receiver) = mpsc::channel(0);
 
         let future = f(sender.clone());
         let future = async move {
