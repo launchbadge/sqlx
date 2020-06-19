@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use serde::{Serialize, Deserialize};
 use serde_json::value::RawValue as JsonRawValue;
 use serde_json::Value as JsonValue;
 
@@ -9,7 +10,8 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Json<T>(pub T);
 
 impl<T> Deref for Json<T> {

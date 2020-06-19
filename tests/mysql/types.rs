@@ -142,6 +142,9 @@ mod json_tests {
         "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 
+    // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
+    //       need to wrap the Vec in Json<_> to make the example work.
+
     #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
     struct Customer {
         json_column: Json<Vec<i64>>,
@@ -149,6 +152,6 @@ mod json_tests {
 
     test_type!(json_struct_json_column<Json<Customer>>(
         MySql,
-        "\'{ \"json_column\": [1, 2] }\'" == Json(Customer { json_column: Json(vec![1, 2]) })
+        "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
     ));
 }
