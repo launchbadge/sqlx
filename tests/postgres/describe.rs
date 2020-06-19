@@ -28,10 +28,10 @@ async fn it_describes_simple() -> anyhow::Result<()> {
 
     let column_type_names = type_names(&columns);
 
-    assert_eq!(column_type_names[0], "int8");
-    assert_eq!(column_type_names[1], "timestamptz");
-    assert_eq!(column_type_names[2], "text");
-    assert_eq!(column_type_names[3], "int8");
+    assert_eq!(column_type_names[0], "INT8");
+    assert_eq!(column_type_names[1], "TIMESTAMPTZ");
+    assert_eq!(column_type_names[2], "TEXT");
+    assert_eq!(column_type_names[3], "INT8");
 
     Ok(())
 }
@@ -52,7 +52,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
 
     let column_type_names = type_names(&columns);
 
-    assert_eq!(column_type_names[0], "int8");
+    assert_eq!(column_type_names[0], "INT8");
 
     Ok(())
 }
@@ -86,7 +86,7 @@ async fn it_describes_record() -> anyhow::Result<()> {
     let columns = d.columns;
 
     let ty = columns[0].type_info.as_ref().unwrap();
-    assert_eq!(ty.to_string(), "record");
+    assert_eq!(ty.to_string(), "RECORD");
 
     Ok(())
 }

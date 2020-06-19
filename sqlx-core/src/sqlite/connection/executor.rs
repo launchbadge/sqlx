@@ -100,46 +100,41 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             // bind arguments, if any, to the statement
             bind(&mut stmt, arguments)?;
 
-            {
-                // let SqliteStatement { ref handles, ref mut last_row_values, .. } = *stmt;
-                // let mut handle_i = 0;
+            while let Some((handle, last_row_values)) = stmt.execute()? {
+                // tell the worker about the new statement
+                worker.execute(handle);
 
-                while let Some((handle, last_row_values)) = stmt.execute()? {
-                    // tell the worker about the new statement
-                    worker.execute(handle);
+                // wake up the worker if needed
+                // the worker parks its thread on async-std when not in use
+                worker.wake();
 
-                    // wake up the worker if needed
-                    // the worker parks its thread on async-std when not in use
-                    worker.wake();
+                emplace_row_metadata(
+                    handle,
+                    Arc::make_mut(scratch_row_column_names),
+                )?;
 
-                    emplace_row_metadata(
-                        handle,
-                        Arc::make_mut(scratch_row_column_names),
-                    )?;
+                loop {
+                    // save the rows from the _current_ position on the statement
+                    // and send them to the still-live row object
+                    SqliteRow::inflate_if_needed(handle, last_row_values.take());
 
-                    loop {
-                        // save the rows from the _current_ position on the statement
-                        // and send them to the still-live row object
-                        SqliteRow::inflate_if_needed(handle, last_row_values.take());
+                    match worker.step(handle).await? {
+                        Either::Left(changes) => {
+                            r#yield!(Either::Left(changes));
 
-                        match worker.step(handle).await? {
-                            Either::Left(changes) => {
-                                r#yield!(Either::Left(changes));
+                            break;
+                        }
 
-                                break;
-                            }
+                        Either::Right(()) => {
+                            let (row, weak_values_ref) = SqliteRow::current(
+                                *handle,
+                                scratch_row_column_names
+                            );
 
-                            Either::Right(()) => {
-                                let (row, weak_values_ref) = SqliteRow::current(
-                                    *handle,
-                                    scratch_row_column_names
-                                );
+                            let v = Either::Right(row);
+                            *last_row_values = Some(weak_values_ref);
 
-                                let v = Either::Right(row);
-                                *last_row_values = Some(weak_values_ref);
-
-                                r#yield!(v);
-                            }
+                            r#yield!(v);
                         }
                     }
                 }

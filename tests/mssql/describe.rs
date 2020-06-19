@@ -28,10 +28,10 @@ async fn it_describes_simple() -> anyhow::Result<()> {
 
     let column_type_names = type_names(&columns);
 
-    assert_eq!(column_type_names[0], "bigint");
-    assert_eq!(column_type_names[1], "nvarchar(max)");
-    assert_eq!(column_type_names[2], "tinyint");
-    assert_eq!(column_type_names[3], "bigint");
+    assert_eq!(column_type_names[0], "BIGINT");
+    assert_eq!(column_type_names[1], "NVARCHAR");
+    assert_eq!(column_type_names[2], "TINYINT");
+    assert_eq!(column_type_names[3], "BIGINT");
 
     Ok(())
 }

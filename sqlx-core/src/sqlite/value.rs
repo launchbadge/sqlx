@@ -84,9 +84,7 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
     fn type_info(&self) -> Option<Cow<'_, SqliteTypeInfo>> {
         match self.0 {
             SqliteValueData::Statement { statement, index } => {
-                DataType::from_code(statement.column_type(index))
-                    .map(SqliteTypeInfo)
-                    .map(Cow::Owned)
+                statement.column_decltype(index).map(Cow::Owned)
             }
 
             SqliteValueData::Value(v) => v.type_info(),

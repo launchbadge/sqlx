@@ -937,7 +937,7 @@ impl PgTypeInfo {
 
 impl Display for PgTypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.pad(self.0.name())
+        f.pad(self.name())
     }
 }
 
