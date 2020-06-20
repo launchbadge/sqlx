@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};

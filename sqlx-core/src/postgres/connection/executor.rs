@@ -172,8 +172,7 @@ impl PgConnection {
                 let message = self.stream.recv().await?;
 
                 match message.format {
-                    MessageFormat::BindComplete => {
-                        // indicates that parameter binding was successful
+                    MessageFormat::BindComplete | MessageFormat::ParseComplete | MessageFormat::ParameterDescription  => {
                     }
 
                     MessageFormat::CommandComplete => {
