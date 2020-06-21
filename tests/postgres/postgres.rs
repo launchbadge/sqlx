@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
-use sqlx::{postgres::Postgres, Connection, Executor, Row, PgPool};
+use sqlx::{postgres::Postgres, Connection, Executor, PgPool, Row};
 use sqlx_test::new;
 use std::time::Duration;
 
@@ -150,11 +150,16 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
 
     for i in 0..10 {
         // make a query that will fail
-        let res = conn.execute("INSERT INTO not_found (column) VALUES (10)").await;
+        let res = conn
+            .execute("INSERT INTO not_found (column) VALUES (10)")
+            .await;
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = conn.fetch_one(&*format!("SELECT {}::int4", i)).await?.get(0);
+        let val: i32 = conn
+            .fetch_one(&*format!("SELECT {}::int4", i))
+            .await?
+            .get(0);
         assert_eq!(val, i);
     }
 
@@ -167,11 +172,16 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
 
     for i in 0..10 {
         // make a query that will fail
-        let res = pool.execute("INSERT INTO not_found (column) VALUES (10)").await;
+        let res = pool
+            .execute("INSERT INTO not_found (column) VALUES (10)")
+            .await;
         assert!(res.is_err());
 
         // now try and use the connection
-        let val: i32 = pool.fetch_one(&*format!("SELECT {}::int4", i)).await?.get(0);
+        let val: i32 = pool
+            .fetch_one(&*format!("SELECT {}::int4", i))
+            .await?
+            .get(0);
         assert_eq!(val, i);
     }
 

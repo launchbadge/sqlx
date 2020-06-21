@@ -17,12 +17,11 @@ where
     Ok(DB::Connection::connect(&env::var("DATABASE_URL")?).await?)
 }
 
-
 // Make a new pool
 // Ensure [dotenv] and [env_logger] have been setup
 pub async fn pool<DB>() -> anyhow::Result<Pool<DB>>
-    where
-        DB: Database,
+where
+    DB: Database,
 {
     setup_if_needed();
 
