@@ -9,6 +9,10 @@ impl Type<Mssql> for bool {
     fn type_info() -> MssqlTypeInfo {
         MssqlTypeInfo(TypeInfo::new(DataType::BitN, 1))
     }
+
+    fn compatible(ty: &MssqlTypeInfo) -> bool {
+        matches!(ty.0.ty, DataType::Bit | DataType::BitN)
+    }
 }
 
 impl Encode<'_, Mssql> for bool {
@@ -20,10 +24,6 @@ impl Encode<'_, Mssql> for bool {
 }
 
 impl Decode<'_, Mssql> for bool {
-    fn accepts(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::Bit | DataType::BitN)
-    }
-
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(value.as_bytes()?[0] == 1)
     }
