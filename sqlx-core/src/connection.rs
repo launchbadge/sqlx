@@ -64,9 +64,11 @@ pub trait Connection: Send {
         })
     }
 
-    /// Flush any pending commands to the database.
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>>;
+
+    #[doc(hidden)]
+    fn should_flush(&self) -> bool;
 
     #[doc(hidden)]
     fn get_ref(&self) -> &<Self::Database as Database>::Connection;

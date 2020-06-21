@@ -79,6 +79,11 @@ impl<DB: Database> Connection for PoolConnection<DB> {
     }
 
     #[doc(hidden)]
+    fn should_flush(&self) -> bool {
+        self.get_ref().should_flush()
+    }
+
+    #[doc(hidden)]
     fn get_ref(&self) -> &DB::Connection {
         self.deref().get_ref()
     }
@@ -94,19 +99,26 @@ impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
         if let Some(mut live) = self.live.take() {
             let pool = self.pool.clone();
-            spawn(async move {
-                // flush the connection (will immediately return if not needed) before
-                // we fully release to the pool
-                if let Err(e) = live.raw.flush().await {
-                    log::error!("error occurred while flushing the connection: {}", e);
 
-                    // we now consider the connection to be broken
-                    // close the connection and drop from the pool
-                    let _ = live.float(&pool).into_idle().close().await;
-                } else {
-                    pool.release(live.float(&pool));
-                }
-            });
+            if live.raw.should_flush() {
+                spawn(async move {
+                    // flush the connection (will immediately return if not needed) before
+                    // we fully release to the pool
+                    if let Err(e) = live.raw.flush().await {
+                        log::error!("error occurred while flushing the connection: {}", e);
+
+                        // we now consider the connection to be broken
+                        // close the connection and drop from the pool
+                        let _ = live.float(&pool).into_idle().close().await;
+                    } else {
+                        // after we have flushed successfully, release to the pool
+                        pool.release(live.float(&pool));
+                    }
+                });
+            } else {
+                // nothing to flush, release immediately outside of a spawn
+                pool.release(live.float(&pool));
+            }
         }
     }
 }

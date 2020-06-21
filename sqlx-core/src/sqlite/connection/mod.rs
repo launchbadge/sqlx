@@ -52,9 +52,15 @@ impl Connection for SqliteConnection {
         Box::pin(future::ok(()))
     }
 
+    #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // For SQLite, FLUSH does effectively nothing
         Box::pin(future::ok(()))
+    }
+
+    #[doc(hidden)]
+    fn should_flush(&self) -> bool {
+        false
     }
 
     #[doc(hidden)]

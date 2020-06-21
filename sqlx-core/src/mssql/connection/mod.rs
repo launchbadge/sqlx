@@ -43,6 +43,11 @@ impl Connection for MssqlConnection {
     }
 
     #[doc(hidden)]
+    fn should_flush(&self) -> bool {
+        !self.stream.wbuf.is_empty()
+    }
+
+    #[doc(hidden)]
     fn get_ref(&self) -> &MssqlConnection {
         self
     }

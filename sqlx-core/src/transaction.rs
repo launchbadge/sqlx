@@ -128,6 +128,11 @@ where
     }
 
     #[doc(hidden)]
+    fn should_flush(&self) -> bool {
+        self.get_ref().should_flush()
+    }
+
+    #[doc(hidden)]
     fn get_ref(&self) -> &<Self::Database as Database>::Connection {
         self.connection.get_ref()
     }
