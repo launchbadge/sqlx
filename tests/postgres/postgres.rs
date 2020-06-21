@@ -354,7 +354,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    #[cfg(feature = "runtime-tokio")]
+    #[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
     use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
 
     #[cfg(feature = "runtime-async-std")]
