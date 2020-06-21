@@ -1,8 +1,9 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
-use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgPool, PgSeverity};
-use sqlx::{postgres::Postgres, Connection, Executor, Row};
+use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
+use sqlx::{postgres::Postgres, Connection, Executor, Row, PgPool};
 use sqlx_test::new;
+use std::time::Duration;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -101,12 +102,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool: PgPool = PgPool::builder()
-        .min_size(2)
-        .max_size(2)
-        .test_on_acquire(false)
-        .build(&dotenv::var("DATABASE_URL")?)
-        .await?;
+    let pool = sqlx_test::pool::<Postgres>().await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
 
@@ -144,6 +140,40 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     assert_eq!(tuple.5, Some(40));
     assert_eq!(tuple.6, None);
     assert_eq!(tuple.7, Some(80));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_fail_and_recover() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    for i in 0..10 {
+        // make a query that will fail
+        let res = conn.execute("INSERT INTO not_found (column) VALUES (10)").await;
+        assert!(res.is_err());
+
+        // now try and use the connection
+        let val: i32 = conn.fetch_one(&*format!("SELECT {}::int4", i)).await?.get(0);
+        assert_eq!(val, i);
+    }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
+    let pool = sqlx_test::pool::<Postgres>().await?;
+
+    for i in 0..10 {
+        // make a query that will fail
+        let res = pool.execute("INSERT INTO not_found (column) VALUES (10)").await;
+        assert!(res.is_err());
+
+        // now try and use the connection
+        let val: i32 = pool.fetch_one(&*format!("SELECT {}::int4", i)).await?.get(0);
+        assert_eq!(val, i);
+    }
 
     Ok(())
 }
@@ -310,64 +340,63 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     Ok(())
 }
 
-// // run with `cargo test --features postgres -- --ignored --nocapture pool_smoke_test`
-// #[ignore]
-// #[cfg_attr(feature = "runtime-async-std", async_std::test)]
-// #[cfg_attr(feature = "runtime-tokio", tokio::test)]
-// async fn pool_smoke_test() -> anyhow::Result<()> {
-//     #[cfg(feature = "runtime-tokio")]
-//     use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
-//
-//     #[cfg(feature = "runtime-async-std")]
-//     use async_std::{future::timeout, task::sleep, task::spawn};
-//
-//     eprintln!("starting pool");
-//
-//     let pool = PgPool::builder()
-//         .connect_timeout(Duration::from_secs(5))
-//         .min_size(5)
-//         .max_size(10)
-//         .build(&dotenv::var("DATABASE_URL")?)
-//         .await?;
-//
-//     // spin up more tasks than connections available, and ensure we don't deadlock
-//     for i in 0..20 {
-//         let pool = pool.clone();
-//         spawn(async move {
-//             loop {
-//                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
-//                     eprintln!("pool task {} dying due to {}", i, e);
-//                     break;
-//                 }
-//             }
-//         });
-//     }
-//
-//     for _ in 0..5 {
-//         let pool = pool.clone();
-//         spawn(async move {
-//             while !pool.is_closed() {
-//                 // drop acquire() futures in a hot loop
-//                 // https://github.com/launchbadge/sqlx/issues/83
-//                 drop(pool.acquire());
-//             }
-//         });
-//     }
-//
-//     eprintln!("sleeping for 30 seconds");
-//
-//     sleep(Duration::from_secs(30)).await;
-//
-//     assert_eq!(pool.size(), 10);
-//
-//     eprintln!("closing pool");
-//
-//     timeout(Duration::from_secs(30), pool.close()).await?;
-//
-//     eprintln!("pool closed successfully");
-//
-//     Ok(())
-// }
+// run with `cargo test --features postgres -- --ignored --nocapture pool_smoke_test`
+#[ignore]
+#[sqlx_macros::test]
+async fn pool_smoke_test() -> anyhow::Result<()> {
+    #[cfg(feature = "runtime-tokio")]
+    use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
+
+    #[cfg(feature = "runtime-async-std")]
+    use async_std::{future::timeout, task::sleep, task::spawn};
+
+    eprintln!("starting pool");
+
+    let pool = PgPool::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .min_size(5)
+        .max_size(10)
+        .build(&dotenv::var("DATABASE_URL")?)
+        .await?;
+
+    // spin up more tasks than connections available, and ensure we don't deadlock
+    for i in 0..20 {
+        let pool = pool.clone();
+        spawn(async move {
+            loop {
+                if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
+                    eprintln!("pool task {} dying due to {}", i, e);
+                    break;
+                }
+            }
+        });
+    }
+
+    for _ in 0..5 {
+        let pool = pool.clone();
+        spawn(async move {
+            while !pool.is_closed() {
+                // drop acquire() futures in a hot loop
+                // https://github.com/launchbadge/sqlx/issues/83
+                drop(pool.acquire());
+            }
+        });
+    }
+
+    eprintln!("sleeping for 30 seconds");
+
+    sleep(Duration::from_secs(30)).await;
+
+    assert_eq!(pool.size(), 10);
+
+    eprintln!("closing pool");
+
+    timeout(Duration::from_secs(30), pool.close()).await?;
+
+    eprintln!("pool closed successfully");
+
+    Ok(())
+}
 
 #[sqlx_macros::test]
 async fn test_invalid_query() -> anyhow::Result<()> {

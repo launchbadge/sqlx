@@ -1,4 +1,4 @@
-use sqlx::{database::Database, Connect};
+use sqlx::{database::Database, Connect, Pool};
 use std::env;
 
 fn setup_if_needed() {
@@ -15,6 +15,25 @@ where
     setup_if_needed();
 
     Ok(DB::Connection::connect(&env::var("DATABASE_URL")?).await?)
+}
+
+
+// Make a new pool
+// Ensure [dotenv] and [env_logger] have been setup
+pub async fn pool<DB>() -> anyhow::Result<Pool<DB>>
+    where
+        DB: Database,
+{
+    setup_if_needed();
+
+    let pool = Pool::<DB>::builder()
+        .min_size(0)
+        .max_size(5)
+        .test_on_acquire(true)
+        .build(&env::var("DATABASE_URL")?)
+        .await?;
+
+    Ok(pool)
 }
 
 // Test type encoding and decoding
