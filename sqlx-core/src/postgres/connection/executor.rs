@@ -172,7 +172,11 @@ impl PgConnection {
                 let message = self.stream.recv().await?;
 
                 match message.format {
-                    MessageFormat::BindComplete | MessageFormat::ParseComplete | MessageFormat::ParameterDescription  => {
+                    MessageFormat::BindComplete
+                    | MessageFormat::ParseComplete
+                    | MessageFormat::ParameterDescription
+                    | MessageFormat::NoData => {
+                        // harmless messages to ignore
                     }
 
                     MessageFormat::CommandComplete => {
@@ -214,7 +218,7 @@ impl PgConnection {
 
                     _ => {
                         Err(err_protocol!(
-                            "unexpected message: {:?}",
+                            "execute: unexpected message: {:?}",
                             message.format
                         ))?;
                     }
