@@ -99,7 +99,8 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
         let weight: i16 = if weight_10 <= 0 {
             weight_10 / 4 - 1
         } else {
-            weight_10 / 4
+            // the `-1` is a fix for an off by 1 error (4 digits should still be 0 weight)
+            (weight_10 - 1) / 4
         }
         .try_into()?;
 
@@ -109,11 +110,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
             base_10.len() / 4
         };
 
-        let offset = if weight_10 < 0 {
-            4 - (-weight_10) % 4
-        } else {
-            weight_10 % 4
-        } as usize;
+        let offset = weight_10.rem_euclid(4) as usize;
 
         let mut digits = Vec::with_capacity(digits_len);
 
@@ -173,127 +170,238 @@ impl Decode<'_, Postgres> for BigDecimal {
     }
 }
 
-#[test]
-fn test_bigdecimal_to_pgnumeric() {
-    let one: BigDecimal = "1".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&one).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 0,
-            weight: 0,
-            digits: vec![1]
-        }
-    );
+#[cfg(test)]
+mod bigdecimal_to_pgnumeric {
+    use super::{BigDecimal, PgNumeric, PgNumericSign};
+    use std::convert::TryFrom;
 
-    let ten: BigDecimal = "10".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&ten).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 0,
-            weight: 0,
-            digits: vec![10]
-        }
-    );
+    #[test]
+    fn zero() {
+        let zero: BigDecimal = "0".parse().unwrap();
 
-    let one_hundred: BigDecimal = "100".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&one_hundred).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 0,
-            weight: 0,
-            digits: vec![100]
-        }
-    );
+        assert_eq!(
+            PgNumeric::try_from(&zero).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 0,
+                digits: vec![]
+            }
+        );
+    }
 
-    // BigDecimal doesn't normalize here
-    let ten_thousand: BigDecimal = "10000".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&ten_thousand).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 0,
-            weight: 1,
-            digits: vec![1]
-        }
-    );
+    #[test]
+    fn one() {
+        let one: BigDecimal = "1".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&one).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 0,
+                digits: vec![1]
+            }
+        );
+    }
 
-    let two_digits: BigDecimal = "12345".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&two_digits).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 0,
-            weight: 1,
-            digits: vec![1, 2345]
-        }
-    );
+    #[test]
+    fn ten() {
+        let ten: BigDecimal = "10".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&ten).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 0,
+                digits: vec![10]
+            }
+        );
+    }
 
-    let one_tenth: BigDecimal = "0.1".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&one_tenth).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 1,
-            weight: -1,
-            digits: vec![1000]
-        }
-    );
+    #[test]
+    fn one_hundred() {
+        let one_hundred: BigDecimal = "100".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&one_hundred).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 0,
+                digits: vec![100]
+            }
+        );
+    }
 
-    let decimal: BigDecimal = "1.2345".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 4,
-            weight: 0,
-            digits: vec![1, 2345]
-        }
-    );
+    #[test]
+    fn ten_thousand() {
+        // BigDecimal doesn't normalize here
+        let ten_thousand: BigDecimal = "10000".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&ten_thousand).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 1,
+                digits: vec![1]
+            }
+        );
+    }
 
-    let decimal: BigDecimal = "0.12345".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 5,
-            weight: -1,
-            digits: vec![1234, 5000]
-        }
-    );
+    #[test]
+    fn two_digits() {
+        let two_digits: BigDecimal = "12345".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&two_digits).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 1,
+                digits: vec![1, 2345]
+            }
+        );
+    }
 
-    let decimal: BigDecimal = "0.01234".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 5,
-            weight: -1,
-            digits: vec![0123, 4000]
-        }
-    );
+    #[test]
+    fn one_tenth() {
+        let one_tenth: BigDecimal = "0.1".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&one_tenth).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 1,
+                weight: -1,
+                digits: vec![1000]
+            }
+        );
+    }
 
-    let decimal: BigDecimal = "12345.67890".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&decimal).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 5,
-            weight: 1,
-            digits: vec![1, 2345, 6789]
-        }
-    );
+    #[test]
+    fn decimal_1() {
+        let decimal: BigDecimal = "1.2345".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 4,
+                weight: 0,
+                digits: vec![1, 2345]
+            }
+        );
+    }
 
-    let one_digit_decimal: BigDecimal = "0.00001234".parse().unwrap();
-    assert_eq!(
-        PgNumeric::try_from(&one_digit_decimal).unwrap(),
-        PgNumeric::Number {
-            sign: PgNumericSign::Positive,
-            scale: 8,
-            weight: -2,
-            digits: vec![1234]
-        }
-    );
+    #[test]
+    fn decimal_2() {
+        let decimal: BigDecimal = "0.12345".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 5,
+                weight: -1,
+                digits: vec![1234, 5000]
+            }
+        );
+    }
+
+    #[test]
+    fn decimal_3() {
+        let decimal: BigDecimal = "0.01234".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 5,
+                weight: -1,
+                digits: vec![0123, 4000]
+            }
+        );
+    }
+
+    #[test]
+    fn decimal_4() {
+        let decimal: BigDecimal = "12345.67890".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&decimal).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 5,
+                weight: 1,
+                digits: vec![1, 2345, 6789]
+            }
+        );
+    }
+
+    #[test]
+    fn one_digit_decimal() {
+        let one_digit_decimal: BigDecimal = "0.00001234".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&one_digit_decimal).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 8,
+                weight: -2,
+                digits: vec![1234]
+            }
+        );
+    }
+
+    #[test]
+    fn issue_423_four_digit() {
+        // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
+        let four_digit: BigDecimal = "1234".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&four_digit).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 0,
+                digits: vec![1234]
+            }
+        );
+    }
+
+    #[test]
+    fn issue_423_negative_four_digit() {
+        // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
+        let negative_four_digit: BigDecimal = "-1234".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&negative_four_digit).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Negative,
+                scale: 0,
+                weight: 0,
+                digits: vec![1234]
+            }
+        );
+    }
+
+    #[test]
+    fn issue_423_eight_digit() {
+        // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
+        let eight_digit: BigDecimal = "12345678".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&eight_digit).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 0,
+                weight: 1,
+                digits: vec![1234, 5678]
+            }
+        );
+    }
+
+    #[test]
+    fn issue_423_negative_eight_digit() {
+        // This is a regression test for https://github.com/launchbadge/sqlx/issues/423
+        let negative_eight_digit: BigDecimal = "-12345678".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&negative_eight_digit).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Negative,
+                scale: 0,
+                weight: 1,
+                digits: vec![1234, 5678]
+            }
+        );
+    }
 }
