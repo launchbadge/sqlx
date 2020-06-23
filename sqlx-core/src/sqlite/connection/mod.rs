@@ -4,6 +4,7 @@ use std::sync::Arc;
 use futures_core::future::BoxFuture;
 use futures_util::future;
 use hashbrown::HashMap;
+use libsqlite3_sys::sqlite3;
 
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
@@ -31,6 +32,13 @@ pub struct SqliteConnection {
 
     // working memory for the active row's column information
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+}
+
+impl SqliteConnection {
+    /// Returns the underlying sqlite3* connection handle
+    pub fn as_raw_handle(&self) -> *mut sqlite3 {
+        self.handle.as_ptr()
+    }
 }
 
 impl Debug for SqliteConnection {
