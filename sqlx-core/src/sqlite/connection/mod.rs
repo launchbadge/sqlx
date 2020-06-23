@@ -33,6 +33,13 @@ pub struct SqliteConnection {
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
 }
 
+impl SqliteConnection {
+    /// Returns the underlying sqlite3* connection handle
+    pub fn as_raw_handle(&self) -> handle::ConnectionHandle {
+        self.handle
+    }
+}
+
 impl Debug for SqliteConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SqliteConnection").finish()

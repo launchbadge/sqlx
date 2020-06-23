@@ -7,7 +7,7 @@ use crate::sqlite::SqliteError;
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped.
 #[derive(Debug)]
-pub(crate) struct ConnectionHandle(pub(super) NonNull<sqlite3>);
+pub struct ConnectionHandle(pub NonNull<sqlite3>);
 
 // A SQLite3 handle is safe to send between threads, provided not more than
 // one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
