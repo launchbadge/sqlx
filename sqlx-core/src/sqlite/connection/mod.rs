@@ -36,7 +36,7 @@ pub struct SqliteConnection {
 
 impl SqliteConnection {
     /// Returns the underlying sqlite3* connection handle
-    pub fn as_raw_handle(&self) -> *mut sqlite3 {
+    pub fn as_raw_handle(&mut self) -> *mut sqlite3 {
         self.handle.as_ptr()
     }
 }
