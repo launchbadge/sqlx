@@ -47,4 +47,9 @@ impl StatementCache {
     pub fn remove_lru(&mut self) -> Option<u32> {
         self.inner.remove_lru().map(|(_, v)| v)
     }
+
+    /// Clear all cached statements from the cache.
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
 }

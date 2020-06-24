@@ -115,6 +115,7 @@ pub struct PgConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<PathBuf>,
+    pub(crate) statement_cache_size: usize,
 }
 
 impl Default for PgConnectOptions {
@@ -162,6 +163,7 @@ impl PgConnectOptions {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_default(),
+            statement_cache_size: 100,
         }
     }
 
@@ -285,6 +287,17 @@ impl PgConnectOptions {
         self.ssl_root_cert = Some(cert.as_ref().to_path_buf());
         self
     }
+
+    /// Sets the size of the connection's statement cache in a number of stored
+    /// distinct statements. Caching is handled using LRU, meaning when the
+    /// amount of queries hits the defined limit, the oldest statement will get
+    /// dropped.
+    ///
+    /// The default cache size is 100 statements.
+    pub fn statement_cache_size(mut self, size: usize) -> Self {
+        self.statement_cache_size = size;
+        self
+    }
 }
 
 fn default_host(port: u16) -> String {
@@ -343,6 +356,10 @@ impl FromStr for PgConnectOptions {
 
                 "sslrootcert" => {
                     options = options.ssl_root_cert(&*value);
+                }
+
+                "statement-cache-size" => {
+                    options = options.statement_cache_size(value.parse()?);
                 }
 
                 _ => {}

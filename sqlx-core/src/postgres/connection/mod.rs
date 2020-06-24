@@ -5,6 +5,8 @@ use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
 use hashbrown::HashMap;
 
+use crate::caching_connection::CachingConnection;
+use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
@@ -46,7 +48,7 @@ pub struct PgConnection {
     next_statement_id: u32,
 
     // cache statement by query string to the id and columns
-    cache_statement: HashMap<String, u32>,
+    cache_statement: StatementCache,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<u32, PgTypeInfo>,
@@ -93,6 +95,19 @@ impl PgConnection {
 impl Debug for PgConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("PgConnection").finish()
+    }
+}
+
+impl CachingConnection for PgConnection {
+    fn cached_statements_count(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            self.cache_statement.clear();
+            Ok(())
+        })
     }
 }
 

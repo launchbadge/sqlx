@@ -88,15 +88,16 @@ async fn recv_desc_rows(conn: &mut PgConnection) -> Result<Option<RowDescription
 
     Ok(rows)
 }
+
 impl PgConnection {
     async fn prepare(&mut self, query: &str, arguments: &PgArguments) -> Result<u32, Error> {
-        if let Some(statement) = self.cache_statement.get(query) {
+        if let Some(statement) = self.cache_statement.get_mut(query) {
             return Ok(*statement);
         }
 
         let statement = prepare(self, query, arguments).await?;
 
-        self.cache_statement.insert(query.to_owned(), statement);
+        self.cache_statement.insert(query, statement);
 
         Ok(statement)
     }
