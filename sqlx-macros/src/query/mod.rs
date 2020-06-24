@@ -1,7 +1,6 @@
-use std::borrow::Cow;
 use std::env;
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use syn::Type;
 use url::Url;
 
@@ -196,11 +195,9 @@ where
 
     if let Some(num) = num_parameters {
         if num != input.arg_exprs.len() {
-            return Err(syn::Error::new(
-                Span::call_site(),
-                format!("expected {} parameters, got {}", num, input.arg_exprs.len()),
-            )
-            .into());
+            return Err(
+                format!("expected {} parameters, got {}", num, input.arg_exprs.len()).into(),
+            );
         }
     }
 
@@ -216,10 +213,10 @@ where
             sqlx::query_with::<#db_path, _>(#sql, #query_args)
         }
     } else {
-        let columns = output::columns_to_rust::<DB>(&data.describe)?;
-
-        let (out_ty, mut record_tokens) = match input.record_type {
+        match input.record_type {
             RecordType::Generated => {
+                let columns = output::columns_to_rust::<DB>(&data.describe)?;
+
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
                 for rust_col in &columns {
@@ -238,26 +235,31 @@ where
                      }| quote!(#ident: #type_,),
                 );
 
-                let record_tokens = quote! {
+                let mut record_tokens = quote! {
                     #[derive(Debug)]
                     struct #record_name {
                         #(#record_fields)*
                     }
                 };
 
-                (Cow::Owned(record_name), record_tokens)
+                record_tokens.extend(output::quote_query_as::<DB>(
+                    &input,
+                    &record_name,
+                    &query_args,
+                    &columns,
+                ));
+
+                record_tokens
             }
-            RecordType::Given(ref out_ty) => (Cow::Borrowed(out_ty), quote!()),
-        };
+            RecordType::Given(ref out_ty) => {
+                let columns = output::columns_to_rust::<DB>(&data.describe)?;
 
-        record_tokens.extend(output::quote_query_as::<DB>(
-            &input,
-            &out_ty,
-            &query_args,
-            &columns,
-        ));
-
-        record_tokens
+                output::quote_query_as::<DB>(&input, out_ty, &query_args, &columns)
+            }
+            RecordType::Scalar => {
+                output::quote_query_scalar::<DB>(&input, &query_args, &data.describe)?
+            }
+        }
     };
 
     let ret_tokens = quote! {{

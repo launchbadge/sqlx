@@ -59,6 +59,72 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_query_scalar() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let id = sqlx::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    // MySQL tells us `LONG LONG` while MariaDB just `LONG`
+    assert_eq!(id, 1);
+
+    // invalid column names are ignored
+    let id = sqlx::query_scalar!(r#"select 1 as `&foo`"#)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(id, 1);
+
+    let id = sqlx::query_scalar!(r#"select 1 as `foo!`"#)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(id, 1);
+
+    let id = sqlx::query_scalar!(r#"select 1 as `foo?`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, Some(1));
+
+    let id = sqlx::query_scalar!(r#"select 1 as `foo: MyInt`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt(1));
+
+    let id = sqlx::query_scalar!(r#"select 1 as `foo?: MyInt`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, Some(MyInt(1)));
+
+    let id = sqlx::query_scalar!(r#"select 1 as `foo!: MyInt`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt(1));
+
+    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo: _`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt(1));
+
+    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo?: _`"#)
+        .fetch_one(&mut conn)
+        .await?
+        // don't hint that it should be `Option<MyInt>`
+        .unwrap();
+
+    assert_eq!(id, MyInt(1));
+
+    let id: MyInt = sqlx::query_scalar!(r#"select 1 as `foo!: _`"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_query_as_bool() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 

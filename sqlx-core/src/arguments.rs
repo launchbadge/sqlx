@@ -39,5 +39,14 @@ macro_rules! impl_into_arguments_for_arguments {
     };
 }
 
+/// used by the query macros to prevent supernumerary `.bind()` calls
+pub struct ImmutableArguments<'q, DB: HasArguments<'q>>(pub <DB as HasArguments<'q>>::Arguments);
+
+impl<'q, DB: HasArguments<'q>> IntoArguments<'q, DB> for ImmutableArguments<'q, DB> {
+    fn into_arguments(self) -> <DB as HasArguments<'q>>::Arguments {
+        self.0
+    }
+}
+
 // TODO: Impl `IntoArguments` for &[&dyn Encode]
 // TODO: Impl `IntoArguments` for (impl Encode, ...) x16

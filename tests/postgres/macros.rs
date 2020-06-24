@@ -177,6 +177,74 @@ async fn test_query_file_as() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_query_scalar() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let id = sqlx::query_scalar!("select 1").fetch_one(&mut conn).await?;
+    // nullability inference can't handle expressions
+    assert_eq!(id, Some(1i32));
+
+    // invalid column names are ignored
+    let id = sqlx::query_scalar!(r#"select 1 as "&foo""#)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(id, Some(1i32));
+
+    let id = sqlx::query_scalar!(r#"select 1 as "foo!""#)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(id, 1i32);
+
+    let id = sqlx::query_scalar!(r#"select 1 as "foo?""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, Some(1i32));
+
+    let id = sqlx::query_scalar!(r#"select 1 as "foo: MyInt4""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, Some(MyInt4(1i32)));
+
+    let id = sqlx::query_scalar!(r#"select 1 as "foo?: MyInt4""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, Some(MyInt4(1i32)));
+
+    let id = sqlx::query_scalar!(r#"select 1 as "foo!: MyInt4""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt4(1i32));
+
+    let id: MyInt4 = sqlx::query_scalar!(r#"select 1 as "foo: _""#)
+        .fetch_one(&mut conn)
+        .await?
+        // don't hint that it should be `Option<MyInt4>`
+        .unwrap();
+
+    assert_eq!(id, MyInt4(1i32));
+
+    let id: MyInt4 = sqlx::query_scalar!(r#"select 1 as "foo?: _""#)
+        .fetch_one(&mut conn)
+        .await?
+        // don't hint that it should be `Option<MyInt4>`
+        .unwrap();
+
+    assert_eq!(id, MyInt4(1i32));
+
+    let id: MyInt4 = sqlx::query_scalar!(r#"select 1 as "foo!: _""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(id, MyInt4(1i32));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn query_by_string() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 

@@ -593,6 +593,77 @@ macro_rules! query_file_as_unchecked (
     })
 );
 
+/// A variant of [query!] which expects a single column from the query and evaluates to an
+/// instance of [QueryScalar][crate::query::QueryScalar].
+///
+/// The name of the column is not required to be a valid Rust identifier, however you can still
+/// use the column type override syntax in which case the column name _does_ have to be a valid
+/// Rust identifier for the override to parse properly. If the override parse fails the error
+/// is silently ignored (we just don't have a reliable way to tell the difference). **If you're
+/// getting a different type than expected, please check to see if your override syntax is correct
+/// before opening an issue.**
+///
+/// Wildcard overrides like in [query_as!] are also allowed, in which case the output type
+/// is left up to inference.
+///
+/// See [query!] for more information.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_scalar (
+    ($query:expr) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source = $query)
+    );
+    ($query:expr, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source = $query, args = [$($args)*])
+    )
+);
+
+/// A variant of [query_scalar!] which takes a file path like [query_file!].
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_file_scalar (
+    ($path:literal) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path)
+    );
+    ($path:literal, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, args = [$($args)*])
+    )
+);
+
+/// A variant of [query_scalar!] which does not typecheck bind parameters and leaves the output type
+/// to inference. The query itself is still checked that it is syntactically and semantically
+/// valid for the database, that it only produces one column and that the number of bind parameters
+/// is correct.
+///
+/// For this macro variant the name of the column is irrelevant.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_scalar_unchecked (
+    ($query:expr) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source = $query, checked = false)
+    );
+    ($query:expr, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source = $query, args = [$($args)*], checked = false)
+    )
+);
+
+/// A variant of [query_file_scalar!] which does not typecheck bind parameters and leaves the output
+/// type to inference. The query itself is still checked that it is syntactically and
+/// semantically valid for the database, that it only produces one column and that the number of
+/// bind parameters is correct.
+///
+/// For this macro variant the name of the column is irrelevant.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! query_file_scalar_unchecked (
+    ($path:literal) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, checked = false)
+    );
+    ($path:literal, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, args = [$($args)*], checked = false)
+    )
+);
+
 /// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
 ///
 /// ```rust,ignore
