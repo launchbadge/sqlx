@@ -1,8 +1,8 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::mysql::protocol::text::ColumnType;
+use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
 
 impl Type<MySql> for bool {

@@ -11,7 +11,7 @@ impl Type<MySql> for str {
         MySqlTypeInfo {
             r#type: ColumnType::VarString, // VARCHAR
             max_size: None,
-            char_set: 224,                 // utf8mb4_unicode_ci
+            char_set: 224, // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
         }
     }
