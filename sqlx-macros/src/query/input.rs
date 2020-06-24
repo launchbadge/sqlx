@@ -27,6 +27,7 @@ enum QuerySrc {
 
 pub enum RecordType {
     Given(Type),
+    Scalar,
     Generated,
 }
 
@@ -62,7 +63,21 @@ impl Parse for QueryMacroInput {
                 let exprs = input.parse::<ExprArray>()?;
                 args = Some(exprs.elems.into_iter().collect())
             } else if key == "record" {
+                if !matches!(record_type, RecordType::Generated) {
+                    return Err(input.error("colliding `scalar` or `record` key"));
+                }
+
                 record_type = RecordType::Given(input.parse()?);
+            } else if key == "scalar" {
+                if !matches!(record_type, RecordType::Generated) {
+                    return Err(input.error("colliding `scalar` or `record` key"));
+                }
+
+                // we currently expect only `scalar = _`
+                // a `query_as_scalar!()` variant seems less useful than just overriding the type
+                // of the column in SQL
+                input.parse::<syn::Token![_]>()?;
+                record_type = RecordType::Scalar;
             } else if key == "checked" {
                 let lit_bool = input.parse::<LitBool>()?;
                 checked = lit_bool.value;
