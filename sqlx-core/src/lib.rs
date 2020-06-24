@@ -29,6 +29,7 @@ pub mod arguments;
 #[macro_use]
 pub mod pool;
 
+pub mod caching_connection;
 pub mod connection;
 
 #[macro_use]
@@ -37,6 +38,7 @@ pub mod transaction;
 #[macro_use]
 pub mod encode;
 
+mod common;
 pub mod database;
 pub mod decode;
 pub mod describe;

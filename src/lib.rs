@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
+pub use sqlx_core::caching_connection::CachingConnection;
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{Execute, Executor};

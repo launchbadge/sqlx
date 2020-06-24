@@ -15,7 +15,7 @@ use crate::mysql::connection::stream::Busy;
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::Status;
 use crate::mysql::protocol::statement::{
-    BinaryRow, Execute as StatementExecute, Prepare, PrepareOk,
+    BinaryRow, Execute as StatementExecute, Prepare, PrepareOk, StmtClose,
 };
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::protocol::Packet;
@@ -26,8 +26,8 @@ use crate::mysql::{
 
 impl MySqlConnection {
     async fn prepare(&mut self, query: &str) -> Result<u32, Error> {
-        if let Some(&statement) = self.cache_statement.get(query) {
-            return Ok(statement);
+        if let Some(statement) = self.cache_statement.get_mut(query) {
+            return Ok(*statement);
         }
 
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare.html
@@ -60,8 +60,10 @@ impl MySqlConnection {
             self.stream.maybe_recv_eof().await?;
         }
 
-        self.cache_statement
-            .insert(query.to_owned(), ok.statement_id);
+        // in case of the cache being full, close the least recently used statement
+        if let Some(statement) = self.cache_statement.insert(query, ok.statement_id) {
+            self.stream.send_packet(StmtClose { statement }).await?;
+        }
 
         Ok(ok.statement_id)
     }

@@ -101,6 +101,7 @@ pub struct MySqlConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: MySqlSslMode,
     pub(crate) ssl_ca: Option<PathBuf>,
+    pub(crate) statement_cache_size: usize,
 }
 
 impl Default for MySqlConnectOptions {
@@ -120,6 +121,7 @@ impl MySqlConnectOptions {
             database: None,
             ssl_mode: MySqlSslMode::Preferred,
             ssl_ca: None,
+            statement_cache_size: 100,
         }
     }
 
@@ -190,6 +192,17 @@ impl MySqlConnectOptions {
         self.ssl_ca = Some(file_name.as_ref().to_owned());
         self
     }
+
+    /// Sets the size of the connection's statement cache in a number of stored
+    /// distinct statements. Caching is handled using LRU, meaning when the
+    /// amount of queries hits the defined limit, the oldest statement will get
+    /// dropped.
+    ///
+    /// The default cache size is 100 statements.
+    pub fn statement_cache_size(mut self, size: usize) -> Self {
+        self.statement_cache_size = size;
+        self
+    }
 }
 
 impl FromStr for MySqlConnectOptions {
@@ -229,6 +242,10 @@ impl FromStr for MySqlConnectOptions {
 
                 "ssl-ca" => {
                     options = options.ssl_ca(&*value);
+                }
+
+                "statement-cache-size" => {
+                    options = options.statement_cache_size(value.parse()?);
                 }
 
                 _ => {}

@@ -6,10 +6,13 @@ use futures_core::future::BoxFuture;
 use futures_util::FutureExt;
 use hashbrown::HashMap;
 
+use crate::caching_connection::CachingConnection;
+use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
+use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
 use crate::mysql::row::MySqlColumn;
 use crate::mysql::{MySql, MySqlConnectOptions};
@@ -34,13 +37,29 @@ pub struct MySqlConnection {
     pub(crate) stream: MySqlStream,
 
     // cache by query string to the statement id
-    cache_statement: HashMap<String, u32>,
+    cache_statement: StatementCache,
 
     // working memory for the active row's column information
     // this allows us to re-use these allocations unless the user is persisting the
     // Row type past a stream iteration (clone-on-write)
     scratch_row_columns: Arc<Vec<MySqlColumn>>,
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+}
+
+impl CachingConnection for MySqlConnection {
+    fn cached_statements_count(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            while let Some(statement) = self.cache_statement.remove_lru() {
+                self.stream.send_packet(StmtClose { statement }).await?;
+            }
+
+            Ok(())
+        })
+    }
 }
 
 impl Debug for MySqlConnection {
