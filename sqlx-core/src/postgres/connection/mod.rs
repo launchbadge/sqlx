@@ -48,7 +48,7 @@ pub struct PgConnection {
     next_statement_id: u32,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache,
+    cache_statement: StatementCache<u32>,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<u32, PgTypeInfo>,

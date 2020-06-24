@@ -37,7 +37,7 @@ pub struct MySqlConnection {
     pub(crate) stream: MySqlStream,
 
     // cache by query string to the statement id
-    cache_statement: StatementCache,
+    cache_statement: StatementCache<u32>,
 
     // working memory for the active row's column information
     // this allows us to re-use these allocations unless the user is persisting the

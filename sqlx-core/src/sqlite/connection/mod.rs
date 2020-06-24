@@ -6,6 +6,8 @@ use futures_util::future;
 use hashbrown::HashMap;
 use libsqlite3_sys::sqlite3;
 
+use crate::caching_connection::CachingConnection;
+use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::ext::ustr::UStr;
@@ -25,7 +27,7 @@ pub struct SqliteConnection {
     pub(crate) worker: StatementWorker,
 
     // cache of semi-persistent statements
-    pub(crate) statements: HashMap<String, SqliteStatement>,
+    pub(crate) statements: StatementCache<SqliteStatement>,
 
     // most recent non-persistent statement
     pub(crate) statement: Option<SqliteStatement>,
@@ -44,6 +46,19 @@ impl SqliteConnection {
 impl Debug for SqliteConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SqliteConnection").finish()
+    }
+}
+
+impl CachingConnection for SqliteConnection {
+    fn cached_statements_count(&self) -> usize {
+        self.statements.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            self.statements.clear();
+            Ok(())
+        })
     }
 }
 

@@ -6,6 +6,7 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 use hashbrown::HashMap;
 
+use crate::common::StatementCache;
 use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -16,7 +17,7 @@ use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
 
 fn prepare<'a>(
     conn: &mut ConnectionHandle,
-    statements: &'a mut HashMap<String, SqliteStatement>,
+    statements: &'a mut StatementCache<SqliteStatement>,
     statement: &'a mut Option<SqliteStatement>,
     query: &str,
     persistent: bool,
@@ -28,7 +29,10 @@ fn prepare<'a>(
 
     if !statements.contains_key(query) {
         let statement = SqliteStatement::prepare(conn, query, false)?;
-        statements.insert(query.to_owned(), statement);
+
+        if let Some(mut statement) = statements.insert(query, statement) {
+            statement.reset();
+        }
     }
 
     let statement = statements.get_mut(query).unwrap();
