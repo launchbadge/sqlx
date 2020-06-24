@@ -72,6 +72,9 @@ mod uint;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
+#[cfg(feature = "bit-vec")]
+mod bit_vec;
+
 #[cfg(feature = "chrono")]
 mod chrono;
 

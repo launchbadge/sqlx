@@ -8,6 +8,7 @@ use crate::type_info::TypeInfo;
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct MySqlTypeInfo {
     pub(crate) r#type: ColumnType,
+    pub(crate) max_size: Option<u32>,
     pub(crate) flags: ColumnFlags,
     pub(crate) char_set: u16,
 }
@@ -16,6 +17,7 @@ impl MySqlTypeInfo {
     pub(crate) const fn binary(ty: ColumnType) -> Self {
         Self {
             r#type: ty,
+            max_size: None,
             flags: ColumnFlags::BINARY,
             char_set: 63,
         }
@@ -25,6 +27,7 @@ impl MySqlTypeInfo {
     pub const fn __enum() -> Self {
         Self {
             r#type: ColumnType::Enum,
+            max_size: None,
             flags: ColumnFlags::BINARY,
             char_set: 63,
         }
@@ -51,6 +54,7 @@ impl MySqlTypeInfo {
             Some(Self {
                 r#type: column.r#type,
                 flags: column.flags,
+                max_size: Some(column.max_size),
                 char_set: column.char_set,
             })
         }

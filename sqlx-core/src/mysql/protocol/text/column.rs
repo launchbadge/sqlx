@@ -108,7 +108,7 @@ pub(crate) struct ColumnDefinition {
     alias: Bytes,
     name: Bytes,
     pub(crate) char_set: u16,
-    max_size: u32,
+    pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
     decimals: u8,

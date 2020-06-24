@@ -2,6 +2,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
+use crate::mysql::protocol::text::ColumnType;
 use crate::types::Type;
 
 impl Type<MySql> for bool {
@@ -11,7 +12,8 @@ impl Type<MySql> for bool {
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <i8 as Type<MySql>>::compatible(ty)
+        let is_one_bit = ty.r#type == ColumnType::Bit && ty.max_size == Some(1);
+        <i8 as Type<MySql>>::compatible(ty) || is_one_bit
     }
 }
 

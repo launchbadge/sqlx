@@ -12,6 +12,7 @@ use crate::types::Type;
 fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
     MySqlTypeInfo {
         r#type: ty,
+        max_size: None,
         flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
         char_set: 63,
     }
