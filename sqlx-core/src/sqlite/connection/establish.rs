@@ -1,7 +1,6 @@
 use std::io;
 use std::ptr::{null, null_mut};
 
-use hashbrown::HashMap;
 use libsqlite3_sys::{
     sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE,
@@ -12,7 +11,10 @@ use sqlx_rt::blocking;
 use crate::error::Error;
 use crate::sqlite::connection::handle::ConnectionHandle;
 use crate::sqlite::statement::StatementWorker;
-use crate::sqlite::{SqliteConnectOptions, SqliteConnection, SqliteError};
+use crate::{
+    common::StatementCache,
+    sqlite::{SqliteConnectOptions, SqliteConnection, SqliteError},
+};
 
 pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteConnection, Error> {
     let mut filename = options
@@ -87,7 +89,7 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
     Ok(SqliteConnection {
         handle,
         worker: StatementWorker::new(),
-        statements: HashMap::new(),
+        statements: StatementCache::new(options.statement_cache_capacity),
         statement: None,
         scratch_row_column_names: Default::default(),
     })

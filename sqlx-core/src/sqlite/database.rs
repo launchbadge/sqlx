@@ -1,4 +1,4 @@
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::sqlite::{
     SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteRow, SqliteTransactionManager,
     SqliteTypeInfo, SqliteValue, SqliteValueRef,
@@ -33,3 +33,5 @@ impl<'q> HasArguments<'q> for Sqlite {
 
     type ArgumentBuffer = Vec<SqliteArgumentValue<'q>>;
 }
+
+impl HasStatementCache for Sqlite {}

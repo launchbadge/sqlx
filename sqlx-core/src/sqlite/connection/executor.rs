@@ -6,6 +6,7 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 use hashbrown::HashMap;
 
+use crate::common::StatementCache;
 use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -16,26 +17,30 @@ use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
 
 fn prepare<'a>(
     conn: &mut ConnectionHandle,
-    statements: &'a mut HashMap<String, SqliteStatement>,
+    statements: &'a mut StatementCache<SqliteStatement>,
     statement: &'a mut Option<SqliteStatement>,
     query: &str,
     persistent: bool,
 ) -> Result<&'a mut SqliteStatement, Error> {
-    if !persistent {
+    if !persistent || statements.capacity() == 0 {
         *statement = Some(SqliteStatement::prepare(conn, query, false)?);
         return Ok(statement.as_mut().unwrap());
     }
 
-    if !statements.contains_key(query) {
-        let statement = SqliteStatement::prepare(conn, query, false)?;
-        statements.insert(query.to_owned(), statement);
+    let exists = statements.contains_key(query);
+
+    if !exists {
+        let statement = SqliteStatement::prepare(conn, query, true)?;
+        statements.insert(query, statement);
     }
 
     let statement = statements.get_mut(query).unwrap();
 
-    // as this statement has been executed before, we reset before continuing
-    // this also causes any rows that are from the statement to be inflated
-    statement.reset();
+    if exists {
+        // as this statement has been executed before, we reset before continuing
+        // this also causes any rows that are from the statement to be inflated
+        statement.reset();
+    }
 
     Ok(statement)
 }
