@@ -43,9 +43,10 @@ impl SqliteConnection {
         self.handle.as_ptr()
     }
 
-    pub fn create_collation(&mut self,
+    pub fn create_collation(
+        &mut self,
         name: &str,
-        collation: impl Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static
+        collation: impl Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static,
     ) -> &mut SqliteConnection {
         collation::create_collation(&self.handle, name, collation);
         self

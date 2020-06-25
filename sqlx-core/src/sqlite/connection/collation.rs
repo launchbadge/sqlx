@@ -17,9 +17,10 @@ unsafe extern "C" fn free_boxed_value<T>(p: *mut c_void) {
 pub(crate) fn create_collation<F>(
     handle: &ConnectionHandle,
     name: &str,
-    collation: F
+    collation: F,
 ) -> Result<(), Error>
-    where F: Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static
+where
+    F: Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static,
 {
     unsafe extern "C" fn call_boxed_closure<C>(
         arg1: *mut c_void,
@@ -59,7 +60,8 @@ pub(crate) fn create_collation<F>(
     }
 
     let boxed_f: *mut F = Box::into_raw(Box::new(collation));
-    let c_name = CString::new(name).map_err(|_| err_protocol!("Invalid collation name: {}", name))?;
+    let c_name =
+        CString::new(name).map_err(|_| err_protocol!("Invalid collation name: {}", name))?;
     let flags = SQLITE_UTF8;
     let r = unsafe {
         sqlite3_create_collation_v2(
@@ -76,5 +78,5 @@ pub(crate) fn create_collation<F>(
         Ok(())
     } else {
         Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))))
-    } 
+    }
 }
