@@ -58,4 +58,9 @@ impl<T> StatementCache<T> {
     pub fn contains_key(&mut self, k: &str) -> bool {
         self.inner.contains_key(k)
     }
+
+    /// Returns the maximum number of statements the cache can hold.
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
+    }
 }
