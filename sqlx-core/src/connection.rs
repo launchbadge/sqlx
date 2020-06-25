@@ -3,7 +3,7 @@ use std::str::FromStr;
 use futures_core::future::BoxFuture;
 use futures_core::Future;
 
-use crate::database::Database;
+use crate::database::{Database, HasStatementCache};
 use crate::error::{BoxDynError, Error};
 use crate::transaction::Transaction;
 
@@ -62,6 +62,23 @@ pub trait Connection: Send {
                 }
             }
         })
+    }
+
+    /// The number of statements currently cached in the connection.
+    fn cached_statements_size(&self) -> usize
+    where
+        Self::Database: HasStatementCache,
+    {
+        0
+    }
+
+    /// Removes all statements from the cache, closing them on the server if
+    /// needed.
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>>
+    where
+        Self::Database: HasStatementCache,
+    {
+        Box::pin(async move { Ok(()) })
     }
 
     #[doc(hidden)]

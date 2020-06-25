@@ -68,6 +68,14 @@ impl FromStr for MySqlSslMode {
 /// mysql://[host][/database][?properties]
 /// ```
 ///
+/// ## Properties
+///
+/// |Parameter|Default|Description|
+/// |---------|-------|-----------|
+/// | `ssl-mode` | `PREFERRED` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`MySqlSslMode`]. |
+/// | `ssl-ca` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
+/// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
+///
 /// # Example
 ///
 /// ```rust,no_run
@@ -92,6 +100,8 @@ impl FromStr for MySqlSslMode {
 /// # })
 /// # }
 /// ```
+///
+/// [`MySqlSslMode`]: enum.MySqlSslMode.html
 #[derive(Debug, Clone)]
 pub struct MySqlConnectOptions {
     pub(crate) host: String,
@@ -101,6 +111,7 @@ pub struct MySqlConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: MySqlSslMode,
     pub(crate) ssl_ca: Option<PathBuf>,
+    pub(crate) statement_cache_capacity: usize,
 }
 
 impl Default for MySqlConnectOptions {
@@ -120,6 +131,7 @@ impl MySqlConnectOptions {
             database: None,
             ssl_mode: MySqlSslMode::Preferred,
             ssl_ca: None,
+            statement_cache_capacity: 100,
         }
     }
 
@@ -190,6 +202,17 @@ impl MySqlConnectOptions {
         self.ssl_ca = Some(file_name.as_ref().to_owned());
         self
     }
+
+    /// Sets the capacity of the connection's statement cache in a number of stored
+    /// distinct statements. Caching is handled using LRU, meaning when the
+    /// amount of queries hits the defined limit, the oldest statement will get
+    /// dropped.
+    ///
+    /// The default cache capacity is 100 statements.
+    pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
+        self.statement_cache_capacity = capacity;
+        self
+    }
 }
 
 impl FromStr for MySqlConnectOptions {
@@ -229,6 +252,10 @@ impl FromStr for MySqlConnectOptions {
 
                 "ssl-ca" => {
                     options = options.ssl_ca(&*value);
+                }
+
+                "statement-cache-capacity" => {
+                    options = options.statement_cache_capacity(value.parse()?);
                 }
 
                 _ => {}

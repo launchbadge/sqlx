@@ -37,6 +37,7 @@ pub mod transaction;
 #[macro_use]
 pub mod encode;
 
+mod common;
 pub mod database;
 pub mod decode;
 pub mod describe;

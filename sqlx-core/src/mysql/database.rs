@@ -1,4 +1,4 @@
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::mysql::value::{MySqlValue, MySqlValueRef};
 use crate::mysql::{
     MySqlArguments, MySqlConnection, MySqlRow, MySqlTransactionManager, MySqlTypeInfo,
@@ -33,3 +33,5 @@ impl HasArguments<'_> for MySql {
 
     type ArgumentBuffer = Vec<u8>;
 }
+
+impl HasStatementCache for MySql {}

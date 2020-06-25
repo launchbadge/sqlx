@@ -1,6 +1,6 @@
 use bytes::Bytes;
-use hashbrown::HashMap;
 
+use crate::common::StatementCache;
 use crate::error::Error;
 use crate::mysql::connection::{tls, MySqlStream, COLLATE_UTF8MB4_UNICODE_CI, MAX_PACKET_SIZE};
 use crate::mysql::protocol::connect::{
@@ -98,7 +98,7 @@ impl MySqlConnection {
 
         Ok(Self {
             stream,
-            cache_statement: HashMap::new(),
+            cache_statement: StatementCache::new(options.statement_cache_capacity),
             scratch_row_columns: Default::default(),
             scratch_row_column_names: Default::default(),
         })

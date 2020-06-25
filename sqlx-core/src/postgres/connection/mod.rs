@@ -5,6 +5,7 @@ use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
 use hashbrown::HashMap;
 
+use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
@@ -12,7 +13,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::row::PgColumn;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
@@ -46,7 +47,7 @@ pub struct PgConnection {
     next_statement_id: u32,
 
     // cache statement by query string to the id and columns
-    cache_statement: HashMap<String, u32>,
+    cache_statement: StatementCache<u32>,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<u32, PgTypeInfo>,
@@ -117,6 +118,28 @@ impl Connection for PgConnection {
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+    }
+
+    fn cached_statements_size(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            let mut needs_flush = false;
+
+            while let Some(statement) = self.cache_statement.remove_lru() {
+                self.stream.write(Close::Statement(statement));
+                needs_flush = true;
+            }
+
+            if needs_flush {
+                self.stream.write(Flush);
+                self.stream.flush().await?;
+            }
+
+            Ok(())
+        })
     }
 
     #[doc(hidden)]

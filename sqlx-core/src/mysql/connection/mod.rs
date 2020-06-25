@@ -6,10 +6,12 @@ use futures_core::future::BoxFuture;
 use futures_util::FutureExt;
 use hashbrown::HashMap;
 
+use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
+use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
 use crate::mysql::row::MySqlColumn;
 use crate::mysql::{MySql, MySqlConnectOptions};
@@ -34,7 +36,7 @@ pub struct MySqlConnection {
     pub(crate) stream: MySqlStream,
 
     // cache by query string to the statement id
-    cache_statement: HashMap<String, u32>,
+    cache_statement: StatementCache<u32>,
 
     // working memory for the active row's column information
     // this allows us to re-use these allocations unless the user is persisting the
@@ -73,6 +75,20 @@ impl Connection for MySqlConnection {
 
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.stream.wait_until_ready().boxed()
+    }
+
+    fn cached_statements_size(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            while let Some(statement) = self.cache_statement.remove_lru() {
+                self.stream.send_packet(StmtClose { statement }).await?;
+            }
+
+            Ok(())
+        })
     }
 
     #[doc(hidden)]
