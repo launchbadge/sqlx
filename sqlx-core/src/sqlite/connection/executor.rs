@@ -22,21 +22,25 @@ fn prepare<'a>(
     query: &str,
     persistent: bool,
 ) -> Result<&'a mut SqliteStatement, Error> {
-    if !persistent {
+    if !persistent || statements.capacity() == 0 {
         *statement = Some(SqliteStatement::prepare(conn, query, false)?);
         return Ok(statement.as_mut().unwrap());
     }
 
-    if !statements.contains_key(query) {
-        let statement = SqliteStatement::prepare(conn, query, false)?;
+    let exists = !statements.contains_key(query);
+
+    if !exists {
+        let statement = SqliteStatement::prepare(conn, query, true)?;
         statements.insert(query, statement);
     }
 
     let statement = statements.get_mut(query).unwrap();
 
-    // as this statement has been executed before, we reset before continuing
-    // this also causes any rows that are from the statement to be inflated
-    statement.reset();
+    if exists {
+        // as this statement has been executed before, we reset before continuing
+        // this also causes any rows that are from the statement to be inflated
+        statement.reset();
+    }
 
     Ok(statement)
 }
