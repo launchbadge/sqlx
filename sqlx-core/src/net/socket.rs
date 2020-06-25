@@ -2,6 +2,7 @@
 
 use std::io;
 use std::net::Shutdown;
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -26,12 +27,25 @@ impl Socket {
         if host.starts_with('/') {
             // if the host starts with a forward slash, assume that this is a request
             // to connect to a local socket
-            sqlx_rt::UnixStream::connect(format!("{}/.s.PGSQL.{}", host, port))
-                .await
-                .map(Socket::Unix)
+            Self::connect_uds(&format!("{}/.s.PGSQL.{}", host, port)).await
         } else {
             TcpStream::connect((host, port)).await.map(Socket::Tcp)
         }
+    }
+
+    #[cfg(unix)]
+    pub async fn connect_uds(path: impl AsRef<Path>) -> io::Result<Self> {
+        sqlx_rt::UnixStream::connect(path.as_ref())
+            .await
+            .map(Socket::Unix)
+    }
+
+    #[cfg(not(unix))]
+    pub async fn connect_uds(_: impl AsRef<Path>) -> io::Result<Self> {
+        Err(io::Error(
+            io::ErrorKind::Other,
+            "Unix domain sockets are not supported outside Unix platforms.",
+        ))
     }
 
     pub fn shutdown(&self) -> io::Result<()> {

@@ -75,6 +75,7 @@ impl FromStr for MySqlSslMode {
 /// | `ssl-mode` | `PREFERRED` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`MySqlSslMode`]. |
 /// | `ssl-ca` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
 /// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
+/// | `socket` | `None` | Path to the unix domain socket, which will be used instead of TCP if set. |
 ///
 /// # Example
 ///
@@ -106,6 +107,7 @@ impl FromStr for MySqlSslMode {
 pub struct MySqlConnectOptions {
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
@@ -126,6 +128,7 @@ impl MySqlConnectOptions {
         Self {
             port: 3306,
             host: String::from("localhost"),
+            socket: None,
             username: String::from("root"),
             password: None,
             database: None,
@@ -149,6 +152,15 @@ impl MySqlConnectOptions {
     /// The default port for MySQL is `3306`.
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
+        self
+    }
+
+    /// Pass a path to a Unix socket. This changes the connection stream from
+    /// TCP to UDS.
+    ///
+    /// By default set to `None`.
+    pub fn socket(mut self, path: impl AsRef<Path>) -> Self {
+        self.socket = Some(path.as_ref().to_path_buf());
         self
     }
 
@@ -256,6 +268,10 @@ impl FromStr for MySqlConnectOptions {
 
                 "statement-cache-capacity" => {
                     options = options.statement_cache_capacity(value.parse()?);
+                }
+
+                "socket" => {
+                    options = options.socket(&*value);
                 }
 
                 _ => {}

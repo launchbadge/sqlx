@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Buf, Bytes};
-use sqlx_rt::TcpStream;
 
 use crate::error::Error;
 use crate::io::{BufStream, Decode, Encode};
@@ -9,10 +8,10 @@ use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
-use crate::net::MaybeTlsStream;
+use crate::net::{MaybeTlsStream, Socket};
 
 pub struct MySqlStream {
-    stream: BufStream<MaybeTlsStream<TcpStream>>,
+    stream: BufStream<MaybeTlsStream<Socket>>,
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
     pub(crate) busy: Busy,
@@ -31,7 +30,10 @@ pub(crate) enum Busy {
 
 impl MySqlStream {
     pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
-        let stream = TcpStream::connect((&*options.host, options.port)).await?;
+        let socket = match options.socket {
+            Some(ref path) => Socket::connect_uds(path).await?,
+            None => Socket::connect(&options.host, options.port).await?,
+        };
 
         let mut capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE
@@ -54,7 +56,7 @@ impl MySqlStream {
             busy: Busy::NotBusy,
             capabilities,
             sequence_id: 0,
-            stream: BufStream::new(MaybeTlsStream::Raw(stream)),
+            stream: BufStream::new(MaybeTlsStream::Raw(socket)),
         })
     }
 
@@ -178,7 +180,7 @@ impl MySqlStream {
 }
 
 impl Deref for MySqlStream {
-    type Target = BufStream<MaybeTlsStream<TcpStream>>;
+    type Target = BufStream<MaybeTlsStream<Socket>>;
 
     fn deref(&self) -> &Self::Target {
         &self.stream

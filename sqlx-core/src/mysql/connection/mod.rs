@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug, Formatter};
-use std::net::Shutdown;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
@@ -57,7 +56,7 @@ impl Connection for MySqlConnection {
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             self.stream.send_packet(Quit).await?;
-            self.stream.shutdown(Shutdown::Both)?;
+            self.stream.shutdown()?;
 
             Ok(())
         })

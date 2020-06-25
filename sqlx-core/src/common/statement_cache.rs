@@ -27,7 +27,7 @@ impl<T> StatementCache<T> {
     pub fn insert(&mut self, k: &str, v: T) -> Option<T> {
         let mut lru_item = None;
 
-        if self.inner.capacity() == self.len() && !self.inner.contains_key(k) {
+        if self.capacity() == self.len() && !self.contains_key(k) {
             lru_item = self.remove_lru();
         } else if self.contains_key(k) {
             lru_item = self.inner.remove(k);
@@ -49,7 +49,7 @@ impl<T> StatementCache<T> {
     }
 
     /// Clear all cached statements from the cache.
-    #[cfg(any(feature = "sqlite"))]
+    #[cfg(feature = "sqlite")]
     pub fn clear(&mut self) {
         self.inner.clear();
     }

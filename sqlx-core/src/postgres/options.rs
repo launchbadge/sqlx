@@ -76,7 +76,7 @@ impl FromStr for PgSslMode {
 /// | `sslmode` | `prefer` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`PgSqlSslMode`]. |
 /// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
 /// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
-///
+/// | `host` | `None` | Path to the directory containing a PostgreSQL unix domain socket, which will be used instead of TCP if set. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -121,6 +121,7 @@ impl FromStr for PgSslMode {
 pub struct PgConnectOptions {
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
@@ -166,6 +167,7 @@ impl PgConnectOptions {
         PgConnectOptions {
             port,
             host,
+            socket: None,
             username: var("PGUSER").ok().unwrap_or_else(whoami::username),
             password: var("PGPASSWORD").ok(),
             database: var("PGDATABASE").ok(),
@@ -212,6 +214,25 @@ impl PgConnectOptions {
     /// ```
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
+        self
+    }
+
+    /// Sets a custom path to a directory containing a unix domain socket,
+    /// switching the connection method from TCP to the corresponding socket.
+    ///
+    /// By default set to `None`.
+    #[cfg(unix)]
+    pub fn socket(mut self, path: impl AsRef<Path>) -> Self {
+        self.socket = Some(path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Sets a custom path to a directory containing a unix domain socket,
+    /// switching the connection method from TCP to the corresponding socket.
+    ///
+    /// By default set to `None`.
+    #[cfg(not(unix))]
+    pub fn socket(mut self, _: impl AsRef<Path>) -> Self {
         self
     }
 
@@ -371,6 +392,10 @@ impl FromStr for PgConnectOptions {
 
                 "statement-cache-capacity" => {
                     options = options.statement_cache_capacity(value.parse()?);
+                }
+
+                "host" => {
+                    options = options.socket(&*value);
                 }
 
                 _ => {}
