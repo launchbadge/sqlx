@@ -13,7 +13,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::row::PgColumn;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
@@ -126,7 +126,18 @@ impl Connection for PgConnection {
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            self.cache_statement.clear();
+            let mut needs_flush = false;
+
+            while let Some(statement) = self.cache_statement.remove_lru() {
+                self.stream.write(Close::Statement(statement));
+                needs_flush = true;
+            }
+
+            if needs_flush {
+                self.stream.write(Flush);
+                self.stream.flush().await?;
+            }
+
             Ok(())
         })
     }

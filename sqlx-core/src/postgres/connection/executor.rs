@@ -9,8 +9,8 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::postgres::message::{
-    self, Bind, CommandComplete, DataRow, Flush, MessageFormat, ParameterDescription, Parse, Query,
-    RowDescription,
+    self, Bind, Close, CommandComplete, DataRow, Flush, MessageFormat, ParameterDescription, Parse,
+    Query, RowDescription,
 };
 use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgValueFormat, Postgres};
@@ -97,7 +97,11 @@ impl PgConnection {
 
         let statement = prepare(self, query, arguments).await?;
 
-        self.cache_statement.insert(query, statement);
+        if let Some(statement) = self.cache_statement.insert(query, statement) {
+            self.stream.write(Close::Statement(statement));
+            self.stream.write(Flush);
+            self.stream.flush().await?;
+        }
 
         Ok(statement)
     }
