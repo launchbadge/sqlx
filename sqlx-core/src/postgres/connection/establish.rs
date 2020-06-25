@@ -139,7 +139,7 @@ impl PgConnection {
             transaction_status,
             pending_ready_for_query_count: 0,
             next_statement_id: 1,
-            cache_statement: StatementCache::new(options.statement_cache_size),
+            cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
             scratch_row_columns: Default::default(),

@@ -69,6 +69,15 @@ impl FromStr for PgSslMode {
 /// postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]
 /// ```
 ///
+/// ## Parameters
+///
+/// |Parameter|Default|Description|
+/// |---------|-------|-----------|
+/// | `sslmode` | `prefer` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`PgSqlSslMode`]. |
+/// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
+/// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
+///
+///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
 ///
@@ -106,6 +115,8 @@ impl FromStr for PgSslMode {
 /// # })
 /// # }
 /// ```
+///
+/// [`PgSqlSslMode`]: enum.PgSslMode.html
 #[derive(Debug, Clone)]
 pub struct PgConnectOptions {
     pub(crate) host: String,
@@ -115,7 +126,7 @@ pub struct PgConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<PathBuf>,
-    pub(crate) statement_cache_size: usize,
+    pub(crate) statement_cache_capacity: usize,
 }
 
 impl Default for PgConnectOptions {
@@ -163,7 +174,7 @@ impl PgConnectOptions {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_default(),
-            statement_cache_size: 100,
+            statement_cache_capacity: 100,
         }
     }
 
@@ -288,14 +299,14 @@ impl PgConnectOptions {
         self
     }
 
-    /// Sets the size of the connection's statement cache in a number of stored
+    /// Sets the capacity of the connection's statement cache in a number of stored
     /// distinct statements. Caching is handled using LRU, meaning when the
     /// amount of queries hits the defined limit, the oldest statement will get
     /// dropped.
     ///
-    /// The default cache size is 100 statements.
-    pub fn statement_cache_size(mut self, size: usize) -> Self {
-        self.statement_cache_size = size;
+    /// The default cache capacity is 100 statements.
+    pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
+        self.statement_cache_capacity = capacity;
         self
     }
 }
@@ -358,8 +369,8 @@ impl FromStr for PgConnectOptions {
                     options = options.ssl_root_cert(&*value);
                 }
 
-                "statement-cache-size" => {
-                    options = options.statement_cache_size(value.parse()?);
+                "statement-cache-capacity" => {
+                    options = options.statement_cache_capacity(value.parse()?);
                 }
 
                 _ => {}

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::{io, str::FromStr};
+use std::str::FromStr;
 
 use crate::error::BoxDynError;
 
@@ -10,7 +10,7 @@ use crate::error::BoxDynError;
 pub struct SqliteConnectOptions {
     pub(crate) filename: PathBuf,
     pub(crate) in_memory: bool,
-    pub(crate) statement_cache_size: usize,
+    pub(crate) statement_cache_capacity: usize,
 }
 
 impl Default for SqliteConnectOptions {
@@ -24,8 +24,19 @@ impl SqliteConnectOptions {
         Self {
             filename: PathBuf::from(":memory:"),
             in_memory: false,
-            statement_cache_size: 100,
+            statement_cache_capacity: 100,
         }
+    }
+
+    /// Sets the capacity of the connection's statement cache in a number of stored
+    /// distinct statements. Caching is handled using LRU, meaning when the
+    /// amount of queries hits the defined limit, the oldest statement will get
+    /// dropped.
+    ///
+    /// The default cache capacity is 100 statements.
+    pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
+        self.statement_cache_capacity = capacity;
+        self
     }
 }
 
@@ -36,7 +47,7 @@ impl FromStr for SqliteConnectOptions {
         let mut options = Self {
             filename: PathBuf::new(),
             in_memory: false,
-            statement_cache_size: 100,
+            statement_cache_capacity: 100,
         };
 
         // remove scheme
@@ -44,26 +55,10 @@ impl FromStr for SqliteConnectOptions {
             .trim_start_matches("sqlite://")
             .trim_start_matches("sqlite:");
 
-        let mut splitted = s.split("?");
-
-        match splitted.next() {
-            Some(":memory:") => options.in_memory = true,
-            Some(s) => options.filename = s.parse()?,
-            None => unreachable!(),
-        }
-
-        match splitted.next().map(|s| s.split("=")) {
-            Some(mut splitted) => {
-                if splitted.next() == Some("statement-cache-size") {
-                    options.statement_cache_size = splitted
-                        .next()
-                        .ok_or_else(|| {
-                            io::Error::new(io::ErrorKind::InvalidInput, "Invalid connection string")
-                        })?
-                        .parse()?
-                }
-            }
-            _ => (),
+        if s == ":memory:" {
+            options.in_memory = true;
+        } else {
+            options.filename = s.parse()?;
         }
 
         Ok(options)

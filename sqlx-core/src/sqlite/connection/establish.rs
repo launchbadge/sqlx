@@ -89,7 +89,7 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
     Ok(SqliteConnection {
         handle,
         worker: StatementWorker::new(),
-        statements: StatementCache::new(options.statement_cache_size),
+        statements: StatementCache::new(options.statement_cache_capacity),
         statement: None,
         scratch_row_column_names: Default::default(),
     })
