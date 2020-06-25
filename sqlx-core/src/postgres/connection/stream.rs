@@ -31,9 +31,15 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
-        let inner = BufStream::new(MaybeTlsStream::Raw(
-            Socket::connect(&options.host, options.port).await?,
-        ));
+        let socket = match options.socket {
+            Some(ref path) => {
+                Socket::connect_uds(&format!("{}/.s.PGSQL.{}", path.display(), options.port))
+                    .await?
+            }
+            None => Socket::connect(&options.host, options.port).await?,
+        };
+
+        let inner = BufStream::new(MaybeTlsStream::Raw(socket));
 
         Ok(Self {
             inner,
