@@ -53,9 +53,7 @@ fn expand_derive_from_row_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics
-        .params
-        .insert(0, parse_quote!(R: sqlx::Row<#lifetime>));
+    generics.params.insert(0, parse_quote!(R: sqlx::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -63,7 +61,7 @@ fn expand_derive_from_row_struct(
 
     let predicates = &mut generics.make_where_clause().predicates;
 
-    predicates.push(parse_quote!(&#lifetime str: sqlx::row::ColumnIndex<#lifetime, R>));
+    predicates.push(parse_quote!(&#lifetime str: sqlx::ColumnIndex<R>));
 
     for field in fields {
         let ty = &field.ty;
@@ -91,8 +89,8 @@ fn expand_derive_from_row_struct(
     let names = fields.iter().map(|field| &field.ident);
 
     Ok(quote!(
-        impl #impl_generics sqlx::row::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
-            fn from_row(row: &R) -> sqlx::Result<Self> {
+        impl #impl_generics sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime R) -> sqlx::Result<Self> {
                 #(#reads)*
 
                 Ok(#ident {

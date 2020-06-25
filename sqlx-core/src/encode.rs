@@ -1,8 +1,8 @@
-//! Types and traits for encoding values to the database.
+//! Provides [`Encode`](trait.Encode.html) for encoding values for the database.
 
-use crate::database::Database;
-use crate::types::Type;
 use std::mem;
+
+use crate::database::{Database, HasArguments};
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -16,65 +16,104 @@ pub enum IsNull {
 }
 
 /// Encode a single value to be sent to the database.
-pub trait Encode<DB>
-where
-    DB: Database + ?Sized,
-{
+pub trait Encode<'q, DB: Database> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
-    fn encode(&self, buf: &mut DB::RawBuffer);
-
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        self.encode(buf);
-
-        IsNull::No
+    #[must_use]
+    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull
+    where
+        Self: Sized,
+    {
+        self.encode_by_ref(buf)
     }
 
+    /// Writes the value of `self` into `buf` without moving `self`.
+    ///
+    /// Where possible, make use of `encode` instead as it can take advantage of re-using
+    /// memory.
+    #[must_use]
+    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull;
+
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        // `produces` is inherently a hook to allow database drivers to produce value-dependent
+        // type information; if the driver doesn't need this, it can leave this as `None`
+        None
+    }
+
+    #[inline]
     fn size_hint(&self) -> usize {
         mem::size_of_val(self)
     }
 }
 
-impl<T: ?Sized, DB> Encode<DB> for &'_ T
+impl<'q, T, DB: Database> Encode<'q, DB> for &'_ T
 where
-    DB: Database,
-    T: Type<DB>,
-    T: Encode<DB>,
+    T: Encode<'q, DB>,
 {
-    fn encode(&self, buf: &mut DB::RawBuffer) {
-        (*self).encode(buf)
+    #[inline]
+    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        <T as Encode<DB>>::encode_by_ref(self, buf)
     }
 
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        (*self).encode_nullable(buf)
+    #[inline]
+    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        <&T as Encode<DB>>::encode(self, buf)
     }
 
+    #[inline]
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        (**self).produces()
+    }
+
+    #[inline]
     fn size_hint(&self) -> usize {
-        (*self).size_hint()
+        (**self).size_hint()
     }
 }
 
-impl<T, DB> Encode<DB> for Option<T>
-where
-    DB: Database,
-    T: Type<DB>,
-    T: Encode<DB>,
-{
-    fn encode(&self, buf: &mut DB::RawBuffer) {
-        // Forward to [encode_nullable] and ignore the result
-        let _ = self.encode_nullable(buf);
-    }
+#[allow(unused_macros)]
+macro_rules! impl_encode_for_option {
+    ($DB:ident) => {
+        impl<'q, T> crate::encode::Encode<'q, $DB> for Option<T>
+        where
+            T: crate::encode::Encode<'q, $DB> + crate::types::Type<$DB> + 'q,
+        {
+            #[inline]
+            fn produces(&self) -> Option<<$DB as crate::database::Database>::TypeInfo> {
+                if let Some(v) = self {
+                    v.produces()
+                } else {
+                    T::type_info().into()
+                }
+            }
 
-    fn encode_nullable(&self, buf: &mut DB::RawBuffer) -> IsNull {
-        if let Some(self_) = self {
-            self_.encode(buf);
+            #[inline]
+            fn encode(
+                self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                if let Some(v) = self {
+                    v.encode(buf)
+                } else {
+                    crate::encode::IsNull::Yes
+                }
+            }
 
-            IsNull::No
-        } else {
-            IsNull::Yes
+            #[inline]
+            fn encode_by_ref(
+                &self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                if let Some(v) = self {
+                    v.encode_by_ref(buf)
+                } else {
+                    crate::encode::IsNull::Yes
+                }
+            }
+
+            #[inline]
+            fn size_hint(&self) -> usize {
+                self.as_ref().map_or(0, crate::encode::Encode::size_hint)
+            }
         }
-    }
-
-    fn size_hint(&self) -> usize {
-        self.as_ref().map_or(0, Encode::size_hint)
-    }
+    };
 }

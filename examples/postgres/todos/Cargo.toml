@@ -9,5 +9,6 @@ anyhow = "1.0"
 async-std = { version = "1.4.0", features = [ "attributes" ] }
 futures = "0.3"
 paw = "1.0"
-sqlx = { path = "../../../", features = ["postgres"] }
+sqlx = { path = "../../../", features = ["postgres", "offline"] }
 structopt = { version = "0.3", features = ["paw"] }
+dotenv = "0.15.0"

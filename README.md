@@ -9,7 +9,7 @@
 
 <div align="center">
   <!-- Github Actions -->
-  <img src="https://img.shields.io/github/workflow/status/launchbadge/sqlx/Rust?style=flat-square" alt="actions status" />
+  <img src="https://img.shields.io/github/workflow/status/launchbadge/sqlx/SQLx?style=flat-square" alt="actions status" />
   <!-- Version -->
   <a href="https://crates.io/crates/sqlx">
     <img src="https://img.shields.io/crates/v/sqlx.svg?style=flat-square"
@@ -163,7 +163,7 @@ async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     let pool = PgPool::builder()
         .max_size(5) // maximum number of connections in the pool
-        .build(env::var("DATABASE_URL")?).await?;
+        .build(&env::var("DATABASE_URL")?).await?;
     
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
@@ -229,7 +229,7 @@ The `fetch` query finalizer returns a stream-like type that iterates through the
 ```rust
 let mut cursor = sqlx::query("SELECT * FROM users WHERE email = ?")
     .bind(email)
-    .fetch(&mut conn).await?;
+    .fetch(&mut conn);
 
 while let Some(row) = cursor.next().await? {
     // map the row into a user-defined domain type 

@@ -1,33 +1,28 @@
-use std::future::Future;
-use std::io::{self, BufRead};
+#![allow(dead_code)]
+
+use std::io;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
-use futures_util::ready;
+use bytes::BytesMut;
+use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWrite};
 
-use crate::runtime::{AsyncRead, AsyncReadExt, AsyncWrite};
+use crate::error::Error;
+use crate::io::write_and_flush::WriteAndFlush;
+use crate::io::{decode::Decode, encode::Encode};
+use std::io::Cursor;
 
-const RBUF_SIZE: usize = 8 * 1024;
+pub struct BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    stream: S,
 
-pub struct BufStream<S> {
-    pub(crate) stream: S,
+    // writes with `write` to the underlying stream are buffered
+    // this can be flushed with `flush`
+    pub(crate) wbuf: Vec<u8>,
 
-    // Have we reached end-of-file (been disconnected)
-    stream_eof: bool,
-
-    // Buffer used when sending outgoing messages
-    wbuf: Vec<u8>,
-
-    // Buffer used when reading incoming messages
-    rbuf: Vec<u8>,
-    rbuf_rindex: usize,
-    rbuf_windex: usize,
-}
-
-pub struct GuardedFlush<'a, S: 'a> {
-    stream: &'a mut S,
-    buf: io::Cursor<&'a mut Vec<u8>>,
+    // we read into the read buffer using 100% safe code
+    rbuf: BytesMut,
 }
 
 impl<S> BufStream<S>
@@ -37,109 +32,72 @@ where
     pub fn new(stream: S) -> Self {
         Self {
             stream,
-            stream_eof: false,
-            wbuf: Vec::with_capacity(1024),
-            rbuf: vec![0; RBUF_SIZE],
-            rbuf_rindex: 0,
-            rbuf_windex: 0,
+            wbuf: Vec::with_capacity(512),
+            rbuf: BytesMut::with_capacity(4096),
         }
     }
 
-    #[cfg(feature = "postgres")]
-    #[inline]
-    pub fn buffer<'c>(&'c self) -> &'c [u8] {
-        &self.rbuf[self.rbuf_rindex..]
+    pub fn write<'en, T>(&mut self, value: T)
+    where
+        T: Encode<'en, ()>,
+    {
+        self.write_with(value, ())
     }
 
-    #[inline]
-    pub fn buffer_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.wbuf
+    pub fn write_with<'en, T, C>(&mut self, value: T, context: C)
+    where
+        T: Encode<'en, C>,
+    {
+        value.encode_with(&mut self.wbuf, context);
     }
 
-    #[inline]
-    #[must_use = "write buffer is cleared on-drop even if future is not polled"]
-    pub fn flush(&mut self) -> GuardedFlush<S> {
-        GuardedFlush {
+    pub fn flush(&mut self) -> WriteAndFlush<'_, S> {
+        WriteAndFlush {
             stream: &mut self.stream,
-            buf: io::Cursor::new(&mut self.wbuf),
+            buf: Cursor::new(&mut self.wbuf),
         }
     }
 
-    #[inline]
-    pub fn consume(&mut self, cnt: usize) {
-        self.rbuf_rindex += cnt;
+    pub async fn read<'de, T>(&mut self, cnt: usize) -> Result<T, Error>
+    where
+        T: Decode<'de, ()>,
+    {
+        self.read_with(cnt, ()).await
     }
 
-    pub async fn peek(&mut self, cnt: usize) -> io::Result<&[u8]> {
-        self.try_peek(cnt)
-            .await
-            .transpose()
-            .ok_or(io::ErrorKind::ConnectionAborted)?
-    }
+    pub async fn read_with<'de, T, C>(&mut self, cnt: usize, context: C) -> Result<T, Error>
+    where
+        T: Decode<'de, C>,
+    {
+        // zero-fills the space in the read buffer
+        self.rbuf.resize(cnt, 0);
 
-    pub async fn try_peek(&mut self, cnt: usize) -> io::Result<Option<&[u8]>> {
-        loop {
-            // Reaching end-of-file (read 0 bytes) will continuously
-            // return None from all future calls to read
-            if self.stream_eof {
-                return Ok(None);
-            }
-
-            // If we have enough bytes in our read buffer,
-            // return immediately
-            if self.rbuf_windex >= (self.rbuf_rindex + cnt) {
-                let buf = &self.rbuf[self.rbuf_rindex..(self.rbuf_rindex + cnt)];
-
-                return Ok(Some(buf));
-            }
-
-            // If we are out of space to write to in the read buffer ..
-            if self.rbuf.len() < (self.rbuf_windex + cnt) {
-                if self.rbuf_rindex == self.rbuf_windex {
-                    // We have consumed all data; simply reset the indexes
-                    self.rbuf_rindex = 0;
-                    self.rbuf_windex = 0;
-                } else {
-                    // Allocate a new buffer
-                    let mut new_rbuf = Vec::with_capacity(RBUF_SIZE);
-
-                    // Take the minimum of the read and write indexes
-                    let min_index = self.rbuf_rindex.min(self.rbuf_windex);
-
-                    // Copy the old buffer to our new buffer
-                    new_rbuf.extend_from_slice(&self.rbuf[min_index..]);
-
-                    // Zero-extend the new buffer
-                    new_rbuf.resize(new_rbuf.capacity(), 0);
-
-                    // Replace the old buffer with our new buffer
-                    self.rbuf = new_rbuf;
-
-                    // And reduce the indexes
-                    self.rbuf_rindex -= min_index;
-                    self.rbuf_windex -= min_index;
-                }
-
-                // Do we need more space still
-                if self.rbuf.len() < (self.rbuf_windex + cnt) {
-                    let needed = (self.rbuf_windex + cnt) - self.rbuf.len();
-
-                    self.rbuf.resize(self.rbuf.len() + needed, 0);
-                }
-            }
-
-            let n = self.stream.read(&mut self.rbuf[self.rbuf_windex..]).await?;
-
-            self.rbuf_windex += n;
+        let mut read = 0;
+        while cnt > read {
+            // read in bytes from the stream into the read buffer starting
+            // from the offset we last read from
+            let n = self.stream.read(&mut self.rbuf[read..]).await?;
 
             if n == 0 {
-                self.stream_eof = true;
+                // a zero read when we had space in the read buffer
+                // should be treated as an EOF
+
+                // and an unexpected EOF means the server told us to go away
+
+                return Err(io::Error::from(io::ErrorKind::ConnectionAborted).into());
             }
+
+            read += n;
         }
+
+        T::decode_with(self.rbuf.split_to(cnt).freeze(), context)
     }
 }
 
-impl<S> Deref for BufStream<S> {
+impl<S> Deref for BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     type Target = S;
 
     fn deref(&self) -> &Self::Target {
@@ -147,53 +105,11 @@ impl<S> Deref for BufStream<S> {
     }
 }
 
-impl<S> DerefMut for BufStream<S> {
+impl<S> DerefMut for BufStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
-    }
-}
-
-// TODO: Find a nicer way to do this
-// Return `Ok(None)` immediately from a function if the wrapped value is `None`
-#[allow(unused)]
-macro_rules! ret_if_none {
-    ($val:expr) => {
-        match $val {
-            Some(val) => val,
-            None => {
-                return Ok(None);
-            }
-        }
-    };
-}
-
-impl<'a, S: AsyncWrite + Unpin> Future for GuardedFlush<'a, S> {
-    type Output = io::Result<()>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Self {
-            ref mut stream,
-            ref mut buf,
-        } = *self;
-
-        loop {
-            let read = buf.fill_buf()?;
-
-            if !read.is_empty() {
-                let written = ready!(Pin::new(&mut *stream).poll_write(cx, read)?);
-                buf.consume(written);
-            } else {
-                break;
-            }
-        }
-
-        Pin::new(stream).poll_flush(cx)
-    }
-}
-
-impl<'a, S> Drop for GuardedFlush<'a, S> {
-    fn drop(&mut self) {
-        // clear the buffer regardless of whether the flush succeeded or not
-        self.buf.get_mut().clear();
     }
 }

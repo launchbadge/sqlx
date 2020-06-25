@@ -1,72 +1,129 @@
-//! **Pool** for SQLx database connections.
+//! Provides the connection pool for asynchronous SQLx connections.
+//!
+//! Opening a database connection for each and every operation to the database can quickly
+//! become expensive. Furthermore, sharing a database connection between threads and functions
+//! can be difficult to express in Rust.
+//!
+//! A connection pool is a standard technique that can manage opening and re-using connections.
+//! Normally it also enforces a maximum number of connections as these are an expensive resource
+//! on the database server.
+//!
+//! SQLx provides a canonical connection pool implementation intended to satisfy the majority
+//! of use cases.
+//!
+//! # Opening a connection pool
+//!
+//! A new connection pool with a default configuration can be created by supplying `Pool`
+//! with the database driver and a connection string.
+//!
+//! ```rust,ignore
+//! use sqlx::Pool;
+//! use sqlx::postgres::Postgres;
+//!
+//! let pool = Pool::<Postgres>::new("postgres://").await?;
+//! ```
+//!
+//! For convenience, database-specific type aliases are provided:
+//!
+//! ```rust,ignore
+//! use sqlx::mssql::MssqlPool;
+//!
+//! let pool = MssqlPool::new("mssql://").await?;
+//! ```
+//!
+//! # Using a connection pool
+//!
+//! A connection pool implements [`Executor`](../trait.Executor.html) and can be used directly
+//! when executing a query. Notice that only an immutable reference (`&Pool`) is needed.
+//!
+//! ```rust,ignore
+//! sqlx::query("DELETE FROM articles").execute(&pool).await?;
+//! ```
+//!
+//! A connection or transaction may also be manually acquired with
+//! [`Pool::acquire`](struct.Pool.html#method.acquire) or
+//! [`Pool::begin`](struct.Pool.html#method.begin).
+//!
 
-use std::{
-    fmt,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::fmt;
+use std::future::Future;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::connection::Connect;
 use crate::database::Database;
+use crate::error::Error;
 use crate::transaction::Transaction;
 
 use self::inner::SharedPool;
 use self::options::Options;
 
-mod connection;
+#[macro_use]
 mod executor;
+
+mod connection;
 mod inner;
 mod options;
 
 pub use self::connection::PoolConnection;
 pub use self::options::Builder;
 
-/// A pool of database connections.
-pub struct Pool<C>(pub(crate) Arc<SharedPool<C>>);
+/// An alias for [`Transaction`] when returned from [`Pool::begin`].
+pub type PoolTransaction<DB, C = PoolConnection<DB>> = Transaction<'static, DB, C>;
 
-impl<C> Pool<C>
-where
-    C: Connect,
-{
-    /// Creates a connection pool with the default configuration.
+/// An asynchronous pool of SQLx database connections.
+pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
+
+impl<DB: Database> Pool<DB> {
+    /// Creates a new connection pool with the default pool configuration and the given connection
+    /// string.
     ///
-    /// The connection URL syntax is documented on the connection type for the respective
-    /// database you're connecting to:
-    ///
-    /// * MySQL/MariaDB: [crate::mysql::MySqlConnection]
-    /// * PostgreSQL: [crate::postgres::PgConnection]
-    pub async fn new(url: &str) -> crate::Result<Self> {
+    /// The connection string is parsed according to the connection options for
+    /// the current database.
+    pub async fn new(url: &str) -> Result<Self, Error> {
         Self::builder().build(url).await
     }
 
-    async fn with_options(url: &str, options: Options) -> crate::Result<Self> {
-        let inner = SharedPool::<C>::new_arc(url, options).await?;
-
-        Ok(Pool(inner))
+    /// Creates a new connection pool with the default pool configuration and the given connection
+    /// options.
+    pub async fn new_with(options: <DB::Connection as Connect>::Options) -> Result<Self, Error> {
+        Self::builder().build_with(options).await
     }
 
-    /// Returns a [Builder] to configure a new connection pool.
-    pub fn builder() -> Builder<C> {
+    /// Returns a [`Builder`] to configure a new connection pool.
+    pub fn builder() -> Builder<DB> {
         Builder::new()
     }
 
     /// Retrieves a connection from the pool.
     ///
     /// Waits for at most the configured connection timeout before returning an error.
-    pub async fn acquire(&self) -> crate::Result<PoolConnection<C>> {
-        self.0.acquire().await.map(|conn| conn.attach(&self.0))
+    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
+        let shared = self.0.clone();
+        async move { shared.acquire().await.map(|conn| conn.attach(&shared)) }
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
-    pub fn try_acquire(&self) -> Option<PoolConnection<C>> {
+    pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
         self.0.try_acquire().map(|conn| conn.attach(&self.0))
     }
 
     /// Retrieves a new connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> crate::Result<Transaction<PoolConnection<C>>> {
-        Ok(Transaction::new(0, self.acquire().await?).await?)
+    pub async fn begin(&self) -> Result<Transaction<'static, DB, PoolConnection<DB>>, Error> {
+        Ok(Transaction::begin(self.acquire().await?).await?)
+    }
+
+    /// Attempts to retrieve a new connection and immediately begins a new transaction if there
+    /// is one available.
+    pub async fn try_begin(
+        &self,
+    ) -> Result<Option<Transaction<'static, DB, PoolConnection<DB>>>, Error> {
+        match self.try_acquire() {
+            Some(conn) => Transaction::begin(conn).await.map(Some),
+            None => Ok(None),
+        }
     }
 
     /// Ends the use of a connection pool. Prevents any new connections
@@ -119,19 +176,15 @@ where
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
-impl<C> Clone for Pool<C> {
+impl<DB: Database> Clone for Pool<DB> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<C> fmt::Debug for Pool<C>
-where
-    C: Connect,
-{
+impl<DB: Database> fmt::Debug for Pool<DB> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
-            .field("url", &self.0.url())
             .field("size", &self.0.size())
             .field("num_idle", &self.0.num_idle())
             .field("is_closed", &self.0.is_closed())
@@ -143,10 +196,10 @@ where
 /// get the time between the deadline and now and use that as our timeout
 ///
 /// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout<DB: Database>(deadline: Instant) -> crate::Result<Duration> {
+fn deadline_as_timeout<DB: Database>(deadline: Instant) -> Result<Duration, Error> {
     deadline
         .checked_duration_since(Instant::now())
-        .ok_or(crate::Error::PoolTimedOut(None))
+        .ok_or(Error::PoolTimedOut)
 }
 
 #[test]
@@ -155,8 +208,8 @@ fn assert_pool_traits() {
     fn assert_send_sync<T: Send + Sync>() {}
     fn assert_clone<T: Clone>() {}
 
-    fn assert_pool<C: Connect>() {
-        assert_send_sync::<Pool<C>>();
-        assert_clone::<Pool<C>>();
+    fn assert_pool<DB: Database>() {
+        assert_send_sync::<Pool<DB>>();
+        assert_clone::<Pool<DB>>();
     }
 }

@@ -1,111 +1,135 @@
-use std::str::from_utf8;
+use std::convert::TryInto;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{ByteOrder, LittleEndian};
 
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::mysql::protocol::TypeId;
-use crate::mysql::type_info::MySqlTypeInfo;
-use crate::mysql::{MySql, MySqlData, MySqlValue};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
+use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
-use crate::Error;
+
+fn uint_type_info(ty: ColumnType) -> MySqlTypeInfo {
+    MySqlTypeInfo {
+        r#type: ty,
+        flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
+        char_set: 63,
+    }
+}
+
+fn uint_compatible(ty: &MySqlTypeInfo) -> bool {
+    matches!(
+        ty.r#type,
+        ColumnType::Tiny
+            | ColumnType::Short
+            | ColumnType::Long
+            | ColumnType::Int24
+            | ColumnType::LongLong
+    ) && ty.flags.contains(ColumnFlags::UNSIGNED)
+}
 
 impl Type<MySql> for u8 {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::unsigned(TypeId::TINY_INT)
+        uint_type_info(ColumnType::Tiny)
     }
-}
 
-impl Encode<MySql> for u8 {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        let _ = buf.write_u8(*self);
-    }
-}
-
-impl<'de> Decode<'de, MySql> for u8 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            MySqlData::Binary(mut buf) => buf.read_u8().map_err(Into::into),
-
-            MySqlData::Text(s) => from_utf8(s)
-                .map_err(Error::decode)?
-                .parse()
-                .map_err(Error::decode),
-        }
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
 impl Type<MySql> for u16 {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::unsigned(TypeId::SMALL_INT)
+        uint_type_info(ColumnType::Short)
     }
-}
 
-impl Encode<MySql> for u16 {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        let _ = buf.write_u16::<LittleEndian>(*self);
-    }
-}
-
-impl<'de> Decode<'de, MySql> for u16 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            MySqlData::Binary(mut buf) => buf.read_u16::<LittleEndian>().map_err(Into::into),
-
-            MySqlData::Text(s) => from_utf8(s)
-                .map_err(Error::decode)?
-                .parse()
-                .map_err(Error::decode),
-        }
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
 impl Type<MySql> for u32 {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::unsigned(TypeId::INT)
+        uint_type_info(ColumnType::Long)
     }
-}
 
-impl Encode<MySql> for u32 {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        let _ = buf.write_u32::<LittleEndian>(*self);
-    }
-}
-
-impl<'de> Decode<'de, MySql> for u32 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            MySqlData::Binary(mut buf) => buf.read_u32::<LittleEndian>().map_err(Into::into),
-
-            MySqlData::Text(s) => from_utf8(s)
-                .map_err(Error::decode)?
-                .parse()
-                .map_err(Error::decode),
-        }
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
 impl Type<MySql> for u64 {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::unsigned(TypeId::BIG_INT)
+        uint_type_info(ColumnType::LongLong)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        uint_compatible(ty)
     }
 }
 
-impl Encode<MySql> for u64 {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        let _ = buf.write_u64::<LittleEndian>(*self);
+impl Encode<'_, MySql> for u8 {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.extend(&self.to_le_bytes());
+
+        IsNull::No
     }
 }
 
-impl<'de> Decode<'de, MySql> for u64 {
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            MySqlData::Binary(mut buf) => buf.read_u64::<LittleEndian>().map_err(Into::into),
+impl Encode<'_, MySql> for u16 {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.extend(&self.to_le_bytes());
 
-            MySqlData::Text(s) => from_utf8(s)
-                .map_err(Error::decode)?
-                .parse()
-                .map_err(Error::decode),
+        IsNull::No
+    }
+}
+
+impl Encode<'_, MySql> for u32 {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.extend(&self.to_le_bytes());
+
+        IsNull::No
+    }
+}
+
+impl Encode<'_, MySql> for u64 {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        buf.extend(&self.to_le_bytes());
+
+        IsNull::No
+    }
+}
+
+fn uint_decode(value: MySqlValueRef<'_>) -> Result<u64, BoxDynError> {
+    Ok(match value.format() {
+        MySqlValueFormat::Text => value.as_str()?.parse()?,
+        MySqlValueFormat::Binary => {
+            let buf = value.as_bytes()?;
+            LittleEndian::read_uint(buf, buf.len())
         }
+    })
+}
+
+impl Decode<'_, MySql> for u8 {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        uint_decode(value)?.try_into().map_err(Into::into)
+    }
+}
+
+impl Decode<'_, MySql> for u16 {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        uint_decode(value)?.try_into().map_err(Into::into)
+    }
+}
+
+impl Decode<'_, MySql> for u32 {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        uint_decode(value)?.try_into().map_err(Into::into)
+    }
+}
+
+impl Decode<'_, MySql> for u64 {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
+        uint_decode(value)?.try_into().map_err(Into::into)
     }
 }

@@ -1,3 +1,5 @@
+use sqlx_core as sqlx;
+
 impl_database_ext! {
     sqlx::mysql::MySql {
         u8,
@@ -11,6 +13,7 @@ impl_database_ext! {
         f32,
         f64,
 
+        // ordering is important here as otherwise we might infer strings to be binary
         // CHAR, VAR_CHAR, TEXT
         String,
 
@@ -45,6 +48,7 @@ impl_database_ext! {
         sqlx::types::BigDecimal,
     },
     ParamChecking::Weak,
-    feature-types: info => info.type_feature_gate(),
-    row = sqlx::mysql::MySqlRow
+    feature-types: info => info.__type_feature_gate(),
+    row = sqlx::mysql::MySqlRow,
+    name = "MySQL"
 }

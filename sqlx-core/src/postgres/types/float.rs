@@ -1,82 +1,77 @@
-use std::str::FromStr;
-
-use byteorder::{NetworkEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder};
 
 use crate::decode::Decode;
-use crate::encode::Encode;
-use crate::error::Error;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgData, PgRawBuffer, PgTypeInfo, PgValue, Postgres};
+use crate::encode::{Encode, IsNull};
+use crate::error::BoxDynError;
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for f32 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT4, "FLOAT4")
+        PgTypeInfo::FLOAT4
     }
 }
 
 impl Type<Postgres> for [f32] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT4, "FLOAT4[]")
+        PgTypeInfo::FLOAT4_ARRAY
     }
 }
+
 impl Type<Postgres> for Vec<f32> {
     fn type_info() -> PgTypeInfo {
         <[f32] as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<Postgres> for f32 {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        <i32 as Encode<Postgres>>::encode(&(self.to_bits() as i32), buf)
+impl Encode<'_, Postgres> for f32 {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        buf.extend(&self.to_be_bytes());
+
+        IsNull::No
     }
 }
 
-impl<'de> Decode<'de, Postgres> for f32 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            PgData::Binary(mut buf) => buf
-                .read_i32::<NetworkEndian>()
-                .map_err(Error::decode)
-                .map(|value| f32::from_bits(value as u32)),
-
-            PgData::Text(s) => f32::from_str(s).map_err(Error::decode),
-        }
+impl Decode<'_, Postgres> for f32 {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(match value.format() {
+            PgValueFormat::Binary => BigEndian::read_f32(value.as_bytes()?),
+            PgValueFormat::Text => value.as_str()?.parse()?,
+        })
     }
 }
 
 impl Type<Postgres> for f64 {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::FLOAT8, "FLOAT8")
+        PgTypeInfo::FLOAT8
     }
 }
 
 impl Type<Postgres> for [f64] {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::new(TypeId::ARRAY_FLOAT8, "FLOAT8[]")
+        PgTypeInfo::FLOAT8_ARRAY
     }
 }
+
 impl Type<Postgres> for Vec<f64> {
     fn type_info() -> PgTypeInfo {
         <[f64] as Type<Postgres>>::type_info()
     }
 }
 
-impl Encode<Postgres> for f64 {
-    fn encode(&self, buf: &mut PgRawBuffer) {
-        <i64 as Encode<Postgres>>::encode(&(self.to_bits() as i64), buf)
+impl Encode<'_, Postgres> for f64 {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        buf.extend(&self.to_be_bytes());
+
+        IsNull::No
     }
 }
 
-impl<'de> Decode<'de, Postgres> for f64 {
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        match value.try_get()? {
-            PgData::Binary(mut buf) => buf
-                .read_i64::<NetworkEndian>()
-                .map_err(Error::decode)
-                .map(|value| f64::from_bits(value as u64)),
-
-            PgData::Text(s) => f64::from_str(s).map_err(Error::decode),
-        }
+impl Decode<'_, Postgres> for f64 {
+    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
+        Ok(match value.format() {
+            PgValueFormat::Binary => BigEndian::read_f64(value.as_bytes()?),
+            PgValueFormat::Text => value.as_str()?.parse()?,
+        })
     }
 }

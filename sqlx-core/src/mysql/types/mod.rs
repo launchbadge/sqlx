@@ -4,7 +4,7 @@
 //!
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `bool`                                | TINYINT(1)                                           |
+//! | `bool`                                | TINYINT(1), BOOLEAN                                  |
 //! | `i8`                                  | TINYINT                                              |
 //! | `i16`                                 | SMALLINT                                             |
 //! | `i32`                                 | INT                                                  |
@@ -25,7 +25,7 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `chrono::DateTime<Utc>`               | TIMESTAMP                                            |
-//! | `chrono::DateTime<Local>`             | TIMETAMP                                             |
+//! | `chrono::DateTime<Local>`             | TIMESTAMP                                            |
 //! | `chrono::NaiveDateTime`               | DATETIME                                             |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
 //! | `chrono::NaiveTime`                   | TIME                                                 |
@@ -47,6 +47,14 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
+//!
+//! ### [`json`](https://crates.io/crates/json)
+//!
+//! Requires the `json` Cargo feature flag.
+//!
+//! | Rust type                             | MySQL type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `json::JsonValue`             | JSON
 //!
 //! # Nullable
 //!
@@ -70,18 +78,5 @@ mod chrono;
 #[cfg(feature = "time")]
 mod time;
 
-use crate::decode::Decode;
-use crate::mysql::{MySql, MySqlValue};
-
-impl<'de, T> Decode<'de, MySql> for Option<T>
-where
-    T: Decode<'de, MySql>,
-{
-    fn decode(value: MySqlValue<'de>) -> crate::Result<Self> {
-        Ok(if value.get().is_some() {
-            Some(<T as Decode<MySql>>::decode(value)?)
-        } else {
-            None
-        })
-    }
-}
+#[cfg(feature = "json")]
+mod json;

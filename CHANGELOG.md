@@ -5,26 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.5 - 2020-05-06
+
+### Fixed
+
+ - [[#259]] Handle percent-encoded paths for SQLite [[@g-s-k]]
+
+ - [[#281]] Deallocate SQLite statements before closing the SQLite connection [[@hasali19]]
+
+ - [[#284]] Fix handling of `0` for `BigDecimal` in PostgreSQL and MySQL [[@abonander]]
+
+### Added
+
+ - [[#256]] Add `query_unchecked!` and `query_file_unchecked!` with similar semantics to `query_as_unchecked!` [[@meh]]
+
+ - [[#252]] [[#297]] Derive serveral traits for the `Json<T>` wrapper type [[@meh]]
+
+ - [[#261]] Add support for `#[sqlx(rename_all = "snake_case")]` to `#[derive(Type)]` [[@shssoichiro]]
+
+ - [[#253]] Add support for UNIX domain sockets to PostgreSQL [[@Nilix007]]
+
+ - [[#251]] Add support for textual JSON on MySQL [[@blackwolf12333]]
+
+ - [[#275]] [[#268]] Optionally log formatted SQL queries on execution [[@shssoichiro]]
+
+ - [[#267]] Support Cargo.toml relative `.env` files; allows for each crate in a workspace to use their own `.env` file and thus their own `DATABASE_URL` [[@xyzd]]
+
+[#252]: https://github.com/launchbadge/sqlx/pull/252
+[#261]: https://github.com/launchbadge/sqlx/pull/261
+[#256]: https://github.com/launchbadge/sqlx/pull/256
+[#259]: https://github.com/launchbadge/sqlx/pull/259
+[#253]: https://github.com/launchbadge/sqlx/pull/253
+[#297]: https://github.com/launchbadge/sqlx/pull/297
+[#251]: https://github.com/launchbadge/sqlx/pull/251
+[#275]: https://github.com/launchbadge/sqlx/pull/275
+[#267]: https://github.com/launchbadge/sqlx/pull/267
+[#268]: https://github.com/launchbadge/sqlx/pull/268
+[#281]: https://github.com/launchbadge/sqlx/pull/281
+[#284]: https://github.com/launchbadge/sqlx/pull/284
+
 ## 0.3.4 - 2020-04-10
 
 ### Fixed
 
  - [[#241]] Type name for custom enum is not always attached to TypeInfo in PostgreSQL
- 
+
  - [[#237]] [[#238]] User-defined type name matching is now case-insensitive in PostgreSQL [[@qtbeee]]
- 
+
  - [[#231]] Handle empty queries (and those with comments) in SQLite
- 
+
  - [[#228]] Provide `MapRow` implementations for functions (enables `.map(|row| ...)` over `.try_map(|row| ...)`)
 
 ### Added
 
  - [[#234]] Add support for `NUMERIC` in MySQL with the `bigdecimal` crate [[@xiaopengli89]]
- 
+
  - [[#227]] Support `#[sqlx(rename = "new_name")]` on struct fields within a `FromRow` derive [[@sidred]]
 
 [#228]: https://github.com/launchbadge/sqlx/issues/228
-[#231]: https://github.com/launchbadge/sqlx/issues/231 
+[#231]: https://github.com/launchbadge/sqlx/issues/231
 [#237]: https://github.com/launchbadge/sqlx/issues/237
 [#241]: https://github.com/launchbadge/sqlx/issues/241
 
@@ -41,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
  - [[#216]] Mark `Cursor`, `Query`, `QueryAs`, `query::Map`, and `Transaction` as `#[must_use]` [[@Ace4896]]
- 
+
  - [[#213]] Remove matches dependency and use matches macro from std [[@nrjais]]
 
 [#216]: https://github.com/launchbadge/sqlx/pull/216
@@ -53,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
  - [[#212]] Removed sneaky `println!` in `MySqlCursor`
- 
+
 [#212]: https://github.com/launchbadge/sqlx/issues/212
 
 ## 0.3.1 - 2020-03-30
@@ -61,12 +100,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
  - [[#203]] Allow an empty password for MySQL
- 
+
  - [[#204]] Regression in error reporting for invalid SQL statements on PostgreSQL
- 
+
  - [[#200]] Fixes the incorrect handling of raw (`r#...`) fields of a struct in the `FromRow` derive [[@sidred]]
 
-[#200]: https://github.com/launchbadge/sqlx/pull/200 
+[#200]: https://github.com/launchbadge/sqlx/pull/200
 [#203]: https://github.com/launchbadge/sqlx/issues/203
 [#204]: https://github.com/launchbadge/sqlx/issues/204
 
@@ -93,13 +132,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
        .fetch_all(&mut conn).await?;
    ```
 
-   To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements) or 
+   To assist with the above, `sqlx::query_as()` now supports querying directly into tuples (up to 9 elements) or
    struct types with a `#[derive(FromRow)]`.
 
    ```rust
    // This extension trait is needed until a rust bug is fixed
    use sqlx::postgres::PgQueryAs;
-   
+
    let values: Vec<(i32, bool)> = sqlx::query_as("SELECT 1, false")
        .fetch_all(&mut conn).await?;
    ```
@@ -109,13 +148,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - `Query::fetch` (returned from `query()`) now returns a new `Cursor` type. `Cursor` is a Stream-like type where the
    item type borrows into the stream (which itself borrows from connection). This means that using `query().fetch()` you can now
    stream directly from the database with **zero-copy** and **zero-allocation**.
-   
+
  - Remove `PgTypeInfo::with_oid` and replace with `PgTypeInfo::with_name`
 
 ### Added
 
  - Results from the database are now zero-copy and no allocation beyond a shared read buffer
-   for the TCP stream ( in other words, almost no per-query allocation ). Bind arguments still 
+   for the TCP stream ( in other words, almost no per-query allocation ). Bind arguments still
    do allocate a buffer per query.
 
  - [[#129]] Add support for [SQLite](https://sqlite.org/index.html). Generated code should be very close to normal use of the C API.
@@ -180,17 +219,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
        println!("payload = {}", message.payload);
    }
    ```
-   
- - Add _unchecked_ variants of the query macros. These will still verify the SQL for syntactic and 
+
+ - Add _unchecked_ variants of the query macros. These will still verify the SQL for syntactic and
    semantic correctness with the current database but they will not check the input or output types.
-   
+
    This is intended as a temporary solution until `query_as!` is able to support user defined types.
-   
+
      * `query_as_unchecked!`
      * `query_file_as_unchecked!`
-     
+
  - Add support for many more types in Postgres
- 
+
    - `JSON`, `JSONB` [[@oeb25]]
    - `INET`, `CIDR` [[@PoiScript]]
    - Arrays [[@oeb25]]
@@ -213,7 +252,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
    ```rust
    use sqlx::Executor;
-   
+
    // Set the time zone parameter
    conn.execute("SET TIME ZONE LOCAL;").await
 
@@ -420,3 +459,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@nrjais]: https://github.com/nrjais
 [@qtbeee]: https://github.com/qtbeee
 [@xiaopengli89]: https://github.com/xiaopengli89
+[@meh]: https://github.com/meh
+[@shssoichiro]: https://github.com/shssoichiro
+[@Nilix007]: https://github.com/Nilix007
+[@g-s-k]: https://github.com/g-s-k
+[@blackwolf12333]: https://github.com/blackwolf12333
+[@xyzd]: https://github.com/xyzd
+[@hasali19]: https://github.com/hasali19

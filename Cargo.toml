@@ -2,9 +2,10 @@
 members = [
     ".",
     "sqlx-core",
+    "sqlx-rt",
     "sqlx-macros",
     "sqlx-test",
-    "cargo-sqlx",
+    "sqlx-cli",
     "examples/mysql/todos",
     "examples/postgres/listen",
     "examples/postgres/todos",
@@ -14,7 +15,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.3.4"
+version = "0.4.0-pre"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -26,7 +27,7 @@ categories = [ "database", "asynchronous" ]
 authors = [
     "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
     "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
-    "Zachery Gyurkovitz <zgyurkovitz@gmail.com>", # zach@launchbadge.com
+    "Chloe Ross <orangesnowfox@gmail.com>", # zach@launchbadge.com
     "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
 ]
 
@@ -37,21 +38,29 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = [ "macros", "runtime-async-std" ]
 macros = [ "sqlx-macros" ]
-tls = [ "sqlx-core/tls" ]
+
+# [deprecated] TLS is not possible to disable due to it being conditional on multiple features
+#              Hopefully Cargo can handle this in the future
+tls = [ ]
+
+# offline building support in `sqlx-macros`
+offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 
 # intended mainly for CI and docs
-all = [ "tls", "all-database", "all-type" ]
-all-database = [ "mysql", "sqlite", "postgres" ]
-all-type = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+all = [ "tls", "all-databases", "all-types" ]
+all-databases = [ "mysql", "sqlite", "postgres", "mssql" ]
+all-types = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
+runtime-actix = [ "sqlx-core/runtime-actix", "sqlx-macros/runtime-actix" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 
 # database
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
+mssql = [ "sqlx-core/mssql", "sqlx-macros/mssql" ]
 
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
@@ -62,79 +71,121 @@ json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 
 [dependencies]
-sqlx-core = { version = "0.3.4", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.3.4", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.4.0-pre", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.4.0-pre", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.26"
-time_ = { version = "0.2.9", package = "time" }
-futures = "0.3.4"
+anyhow = "1.0.31"
+time_ = { version = "0.2.16", package = "time" }
+futures = "0.3.5"
 env_logger = "0.7.1"
-async-std = { version = "1.5.0", features = [ "attributes" ] }
-tokio = { version = "0.2.13", features = [ "full" ] }
+async-std = { version = "1.6.0", features = [ "attributes" ] }
+tokio = { version = "0.2.21", features = [ "full" ] }
 dotenv = "0.15.0"
 trybuild = "1.0.24"
+sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
-paste = "0.1.7"
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0.48"
+paste = "0.1.16"
+serde = { version = "1.0.111", features = [ "derive" ] }
+serde_json = "1.0.53"
 
-[[test]]
-name = "postgres-macros"
-required-features = [ "postgres", "macros" ]
-
-[[test]]
-name = "mysql-macros"
-required-features = [ "mysql", "macros" ]
+#
+# SQLite
+#
 
 [[test]]
 name = "sqlite"
+path = "tests/sqlite/sqlite.rs"
+required-features = [ "sqlite" ]
+
+[[test]]
+name = "sqlite-types"
+path = "tests/sqlite/types.rs"
+required-features = [ "sqlite" ]
+
+[[test]]
+name = "sqlite-describe"
+path = "tests/sqlite/describe.rs"
 required-features = [ "sqlite" ]
 
 [[test]]
 name = "sqlite-macros"
+path = "tests/sqlite/macros.rs"
 required-features = [ "sqlite", "macros" ]
 
-[[test]]
-name = "sqlite-raw"
-required-features = [ "sqlite" ]
-
-[[test]]
-name = "sqlite-derives"
-required-features = [ "sqlite", "macros" ]
-
-[[test]]
-name = "sqlite-types"
-required-features = [ "sqlite" ]
+#
+# MySQL
+#
 
 [[test]]
 name = "mysql"
+path = "tests/mysql/mysql.rs"
 required-features = [ "mysql" ]
 
 [[test]]
-name = "mysql-raw"
+name = "mysql-types"
+path = "tests/mysql/types.rs"
 required-features = [ "mysql" ]
 
 [[test]]
-name = "mysql-derives"
+name = "mysql-describe"
+path = "tests/mysql/describe.rs"
+required-features = [ "mysql" ]
+
+[[test]]
+name = "mysql-macros"
+path = "tests/mysql/macros.rs"
 required-features = [ "mysql", "macros" ]
+
+#
+# PostgreSQL
+#
 
 [[test]]
 name = "postgres"
-required-features = [ "postgres" ]
-
-[[test]]
-name = "postgres-raw"
+path = "tests/postgres/postgres.rs"
 required-features = [ "postgres" ]
 
 [[test]]
 name = "postgres-types"
+path = "tests/postgres/types.rs"
 required-features = [ "postgres" ]
 
 [[test]]
-name = "postgres-derives"
+name = "postgres-describe"
+path = "tests/postgres/describe.rs"
+required-features = [ "postgres" ]
+
+[[test]]
+name = "postgres-macros"
+path = "tests/postgres/macros.rs"
 required-features = [ "postgres", "macros" ]
 
 [[test]]
-name = "mysql-types"
-required-features = [ "mysql" ]
+name = "postgres-derives"
+path = "tests/postgres/derives.rs"
+required-features = [ "postgres", "macros" ]
+
+#
+# Microsoft SQL Server (MSSQL)
+#
+
+[[test]]
+name = "mssql"
+path = "tests/mssql/mssql.rs"
+required-features = [ "mssql" ]
+
+[[test]]
+name = "mssql-types"
+path = "tests/mssql/types.rs"
+required-features = [ "mssql" ]
+
+[[test]]
+name = "mssql-describe"
+path = "tests/mssql/describe.rs"
+required-features = [ "mssql" ]
+
+[[test]]
+name = "mssql-macros"
+path = "tests/mssql/macros.rs"
+required-features = [ "mssql", "macros" ]

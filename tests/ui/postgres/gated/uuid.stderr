@@ -4,7 +4,7 @@ error: optional feature `uuid` required for type UUID of column #1 ("uuid")
 2 |     let _ = sqlx::query!("select 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'::uuid");
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: optional feature `uuid` required for type UUID of param #1
  --> $DIR/uuid.rs:3:13
@@ -12,4 +12,4 @@ error: optional feature `uuid` required for type UUID of param #1
 3 |     let _ = sqlx::query!("select $1::uuid", ());
   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

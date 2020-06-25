@@ -51,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn notify(mut pool: &PgPool) {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+    // Note that channel names are lower-cased by Postgres unless they are quoted
     let res = pool
         .execute(&*format!(
             r#"

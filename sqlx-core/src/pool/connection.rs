@@ -1,30 +1,31 @@
-use futures_core::future::BoxFuture;
-use std::borrow::{Borrow, BorrowMut};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::inner::{DecrementSizeGuard, SharedPool};
-use crate::connection::{Connect, Connection};
+use futures_core::future::BoxFuture;
+use sqlx_rt::spawn;
 
-/// A connection checked out from [`Pool`][crate::pool::Pool].
+use super::inner::{DecrementSizeGuard, SharedPool};
+use crate::connection::Connection;
+use crate::database::Database;
+use crate::error::Error;
+
+/// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
 /// Will be returned to the pool on-drop.
-pub struct PoolConnection<C>
-where
-    C: Connect,
-{
-    live: Option<Live<C>>,
-    pub(crate) pool: Arc<SharedPool<C>>,
+pub struct PoolConnection<DB: Database> {
+    live: Option<Live<DB>>,
+    pub(crate) pool: Arc<SharedPool<DB>>,
 }
 
-pub(super) struct Live<C> {
-    raw: C,
+pub(super) struct Live<DB: Database> {
+    raw: DB::Connection,
     pub(super) created: Instant,
 }
 
-pub(super) struct Idle<C> {
-    live: Live<C>,
+pub(super) struct Idle<DB: Database> {
+    live: Live<DB>,
     pub(super) since: Instant,
 }
 
@@ -36,49 +37,31 @@ pub(super) struct Floating<'p, C> {
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
 
-impl<C> Borrow<C> for PoolConnection<C>
-where
-    C: Connect,
-{
-    fn borrow(&self) -> &C {
-        &*self
+impl<DB: Database> Debug for PoolConnection<DB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // TODO: Show the type name of the connection ?
+        f.debug_struct("PoolConnection").finish()
     }
 }
 
-impl<C> BorrowMut<C> for PoolConnection<C>
-where
-    C: Connect,
-{
-    fn borrow_mut(&mut self) -> &mut C {
-        &mut *self
-    }
-}
-
-impl<C> Deref for PoolConnection<C>
-where
-    C: Connect,
-{
-    type Target = C;
+impl<DB: Database> Deref for PoolConnection<DB> {
+    type Target = DB::Connection;
 
     fn deref(&self) -> &Self::Target {
         &self.live.as_ref().expect(DEREF_ERR).raw
     }
 }
 
-impl<C> DerefMut for PoolConnection<C>
-where
-    C: Connect,
-{
+impl<DB: Database> DerefMut for PoolConnection<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(DEREF_ERR).raw
     }
 }
 
-impl<C> Connection for PoolConnection<C>
-where
-    C: Connect,
-{
-    fn close(mut self) -> BoxFuture<'static, crate::Result<()>> {
+impl<DB: Database> Connection for PoolConnection<DB> {
+    type Database = DB;
+
+    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             let live = self.live.take().expect("PoolConnection double-dropped");
             live.float(&self.pool).into_idle().close().await
@@ -86,32 +69,69 @@ where
     }
 
     #[inline]
-    fn ping(&mut self) -> BoxFuture<crate::Result<()>> {
+    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(self.deref_mut().ping())
+    }
+
+    #[doc(hidden)]
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        self.get_mut().flush()
+    }
+
+    #[doc(hidden)]
+    fn should_flush(&self) -> bool {
+        self.get_ref().should_flush()
+    }
+
+    #[doc(hidden)]
+    fn get_ref(&self) -> &DB::Connection {
+        self.deref().get_ref()
+    }
+
+    #[doc(hidden)]
+    fn get_mut(&mut self) -> &mut DB::Connection {
+        self.deref_mut().get_mut()
     }
 }
 
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
-impl<C> Drop for PoolConnection<C>
-where
-    C: Connect,
-{
+impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
-        if let Some(live) = self.live.take() {
-            self.pool.release(live.float(&self.pool));
+        if let Some(mut live) = self.live.take() {
+            let pool = self.pool.clone();
+
+            if live.raw.should_flush() {
+                spawn(async move {
+                    // flush the connection (will immediately return if not needed) before
+                    // we fully release to the pool
+                    if let Err(e) = live.raw.flush().await {
+                        log::error!("error occurred while flushing the connection: {}", e);
+
+                        // we now consider the connection to be broken
+                        // close the connection and drop from the pool
+                        let _ = live.float(&pool).into_idle().close().await;
+                    } else {
+                        // after we have flushed successfully, release to the pool
+                        pool.release(live.float(&pool));
+                    }
+                });
+            } else {
+                // nothing to flush, release immediately outside of a spawn
+                pool.release(live.float(&pool));
+            }
         }
     }
 }
 
-impl<C> Live<C> {
-    pub fn float(self, pool: &SharedPool<C>) -> Floating<Self> {
+impl<DB: Database> Live<DB> {
+    pub fn float(self, pool: &SharedPool<DB>) -> Floating<'_, Self> {
         Floating {
             inner: self,
             guard: DecrementSizeGuard::new(pool),
         }
     }
 
-    pub fn into_idle(self) -> Idle<C> {
+    pub fn into_idle(self) -> Idle<DB> {
         Idle {
             live: self,
             since: Instant::now(),
@@ -119,15 +139,15 @@ impl<C> Live<C> {
     }
 }
 
-impl<C> Deref for Idle<C> {
-    type Target = Live<C>;
+impl<DB: Database> Deref for Idle<DB> {
+    type Target = Live<DB>;
 
     fn deref(&self) -> &Self::Target {
         &self.live
     }
 }
 
-impl<C> DerefMut for Idle<C> {
+impl<DB: Database> DerefMut for Idle<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live
     }
@@ -140,8 +160,8 @@ impl<'s, C> Floating<'s, C> {
     }
 }
 
-impl<'s, C> Floating<'s, Live<C>> {
-    pub fn new_live(conn: C, guard: DecrementSizeGuard<'s>) -> Self {
+impl<'s, DB: Database> Floating<'s, Live<DB>> {
+    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<'s>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
@@ -151,10 +171,7 @@ impl<'s, C> Floating<'s, Live<C>> {
         }
     }
 
-    pub fn attach(self, pool: &Arc<SharedPool<C>>) -> PoolConnection<C>
-    where
-        C: Connect,
-    {
+    pub fn attach(self, pool: &Arc<SharedPool<DB>>) -> PoolConnection<DB> {
         let Floating { inner, guard } = self;
 
         debug_assert!(
@@ -169,7 +186,7 @@ impl<'s, C> Floating<'s, Live<C>> {
         }
     }
 
-    pub fn into_idle(self) -> Floating<'s, Idle<C>> {
+    pub fn into_idle(self) -> Floating<'s, Idle<DB>> {
         Floating {
             inner: self.inner.into_idle(),
             guard: self.guard,
@@ -177,32 +194,26 @@ impl<'s, C> Floating<'s, Live<C>> {
     }
 }
 
-impl<'s, C> Floating<'s, Idle<C>> {
-    pub fn from_idle(idle: Idle<C>, pool: &'s SharedPool<C>) -> Self {
+impl<'s, DB: Database> Floating<'s, Idle<DB>> {
+    pub fn from_idle(idle: Idle<DB>, pool: &'s SharedPool<DB>) -> Self {
         Self {
             inner: idle,
             guard: DecrementSizeGuard::new(pool),
         }
     }
 
-    pub async fn ping(&mut self) -> crate::Result<()>
-    where
-        C: Connection,
-    {
+    pub async fn ping(&mut self) -> Result<(), Error> {
         self.live.raw.ping().await
     }
 
-    pub fn into_live(self) -> Floating<'s, Live<C>> {
+    pub fn into_live(self) -> Floating<'s, Live<DB>> {
         Floating {
             inner: self.inner.live,
             guard: self.guard,
         }
     }
 
-    pub async fn close(self) -> crate::Result<()>
-    where
-        C: Connection,
-    {
+    pub async fn close(self) -> Result<(), Error> {
         // `guard` is dropped as intended
         self.inner.live.raw.close().await
     }

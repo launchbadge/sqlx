@@ -30,6 +30,7 @@ macro_rules! try_set {
 pub enum RenameAll {
     LowerCase,
     SnakeCase,
+    UpperCase,
 }
 
 pub struct SqlxContainerAttributes {
@@ -70,6 +71,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 let val = match &*val.value() {
                                     "lowercase" => RenameAll::LowerCase,
                                     "snake_case" => RenameAll::SnakeCase,
+                                    "uppercase" => RenameAll::UpperCase,
 
                                     _ => fail!(meta, "unexpected value for rename_all"),
                                 };
@@ -144,14 +146,11 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
     Ok(SqlxChildAttributes { rename })
 }
 
-pub fn check_transparent_attributes(input: &DeriveInput, field: &Field) -> syn::Result<()> {
+pub fn check_transparent_attributes(
+    input: &DeriveInput,
+    field: &Field,
+) -> syn::Result<SqlxContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;
-
-    assert_attribute!(
-        attributes.transparent,
-        "expected #[sqlx(transparent)]",
-        input
-    );
 
     assert_attribute!(
         attributes.rename_all.is_none(),
@@ -161,15 +160,15 @@ pub fn check_transparent_attributes(input: &DeriveInput, field: &Field) -> syn::
 
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
 
-    let attributes = parse_child_attributes(&field.attrs)?;
+    let ch_attributes = parse_child_attributes(&field.attrs)?;
 
     assert_attribute!(
-        attributes.rename.is_none(),
+        ch_attributes.rename.is_none(),
         "unexpected #[sqlx(rename = ..)]",
         field
     );
 
-    Ok(())
+    Ok(attributes)
 }
 
 pub fn check_enum_attributes<'a>(input: &'a DeriveInput) -> syn::Result<SqlxContainerAttributes> {

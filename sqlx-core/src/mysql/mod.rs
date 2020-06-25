@@ -1,35 +1,36 @@
-//! **MySQL** database and connection types.
-
-pub use arguments::MySqlArguments;
-pub use connection::MySqlConnection;
-pub use cursor::MySqlCursor;
-pub use database::MySql;
-pub use error::MySqlError;
-pub use row::MySqlRow;
-pub use type_info::MySqlTypeInfo;
-pub use value::{MySqlData, MySqlValue};
+//! **MySQL** database driver.
 
 mod arguments;
 mod connection;
-mod cursor;
 mod database;
 mod error;
-mod executor;
 mod io;
+mod options;
 mod protocol;
 mod row;
-mod rsa;
-mod stream;
-mod tls;
+mod transaction;
 mod type_info;
 pub mod types;
-mod util;
 mod value;
 
-/// An alias for [`crate::pool::Pool`], specialized for **MySQL**.
-#[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-pub type MySqlPool = crate::pool::Pool<MySqlConnection>;
+pub use arguments::MySqlArguments;
+pub use connection::MySqlConnection;
+pub use database::MySql;
+pub use error::MySqlDatabaseError;
+pub use options::{MySqlConnectOptions, MySqlSslMode};
+pub use row::MySqlRow;
+pub use transaction::MySqlTransactionManager;
+pub use type_info::MySqlTypeInfo;
+pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
 
-make_query_as!(MySqlQueryAs, MySql, MySqlRow);
-impl_map_row_for_row!(MySql, MySqlRow);
-impl_from_row_for_tuples!(MySql, MySqlRow);
+/// An alias for [`Pool`][crate::pool::Pool], specialized for MySQL.
+pub type MySqlPool = crate::pool::Pool<MySql>;
+
+// NOTE: required due to the lack of lazy normalization
+impl_into_arguments_for_arguments!(MySqlArguments);
+impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
+impl_executor_for_transaction!(MySql, MySqlRow);
+
+// required because some databases have a different handling
+// of NULL
+impl_encode_for_option!(MySql);

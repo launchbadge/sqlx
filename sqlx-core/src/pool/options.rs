@@ -3,17 +3,16 @@ use std::{marker::PhantomData, time::Duration};
 use super::Pool;
 use crate::connection::Connect;
 use crate::database::Database;
+use crate::error::Error;
+use crate::pool::inner::SharedPool;
 
-/// Builder for [Pool].
-pub struct Builder<C> {
-    phantom: PhantomData<C>,
+/// [`Pool`] factory, which can be used to configure the properties of a new connection pool.
+pub struct Builder<DB: Database> {
+    phantom: PhantomData<DB>,
     options: Options,
 }
 
-impl<C> Builder<C>
-where
-    C: Connect,
-{
+impl<DB: Database> Builder<DB> {
     /// Get a new builder with default options.
     ///
     /// See the source of this method for current defaults.
@@ -25,7 +24,7 @@ where
                 max_size: 10,
                 // don't open connections until necessary
                 min_size: 0,
-                // try to connect for 10 seconds before erroring
+                // try to connect for 10 seconds before giving up
                 connect_timeout: Duration::from_secs(60),
                 // reap connections that have been alive > 30 minutes
                 // prevents unbounded live-leaking of memory due to naive prepared statement caching
@@ -107,25 +106,41 @@ where
         self
     }
 
-    /// Spin up the connection pool.
+    /// Consumes the builder, returning a new, initialized connection pool with the given
+    /// connection string.
     ///
-    /// If [`min_size`] was set to a non-zero value, that many connections will be immediately
-    /// opened and placed into the pool.
+    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
+    /// to resolve until that number of connections are connected and available in the pool.
     ///
     /// [`min_size`]: #method.min_size
-    pub async fn build(self, url: &str) -> crate::Result<Pool<C>>
-    where
-        C: Connect,
-    {
-        Pool::<C>::with_options(url, self.options).await
+    pub async fn build(self, url: &str) -> Result<Pool<DB>, Error> {
+        Ok(Pool(
+            SharedPool::<DB>::new_arc(
+                url.parse().map_err(Error::ParseConnectOptions)?,
+                self.options,
+            )
+            .await?,
+        ))
+    }
+
+    /// Consumes the builder, returning a new, initialized connection pool with the given connection
+    /// options.
+    ///
+    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
+    /// to resolve until that number of connections are connected and available in the pool.
+    ///
+    /// [`min_size`]: #method.min_size
+    pub async fn build_with(
+        self,
+        options: <DB::Connection as Connect>::Options,
+    ) -> Result<Pool<DB>, Error> {
+        Ok(Pool(
+            SharedPool::<DB>::new_arc(options, self.options).await?,
+        ))
     }
 }
 
-impl<C, DB> Default for Builder<C>
-where
-    C: Connect<Database = DB>,
-    DB: Database<Connection = C>,
-{
+impl<DB: Database> Default for Builder<DB> {
     fn default() -> Self {
         Self::new()
     }

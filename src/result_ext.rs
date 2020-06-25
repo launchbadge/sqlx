@@ -12,7 +12,7 @@ impl<T> ResultExt<T> for crate::Result<T> {
 
 impl<T> ResultExt<T> for crate::Result<Option<T>> {
     fn try_unwrap_optional(self) -> crate::Result<T> {
-        self?.ok_or_else(|| UnexpectedNullError.into())
+        self?.ok_or_else(|| crate::Error::Decode(UnexpectedNullError.into()))
     }
 }
 

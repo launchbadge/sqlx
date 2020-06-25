@@ -1,3 +1,4 @@
+use anyhow::Context;
 use sqlx::mysql::MySqlQueryAs;
 use sqlx::MySqlPool;
 use std::env;
@@ -18,7 +19,10 @@ enum Command {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    let pool = MySqlPool::new(&env::var("DATABASE_URL")?).await?;
+    let pool = MySqlPool::new(
+        &env::var("DATABASE_URL").context("`DATABASE_URL` must be set to run this example")?,
+    )
+    .await?;
 
     match args.cmd {
         Some(Command::Add { description }) => {

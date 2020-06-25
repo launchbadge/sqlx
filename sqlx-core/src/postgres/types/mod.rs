@@ -128,24 +128,25 @@
 //! a potentially `NULL` value from Postgres.
 //!
 
-use crate::decode::Decode;
-use crate::postgres::protocol::TypeId;
-use crate::postgres::{PgValue, Postgres};
+use crate::postgres::type_info::PgTypeKind;
+use crate::postgres::{PgTypeInfo, Postgres};
+use crate::types::Type;
 
 mod array;
 mod bool;
 mod bytes;
 mod float;
 mod int;
+mod range;
 mod record;
 mod str;
-
-// internal types used by other types to encode or decode related formats
-#[doc(hidden)]
-pub mod raw;
+mod tuple;
 
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
+
+#[cfg(feature = "bigdecimal")]
+mod numeric;
 
 #[cfg(feature = "chrono")]
 mod chrono;
@@ -162,98 +163,20 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
-// Implement `Decode` for all postgres types
-// The concept of a nullable `RawValue` is db-specific
-// `Type` is implemented generically at src/types.rs
-impl<'de, T> Decode<'de, Postgres> for Option<T>
-where
-    T: Decode<'de, Postgres>,
-{
-    fn decode(value: PgValue<'de>) -> crate::Result<Self> {
-        Ok(if value.get().is_some() {
-            Some(<T as Decode<Postgres>>::decode(value)?)
-        } else {
-            None
-        })
+pub use range::PgRange;
+
+// used in derive(Type) for `struct`
+// but the interface is not considered part of the public API
+#[doc(hidden)]
+pub use record::{PgRecordDecoder, PgRecordEncoder};
+
+// Type::compatible impl appropriate for arrays
+fn array_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
+    // we require the declared type to be an _array_ with an
+    // element type that is acceptable
+    if let PgTypeKind::Array(element) = &ty.kind() {
+        return E::compatible(&element);
     }
-}
 
-// Try to resolve a _static_ type name from an OID
-pub(crate) fn try_resolve_type_name(oid: u32) -> Option<&'static str> {
-    Some(match TypeId(oid) {
-        TypeId::BOOL => "BOOL",
-
-        TypeId::CHAR => "\"CHAR\"",
-
-        TypeId::INT2 => "INT2",
-        TypeId::INT4 => "INT4",
-        TypeId::INT8 => "INT8",
-
-        TypeId::OID => "OID",
-
-        TypeId::FLOAT4 => "FLOAT4",
-        TypeId::FLOAT8 => "FLOAT8",
-
-        TypeId::NUMERIC => "NUMERIC",
-
-        TypeId::TEXT => "TEXT",
-        TypeId::VARCHAR => "VARCHAR",
-        TypeId::BPCHAR => "BPCHAR",
-        TypeId::UNKNOWN => "UNKNOWN",
-        TypeId::NAME => "NAME",
-
-        TypeId::DATE => "DATE",
-        TypeId::TIME => "TIME",
-        TypeId::TIMESTAMP => "TIMESTAMP",
-        TypeId::TIMESTAMPTZ => "TIMESTAMPTZ",
-
-        TypeId::BYTEA => "BYTEA",
-
-        TypeId::UUID => "UUID",
-
-        TypeId::CIDR => "CIDR",
-        TypeId::INET => "INET",
-
-        TypeId::ARRAY_BOOL => "BOOL[]",
-
-        TypeId::ARRAY_CHAR => "\"CHAR\"[]",
-
-        TypeId::ARRAY_INT2 => "INT2[]",
-        TypeId::ARRAY_INT4 => "INT4[]",
-        TypeId::ARRAY_INT8 => "INT8[]",
-
-        TypeId::ARRAY_OID => "OID[]",
-
-        TypeId::ARRAY_FLOAT4 => "FLOAT4[]",
-        TypeId::ARRAY_FLOAT8 => "FLOAT8[]",
-
-        TypeId::ARRAY_TEXT => "TEXT[]",
-        TypeId::ARRAY_VARCHAR => "VARCHAR[]",
-        TypeId::ARRAY_BPCHAR => "BPCHAR[]",
-        TypeId::ARRAY_NAME => "NAME[]",
-
-        TypeId::ARRAY_NUMERIC => "NUMERIC[]",
-
-        TypeId::ARRAY_DATE => "DATE[]",
-        TypeId::ARRAY_TIME => "TIME[]",
-        TypeId::ARRAY_TIMESTAMP => "TIMESTAMP[]",
-        TypeId::ARRAY_TIMESTAMPTZ => "TIMESTAMPTZ[]",
-
-        TypeId::ARRAY_BYTEA => "BYTEA[]",
-
-        TypeId::ARRAY_UUID => "UUID[]",
-
-        TypeId::ARRAY_CIDR => "CIDR[]",
-        TypeId::ARRAY_INET => "INET[]",
-
-        TypeId::JSON => "JSON",
-        TypeId::JSONB => "JSONB",
-
-        TypeId::RECORD => "RECORD",
-        TypeId::ARRAY_RECORD => "RECORD[]",
-
-        _ => {
-            return None;
-        }
-    })
+    false
 }

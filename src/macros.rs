@@ -1,9 +1,9 @@
 /// Statically checked SQL query with `println!()` style syntax.
 ///
-/// This expands to an instance of [QueryAs] that outputs an ad-hoc anonymous struct type,
+/// This expands to an instance of [QueryAs][crate::QueryAs] that outputs an ad-hoc anonymous struct type,
 /// if the query has output columns, or `()` (unit) otherwise:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -28,11 +28,30 @@
 /// # fn main() {}
 /// ```
 ///
+/// ## Requirements
+/// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
+/// server with the schema that the query string will be checked against. All variants of `query!()`
+/// use [dotenv] so this can be in a `.env` file instead.
+///
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///       below.
+///
+/// * The query must be a string literal or else it cannot be introspected (and thus cannot
+/// be dynamic or the result of another macro).
+///
+/// * The `QueryAs` instance will be bound to the same database type as `query!()` was compiled
+/// against (e.g. you cannot build against a Postgres database and then run the query against
+/// a MySQL database).
+///
+///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
+///       determine the database type.
+///
+/// [dotenv]: https://crates.io/crates/dotenv
 /// ## Query Arguments
 /// Like `println!()` and the other formatting macros, you can add bind parameters to your SQL
 /// and this macro will typecheck passed arguments and error on missing ones:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -92,24 +111,143 @@
 /// `NULL` which then depends on the semantics of what functions are used. Consult the MySQL
 /// manual for the functions you are using to find the cases in which they return `NULL`.
 ///
-/// To override the nullability of an output column, use [query_as!].
+/// To override the nullability of an output column, use [query_as!], or see below.
 ///
-/// ## Requirements
-/// * The `DATABASE_URL` environment variable must be set at build-time to point to a database
-/// server with the schema that the query string will be checked against. (All variants of
-/// `query!()` use [dotenv] so this can be in a `.env` file instead.)
+/// ## Type Overrides: Bind Parameters (Postgres only)
+/// For typechecking of bind parameters, casts using `as` are treated as overrides for the inferred
+/// types of bind parameters and no typechecking is emitted:
 ///
-/// * The query must be a string literal or else it cannot be introspected (and thus cannot
-/// be dynamic or the result of another macro).
+/// ```rust,ignore
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent)]
+/// struct MyInt4(i32);
 ///
-/// * The `QueryAs` instance will be bound to the same database type as `query!()` was compiled
-/// against (e.g. you cannot build against a Postgres database and then run the query against
-/// a MySQL database).
+/// let my_int = MyInt4(1);
 ///
-///     * The schema of the database URL (e.g. `postgres://` or `mysql://`) will be used to
-///       determine the database type.
+/// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
+/// ```
 ///
-/// [dotenv]: https://crates.io/crates/dotenv
+/// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
+/// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
+/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
+/// forbidden for now as they produce rather nasty type errors.
+///
+/// ## Type Overrides: Output Columns
+/// Type overrides are also available for output columns, utilizing the SQL standard's support
+/// for arbitrary text in column names:
+///
+/// * selecting a column `foo as "foo!"` (Postgres / SQLite) or `` foo as `foo!` `` overrides
+/// inferred nullability and forces the column to be treated as `NOT NULL`; this is useful e.g. for
+/// selecting expressions in Postgres where we cannot infer nullability:
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// // Postgres: using a raw query string lets us use unescaped double-quotes
+/// // Note that this query wouldn't work in SQLite as we still don't know the exact type of `id`
+/// let record = sqlx::query!(r#"select 1 as "id!""#) // MySQL: use "select 1 as `id!`" instead
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// // For Postgres this would have been inferred to be Option<i32> instead
+/// assert_eq!(record.id, 1i32);
+/// # }
+///
+/// ```
+/// * selecting a column `foo as "foo?"` (Postgres / SQLite) or `` foo as `foo?` `` overrides
+/// inferred nullability and forces the column to be treated as nullable; this is provided mainly
+/// for symmetry with `!`, but also because nullability inference currently has some holes and false
+/// negatives that may not be completely fixable without doing our own complex analysis on the given
+/// query.
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// // Postgres:
+/// // Note that this query wouldn't work in SQLite as we still don't know the exact type of `id`
+/// let record = sqlx::query!(r#"select 1 as "id?""#) // MySQL: use "select 1 as `id?`" instead
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// // For Postgres this would have been inferred to be Option<i32> anyway
+/// // but this is just a basic example
+/// assert_eq!(record.id, Some(1i32));
+/// # }
+/// ```
+///
+/// One current such hole is exposed by left-joins involving `NOT NULL` columns in Postgres and
+/// SQLite; as we only know nullability for a given column based on the `NOT NULL` constraint
+/// of its original column in a table, if that column is then brought in via a `LEFT JOIN`
+/// we have no good way to know and so continue assuming it may not be null which may result
+/// in some `UnexpectedNull` errors at runtime.
+///
+/// Using `?` as an override we can fix this for columns we know to be nullable in practice:
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// // Ironically this is the exact column we look at to determine nullability in Postgres
+/// let record = sqlx::query!(
+///     r#"select attnotnull as "attnotnull?" from (values (1)) ids left join pg_attribute on false"#
+/// )
+/// .fetch_one(&mut conn)
+/// .await?;
+///
+/// // For Postgres this would have been inferred to be `bool` and we would have gotten an error
+/// assert_eq!(record.attnotnull, None);
+/// # }
+/// ```
+///
+/// See [launchbadge/sqlx#367](https://github.com/launchbadge/sqlx/issues/367) for more details on this issue.
+///
+/// * selecting a column `foo as "foo: T"` (Postgres / SQLite) or `` foo as `foo: T` `` (MySQL)
+/// overrides the inferred type which is useful when selecting user-defined custom types
+/// (dynamic type checking is still done so if the types are incompatible this will be an error
+/// at runtime instead of compile-time):
+///
+/// ```rust,ignore
+/// # async fn main() {
+/// # let mut conn = panic!();
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent)
+/// struct MyInt4(i32);
+///
+/// let my_int = MyInt4(1);
+///
+/// // Postgres/SQLite
+/// sqlx::query!(r#"select 1 as "id: MyInt4""#) // MySQL: use "select 1 as `id: MyInt4`" instead
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// // For Postgres this would have been inferred to be `Option<i32>`, MySQL `i32`
+/// // and SQLite it wouldn't have worked at all because we couldn't know the type.
+/// assert_eq!(record.id, MyInt4(1));
+/// # }
+/// ```
+///
+/// As mentioned, this allows specifying the type of a pure expression column which is normally
+/// forbidden for SQLite as there's no way we can ask SQLite what type the column is expected to be.
+///
+/// ## Offline Mode (requires the `offline` feature)
+/// The macros can be configured to not require a live database connection for compilation,
+/// but it requires a couple extra steps:
+///
+/// * Run `cargo install sqlx-cli`.
+/// * In your project with `DATABASE_URL` set (or in a `.env` file) and the database server running,
+///   run `cargo sqlx prepare`.
+/// * Check the generated `sqlx-data.json` file into version control.
+/// * Don't have `DATABASE_URL` set during compilation.
+///
+/// Your project can now be built without a database connection (you must omit `DATABASE_URL` or
+/// else it will still try to connect). To update the generated file simply run `cargo sqlx prepare`
+/// again.
+///
+/// To ensure that your `sqlx-data.json` file is kept up-to-date, both with the queries in your
+/// project and your database schema itself, run
+/// `cargo install sqlx-cli && cargo sqlx prepare --check` in your Continuous Integration script.
+///
+/// See [the README for `sqlx-cli`](https://crates.io/crate/sqlx-cli) for more information.
+///
 /// ## See Also
 /// * [query_as!] if you want to use a struct you can name,
 /// * [query_file!] if you want to define the SQL query out-of-line,
@@ -122,14 +260,14 @@ macro_rules! query (
     ($query:literal) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query!($query);
+            $crate::sqlx_macros::expand_query!(source = $query);
         }
         macro_result!()
     });
     ($query:literal, $($args:expr),*$(,)?) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source = $query, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -140,19 +278,17 @@ macro_rules! query (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_unchecked (
-    // by emitting a macro definition from our proc-macro containing the result tokens,
-    // we no longer have a need for `proc-macro-hack`
     ($query:literal) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_unchecked!($query);
+            $crate::sqlx_macros::expand_query!(source = $query, checked = false);
         }
         macro_result!()
     });
     ($query:literal, $($args:expr),*$(,)?) => ({
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_unchecked!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source = $query, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -178,7 +314,7 @@ macro_rules! query_unchecked (
 /// ```
 ///
 /// `src/my_query.rs`:
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -203,17 +339,17 @@ macro_rules! query_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file (
-    ($query:literal) => (#[allow(dead_code)]{
+    ($path:literal) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file!($query);
+            $crate::sqlx_macros::expand_query!(source_file = $path);
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
+    ($path:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file!($query, $($args),*);
+            $crate::sqlx_macros::expand_query!(source_file = $path, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -224,17 +360,17 @@ macro_rules! query_file (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_unchecked (
-    ($query:literal) => (#[allow(dead_code)]{
+    ($path:literal) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_unchecked!($query);
+            $crate::sqlx_macros::query_file_unchecked!(source_file = $path, checked = false);
         }
         macro_result!()
     });
-    ($query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
+    ($path:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)]{
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_unchecked!($query, $($args),*);
+            $crate::sqlx_macros::query_file_unchecked!(source_file = $path, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -255,7 +391,7 @@ macro_rules! query_file_unchecked (
 /// * Neither the query nor the struct may have unused fields.
 ///
 /// The only modification to the syntax is that the struct name is given before the SQL string:
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -292,20 +428,50 @@ macro_rules! query_file_unchecked (
 /// ## Nullability
 /// Use `Option` for columns which may be `NULL` in order to avoid a runtime error being returned
 /// from `.fetch_*()`.
+///
+/// ### Additional Column Type Override Option
+/// In addition to the column type overrides supported by [query!], `query_as!()` supports an
+/// additional override option:
+///
+/// If you select a column `foo as "foo: _"` (Postgres/SQLite) or `` foo as `foo: _` `` (MySQL)
+/// it causes that column to be inferred based on the type of the corresponding field in the given
+/// record struct. Runtime type-checking is still done so an error will be emitted if the types
+/// are not compatible.
+///
+/// This allows you to override the inferred type of a column to instead use a custom-defined type:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::Type)]
+/// #[sqlx(transparent)
+/// struct MyInt4(i32);
+///
+/// struct Record {
+///     id: MyInt4,
+/// }
+///
+/// let my_int = MyInt4(1);
+///
+/// // Postgres/SQLite
+/// sqlx::query!(r#"select 1 as "id: _""#) // MySQL: use "select 1 as `id: _`" instead
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// assert_eq!(record.id, MyInt4(1));
+/// ```
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query);
         }
         macro_result!()
     });
     ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -315,7 +481,7 @@ macro_rules! query_as (
 ///
 /// Enforces requirements of both macros; see them for details.
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
 /// # #[async_std::main]
@@ -347,17 +513,17 @@ macro_rules! query_as (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as (
-    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path);
         }
         macro_result!()
     });
-    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, args = [$($args),*]);
         }
         macro_result!($($args),*)
     })
@@ -371,7 +537,7 @@ macro_rules! query_as_unchecked (
     ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, checked = false);
         }
         macro_result!()
     });
@@ -379,7 +545,7 @@ macro_rules! query_as_unchecked (
     ($out_struct:path, $query:literal, $($args:expr),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_as_unchecked!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
@@ -391,18 +557,18 @@ macro_rules! query_as_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as_unchecked (
-    ($out_struct:path, $query:literal) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query);
+            $crate::sqlx_macros::query_file_as_unchecked!(record = $out_struct, source_file = $path, checked = false);
         }
         macro_result!()
     });
 
-    ($out_struct:path, $query:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
+    ($out_struct:path, $path:literal, $($args:tt),*$(,)?) => (#[allow(dead_code)] {
         #[macro_use]
         mod _macro_result {
-            $crate::sqlx_macros::query_file_as_unchecked!($out_struct, $query, $($args),*);
+            $crate::sqlx_macros::query_file_as_unchecked!(record = $out_struct, source_file = $path, args = [$($args),*], checked = false);
         }
         macro_result!($($args),*)
     })
