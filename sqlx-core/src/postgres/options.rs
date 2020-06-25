@@ -221,18 +221,8 @@ impl PgConnectOptions {
     /// switching the connection method from TCP to the corresponding socket.
     ///
     /// By default set to `None`.
-    #[cfg(unix)]
     pub fn socket(mut self, path: impl AsRef<Path>) -> Self {
         self.socket = Some(path.as_ref().to_path_buf());
-        self
-    }
-
-    /// Sets a custom path to a directory containing a unix domain socket,
-    /// switching the connection method from TCP to the corresponding socket.
-    ///
-    /// By default set to `None`.
-    #[cfg(not(unix))]
-    pub fn socket(mut self, _: impl AsRef<Path>) -> Self {
         self
     }
 
