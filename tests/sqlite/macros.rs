@@ -100,7 +100,7 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
 
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
-struct MyInt(i32);
+struct MyInt(i64);
 
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
