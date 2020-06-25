@@ -29,7 +29,6 @@ pub mod arguments;
 #[macro_use]
 pub mod pool;
 
-pub mod caching_connection;
 pub mod connection;
 
 #[macro_use]

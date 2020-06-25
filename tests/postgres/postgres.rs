@@ -1,7 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
-use sqlx::CachingConnection;
 use sqlx::{postgres::Postgres, Connection, Executor, PgPool, Row};
 use sqlx_test::new;
 use std::time::Duration;
@@ -504,9 +503,9 @@ async fn it_caches_statements() -> anyhow::Result<()> {
         assert_eq!(i, val);
     }
 
-    assert_eq!(1, conn.cached_statements_count());
+    assert_eq!(1, conn.cached_statements_size());
     conn.clear_cached_statements().await?;
-    assert_eq!(0, conn.cached_statements_count());
+    assert_eq!(0, conn.cached_statements_size());
 
     Ok(())
 }

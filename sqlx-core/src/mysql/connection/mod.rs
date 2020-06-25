@@ -6,7 +6,6 @@ use futures_core::future::BoxFuture;
 use futures_util::FutureExt;
 use hashbrown::HashMap;
 
-use crate::caching_connection::CachingConnection;
 use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
@@ -46,22 +45,6 @@ pub struct MySqlConnection {
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
 }
 
-impl CachingConnection for MySqlConnection {
-    fn cached_statements_count(&self) -> usize {
-        self.cache_statement.len()
-    }
-
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            while let Some(statement) = self.cache_statement.remove_lru() {
-                self.stream.send_packet(StmtClose { statement }).await?;
-            }
-
-            Ok(())
-        })
-    }
-}
-
 impl Debug for MySqlConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MySqlConnection").finish()
@@ -92,6 +75,20 @@ impl Connection for MySqlConnection {
 
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.stream.wait_until_ready().boxed()
+    }
+
+    fn cached_statements_size(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            while let Some(statement) = self.cache_statement.remove_lru() {
+                self.stream.send_packet(StmtClose { statement }).await?;
+            }
+
+            Ok(())
+        })
     }
 
     #[doc(hidden)]

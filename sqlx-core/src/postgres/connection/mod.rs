@@ -5,7 +5,6 @@ use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
 use hashbrown::HashMap;
 
-use crate::caching_connection::CachingConnection;
 use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
@@ -98,19 +97,6 @@ impl Debug for PgConnection {
     }
 }
 
-impl CachingConnection for PgConnection {
-    fn cached_statements_count(&self) -> usize {
-        self.cache_statement.len()
-    }
-
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move {
-            self.cache_statement.clear();
-            Ok(())
-        })
-    }
-}
-
 impl Connection for PgConnection {
     type Database = Postgres;
 
@@ -132,6 +118,17 @@ impl Connection for PgConnection {
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+    }
+
+    fn cached_statements_size(&self) -> usize {
+        self.cache_statement.len()
+    }
+
+    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            self.cache_statement.clear();
+            Ok(())
+        })
     }
 
     #[doc(hidden)]

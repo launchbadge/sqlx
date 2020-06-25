@@ -1,4 +1,4 @@
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::postgres::arguments::PgArgumentBuffer;
 use crate::postgres::value::{PgValue, PgValueRef};
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgTransactionManager, PgTypeInfo};
@@ -32,3 +32,5 @@ impl HasArguments<'_> for Postgres {
 
     type ArgumentBuffer = PgArgumentBuffer;
 }
+
+impl HasStatementCache for Postgres {}

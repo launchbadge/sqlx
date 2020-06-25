@@ -1,7 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::{
-    query, sqlite::Sqlite, CachingConnection, Connect, Connection, Executor, Row, SqliteConnection,
-    SqlitePool,
+    query, sqlite::Sqlite, Connect, Connection, Executor, Row, SqliteConnection, SqlitePool,
 };
 use sqlx_test::new;
 
@@ -286,9 +285,9 @@ async fn it_caches_statements() -> anyhow::Result<()> {
         assert_eq!(i, val);
     }
 
-    assert_eq!(1, conn.cached_statements_count());
+    assert_eq!(1, conn.cached_statements_size());
     conn.clear_cached_statements().await?;
-    assert_eq!(0, conn.cached_statements_count());
+    assert_eq!(0, conn.cached_statements_size());
 
     Ok(())
 }

@@ -74,3 +74,5 @@ pub trait HasArguments<'q> {
     /// The concrete type used as a buffer for arguments while encoding.
     type ArgumentBuffer: Default;
 }
+
+pub trait HasStatementCache {}
