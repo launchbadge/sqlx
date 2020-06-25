@@ -29,10 +29,7 @@ fn prepare<'a>(
 
     if !statements.contains_key(query) {
         let statement = SqliteStatement::prepare(conn, query, false)?;
-
-        if let Some(mut statement) = statements.insert(query, statement) {
-            statement.reset();
-        }
+        statements.insert(query, statement);
     }
 
     let statement = statements.get_mut(query).unwrap();
