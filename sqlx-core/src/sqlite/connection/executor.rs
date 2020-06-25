@@ -27,7 +27,7 @@ fn prepare<'a>(
         return Ok(statement.as_mut().unwrap());
     }
 
-    let exists = !statements.contains_key(query);
+    let exists = statements.contains_key(query);
 
     if !exists {
         let statement = SqliteStatement::prepare(conn, query, true)?;
