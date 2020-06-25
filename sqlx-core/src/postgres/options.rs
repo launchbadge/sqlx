@@ -395,7 +395,11 @@ impl FromStr for PgConnectOptions {
                 }
 
                 "host" => {
-                    options = options.socket(&*value);
+                    if value.starts_with("/") {
+                        options = options.socket(&*value);
+                    } else {
+                        options = options.host(&*value);
+                    }
                 }
 
                 _ => {}
@@ -403,5 +407,27 @@ impl FromStr for PgConnectOptions {
         }
 
         Ok(options)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_socket_correctly_from_parameter() {
+        let uri = "postgres:///?host=/var/run/postgres/";
+        let opts = PgConnectOptions::from_str(uri).unwrap();
+
+        assert_eq!(Some("/var/run/postgres/".into()), opts.socket);
+    }
+
+    #[test]
+    fn parses_host_correctly_from_parameter() {
+        let uri = "postgres:///?host=google.database.com";
+        let opts = PgConnectOptions::from_str(uri).unwrap();
+
+        assert_eq!(None, opts.socket);
+        assert_eq!("google.database.com", &opts.host);
     }
 }
