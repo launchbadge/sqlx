@@ -50,7 +50,7 @@ offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
 all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
-all-types = [ "bigdecimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
@@ -66,6 +66,7 @@ mssql = [ "sqlx-core/mssql", "sqlx-macros/mssql" ]
 
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
+decimal = ["sqlx-core/decimal"]
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]

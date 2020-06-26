@@ -2078,6 +2078,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust_decimal"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b5f52edf35045e96b07aa29822bf4ce8495295fd5610270f85ab1f26df7ba5"
+dependencies = [
+ "num-traits",
+ "serde",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2450,6 +2460,7 @@ dependencies = [
  "md-5",
  "memchr",
  "num-bigint",
+ "num-traits",
  "once_cell",
  "parking_lot 0.11.0",
  "percent-encoding 2.1.0",
@@ -2457,6 +2468,7 @@ dependencies = [
  "rand",
  "regex",
  "rsa",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sha-1",

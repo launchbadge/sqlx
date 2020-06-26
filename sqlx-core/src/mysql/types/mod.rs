@@ -48,6 +48,13 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bigdecimal::BigDecimal`              | DECIMAL                                              |
 //!
+//! ### [`decimal`](https://crates.io/crates/rust_decimal)
+//! Requires the `decimal` Cargo feature flag.
+//!
+//! | Rust type                             | MySQL type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `rust_decimal::Decimal`               | DECIMAL                                              |
+//!
 //! ### [`json`](https://crates.io/crates/json)
 //!
 //! Requires the `json` Cargo feature flag.
@@ -71,6 +78,9 @@ mod uint;
 
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
+
+#[cfg(feature = "decimal")]
+mod decimal;
 
 #[cfg(feature = "chrono")]
 mod chrono;
