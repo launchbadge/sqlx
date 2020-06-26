@@ -32,7 +32,7 @@ impl MySqlStream {
     pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
         let socket = match options.socket {
             Some(ref path) => Socket::connect_uds(path).await?,
-            None => Socket::connect(&options.host, options.port).await?,
+            None => Socket::connect_tcp(&options.host, options.port).await?,
         };
 
         let mut capabilities = Capabilities::PROTOCOL_41

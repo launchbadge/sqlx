@@ -320,6 +320,22 @@ impl PgConnectOptions {
         self.statement_cache_capacity = capacity;
         self
     }
+
+    /// We try using a socket if hostname starts with `/` or if socket parameter
+    /// is specified.
+    pub(crate) fn fetch_socket(&self) -> Option<String> {
+        match self.socket {
+            Some(ref socket) => {
+                let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port);
+                Some(full_path)
+            }
+            None if self.host.starts_with('/') => {
+                let full_path = format!("{}/.s.PGSQL.{}", self.host, self.port);
+                Some(full_path)
+            }
+            _ => None,
+        }
+    }
 }
 
 fn default_host(port: u16) -> String {
