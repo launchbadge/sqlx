@@ -20,6 +20,20 @@
 //! [`PgRange<T>`]: struct.PgRange.html
 //! [`PgMoney`]: struct.PgMoney.html
 //!
+//! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
+//! Requires the `bigdecimal` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `bigdecimal::BigDecimal`              | NUMERIC                                              |
+//!
+//! ### [`decimal`](https://crates.io/crates/rust_decimal)
+//! Requires the `decimal` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `rust_decimal::Decimal`               | NUMERIC                                              |
+//!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
 //! Requires the `chrono` Cargo feature flag.
@@ -154,8 +168,11 @@ mod tuple;
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
-#[cfg(feature = "bigdecimal")]
+#[cfg(any(feature = "bigdecimal", feature = "decimal"))]
 mod numeric;
+
+#[cfg(feature = "decimal")]
+mod decimal;
 
 #[cfg(feature = "chrono")]
 mod chrono;
