@@ -59,21 +59,64 @@ fn expand_derive_has_sql_type_transparent(
 
     if attr.transparent {
         let mut generics = generics.clone();
-        generics.params.insert(0, parse_quote!(DB: sqlx::Database));
-        generics
-            .make_where_clause()
-            .predicates
-            .push(parse_quote!(#ty: sqlx::Type<DB>));
 
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        let mut tts = proc_macro2::TokenStream::new();
 
-        return Ok(quote!(
-            impl #impl_generics sqlx::Type< DB > for #ident #ty_generics #where_clause {
-                fn type_info() -> DB::TypeInfo {
-                    <#ty as sqlx::Type<DB>>::type_info()
+        if cfg!(feature = "mysql") {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(#ty: sqlx::Type<sqlx::MySql>));
+
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+            tts.extend(quote!(
+                impl #impl_generics sqlx::Type<sqlx::MySql> for #ident #ty_generics #where_clause
+                {
+                    fn type_info() -> sqlx::mysql::MySqlTypeInfo {
+                        <#ty as sqlx::Type<sqlx::MySql>>::type_info()
+                    }
                 }
-            }
-        ));
+            ));
+        }
+
+        if cfg!(feature = "postgres") {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(#ty: sqlx::Type<sqlx::Postgres>));
+
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+            tts.extend(quote!(
+                impl #impl_generics sqlx::Type<sqlx::Postgres> for #ident #ty_generics #where_clause
+                {
+                    fn type_info() -> sqlx::postgres::PgTypeInfo {
+                        <#ty as sqlx::Type<sqlx::Postgres>>::type_info()
+                    }
+                }
+            ));
+        }
+
+        if cfg!(feature = "sqlite") {
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(#ty: sqlx::Type<sqlx::Sqlite>));
+
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+            tts.extend(quote!(
+                impl #impl_generics sqlx::Type<sqlx::Sqlite> for #ident #ty_generics #where_clause
+                {
+                    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+                        <#ty as sqlx::Type<sqlx::Sqlite>>::type_info()
+                    }
+                }
+            ));
+        }
+
+        return Ok(tts);
     }
 
     let mut tts = proc_macro2::TokenStream::new();
@@ -100,18 +143,49 @@ fn expand_derive_has_sql_type_weak_enum(
     let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
     let ident = &input.ident;
-    let ts = quote!(
-        impl<DB: sqlx::Database> sqlx::Type<DB> for #ident
-        where
-            #repr: sqlx::Type<DB>,
-        {
-            fn type_info() -> DB::TypeInfo {
-                <#repr as sqlx::Type<DB>>::type_info()
-            }
-        }
-    );
 
-    Ok(ts)
+    let mut tts = proc_macro2::TokenStream::new();
+
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl sqlx::Type<sqlx::MySql> for #ident
+            where
+                #repr: sqlx::Type<sqlx::MySql>,
+            {
+                fn type_info() -> sqlx::mysql::MySqlTypeInfo {
+                    <#repr as sqlx::Type<sqlx::MySql>>::type_info()
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl sqlx::Type<sqlx::Postgres> for #ident
+            where
+                #repr: sqlx::Type<sqlx::Postgres>,
+            {
+                fn type_info() -> sqlx::postgres::PgTypeInfo {
+                    <#repr as sqlx::Type<sqlx::Postgres>>::type_info()
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl sqlx::Type<sqlx::Sqlite> for #ident
+            where
+                #repr: sqlx::Type<sqlx::Sqlite>,
+            {
+                fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+                    <#repr as sqlx::Type<sqlx::Sqlite>>::type_info()
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_has_sql_type_strong_enum(

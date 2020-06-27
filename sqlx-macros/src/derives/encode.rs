@@ -68,28 +68,70 @@ fn expand_derive_encode_transparent(
         .params
         .insert(0, LifetimeDef::new(lifetime.clone()).into());
 
-    generics.params.insert(0, parse_quote!(DB: sqlx::Database));
     generics
         .make_where_clause()
         .predicates
         .push(parse_quote!(#ty: sqlx::encode::Encode<#lifetime, DB>));
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-    Ok(quote!(
-        impl #impl_generics sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics #where_clause {
-            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                <#ty as sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
-            }
+    let (impl_generics, _, _) = generics.split_for_impl();
 
-            fn produces(&self) -> Option<DB::TypeInfo> {
-                <#ty as sqlx::encode::Encode<#lifetime, DB>>::produces(&self.0)
-            }
+    let mut tts = proc_macro2::TokenStream::new();
 
-            fn size_hint(&self) -> usize {
-                <#ty as sqlx::encode::Encode<#lifetime, DB>>::size_hint(&self.0)
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl #impl_generics sqlx::encode::Encode<#lifetime, sqlx::MySql> for #ident #ty_generics where #ty: sqlx::encode::Encode<#lifetime, sqlx::MySql> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::MySql as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::MySql>>::encode_by_ref(&self.0, buf)
+                }
+
+                fn produces(&self) -> Option<sqlx::mysql::MySqlTypeInfo> {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::MySql>>::produces(&self.0)
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::MySql>>::size_hint(&self.0)
+                }
             }
-        }
-    ))
+        ));
+    }
+
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl #impl_generics sqlx::encode::Encode<#lifetime, sqlx::Postgres> for #ident #ty_generics where #ty: sqlx::encode::Encode<#lifetime, sqlx::Postgres> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Postgres>>::encode_by_ref(&self.0, buf)
+                }
+
+                fn produces(&self) -> Option<sqlx::postgres::PgTypeInfo> {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Postgres>>::produces(&self.0)
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Postgres>>::size_hint(&self.0)
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl #impl_generics sqlx::encode::Encode<#lifetime, sqlx::Sqlite> for #ident #ty_generics where #ty: sqlx::encode::Encode<#lifetime, sqlx::Sqlite> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Sqlite as sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Sqlite>>::encode_by_ref(&self.0, buf)
+                }
+
+                fn produces(&self) -> Option<sqlx::sqlite::SqliteTypeInfo> {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Sqlite>>::produces(&self.0)
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#ty as sqlx::encode::Encode<#lifetime, sqlx::Sqlite>>::size_hint(&self.0)
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_encode_weak_enum(
@@ -101,21 +143,63 @@ fn expand_derive_encode_weak_enum(
 
     let ident = &input.ident;
 
-    Ok(quote!(
-        impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where #repr: sqlx::encode::Encode<'q, DB> {
-            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                <#repr as sqlx::encode::Encode<DB>>::encode_by_ref(&(*self as #repr), buf)
-            }
+    let mut tts = proc_macro2::TokenStream::new();
 
-            fn produces(&self) -> Option<DB::TypeInfo> {
-                <#repr as sqlx::encode::Encode<DB>>::produces(&(*self as #repr))
-            }
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::MySql> for #ident where #repr: sqlx::encode::Encode<'q, sqlx::MySql> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::MySql as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#repr as sqlx::encode::Encode<sqlx::MySql>>::encode_by_ref(&(*self as #repr), buf)
+                }
 
-            fn size_hint(&self) -> usize {
-                <#repr as sqlx::encode::Encode<DB>>::size_hint(&(*self as #repr))
+                fn produces(&self) -> Option<sqlx::mysql::MySqlTypeInfo> {
+                    <#repr as sqlx::encode::Encode<sqlx::MySql>>::produces(&(*self as #repr))
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#repr as sqlx::encode::Encode<sqlx::MySql>>::size_hint(&(*self as #repr))
+                }
             }
-        }
-    ))
+        ));
+    }
+
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::Postgres> for #ident where #repr: sqlx::encode::Encode<'q, sqlx::Postgres> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#repr as sqlx::encode::Encode<sqlx::Postgres>>::encode_by_ref(&(*self as #repr), buf)
+                }
+
+                fn produces(&self) -> Option<sqlx::postgres::PgTypeInfo> {
+                    <#repr as sqlx::encode::Encode<sqlx::Postgres>>::produces(&(*self as #repr))
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#repr as sqlx::encode::Encode<sqlx::Postgres>>::size_hint(&(*self as #repr))
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::Sqlite> for #ident where #repr: sqlx::encode::Encode<'q, sqlx::Sqlite> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Sqlite as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    <#repr as sqlx::encode::Encode<sqlx::Sqlite>>::encode_by_ref(&(*self as #repr), buf)
+                }
+
+                fn produces(&self) -> Option<sqlx::sqlite::SqliteTypeInfo> {
+                    <#repr as sqlx::encode::Encode<sqlx::Sqlite>>::produces(&(*self as #repr))
+                }
+
+                fn size_hint(&self) -> usize {
+                    <#repr as sqlx::encode::Encode<sqlx::Sqlite>>::size_hint(&(*self as #repr))
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_encode_strong_enum(
@@ -143,25 +227,75 @@ fn expand_derive_encode_strong_enum(
         }
     }
 
-    Ok(quote!(
-        impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where &'q str: sqlx::encode::Encode<'q, DB> {
-            fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                let val = match self {
-                    #(#value_arms)*
-                };
+    let mut tts = proc_macro2::TokenStream::new();
 
-                <&str as sqlx::encode::Encode<'q, DB>>::encode(val, buf)
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::MySql> for #ident where &'q str: sqlx::encode::Encode<'q, sqlx::MySql> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::MySql as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
+
+                    <&str as sqlx::encode::Encode<'q, sqlx::MySql>>::encode(val, buf)
+                }
+
+                fn size_hint(&self) -> usize {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
+
+                    <&str as sqlx::encode::Encode<'q, sqlx::MySql>>::size_hint(&val)
+                }
             }
+        ));
+    }
 
-            fn size_hint(&self) -> usize {
-                let val = match self {
-                    #(#value_arms)*
-                };
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::Postgres> for #ident where &'q str: sqlx::encode::Encode<'q, sqlx::Postgres> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
 
-                <&str as sqlx::encode::Encode<'q, DB>>::size_hint(&val)
+                    <&str as sqlx::encode::Encode<'q, sqlx::Postgres>>::encode(val, buf)
+                }
+
+                fn size_hint(&self) -> usize {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
+
+                    <&str as sqlx::encode::Encode<'q, sqlx::Postgres>>::size_hint(&val)
+                }
             }
-        }
-    ))
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl<'q> sqlx::encode::Encode<'q, sqlx::Sqlite> for #ident where &'q str: sqlx::encode::Encode<'q, sqlx::Sqlite> {
+                fn encode_by_ref(&self, buf: &mut <sqlx::Sqlite as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
+
+                    <&str as sqlx::encode::Encode<'q, sqlx::Sqlite>>::encode(val, buf)
+                }
+
+                fn size_hint(&self) -> usize {
+                    let val = match self {
+                        #(#value_arms)*
+                    };
+
+                    <&str as sqlx::encode::Encode<'q, sqlx::Sqlite>>::size_hint(&val)
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_encode_struct(

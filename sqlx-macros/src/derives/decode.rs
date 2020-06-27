@@ -59,23 +59,37 @@ fn expand_derive_decode_transparent(
     let generics = &input.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
 
-    // add db type for impl generics & where clause
-    let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(DB: sqlx::Database));
-    generics.params.insert(0, parse_quote!('r));
-    generics
-        .make_where_clause()
-        .predicates
-        .push(parse_quote!(#ty: sqlx::decode::Decode<'r, DB>));
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
+    let mut tts = proc_macro2::TokenStream::new();
 
-    let tts = quote!(
-        impl #impl_generics sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
-            fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                <#ty as sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::MySql> for #ident #ty_generics where #ty: sqlx::decode::Decode<'r, sqlx::MySql> {
+                fn decode(value: <sqlx::MySql as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    <#ty as sqlx::decode::Decode<'r, sqlx::MySql>>::decode(value).map(Self)
+                }
             }
-        }
-    );
+        ));
+    }
+
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for #ident #ty_generics where #ty: sqlx::decode::Decode<'r, sqlx::Postgres> {
+                fn decode(value: <sqlx::Postgres as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    <#ty as sqlx::decode::Decode<'r, sqlx::Postgres>>::decode(value).map(Self)
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::Sqlite> for #ident #ty_generics where #ty: sqlx::decode::Decode<'r, sqlx::Sqlite> {
+                fn decode(value: <sqlx::Sqlite as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    <#ty as sqlx::decode::Decode<'r, sqlx::Sqlite>>::decode(value).map(Self)
+                }
+            }
+        ));
+    }
 
     Ok(tts)
 }
@@ -98,19 +112,57 @@ fn expand_derive_decode_weak_enum(
         })
         .collect::<Vec<Arm>>();
 
-    Ok(quote!(
-        impl<'r, DB: sqlx::Database> sqlx::decode::Decode<'r, DB> for #ident where #repr: sqlx::decode::Decode<'r, DB> {
-            fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                let value = <#repr as sqlx::decode::Decode<'r, DB>>::decode(value)?;
+    let mut tts = proc_macro2::TokenStream::new();
 
-                match value {
-                    #(#arms)*
+    if cfg!(feature = "mysql") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::MySql> for #ident where #repr: sqlx::decode::Decode<'r, sqlx::MySql> {
+                fn decode(value: <sqlx::MySql as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    let value = <#repr as sqlx::decode::Decode<'r, sqlx::MySql>>::decode(value)?;
 
-                    _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
+                    match value {
+                        #(#arms)*
+
+                        _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
+                    }
                 }
             }
-        }
-    ))
+        ));
+    }
+
+    if cfg!(feature = "postgres") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::Postgres> for #ident where #repr: sqlx::decode::Decode<'r, sqlx::Postgres> {
+                fn decode(value: <sqlx::Postgres as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    let value = <#repr as sqlx::decode::Decode<'r, sqlx::Postgres>>::decode(value)?;
+
+                    match value {
+                        #(#arms)*
+
+                        _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
+                    }
+                }
+            }
+        ));
+    }
+
+    if cfg!(feature = "sqlite") {
+        tts.extend(quote!(
+            impl<'r> sqlx::decode::Decode<'r, sqlx::Sqlite> for #ident where #repr: sqlx::decode::Decode<'r, sqlx::Sqlite> {
+                fn decode(value: <sqlx::Sqlite as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+                    let value = <#repr as sqlx::decode::Decode<'r, sqlx::Sqlite>>::decode(value)?;
+
+                    match value {
+                        #(#arms)*
+
+                        _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
+                    }
+                }
+            }
+        ));
+    }
+
+    Ok(tts)
 }
 
 fn expand_derive_decode_strong_enum(
