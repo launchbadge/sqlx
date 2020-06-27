@@ -5,7 +5,6 @@ use std::sync::Arc;
 use futures_util::{stream, StreamExt, TryStreamExt};
 use hashbrown::HashMap;
 
-use crate::arguments::Arguments;
 use crate::describe::Column;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
@@ -22,8 +21,6 @@ impl PgConnection {
         &mut self,
         desc: Option<RowDescription>,
         should_fetch: bool,
-        // columns: &mut Vec<PgColumn>,
-        // column_names: &mut HashMap<UStr, usize>,
     ) -> Result<(), Error> {
         let mut columns = Vec::new();
         let mut column_names = HashMap::new();

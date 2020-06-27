@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::mysql::{MySql, MySqlTypeInfo};
@@ -11,6 +9,23 @@ pub struct MySqlArguments {
     pub(crate) values: Vec<u8>,
     pub(crate) types: Vec<MySqlTypeInfo>,
     pub(crate) null_bitmap: Vec<u8>,
+}
+
+impl MySqlArguments {
+    pub(crate) fn add<'q, T>(&mut self, value: T)
+    where
+        T: Encode<'q, MySql> + Type<MySql>,
+    {
+        let ty = value.produces().unwrap_or_else(T::type_info);
+        let index = self.types.len();
+
+        self.types.push(ty);
+        self.null_bitmap.resize((index / 8) + 1, 0);
+
+        if let IsNull::Yes = value.encode(&mut self.values) {
+            self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
+        }
+    }
 }
 
 impl<'q> Arguments<'q> for MySqlArguments {
@@ -25,28 +40,6 @@ impl<'q> Arguments<'q> for MySqlArguments {
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        let ty = value.produces().unwrap_or_else(T::type_info);
-        let index = self.types.len();
-
-        self.types.push(ty);
-        self.null_bitmap.resize((index / 8) + 1, 0);
-
-        if let IsNull::Yes = value.encode(self) {
-            self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
-        }
-    }
-}
-
-impl Deref for MySqlArguments {
-    type Target = Vec<u8>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.values
-    }
-}
-
-impl DerefMut for MySqlArguments {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.values
+        self.add(value)
     }
 }

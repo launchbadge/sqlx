@@ -24,6 +24,17 @@ pub struct SqliteArguments<'q> {
     pub(crate) values: Vec<SqliteArgumentValue<'q>>,
 }
 
+impl<'q> SqliteArguments<'q> {
+    pub(crate) fn add<T>(&mut self, value: T)
+    where
+        T: Encode<'q, Sqlite>,
+    {
+        if let IsNull::Yes = value.encode(&mut self.values) {
+            self.values.push(SqliteArgumentValue::Null);
+        }
+    }
+}
+
 impl<'q> Arguments<'q> for SqliteArguments<'q> {
     type Database = Sqlite;
 
@@ -33,11 +44,9 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
 
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Encode<'q, Self::Database>,
+        T: Encode<'q, Self::Database>,
     {
-        if let IsNull::Yes = value.encode(&mut self.values) {
-            self.values.push(SqliteArgumentValue::Null);
-        }
+        self.add(value)
     }
 }
 

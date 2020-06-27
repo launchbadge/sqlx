@@ -31,6 +31,20 @@ pub struct PgArguments {
     pub(crate) buffer: PgArgumentBuffer,
 }
 
+impl PgArguments {
+    pub(crate) fn add<'q, T>(&mut self, value: T)
+    where
+        T: Encode<'q, Postgres> + Type<Postgres>,
+    {
+        // remember the type information for this value
+        self.types
+            .push(value.produces().unwrap_or_else(T::type_info));
+
+        // encode the value into our buffer
+        self.buffer.encode(value);
+    }
+}
+
 impl<'q> Arguments<'q> for PgArguments {
     type Database = Postgres;
 
@@ -43,12 +57,7 @@ impl<'q> Arguments<'q> for PgArguments {
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        // remember the type information for this value
-        self.types
-            .push(value.produces().unwrap_or_else(T::type_info));
-
-        // encode the value into our buffer
-        self.buffer.encode(value);
+        self.add(value)
     }
 }
 
