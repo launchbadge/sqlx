@@ -1,45 +1,35 @@
 use crate::{
     decode::Decode,
-    encode::Encode,
-    sqlite::{
-        type_info::{SqliteType, SqliteTypeAffinity},
-        Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValue,
-    },
+    encode::{Encode, IsNull},
+    error::BoxDynError,
+    sqlite::{type_info::DataType, Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef},
     types::Type,
-    Result,
 };
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 
 impl Type<Sqlite> for NaiveDateTime {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo::new(SqliteType::Timestamp, SqliteTypeAffinity::Text)
+        SqliteTypeInfo(DataType::Timestamp)
     }
 }
 
-impl Encode<Sqlite> for NaiveDateTime {
-    fn encode(&self, buf: &mut Vec<SqliteArgumentValue>) {
-        buf.push(SqliteArgumentValue::Text(
-            self.format("%F %T%.f").to_string(),
-        ))
+impl Encode<'_, Sqlite> for NaiveDateTime {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        let text: String = self.format("%F %T%.f").to_string();
+        Encode::<Sqlite>::encode(text, buf)
     }
 }
 
 impl<'a> Decode<'a, Sqlite> for NaiveDateTime {
-    fn decode(value: SqliteValue) -> Result<Self> {
-        let the_type = value.r#type();
-
-        match the_type {
-            Some(SqliteType::Text) => return decode_from_text(value.text()),
-            _ => {}
-        }
-
-        Err(protocol_err!("Unexpected affinity for data: {:?} in value", the_type).into())
+    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
+        let text = Decode::<Sqlite>::decode(value)?;
+        decode_from_text(text)
     }
 }
 
-fn decode_from_text(text: Option<&str>) -> Result<NaiveDateTime> {
+fn decode_from_text(text: Option<&str>) -> Result<NaiveDateTime, BoxDynError> {
     if let Some(raw) = text {
-        // Loop over common date time partterns, inspired by Diesel
+        // Loop over common date time patterns, inspired by Diesel
         // https://docs.diesel.rs/src/diesel/sqlite/types/date_and_time/chrono.rs.html#56-97
         let sqlite_datetime_formats = &[
             // Most likely format
@@ -64,8 +54,8 @@ fn decode_from_text(text: Option<&str>) -> Result<NaiveDateTime> {
             }
         }
 
-        return Err(protocol_err!("Did not find a matching pattern").into());
+        return Err(err_protocol!("Did not find a matching pattern").into());
     }
 
-    Err(protocol_err!("There was not text value to decode").into())
+    Err(err_protocol!("There was no text value to decode").into())
 }
