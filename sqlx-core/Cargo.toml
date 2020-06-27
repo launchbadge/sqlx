@@ -68,7 +68,7 @@ memchr = { version = "2.3.3", default-features = false }
 num-bigint = { version = "0.2.0", default-features = false, optional = true, features = [ "std" ] }
 once_cell = "1.4.0"
 percent-encoding = "2.1.0"
-parking_lot = "0.10.2"
+parking_lot = "0.11.0"
 phf = { version = "0.8.0", features = [ "macros" ] }
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
 regex = { version = "1.3.9", optional = true }
@@ -83,6 +83,6 @@ time = { version = "0.2.16", optional = true }
 smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
-whoami = "0.8.1"
+whoami = "0.9.0"
 stringprep = "0.1.2"
 lru-cache = "0.1.2"
