@@ -97,6 +97,7 @@ serde_json = "1.0.53"
 [[test]]
 name = "any"
 path = "tests/any/any.rs"
+required-features = [ "any" ]
 
 #
 # SQLite
