@@ -60,7 +60,6 @@ impl<T> StatementCache<T> {
     }
 
     /// Returns the maximum number of statements the cache can hold.
-    #[cfg(any(feature = "sqlite"))]
     pub fn capacity(&self) -> usize {
         self.inner.capacity()
     }
