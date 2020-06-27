@@ -31,3 +31,21 @@ test_type!(bytes<Vec<u8>>(Sqlite,
     "X'0000000052'"
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
+
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+
+    test_type!(chrono_date_time<NaiveDateTime>(Sqlite,
+        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+    ));
+
+    test_type!(chrono_date_time_tz<DateTime::<Utc>>(Sqlite,
+        "'1996-12-20T00:39:57+00:00'"
+            == DateTime::<Utc>::from_utc(
+                NaiveDate::from_ymd(1996, 12, 20).and_hms(0, 39, 57),
+                Utc,
+            )
+    ));
+}

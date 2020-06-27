@@ -123,5 +123,7 @@ fn test_data_type_from_str() -> Result<(), BoxDynError> {
     assert_eq!(DataType::Bool, "BOOLEAN".parse()?);
     assert_eq!(DataType::Bool, "BOOL".parse()?);
 
+    assert_eq!(DataType::Timestamp, "TIMESTAMP".parse()?);
+
     Ok(())
 }
