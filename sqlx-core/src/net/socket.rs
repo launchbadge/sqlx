@@ -30,7 +30,7 @@ impl Socket {
 
     #[cfg(not(unix))]
     pub async fn connect_uds(_: impl AsRef<Path>) -> io::Result<Self> {
-        Err(io::Error(
+        Err(io::Error::new(
             io::ErrorKind::Other,
             "Unix domain sockets are not supported outside Unix platforms.",
         ))
