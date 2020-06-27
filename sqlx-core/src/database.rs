@@ -72,7 +72,7 @@ pub trait HasArguments<'q> {
     type Arguments: Arguments<'q, Database = Self::Database>;
 
     /// The concrete type used as a buffer for arguments while encoding.
-    type ArgumentBuffer: Default;
+    type ArgumentBuffer;
 }
 
 pub trait HasStatementCache {}
