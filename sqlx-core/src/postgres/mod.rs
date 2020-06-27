@@ -34,6 +34,11 @@ impl_into_arguments_for_arguments!(PgArguments);
 impl_executor_for_pool_connection!(Postgres, PgConnection, PgRow);
 impl_executor_for_transaction!(Postgres, PgRow);
 
+// required because of `Any`
+impl_type_for_ref_and_option!(Postgres);
+impl_encode_for_ref!(Postgres);
+impl_decode_for_option!(Postgres);
+
 // required because some databases have a different handling
 // of NULL
 impl_encode_for_option!(Postgres);

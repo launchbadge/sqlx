@@ -69,24 +69,30 @@ pub trait Type<DB: Database> {
     }
 }
 
-// for references, the underlying SQL type is identical
-impl<T: ?Sized + Type<DB>, DB: Database> Type<DB> for &'_ T {
-    fn type_info() -> DB::TypeInfo {
-        <T as Type<DB>>::type_info()
-    }
+// de-generified using macros because Any doesn't want this
+#[allow(unused_macros)]
+macro_rules! impl_type_for_ref_and_option {
+    ($DB:ident) => {
+        // for references, the underlying SQL type is identical
+        impl<T: ?Sized + crate::types::Type<$DB>> crate::types::Type<$DB> for &'_ T {
+            fn type_info() -> <$DB as crate::database::Database>::TypeInfo {
+                <T as crate::types::Type<$DB>>::type_info()
+            }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        <T as Type<DB>>::compatible(ty)
-    }
-}
+            fn compatible(ty: &<$DB as crate::database::Database>::TypeInfo) -> bool {
+                <T as crate::types::Type<$DB>>::compatible(ty)
+            }
+        }
 
-// for optionals, the underlying SQL type is identical
-impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
-    fn type_info() -> DB::TypeInfo {
-        <T as Type<DB>>::type_info()
-    }
+        // for optionals, the underlying SQL type is identical
+        impl<T: crate::types::Type<$DB>> crate::types::Type<$DB> for Option<T> {
+            fn type_info() -> <$DB as crate::database::Database>::TypeInfo {
+                <T as crate::types::Type<$DB>>::type_info()
+            }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
-        <T as Type<DB>>::compatible(ty)
-    }
+            fn compatible(ty: &<$DB as crate::database::Database>::TypeInfo) -> bool {
+                <T as crate::types::Type<$DB>>::compatible(ty)
+            }
+        }
+    };
 }

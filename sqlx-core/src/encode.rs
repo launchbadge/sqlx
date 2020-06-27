@@ -45,31 +45,44 @@ pub trait Encode<'q, DB: Database> {
     }
 }
 
-impl<'q, T, DB: Database> Encode<'q, DB> for &'_ T
-where
-    T: Encode<'q, DB>,
-{
-    #[inline]
-    fn encode(self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        <T as Encode<DB>>::encode_by_ref(self, buf)
-    }
+// de-generified using macros because Any doesn't want this
+#[allow(unused_macros)]
+macro_rules! impl_encode_for_ref {
+    ($DB:ident) => {
+        impl<'q, T> crate::encode::Encode<'q, $DB> for &'_ T
+        where
+            T: crate::encode::Encode<'q, $DB>,
+        {
+            #[inline]
+            fn encode(
+                self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                <T as crate::encode::Encode<$DB>>::encode_by_ref(self, buf)
+            }
 
-    #[inline]
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        <&T as Encode<DB>>::encode(self, buf)
-    }
+            #[inline]
+            fn encode_by_ref(
+                &self,
+                buf: &mut <$DB as crate::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> crate::encode::IsNull {
+                <&T as crate::encode::Encode<$DB>>::encode(self, buf)
+            }
 
-    #[inline]
-    fn produces(&self) -> Option<DB::TypeInfo> {
-        (**self).produces()
-    }
+            #[inline]
+            fn produces(&self) -> Option<<$DB as crate::database::Database>::TypeInfo> {
+                (**self).produces()
+            }
 
-    #[inline]
-    fn size_hint(&self) -> usize {
-        (**self).size_hint()
-    }
+            #[inline]
+            fn size_hint(&self) -> usize {
+                (**self).size_hint()
+            }
+        }
+    };
 }
 
+// de-generified using macros because MSSQL has a different concept of how nullable encoding works
 #[allow(unused_macros)]
 macro_rules! impl_encode_for_option {
     ($DB:ident) => {

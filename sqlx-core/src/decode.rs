@@ -2,7 +2,6 @@
 
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
-use crate::value::ValueRef;
 
 /// A type that can be decoded from the database.
 ///
@@ -62,17 +61,24 @@ pub trait Decode<'r, DB: Database>: Sized {
     fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError>;
 }
 
-// implement `Decode` for Option<T> for all SQL types
-impl<'r, DB, T> Decode<'r, DB> for Option<T>
-where
-    DB: Database,
-    T: Decode<'r, DB>,
-{
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
-        if value.is_null() {
-            Ok(None)
-        } else {
-            Ok(Some(T::decode(value)?))
+#[allow(unused_macros)]
+macro_rules! impl_decode_for_option {
+    ($DB:ident) => {
+        impl<'r, T> crate::decode::Decode<'r, $DB> for Option<T>
+        where
+            T: crate::decode::Decode<'r, $DB>,
+        {
+            fn decode(
+                value: <$DB as crate::database::HasValueRef<'r>>::ValueRef,
+            ) -> Result<Self, crate::error::BoxDynError> {
+                use crate::value::ValueRef;
+
+                if value.is_null() {
+                    Ok(None)
+                } else {
+                    Ok(Some(T::decode(value)?))
+                }
+            }
         }
-    }
+    };
 }

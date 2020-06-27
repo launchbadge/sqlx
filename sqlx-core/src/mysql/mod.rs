@@ -31,6 +31,11 @@ impl_into_arguments_for_arguments!(MySqlArguments);
 impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
 impl_executor_for_transaction!(MySql, MySqlRow);
 
+// required because of `Any`
+impl_type_for_ref_and_option!(MySql);
+impl_encode_for_ref!(MySql);
+impl_decode_for_option!(MySql);
+
 // required because some databases have a different handling
 // of NULL
 impl_encode_for_option!(MySql);

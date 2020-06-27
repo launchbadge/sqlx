@@ -171,7 +171,7 @@ pub use range::PgRange;
 pub use record::{PgRecordDecoder, PgRecordEncoder};
 
 // Type::compatible impl appropriate for arrays
-fn array_compatible<E: Type<Postgres>>(ty: &PgTypeInfo) -> bool {
+fn array_compatible<E: ?Sized + Type<Postgres>>(ty: &PgTypeInfo) -> bool {
     // we require the declared type to be an _array_ with an
     // element type that is acceptable
     if let PgTypeKind::Array(element) = &ty.kind() {

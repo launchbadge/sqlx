@@ -29,7 +29,7 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
 
 impl Type<Sqlite> for Vec<u8> {
     fn type_info() -> SqliteTypeInfo {
-        <&[u8] as Type<Sqlite>>::type_info()
+        <[u8] as Type<Sqlite>>::type_info()
     }
 }
 
