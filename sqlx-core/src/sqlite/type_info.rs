@@ -22,7 +22,7 @@ pub(crate) enum DataType {
     // non-standard extensions
     Bool,
     Int64,
-    Timestamp,
+    Datetime,
 }
 
 /// Type information for a SQLite type.
@@ -48,7 +48,7 @@ impl TypeInfo for SqliteTypeInfo {
             // non-standard extensions
             DataType::Bool => "BOOLEAN",
             DataType::Int64 => "BIGINT",
-            DataType::Timestamp => "TIMESTAMP",
+            DataType::Datetime => "DATETIME",
         }
     }
 }
@@ -78,6 +78,7 @@ impl FromStr for DataType {
         Ok(match &*s {
             "int8" => DataType::Int64,
             "boolean" | "bool" => DataType::Bool,
+            "datetime" | "timestamp" => DataType::Datetime,
 
             _ if s.contains("int") && s.contains("big") && s.find("int") > s.find("big") => {
                 DataType::Int64
@@ -123,7 +124,7 @@ fn test_data_type_from_str() -> Result<(), BoxDynError> {
     assert_eq!(DataType::Bool, "BOOLEAN".parse()?);
     assert_eq!(DataType::Bool, "BOOL".parse()?);
 
-    assert_eq!(DataType::Timestamp, "TIMESTAMP".parse()?);
+    assert_eq!(DataType::Datetime, "DATETIME".parse()?);
 
     Ok(())
 }

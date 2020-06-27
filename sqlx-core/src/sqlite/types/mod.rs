@@ -19,7 +19,9 @@
 //!
 //! | Rust type                             | Sqlite type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `chrono::NaiveDateTime`               | TIMESTAMP                                             |
+//! | `chrono::NaiveDateTime`               | DATETIME                                             |
+//! | `chrono::DateTime<Utc>`               | DATETIME                                             |
+//! | `chrono::DateTime<Local>`             | DATETIME                                             |
 //!
 //! # Nullable
 //!

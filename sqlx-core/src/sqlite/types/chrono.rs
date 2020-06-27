@@ -9,7 +9,7 @@ use chrono::prelude::*;
 
 impl Type<Sqlite> for NaiveDateTime {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Timestamp)
+        SqliteTypeInfo(DataType::Datetime)
     }
 }
 
@@ -57,7 +57,7 @@ fn decode_naive_from_text(text: &str) -> Result<NaiveDateTime, BoxDynError> {
 
 impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
     fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Timestamp)
+        SqliteTypeInfo(DataType::Datetime)
     }
 }
 
