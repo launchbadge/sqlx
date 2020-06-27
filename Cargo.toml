@@ -57,6 +57,7 @@ runtime-actix = [ "sqlx-core/runtime-actix", "sqlx-macros/runtime-actix" ]
 runtime-tokio = [ "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio" ]
 
 # database
+any = [ "sqlx-core/any" ]
 postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
@@ -88,6 +89,14 @@ sqlx-test = { path = "./sqlx-test" }
 paste = "0.1.16"
 serde = { version = "1.0.111", features = [ "derive" ] }
 serde_json = "1.0.53"
+
+#
+# Any
+#
+
+[[test]]
+name = "any"
+path = "tests/any/any.rs"
 
 #
 # SQLite

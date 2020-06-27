@@ -37,9 +37,14 @@ pub mod transaction;
 #[macro_use]
 pub mod encode;
 
+#[macro_use]
+pub mod decode;
+
+#[macro_use]
+pub mod types;
+
 mod common;
 pub mod database;
-pub mod decode;
 pub mod describe;
 pub mod executor;
 pub mod from_row;
@@ -50,8 +55,18 @@ pub mod query_as;
 pub mod query_scalar;
 pub mod row;
 pub mod type_info;
-pub mod types;
 pub mod value;
+
+#[cfg(all(
+    any(
+        feature = "postgres",
+        feature = "mysql",
+        feature = "mssql",
+        feature = "sqlite"
+    ),
+    feature = "any"
+))]
+pub mod any;
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]

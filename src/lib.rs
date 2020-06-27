@@ -21,6 +21,17 @@ pub use sqlx_core::describe;
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
 
+#[cfg(all(
+    any(
+        feature = "mysql",
+        feature = "sqlite",
+        feature = "postgres",
+        feature = "mssql"
+    ),
+    feature = "any"
+))]
+pub use sqlx_core::any::{self, Any, AnyConnection, AnyPool};
+
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
 pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};

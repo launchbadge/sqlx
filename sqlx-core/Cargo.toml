@@ -21,6 +21,7 @@ postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand", "rsa" ]
 sqlite = [ "libsqlite3-sys" ]
 mssql = [ "uuid", "encoding_rs", "regex" ]
+any = []
 
 # types
 all-types = [ "chrono", "time", "bigdecimal", "ipnetwork", "json", "uuid" ]
