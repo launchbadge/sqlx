@@ -61,9 +61,12 @@ impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
     }
 }
 
-impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz> {
+impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
+where
+    <Tz as TimeZone>::Offset: std::fmt::Display,
+{
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        let text = self.with_timezone(&Utc).to_rfc3339();
+        let text = self.to_rfc3339();
         Encode::<Sqlite>::encode(text, buf)
     }
 }
@@ -77,6 +80,13 @@ impl<'a> Decode<'a, Sqlite> for DateTime<Utc> {
             let dt = decode_naive_from_text(text)?;
             Ok(Utc.from_utc_datetime(&dt))
         }
+    }
+}
+
+impl<'a> Decode<'a, Sqlite> for DateTime<FixedOffset> {
+    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
+        let text = value.text()?;
+        Ok(DateTime::parse_from_rfc3339(text)?)
     }
 }
 
