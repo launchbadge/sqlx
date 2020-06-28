@@ -30,6 +30,11 @@
 //! | `chrono::NaiveDate`                   | DATE                                                 |
 //! | `chrono::NaiveTime`                   | TIME                                                 |
 //!
+//! If you know you have data that contains zero dates (0000-00-00 00:00:00) you probably want to
+//! use the wrapper type `MysqlZeroDate<T>`, where T can be `NaiveDate` or `NaiveDateTime`.
+//! This enum has a variant for zero dates `MysqlZeroDate::Zero`, and a variant for normal dates
+//! `MysqlZeroDate::NotZero(date)`.
+//!
 //! ### [`time`](https://crates.io/crates/time)
 //!
 //! Requires the `time` Cargo feature flag.
