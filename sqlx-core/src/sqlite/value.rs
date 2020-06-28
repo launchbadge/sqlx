@@ -83,9 +83,15 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
 
     fn type_info(&self) -> Option<Cow<'_, SqliteTypeInfo>> {
         match self.0 {
-            SqliteValueData::Statement { statement, index } => {
-                statement.column_decltype(index).map(Cow::Owned)
-            }
+            SqliteValueData::Statement { statement, index } => statement
+                .column_decltype(index)
+                .or_else(|| {
+                    // fall back to the storage class for expressions
+                    Some(SqliteTypeInfo(DataType::from_code(
+                        statement.column_type(index),
+                    )))
+                })
+                .map(Cow::Owned),
 
             SqliteValueData::Value(v) => v.type_info(),
         }
@@ -115,7 +121,7 @@ impl SqliteValue {
         Self(Arc::new(NonNull::new_unchecked(sqlite3_value_dup(value))))
     }
 
-    fn r#type(&self) -> Option<DataType> {
+    fn r#type(&self) -> DataType {
         DataType::from_code(unsafe { sqlite3_value_type(self.0.as_ptr()) })
     }
 
@@ -158,7 +164,7 @@ impl Value for SqliteValue {
     }
 
     fn type_info(&self) -> Option<Cow<'_, SqliteTypeInfo>> {
-        self.r#type().map(SqliteTypeInfo).map(Cow::Owned)
+        Some(Cow::Owned(SqliteTypeInfo(self.r#type())))
     }
 
     fn is_null(&self) -> bool {

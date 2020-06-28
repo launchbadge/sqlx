@@ -36,7 +36,7 @@ async fn macro_select_bind() -> anyhow::Result<()> {
 
 #[derive(Debug)]
 struct RawAccount {
-    id: i32,
+    id: i64,
     name: String,
     is_active: Option<bool>,
 }
