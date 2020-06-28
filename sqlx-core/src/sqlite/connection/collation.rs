@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int, c_void};
-use std::panic::{catch_unwind, UnwindSafe};
 use std::slice;
+use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{sqlite3_create_collation_v2, SQLITE_OK, SQLITE_UTF8};
 
@@ -17,10 +17,10 @@ unsafe extern "C" fn free_boxed_value<T>(p: *mut c_void) {
 pub(crate) fn create_collation<F>(
     handle: &ConnectionHandle,
     name: &str,
-    collation: F,
+    compare: F,
 ) -> Result<(), Error>
 where
-    F: Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static,
+    F: Fn(&str, &str) -> Ordering + Send + Sync + 'static,
 {
     unsafe extern "C" fn call_boxed_closure<C>(
         arg1: *mut c_void,
@@ -32,25 +32,17 @@ where
     where
         C: Fn(&str, &str) -> Ordering,
     {
-        let r = catch_unwind(|| {
-            let boxed_f: *mut C = arg1 as *mut C;
-            assert!(!boxed_f.is_null(), "Internal error - null function pointer");
-            let s1 = {
-                let c_slice = slice::from_raw_parts(arg3 as *const u8, arg2 as usize);
-                String::from_utf8_lossy(c_slice)
-            };
-            let s2 = {
-                let c_slice = slice::from_raw_parts(arg5 as *const u8, arg4 as usize);
-                String::from_utf8_lossy(c_slice)
-            };
-            (*boxed_f)(s1.as_ref(), s2.as_ref())
-        });
-        let t = match r {
-            Err(_) => {
-                return -1; // FIXME How ?
-            }
-            Ok(r) => r,
+        let boxed_f: *mut C = arg1 as *mut C;
+        debug_assert!(!boxed_f.is_null());
+        let s1 = {
+            let c_slice = slice::from_raw_parts(arg3 as *const u8, arg2 as usize);
+            from_utf8_unchecked(c_slice)
         };
+        let s2 = {
+            let c_slice = slice::from_raw_parts(arg5 as *const u8, arg4 as usize);
+            from_utf8_unchecked(c_slice)
+        };
+        let t = (*boxed_f)(s1, s2);
 
         match t {
             Ordering::Less => -1,
@@ -59,9 +51,9 @@ where
         }
     }
 
-    let boxed_f: *mut F = Box::into_raw(Box::new(collation));
+    let boxed_f: *mut F = Box::into_raw(Box::new(compare));
     let c_name =
-        CString::new(name).map_err(|_| err_protocol!("Invalid collation name: {}", name))?;
+        CString::new(name).map_err(|_| err_protocol!("invalid collation name: {}", name))?;
     let flags = SQLITE_UTF8;
     let r = unsafe {
         sqlite3_create_collation_v2(

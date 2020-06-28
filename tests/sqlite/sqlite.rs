@@ -275,7 +275,7 @@ SELECT id, text FROM _sqlx_test;
 async fn it_supports_collations() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    conn.create_collation("test_collation", |l, r| l.cmp(r).reverse());
+    conn.create_collation("test_collation", |l, r| l.cmp(r).reverse())?;
 
     let _ = conn
         .execute(
@@ -300,6 +300,8 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
     let name: &str = row.try_get(0)?;
 
     assert_eq!(name, "b");
+
+    Ok(())
 }
 
 #[sqlx_macros::test]

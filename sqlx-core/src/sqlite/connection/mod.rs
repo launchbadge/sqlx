@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::fmt::{self, Debug, Formatter};
-use std::panic::UnwindSafe;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
@@ -47,10 +46,9 @@ impl SqliteConnection {
     pub fn create_collation(
         &mut self,
         name: &str,
-        collation: impl Fn(&str, &str) -> Ordering + Send + Sync + UnwindSafe + 'static,
-    ) -> &mut SqliteConnection {
-        collation::create_collation(&self.handle, name, collation);
-        self
+        compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        collation::create_collation(&self.handle, name, compare)
     }
 }
 
