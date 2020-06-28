@@ -12,6 +12,7 @@
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
 //! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
+//! | `sqlx::postgres::types::PgInterval`   | INTERVAL                                             |
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
@@ -137,6 +138,7 @@ mod bool;
 mod bytes;
 mod float;
 mod int;
+mod interval;
 mod range;
 mod record;
 mod str;
@@ -163,6 +165,7 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+pub use interval::PgInterval;
 pub use range::PgRange;
 
 // used in derive(Type) for `struct`
