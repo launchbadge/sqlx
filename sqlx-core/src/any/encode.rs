@@ -1,6 +1,4 @@
-use crate::any::arguments::AnyArgumentBufferKind;
-use crate::any::{Any, AnyArgumentBuffer};
-use crate::encode::{Encode, IsNull};
+use crate::encode::Encode;
 use crate::types::Type;
 
 #[cfg(feature = "postgres")]
@@ -17,28 +15,37 @@ use crate::sqlite::Sqlite;
 
 // Implements Encode for any T where T supports Encode for any database that has support currently
 // compiled into SQLx
-impl<'q, T> Encode<'q, Any> for T
-where
-    T: AnyEncode<'q>,
-{
-    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> IsNull {
-        match &mut buf.0 {
-            #[cfg(feature = "postgres")]
-            AnyArgumentBufferKind::Postgres(args, _) => args.add(self),
+macro_rules! impl_any_encode {
+    ($ty:ty) => {
+        impl<'q> crate::encode::Encode<'q, crate::any::Any> for $ty
+        where
+            $ty: crate::any::AnyEncode<'q>,
+        {
+            fn encode_by_ref(
+                &self,
+                buf: &mut crate::any::AnyArgumentBuffer<'q>,
+            ) -> crate::encode::IsNull {
+                match &mut buf.0 {
+                    #[cfg(feature = "postgres")]
+                    crate::any::arguments::AnyArgumentBufferKind::Postgres(args, _) => {
+                        args.add(self)
+                    }
 
-            #[cfg(feature = "mysql")]
-            AnyArgumentBufferKind::MySql(args, _) => args.add(self),
+                    #[cfg(feature = "mysql")]
+                    crate::any::arguments::AnyArgumentBufferKind::MySql(args, _) => args.add(self),
 
-            #[cfg(feature = "mssql")]
-            AnyArgumentBufferKind::Mssql(args, _) => args.add(self),
+                    #[cfg(feature = "mssql")]
+                    crate::any::arguments::AnyArgumentBufferKind::Mssql(args, _) => args.add(self),
 
-            #[cfg(feature = "sqlite")]
-            AnyArgumentBufferKind::Sqlite(args) => args.add(self),
+                    #[cfg(feature = "sqlite")]
+                    crate::any::arguments::AnyArgumentBufferKind::Sqlite(args) => args.add(self),
+                }
+
+                // unused
+                crate::encode::IsNull::No
+            }
         }
-
-        // unused
-        IsNull::No
-    }
+    };
 }
 
 // FIXME: Find a nice way to auto-generate the below or petition Rust to add support for #[cfg]

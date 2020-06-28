@@ -1,13 +1,20 @@
+#[macro_use]
+mod decode;
+
+#[macro_use]
+mod encode;
+
+#[macro_use]
+mod r#type;
+
 mod arguments;
 mod connection;
 mod database;
-mod decode;
-mod encode;
 mod options;
 mod row;
 mod transaction;
 mod type_info;
-mod types;
+pub mod types;
 mod value;
 
 pub use arguments::{AnyArgumentBuffer, AnyArguments};
@@ -16,6 +23,7 @@ pub use database::Any;
 pub use decode::AnyDecode;
 pub use encode::AnyEncode;
 pub use options::AnyConnectOptions;
+pub use r#type::AnyType;
 pub use row::AnyRow;
 pub use transaction::AnyTransactionManager;
 pub use type_info::AnyTypeInfo;

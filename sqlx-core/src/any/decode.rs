@@ -1,7 +1,4 @@
-use crate::any::value::AnyValueRefKind;
-use crate::any::{Any, AnyValueRef};
 use crate::decode::Decode;
-use crate::error::BoxDynError;
 use crate::types::Type;
 
 #[cfg(feature = "postgres")]
@@ -18,29 +15,39 @@ use crate::sqlite::Sqlite;
 
 // Implements Decode for any T where T supports Decode for any database that has support currently
 // compiled into SQLx
-impl<'r, T> Decode<'r, Any> for T
-where
-    T: AnyDecode<'r>,
-{
-    fn decode(value: AnyValueRef<'r>) -> Result<Self, BoxDynError> {
-        match value.0 {
-            #[cfg(feature = "mysql")]
-            AnyValueRefKind::MySql(value) => <T as Decode<'r, crate::mysql::MySql>>::decode(value),
+macro_rules! impl_any_decode {
+    ($ty:ty) => {
+        impl<'r> crate::decode::Decode<'r, crate::any::Any> for $ty
+        where
+            $ty: crate::any::AnyDecode<'r>,
+        {
+            fn decode(
+                value: crate::any::AnyValueRef<'r>,
+            ) -> Result<Self, crate::error::BoxDynError> {
+                match value.0 {
+                    #[cfg(feature = "mysql")]
+                    crate::any::value::AnyValueRefKind::MySql(value) => {
+                        <$ty as crate::decode::Decode<'r, crate::mysql::MySql>>::decode(value)
+                    }
 
-            #[cfg(feature = "sqlite")]
-            AnyValueRefKind::Sqlite(value) => {
-                <T as Decode<'r, crate::sqlite::Sqlite>>::decode(value)
-            }
+                    #[cfg(feature = "sqlite")]
+                    crate::any::value::AnyValueRefKind::Sqlite(value) => {
+                        <$ty as crate::decode::Decode<'r, crate::sqlite::Sqlite>>::decode(value)
+                    }
 
-            #[cfg(feature = "mssql")]
-            AnyValueRefKind::Mssql(value) => <T as Decode<'r, crate::mssql::Mssql>>::decode(value),
+                    #[cfg(feature = "mssql")]
+                    crate::any::value::AnyValueRefKind::Mssql(value) => {
+                        <$ty as crate::decode::Decode<'r, crate::mssql::Mssql>>::decode(value)
+                    }
 
-            #[cfg(feature = "postgres")]
-            AnyValueRefKind::Postgres(value) => {
-                <T as Decode<'r, crate::postgres::Postgres>>::decode(value)
+                    #[cfg(feature = "postgres")]
+                    crate::any::value::AnyValueRefKind::Postgres(value) => {
+                        <$ty as crate::decode::Decode<'r, crate::postgres::Postgres>>::decode(value)
+                    }
+                }
             }
         }
-    }
+    };
 }
 
 // FIXME: Find a nice way to auto-generate the below or petition Rust to add support for #[cfg]
