@@ -31,10 +31,5 @@ impl_into_arguments_for_arguments!(MssqlArguments);
 impl_executor_for_pool_connection!(Mssql, MssqlConnection, MssqlRow);
 impl_executor_for_transaction!(Mssql, MssqlRow);
 
-// required because of `Any`
-impl_type_for_ref_and_option!(Mssql);
-impl_encode_for_ref!(Mssql);
-impl_decode_for_option!(Mssql);
-
 // FIXME: RPC NULL parameter values / results
 // FIXME: RPC Empty String parameter values

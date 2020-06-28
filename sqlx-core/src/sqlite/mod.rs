@@ -35,11 +35,6 @@ impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_executor_for_pool_connection!(Sqlite, SqliteConnection, SqliteRow);
 impl_executor_for_transaction!(Sqlite, SqliteRow);
 
-// required because of `Any`
-impl_type_for_ref_and_option!(Sqlite);
-impl_encode_for_ref!(Sqlite);
-impl_decode_for_option!(Sqlite);
-
 // required because some databases have a different handling
 // of NULL
 impl_encode_for_option!(Sqlite);

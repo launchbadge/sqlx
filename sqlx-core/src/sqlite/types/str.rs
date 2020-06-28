@@ -29,7 +29,7 @@ impl<'r> Decode<'r, Sqlite> for &'r str {
 
 impl Type<Sqlite> for String {
     fn type_info() -> SqliteTypeInfo {
-        <str as Type<Sqlite>>::type_info()
+        <&str as Type<Sqlite>>::type_info()
     }
 }
 

@@ -28,7 +28,7 @@ impl Type<Postgres> for [&'_ str] {
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        array_compatible::<str>(ty)
+        array_compatible::<&str>(ty)
     }
 }
 
@@ -64,11 +64,11 @@ impl<'r> Decode<'r, Postgres> for &'r str {
 
 impl Type<Postgres> for String {
     fn type_info() -> PgTypeInfo {
-        <str as Type<Postgres>>::type_info()
+        <&str as Type<Postgres>>::type_info()
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        <str as Type<Postgres>>::compatible(ty)
+        <&str as Type<Postgres>>::compatible(ty)
     }
 }
 

@@ -46,7 +46,7 @@ impl Type<MySql> for Vec<u8> {
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <[u8] as Type<MySql>>::compatible(ty)
+        <&[u8] as Type<MySql>>::compatible(ty)
     }
 }
 
