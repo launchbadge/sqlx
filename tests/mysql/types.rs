@@ -49,6 +49,11 @@ mod chrono {
         "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
     ));
 
+    test_type!(chrono_time_zero<NaiveTime>(
+        MySql,
+        "TIME '00:00:00.000000'" == NaiveTime::from_hms_micro(0, 0, 0, 0)
+    ));
+
     test_type!(chrono_time<NaiveTime>(
         MySql,
         "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
@@ -79,6 +84,11 @@ mod time_tests {
         MySql,
         "DATE '2001-01-05'" == date!(2001 - 1 - 5),
         "DATE '2050-11-23'" == date!(2050 - 11 - 23)
+    ));
+
+    test_type!(time_time_zero<Time>(
+        MySql,
+        "TIME '00:00:00.000000'" == time!(00:00:00.000000)
     ));
 
     test_type!(time_time<Time>(

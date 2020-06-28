@@ -83,6 +83,13 @@ impl<'r> Decode<'r, MySql> for Time {
                 // data length, expecting 8 or 12 (fractional seconds)
                 let len = buf.get_u8();
 
+                // MySQL specifies that if all of hours, minutes, seconds, microseconds
+                // are 0 then the length is 0 and no further data is send
+                // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
+                if len == 0 {
+                    return Ok(Time::try_from_hms_micro(0, 0, 0, 0).unwrap());
+                }
+
                 // is negative : int<1>
                 let is_negative = buf.get_u8();
                 assert_eq!(is_negative, 0, "Negative dates/times are not supported");
