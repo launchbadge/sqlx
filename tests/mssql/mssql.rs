@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mssql::Mssql;
-use sqlx::{Connection, Executor, Row};
+use sqlx::{Connect, Connection, Executor, MssqlConnection, Row};
 use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 
@@ -23,6 +23,32 @@ async fn it_can_select_expression() -> anyhow::Result<()> {
     let v: i32 = row.try_get(0)?;
 
     assert_eq!(v, 4);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_fail_to_connect() -> anyhow::Result<()> {
+    let res = MssqlConnection::connect("mssql://sa@localhost").await;
+    let err = res.unwrap_err();
+    let err = err.into_database_error().unwrap();
+
+    assert_eq!(err.message(), "Login failed for user \'sa\'.");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_inspect_errors() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+
+    let res: Result<u64, sqlx::Error> = sqlx::query("select f").execute(&mut conn).await;
+    let err = res.unwrap_err();
+
+    // can also do [as_database_error] or use `match ..`
+    let err = err.into_database_error().unwrap();
+
+    assert_eq!(err.message(), "Invalid column name 'f'.");
 
     Ok(())
 }

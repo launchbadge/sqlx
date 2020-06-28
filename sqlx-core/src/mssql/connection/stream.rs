@@ -177,8 +177,7 @@ impl MssqlStream {
     }
 
     pub(crate) fn handle_error<T>(&mut self, error: ProtocolError) -> Result<T, Error> {
-        // error is sent _instead_ of a done
-        self.pending_done_count -= 1;
+        // NOTE: [error] is sent IN ADDITION TO [done]
         Err(MssqlDatabaseError(error).into())
     }
 
