@@ -13,6 +13,7 @@ use crate::ext::ustr::UStr;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
 use crate::mysql::row::MySqlColumn;
+use crate::mysql::statement::Statement;
 use crate::mysql::{MySql, MySqlConnectOptions};
 
 mod auth;
@@ -35,7 +36,7 @@ pub struct MySqlConnection {
     pub(crate) stream: MySqlStream,
 
     // cache by query string to the statement id
-    cache_statement: StatementCache<u32>,
+    cache_statement: StatementCache<Statement>,
 
     // working memory for the active row's column information
     // this allows us to re-use these allocations unless the user is persisting the
@@ -83,7 +84,11 @@ impl Connection for MySqlConnection {
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             while let Some(statement) = self.cache_statement.remove_lru() {
-                self.stream.send_packet(StmtClose { statement }).await?;
+                self.stream
+                    .send_packet(StmtClose {
+                        statement: statement.id,
+                    })
+                    .await?;
             }
 
             Ok(())

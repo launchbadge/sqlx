@@ -170,7 +170,6 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         })
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
     where
         'c: 'e,

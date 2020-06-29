@@ -30,7 +30,7 @@ impl<T> StatementCache<T> {
         if self.capacity() == self.len() && !self.contains_key(k) {
             lru_item = self.remove_lru();
         } else if self.contains_key(k) {
-            lru_item = self.inner.remove(k);
+            lru_item = self.remove(k);
         }
 
         self.inner.insert(k.into(), v);
@@ -46,6 +46,11 @@ impl<T> StatementCache<T> {
     /// Removes the least recently used item from the cache.
     pub fn remove_lru(&mut self) -> Option<T> {
         self.inner.remove_lru().map(|(_, v)| v)
+    }
+
+    /// Removes the statement which matches the given query from the cache.
+    pub fn remove(&mut self, k: &str) -> Option<T> {
+        self.inner.remove(k)
     }
 
     /// Clear all cached statements from the cache.

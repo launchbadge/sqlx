@@ -123,10 +123,6 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Prepare the SQL query and return type information about its parameters
     /// and results.
-    ///
-    /// This is used by compile-time verification in the query macros to
-    /// power their type inference.
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,

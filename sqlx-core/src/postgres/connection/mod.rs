@@ -16,6 +16,7 @@ use crate::postgres::message::{
     Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::row::PgColumn;
+use crate::postgres::statement::Statement;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 
 pub(crate) mod describe;
@@ -47,7 +48,7 @@ pub struct PgConnection {
     next_statement_id: u32,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache<u32>,
+    cache_statement: StatementCache<Statement>,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<u32, PgTypeInfo>,
@@ -60,8 +61,11 @@ pub struct PgConnection {
     transaction_status: TransactionStatus,
 
     // working memory for the active row's column information
-    scratch_row_columns: Arc<Vec<PgColumn>>,
+    pub(crate) scratch_row_columns: Arc<Vec<PgColumn>>,
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+
+    // Set to true when describing a query to skip an endless recursion.
+    describe_mode: bool,
 }
 
 impl PgConnection {
@@ -129,7 +133,7 @@ impl Connection for PgConnection {
             let mut needs_flush = false;
 
             while let Some(statement) = self.cache_statement.remove_lru() {
-                self.stream.write(Close::Statement(statement));
+                self.stream.write(Close::Statement(statement.id()));
                 needs_flush = true;
             }
 

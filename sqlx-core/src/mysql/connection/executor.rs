@@ -20,14 +20,15 @@ use crate::mysql::protocol::statement::{
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::protocol::Packet;
 use crate::mysql::row::MySqlColumn;
+use crate::mysql::statement::Statement;
 use crate::mysql::{
     MySql, MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo, MySqlValueFormat,
 };
 
 impl MySqlConnection {
-    async fn prepare(&mut self, query: &str) -> Result<u32, Error> {
-        if let Some(statement) = self.cache_statement.get_mut(query) {
-            return Ok(*statement);
+    async fn prepare(&mut self, query: &str) -> Result<&mut Statement, Error> {
+        if self.cache_statement.contains_key(query) {
+            return Ok(self.cache_statement.get_mut(query).unwrap());
         }
 
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare.html
@@ -36,13 +37,14 @@ impl MySqlConnection {
         self.stream.send_packet(Prepare { query }).await?;
 
         let ok: PrepareOk = self.stream.recv().await?;
-
-        // the parameter definitions are very unreliable so we skip over them
-        // as we have little use
+        let mut params = Vec::with_capacity(ok.params as usize);
+        let mut columns = Vec::with_capacity(ok.columns as usize);
 
         if ok.params > 0 {
             for _ in 0..ok.params {
-                let _def: ColumnDefinition = self.stream.recv().await?;
+                let def: ColumnDefinition = self.stream.recv().await?;
+
+                params.push(MySqlTypeInfo::from_column(&def));
             }
 
             self.stream.maybe_recv_eof().await?;
@@ -54,18 +56,38 @@ impl MySqlConnection {
 
         if ok.columns > 0 {
             for _ in 0..(ok.columns as usize) {
-                let _def: ColumnDefinition = self.stream.recv().await?;
+                let def: ColumnDefinition = self.stream.recv().await?;
+                let ty = MySqlTypeInfo::from_column(&def);
+                let alias = def.alias()?;
+
+                columns.push(Column {
+                    name: if alias.is_empty() { def.name()? } else { alias }.to_owned(),
+                    type_info: ty,
+                    not_null: Some(def.flags.contains(ColumnFlags::NOT_NULL)),
+                })
             }
 
             self.stream.maybe_recv_eof().await?;
         }
 
+        let statement = Statement {
+            id: ok.statement_id,
+            params,
+            columns,
+        };
+
         // in case of the cache being full, close the least recently used statement
-        if let Some(statement) = self.cache_statement.insert(query, ok.statement_id) {
-            self.stream.send_packet(StmtClose { statement }).await?;
+        if let Some(statement) = self.cache_statement.insert(query, statement) {
+            self.stream
+                .send_packet(StmtClose {
+                    statement: statement.id,
+                })
+                .await?;
         }
 
-        Ok(ok.statement_id)
+        // We just inserted the statement above, we'll always have it in the
+        // cache at this point.
+        Ok(self.cache_statement.get_mut(query).unwrap())
     }
 
     async fn recv_result_metadata(&mut self, mut packet: Packet<Bytes>) -> Result<(), Error> {
@@ -117,11 +139,12 @@ impl MySqlConnection {
 
         let format = if let Some(arguments) = arguments {
             let statement = self.prepare(query).await?;
+            let statement_id = statement.id;
 
             // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
             self.stream
                 .send_packet(StatementExecute {
-                    statement,
+                    statement: statement_id,
                     arguments: &arguments,
                 })
                 .await?;
@@ -244,7 +267,6 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         })
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
     where
         'c: 'e,
@@ -253,42 +275,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let query = query.query();
 
         Box::pin(async move {
-            self.stream.send_packet(Prepare { query }).await?;
+            let statement = self.prepare(query).await?;
 
-            let ok: PrepareOk = self.stream.recv().await?;
-
-            let mut params = Vec::with_capacity(ok.params as usize);
-            let mut columns = Vec::with_capacity(ok.columns as usize);
-
-            if ok.params > 0 {
-                for _ in 0..ok.params {
-                    let def: ColumnDefinition = self.stream.recv().await?;
-
-                    params.push(MySqlTypeInfo::from_column(&def));
-                }
-
-                self.stream.maybe_recv_eof().await?;
-            }
-
-            // the column definitions are berefit the type information from the
-            // to-be-bound parameters; we will receive the output column definitions
-            // once more on execute so we wait for that
-
-            if ok.columns > 0 {
-                for _ in 0..(ok.columns as usize) {
-                    let def: ColumnDefinition = self.stream.recv().await?;
-                    let ty = MySqlTypeInfo::from_column(&def);
-                    let alias = def.alias()?;
-
-                    columns.push(Column {
-                        name: if alias.is_empty() { def.name()? } else { alias }.to_owned(),
-                        type_info: ty,
-                        not_null: Some(def.flags.contains(ColumnFlags::NOT_NULL)),
-                    })
-                }
-
-                self.stream.maybe_recv_eof().await?;
-            }
+            let params = statement.params.clone();
+            let columns = statement.columns.clone();
 
             Ok(Describe { params, columns })
         })

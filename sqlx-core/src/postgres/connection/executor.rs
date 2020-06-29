@@ -12,6 +12,7 @@ use crate::postgres::message::{
     self, Bind, Close, CommandComplete, DataRow, Flush, MessageFormat, ParameterDescription, Parse,
     Query, RowDescription,
 };
+use crate::postgres::statement::Statement;
 use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgValueFormat, Postgres};
 
@@ -19,7 +20,7 @@ async fn prepare(
     conn: &mut PgConnection,
     query: &str,
     arguments: &PgArguments,
-) -> Result<u32, Error> {
+) -> Result<Statement, Error> {
     let id = conn.next_statement_id;
     conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
 
@@ -61,7 +62,20 @@ async fn prepare(
         .recv_expect(MessageFormat::ParseComplete)
         .await?;
 
-    Ok(id)
+    // describe the statement and, again, ask the server to immediately respond
+    // we need to fully realize the types
+    conn.stream.write(message::Describe::Statement(id));
+    conn.stream.write(message::Flush);
+    conn.stream.flush().await?;
+
+    let params = recv_desc_params(conn).await?;
+    let rows = recv_desc_rows(conn).await?;
+
+    let params = conn.handle_parameter_description(params).await?;
+
+    conn.handle_row_description(rows, true).await?;
+
+    Ok(Statement::new(id, params))
 }
 
 async fn recv_desc_params(conn: &mut PgConnection) -> Result<ParameterDescription, Error> {
@@ -90,20 +104,44 @@ async fn recv_desc_rows(conn: &mut PgConnection) -> Result<Option<RowDescription
 }
 
 impl PgConnection {
-    async fn prepare(&mut self, query: &str, arguments: &PgArguments) -> Result<u32, Error> {
-        if let Some(statement) = self.cache_statement.get_mut(query) {
-            return Ok(*statement);
+    async fn prepare(
+        &mut self,
+        query: &str,
+        arguments: &PgArguments,
+    ) -> Result<&mut Statement, Error> {
+        if self.cache_statement.contains_key(query) {
+            return Ok(self.cache_statement.get_mut(query).unwrap());
         }
 
-        let statement = prepare(self, query, arguments).await?;
+        let mut statement = prepare(self, query, arguments).await?;
+
+        // While calling this recursively, we must end the recursion and skip
+        // fetching column info for the describe queries.
+        if !statement.columns_set() && !self.describe_mode {
+            self.describe_mode = true;
+            let columns = self.scratch_row_columns.clone();
+
+            match self.map_result_columns(&columns).await {
+                Ok(columns) => {
+                    self.describe_mode = false;
+                    statement.set_columns(columns);
+                }
+                Err(e) => {
+                    self.describe_mode = false;
+                    return Err(e);
+                }
+            }
+        }
 
         if let Some(statement) = self.cache_statement.insert(query, statement) {
-            self.stream.write(Close::Statement(statement));
+            self.stream.write(Close::Statement(statement.id()));
             self.stream.write(Flush);
             self.stream.flush().await?;
         }
 
-        Ok(statement)
+        // We just inserted the statement above, we'll always have it in the
+        // cache at this point.
+        Ok(self.cache_statement.get_mut(query).unwrap())
     }
 
     async fn run(
@@ -119,13 +157,15 @@ impl PgConnection {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
             let statement = self.prepare(query, &arguments).await?;
+            let statement_id = statement.id();
 
             // patch holes created during encoding
             arguments.buffer.patch_type_holes(self).await?;
 
             // describe the statement and, again, ask the server to immediately respond
             // we need to fully realize the types
-            self.stream.write(message::Describe::Statement(statement));
+            self.stream
+                .write(message::Describe::Statement(statement_id));
             self.stream.write(message::Flush);
             self.stream.flush().await?;
 
@@ -138,7 +178,7 @@ impl PgConnection {
             // bind to attach the arguments to the statement and create a portal
             self.stream.write(Bind {
                 portal: None,
-                statement,
+                statement: statement_id,
                 formats: &[PgValueFormat::Binary],
                 num_params: arguments.types.len() as i16,
                 params: &*arguments.buffer,
@@ -286,7 +326,6 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -298,22 +337,10 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
 
         Box::pin(async move {
-            let id = prepare(self, s, &Default::default()).await?;
+            let statement = self.prepare(s, &Default::default()).await?;
 
-            self.stream.write(message::Describe::Statement(id));
-            self.stream.write(Flush);
-
-            self.stream.flush().await?;
-
-            let params = recv_desc_params(self).await?;
-            let rows = recv_desc_rows(self).await?;
-
-            let params = self.handle_parameter_description(params).await?;
-
-            self.handle_row_description(rows, true).await?;
-
-            let columns = self.scratch_row_columns.clone();
-            let columns = self.map_result_columns(&columns).await?;
+            let params = statement.params().to_vec();
+            let columns = statement.columns().to_vec();
 
             Ok(Describe { params, columns })
         })

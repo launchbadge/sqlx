@@ -5,7 +5,7 @@ use crate::mysql::{
 };
 
 /// MySQL database driver.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MySql;
 
 impl Database for MySql {

@@ -496,7 +496,7 @@ SELECT id, text FROM _sqlx_test_postgres_5112;
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    for i in 0..2 {
+    for i in 0..5 {
         let row = sqlx::query("SELECT $1 AS val")
             .bind(i)
             .fetch_one(&mut conn)
@@ -507,7 +507,23 @@ async fn it_caches_statements() -> anyhow::Result<()> {
         assert_eq!(i, val);
     }
 
-    assert_eq!(1, conn.cached_statements_size());
+    for i in 0..5 {
+        let row = sqlx::query("SELECT $1 AS val, $2 as val2")
+            .bind(i)
+            .bind(i + 1)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: u32 = row.get("val");
+        let val2: u32 = row.get("val2");
+
+        assert_eq!(i, val);
+        assert_eq!(i + 1, val2);
+    }
+
+    // Contains `SELECT 1` and the describe query.
+    assert_eq!(4, conn.cached_statements_size());
+
     conn.clear_cached_statements().await?;
     assert_eq!(0, conn.cached_statements_size());
 

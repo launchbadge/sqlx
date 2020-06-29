@@ -35,7 +35,7 @@ where
     pub columns: Vec<Column<DB>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(

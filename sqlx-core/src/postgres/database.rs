@@ -4,7 +4,7 @@ use crate::postgres::value::{PgValue, PgValueRef};
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgTransactionManager, PgTypeInfo};
 
 /// PostgreSQL database driver.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Postgres;
 
 impl Database for Postgres {
