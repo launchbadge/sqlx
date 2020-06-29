@@ -76,42 +76,44 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
-            self.run(s, arguments).await?;
+        log_execution(s, {
+            Box::pin(try_stream! {
+                self.run(s, arguments).await?;
 
-            loop {
-                let message = self.stream.recv_message().await?;
+                loop {
+                    let message = self.stream.recv_message().await?;
 
-                match message {
-                    Message::Row(row) => {
-                        r#yield!(Either::Right(MssqlRow { row }));
+                    match message {
+                        Message::Row(row) => {
+                            r#yield!(Either::Right(MssqlRow { row }));
+                        }
+
+                        Message::Done(done) | Message::DoneProc(done) => {
+                            if !done.status.contains(Status::DONE_MORE) {
+                                self.stream.handle_done(&done);
+                            }
+
+                            if done.status.contains(Status::DONE_COUNT) {
+                                r#yield!(Either::Left(done.affected_rows));
+                            }
+    
+                            if !done.status.contains(Status::DONE_MORE) {
+                                break;
+                            }
+                        }
+
+                        Message::DoneInProc(done) => {
+                            if done.status.contains(Status::DONE_COUNT) {
+                                r#yield!(Either::Left(done.affected_rows));
+                            }
+                        }
+
+                        _ => {}
                     }
-
-                    Message::Done(done) | Message::DoneProc(done) => {
-                        if !done.status.contains(Status::DONE_MORE) {
-                            self.stream.handle_done(&done);
-                        }
-
-                        if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(done.affected_rows));
-                        }
-
-                        if !done.status.contains(Status::DONE_MORE) {
-                            break;
-                        }
-                    }
-
-                    Message::DoneInProc(done) => {
-                        if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(done.affected_rows));
-                        }
-                    }
-
-                    _ => {}
                 }
-            }
 
-            Ok(())
+                Ok(())
+            })
         })
     }
 

@@ -249,15 +249,17 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
-            let s = self.run(s, arguments, 0).await?;
-            pin_mut!(s);
+        log_execution(s, {
+            Box::pin(try_stream! {
+                let s = self.run(s, arguments, 0).await?;
+                pin_mut!(s);
 
-            while let Some(v) = s.try_next().await? {
-                r#yield!(v);
-            }
+                while let Some(v) = s.try_next().await? {
+                    r#yield!(v);
+                }
 
-            Ok(())
+                Ok(())
+            })
         })
     }
 
@@ -272,17 +274,19 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(async move {
-            let s = self.run(s, arguments, 1).await?;
-            pin_mut!(s);
+        log_execution(s, {
+            Box::pin(async move {
+                let s = self.run(s, arguments, 1).await?;
+                pin_mut!(s);
 
-            while let Some(s) = s.try_next().await? {
-                if let Either::Right(r) = s {
-                    return Ok(Some(r));
+                while let Some(s) = s.try_next().await? {
+                    if let Either::Right(r) = s {
+                        return Ok(Some(r));
+                    }
                 }
-            }
 
-            Ok(None)
+                Ok(None)
+            })
         })
     }
 

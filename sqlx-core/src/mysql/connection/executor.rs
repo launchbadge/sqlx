@@ -211,15 +211,17 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let s = query.query();
         let arguments = query.take_arguments();
 
-        Box::pin(try_stream! {
-            let s = self.run(s, arguments).await?;
-            pin_mut!(s);
+        log_execution(s, {
+            Box::pin(try_stream! {
+                let s = self.run(s, arguments).await?;
+                pin_mut!(s);
 
-            while let Some(v) = s.try_next().await? {
-                r#yield!(v);
-            }
+                while let Some(v) = s.try_next().await? {
+                    r#yield!(v);
+                }
 
-            Ok(())
+                Ok(())
+            })
         })
     }
 
