@@ -55,6 +55,10 @@ impl<DB: Database> SharedPool<DB> {
 
     #[inline]
     pub(super) fn try_acquire(&self) -> Option<Floating<'_, Live<DB>>> {
+        // don't cut in line
+        if !self.waiters.is_empty() {
+            return None;
+        }
         Some(self.pop_idle()?.into_live())
     }
 
@@ -78,8 +82,12 @@ impl<DB: Database> SharedPool<DB> {
 
     /// Try to atomically increment the pool size for a new connection.
     ///
-    /// Returns `None` if we are at max_size.
+    /// Returns `None` if we are at max_size or if the pool is closed.
     fn try_increment_size(&self) -> Option<DecrementSizeGuard<'_>> {
+        if self.is_closed() {
+            return None;
+        }
+
         let mut size = self.size();
 
         while size < self.options.max_size {
@@ -100,6 +108,10 @@ impl<DB: Database> SharedPool<DB> {
     ///
     /// Returns an error if `deadline` elapses before we are woken.
     async fn wait_for_conn(&self, deadline: Instant) -> Result<(), Error> {
+        if self.is_closed() {
+            return Err(Error::PoolClosed);
+        }
+
         let mut waker_pushed = false;
 
         timeout(
@@ -146,15 +158,18 @@ impl<DB: Database> SharedPool<DB> {
     pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<DB>>, Error> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
+        let mut waited = false;
 
         // Unless the pool has been closed ...
         while !self.is_closed() {
-            // Attempt to immediately acquire a connection. This will return Some
-            // if there is an idle connection in our channel.
-            if let Ok(conn) = self.idle_conns.pop() {
-                let conn = Floating::from_idle(conn, self);
-                if let Some(live) = check_conn(conn, &self.options).await {
-                    return Ok(live);
+            // Don't cut in line
+            if waited || self.waiters.is_empty() {
+                // Attempt to immediately acquire a connection. This will return Some
+                // if there is an idle connection in our channel.
+                if let Some(conn) = self.pop_idle() {
+                    if let Some(live) = check_conn(conn, &self.options).await {
+                        return Ok(live);
+                    }
                 }
             }
 
@@ -171,6 +186,8 @@ impl<DB: Database> SharedPool<DB> {
             // Wait for a connection to become available (or we are allowed to open a new one)
             // Returns an error if `deadline` passes
             self.wait_for_conn(deadline).await?;
+
+            waited = true;
         }
 
         Err(Error::PoolClosed)
