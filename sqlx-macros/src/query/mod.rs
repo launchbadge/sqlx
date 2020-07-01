@@ -10,11 +10,11 @@ use quote::{format_ident, quote};
 use sqlx_core::connection::Connect;
 use sqlx_core::database::Database;
 use sqlx_core::describe::Describe;
+use sqlx_rt::block_on;
 
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
-use crate::runtime::block_on;
 
 mod args;
 mod data;

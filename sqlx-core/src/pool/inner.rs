@@ -47,9 +47,19 @@ impl<DB: Database> SharedPool<DB> {
 
     pub(super) async fn close(&self) {
         self.is_closed.store(true, Ordering::Release);
-        while self.idle_conns.pop().is_ok() {}
         while let Ok(waker) = self.waiters.pop() {
             waker.wake();
+        }
+
+        // ensure we wait until the pool is actually closed
+        while self.size() > 0 {
+            let _ = self
+                .idle_conns
+                .pop()
+                .map(|idle| Floating::from_idle(idle, self));
+
+            // yield to avoid starving the executor
+            sqlx_rt::yield_now().await;
         }
     }
 
@@ -158,7 +168,7 @@ impl<DB: Database> SharedPool<DB> {
     pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<DB>>, Error> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
-        let mut waited = false;
+        let mut waited = !self.options.fair;
 
         // Unless the pool has been closed ...
         while !self.is_closed() {
