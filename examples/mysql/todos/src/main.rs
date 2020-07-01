@@ -1,5 +1,4 @@
 use anyhow::Context;
-use sqlx::mysql::MySqlQueryAs;
 use sqlx::MySqlPool;
 use std::env;
 use structopt::StructOpt;
@@ -97,9 +96,9 @@ ORDER BY id
     for rec in recs {
         println!(
             "- [{}] {}: {}",
-            if rec.done.unwrap() != 0 { "x" } else { " " },
-            rec.id.unwrap(),
-            &rec.description.unwrap(),
+            if rec.done != 0 { "x" } else { " " },
+            rec.id,
+            &rec.description,
         );
     }
 
