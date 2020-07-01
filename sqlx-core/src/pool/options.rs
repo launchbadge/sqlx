@@ -34,6 +34,7 @@ impl<DB: Database> Builder<DB> {
                 idle_timeout: None,
                 // If true, test the health of a connection on acquire
                 test_on_acquire: true,
+                fair: false,
             },
         }
     }
@@ -106,6 +107,11 @@ impl<DB: Database> Builder<DB> {
         self
     }
 
+    pub fn fair(mut self, fair: bool) -> Self {
+        self.options.fair = fair;
+        self
+    }
+
     /// Consumes the builder, returning a new, initialized connection pool with the given
     /// connection string.
     ///
@@ -154,4 +160,5 @@ pub(crate) struct Options {
     pub max_lifetime: Option<Duration>,
     pub idle_timeout: Option<Duration>,
     pub test_on_acquire: bool,
+    pub fair: bool,
 }
