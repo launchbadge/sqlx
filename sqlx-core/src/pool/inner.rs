@@ -66,7 +66,7 @@ impl<DB: Database> SharedPool<DB> {
     #[inline]
     pub(super) fn try_acquire(&self) -> Option<Floating<'_, Live<DB>>> {
         // don't cut in line
-        if !self.waiters.is_empty() {
+        if self.options.fair && !self.waiters.is_empty() {
             return None;
         }
         Some(self.pop_idle()?.into_live())
