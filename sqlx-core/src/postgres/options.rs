@@ -76,7 +76,7 @@ impl FromStr for PgSslMode {
 /// | `sslmode` | `prefer` | Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated. See [`PgSqlSslMode`]. |
 /// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
 /// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
-///
+/// | `host` | `None` | Path to the directory containing a PostgreSQL unix domain socket, which will be used instead of TCP if set. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -121,6 +121,7 @@ impl FromStr for PgSslMode {
 pub struct PgConnectOptions {
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
@@ -166,6 +167,7 @@ impl PgConnectOptions {
         PgConnectOptions {
             port,
             host,
+            socket: None,
             username: var("PGUSER").ok().unwrap_or_else(whoami::username),
             password: var("PGPASSWORD").ok(),
             database: var("PGDATABASE").ok(),
@@ -212,6 +214,15 @@ impl PgConnectOptions {
     /// ```
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
+        self
+    }
+
+    /// Sets a custom path to a directory containing a unix domain socket,
+    /// switching the connection method from TCP to the corresponding socket.
+    ///
+    /// By default set to `None`.
+    pub fn socket(mut self, path: impl AsRef<Path>) -> Self {
+        self.socket = Some(path.as_ref().to_path_buf());
         self
     }
 
@@ -309,6 +320,22 @@ impl PgConnectOptions {
         self.statement_cache_capacity = capacity;
         self
     }
+
+    /// We try using a socket if hostname starts with `/` or if socket parameter
+    /// is specified.
+    pub(crate) fn fetch_socket(&self) -> Option<String> {
+        match self.socket {
+            Some(ref socket) => {
+                let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port);
+                Some(full_path)
+            }
+            None if self.host.starts_with('/') => {
+                let full_path = format!("{}/.s.PGSQL.{}", self.host, self.port);
+                Some(full_path)
+            }
+            _ => None,
+        }
+    }
 }
 
 fn default_host(port: u16) -> String {
@@ -373,10 +400,40 @@ impl FromStr for PgConnectOptions {
                     options = options.statement_cache_capacity(value.parse()?);
                 }
 
+                "host" => {
+                    if value.starts_with("/") {
+                        options = options.socket(&*value);
+                    } else {
+                        options = options.host(&*value);
+                    }
+                }
+
                 _ => {}
             }
         }
 
         Ok(options)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_socket_correctly_from_parameter() {
+        let uri = "postgres:///?host=/var/run/postgres/";
+        let opts = PgConnectOptions::from_str(uri).unwrap();
+
+        assert_eq!(Some("/var/run/postgres/".into()), opts.socket);
+    }
+
+    #[test]
+    fn parses_host_correctly_from_parameter() {
+        let uri = "postgres:///?host=google.database.com";
+        let opts = PgConnectOptions::from_str(uri).unwrap();
+
+        assert_eq!(None, opts.socket);
+        assert_eq!("google.database.com", &opts.host);
     }
 }

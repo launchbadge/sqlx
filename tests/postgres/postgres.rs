@@ -153,6 +153,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
         let res = conn
             .execute("INSERT INTO not_found (column) VALUES (10)")
             .await;
+
         assert!(res.is_err());
 
         // now try and use the connection
@@ -160,6 +161,7 @@ async fn it_can_fail_and_recover() -> anyhow::Result<()> {
             .fetch_one(&*format!("SELECT {}::int4", i))
             .await?
             .get(0);
+
         assert_eq!(val, i);
     }
 
@@ -175,6 +177,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
         let res = pool
             .execute("INSERT INTO not_found (column) VALUES (10)")
             .await;
+
         assert!(res.is_err());
 
         // now try and use the connection
@@ -182,6 +185,7 @@ async fn it_can_fail_and_recover_with_pool() -> anyhow::Result<()> {
             .fetch_one(&*format!("SELECT {}::int4", i))
             .await?
             .get(0);
+
         assert_eq!(val, i);
     }
 

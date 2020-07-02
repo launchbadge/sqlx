@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug, Formatter};
-use std::net::Shutdown;
 use std::sync::Arc;
 
 use futures_core::future::BoxFuture;
@@ -57,7 +56,7 @@ impl Connection for MySqlConnection {
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             self.stream.send_packet(Quit).await?;
-            self.stream.shutdown(Shutdown::Both)?;
+            self.stream.shutdown()?;
 
             Ok(())
         })
@@ -140,11 +139,11 @@ impl Connect for MySqlConnection {
 
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
-            conn.execute(r#"
-            SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE'));
-            SET time_zone = '+00:00';
-            SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
-                    "#).await?;
+            conn.execute(concat!(
+                r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE')),"#,
+                r#"time_zone='+00:00',"#,
+                r#"NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;"#,
+            )).await?;
 
             Ok(conn)
         })

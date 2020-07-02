@@ -9,6 +9,10 @@ impl Type<Sqlite> for bool {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo(DataType::Bool)
     }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        matches!(ty.0, DataType::Bool | DataType::Int | DataType::Int64)
+    }
 }
 
 impl<'q> Encode<'q, Sqlite> for bool {

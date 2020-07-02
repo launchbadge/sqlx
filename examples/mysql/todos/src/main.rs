@@ -1,5 +1,4 @@
 use anyhow::Context;
-use sqlx::mysql::MySqlQueryAs;
 use sqlx::MySqlPool;
 use std::env;
 use structopt::StructOpt;

@@ -58,18 +58,10 @@ impl MssqlArguments {
         self.ordinal += arguments.ordinal;
         self.data.append(&mut arguments.data);
     }
-}
 
-impl<'q> Arguments<'q> for MssqlArguments {
-    type Database = Mssql;
-
-    fn reserve(&mut self, _additional: usize, size: usize) {
-        self.data.reserve(size + 10); // est. 4 chars for name, 1 for status, 1 for TYPE_INFO
-    }
-
-    fn add<T>(&mut self, value: T)
+    pub(crate) fn add<'q, T>(&mut self, value: T)
     where
-        T: 'q + Encode<'q, Self::Database> + Type<Mssql>,
+        T: Encode<'q, Mssql> + Type<Mssql>,
     {
         let ty = value.produces().unwrap_or_else(T::type_info);
 
@@ -107,5 +99,20 @@ impl<'q> Arguments<'q> for MssqlArguments {
 
         ty.0.put(data); // [TYPE_INFO]
         ty.0.put_value(data, value); // [ParamLenData]
+    }
+}
+
+impl<'q> Arguments<'q> for MssqlArguments {
+    type Database = Mssql;
+
+    fn reserve(&mut self, _additional: usize, size: usize) {
+        self.data.reserve(size + 10); // est. 4 chars for name, 1 for status, 1 for TYPE_INFO
+    }
+
+    fn add<T>(&mut self, value: T)
+    where
+        T: 'q + Encode<'q, Self::Database> + Type<Mssql>,
+    {
+        self.add(value)
     }
 }

@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
-use std::str::from_utf8_unchecked;
+use std::{borrow::Cow, str::from_utf8_unchecked};
 
 use libsqlite3_sys::{sqlite3, sqlite3_errmsg, sqlite3_extended_errcode};
 
@@ -46,6 +46,12 @@ impl Display for SqliteError {
 impl StdError for SqliteError {}
 
 impl DatabaseError for SqliteError {
+    /// The extended result code.
+    #[inline]
+    fn code(&self) -> Option<Cow<'_, str>> {
+        Some(format!("{}", self.code).into())
+    }
+
     #[inline]
     fn message(&self) -> &str {
         &self.message

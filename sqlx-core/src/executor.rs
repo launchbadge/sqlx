@@ -168,3 +168,15 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
         None
     }
 }
+
+impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
+    #[inline]
+    fn query(&self) -> &'q str {
+        self.0
+    }
+
+    #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        self.1.take()
+    }
+}

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use sqlx::error::DatabaseError;
 use sqlx::pool::PoolConnection;
-use sqlx::sqlite::{SqliteError, SqliteQueryAs};
+use sqlx::sqlite::SqliteError;
 use sqlx::Error as SqlxError;
 use sqlx::{Connection, Cursor, Executor, FromRow, SqliteConnection, SqlitePool};
 

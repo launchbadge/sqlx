@@ -2,6 +2,7 @@
 
 use std::io;
 use std::net::Shutdown;
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -16,22 +17,23 @@ pub enum Socket {
 }
 
 impl Socket {
-    #[cfg(not(unix))]
-    pub async fn connect(host: &str, port: u16) -> io::Result<Self> {
+    pub async fn connect_tcp(host: &str, port: u16) -> io::Result<Self> {
         TcpStream::connect((host, port)).await.map(Socket::Tcp)
     }
 
     #[cfg(unix)]
-    pub async fn connect(host: &str, port: u16) -> io::Result<Self> {
-        if host.starts_with('/') {
-            // if the host starts with a forward slash, assume that this is a request
-            // to connect to a local socket
-            sqlx_rt::UnixStream::connect(format!("{}/.s.PGSQL.{}", host, port))
-                .await
-                .map(Socket::Unix)
-        } else {
-            TcpStream::connect((host, port)).await.map(Socket::Tcp)
-        }
+    pub async fn connect_uds(path: impl AsRef<Path>) -> io::Result<Self> {
+        sqlx_rt::UnixStream::connect(path.as_ref())
+            .await
+            .map(Socket::Unix)
+    }
+
+    #[cfg(not(unix))]
+    pub async fn connect_uds(_: impl AsRef<Path>) -> io::Result<Self> {
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Unix domain sockets are not supported outside Unix platforms.",
+        ))
     }
 
     pub fn shutdown(&self) -> io::Result<()> {

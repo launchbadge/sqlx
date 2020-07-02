@@ -15,7 +15,7 @@ pub trait Arguments<'q>: Send + Sized + Default {
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
     where
-        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
+        T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
 }
 
 pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {

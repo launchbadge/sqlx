@@ -10,6 +10,7 @@ use crate::type_info::TypeInfo;
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum DataType {
+    Null,
     Int,
     Float,
     Text,
@@ -38,29 +39,30 @@ impl Display for SqliteTypeInfo {
 impl TypeInfo for SqliteTypeInfo {
     fn name(&self) -> &str {
         match self.0 {
+            DataType::Null => "NULL",
             DataType::Text => "TEXT",
             DataType::Float => "FLOAT",
             DataType::Blob => "BLOB",
-            DataType::Int => "INTEGER",
+            DataType::Int | DataType::Int64 => "INTEGER",
             DataType::Numeric => "NUMERIC",
 
             // non-standard extensions
             DataType::Bool => "BOOLEAN",
-            DataType::Int64 => "BIGINT",
         }
     }
 }
 
 impl DataType {
-    pub(crate) fn from_code(code: c_int) -> Option<Self> {
+    pub(crate) fn from_code(code: c_int) -> Self {
         match code {
-            SQLITE_INTEGER => Some(DataType::Int),
-            SQLITE_FLOAT => Some(DataType::Float),
-            SQLITE_BLOB => Some(DataType::Blob),
-            SQLITE_NULL => None,
-            SQLITE_TEXT => Some(DataType::Text),
+            SQLITE_INTEGER => DataType::Int,
+            SQLITE_FLOAT => DataType::Float,
+            SQLITE_BLOB => DataType::Blob,
+            SQLITE_NULL => DataType::Null,
+            SQLITE_TEXT => DataType::Text,
 
-            _ => None,
+            // https://sqlite.org/c3ref/c_blob.html
+            _ => panic!("unknown data type code {}", code),
         }
     }
 }
@@ -74,14 +76,11 @@ impl FromStr for DataType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.to_ascii_lowercase();
         Ok(match &*s {
+            "int4" => DataType::Int,
             "int8" => DataType::Int64,
             "boolean" | "bool" => DataType::Bool,
 
-            _ if s.contains("int") && s.contains("big") && s.find("int") > s.find("big") => {
-                DataType::Int64
-            }
-
-            _ if s.contains("int") => DataType::Int,
+            _ if s.contains("int") => DataType::Int64,
 
             _ if s.contains("char") || s.contains("clob") || s.contains("text") => DataType::Text,
 
@@ -98,10 +97,12 @@ impl FromStr for DataType {
 
 #[test]
 fn test_data_type_from_str() -> Result<(), BoxDynError> {
-    assert_eq!(DataType::Int, "INT".parse()?);
-    assert_eq!(DataType::Int, "INTEGER".parse()?);
-    assert_eq!(DataType::Int, "INTBIG".parse()?);
-    assert_eq!(DataType::Int, "MEDIUMINT".parse()?);
+    assert_eq!(DataType::Int, "INT4".parse()?);
+
+    assert_eq!(DataType::Int64, "INT".parse()?);
+    assert_eq!(DataType::Int64, "INTEGER".parse()?);
+    assert_eq!(DataType::Int64, "INTBIG".parse()?);
+    assert_eq!(DataType::Int64, "MEDIUMINT".parse()?);
 
     assert_eq!(DataType::Int64, "BIGINT".parse()?);
     assert_eq!(DataType::Int64, "UNSIGNED BIG INT".parse()?);

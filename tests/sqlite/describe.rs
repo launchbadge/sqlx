@@ -29,10 +29,10 @@ async fn it_describes_simple() -> anyhow::Result<()> {
 
     let column_type_names = type_names(&columns);
 
-    assert_eq!(column_type_names[0], "BIGINT");
+    assert_eq!(column_type_names[0], "INTEGER");
     assert_eq!(column_type_names[1], "TEXT");
     assert_eq!(column_type_names[2], "BOOLEAN");
-    assert_eq!(column_type_names[3], "BIGINT");
+    assert_eq!(column_type_names[3], "INTEGER");
 
     Ok(())
 }
