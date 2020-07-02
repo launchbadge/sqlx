@@ -58,6 +58,14 @@ enum ColorUpper {
     Blue,
 }
 
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_screaming_snake")]
+#[sqlx(rename_all = "screaming_snake_case")]
+enum ColorScreamingSnake {
+    RedGreen,
+    BlueBlack,
+}
+
 // "Strong" enum can map to a custom type
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "mood")]
@@ -124,10 +132,12 @@ CREATE TYPE mood AS ENUM ( 'ok', 'happy', 'sad' );
 DROP TYPE IF EXISTS color_lower CASCADE;
 DROP TYPE IF EXISTS color_snake CASCADE;
 DROP TYPE IF EXISTS color_upper CASCADE;
+DROP TYPE IF EXISTS color_screaming_snake CASCADE;
 
 CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
 CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
 CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
+CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
 
 CREATE TABLE people (
     id      serial PRIMARY KEY,
@@ -241,6 +251,18 @@ SELECT id, mood FROM people WHERE id = $1
 
     assert!(rec.0);
     assert_eq!(rec.1, ColorUpper::Red);
+
+    let rec: (bool, ColorScreamingSnake) = sqlx::query_as(
+        "
+    SELECT $1 = 'RED_GREEN'::color_screaming_snake, $1
+            ",
+    )
+    .bind(&ColorScreamingSnake::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorScreamingSnake::RedGreen);
 
     Ok(())
 }
