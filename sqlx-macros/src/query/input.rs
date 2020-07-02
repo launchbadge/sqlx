@@ -4,12 +4,13 @@ use std::fs;
 use proc_macro2::{Ident, Span};
 use quote::format_ident;
 use syn::parse::{Parse, ParseStream};
-use syn::{Expr, LitBool, LitStr};
+use syn::{Expr, LitBool, LitStr, Token};
 use syn::{ExprArray, Type};
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {
     pub(super) src: String,
+
     #[cfg_attr(not(feature = "offline"), allow(dead_code))]
     pub(super) src_span: Span,
 
@@ -51,8 +52,27 @@ impl Parse for QueryMacroInput {
             let _ = input.parse::<syn::token::Eq>()?;
 
             if key == "source" {
-                let lit_str = input.parse::<LitStr>()?;
-                query_src = Some((QuerySrc::String(lit_str.value()), lit_str.span()));
+                let mut fragments: Vec<LitStr> = Vec::new();
+                'source_parser: while !input.is_empty() {
+                    if input.lookahead1().peek(LitStr) {
+                        fragments.push(input.parse()?);
+                        if input.lookahead1().peek(Token![+]) {
+                            input.parse::<Token![+]>();
+                        } else {
+                            break 'source_parser;
+                        }
+                    } else {
+                        break 'source_parser;
+                    }
+                }
+                if fragments.len() == 0 {
+                    return Err(syn::Error::new_spanned(key, "no source given"));
+                }
+                query_src = Some((
+                    QuerySrc::String(fragments.iter().map(LitStr::value).collect()),
+                    input.span(),
+                ));
+
             } else if key == "source_file" {
                 let lit_str = input.parse::<LitStr>()?;
                 query_src = Some((QuerySrc::File(lit_str.value()), lit_str.span()));
