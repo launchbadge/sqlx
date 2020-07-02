@@ -10,7 +10,7 @@ pub(crate) use r#type::expand_derive_type;
 pub(crate) use row::expand_derive_from_row;
 
 use self::attributes::RenameAll;
-use heck::SnakeCase;
+use heck::{ShoutySnakeCase, SnakeCase};
 use std::iter::FromIterator;
 use syn::DeriveInput;
 
@@ -33,5 +33,6 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
         RenameAll::LowerCase => s.to_lowercase(),
         RenameAll::SnakeCase => s.to_snake_case(),
         RenameAll::UpperCase => s.to_uppercase(),
+        RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
     }
 }
