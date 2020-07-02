@@ -148,11 +148,19 @@ impl Type<Postgres> for i64 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INT8
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::INT8 || *ty == PgTypeInfo::MONEY
+    }
 }
 
 impl Type<Postgres> for [i64] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INT8_ARRAY
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::INT8_ARRAY || *ty == PgTypeInfo::MONEY_ARRAY
     }
 }
 
