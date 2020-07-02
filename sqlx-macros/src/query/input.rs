@@ -57,7 +57,7 @@ impl Parse for QueryMacroInput {
                     if input.lookahead1().peek(LitStr) {
                         fragments.push(input.parse()?);
                         if input.lookahead1().peek(Token![+]) {
-                            input.parse::<Token![+]>();
+                            let _ = input.parse::<Token![+]>();
                         } else {
                             break 'source_parser;
                         }
