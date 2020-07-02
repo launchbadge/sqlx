@@ -113,6 +113,8 @@ pub enum PgType {
     Int8RangeArray,
     Jsonpath,
     JsonpathArray,
+    Money,
+    MoneyArray,
 
     // A realized user-defined type. When a connection sees a DeclareXX variant it resolves
     // into this one before passing it along to `accepts` or inside of `Value` objects.
@@ -254,6 +256,8 @@ impl PgType {
             719 => PgType::CircleArray,
             774 => PgType::Macaddr8,
             775 => PgType::Macaddr8Array,
+            790 => PgType::Money,
+            791 => PgType::MoneyArray,
             829 => PgType::Macaddr,
             869 => PgType::Inet,
             1000 => PgType::BoolArray,
@@ -359,6 +363,8 @@ impl PgType {
             PgType::CircleArray => 719,
             PgType::Macaddr8 => 774,
             PgType::Macaddr8Array => 775,
+            PgType::Money => 790,
+            PgType::MoneyArray => 791,
             PgType::Macaddr => 829,
             PgType::Inet => 869,
             PgType::BoolArray => 1000,
@@ -521,6 +527,8 @@ impl PgType {
             PgType::Int8RangeArray => "INT8RANGE[]",
             PgType::Jsonpath => "JSONPATH",
             PgType::JsonpathArray => "JSONPATH[]",
+            PgType::Money => "MONEY",
+            PgType::MoneyArray => "MONEY[]",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -618,6 +626,8 @@ impl PgType {
             PgType::Int8RangeArray => "_int8range",
             PgType::Jsonpath => "jsonpath",
             PgType::JsonpathArray => "_jsonpath",
+            PgType::Money => "money",
+            PgType::MoneyArray => "_money",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -715,6 +725,8 @@ impl PgType {
             PgType::Int8RangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::Int8Range)),
             PgType::Jsonpath => &PgTypeKind::Simple,
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
+            PgType::Money => &PgTypeKind::Simple,
+            PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
             PgType::Custom(ty) => &ty.kind,
 
             PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
@@ -844,6 +856,10 @@ impl PgTypeInfo {
     // user-specified precision, exact
     pub(crate) const NUMERIC: Self = Self(PgType::Numeric);
     pub(crate) const NUMERIC_ARRAY: Self = Self(PgType::NumericArray);
+
+    // user-specified precision, exact
+    pub(crate) const MONEY: Self = Self(PgType::Money);
+    pub(crate) const MONEY_ARRAY: Self = Self(PgType::MoneyArray);
 
     //
     // date/time types
