@@ -12,8 +12,12 @@
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
 //! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
-//! | `sqlx::postgres::types::PgInterval`   | INTERVAL                                             |
+//! | [`PgInterval`]                        | INTERVAL                                             |
+//! | [`PgRange<T>`]                        | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
 //!
+//! [`PgInterval`]: struct.PgInterval.html
+//! [`PgRange<T>`]: struct.PgRange.html
+//! 
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
 //! Requires the `chrono` Cargo feature flag.

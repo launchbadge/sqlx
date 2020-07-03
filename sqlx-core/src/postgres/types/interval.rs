@@ -1,9 +1,7 @@
 use std::mem;
+use std::convert::{TryInto, TryFrom};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
-
-#[cfg(any(feature = "chrono", feature = "time"))]
-use std::convert::TryFrom;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -11,7 +9,8 @@ use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
-/// PostgreSQL INTERVAL type binding
+// `PgInterval` is available for direct access to the INTERVAL type
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PgInterval {
     pub months: i32,
@@ -39,28 +38,26 @@ impl<'de> Decode<'de, Postgres> for PgInterval {
                 let microseconds = buf.read_i64::<NetworkEndian>()?;
                 let days = buf.read_i32::<NetworkEndian>()?;
                 let months = buf.read_i32::<NetworkEndian>()?;
+
                 Ok(PgInterval {
                     months,
                     days,
                     microseconds,
                 })
             }
-            PgValueFormat::Text => Err("INTERVAL Text format unsuported".into()),
+
+            // TODO: Implement parsing of text mode
+            PgValueFormat::Text => Err("not implemented: decode `INTERVAL` in text mode (unprepared queries)".into()),
         }
     }
 }
 
 impl Encode<'_, Postgres> for PgInterval {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        if let IsNull::Yes = Encode::<Postgres>::encode(&self.microseconds, buf) {
-            return IsNull::Yes;
-        }
-        if let IsNull::Yes = Encode::<Postgres>::encode(&self.days, buf) {
-            return IsNull::Yes;
-        }
-        if let IsNull::Yes = Encode::<Postgres>::encode(&self.months, buf) {
-            return IsNull::Yes;
-        }
+        buf.extend(&self.microseconds.to_be_bytes());
+        buf.extend(&self.days.to_be_bytes());
+        buf.extend(&self.months.to_be_bytes());
+
         IsNull::No
     }
 
@@ -69,67 +66,8 @@ impl Encode<'_, Postgres> for PgInterval {
     }
 }
 
-impl PgInterval {
-    /// Convert a `std::time::Duration` object to a `PgInterval` object but truncate the remaining nanoseconds.
-    ///
-    /// Returns an error if there is a microseconds overflow.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use sqlx_core::postgres::types::PgInterval;
-    /// let interval = PgInterval::truncate_nanos_std(std::time::Duration::from_secs(3_600)).unwrap();
-    /// assert_eq!(interval, PgInterval { months: 0, days: 0, microseconds: 3_600_000_000 });
-    /// ```
-    pub fn truncate_nanos_std(value: std::time::Duration) -> Result<Self, BoxDynError> {
-        let microseconds = i64::try_from(value.as_micros())?;
-        Ok(Self {
-            months: 0,
-            days: 0,
-            microseconds,
-        })
-    }
-    /// Convert a `time::Duration` object to a `PgInterval` object but truncate the remaining nanoseconds.
-    ///
-    /// Returns an error if there is a microseconds overflow.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use sqlx_core::postgres::types::PgInterval;
-    /// let interval = PgInterval::truncate_nanos_time(time::Duration::seconds(3_600)).unwrap();
-    /// assert_eq!(interval, PgInterval { months: 0, days: 0, microseconds: 3_600_000_000 });
-    /// ```
-    #[cfg(feature = "time")]
-    pub fn truncate_nanos_time(value: time::Duration) -> Result<Self, BoxDynError> {
-        let microseconds = i64::try_from(value.whole_microseconds())?;
-        Ok(Self {
-            months: 0,
-            days: 0,
-            microseconds,
-        })
-    }
-
-    /// Convert a `chrono::Duration` object to a `PgInterval` object but truncates the remaining nanoseconds.
-    /// Returns an error if there is a microseconds overflow.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use sqlx_core::postgres::types::PgInterval;
-    /// let interval = PgInterval::truncate_nanos_chrono(chrono::Duration::seconds(3_600)).unwrap();
-    /// assert_eq!(interval, PgInterval { months: 0, days: 0, microseconds: 3_600_000_000 });
-    /// ```
-    #[cfg(feature = "chrono")]
-    pub fn truncate_nanos_chrono(value: chrono::Duration) -> Result<Self, BoxDynError> {
-        let microseconds = value.num_microseconds().ok_or("Microseconds overflow")?;
-        Ok(Self {
-            months: 0,
-            days: 0,
-            microseconds,
-        })
-    }
-}
+// We then implement Encode + Type for std Duration, chrono Duration, and time Duration
+// This is to enable ease-of-use for encoding when its simple
 
 impl Type<Postgres> for std::time::Duration {
     fn type_info() -> PgTypeInfo {
@@ -145,9 +83,7 @@ impl Type<Postgres> for [std::time::Duration] {
 
 impl Encode<'_, Postgres> for std::time::Duration {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        let pg_interval =
-            PgInterval::try_from(*self).expect("Failed to encode std::time::Duration");
-        pg_interval.encode_by_ref(buf)
+        PgInterval::try_from(*self).expect("failed to encode `std::time::Duration`").encode_by_ref(buf)
     }
 
     fn size_hint(&self) -> usize {
@@ -161,20 +97,17 @@ impl TryFrom<std::time::Duration> for PgInterval {
     /// Convert a `std::time::Duration` to a `PgInterval`
     ///
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
-    /// microsecond overflow
-    ///
-    /// To do lossy conversion use `PgInterval::truncate_nanos_std()`.
+    /// microsecond overflow.
     fn try_from(value: std::time::Duration) -> Result<Self, BoxDynError> {
-        match value.as_nanos() {
-            n if n % 1000 != 0 => {
-                Err("PostgreSQL INTERVAL does not support nanoseconds precision".into())
-            }
-            _ => Ok(Self {
-                months: 0,
-                days: 0,
-                microseconds: i64::try_from(value.as_micros())?,
-            }),
+        if value.as_nanos() % 1000 != 0 {
+            return Err("PostgreSQL `INTERVAL` does not support nanoseconds precision".into());
         }
+
+        Ok(Self {
+            months: 0,
+            days: 0,
+            microseconds: value.as_micros().try_into()?,
+        })
     }
 }
 
@@ -208,27 +141,12 @@ impl Encode<'_, Postgres> for chrono::Duration {
 impl TryFrom<chrono::Duration> for PgInterval {
     type Error = BoxDynError;
 
-    /// Convert a `chrono::Duration` to a `PgInterval`
+    /// Convert a `chrono::Duration` to a `PgInterval`.
     ///
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
-    /// microsecond or nanosecond overflow
-    ///
-    /// To do a lossy conversion use `PgInterval::truncate_nanos_chrono()`.
+    /// microsecond or nanosecond overflow.
     fn try_from(value: chrono::Duration) -> Result<Self, BoxDynError> {
-        let microseconds = value.num_microseconds().ok_or("Microseconds overflow")?;
-        match value
-            .checked_sub(&chrono::Duration::microseconds(microseconds))
-            .ok_or("Microseconds overflow")?
-            .num_nanoseconds()
-            .ok_or("Nanoseconds overflow")?
-        {
-            0 => Ok(Self {
-                months: 0,
-                days: 0,
-                microseconds,
-            }),
-            _ => Err("PostgreSQL INTERVAL does not support nanoseconds precision".into()),
-        }
+        value.to_std()?.try_into()
     }
 }
 
@@ -262,26 +180,20 @@ impl Encode<'_, Postgres> for time::Duration {
 impl TryFrom<time::Duration> for PgInterval {
     type Error = BoxDynError;
 
-    /// Convert a `time::Duration` to a `PgInterval`
+    /// Convert a `time::Duration` to a `PgInterval`.
     ///
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
-    /// microsecond overflow
-    ///
-    /// To do a lossy conversion use `PgInterval::time_truncate_nanos()`.
+    /// microsecond overflow.
     fn try_from(value: time::Duration) -> Result<Self, BoxDynError> {
-        let microseconds = i64::try_from(value.whole_microseconds())?;
-        match value
-            .checked_sub(time::Duration::microseconds(microseconds))
-            .ok_or("Microseconds overflow")?
-            .subsec_nanoseconds()
-        {
-            0 => Ok(Self {
-                months: 0,
-                days: 0,
-                microseconds,
-            }),
-            _ => Err("PostgreSQL INTERVAL does not support nanoseconds precision".into()),
+        if value.whole_nanoseconds() % 1000 != 0 {
+            return Err("PostgreSQL `INTERVAL` does not support nanoseconds precision".into());
         }
+
+        Ok(Self {
+            months: 0,
+            days: 0,
+            microseconds: value.whole_microseconds().try_into()?,
+        })
     }
 }
 
