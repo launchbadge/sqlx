@@ -6,6 +6,7 @@ use sqlx::postgres::{
 use sqlx::{postgres::Postgres, Connect, Connection, Executor, PgPool, Row};
 use sqlx_test::new;
 use std::env;
+use std::thread;
 use std::time::Duration;
 
 #[sqlx_macros::test]
@@ -391,7 +392,9 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     for _ in 0..5 {
         let pool = pool.clone();
-        spawn(async move {
+        // we don't need async, just need this to run concurrently
+        // if we use `task::spawn()` we risk starving the event loop because we don't yield
+        thread::spawn(move || {
             while !pool.is_closed() {
                 // drop acquire() futures in a hot loop
                 // https://github.com/launchbadge/sqlx/issues/83
