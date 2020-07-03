@@ -1,9 +1,11 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
-use std::env;
-use sqlx::postgres::{PgConnection, PgConnectOptions, PgDatabaseError, PgErrorPosition, PgSeverity};
+use sqlx::postgres::{
+    PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
+};
 use sqlx::{postgres::Postgres, Connect, Connection, Executor, PgPool, Row};
 use sqlx_test::new;
+use std::env;
 use std::time::Duration;
 
 #[sqlx_macros::test]
