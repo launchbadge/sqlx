@@ -171,7 +171,7 @@ jobs:
             --features mysql,all-types
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
-      - run: sleep 30
+      - run: sleep 60
 
       - uses: actions-rs/cargo@v1
         with:

@@ -83,6 +83,8 @@ pub enum PgType {
     TimeArray,
     Timestamptz,
     TimestamptzArray,
+    Interval,
+    IntervalArray,
     NumericArray,
     Timetz,
     TimetzArray,
@@ -92,7 +94,6 @@ pub enum PgType {
     VarbitArray,
     Numeric,
     Record,
-    Interval,
     RecordArray,
     Uuid,
     UuidArray,
@@ -112,6 +113,8 @@ pub enum PgType {
     Int8RangeArray,
     Jsonpath,
     JsonpathArray,
+    Money,
+    MoneyArray,
 
     // A realized user-defined type. When a connection sees a DeclareXX variant it resolves
     // into this one before passing it along to `accepts` or inside of `Value` objects.
@@ -253,6 +256,8 @@ impl PgType {
             719 => PgType::CircleArray,
             774 => PgType::Macaddr8,
             775 => PgType::Macaddr8Array,
+            790 => PgType::Money,
+            791 => PgType::MoneyArray,
             829 => PgType::Macaddr,
             869 => PgType::Inet,
             1000 => PgType::BoolArray,
@@ -285,6 +290,8 @@ impl PgType {
             1183 => PgType::TimeArray,
             1184 => PgType::Timestamptz,
             1185 => PgType::TimestamptzArray,
+            1186 => PgType::Interval,
+            1187 => PgType::IntervalArray,
             1231 => PgType::NumericArray,
             1266 => PgType::Timetz,
             1270 => PgType::TimetzArray,
@@ -294,7 +301,6 @@ impl PgType {
             1563 => PgType::VarbitArray,
             1700 => PgType::Numeric,
             2249 => PgType::Record,
-            2281 => PgType::Interval,
             2287 => PgType::RecordArray,
             2950 => PgType::Uuid,
             2951 => PgType::UuidArray,
@@ -357,6 +363,8 @@ impl PgType {
             PgType::CircleArray => 719,
             PgType::Macaddr8 => 774,
             PgType::Macaddr8Array => 775,
+            PgType::Money => 790,
+            PgType::MoneyArray => 791,
             PgType::Macaddr => 829,
             PgType::Inet => 869,
             PgType::BoolArray => 1000,
@@ -389,6 +397,8 @@ impl PgType {
             PgType::TimeArray => 1183,
             PgType::Timestamptz => 1184,
             PgType::TimestamptzArray => 1185,
+            PgType::Interval => 1186,
+            PgType::IntervalArray => 1187,
             PgType::NumericArray => 1231,
             PgType::Timetz => 1266,
             PgType::TimetzArray => 1270,
@@ -398,7 +408,6 @@ impl PgType {
             PgType::VarbitArray => 1563,
             PgType::Numeric => 1700,
             PgType::Record => 2249,
-            PgType::Interval => 2281,
             PgType::RecordArray => 2287,
             PgType::Uuid => 2950,
             PgType::UuidArray => 2951,
@@ -488,6 +497,8 @@ impl PgType {
             PgType::TimeArray => "TIME[]",
             PgType::Timestamptz => "TIMESTAMPTZ",
             PgType::TimestamptzArray => "TIMESTAMPTZ[]",
+            PgType::Interval => "INTERVAL",
+            PgType::IntervalArray => "INTERVAL[]",
             PgType::NumericArray => "NUMERIC[]",
             PgType::Timetz => "TIMETZ",
             PgType::TimetzArray => "TIMETZ[]",
@@ -497,7 +508,6 @@ impl PgType {
             PgType::VarbitArray => "VARBIT[]",
             PgType::Numeric => "NUMERIC",
             PgType::Record => "RECORD",
-            PgType::Interval => "INTERVAL",
             PgType::RecordArray => "RECORD[]",
             PgType::Uuid => "UUID",
             PgType::UuidArray => "UUID[]",
@@ -517,6 +527,8 @@ impl PgType {
             PgType::Int8RangeArray => "INT8RANGE[]",
             PgType::Jsonpath => "JSONPATH",
             PgType::JsonpathArray => "JSONPATH[]",
+            PgType::Money => "MONEY",
+            PgType::MoneyArray => "MONEY[]",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -584,6 +596,8 @@ impl PgType {
             PgType::TimeArray => "_time",
             PgType::Timestamptz => "timestamptz",
             PgType::TimestamptzArray => "_timestamptz",
+            PgType::Interval => "interval",
+            PgType::IntervalArray => "_interval",
             PgType::NumericArray => "_numeric",
             PgType::Timetz => "timetz",
             PgType::TimetzArray => "_timetz",
@@ -593,7 +607,6 @@ impl PgType {
             PgType::VarbitArray => "_varbit",
             PgType::Numeric => "numeric",
             PgType::Record => "record",
-            PgType::Interval => "interval",
             PgType::RecordArray => "_record",
             PgType::Uuid => "uuid",
             PgType::UuidArray => "_uuid",
@@ -613,6 +626,8 @@ impl PgType {
             PgType::Int8RangeArray => "_int8range",
             PgType::Jsonpath => "jsonpath",
             PgType::JsonpathArray => "_jsonpath",
+            PgType::Money => "money",
+            PgType::MoneyArray => "_money",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -680,6 +695,8 @@ impl PgType {
             PgType::TimeArray => &PgTypeKind::Array(PgTypeInfo(PgType::Time)),
             PgType::Timestamptz => &PgTypeKind::Simple,
             PgType::TimestamptzArray => &PgTypeKind::Array(PgTypeInfo(PgType::Timestamptz)),
+            PgType::Interval => &PgTypeKind::Simple,
+            PgType::IntervalArray => &PgTypeKind::Array(PgTypeInfo(PgType::Interval)),
             PgType::NumericArray => &PgTypeKind::Array(PgTypeInfo(PgType::Numeric)),
             PgType::Timetz => &PgTypeKind::Simple,
             PgType::TimetzArray => &PgTypeKind::Array(PgTypeInfo(PgType::Timetz)),
@@ -689,7 +706,6 @@ impl PgType {
             PgType::VarbitArray => &PgTypeKind::Array(PgTypeInfo(PgType::Varbit)),
             PgType::Numeric => &PgTypeKind::Simple,
             PgType::Record => &PgTypeKind::Simple,
-            PgType::Interval => &PgTypeKind::Simple,
             PgType::RecordArray => &PgTypeKind::Array(PgTypeInfo(PgType::Record)),
             PgType::Uuid => &PgTypeKind::Simple,
             PgType::UuidArray => &PgTypeKind::Array(PgTypeInfo(PgType::Uuid)),
@@ -709,6 +725,8 @@ impl PgType {
             PgType::Int8RangeArray => &PgTypeKind::Array(PgTypeInfo(PgType::Int8Range)),
             PgType::Jsonpath => &PgTypeKind::Simple,
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
+            PgType::Money => &PgTypeKind::Simple,
+            PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
             PgType::Custom(ty) => &ty.kind,
 
             PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
@@ -839,6 +857,10 @@ impl PgTypeInfo {
     pub(crate) const NUMERIC: Self = Self(PgType::Numeric);
     pub(crate) const NUMERIC_ARRAY: Self = Self(PgType::NumericArray);
 
+    // user-specified precision, exact
+    pub(crate) const MONEY: Self = Self(PgType::Money);
+    pub(crate) const MONEY_ARRAY: Self = Self(PgType::MoneyArray);
+
     //
     // date/time types
     // https://www.postgresql.org/docs/current/datatype-datetime.html
@@ -866,6 +888,7 @@ impl PgTypeInfo {
 
     // time interval
     pub(crate) const INTERVAL: Self = Self(PgType::Interval);
+    pub(crate) const INTERVAL_ARRAY: Self = Self(PgType::IntervalArray);
 
     //
     // geometric types

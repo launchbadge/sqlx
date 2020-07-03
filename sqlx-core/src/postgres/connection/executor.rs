@@ -90,6 +90,34 @@ async fn recv_desc_rows(conn: &mut PgConnection) -> Result<Option<RowDescription
 }
 
 impl PgConnection {
+    // wait for CloseComplete to indicate a statement was closed
+    pub(super) async fn wait_for_close_complete(&mut self, mut count: usize) -> Result<(), Error> {
+        // we need to wait for the [CloseComplete] to be returned from the server
+        while count > 0 {
+            match self.stream.recv().await? {
+                message if message.format == MessageFormat::PortalSuspended => {
+                    // there was an open portal
+                    // this can happen if the last time a statement was used it was not fully executed
+                    // such as in [fetch_one]
+                }
+
+                message if message.format == MessageFormat::CloseComplete => {
+                    // successfully closed the statement (and freed up the server resources)
+                    count -= 1;
+                }
+
+                message => {
+                    return Err(err_protocol!(
+                        "expecting PortalSuspended or CloseComplete but received {:?}",
+                        message.format
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     async fn prepare(&mut self, query: &str, arguments: &PgArguments) -> Result<u32, Error> {
         if let Some(statement) = self.cache_statement.get_mut(query) {
             return Ok(*statement);
@@ -100,7 +128,10 @@ impl PgConnection {
         if let Some(statement) = self.cache_statement.insert(query, statement) {
             self.stream.write(Close::Statement(statement));
             self.stream.write(Flush);
+
             self.stream.flush().await?;
+
+            self.wait_for_close_complete(1).await?;
         }
 
         Ok(statement)

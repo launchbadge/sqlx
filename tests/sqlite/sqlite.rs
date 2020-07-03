@@ -77,6 +77,40 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_maths() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let value = sqlx::query("select 1 + ?1")
+        .bind(5_i32)
+        .try_map(|row: SqliteRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(6i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let row: (i32, i32, i32, i32) = sqlx::query_as("select ?1, ?1, ?3, ?2")
+        .bind(5_i32)
+        .bind(500_i32)
+        .bind(1020_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(row.0, 5);
+    assert_eq!(row.1, 5);
+    assert_eq!(row.2, 1020);
+    assert_eq!(row.3, 500);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_fetches_in_loop() -> anyhow::Result<()> {
     // this is trying to check for any data races
     // there were a few that triggered *sometimes* while building out StatementWorker

@@ -15,7 +15,6 @@ type Result<T> = std::result::Result<T, Error>;
 mod database;
 mod derives;
 mod query;
-mod runtime;
 
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
     quote!(

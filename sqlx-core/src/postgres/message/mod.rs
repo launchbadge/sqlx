@@ -55,6 +55,7 @@ pub enum MessageFormat {
     Authentication,
     BackendKeyData,
     BindComplete,
+    CloseComplete,
     CommandComplete,
     DataRow,
     EmptyQueryResponse,
@@ -93,6 +94,7 @@ impl MessageFormat {
         Ok(match v {
             b'1' => MessageFormat::ParseComplete,
             b'2' => MessageFormat::BindComplete,
+            b'3' => MessageFormat::CloseComplete,
             b'C' => MessageFormat::CommandComplete,
             b'D' => MessageFormat::DataRow,
             b'E' => MessageFormat::ErrorResponse,

@@ -142,6 +142,7 @@ impl StatementHandle {
     }
 
     // Name Of A Host Parameter
+    // NOTE: The first host parameter has an index of 1, not 0.
     #[inline]
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<&str> {
         unsafe {

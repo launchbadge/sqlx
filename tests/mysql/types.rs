@@ -1,6 +1,7 @@
 extern crate time_ as time;
 
 use sqlx::mysql::MySql;
+use sqlx::{Executor, Row};
 use sqlx_test::test_type;
 
 test_type!(bool(MySql, "false" == false, "true" == true));
@@ -43,35 +44,68 @@ mod chrono {
     use super::*;
     use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
-    test_type!(chrono_date<NaiveDate>(
-        MySql,
+    test_type!(chrono_date<NaiveDate>(MySql,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
         "DATE '2050-11-23'" == NaiveDate::from_ymd(2050, 11, 23)
     ));
 
-    test_type!(chrono_time_zero<NaiveTime>(
-        MySql,
+    test_type!(chrono_time_zero<NaiveTime>(MySql,
         "TIME '00:00:00.000000'" == NaiveTime::from_hms_micro(0, 0, 0, 0)
     ));
 
-    test_type!(chrono_time<NaiveTime>(
-        MySql,
+    test_type!(chrono_time<NaiveTime>(MySql,
         "TIME '05:10:20.115100'" == NaiveTime::from_hms_micro(5, 10, 20, 115100)
     ));
 
-    test_type!(chrono_date_time<NaiveDateTime>(
-        MySql,
+    test_type!(chrono_date_time<NaiveDateTime>(MySql,
         "TIMESTAMP '2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
-    test_type!(chrono_timestamp<DateTime::<Utc>>(
-        MySql,
+    test_type!(chrono_timestamp<DateTime::<Utc>>(MySql,
         "TIMESTAMP '2019-01-02 05:10:20.115100'"
             == DateTime::<Utc>::from_utc(
                 NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
                 Utc,
             )
     ));
+
+    #[sqlx_macros::test]
+    async fn test_type_chrono_zero_date() -> anyhow::Result<()> {
+        let mut conn = sqlx_test::new::<MySql>().await?;
+
+        // ensure that zero dates are turned on
+        // newer MySQL has these disabled by default
+
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_IN_DATE', '');")
+            .await?;
+
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_DATE', '');")
+            .await?;
+
+        // date
+
+        let row = sqlx::query("SELECT DATE '0000-00-00'")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: Option<NaiveDate> = row.get(0);
+
+        assert_eq!(val, None);
+        assert!(row.try_get::<NaiveDate, _>(0).is_err());
+
+        // datetime
+
+        let row = sqlx::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: Option<NaiveDateTime> = row.get(0);
+
+        assert_eq!(val, None);
+        assert!(row.try_get::<NaiveDateTime, _>(0).is_err());
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "time")]
@@ -110,6 +144,44 @@ mod time_tests {
                 .with_time(time!(5:10:20.115100))
                 .assume_utc()
     ));
+
+    #[sqlx_macros::test]
+    async fn test_type_time_zero_date() -> anyhow::Result<()> {
+        let mut conn = sqlx_test::new::<MySql>().await?;
+
+        // ensure that zero dates are turned on
+        // newer MySQL has these disabled by default
+
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_IN_DATE', '');")
+            .await?;
+
+        conn.execute("SET @@sql_mode := REPLACE(@@sql_mode, 'NO_ZERO_DATE', '');")
+            .await?;
+
+        // date
+
+        let row = sqlx::query("SELECT DATE '0000-00-00'")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: Option<Date> = row.get(0);
+
+        assert_eq!(val, None);
+        assert!(row.try_get::<Date, _>(0).is_err());
+
+        // datetime
+
+        let row = sqlx::query("SELECT TIMESTAMP '0000-00-00 00:00:00'")
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: Option<PrimitiveDateTime> = row.get(0);
+
+        assert_eq!(val, None);
+        assert!(row.try_get::<PrimitiveDateTime, _>(0).is_err());
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "bigdecimal")]

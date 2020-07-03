@@ -126,16 +126,20 @@ impl Connection for PgConnection {
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let mut needs_flush = false;
+            let mut cleared = 0_usize;
+
+            self.wait_until_ready().await?;
 
             while let Some(statement) = self.cache_statement.remove_lru() {
                 self.stream.write(Close::Statement(statement));
-                needs_flush = true;
+                cleared += 1;
             }
 
-            if needs_flush {
+            if cleared > 0 {
                 self.stream.write(Flush);
                 self.stream.flush().await?;
+
+                self.wait_for_close_complete(cleared).await?;
             }
 
             Ok(())

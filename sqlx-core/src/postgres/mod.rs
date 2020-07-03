@@ -33,7 +33,7 @@ pub type PgPool = crate::pool::Pool<Postgres>;
 impl_into_arguments_for_arguments!(PgArguments);
 impl_executor_for_pool_connection!(Postgres, PgConnection, PgRow);
 impl_executor_for_transaction!(Postgres, PgRow);
+impl_map_row!(Postgres, PgRow);
 
-// required because some databases have a different handling
-// of NULL
+// required because some databases have a different handling of NULL
 impl_encode_for_option!(Postgres);

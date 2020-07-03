@@ -1,8 +1,12 @@
 use futures::TryStreamExt;
 use sqlx::postgres::PgRow;
-use sqlx::postgres::{PgDatabaseError, PgErrorPosition, PgSeverity};
-use sqlx::{postgres::Postgres, Connection, Executor, PgPool, Row};
+use sqlx::postgres::{
+    PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
+};
+use sqlx::{postgres::Postgres, Connect, Connection, Executor, PgPool, Row};
 use sqlx_test::new;
+use std::env;
+use std::thread;
 use std::time::Duration;
 
 #[sqlx_macros::test]
@@ -388,7 +392,9 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     for _ in 0..5 {
         let pool = pool.clone();
-        spawn(async move {
+        // we don't need async, just need this to run concurrently
+        // if we use `task::spawn()` we risk starving the event loop because we don't yield
+        thread::spawn(move || {
             while !pool.is_closed() {
                 // drop acquire() futures in a hot loop
                 // https://github.com/launchbadge/sqlx/issues/83
@@ -510,6 +516,33 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     assert_eq!(1, conn.cached_statements_size());
     conn.clear_cached_statements().await?;
     assert_eq!(0, conn.cached_statements_size());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
+    sqlx_test::setup_if_needed();
+
+    let mut options: PgConnectOptions = env::var("DATABASE_URL")?.parse().unwrap();
+
+    // a capacity of 1 means that before each statement (after the first)
+    // we will close the previous statement
+    options = options.statement_cache_capacity(1);
+
+    let mut conn = PgConnection::connect_with(&options).await?;
+
+    for i in 0..5 {
+        let row = sqlx::query(&*format!("SELECT {}::int4 AS val", i))
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: i32 = row.get("val");
+
+        assert_eq!(i, val);
+    }
+
+    assert_eq!(1, conn.cached_statements_size());
 
     Ok(())
 }

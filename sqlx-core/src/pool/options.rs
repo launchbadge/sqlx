@@ -34,6 +34,8 @@ impl<DB: Database> Builder<DB> {
                 idle_timeout: None,
                 // If true, test the health of a connection on acquire
                 test_on_acquire: true,
+                // If true, calls to `acquire()` must always wait in line.
+                fair: true,
             },
         }
     }
@@ -106,6 +108,24 @@ impl<DB: Database> Builder<DB> {
         self
     }
 
+    /// If set to `true`, calls to `acquire()` are fair and connections  are issued
+    /// in first-come-first-serve order. If `false`, "drive-by" tasks may steal idle connections
+    /// ahead of tasks that have been waiting.
+    ///
+    /// According to `sqlx-bench/benches/pg_pool` this may slightly increase time
+    /// to `acquire()` at low pool contention but at very high contention it helps
+    /// avoid tasks at the head of the waiter queue getting repeatedly preempted by
+    /// these "drive-by" tasks and tasks further back in the queue timing out because
+    /// the queue isn't moving.
+    ///
+    /// Currently only exposed for benchmarking; `fair = true` seems to be the superior option
+    /// in most cases.
+    #[doc(hidden)]
+    pub fn fair(mut self, fair: bool) -> Self {
+        self.options.fair = fair;
+        self
+    }
+
     /// Consumes the builder, returning a new, initialized connection pool with the given
     /// connection string.
     ///
@@ -154,4 +174,5 @@ pub(crate) struct Options {
     pub max_lifetime: Option<Duration>,
     pub idle_timeout: Option<Duration>,
     pub test_on_acquire: bool,
+    pub fair: bool,
 }

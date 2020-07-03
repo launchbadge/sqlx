@@ -10,6 +10,7 @@ use libsqlite3_sys::sqlite3;
 use crate::common::StatementCache;
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
+use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::sqlite::connection::establish::establish;
 use crate::sqlite::statement::{SqliteStatement, StatementWorker};
@@ -110,9 +111,16 @@ impl Connect for SqliteConnection {
     #[inline]
     fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
         Box::pin(async move {
-            let conn = establish(options).await?;
+            let mut conn = establish(options).await?;
 
-            // TODO: Apply any connection options once we have them defined
+            // send an initial sql statement comprised of options
+            let init = format!(
+                "PRAGMA journal_mode = {}; PRAGMA foreign_keys = {};",
+                options.journal_mode.as_str(),
+                if options.foreign_keys { "ON" } else { "OFF" }
+            );
+
+            conn.execute(&*init).await?;
 
             Ok(conn)
         })

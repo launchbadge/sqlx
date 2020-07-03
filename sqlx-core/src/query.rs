@@ -79,11 +79,12 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl Fn(DB::Row) -> Result<O, Error>, A>
+    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>, A>
     where
-        F: Fn(DB::Row) -> O,
+        F: MapRow<DB, Output = O>,
+        O: Unpin,
     {
-        self.try_map(move |row| Ok(f(row)))
+        self.try_map(MapRowAdapter(f))
     }
 
     /// Map each row in the result to another type.
@@ -91,9 +92,9 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
+    pub fn try_map<F>(self, f: F) -> Map<'q, DB, F, A>
     where
-        F: Fn(DB::Row) -> Result<O, Error>,
+        F: TryMapRow<DB>,
     {
         Map {
             inner: self,
@@ -302,6 +303,40 @@ where
     }
 }
 
+// A (hopefully) temporary workaround for an internal compiler error (ICE) involving higher-ranked
+// trait bounds (HRTBs), associated types and closures.
+//
+// See https://github.com/rust-lang/rust/issues/62529
+
+pub trait TryMapRow<DB: Database> {
+    type Output: Unpin;
+
+    fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error>;
+}
+
+pub trait MapRow<DB: Database> {
+    type Output: Unpin;
+
+    fn map_row(&mut self, row: DB::Row) -> Self::Output;
+}
+
+// A private adapter that implements [MapRow] in terms of [TryMapRow]
+// Just ends up Ok wrapping it
+
+struct MapRowAdapter<F>(F);
+
+impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
+where
+    O: Unpin,
+    F: MapRow<DB, Output = O>,
+{
+    type Output = O;
+
+    fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error> {
+        Ok(self.0.map_row(row))
+    }
+}
+
 /// Make a SQL query.
 #[inline]
 pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as HasArguments<'_>>::Arguments>
@@ -327,4 +362,31 @@ where
         arguments: Some(arguments),
         query: sql,
     }
+}
+
+#[allow(unused_macros)]
+macro_rules! impl_map_row {
+    ($DB:ident, $R:ident) => {
+        impl<O: Unpin, F> crate::query::MapRow<$DB> for F
+        where
+            F: FnMut($R) -> O,
+        {
+            type Output = O;
+
+            fn map_row(&mut self, row: $R) -> O {
+                (self)(row)
+            }
+        }
+
+        impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
+        where
+            F: FnMut($R) -> Result<O, crate::error::Error>,
+        {
+            type Output = O;
+
+            fn try_map_row(&mut self, row: $R) -> Result<O, crate::error::Error> {
+                (self)(row)
+            }
+        }
+    };
 }

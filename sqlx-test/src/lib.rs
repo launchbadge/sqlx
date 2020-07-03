@@ -1,7 +1,7 @@
 use sqlx::{database::Database, Connect, Pool};
 use std::env;
 
-fn setup_if_needed() {
+pub fn setup_if_needed() {
     let _ = dotenv::dotenv();
     let _ = env_logger::builder().is_test(true).try_init();
 }
