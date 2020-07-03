@@ -43,7 +43,7 @@ impl FromStr for PgSslMode {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match s {
+        Ok(match &*s.to_ascii_lowercase() {
             "disable" => PgSslMode::Disable,
             "allow" => PgSslMode::Allow,
             "prefer" => PgSslMode::Prefer,
@@ -52,7 +52,9 @@ impl FromStr for PgSslMode {
             "verify-full" => PgSslMode::VerifyFull,
 
             _ => {
-                return Err(err_protocol!("unknown SSL mode value: {:?}", s));
+                return Err(Error::ParseConnectOptions(
+                    format!("unknown value {:?} for `ssl_mode`", s).into(),
+                ));
             }
         })
     }

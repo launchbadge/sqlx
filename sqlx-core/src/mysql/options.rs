@@ -43,15 +43,17 @@ impl FromStr for MySqlSslMode {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match s {
-            "DISABLED" => MySqlSslMode::Disabled,
-            "PREFERRED" => MySqlSslMode::Preferred,
-            "REQUIRED" => MySqlSslMode::Required,
-            "VERIFY_CA" => MySqlSslMode::VerifyCa,
-            "VERIFY_IDENTITY" => MySqlSslMode::VerifyIdentity,
+        Ok(match &*s.to_ascii_lowercase() {
+            "disabled" => MySqlSslMode::Disabled,
+            "preferred" => MySqlSslMode::Preferred,
+            "required" => MySqlSslMode::Required,
+            "verify_ca" => MySqlSslMode::VerifyCa,
+            "verify_identity" => MySqlSslMode::VerifyIdentity,
 
             _ => {
-                return Err(err_protocol!("unknown SSL mode value: {:?}", s));
+                return Err(Error::ParseConnectOptions(
+                    format!("unknown value {:?} for `ssl_mode`", s).into(),
+                ));
             }
         })
     }
