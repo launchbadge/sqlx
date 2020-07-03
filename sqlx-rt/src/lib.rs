@@ -119,7 +119,7 @@ pub use async_native_tls::{Error as TlsError, TlsConnector, TlsStream};
     feature = "runtime-async-std",
     not(any(feature = "runtime-actix", feature = "runtime-tokio"))
 ))]
-pub(crate) use async_std::task::block_on;
+pub use async_std::task::block_on;
 
 #[cfg(all(
     feature = "runtime-async-std",
