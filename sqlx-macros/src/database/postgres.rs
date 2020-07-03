@@ -41,6 +41,8 @@ impl_database_ext! {
         #[cfg(feature = "time")]
         sqlx::types::time::OffsetDateTime,
 
+        sqlx::postgres::types::PgInterval,
+
         #[cfg(feature = "bigdecimal")]
         sqlx::types::BigDecimal,
 
