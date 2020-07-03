@@ -1,5 +1,8 @@
 extern crate time_ as time;
 
+#[cfg(feature = "decimal")]
+use std::str::FromStr;
+
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
 use sqlx_test::test_type;
@@ -185,7 +188,7 @@ mod time_tests {
 }
 
 #[cfg(feature = "bigdecimal")]
-test_type!(decimal<sqlx::types::BigDecimal>(
+test_type!(bigdecimal<sqlx::types::BigDecimal>(
     MySql,
     "CAST(0 as DECIMAL(0, 0))" == "0".parse::<sqlx::types::BigDecimal>().unwrap(),
     "CAST(1 AS DECIMAL(1, 0))" == "1".parse::<sqlx::types::BigDecimal>().unwrap(),
@@ -194,6 +197,18 @@ test_type!(decimal<sqlx::types::BigDecimal>(
     "CAST(0.01234 AS DECIMAL(6, 5))" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
     "CAST(12.34 AS DECIMAL(4, 2))" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
     "CAST(12345.6789 AS DECIMAL(9, 4))" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
+));
+
+#[cfg(feature = "decimal")]
+test_type!(decimal<sqlx::types::Decimal>(MySql,
+    "CAST(0 as DECIMAL(0, 0))" == sqlx::types::Decimal::from_str("0").unwrap(),
+    "CAST(1 AS DECIMAL(1, 0))" == sqlx::types::Decimal::from_str("1").unwrap(),
+    // bug in rust_decimal: https://github.com/paupino/rust-decimal/issues/251
+    //"CAST(10000 AS DECIMAL(5, 0))" == sqlx::types::Decimal::from_str("10000").unwrap(),
+    "CAST(0.1 AS DECIMAL(2, 1))" == sqlx::types::Decimal::from_str("0.1").unwrap(),
+    "CAST(0.01234 AS DECIMAL(6, 5))" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
+    "CAST(12.34 AS DECIMAL(4, 2))" == sqlx::types::Decimal::from_str("12.34").unwrap(),
+    "CAST(12345.6789 AS DECIMAL(9, 4))" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
 ));
 
 #[cfg(feature = "json")]

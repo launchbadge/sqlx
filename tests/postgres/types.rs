@@ -1,6 +1,8 @@
 extern crate time_ as time;
 
 use std::ops::Bound;
+#[cfg(feature = "decimal")]
+use std::str::FromStr;
 
 use sqlx::postgres::types::{PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
@@ -324,7 +326,7 @@ mod json {
 }
 
 #[cfg(feature = "bigdecimal")]
-test_type!(decimal<sqlx::types::BigDecimal>(Postgres,
+test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
 
     // https://github.com/launchbadge/sqlx/issues/283
     "0::numeric" == "0".parse::<sqlx::types::BigDecimal>().unwrap(),
@@ -335,6 +337,18 @@ test_type!(decimal<sqlx::types::BigDecimal>(Postgres,
     "0.01234::numeric" == "0.01234".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
+));
+
+#[cfg(feature = "decimal")]
+test_type!(decimal<sqlx::types::Decimal>(Postgres,
+    "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
+    "1::numeric" == sqlx::types::Decimal::from_str("1").unwrap(),
+    // bug in rust_decimal: https://github.com/paupino/rust-decimal/issues/251
+    //"10000::numeric" == sqlx::types::Decimal::from_str("10000").unwrap(),
+    "0.1::numeric" == sqlx::types::Decimal::from_str("0.1").unwrap(),
+    "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
+    "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
+    "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
 ));
 
 const EXC2: Bound<i32> = Bound::Excluded(2);
