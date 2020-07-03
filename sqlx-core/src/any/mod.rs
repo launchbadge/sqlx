@@ -35,7 +35,7 @@ pub type AnyPool = crate::pool::Pool<Any>;
 impl_into_arguments_for_arguments!(AnyArguments<'q>);
 impl_executor_for_pool_connection!(Any, AnyConnection, AnyRow);
 impl_executor_for_transaction!(Any, AnyRow);
+impl_map_row!(Any, AnyRow);
 
-// required because some databases have a different handling
-// of NULL
+// required because some databases have a different handling of NULL
 impl_encode_for_option!(Any);

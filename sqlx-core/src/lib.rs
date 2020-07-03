@@ -43,6 +43,9 @@ pub mod decode;
 #[macro_use]
 pub mod types;
 
+#[macro_use]
+pub mod query;
+
 mod common;
 pub mod database;
 pub mod describe;
@@ -50,7 +53,6 @@ pub mod executor;
 pub mod from_row;
 mod io;
 mod net;
-pub mod query;
 pub mod query_as;
 pub mod query_scalar;
 pub mod row;

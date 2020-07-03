@@ -113,6 +113,7 @@ pub mod decode {
 /// Return types for the `query` family of functions and macros.
 pub mod query {
     pub use sqlx_core::query::{Map, Query};
+    pub use sqlx_core::query::{MapRow, TryMapRow};
     pub use sqlx_core::query_as::QueryAs;
     pub use sqlx_core::query_scalar::QueryScalar;
 }
