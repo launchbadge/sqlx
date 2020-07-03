@@ -53,11 +53,12 @@ impl Parse for QueryMacroInput {
             let _ = input.parse::<syn::token::Eq>()?;
 
             if key == "source" {
+                let span = input.span();
                 let query_str = Punctuated::<LitStr, Token![+]>::parse_separated_nonempty(input)?
                     .iter()
                     .map(LitStr::value)
                     .collect();
-                query_src = Some((QuerySrc::String(query_str), input.span()));
+                query_src = Some((QuerySrc::String(query_str), span));
             } else if key == "source_file" {
                 let lit_str = input.parse::<LitStr>()?;
                 query_src = Some((QuerySrc::File(lit_str.value()), lit_str.span()));
