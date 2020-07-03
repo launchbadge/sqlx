@@ -4,6 +4,7 @@ use std::str::from_utf8;
 use bytes::Bytes;
 
 use crate::error::{BoxDynError, UnexpectedNullError};
+use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::{MySql, MySqlTypeInfo};
 use crate::value::{Value, ValueRef};
 
@@ -65,7 +66,7 @@ impl Value for MySqlValue {
     }
 
     fn is_null(&self) -> bool {
-        self.value.is_none()
+        is_null(self.value.as_deref(), self.type_info.as_ref())
     }
 }
 
@@ -92,7 +93,23 @@ impl<'r> ValueRef<'r> for MySqlValueRef<'r> {
         self.type_info.as_ref().map(Cow::Borrowed)
     }
 
+    #[inline]
     fn is_null(&self) -> bool {
-        self.value.is_none()
+        is_null(self.value.as_deref(), self.type_info.as_ref())
     }
+}
+
+fn is_null(value: Option<&[u8]>, ty: Option<&MySqlTypeInfo>) -> bool {
+    if let (Some(value), Some(ty)) = (value, ty) {
+        // zero dates and date times should be treated the same as NULL
+        if matches!(
+            ty.r#type,
+            ColumnType::Date | ColumnType::Timestamp | ColumnType::Datetime
+        ) && value.get(0) == Some(&0)
+        {
+            return true;
+        }
+    }
+
+    value.is_none()
 }

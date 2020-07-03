@@ -140,7 +140,7 @@ impl Connect for MySqlConnection {
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
             conn.execute(concat!(
-                r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE')),"#,
+                r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#,
                 r#"time_zone='+00:00',"#,
                 r#"NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;"#,
             )).await?;

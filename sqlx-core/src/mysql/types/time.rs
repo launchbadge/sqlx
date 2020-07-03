@@ -7,7 +7,7 @@ use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::type_info::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValueFormat, MySqlValueRef};
@@ -143,7 +143,9 @@ impl Encode<'_, MySql> for Date {
 impl<'r> Decode<'r, MySql> for Date {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
-            MySqlValueFormat::Binary => decode_date(&value.as_bytes()?[1..]),
+            MySqlValueFormat::Binary => {
+                Ok(decode_date(&value.as_bytes()?[1..])?.ok_or(UnexpectedNullError)?)
+            }
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
                 Date::parse(s, "%Y-%m-%d").map_err(Into::into)
@@ -195,7 +197,7 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
                 let len = buf[0];
-                let date = decode_date(&buf[1..])?;
+                let date = decode_date(&buf[1..])?.ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {
                     date.with_time(decode_time(len - 4, &buf[5..])?)
@@ -239,13 +241,19 @@ fn encode_date(date: &Date, buf: &mut Vec<u8>) {
     buf.push(date.day());
 }
 
-fn decode_date(buf: &[u8]) -> Result<Date, BoxDynError> {
+fn decode_date(buf: &[u8]) -> Result<Option<Date>, BoxDynError> {
+    if buf.is_empty() {
+        // zero buffer means a zero date (null)
+        return Ok(None);
+    }
+
     Date::try_from_ymd(
         LittleEndian::read_u16(buf) as i32,
         buf[2] as u8,
         buf[3] as u8,
     )
     .map_err(Into::into)
+    .map(Some)
 }
 
 fn encode_time(time: &Time, include_micros: bool, buf: &mut Vec<u8>) {

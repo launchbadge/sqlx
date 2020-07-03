@@ -5,7 +5,7 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, 
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::type_info::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValueFormat, MySqlValueRef};
@@ -127,7 +127,9 @@ impl Encode<'_, MySql> for NaiveDate {
 impl<'r> Decode<'r, MySql> for NaiveDate {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         match value.format() {
-            MySqlValueFormat::Binary => Ok(decode_date(&value.as_bytes()?[1..])),
+            MySqlValueFormat::Binary => {
+                decode_date(&value.as_bytes()?[1..]).ok_or_else(|| UnexpectedNullError.into())
+            }
 
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
@@ -186,7 +188,7 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
                 let buf = value.as_bytes()?;
 
                 let len = buf[0];
-                let date = decode_date(&buf[1..]);
+                let date = decode_date(&buf[1..]).ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {
                     date.and_time(decode_time(len - 4, &buf[5..]))
@@ -215,9 +217,18 @@ fn encode_date(date: &NaiveDate, buf: &mut Vec<u8>) {
     buf.push(date.day() as u8);
 }
 
-fn decode_date(mut buf: &[u8]) -> NaiveDate {
-    let year = buf.get_u16_le();
-    NaiveDate::from_ymd(year as i32, buf[0] as u32, buf[1] as u32)
+fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
+    if buf.len() == 0 {
+        // MySQL specifies that if there are no bytes, this is all zeros
+        None
+    } else {
+        let year = buf.get_u16_le();
+        Some(NaiveDate::from_ymd(
+            year as i32,
+            buf[0] as u32,
+            buf[1] as u32,
+        ))
+    }
 }
 
 fn encode_time(time: &NaiveTime, include_micros: bool, buf: &mut Vec<u8>) {
