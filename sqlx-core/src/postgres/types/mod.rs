@@ -45,6 +45,9 @@
 //! | `chrono::NaiveDateTime`               | TIMESTAMP                                            |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
 //! | `chrono::NaiveTime`                   | TIME                                                 |
+//! | [`PgTimeTz`]                          | TIMETZ                                               |
+//!
+//! [`PgTimeTz`]: struct.PgTimeTz.html
 //!
 //! ### [`time`](https://crates.io/crates/time)
 //!
@@ -189,6 +192,8 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+#[cfg(feature = "chrono")]
+pub use self::chrono::PgTimeTz;
 pub use interval::PgInterval;
 pub use money::PgMoney;
 pub use range::PgRange;

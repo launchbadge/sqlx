@@ -179,7 +179,9 @@ test_type!(ipnetwork_vec<Vec<sqlx::types::ipnetwork::IpNetwork>>(Postgres,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx::types::chrono::{
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, PgTimeTz, Utc,
+    };
 
     test_type!(chrono_date<NaiveDate>(Postgres,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
@@ -215,6 +217,13 @@ mod chrono {
                     Utc,
                 )
             ]
+    ));
+
+    test_prepared_type!(chrono_time_tz<PgTimeTz>(Postgres,
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::east(0)),
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::east(23400)),
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::west(18000)),
+        "TIMETZ '05:10:20+02'" == PgTimeTz::new(NaiveTime::from_hms(5, 10, 20), FixedOffset::east(3600 * 2))
     ));
 }
 

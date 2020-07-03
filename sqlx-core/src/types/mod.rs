@@ -24,6 +24,9 @@ pub use uuid::Uuid;
 #[cfg(feature = "chrono")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono")))]
 pub mod chrono {
+    #[cfg(feature = "postgres")]
+    pub use crate::postgres::types::PgTimeTz;
+
     pub use chrono::{
         DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
     };

@@ -1,12 +1,53 @@
-use std::mem;
+use std::{io, mem};
 
-use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{
+    DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
+};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
+use byteorder::{BigEndian, ReadBytesExt};
+use io::Cursor;
+
+/// Represents a moment of time in a specified timezone.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct PgTimeTz {
+    pub(crate) time: NaiveTime,
+    pub(crate) offset: FixedOffset,
+}
+
+impl PgTimeTz {
+    /// Creates a new `PgTimeTz` on given time zone.
+    pub fn new(time: NaiveTime, offset: FixedOffset) -> Self {
+        Self { time, offset }
+    }
+
+    // Splits the `PgTimeTz` object into the time and offset parts.
+    pub fn into_parts(self) -> (NaiveTime, FixedOffset) {
+        (self.time, self.offset)
+    }
+}
+
+impl Type<Postgres> for PgTimeTz {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::TIMETZ
+    }
+}
+
+impl Type<Postgres> for [PgTimeTz] {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::TIMETZ_ARRAY
+    }
+}
+
+impl Type<Postgres> for Vec<PgTimeTz> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::TIMETZ_ARRAY
+    }
+}
 
 impl Type<Postgres> for NaiveTime {
     fn type_info() -> PgTypeInfo {
@@ -77,6 +118,52 @@ impl Type<Postgres> for Vec<NaiveDateTime> {
 impl<Tz: TimeZone> Type<Postgres> for Vec<DateTime<Tz>> {
     fn type_info() -> PgTypeInfo {
         <[DateTime<Tz>] as Type<Postgres>>::type_info()
+    }
+}
+
+impl Encode<'_, Postgres> for PgTimeTz {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        let _ = <NaiveTime as Encode<'_, Postgres>>::encode(self.time, buf); // IsNull::No
+        <i32 as Encode<'_, Postgres>>::encode(self.offset.utc_minus_local(), buf)
+    }
+
+    fn size_hint(&self) -> usize {
+        mem::size_of::<i64>() + mem::size_of::<i32>()
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for PgTimeTz {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        match value.format() {
+            PgValueFormat::Binary => {
+                let mut buf = Cursor::new(value.as_bytes()?);
+
+                // TIME is encoded as the microseconds since midnight
+                let us = buf.read_i64::<BigEndian>()?;
+                let time = NaiveTime::from_hms(0, 0, 0) + Duration::microseconds(us);
+
+                // OFFSET is encoded as seconds from UTC
+                let seconds = buf.read_i32::<BigEndian>()?;
+                Ok(PgTimeTz::new(time, FixedOffset::west(seconds)))
+            }
+
+            PgValueFormat::Text => {
+                // Please dig into PostgreSQL source code and see if we can
+                // implement parsing for this. Chrono doesn't really support
+                // parsing of times only with a timezone in a format PostgreSQL
+                // gives us, so it needs to be something custom.
+                //
+                // See `timetz_in` in `adt/date.c` and `ParseDateTime` in
+                // `dt_common.c`.
+
+                let error = io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Reading a `TIMETZ` value in text format is not supported.",
+                );
+
+                Err(Box::new(error))
+            }
+        }
     }
 }
 
