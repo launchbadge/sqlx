@@ -21,7 +21,7 @@ use std::{
 /// Reading `MONEY` value in text format is not supported and will cause an error.
 ///
 /// [`MONEY`]: https://www.postgresql.org/docs/current/datatype-money.html
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct PgMoney(pub i64);
 
 impl PgMoney {
@@ -30,7 +30,7 @@ impl PgMoney {
     ///
     /// [`BigDecimal`]: ../../types/struct.BigDecimal.html
     #[cfg(feature = "bigdecimal")]
-    pub fn as_bigdecimal(&self, scale: i64) -> bigdecimal::BigDecimal {
+    pub fn as_bigdecimal(self, scale: i64) -> bigdecimal::BigDecimal {
         let digits = num_bigint::BigInt::from(self.0);
 
         bigdecimal::BigDecimal::new(digits, scale)
