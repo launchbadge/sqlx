@@ -1,7 +1,6 @@
 use futures::TryStreamExt;
-use sqlx::{
-    query, sqlite::Sqlite, Connect, Connection, Executor, Row, SqliteConnection, SqlitePool,
-};
+use sqlx::sqlite::{Sqlite, SqliteConnection, SqlitePool, SqliteRow};
+use sqlx::{query, Connect, Connection, Executor, Row};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -71,6 +70,40 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
 
     assert_eq!(row1.get::<i32, _>(0), 15);
     assert_eq!(row2.get::<i32, _>(0), 15);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_maths() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let value = sqlx::query("select 1 + ?1")
+        .bind(5_i32)
+        .try_map(|row: SqliteRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(6i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let row: (i32, i32, i32, i32) = sqlx::query_as("select ?1, ?1, ?3, ?2")
+        .bind(5_i32)
+        .bind(500_i32)
+        .bind(1020_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(row.0, 5);
+    assert_eq!(row.1, 5);
+    assert_eq!(row.2, 1020);
+    assert_eq!(row.3, 500);
 
     Ok(())
 }

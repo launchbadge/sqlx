@@ -55,7 +55,7 @@ impl SqliteArguments<'_> {
         let mut arg_i = 0;
         for handle in &statement.handles {
             let cnt = handle.bind_parameter_count();
-            for param_i in 0..cnt {
+            for param_i in 1..=cnt {
                 // figure out the index of this bind parameter into our argument tuple
                 let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                     if name.starts_with('?') {
@@ -77,7 +77,7 @@ impl SqliteArguments<'_> {
                     ));
                 }
 
-                self.values[n - 1].bind(handle, param_i + 1)?;
+                self.values[n - 1].bind(handle, param_i)?;
             }
         }
 
