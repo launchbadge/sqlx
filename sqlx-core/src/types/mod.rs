@@ -39,6 +39,10 @@ pub mod time {
 #[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
 pub use bigdecimal::BigDecimal;
 
+#[cfg(feature = "decimal")]
+#[cfg_attr(docsrs, doc(cfg(feature = "decimal")))]
+pub use rust_decimal::Decimal;
+
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {
