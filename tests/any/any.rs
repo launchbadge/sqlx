@@ -39,6 +39,18 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_gets_by_name() -> anyhow::Result<()> {
+    let mut conn = new::<Any>().await?;
+
+    let row = conn.fetch_one("SELECT 1 as _1").await?;
+    let val: i32 = row.get("_1");
+
+    assert_eq!(val, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_fail_and_recover() -> anyhow::Result<()> {
     let mut conn = new::<Any>().await?;
 
