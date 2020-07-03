@@ -1,5 +1,5 @@
+use std::convert::{TryFrom, TryInto};
 use std::mem;
-use std::convert::{TryInto, TryFrom};
 
 use byteorder::{NetworkEndian, ReadBytesExt};
 
@@ -47,7 +47,9 @@ impl<'de> Decode<'de, Postgres> for PgInterval {
             }
 
             // TODO: Implement parsing of text mode
-            PgValueFormat::Text => Err("not implemented: decode `INTERVAL` in text mode (unprepared queries)".into()),
+            PgValueFormat::Text => {
+                Err("not implemented: decode `INTERVAL` in text mode (unprepared queries)".into())
+            }
         }
     }
 }
@@ -83,7 +85,9 @@ impl Type<Postgres> for [std::time::Duration] {
 
 impl Encode<'_, Postgres> for std::time::Duration {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        PgInterval::try_from(*self).expect("failed to encode `std::time::Duration`").encode_by_ref(buf)
+        PgInterval::try_from(*self)
+            .expect("failed to encode `std::time::Duration`")
+            .encode_by_ref(buf)
     }
 
     fn size_hint(&self) -> usize {

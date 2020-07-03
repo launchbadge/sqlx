@@ -17,7 +17,7 @@
 //!
 //! [`PgInterval`]: struct.PgInterval.html
 //! [`PgRange<T>`]: struct.PgRange.html
-//! 
+//!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
 //! Requires the `chrono` Cargo feature flag.
