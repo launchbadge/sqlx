@@ -30,7 +30,7 @@ impl PgMoney {
     ///
     /// [`BigDecimal`]: ../../types/struct.BigDecimal.html
     #[cfg(feature = "bigdecimal")]
-    pub fn as_bigdecimal(self, scale: i64) -> bigdecimal::BigDecimal {
+    pub fn to_bigdecimal(self, scale: i64) -> bigdecimal::BigDecimal {
         let digits = num_bigint::BigInt::from(self.0);
 
         bigdecimal::BigDecimal::new(digits, scale)
@@ -211,7 +211,7 @@ mod tests {
 
         assert_eq!(
             bigdecimal::BigDecimal::new(num_bigint::BigInt::from(12345), 2),
-            money.as_bigdecimal(2)
+            money.to_bigdecimal(2)
         );
     }
 }
