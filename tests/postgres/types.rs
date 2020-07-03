@@ -2,7 +2,7 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{PgInterval, PgRange};
+use sqlx::postgres::types::{PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 
@@ -387,4 +387,10 @@ test_prepared_type!(interval<PgInterval>(
             days: 0,
             microseconds: (3 * 3_600 + 10 * 60 + 20) * 1_000_000 + 116100
         },
+));
+
+test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)));
+
+test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
+    "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
 ));
