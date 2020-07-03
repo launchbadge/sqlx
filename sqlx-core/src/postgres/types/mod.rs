@@ -14,9 +14,11 @@
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //! | [`PgInterval`]                        | INTERVAL                                             |
 //! | [`PgRange<T>`]                        | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
+//! | [`PgMoney`]                           | MONEY                                                |
 //!
 //! [`PgInterval`]: struct.PgInterval.html
 //! [`PgRange<T>`]: struct.PgRange.html
+//! [`PgMoney`]: struct.PgMoney.html
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
@@ -143,6 +145,7 @@ mod bytes;
 mod float;
 mod int;
 mod interval;
+mod money;
 mod range;
 mod record;
 mod str;
@@ -170,6 +173,7 @@ mod json;
 mod ipnetwork;
 
 pub use interval::PgInterval;
+pub use money::PgMoney;
 pub use range::PgRange;
 
 // used in derive(Type) for `struct`
