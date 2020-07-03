@@ -79,11 +79,12 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl Fn(DB::Row) -> Result<O, Error>, A>
+    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>, A>
     where
-        F: Fn(DB::Row) -> O,
+        F: MapRow<DB, Output = O>,
+        O: Unpin,
     {
-        self.try_map(move |row| Ok(f(row)))
+        self.try_map(MapRowAdapter(f))
     }
 
     /// Map each row in the result to another type.
@@ -91,9 +92,9 @@ where
     /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](crate::row::FromRow) implementation.
     #[inline]
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
+    pub fn try_map<F>(self, f: F) -> Map<'q, DB, F, A>
     where
-        F: Fn(DB::Row) -> Result<O, Error>,
+        F: TryMapRow<DB>,
     {
         Map {
             inner: self,
