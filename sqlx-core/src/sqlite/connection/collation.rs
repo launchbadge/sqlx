@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::ffi::CString;
-use std::os::raw::{c_char, c_int, c_void};
+use std::os::raw::{c_int, c_void};
 use std::slice;
 use std::str::from_utf8_unchecked;
 

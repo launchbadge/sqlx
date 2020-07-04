@@ -1,3 +1,5 @@
+use crate::types::chrono::FixedOffset;
+use crate::value::ValueRef;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -5,30 +7,120 @@ use crate::{
     sqlite::{type_info::DataType, Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef},
     types::Type,
 };
-use chrono::prelude::*;
+use bitflags::_core::fmt::Display;
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
+
+impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
+    fn type_info() -> SqliteTypeInfo {
+        SqliteTypeInfo(DataType::Datetime)
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        <NaiveDateTime as Type<Sqlite>>::compatible(ty)
+    }
+}
 
 impl Type<Sqlite> for NaiveDateTime {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo(DataType::Datetime)
     }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        matches!(
+            ty.0,
+            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int | DataType::Float
+        )
+    }
+}
+
+impl Type<Sqlite> for NaiveDate {
+    fn type_info() -> SqliteTypeInfo {
+        SqliteTypeInfo(DataType::Date)
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        matches!(ty.0, DataType::Date | DataType::Text)
+    }
+}
+
+impl Type<Sqlite> for NaiveTime {
+    fn type_info() -> SqliteTypeInfo {
+        SqliteTypeInfo(DataType::Time)
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        matches!(ty.0, DataType::Time | DataType::Text)
+    }
+}
+
+impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
+where
+    Tz::Offset: Display,
+{
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        Encode::<Sqlite>::encode(self.naive_utc().format("%F %T%.f").to_string(), buf)
+    }
 }
 
 impl Encode<'_, Sqlite> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        let text: String = self.format("%F %T%.f").to_string();
-        Encode::<Sqlite>::encode(text, buf)
+        Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
     }
 }
 
-impl<'a> Decode<'a, Sqlite> for NaiveDateTime {
-    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
-        decode_naive_from_text(value.text()?)
+impl Encode<'_, Sqlite> for NaiveDate {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        Encode::<Sqlite>::encode(self.format("%F").to_string(), buf)
     }
 }
 
-fn decode_naive_from_text(text: &str) -> Result<NaiveDateTime, BoxDynError> {
+impl Encode<'_, Sqlite> for NaiveTime {
+    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
+        Encode::<Sqlite>::encode(self.format("%T%.f%").to_string(), buf)
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for DateTime<Utc> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Utc.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for DateTime<Local> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Local.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        decode_datetime(value)
+    }
+}
+
+fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
+    let dt = match value.type_info().map(|ty| ty.0) {
+        None | Some(DataType::Text) => decode_datetime_from_text(value.text()?),
+
+        Some(DataType::Int) | Some(DataType::Int64) => decode_datetime_from_int(value.int64()),
+
+        Some(DataType::Float) => decode_datetime_from_float(value.double()),
+
+        _ => None,
+    };
+
+    if let Some(dt) = dt {
+        Ok(dt)
+    } else {
+        Err(format!("invalid datetime: {}", value.text()?).into())
+    }
+}
+
+fn decode_datetime_from_text(value: &str) -> Option<DateTime<FixedOffset>> {
+    println!("decode_datetime_from_text --> {}", value);
+
     // Loop over common date time patterns, inspired by Diesel
-    // https://docs.diesel.rs/src/diesel/sqlite/types/date_and_time/chrono.rs.html#56-97
+    // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L56-L97
     let sqlite_datetime_formats = &[
         // Most likely format
         "%F %T%.f",
@@ -47,52 +139,62 @@ fn decode_naive_from_text(text: &str) -> Result<NaiveDateTime, BoxDynError> {
     ];
 
     for format in sqlite_datetime_formats {
-        if let Ok(dt) = NaiveDateTime::parse_from_str(text, format) {
-            return Ok(dt);
+        if let Ok(dt) = DateTime::parse_from_str(value, format) {
+            return Some(dt);
+        }
+
+        if let Ok(dt) = NaiveDateTime::parse_from_str(value, format) {
+            return Some(Utc.fix().from_utc_datetime(&dt));
         }
     }
 
-    return Err(err_protocol!("Did not find a matching pattern").into());
+    None
 }
 
-impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Datetime)
+fn decode_datetime_from_int(value: i64) -> Option<DateTime<FixedOffset>> {
+    NaiveDateTime::from_timestamp_opt(value, 0).map(|dt| Utc.fix().from_utc_datetime(&dt))
+}
+
+fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
+    let epoch_in_julian_days = 2_440_587.5;
+    let seconds_in_day = 86400.0;
+    let timestamp = (value - epoch_in_julian_days) * seconds_in_day;
+    let seconds = timestamp as i64;
+    let nanos = (timestamp.fract() * 1E9) as u32;
+
+    NaiveDateTime::from_timestamp_opt(seconds, nanos).map(|dt| Utc.fix().from_utc_datetime(&dt))
+}
+
+impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(decode_datetime(value)?.naive_local())
     }
 }
 
-impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
-where
-    <Tz as TimeZone>::Offset: std::fmt::Display,
-{
-    fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        let text = self.to_rfc3339();
-        Encode::<Sqlite>::encode(text, buf)
+impl<'r> Decode<'r, Sqlite> for NaiveDate {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(NaiveDate::parse_from_str("%F", value.text()?)?)
     }
 }
 
-impl<'a> Decode<'a, Sqlite> for DateTime<Utc> {
-    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
-        let text = value.text()?;
-        if let Ok(dt) = DateTime::parse_from_rfc3339(text) {
-            Ok(dt.with_timezone(&Utc))
-        } else {
-            let dt = decode_naive_from_text(text)?;
-            Ok(Utc.from_utc_datetime(&dt))
+impl<'r> Decode<'r, Sqlite> for NaiveTime {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        let value = value.text()?;
+
+        // Loop over common time patterns, inspired by Diesel
+        // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L29-L47
+        let sqlite_time_formats = &[
+            // Most likely format
+            "%T.f", // Other formats in order of appearance in docs
+            "%R", "%RZ", "%T%.fZ", "%R%:z", "%T%.f%:z",
+        ];
+
+        for format in sqlite_time_formats {
+            if let Ok(dt) = NaiveTime::parse_from_str(value, format) {
+                return Ok(dt);
+            }
         }
-    }
-}
 
-impl<'a> Decode<'a, Sqlite> for DateTime<FixedOffset> {
-    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
-        let text = value.text()?;
-        Ok(DateTime::parse_from_rfc3339(text)?)
-    }
-}
-
-impl<'a> Decode<'a, Sqlite> for DateTime<Local> {
-    fn decode(value: SqliteValueRef<'a>) -> Result<Self, BoxDynError> {
-        let as_utc: DateTime<Utc> = Decode::<Sqlite>::decode(value)?;
-        Ok(as_utc.with_timezone(&Local))
+        Err(format!("invalid time: {}", value).into())
     }
 }

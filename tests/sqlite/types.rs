@@ -35,23 +35,17 @@ test_type!(bytes<Vec<u8>>(Sqlite,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{
-        DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, TimeZone, Utc,
-    };
+    use sqlx::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite,
-        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+        "datetime('2019-01-02 05:10:20')" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
     test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite,
-        "'1996-12-20T00:39:57+00:00'" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
+        "datetime('1996-12-20T00:39:57+00:00')" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
     ));
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite,
-        "'2016-11-08T03:50:23-05:00'" == FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23)
-    ));
-
-    test_type!(chrono_date_time_local<DateTime::<Local>>(Sqlite,
-        "'2016-11-08T03:50:23+00:00'" == Local.ymd(2016, 11, 08).and_hms(3, 50, 23)
+        "datetime('2016-11-08T03:50:23-05:00')" == FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23)
     ));
 }
