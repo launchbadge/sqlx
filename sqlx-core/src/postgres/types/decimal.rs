@@ -107,34 +107,35 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
         // Bytes 13-16: high portion of m
         let s = decimal.serialize();
 
-        // As u96.
-        let mut mantissa = [
-            // lo
-            u32::from_le_bytes(s[4..8].try_into().unwrap()),
-            // mid
-            u32::from_le_bytes(s[8..12].try_into().unwrap()),
-            // hi
-            u32::from_le_bytes(s[12..16].try_into().unwrap()),
-            // flags
-            0u32,
-        ];
+        // Moving the flags from the beginning of the array to the end, giving
+        // us a representation of u96 we can convert to u128.
+        //
+        // We also just set the flags as zero, so we don't need to chop them off
+        // from the resulting integer.
+        let mut mantissa = u128::from_le_bytes([
+            s[4], s[5], s[6], s[7], // lo portion
+            s[8], s[9], s[10], s[11], // mid portion
+            s[12], s[13], s[14], s[15], // hi portion
+            0, 0, 0, 0, // flags (cleared)
+        ]);
 
         // If our scale is not a multiple of 4, we need to go to the next
         // multiple.
         let groups_diff = scale % 4;
         if groups_diff > 0 {
-            let remainder: u16 = 4 - groups_diff;
-            let power = 10u32.pow(remainder as u32);
-            mul_by_u32(&mut mantissa, power);
+            let remainder = 4 - groups_diff as u32;
+            let power = 10u32.pow(remainder as u32) as u128;
+
+            mantissa = mantissa * power;
         }
 
         // Array to store max mantissa of Decimal in Postgres decimal format.
         let mut digits = Vec::with_capacity(8);
 
         // Convert to base-10000.
-        while !mantissa.iter().all(|b| *b == 0) {
-            let remainder = div_by_u32(&mut mantissa, 10000) as u16;
-            digits.push(remainder as i16)
+        while mantissa != 0 {
+            digits.push((mantissa % 10_000) as i16);
+            mantissa /= 10_000;
         }
 
         // Change the endianness.
@@ -180,48 +181,6 @@ impl Decode<'_, Postgres> for Decimal {
             PgValueFormat::Text => Ok(value.as_str()?.parse::<Decimal>()?),
         }
     }
-}
-
-// Returns remainder
-fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
-    assert_ne!(0, divisor);
-
-    if divisor == 1 {
-        // dividend remains unchanged
-        0
-    } else {
-        let mut remainder = 0u32;
-        let divisor = u64::from(divisor);
-
-        for part in bits.iter_mut().rev() {
-            let temp = (u64::from(remainder) << 32) + u64::from(*part);
-            remainder = (temp % divisor) as u32;
-            *part = (temp / divisor) as u32;
-        }
-
-        remainder
-    }
-}
-
-fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
-    let mut overflow = 0;
-
-    for num in bits.iter_mut() {
-        let (lo, hi) = mul_part(*num, m, overflow);
-
-        *num = lo;
-        overflow = hi;
-    }
-
-    overflow
-}
-
-fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
-    let result = u64::from(left) * u64::from(right) + u64::from(high);
-    let hi = (result >> 32) as u32;
-    let lo = result as u32;
-
-    (lo, hi)
 }
 
 #[cfg(test)]
