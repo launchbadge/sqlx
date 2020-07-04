@@ -1,6 +1,8 @@
 use futures::TryStreamExt;
-use sqlx::sqlite::{Sqlite, SqliteConnection, SqlitePool, SqliteRow};
-use sqlx::{query, Connect, Connection, Executor, Row};
+use sqlx::{
+    query, sqlite::Sqlite, sqlite::SqliteRow, Connect, Connection, Executor, Row, SqliteConnection,
+    SqlitePool,
+};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -299,6 +301,39 @@ SELECT id, text FROM _sqlx_test;
 
     assert_eq!(0, id);
     assert_eq!("this is a test", text);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_supports_collations() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.create_collation("test_collation", |l, r| l.cmp(r).reverse())?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE test_collation)
+            "#,
+        )
+        .await?;
+
+    sqlx::query("INSERT INTO users (name) VALUES (?)")
+        .bind("a")
+        .execute(&mut conn)
+        .await?;
+    sqlx::query("INSERT INTO users (name) VALUES (?)")
+        .bind("b")
+        .execute(&mut conn)
+        .await?;
+
+    let row: SqliteRow = conn
+        .fetch_one("SELECT name FROM users ORDER BY name ASC")
+        .await?;
+    let name: &str = row.try_get(0)?;
+
+    assert_eq!(name, "b");
 
     Ok(())
 }

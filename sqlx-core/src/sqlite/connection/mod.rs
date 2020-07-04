@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
@@ -15,6 +16,7 @@ use crate::sqlite::connection::establish::establish;
 use crate::sqlite::statement::{SqliteStatement, StatementWorker};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
 
+mod collation;
 mod describe;
 mod establish;
 mod executor;
@@ -42,6 +44,14 @@ impl SqliteConnection {
     /// Returns the underlying sqlite3* connection handle
     pub fn as_raw_handle(&mut self) -> *mut sqlite3 {
         self.handle.as_ptr()
+    }
+
+    pub fn create_collation(
+        &mut self,
+        name: &str,
+        compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        collation::create_collation(&self.handle, name, compare)
     }
 }
 
