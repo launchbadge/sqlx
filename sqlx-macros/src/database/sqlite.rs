@@ -9,6 +9,12 @@ impl_database_ext! {
         f64,
         String,
         Vec<u8>,
+
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::NaiveDateTime,
+
+        #[cfg(feature = "chrono")]
+        sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
     },
     ParamChecking::Weak,
     feature-types: _info => None,
