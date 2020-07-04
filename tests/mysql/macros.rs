@@ -132,6 +132,14 @@ enum MyEnum {
     Blue,
 }
 
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[repr(i32)]
+enum MyCEnum {
+    Red = 0,
+    Green,
+    Blue,
+}
+
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
     struct Record {
@@ -172,7 +180,13 @@ async fn test_column_override_exact_enum() -> anyhow::Result<()> {
 
     assert_eq!(record.color, MyEnum::Red);
 
+    let record = sqlx::query!("select * from (select 2 as `color: MyCEnum`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.color, MyCEnum::Blue);
+
     Ok(())
 }
 
-// we don't emit bind parameter typechecks for MySQL so testing the overrides is redundant
+// we don't emit bind parameter type-checks for MySQL so testing the overrides is redundant
