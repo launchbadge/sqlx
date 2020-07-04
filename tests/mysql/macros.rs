@@ -124,6 +124,14 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
 #[sqlx(transparent)]
 struct MyInt4(i32);
 
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(rename_all = "lowercase")]
+enum MyEnum {
+    Red,
+    Green,
+    Blue,
+}
+
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
     struct Record {
@@ -150,6 +158,19 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, MyInt4(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_enum() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let record = sqlx::query!("select * from (select 'red' as `color: MyEnum`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.color, MyEnum::Red);
 
     Ok(())
 }

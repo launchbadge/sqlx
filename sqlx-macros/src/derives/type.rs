@@ -135,7 +135,7 @@ fn expand_derive_has_sql_type_strong_enum(
                 }
 
                 fn compatible(ty: &sqlx::mysql::MySqlTypeInfo) -> bool {
-                    ty == sqlx::mysql::MySqlTypeInfo::__enum()
+                    *ty == sqlx::mysql::MySqlTypeInfo::__enum()
                 }
             }
         ));
