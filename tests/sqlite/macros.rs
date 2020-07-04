@@ -17,6 +17,39 @@ async fn macro_select() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn macro_select_expression() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let row = sqlx::query!("select 10 as _1, 'Hello' as _2")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(Some(10), row._1);
+    assert_eq!(Some("Hello"), row._2.as_deref());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn macro_select_partial_expression() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let row = sqlx::query!(
+        "select 10 as _1, 'Hello' as _2, is_active, name, id + 5 as id_p from accounts where id = 1"
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(Some(10), row._1);
+    assert_eq!(Some("Hello"), row._2.as_deref());
+    assert_eq!(Some(6), row.id_p);
+    assert_eq!("Herp Derpinson", row.name);
+    assert_eq!(row.is_active, Some(true));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn macro_select_bind() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

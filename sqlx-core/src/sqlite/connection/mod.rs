@@ -17,8 +17,10 @@ use crate::sqlite::statement::{SqliteStatement, StatementWorker};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
 
 mod collation;
+mod describe;
 mod establish;
 mod executor;
+mod explain;
 mod handle;
 
 pub(crate) use handle::ConnectionHandle;

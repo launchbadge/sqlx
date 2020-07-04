@@ -7,7 +7,7 @@ use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQL
 use crate::error::BoxDynError;
 use crate::type_info::TypeInfo;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum DataType {
     Null,
@@ -41,7 +41,7 @@ impl TypeInfo for SqliteTypeInfo {
         match self.0 {
             DataType::Null => "NULL",
             DataType::Text => "TEXT",
-            DataType::Float => "FLOAT",
+            DataType::Float => "REAL",
             DataType::Blob => "BLOB",
             DataType::Int | DataType::Int64 => "INTEGER",
             DataType::Numeric => "NUMERIC",

@@ -98,21 +98,27 @@ fn expand_derive_encode_weak_enum(
 ) -> syn::Result<proc_macro2::TokenStream> {
     let attr = check_weak_enum_attributes(input, &variants)?;
     let repr = attr.repr.unwrap();
-
     let ident = &input.ident;
+
+    let mut values = Vec::new();
+
+    for v in variants {
+        let id = &v.ident;
+        values.push(quote!(#ident :: #id => (#ident :: #id as #repr),));
+    }
 
     Ok(quote!(
         impl<'q, DB: sqlx::Database> sqlx::encode::Encode<'q, DB> for #ident where #repr: sqlx::encode::Encode<'q, DB> {
             fn encode_by_ref(&self, buf: &mut <DB as sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> sqlx::encode::IsNull {
-                <#repr as sqlx::encode::Encode<DB>>::encode_by_ref(&(*self as #repr), buf)
-            }
+                let value = match self {
+                    #(#values)*
+                };
 
-            fn produces(&self) -> Option<DB::TypeInfo> {
-                <#repr as sqlx::encode::Encode<DB>>::produces(&(*self as #repr))
+                <#repr as sqlx::encode::Encode<DB>>::encode_by_ref(&value, buf)
             }
 
             fn size_hint(&self) -> usize {
-                <#repr as sqlx::encode::Encode<DB>>::size_hint(&(*self as #repr))
+                <#repr as sqlx::encode::Encode<DB>>::size_hint(&Default::default())
             }
         }
     ))
@@ -127,6 +133,7 @@ fn expand_derive_encode_strong_enum(
     let ident = &input.ident;
 
     let mut value_arms = Vec::new();
+
     for v in variants {
         let id = &v.ident;
         let attributes = parse_child_attributes(&v.attrs)?;
