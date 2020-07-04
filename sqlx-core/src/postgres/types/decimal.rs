@@ -69,9 +69,16 @@ impl TryFrom<PgNumeric> for Decimal {
         let bigint = BigInt::from_radix_be(sign, &cents, 100)
             .ok_or("PgNumeric contained an out-of-range digit")?;
 
-        match bigint.to_i128() {
-            Some(num) => Ok(Decimal::from_i128_with_scale(num, scale as u32)),
-            None => Err("Decimal's integer part out of range.".into()),
+        match (bigint.to_i128(), scale) {
+            // A negative scale, meaning we have nothing on the right and must
+            // add zeroes to the left.
+            (Some(num), scale) if scale < 0 => Ok(Decimal::from_i128_with_scale(
+                num * 10i128.pow(scale.abs() as u32),
+                0,
+            )),
+            // A positive scale, so we have decimals on the right.
+            (Some(num), _) => Ok(Decimal::from_i128_with_scale(num, scale as u32)),
+            (None, _) => Err("Decimal's integer part out of range.".into()),
         }
     }
 }
