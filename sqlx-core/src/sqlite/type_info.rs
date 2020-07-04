@@ -41,7 +41,7 @@ impl TypeInfo for SqliteTypeInfo {
         match self.0 {
             DataType::Null => "NULL",
             DataType::Text => "TEXT",
-            DataType::Float => "FLOAT",
+            DataType::Float => "REAL",
             DataType::Blob => "BLOB",
             DataType::Int | DataType::Int64 => "INTEGER",
             DataType::Numeric => "NUMERIC",
