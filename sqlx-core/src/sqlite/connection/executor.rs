@@ -3,14 +3,15 @@ use std::sync::Arc;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::TryStreamExt;
+use futures_util::{FutureExt, TryStreamExt};
 use hashbrown::HashMap;
 
 use crate::common::StatementCache;
-use crate::describe::{Column, Describe};
+use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
+use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::ConnectionHandle;
 use crate::sqlite::statement::{SqliteStatement, StatementHandle};
 use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
@@ -176,34 +177,6 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let query = query.query();
-        let statement = SqliteStatement::prepare(&mut self.handle, query, false);
-
-        Box::pin(async move {
-            let mut params = Vec::new();
-            let mut columns = Vec::new();
-
-            if let Some(statement) = statement?.handles.get(0) {
-                // NOTE: we can infer *nothing* about parameters apart from the count
-                params.resize(statement.bind_parameter_count(), None);
-
-                let num_columns = statement.column_count();
-                columns.reserve(num_columns);
-
-                for i in 0..num_columns {
-                    let name = statement.column_name(i).to_owned();
-                    let type_info = statement.column_decltype(i);
-                    let not_null = statement.column_not_null(i)?;
-
-                    columns.push(Column {
-                        name,
-                        type_info,
-                        not_null,
-                    })
-                }
-            }
-
-            Ok(Describe { params, columns })
-        })
+        describe(self, query.query()).boxed()
     }
 }

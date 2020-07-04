@@ -15,8 +15,10 @@ use crate::sqlite::connection::establish::establish;
 use crate::sqlite::statement::{SqliteStatement, StatementWorker};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
 
+mod describe;
 mod establish;
 mod executor;
+mod explain;
 mod handle;
 
 pub(crate) use handle::ConnectionHandle;
