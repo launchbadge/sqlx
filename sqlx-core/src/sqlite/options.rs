@@ -60,6 +60,7 @@ impl FromStr for SqliteJournalMode {
 pub struct SqliteConnectOptions {
     pub(crate) filename: PathBuf,
     pub(crate) in_memory: bool,
+    pub(crate) read_only: bool,
     pub(crate) journal_mode: SqliteJournalMode,
     pub(crate) foreign_keys: bool,
     pub(crate) statement_cache_capacity: usize,
@@ -76,6 +77,7 @@ impl SqliteConnectOptions {
         Self {
             filename: PathBuf::from(":memory:"),
             in_memory: false,
+            read_only: false,
             foreign_keys: true,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
@@ -96,6 +98,13 @@ impl SqliteConnectOptions {
     /// there are [disadvantages](https://www.sqlite.org/wal.html).
     pub fn journal_mode(mut self, mode: SqliteJournalMode) -> Self {
         self.journal_mode = mode;
+        self
+    }
+
+    /// Sets the [access mode](https://www.sqlite.org/c3ref/open.html) to open the database
+    /// for read-only access.
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
         self
     }
 
