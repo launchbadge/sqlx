@@ -33,7 +33,7 @@ async fn test_non_null() -> anyhow::Result<()> {
         .fetch_one(&mut tx)
         .await?;
 
-    assert_eq!(row.id, 1);
+    assert!(row.id > 0);
     assert_eq!(row.text, "Hello");
     assert_eq!(row.owner_id, None);
 
