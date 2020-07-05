@@ -14,7 +14,7 @@ pub struct DataRow {
     /// Ranges into the stored row data.
     /// This uses `u32` instead of usize to reduce the size of this type. Values cannot be larger
     /// than `i32` in postgres.
-    values: Vec<Option<Range<u32>>>,
+    pub(crate) values: Vec<Option<Range<u32>>>,
 }
 
 impl DataRow {
@@ -61,7 +61,7 @@ fn test_decode_data_row() {
 
     let row = DataRow::decode(DATA.into()).unwrap();
 
-    assert_eq!(row.len(), 8);
+    assert_eq!(row.values.len(), 8);
 
     assert!(row.get(0).is_none());
     assert_eq!(row.get(1).unwrap(), &[0_u8, 0, 0, 10][..]);
