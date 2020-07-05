@@ -161,7 +161,7 @@ trait StatementInfoExt: serde::Serialize + serde::de::DeserializeOwned {}
 
 #[cfg(feature = "offline")]
 impl<DB: Database> StatementInfoExt for StatementInfo<DB> where
-    Describe<DB>: serde::Serialize + serde::de::DeserializeOwned
+    StatementInfo<DB>: serde::Serialize + serde::de::DeserializeOwned
 {
 }
 
