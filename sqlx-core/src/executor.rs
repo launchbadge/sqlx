@@ -6,8 +6,8 @@ use futures_core::stream::BoxStream;
 use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::database::{Database, HasArguments};
-use crate::describe::Describe;
 use crate::error::Error;
+use crate::statement::StatementInfo;
 
 /// A type that contains or can provide a database
 /// connection to use for executing queries against the database.
@@ -130,7 +130,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>;

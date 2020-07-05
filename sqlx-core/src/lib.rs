@@ -46,9 +46,9 @@ pub mod types;
 #[macro_use]
 pub mod query;
 
+pub mod column;
 mod common;
 pub mod database;
-pub mod describe;
 pub mod executor;
 pub mod from_row;
 mod io;
@@ -56,6 +56,7 @@ mod net;
 pub mod query_as;
 pub mod query_scalar;
 pub mod row;
+pub mod statement;
 pub mod type_info;
 pub mod value;
 

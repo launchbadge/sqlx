@@ -2,7 +2,8 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::Type;
 
-use sqlx_core::describe::{Column, Describe};
+use sqlx_core::column::Column;
+use sqlx_core::statement::StatementInfo;
 
 use crate::database::DatabaseExt;
 
@@ -41,29 +42,31 @@ impl Display for DisplayColumn<'_> {
     }
 }
 
-pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
+pub fn columns_to_rust<DB: DatabaseExt>(
+    describe: &StatementInfo<DB>,
+) -> crate::Result<Vec<RustColumn>> {
     describe
-        .columns
+        .columns()
         .iter()
         .enumerate()
         .map(|(i, column)| -> crate::Result<_> {
             // add raw prefix to all identifiers
-            let decl = ColumnDecl::parse(&column.name)
-                .map_err(|e| format!("column name {:?} is invalid: {}", column.name, e))?;
+            let decl = ColumnDecl::parse(&column.name())
+                .map_err(|e| format!("column name {:?} is invalid: {}", column.name(), e))?;
 
             let type_ = match decl.r#override {
                 Some(ColumnOverride::Exact(ty)) => Some(ty.to_token_stream()),
                 Some(ColumnOverride::Wildcard) => None,
                 // these three could be combined but I prefer the clarity here
-                Some(ColumnOverride::NonNull) => Some(get_column_type(i, column)),
+                Some(ColumnOverride::NonNull) => Some(get_column_type::<DB>(i, column)),
                 Some(ColumnOverride::Nullable) => {
-                    let type_ = get_column_type(i, column);
+                    let type_ = get_column_type::<DB>(i, column);
                     Some(quote! { Option<#type_> })
                 }
                 None => {
-                    let type_ = get_column_type(i, column);
+                    let type_ = get_column_type::<DB>(i, column);
 
-                    if column.not_null.unwrap_or(false) {
+                    if !describe.nullable(i).unwrap_or(true) {
                         Some(type_)
                     } else {
                         Some(quote! { Option<#type_> })
@@ -121,49 +124,36 @@ pub fn quote_query_as<DB: DatabaseExt>(
     }
 }
 
-fn get_column_type<DB: DatabaseExt>(i: usize, column: &Column<DB>) -> TokenStream {
-    if let Some(type_info) = &column.type_info {
-        <DB as DatabaseExt>::return_type_for_id(&type_info).map_or_else(
-            || {
-                let message =
-                    if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_info) {
-                        format!(
-                            "optional feature `{feat}` required for type {ty} of {col}",
-                            ty = &type_info,
-                            feat = feature_gate,
-                            col = DisplayColumn {
-                                idx: i,
-                                name: &*column.name
-                            }
-                        )
-                    } else {
-                        format!(
-                            "unsupported type {ty} of {col}",
-                            ty = type_info,
-                            col = DisplayColumn {
-                                idx: i,
-                                name: &*column.name
-                            }
-                        )
-                    };
-                syn::Error::new(Span::call_site(), message).to_compile_error()
-            },
-            |t| t.parse().unwrap(),
-        )
-    } else {
-        syn::Error::new(
-            Span::call_site(),
-            format!(
-                "database couldn't tell us the type of {col}; \
-                     this can happen for columns that are the result of an expression",
-                col = DisplayColumn {
-                    idx: i,
-                    name: &*column.name
-                }
-            ),
-        )
-        .to_compile_error()
-    }
+fn get_column_type<DB: DatabaseExt>(i: usize, column: &DB::Column) -> TokenStream {
+    let type_info = &*column.type_info();
+
+    <DB as DatabaseExt>::return_type_for_id(&type_info).map_or_else(
+        || {
+            let message =
+                if let Some(feature_gate) = <DB as DatabaseExt>::get_feature_gate(&type_info) {
+                    format!(
+                        "optional feature `{feat}` required for type {ty} of {col}",
+                        ty = &type_info,
+                        feat = feature_gate,
+                        col = DisplayColumn {
+                            idx: i,
+                            name: &*column.name()
+                        }
+                    )
+                } else {
+                    format!(
+                        "unsupported type {ty} of {col}",
+                        ty = type_info,
+                        col = DisplayColumn {
+                            idx: i,
+                            name: &*column.name()
+                        }
+                    )
+                };
+            syn::Error::new(Span::call_site(), message).to_compile_error()
+        },
+        |t| t.parse().unwrap(),
+    )
 }
 
 impl ColumnDecl {

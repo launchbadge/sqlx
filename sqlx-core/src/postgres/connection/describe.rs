@@ -1,20 +1,15 @@
-use std::fmt::Write;
-use std::mem;
-use std::sync::Arc;
-
-use futures_util::{stream, StreamExt, TryStreamExt};
-use hashbrown::HashMap;
-
-use crate::describe::Column;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::message::{ParameterDescription, RowDescription};
-use crate::postgres::row::PgColumn;
 use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
-use crate::postgres::{PgArguments, PgConnection, PgTypeInfo, Postgres};
-use crate::query_as::{query_as, query_as_with};
-use crate::query_scalar::query_scalar;
+use crate::postgres::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
+use crate::query_as::query_as;
+use crate::query_scalar::{query_scalar, query_scalar_with};
 use futures_core::future::BoxFuture;
+use hashbrown::HashMap;
+use std::fmt::Write;
+use std::mem;
+use std::sync::Arc;
 
 impl PgConnection {
     pub(super) async fn handle_row_description(
@@ -52,6 +47,7 @@ impl PgConnection {
                 .await?;
 
             let column = PgColumn {
+                ordinal: index,
                 name: name.clone(),
                 type_info,
                 relation_id: field.relation_id,
@@ -74,11 +70,11 @@ impl PgConnection {
     pub(super) async fn handle_parameter_description(
         &mut self,
         desc: ParameterDescription,
-    ) -> Result<Vec<Option<PgTypeInfo>>, Error> {
+    ) -> Result<Vec<PgTypeInfo>, Error> {
         let mut params = Vec::with_capacity(desc.types.len());
 
         for ty in desc.types {
-            params.push(Some(self.maybe_fetch_type_info_by_oid(ty, true).await?));
+            params.push(self.maybe_fetch_type_info_by_oid(ty, true).await?);
         }
 
         Ok(params)
@@ -253,15 +249,15 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
         Ok(oid)
     }
 
-    pub(crate) async fn map_result_columns(
+    pub(crate) async fn get_nullable_for_columns(
         &mut self,
         columns: &[PgColumn],
-    ) -> Result<Vec<Column<Postgres>>, Error> {
+    ) -> Result<Vec<Option<bool>>, Error> {
         if columns.is_empty() {
             return Ok(vec![]);
         }
 
-        let mut query = String::from("SELECT col.idx, pg_attribute.attnotnull FROM (VALUES ");
+        let mut query = String::from("SELECT NOT pg_attribute.attnotnull FROM (VALUES ");
         let mut args = PgArguments::default();
 
         for (i, (column, bind)) in columns.iter().zip((1..).step_by(3)).enumerate() {
@@ -291,22 +287,8 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
             ORDER BY col.idx",
         );
 
-        query_as_with::<_, (i32, Option<bool>), _>(&query, args)
-            .fetch(self)
-            .zip(stream::iter(columns.iter().enumerate()))
-            .map(|(row, (field_idx, column))| -> Result<Column<_>, Error> {
-                let (idx, not_null) = row?;
-
-                // NOTE: it should be impossible for this to fire
-                debug_assert_eq!(idx, field_idx as i32);
-
-                Ok(Column {
-                    name: column.name.to_string(),
-                    type_info: Some(column.type_info.clone()),
-                    not_null,
-                })
-            })
-            .try_collect()
+        query_scalar_with::<_, Option<bool>, _>(&query, args)
+            .fetch_all(self)
             .await
     }
 }

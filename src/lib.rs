@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
+pub use sqlx_core::column::Column;
 pub use sqlx_core::connection::{Connect, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{Execute, Executor};
@@ -10,13 +11,11 @@ pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::{ColumnIndex, Row};
+pub use sqlx_core::statement::StatementInfo;
 pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
-
-#[doc(hidden)]
-pub use sqlx_core::describe;
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};

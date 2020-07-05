@@ -1,15 +1,14 @@
-use std::fmt::{self, Debug, Formatter};
-use std::net::Shutdown;
-
-use futures_core::future::BoxFuture;
-use futures_util::{future::ready, FutureExt, TryFutureExt};
-
 use crate::connection::{Connect, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::mssql::connection::stream::MssqlStream;
 use crate::mssql::{Mssql, MssqlConnectOptions};
+use futures_core::future::BoxFuture;
+use futures_util::{future::ready, FutureExt, TryFutureExt};
+use std::fmt::{self, Debug, Formatter};
+use std::net::Shutdown;
 
+mod describe;
 mod establish;
 mod executor;
 mod stream;

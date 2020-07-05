@@ -1,7 +1,7 @@
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::mssql::{
-    MssqlArguments, MssqlConnection, MssqlRow, MssqlTransactionManager, MssqlTypeInfo, MssqlValue,
-    MssqlValueRef,
+    MssqlArguments, MssqlColumn, MssqlConnection, MssqlRow, MssqlTransactionManager, MssqlTypeInfo,
+    MssqlValue, MssqlValueRef,
 };
 
 /// MSSQL database driver.
@@ -14,6 +14,8 @@ impl Database for Mssql {
     type TransactionManager = MssqlTransactionManager;
 
     type Row = MssqlRow;
+
+    type Column = MssqlColumn;
 
     type TypeInfo = MssqlTypeInfo;
 

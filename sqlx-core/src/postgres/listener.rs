@@ -6,12 +6,12 @@ use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
 
-use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::message::{MessageFormat, Notification};
 use crate::postgres::{PgConnection, PgRow, Postgres};
+use crate::statement::StatementInfo;
 use either::Either;
 
 /// A stream of asynchronous notifications from Postgres.
@@ -221,7 +221,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

@@ -9,7 +9,7 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::row::{ColumnIndex, Row};
 use crate::sqlite::statement::StatementHandle;
-use crate::sqlite::{Sqlite, SqliteValue, SqliteValueRef};
+use crate::sqlite::{Sqlite, SqliteColumn, SqliteValue, SqliteValueRef};
 
 /// Implementation of [`Row`] for SQLite.
 pub struct SqliteRow {
@@ -25,6 +25,7 @@ pub struct SqliteRow {
     pub(crate) values: Arc<AtomicPtr<SqliteValue>>,
     pub(crate) num_values: usize,
 
+    pub(crate) columns: Arc<Vec<SqliteColumn>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
@@ -45,6 +46,7 @@ impl SqliteRow {
     // to increment the statement with [step]
     pub(crate) fn current(
         statement: StatementHandle,
+        columns: &Arc<Vec<SqliteColumn>>,
         column_names: &Arc<HashMap<UStr, usize>>,
     ) -> (Self, Weak<AtomicPtr<SqliteValue>>) {
         let values = Arc::new(AtomicPtr::new(null_mut()));
@@ -55,6 +57,7 @@ impl SqliteRow {
             statement,
             values,
             num_values: size,
+            columns: Arc::clone(columns),
             column_names: Arc::clone(column_names),
         };
 
@@ -63,12 +66,20 @@ impl SqliteRow {
 
     // inflates this Row into memory as a list of owned, protected SQLite value objects
     // this is called by the
-    pub(crate) fn inflate(statement: &StatementHandle, values_ref: &AtomicPtr<SqliteValue>) {
+    pub(crate) fn inflate(
+        statement: &StatementHandle,
+        columns: &[SqliteColumn],
+        values_ref: &AtomicPtr<SqliteValue>,
+    ) {
         let size = statement.column_count();
         let mut values = Vec::with_capacity(size);
 
         for i in 0..size {
-            values.push(statement.column_value(i));
+            values.push(unsafe {
+                let raw = statement.column_value(i);
+
+                SqliteValue::new(raw, columns[i].type_info.clone())
+            });
         }
 
         // decay the array signifier and become just a normal, leaked array
@@ -80,10 +91,11 @@ impl SqliteRow {
 
     pub(crate) fn inflate_if_needed(
         statement: &StatementHandle,
+        columns: &[SqliteColumn],
         weak_values_ref: Option<Weak<AtomicPtr<SqliteValue>>>,
     ) {
         if let Some(v) = weak_values_ref.and_then(|v| v.upgrade()) {
-            SqliteRow::inflate(statement, &v);
+            SqliteRow::inflate(statement, &columns, &v);
         }
     }
 }
@@ -91,8 +103,8 @@ impl SqliteRow {
 impl Row for SqliteRow {
     type Database = Sqlite;
 
-    fn len(&self) -> usize {
-        self.num_values
+    fn columns(&self) -> &[SqliteColumn] {
+        &self.columns
     }
 
     fn try_get_raw<I>(&self, index: I) -> Result<SqliteValueRef<'_>, Error>
@@ -109,7 +121,11 @@ impl Row for SqliteRow {
 
             Ok(SqliteValueRef::value(&values[index]))
         } else {
-            Ok(SqliteValueRef::statement(&self.statement, index))
+            Ok(SqliteValueRef::statement(
+                &self.statement,
+                self.columns[index].type_info.clone(),
+                index,
+            ))
         }
     }
 }

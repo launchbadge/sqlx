@@ -3,21 +3,34 @@ use crate::query_as::query_as;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteConnection, SqliteTypeInfo};
 use hashbrown::HashMap;
+use std::str::from_utf8;
 
+// affinity
+const SQLITE_AFF_NONE: u8 = 0x40; /* '@' */
+const SQLITE_AFF_BLOB: u8 = 0x41; /* 'A' */
+const SQLITE_AFF_TEXT: u8 = 0x42; /* 'B' */
+const SQLITE_AFF_NUMERIC: u8 = 0x43; /* 'C' */
+const SQLITE_AFF_INTEGER: u8 = 0x44; /* 'D' */
+const SQLITE_AFF_REAL: u8 = 0x45; /* 'E' */
+
+// opcodes
 const OP_INIT: &str = "Init";
 const OP_GOTO: &str = "Goto";
 const OP_COLUMN: &str = "Column";
 const OP_AGG_STEP: &str = "AggStep";
+const OP_FUNCTION: &str = "Function";
 const OP_MOVE: &str = "Move";
 const OP_COPY: &str = "Copy";
 const OP_SCOPY: &str = "SCopy";
 const OP_INT_COPY: &str = "IntCopy";
+const OP_CAST: &str = "Cast";
 const OP_STRING8: &str = "String8";
 const OP_INT64: &str = "Int64";
 const OP_INTEGER: &str = "Integer";
 const OP_REAL: &str = "Real";
 const OP_NOT: &str = "Not";
 const OP_BLOB: &str = "Blob";
+const OP_VARIABLE: &str = "Variable";
 const OP_COUNT: &str = "Count";
 const OP_ROWID: &str = "Rowid";
 const OP_OR: &str = "Or";
@@ -34,7 +47,19 @@ const OP_REMAINDER: &str = "Remainder";
 const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 
-fn to_type(op: &str) -> DataType {
+fn affinity_to_type(affinity: u8) -> DataType {
+    match affinity {
+        SQLITE_AFF_BLOB => DataType::Blob,
+        SQLITE_AFF_INTEGER => DataType::Int64,
+        SQLITE_AFF_NUMERIC => DataType::Numeric,
+        SQLITE_AFF_REAL => DataType::Float,
+        SQLITE_AFF_TEXT => DataType::Text,
+
+        SQLITE_AFF_NONE | _ => DataType::Null,
+    }
+}
+
+fn opcode_to_type(op: &str) -> DataType {
     match op {
         OP_REAL => DataType::Float,
         OP_BLOB => DataType::Blob,
@@ -48,11 +73,12 @@ fn to_type(op: &str) -> DataType {
 pub(super) async fn explain(
     conn: &mut SqliteConnection,
     query: &str,
-) -> Result<Vec<SqliteTypeInfo>, Error> {
+) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
     let mut r = HashMap::<i64, DataType>::with_capacity(6);
+    let mut n = HashMap::<i64, bool>::with_capacity(6);
 
     let program =
-        query_as::<_, (i64, String, i64, i64, i64, String)>(&*format!("EXPLAIN {}", query))
+        query_as::<_, (i64, String, i64, i64, i64, Vec<u8>)>(&*format!("EXPLAIN {}", query))
             .fetch_all(&mut *conn)
             .await?;
 
@@ -78,15 +104,46 @@ pub(super) async fn explain(
             OP_COLUMN => {
                 // r[p3] = <value of column>
                 r.insert(p3, DataType::Null);
+                n.insert(p3, true);
+            }
+
+            OP_VARIABLE => {
+                // r[p2] = <value of variable>
+                r.insert(p2, DataType::Null);
+                n.insert(p3, true);
+            }
+
+            OP_FUNCTION => {
+                // r[p1] = func( _ )
+                match from_utf8(p4).map_err(Error::protocol)? {
+                    "last_insert_rowid(0)" => {
+                        // last_insert_rowid() -> INTEGER
+                        r.insert(p3, DataType::Int64);
+                        n.insert(p3, false);
+                    }
+
+                    _ => {}
+                }
             }
 
             OP_AGG_STEP => {
+                let p4 = from_utf8(p4).map_err(Error::protocol)?;
+
                 if p4.starts_with("count(") {
                     // count(_) -> INTEGER
                     r.insert(p3, DataType::Int64);
+                    n.insert(p3, false);
                 } else if let Some(v) = r.get(&p2).copied() {
                     // r[p3] = AGG ( r[p2] )
                     r.insert(p3, v);
+                    n.insert(p3, n.get(&p2).copied().unwrap_or(true));
+                }
+            }
+
+            OP_CAST => {
+                // affinity(r[p1])
+                if let Some(v) = r.get_mut(&p1) {
+                    *v = affinity_to_type(p2 as u8);
                 }
             }
 
@@ -94,18 +151,21 @@ pub(super) async fn explain(
                 // r[p2] = r[p1]
                 if let Some(v) = r.get(&p1).copied() {
                     r.insert(p2, v);
+                    n.insert(p2, n.get(&p1).copied().unwrap_or(true));
                 }
             }
 
             OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID => {
                 // r[p2] = <value of constant>
-                r.insert(p2, to_type(&opcode));
+                r.insert(p2, opcode_to_type(&opcode));
+                n.insert(p2, false);
             }
 
             OP_NOT => {
                 // r[p2] = NOT r[p1]
                 if let Some(a) = r.get(&p1).copied() {
                     r.insert(p2, a);
+                    n.insert(p2, n.get(&p1).copied().unwrap_or(true));
                 }
             }
 
@@ -127,16 +187,40 @@ pub(super) async fn explain(
 
                     _ => {}
                 }
+
+                match (n.get(&p1).copied(), n.get(&p2).copied()) {
+                    (Some(a), Some(b)) => {
+                        n.insert(p3, a || b);
+                    }
+
+                    (None, Some(b)) => {
+                        n.insert(p3, b);
+                    }
+
+                    (Some(a), None) => {
+                        n.insert(p3, a);
+                    }
+
+                    _ => {}
+                }
             }
 
             OP_RESULT_ROW => {
                 // output = r[p1 .. p1 + p2]
                 let mut output = Vec::with_capacity(p2 as usize);
+                let mut nullable = Vec::with_capacity(p2 as usize);
+
                 for i in p1..p1 + p2 {
                     output.push(SqliteTypeInfo(r.remove(&i).unwrap_or(DataType::Null)));
+
+                    nullable.push(if n.remove(&i).unwrap_or(true) {
+                        None
+                    } else {
+                        Some(false)
+                    });
                 }
 
-                return Ok(output);
+                return Ok((output, nullable));
             }
 
             _ => {
@@ -149,5 +233,5 @@ pub(super) async fn explain(
     }
 
     // no rows
-    Ok(vec![])
+    Ok((vec![], vec![]))
 }

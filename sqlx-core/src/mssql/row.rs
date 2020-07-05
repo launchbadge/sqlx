@@ -1,10 +1,15 @@
 use crate::error::Error;
+use crate::ext::ustr::UStr;
 use crate::mssql::protocol::row::Row as ProtocolRow;
-use crate::mssql::{Mssql, MssqlValueRef};
+use crate::mssql::{Mssql, MssqlColumn, MssqlValueRef};
 use crate::row::{ColumnIndex, Row};
+use hashbrown::HashMap;
+use std::sync::Arc;
 
 pub struct MssqlRow {
     pub(crate) row: ProtocolRow,
+    pub(crate) columns: Arc<Vec<MssqlColumn>>,
+    pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
 impl crate::row::private_row::Sealed for MssqlRow {}
@@ -12,9 +17,8 @@ impl crate::row::private_row::Sealed for MssqlRow {}
 impl Row for MssqlRow {
     type Database = Mssql;
 
-    #[inline]
-    fn len(&self) -> usize {
-        self.row.values.len()
+    fn columns(&self) -> &[MssqlColumn] {
+        &*self.columns
     }
 
     fn try_get_raw<I>(&self, index: I) -> Result<MssqlValueRef<'_>, Error>
@@ -28,5 +32,14 @@ impl Row for MssqlRow {
         };
 
         Ok(value)
+    }
+}
+
+impl ColumnIndex<MssqlRow> for &'_ str {
+    fn index(&self, row: &MssqlRow) -> Result<usize, Error> {
+        row.column_names
+            .get(*self)
+            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
+            .map(|v| *v)
     }
 }

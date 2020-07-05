@@ -1,6 +1,7 @@
 //! **MySQL** database driver.
 
 mod arguments;
+mod column;
 mod connection;
 mod database;
 mod error;
@@ -14,6 +15,7 @@ pub mod types;
 mod value;
 
 pub use arguments::MySqlArguments;
+pub use column::MySqlColumn;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use error::MySqlDatabaseError;

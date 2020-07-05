@@ -6,18 +6,8 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::message::DataRow;
 use crate::postgres::value::PgValueFormat;
-use crate::postgres::{PgTypeInfo, PgValueRef, Postgres};
+use crate::postgres::{PgColumn, PgValueRef, Postgres};
 use crate::row::{ColumnIndex, Row};
-
-// Result column of a prepared statement
-// See RowDescription/Field for more information
-#[derive(Debug, Clone)]
-pub(crate) struct PgColumn {
-    pub(crate) name: UStr,
-    pub(crate) type_info: PgTypeInfo,
-    pub(crate) relation_id: Option<i32>,
-    pub(crate) relation_attribute_no: Option<i16>,
-}
 
 /// Implementation of [`Row`] for PostgreSQL.
 pub struct PgRow {
@@ -32,9 +22,8 @@ impl crate::row::private_row::Sealed for PgRow {}
 impl Row for PgRow {
     type Database = Postgres;
 
-    #[inline]
-    fn len(&self) -> usize {
-        self.data.len()
+    fn columns(&self) -> &[PgColumn] {
+        &self.columns
     }
 
     fn try_get_raw<I>(&self, index: I) -> Result<PgValueRef<'_>, Error>

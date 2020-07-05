@@ -9,10 +9,6 @@ pub(crate) struct Row {
 }
 
 impl Row {
-    pub(crate) fn len(&self) -> usize {
-        self.values.len()
-    }
-
     pub(crate) fn get(&self, index: usize) -> Option<&[u8]> {
         self.values[index]
             .as_ref()

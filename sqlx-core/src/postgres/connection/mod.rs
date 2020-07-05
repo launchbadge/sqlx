@@ -15,8 +15,7 @@ use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
     Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
-use crate::postgres::row::PgColumn;
-use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
+use crate::postgres::{PgColumn, PgConnectOptions, PgTypeInfo, Postgres};
 
 pub(crate) mod describe;
 mod establish;

@@ -19,11 +19,6 @@ pub struct DataRow {
 
 impl DataRow {
     #[inline]
-    pub(crate) fn len(&self) -> usize {
-        self.values.len()
-    }
-
-    #[inline]
     pub(crate) fn get(&self, index: usize) -> Option<&'_ [u8]> {
         self.values[index]
             .as_ref()

@@ -5,7 +5,7 @@ use crate::io::{BufExt, Decode};
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::protocol::Row;
-use crate::mysql::row::MySqlColumn;
+use crate::mysql::MySqlColumn;
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-resultset-row.html#packet-ProtocolBinary::ResultsetRow
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
@@ -43,7 +43,7 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for BinaryRow {
             }
 
             // NOTE: MySQL will never generate NULL types for non-NULL values
-            let type_info = column.type_info.as_ref().unwrap();
+            let type_info = &column.type_info;
 
             let size: usize = match type_info.r#type {
                 ColumnType::String

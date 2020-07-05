@@ -1,7 +1,9 @@
 use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::postgres::arguments::PgArgumentBuffer;
 use crate::postgres::value::{PgValue, PgValueRef};
-use crate::postgres::{PgArguments, PgConnection, PgRow, PgTransactionManager, PgTypeInfo};
+use crate::postgres::{
+    PgArguments, PgColumn, PgConnection, PgRow, PgTransactionManager, PgTypeInfo,
+};
 
 /// PostgreSQL database driver.
 #[derive(Debug)]
@@ -13,6 +15,8 @@ impl Database for Postgres {
     type TransactionManager = PgTransactionManager;
 
     type Row = PgRow;
+
+    type Column = PgColumn;
 
     type TypeInfo = PgTypeInfo;
 

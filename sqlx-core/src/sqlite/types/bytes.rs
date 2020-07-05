@@ -11,6 +11,10 @@ impl Type<Sqlite> for [u8] {
     fn type_info() -> SqliteTypeInfo {
         SqliteTypeInfo(DataType::Blob)
     }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        matches!(ty.0, DataType::Blob | DataType::Text)
+    }
 }
 
 impl<'q> Encode<'q, Sqlite> for &'q [u8] {
@@ -30,6 +34,10 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
 impl Type<Sqlite> for Vec<u8> {
     fn type_info() -> SqliteTypeInfo {
         <&[u8] as Type<Sqlite>>::type_info()
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        <&[u8] as Type<Sqlite>>::compatible(ty)
     }
 }
 

@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
@@ -12,11 +10,8 @@ pub trait Value {
     /// Get this value as a reference.
     fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef;
 
-    /// Get the type information, if available, for this value.
-    ///
-    /// Some database implementations do not implement type deduction for
-    /// expressions (`SELECT 2 + 5`); and, this will return `None` in those cases.
-    fn type_info(&self) -> Option<Cow<'_, <Self::Database as Database>::TypeInfo>>;
+    /// Get the type information for this value.
+    fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 
     /// Returns `true` if the SQL value is `NULL`.
     fn is_null(&self) -> bool;
@@ -68,10 +63,10 @@ pub trait Value {
         T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         if !self.is_null() {
-            if let Some(ty) = self.type_info() {
-                if !T::compatible(&ty) {
-                    return Err(Error::Decode(mismatched_types::<Self::Database, T>(&ty)));
-                }
+            let ty = self.type_info();
+
+            if !T::compatible(&ty) {
+                return Err(Error::Decode(mismatched_types::<Self::Database, T>(&ty)));
             }
         }
 
@@ -108,11 +103,8 @@ pub trait ValueRef<'r>: Sized {
     /// this is a copy.
     fn to_owned(&self) -> <Self::Database as Database>::Value;
 
-    /// Get the type information, if available, for this value.
-    ///
-    /// Some database implementations do not implement type deduction for
-    /// expressions (`SELECT 2 + 5`); and, this will return `None` in those cases.
-    fn type_info(&self) -> Option<Cow<'_, <Self::Database as Database>::TypeInfo>>;
+    /// Get the type information for this value.
+    fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 
     /// Returns `true` if the SQL value is `NULL`.
     fn is_null(&self) -> bool;

@@ -34,7 +34,7 @@ runtime-tokio = [ "sqlx-rt/runtime-tokio" ]
 runtime-actix = [ "sqlx-rt/runtime-actix" ]
 
 # support offline/decoupled building (enables serialization of `Describe`)
-offline = [ "serde" ]
+offline = [ "serde", "either/serde" ]
 
 [dependencies]
 atoi = "0.3.2"

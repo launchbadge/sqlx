@@ -1,12 +1,9 @@
-use std::borrow::Cow;
-use std::str::from_utf8;
-
-use bytes::Bytes;
-
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::{MySql, MySqlTypeInfo};
 use crate::value::{Value, ValueRef};
+use bytes::Bytes;
+use std::str::from_utf8;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -19,7 +16,7 @@ pub enum MySqlValueFormat {
 #[derive(Clone)]
 pub struct MySqlValue {
     value: Option<Bytes>,
-    type_info: Option<MySqlTypeInfo>,
+    type_info: MySqlTypeInfo,
     format: MySqlValueFormat,
 }
 
@@ -28,7 +25,7 @@ pub struct MySqlValue {
 pub struct MySqlValueRef<'r> {
     pub(crate) value: Option<&'r [u8]>,
     pub(crate) row: Option<&'r Bytes>,
-    pub(crate) type_info: Option<MySqlTypeInfo>,
+    pub(crate) type_info: MySqlTypeInfo,
     pub(crate) format: MySqlValueFormat,
 }
 
@@ -61,12 +58,12 @@ impl Value for MySqlValue {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MySqlTypeInfo>> {
-        self.type_info.as_ref().map(Cow::Borrowed)
+    fn type_info(&self) -> &MySqlTypeInfo {
+        &self.type_info
     }
 
     fn is_null(&self) -> bool {
-        is_null(self.value.as_deref(), self.type_info.as_ref())
+        is_null(self.value.as_deref(), &self.type_info)
     }
 }
 
@@ -89,18 +86,18 @@ impl<'r> ValueRef<'r> for MySqlValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MySqlTypeInfo>> {
-        self.type_info.as_ref().map(Cow::Borrowed)
+    fn type_info(&self) -> &MySqlTypeInfo {
+        &self.type_info
     }
 
     #[inline]
     fn is_null(&self) -> bool {
-        is_null(self.value.as_deref(), self.type_info.as_ref())
+        is_null(self.value.as_deref(), &self.type_info)
     }
 }
 
-fn is_null(value: Option<&[u8]>, ty: Option<&MySqlTypeInfo>) -> bool {
-    if let (Some(value), Some(ty)) = (value, ty) {
+fn is_null(value: Option<&[u8]>, ty: &MySqlTypeInfo) -> bool {
+    if let Some(value) = value {
         // zero dates and date times should be treated the same as NULL
         if matches!(
             ty.r#type,

@@ -4,15 +4,8 @@ use hashbrown::HashMap;
 
 use crate::error::Error;
 use crate::ext::ustr::UStr;
-use crate::mysql::{protocol, MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
+use crate::mysql::{protocol, MySql, MySqlColumn, MySqlValueFormat, MySqlValueRef};
 use crate::row::{ColumnIndex, Row};
-
-// TODO: Merge with the other XXColumn types
-#[derive(Debug, Clone)]
-pub(crate) struct MySqlColumn {
-    pub(crate) name: Option<UStr>,
-    pub(crate) type_info: Option<MySqlTypeInfo>,
-}
 
 /// Implementation of [`Row`] for MySQL.
 #[derive(Debug)]
@@ -28,9 +21,8 @@ impl crate::row::private_row::Sealed for MySqlRow {}
 impl Row for MySqlRow {
     type Database = MySql;
 
-    #[inline]
-    fn len(&self) -> usize {
-        self.row.len()
+    fn columns(&self) -> &[MySqlColumn] {
+        &self.columns
     }
 
     fn try_get_raw<I>(&self, index: I) -> Result<MySqlValueRef<'_>, Error>

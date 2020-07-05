@@ -5,7 +5,6 @@ use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use std::sync::Arc;
 
-use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::postgres::message::{
@@ -14,6 +13,7 @@ use crate::postgres::message::{
 };
 use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArguments, PgConnection, PgRow, PgValueFormat, Postgres};
+use crate::statement::StatementInfo;
 
 async fn prepare(
     conn: &mut PgConnection,
@@ -321,7 +321,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Describe<Postgres>, Error>>
+    ) -> BoxFuture<'e, Result<StatementInfo<Postgres>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -343,10 +343,14 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
 
             self.handle_row_description(rows, true).await?;
 
-            let columns = self.scratch_row_columns.clone();
-            let columns = self.map_result_columns(&columns).await?;
+            let columns = (&*self.scratch_row_columns).clone();
+            let nullable = self.get_nullable_for_columns(&columns).await?;
 
-            Ok(Describe { params, columns })
+            Ok(StatementInfo {
+                columns,
+                nullable,
+                parameters: Some(Either::Left(params)),
+            })
         })
     }
 }

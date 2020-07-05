@@ -1,7 +1,7 @@
 use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::sqlite::{
-    SqliteArgumentValue, SqliteArguments, SqliteConnection, SqliteRow, SqliteTransactionManager,
-    SqliteTypeInfo, SqliteValue, SqliteValueRef,
+    SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnection, SqliteRow,
+    SqliteTransactionManager, SqliteTypeInfo, SqliteValue, SqliteValueRef,
 };
 
 /// Sqlite database driver.
@@ -14,6 +14,8 @@ impl Database for Sqlite {
     type TransactionManager = SqliteTransactionManager;
 
     type Row = SqliteRow;
+
+    type Column = SqliteColumn;
 
     type TypeInfo = SqliteTypeInfo;
 

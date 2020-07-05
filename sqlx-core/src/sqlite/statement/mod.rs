@@ -1,7 +1,7 @@
 use std::i32;
 use std::os::raw::c_char;
 use std::ptr::{null, null_mut, NonNull};
-use std::sync::{atomic::AtomicPtr, Weak};
+use std::sync::{atomic::AtomicPtr, Arc, Weak};
 
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
@@ -12,7 +12,7 @@ use smallvec::SmallVec;
 
 use crate::error::Error;
 use crate::sqlite::connection::ConnectionHandle;
-use crate::sqlite::{SqliteError, SqliteRow, SqliteValue};
+use crate::sqlite::{SqliteColumn, SqliteError, SqliteRow, SqliteValue};
 
 mod handle;
 mod worker;
@@ -34,6 +34,9 @@ pub(crate) struct SqliteStatement {
     // a SQL query string in SQLite is broken up into N statements
     // we use a [`SmallVec`] to optimize for the most likely case of a single statement
     pub(crate) handles: SmallVec<[StatementHandle; 1]>,
+
+    // weak references to each set of columns
+    pub(crate) columns: SmallVec<[Arc<Vec<SqliteColumn>>; 1]>,
 
     // weak reference to the previous row from this connection
     // we use the notice of a successful upgrade of this reference as an indicator that the
@@ -122,6 +125,7 @@ impl SqliteStatement {
             tail: query,
             handles,
             index: 0,
+            columns: SmallVec::from([Default::default(); 1]),
             last_row_values: SmallVec::from([None; 1]),
         })
     }
@@ -133,7 +137,14 @@ impl SqliteStatement {
 
     pub(crate) fn execute(
         &mut self,
-    ) -> Result<Option<(&StatementHandle, &mut Option<Weak<AtomicPtr<SqliteValue>>>)>, Error> {
+    ) -> Result<
+        Option<(
+            &StatementHandle,
+            &mut Arc<Vec<SqliteColumn>>,
+            &mut Option<Weak<AtomicPtr<SqliteValue>>>,
+        )>,
+        Error,
+    > {
         while self.handles.len() == self.index {
             if self.tail.is_empty() {
                 return Ok(None);
@@ -143,6 +154,7 @@ impl SqliteStatement {
                 unsafe { prepare(self.connection(), &mut self.tail, self.persistent)? }
             {
                 self.handles.push(handle);
+                self.columns.push(Default::default());
                 self.last_row_values.push(None);
             }
         }
@@ -152,6 +164,7 @@ impl SqliteStatement {
 
         Ok(Some((
             &self.handles[index],
+            &mut self.columns[index],
             &mut self.last_row_values[index],
         )))
     }
@@ -160,7 +173,7 @@ impl SqliteStatement {
         self.index = 0;
 
         for (i, handle) in self.handles.iter().enumerate() {
-            SqliteRow::inflate_if_needed(&handle, self.last_row_values[i].take());
+            SqliteRow::inflate_if_needed(&handle, &self.columns[i], self.last_row_values[i].take());
 
             unsafe {
                 // Reset A Prepared Statement Object
@@ -176,7 +189,7 @@ impl SqliteStatement {
 impl Drop for SqliteStatement {
     fn drop(&mut self) {
         for (i, handle) in self.handles.drain(..).enumerate() {
-            SqliteRow::inflate_if_needed(&handle, self.last_row_values[i].take());
+            SqliteRow::inflate_if_needed(&handle, &self.columns[i], self.last_row_values[i].take());
 
             unsafe {
                 // https://sqlite.org/c3ref/finalize.html

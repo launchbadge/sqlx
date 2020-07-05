@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::io::Decode;
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::Row;
-use crate::mysql::row::MySqlColumn;
+use crate::mysql::MySqlColumn;
 
 #[derive(Debug)]
 pub(crate) struct TextRow(pub(crate) Row);

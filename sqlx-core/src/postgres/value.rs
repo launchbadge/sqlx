@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::str::from_utf8;
 
 use bytes::{Buf, Bytes};
@@ -81,14 +80,8 @@ impl Value for PgValue {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, PgTypeInfo>> {
-        if self.format == PgValueFormat::Text {
-            // For TEXT encoding the type defined on the value is unreliable
-            // We don't even bother to return it so type checking is implicitly opted-out
-            None
-        } else {
-            Some(Cow::Borrowed(&self.type_info))
-        }
+    fn type_info(&self) -> &PgTypeInfo {
+        &self.type_info
     }
 
     fn is_null(&self) -> bool {
@@ -115,14 +108,8 @@ impl<'r> ValueRef<'r> for PgValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, PgTypeInfo>> {
-        if self.format == PgValueFormat::Text {
-            // For TEXT encoding the type defined on the value is unreliable
-            // We don't even bother to return it so type checking is implicitly opted-out
-            None
-        } else {
-            Some(Cow::Borrowed(&self.type_info))
-        }
+    fn type_info(&self) -> &PgTypeInfo {
+        &self.type_info
     }
 
     fn is_null(&self) -> bool {

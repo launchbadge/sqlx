@@ -70,11 +70,13 @@ impl SqliteArguments<'_> {
                 };
 
                 if n > self.values.len() {
-                    return Err(err_protocol!(
-                        "wrong number of parameters, parameter ?{} requested but have only {}",
-                        n,
-                        self.values.len()
-                    ));
+                    // SQLite treats unbound variables as NULL
+                    // we reproduce this here
+                    // If you are reading this and think this should be an error, open an issue and we can
+                    // discuss configuring this somehow
+                    // Note that the query macros have a different way of enforcing
+                    // argument arity
+                    break;
                 }
 
                 self.values[n - 1].bind(handle, param_i)?;

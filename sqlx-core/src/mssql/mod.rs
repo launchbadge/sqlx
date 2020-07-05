@@ -1,6 +1,7 @@
 //! Microsoft SQL (MSSQL) database driver.
 
 mod arguments;
+mod column;
 mod connection;
 mod database;
 mod error;
@@ -14,6 +15,7 @@ pub mod types;
 mod value;
 
 pub use arguments::MssqlArguments;
+pub use column::MssqlColumn;
 pub use connection::MssqlConnection;
 pub use database::Mssql;
 pub use error::MssqlDatabaseError;

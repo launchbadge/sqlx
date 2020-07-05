@@ -1,6 +1,7 @@
 //! **PostgreSQL** database driver.
 
 mod arguments;
+mod column;
 mod connection;
 mod database;
 mod error;
@@ -15,6 +16,7 @@ pub mod types;
 mod value;
 
 pub use arguments::{PgArgumentBuffer, PgArguments};
+pub use column::PgColumn;
 pub use connection::PgConnection;
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};

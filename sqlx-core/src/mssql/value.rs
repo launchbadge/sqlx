@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use bytes::Bytes;
 
 use crate::error::{BoxDynError, UnexpectedNullError};
@@ -32,8 +30,8 @@ impl ValueRef<'_> for MssqlValueRef<'_> {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MssqlTypeInfo>> {
-        Some(Cow::Borrowed(&self.type_info))
+    fn type_info(&self) -> &MssqlTypeInfo {
+        &self.type_info
     }
 
     fn is_null(&self) -> bool {
@@ -58,8 +56,8 @@ impl Value for MssqlValue {
         }
     }
 
-    fn type_info(&self) -> Option<Cow<'_, MssqlTypeInfo>> {
-        Some(Cow::Borrowed(&self.type_info))
+    fn type_info(&self) -> &MssqlTypeInfo {
+        &self.type_info
     }
 
     fn is_null(&self) -> bool {

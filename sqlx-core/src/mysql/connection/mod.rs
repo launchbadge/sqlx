@@ -12,8 +12,7 @@ use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
-use crate::mysql::row::MySqlColumn;
-use crate::mysql::{MySql, MySqlConnectOptions};
+use crate::mysql::{MySql, MySqlColumn, MySqlConnectOptions};
 
 mod auth;
 mod establish;

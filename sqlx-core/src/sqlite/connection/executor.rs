@@ -7,14 +7,14 @@ use futures_util::{FutureExt, TryStreamExt};
 use hashbrown::HashMap;
 
 use crate::common::StatementCache;
-use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
 use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::ConnectionHandle;
 use crate::sqlite::statement::{SqliteStatement, StatementHandle};
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteConnection, SqliteRow};
+use crate::sqlite::{Sqlite, SqliteArguments, SqliteColumn, SqliteConnection, SqliteRow};
+use crate::statement::StatementInfo;
 
 fn prepare<'a>(
     conn: &mut ConnectionHandle,
@@ -59,16 +59,26 @@ fn bind(
 
 fn emplace_row_metadata(
     statement: &StatementHandle,
+    columns: &mut Vec<SqliteColumn>,
     column_names: &mut HashMap<UStr, usize>,
 ) -> Result<(), Error> {
+    columns.clear();
     column_names.clear();
 
     let num = statement.column_count();
 
     column_names.reserve(num);
+    columns.reserve(num);
 
     for i in 0..num {
         let name: UStr = statement.column_name(i).to_owned().into();
+        let type_info = statement.column_type_info(i);
+
+        columns.push(SqliteColumn {
+            ordinal: i,
+            name: name.clone(),
+            type_info,
+        });
 
         column_names.insert(name, i);
     }
@@ -106,7 +116,9 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             // bind arguments, if any, to the statement
             bind(&mut stmt, arguments)?;
 
-            while let Some((handle, last_row_values)) = stmt.execute()? {
+            while let Some((handle, columns, last_row_values)) = stmt.execute()? {
+                let mut have_metadata = false;
+
                 // tell the worker about the new statement
                 worker.execute(handle);
 
@@ -114,17 +126,24 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 // the worker parks its thread on async-std when not in use
                 worker.wake();
 
-                emplace_row_metadata(
-                    handle,
-                    Arc::make_mut(scratch_row_column_names),
-                )?;
-
                 loop {
                     // save the rows from the _current_ position on the statement
                     // and send them to the still-live row object
-                    SqliteRow::inflate_if_needed(handle, last_row_values.take());
+                    SqliteRow::inflate_if_needed(handle, &*columns, last_row_values.take());
 
-                    match worker.step(handle).await? {
+                    let s = worker.step(handle).await?;
+
+                    if !have_metadata {
+                        have_metadata = true;
+
+                        emplace_row_metadata(
+                            handle,
+                            Arc::make_mut(columns),
+                            Arc::make_mut(scratch_row_column_names),
+                        )?;
+                    }
+
+                    match s {
                         Either::Left(changes) => {
                             r#yield!(Either::Left(changes));
 
@@ -134,6 +153,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                         Either::Right(()) => {
                             let (row, weak_values_ref) = SqliteRow::current(
                                 *handle,
+                                columns,
                                 scratch_row_column_names
                             );
 
@@ -172,7 +192,10 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>>
+    fn describe<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Sqlite>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

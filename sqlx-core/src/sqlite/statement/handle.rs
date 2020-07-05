@@ -1,7 +1,9 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
+use std::ptr;
 use std::ptr::NonNull;
+use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
 
 use libsqlite3_sys::{
@@ -12,14 +14,12 @@ use libsqlite3_sys::{
     sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name,
     sqlite3_column_origin_name, sqlite3_column_table_name, sqlite3_column_type,
     sqlite3_column_value, sqlite3_db_handle, sqlite3_sql, sqlite3_stmt, sqlite3_stmt_readonly,
-    sqlite3_table_column_metadata, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_table_column_metadata, sqlite3_value, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
 use crate::sqlite::type_info::DataType;
-use crate::sqlite::{SqliteError, SqliteTypeInfo, SqliteValue};
-use std::ptr;
-use std::slice::from_raw_parts;
+use crate::sqlite::{SqliteError, SqliteTypeInfo};
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct StatementHandle(pub(super) NonNull<sqlite3_stmt>);
@@ -104,7 +104,7 @@ impl StatementHandle {
         }
     }
 
-    pub(crate) fn column_not_null(&self, index: usize) -> Result<Option<bool>, Error> {
+    pub(crate) fn column_nullable(&self, index: usize) -> Result<Option<bool>, Error> {
         unsafe {
             // https://sqlite.org/c3ref/column_database_name.html
             //
@@ -149,7 +149,7 @@ impl StatementHandle {
                 return Err(SqliteError::new(self.db_handle()).into());
             }
 
-            Ok(Some(not_null != 0))
+            Ok(Some(not_null == 0))
         }
     }
 
@@ -249,8 +249,8 @@ impl StatementHandle {
     }
 
     #[inline]
-    pub(crate) fn column_value(&self, index: usize) -> SqliteValue {
-        unsafe { SqliteValue::new(sqlite3_column_value(self.0.as_ptr(), index as c_int)) }
+    pub(crate) fn column_value(&self, index: usize) -> *mut sqlite3_value {
+        unsafe { sqlite3_column_value(self.0.as_ptr(), index as c_int) }
     }
 
     pub(crate) fn column_blob(&self, index: usize) -> &[u8] {

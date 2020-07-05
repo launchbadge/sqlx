@@ -14,7 +14,30 @@ async fn test_query() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    println!("account ID: {:?}", account.id);
+    assert_eq!(account.id, Some(1));
+    assert_eq!(account.name.as_deref(), Some("Herp Derpinson"));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_non_null() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    let mut tx = conn.begin().await?;
+
+    let _ = sqlx::query!("INSERT INTO tweet (text) VALUES ('Hello')")
+        .execute(&mut tx)
+        .await?;
+
+    let row = sqlx::query!("SELECT id, text, owner_id FROM tweet LIMIT 1")
+        .fetch_one(&mut tx)
+        .await?;
+
+    assert_eq!(row.id, 1);
+    assert_eq!(row.text, "Hello");
+    assert_eq!(row.owner_id, None);
+
+    // let the transaction rollback so we don't actually insert the tweet
 
     Ok(())
 }

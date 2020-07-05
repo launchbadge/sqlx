@@ -9,12 +9,13 @@ pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
 use sqlx_core::connection::Connect;
 use sqlx_core::database::Database;
-use sqlx_core::describe::Describe;
+use sqlx_core::statement::StatementInfo;
 use sqlx_rt::block_on;
 
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
+use either::Either;
 
 mod args;
 mod data;
@@ -154,47 +155,52 @@ pub fn expand_from_file(
     }
 }
 
-// marker trait for `Describe` that lets us conditionally require it to be `Serialize + Deserialize`
+// marker trait for `StatementInfo` that lets us conditionally require it to be `Serialize + Deserialize`
 #[cfg(feature = "offline")]
-trait DescribeExt: serde::Serialize + serde::de::DeserializeOwned {}
+trait StatementInfoExt: serde::Serialize + serde::de::DeserializeOwned {}
 
 #[cfg(feature = "offline")]
-impl<DB: Database> DescribeExt for Describe<DB> where
+impl<DB: Database> StatementInfoExt for StatementInfo<DB> where
     Describe<DB>: serde::Serialize + serde::de::DeserializeOwned
 {
 }
 
 #[cfg(not(feature = "offline"))]
-trait DescribeExt {}
+trait StatementInfoExt {}
 
 #[cfg(not(feature = "offline"))]
-impl<DB: Database> DescribeExt for Describe<DB> {}
+impl<DB: Database> StatementInfoExt for StatementInfo<DB> {}
 
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
 ) -> crate::Result<TokenStream>
 where
-    Describe<DB>: DescribeExt,
+    StatementInfo<DB>: StatementInfoExt,
 {
     // validate at the minimum that our args match the query's input parameters
-    if input.arg_names.len() != data.describe.params.len() {
-        return Err(syn::Error::new(
-            Span::call_site(),
-            format!(
-                "expected {} parameters, got {}",
-                data.describe.params.len(),
-                input.arg_names.len()
-            ),
-        )
-        .into());
+    let num_parameters = match data.describe.parameters() {
+        Some(Either::Left(params)) => Some(params.len()),
+        Some(Either::Right(num)) => Some(num),
+
+        None => None,
+    };
+
+    if let Some(num) = num_parameters {
+        if num != input.arg_names.len() {
+            return Err(syn::Error::new(
+                Span::call_site(),
+                format!("expected {} parameters, got {}", num, input.arg_names.len()),
+            )
+            .into());
+        }
     }
 
     let args_tokens = args::quote_args(&input, &data.describe)?;
 
     let query_args = format_ident!("query_args");
 
-    let output = if data.describe.columns.is_empty() {
+    let output = if data.describe.columns().is_empty() {
         let db_path = DB::db_path();
         let sql = &input.src;
 

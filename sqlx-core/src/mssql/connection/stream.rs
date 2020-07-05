@@ -4,8 +4,9 @@ use bytes::Bytes;
 use sqlx_rt::TcpStream;
 
 use crate::error::Error;
+use crate::ext::ustr::UStr;
 use crate::io::{BufStream, Encode};
-use crate::mssql::protocol::col_meta_data::{ColMetaData, ColumnData};
+use crate::mssql::protocol::col_meta_data::ColMetaData;
 use crate::mssql::protocol::done::{Done, Status as DoneStatus};
 use crate::mssql::protocol::env_change::EnvChange;
 use crate::mssql::protocol::error::Error as ProtocolError;
@@ -17,8 +18,10 @@ use crate::mssql::protocol::packet::{PacketHeader, PacketType, Status};
 use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
-use crate::mssql::{MssqlConnectOptions, MssqlDatabaseError};
+use crate::mssql::{MssqlColumn, MssqlConnectOptions, MssqlDatabaseError};
 use crate::net::MaybeTlsStream;
+use hashbrown::HashMap;
+use std::sync::Arc;
 
 pub(crate) struct MssqlStream {
     inner: BufStream<MaybeTlsStream<TcpStream>>,
@@ -35,7 +38,8 @@ pub(crate) struct MssqlStream {
 
     // most recent column data from ColMetaData
     // we need to store this as its needed when decoding <Row>
-    pub(crate) columns: Vec<ColumnData>,
+    pub(crate) columns: Arc<Vec<MssqlColumn>>,
+    pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
 impl MssqlStream {
@@ -46,7 +50,8 @@ impl MssqlStream {
 
         Ok(Self {
             inner,
-            columns: Vec::new(),
+            columns: Default::default(),
+            column_names: Default::default(),
             response: None,
             pending_done_count: 0,
             transaction_descriptor: 0,
@@ -159,7 +164,11 @@ impl MssqlStream {
                     MessageType::ColMetaData => {
                         // NOTE: there isn't anything to return as the data gets
                         //       consumed by the stream for use in subsequent Row decoding
-                        ColMetaData::get(buf, &mut self.columns)?;
+                        ColMetaData::get(
+                            buf,
+                            Arc::make_mut(&mut self.columns),
+                            Arc::make_mut(&mut self.column_names),
+                        )?;
                         continue;
                     }
                 };

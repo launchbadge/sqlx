@@ -7,7 +7,6 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 
-use crate::describe::{Column, Describe};
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
@@ -19,10 +18,10 @@ use crate::mysql::protocol::statement::{
 };
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::protocol::Packet;
-use crate::mysql::row::MySqlColumn;
 use crate::mysql::{
-    MySql, MySqlArguments, MySqlConnection, MySqlRow, MySqlTypeInfo, MySqlValueFormat,
+    MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlRow, MySqlTypeInfo, MySqlValueFormat,
 };
+use crate::statement::StatementInfo;
 
 impl MySqlConnection {
     async fn prepare(&mut self, query: &str) -> Result<u32, Error> {
@@ -83,22 +82,23 @@ impl MySqlConnection {
         for i in 0..num_columns {
             let def: ColumnDefinition = self.stream.recv().await?;
 
-            let name = (match (def.name()?, def.alias()?) {
-                (_, alias) if !alias.is_empty() => Some(alias),
+            let name = match (def.name()?, def.alias()?) {
+                (_, alias) if !alias.is_empty() => UStr::new(alias),
 
-                (name, _) if !name.is_empty() => Some(name),
+                (name, _) if !name.is_empty() => UStr::new(name),
 
-                _ => None,
-            })
-            .map(UStr::new);
+                _ => UStr::from(""),
+            };
 
-            if let Some(name) = &name {
-                column_names.insert(name.clone(), i as usize);
-            }
+            column_names.insert(name.clone(), i as usize);
 
             let type_info = MySqlTypeInfo::from_column(&def);
 
-            columns.push(MySqlColumn { name, type_info });
+            columns.push(MySqlColumn {
+                name,
+                type_info,
+                ordinal: i as usize,
+            });
         }
 
         self.stream.maybe_recv_eof().await?;
@@ -245,7 +245,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Describe<MySql>, Error>>
+    fn describe<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<MySql>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -257,14 +260,12 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
 
             let ok: PrepareOk = self.stream.recv().await?;
 
-            let mut params = Vec::with_capacity(ok.params as usize);
             let mut columns = Vec::with_capacity(ok.columns as usize);
+            let mut nullable = Vec::with_capacity(ok.columns as usize);
 
             if ok.params > 0 {
                 for _ in 0..ok.params {
-                    let def: ColumnDefinition = self.stream.recv().await?;
-
-                    params.push(MySqlTypeInfo::from_column(&def));
+                    let _ = self.stream.recv_packet().await?;
                 }
 
                 self.stream.maybe_recv_eof().await?;
@@ -275,22 +276,28 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
             // once more on execute so we wait for that
 
             if ok.columns > 0 {
-                for _ in 0..(ok.columns as usize) {
+                for ordinal in 0..(ok.columns as usize) {
                     let def: ColumnDefinition = self.stream.recv().await?;
                     let ty = MySqlTypeInfo::from_column(&def);
                     let alias = def.alias()?;
 
-                    columns.push(Column {
-                        name: if alias.is_empty() { def.name()? } else { alias }.to_owned(),
+                    nullable.push(Some(!def.flags.contains(ColumnFlags::NOT_NULL)));
+
+                    columns.push(MySqlColumn {
+                        ordinal,
+                        name: UStr::new(if alias.is_empty() { def.name()? } else { alias }),
                         type_info: ty,
-                        not_null: Some(def.flags.contains(ColumnFlags::NOT_NULL)),
                     })
                 }
 
                 self.stream.maybe_recv_eof().await?;
             }
 
-            Ok(Describe { params, columns })
+            Ok(StatementInfo {
+                parameters: Some(Either::Right(ok.params as usize)),
+                columns,
+                nullable,
+            })
         })
     }
 }

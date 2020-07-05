@@ -24,8 +24,8 @@ async fn macro_select_expression() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(Some(10), row._1);
-    assert_eq!(Some("Hello"), row._2.as_deref());
+    assert_eq!(10, row._1);
+    assert_eq!("Hello", &*row._2);
 
     Ok(())
 }
@@ -40,9 +40,9 @@ async fn macro_select_partial_expression() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
-    assert_eq!(Some(10), row._1);
-    assert_eq!(Some("Hello"), row._2.as_deref());
-    assert_eq!(Some(6), row.id_p);
+    assert_eq!(10, row._1);
+    assert_eq!("Hello", &*row._2);
+    assert_eq!(6, row.id_p);
     assert_eq!("Herp Derpinson", row.name);
     assert_eq!(row.is_active, Some(true));
 

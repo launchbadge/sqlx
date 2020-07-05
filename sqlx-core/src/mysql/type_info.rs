@@ -44,15 +44,11 @@ impl MySqlTypeInfo {
         }
     }
 
-    pub(crate) fn from_column(column: &ColumnDefinition) -> Option<Self> {
-        if column.r#type == ColumnType::Null {
-            None
-        } else {
-            Some(Self {
-                r#type: column.r#type,
-                flags: column.flags,
-                char_set: column.char_set,
-            })
+    pub(crate) fn from_column(column: &ColumnDefinition) -> Self {
+        Self {
+            r#type: column.r#type,
+            flags: column.flags,
+            char_set: column.char_set,
         }
     }
 }

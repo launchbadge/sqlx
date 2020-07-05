@@ -28,6 +28,18 @@ async fn it_can_select_expression() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_select_expression_by_name() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+
+    let row: MssqlRow = conn.fetch_one("SELECT 4 as _3").await?;
+    let v: i32 = row.try_get("_3")?;
+
+    assert_eq!(v, 4);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_fail_to_connect() -> anyhow::Result<()> {
     let res = MssqlConnection::connect("mssql://sa@localhost").await;
     let err = res.unwrap_err();

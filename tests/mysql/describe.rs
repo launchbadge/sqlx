@@ -1,38 +1,27 @@
 use sqlx::mysql::MySql;
-use sqlx::Executor;
-use sqlx_core::describe::Column;
+use sqlx::{Column, Executor, TypeInfo};
 use sqlx_test::new;
-
-fn type_names(columns: &[Column<MySql>]) -> Vec<String> {
-    columns
-        .iter()
-        .filter_map(|col| Some(col.type_info.as_ref()?.to_string()))
-        .collect()
-}
 
 #[sqlx_macros::test]
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     let d = conn.describe("SELECT * FROM tweet").await?;
-    let columns = d.columns;
 
-    assert_eq!(columns[0].name, "id");
-    assert_eq!(columns[1].name, "created_at");
-    assert_eq!(columns[2].name, "text");
-    assert_eq!(columns[3].name, "owner_id");
+    assert_eq!(d.column(0).name(), "id");
+    assert_eq!(d.column(1).name(), "created_at");
+    assert_eq!(d.column(2).name(), "text");
+    assert_eq!(d.column(3).name(), "owner_id");
 
-    assert_eq!(columns[0].not_null, Some(true));
-    assert_eq!(columns[1].not_null, Some(true));
-    assert_eq!(columns[2].not_null, Some(true));
-    assert_eq!(columns[3].not_null, Some(false));
+    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.nullable(1), Some(false));
+    assert_eq!(d.nullable(2), Some(false));
+    assert_eq!(d.nullable(3), Some(true));
 
-    let column_type_names = type_names(&columns);
-
-    assert_eq!(column_type_names[0], "BIGINT");
-    assert_eq!(column_type_names[1], "TIMESTAMP");
-    assert_eq!(column_type_names[2], "TEXT");
-    assert_eq!(column_type_names[3], "BIGINT");
+    assert_eq!(d.column(0).type_info().name(), "BIGINT");
+    assert_eq!(d.column(1).type_info().name(), "TIMESTAMP");
+    assert_eq!(d.column(2).type_info().name(), "TEXT");
+    assert_eq!(d.column(3).type_info().name(), "BIGINT");
 
     Ok(())
 }
@@ -45,9 +34,7 @@ async fn uses_alias_name() -> anyhow::Result<()> {
         .describe("SELECT text AS tweet_text FROM tweet")
         .await?;
 
-    let columns = d.columns;
-
-    assert_eq!(columns[0].name, "tweet_text");
+    assert_eq!(d.column(0).name(), "tweet_text");
 
     Ok(())
 }

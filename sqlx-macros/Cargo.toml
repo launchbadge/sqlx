@@ -45,12 +45,13 @@ dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 hex = { version = "0.4.2", optional = true }
 heck = "0.3.1"
+either = "1.5.3"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.4.0-pre", default-features = false, path = "../sqlx-core" }
 sqlx-rt = { version = "0.1.0-pre", default-features = false, path = "../sqlx-rt" }
 serde = { version = "1.0.111", optional = true }
 serde_json = { version = "1.0.30", features = [ "preserve_order" ], optional = true }
-sha2 = { version = "0.8.2", optional = true }
+sha2 = { version = "0.9.1", optional = true }
 syn = { version = "1.0.30", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.6", default-features = false }
 url = { version = "2.1.1", default-features = false }

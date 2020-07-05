@@ -75,7 +75,37 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     }
 
     /// Returns the number of columns in this row.
-    fn len(&self) -> usize;
+    #[inline]
+    fn len(&self) -> usize {
+        self.columns().len()
+    }
+
+    /// Gets the column information at `index`.
+    ///
+    /// A string index can be used to access a column by name and a `usize` index
+    /// can be used to access a column by position.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    /// See [`try_column`](#method.try_column) for a non-panicking version.
+    fn column<I>(&self, index: I) -> &<Self::Database as Database>::Column
+    where
+        I: ColumnIndex<Self>,
+    {
+        self.try_column(index).unwrap()
+    }
+
+    /// Gets the column information at `index` or `None` if out of bounds.
+    fn try_column<I>(&self, index: I) -> Result<&<Self::Database as Database>::Column, Error>
+    where
+        I: ColumnIndex<Self>,
+    {
+        Ok(&self.columns()[index.index(self)?])
+    }
+
+    /// Gets all columns in this statement.
+    fn columns(&self) -> &[<Self::Database as Database>::Column];
 
     /// Index into the database row and decode a single value.
     ///
@@ -139,15 +169,13 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
         let value = self.try_get_raw(&index)?;
 
         if !value.is_null() {
-            if let Some(ty) = value.type_info() {
-                // NOTE: we opt-out of asserting the type equivalency of NULL because of the
-                //       high false-positive rate (e.g., `NULL` in Postgres is `TEXT`).
-                if !T::compatible(&ty) {
-                    return Err(Error::ColumnDecode {
-                        index: format!("{:?}", index),
-                        source: mismatched_types::<Self::Database, T>(&ty),
-                    });
-                }
+            let ty = value.type_info();
+
+            if !T::compatible(&ty) {
+                return Err(Error::ColumnDecode {
+                    index: format!("{:?}", index),
+                    source: mismatched_types::<Self::Database, T>(&ty),
+                });
             }
         }
 
@@ -180,6 +208,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
         T: Decode<'r, Self::Database>,
     {
         let value = self.try_get_raw(&index)?;
+
         T::decode(value).map_err(|source| Error::ColumnDecode {
             index: format!("{:?}", index),
             source,

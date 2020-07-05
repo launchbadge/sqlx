@@ -2,8 +2,11 @@ use bitflags::bitflags;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
+use crate::ext::ustr::UStr;
 use crate::mssql::io::MssqlBufExt;
 use crate::mssql::protocol::type_info::TypeInfo;
+use crate::mssql::MssqlColumn;
+use hashbrown::HashMap;
 
 #[derive(Debug)]
 pub(crate) struct ColMetaData;
@@ -73,10 +76,16 @@ bitflags! {
 }
 
 impl ColMetaData {
-    pub(crate) fn get(buf: &mut Bytes, columns: &mut Vec<ColumnData>) -> Result<(), Error> {
+    pub(crate) fn get(
+        buf: &mut Bytes,
+        columns: &mut Vec<MssqlColumn>,
+        column_names: &mut HashMap<UStr, usize>,
+    ) -> Result<(), Error> {
         columns.clear();
+        column_names.clear();
 
         let mut count = buf.get_u16_le();
+        let mut ordinal = 0;
 
         if count == 0xffff {
             // In the event that the client requested no metadata to be returned, the value of
@@ -88,8 +97,13 @@ impl ColMetaData {
         }
 
         while count > 0 {
-            columns.push(ColumnData::get(buf)?);
+            let col = MssqlColumn::new(ColumnData::get(buf)?, ordinal);
+
+            column_names.insert(col.name.clone(), ordinal);
+            columns.push(col);
+
             count -= 1;
+            ordinal += 1;
         }
 
         Ok(())

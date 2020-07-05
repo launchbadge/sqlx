@@ -190,7 +190,7 @@ macro_rules! impl_executor_for_transaction {
                 query: E,
             ) -> futures_core::future::BoxFuture<
                 'e,
-                Result<crate::describe::Describe<Self::Database>, crate::error::Error>,
+                Result<crate::statement::StatementInfo<Self::Database>, crate::error::Error>,
             >
             where
                 't: 'e,

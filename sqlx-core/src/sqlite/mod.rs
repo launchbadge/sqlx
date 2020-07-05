@@ -6,6 +6,7 @@
 #![allow(unsafe_code)]
 
 mod arguments;
+mod column;
 mod connection;
 mod database;
 mod error;
@@ -18,6 +19,7 @@ pub mod types;
 mod value;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};
+pub use column::SqliteColumn;
 pub use connection::SqliteConnection;
 pub use database::Sqlite;
 pub use error::SqliteError;
