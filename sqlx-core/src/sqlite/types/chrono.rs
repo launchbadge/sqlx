@@ -99,12 +99,10 @@ impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
 }
 
 fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
-    let dt = match value.type_info().map(|ty| ty.0) {
-        None | Some(DataType::Text) => decode_datetime_from_text(value.text()?),
-
-        Some(DataType::Int) | Some(DataType::Int64) => decode_datetime_from_int(value.int64()),
-
-        Some(DataType::Float) => decode_datetime_from_float(value.double()),
+    let dt = match value.type_info().0 {
+        DataType::Text => decode_datetime_from_text(value.text()?),
+        DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
+        DataType::Float => decode_datetime_from_float(value.double()),
 
         _ => None,
     };
