@@ -1,5 +1,4 @@
-use crate::any::value::AnyValueRefKind;
-use crate::any::{Any, AnyValueRef};
+use crate::any::{Any, AnyColumn};
 use crate::database::HasValueRef;
 use crate::error::Error;
 use crate::row::{ColumnIndex, Row};
@@ -16,7 +15,10 @@ use crate::sqlite::SqliteRow;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlRow;
 
-pub struct AnyRow(pub(crate) AnyRowKind);
+pub struct AnyRow {
+    pub(crate) kind: AnyRowKind,
+    pub(crate) columns: Vec<AnyColumn>,
+}
 
 impl crate::row::private_row::Sealed for AnyRow {}
 
@@ -37,20 +39,8 @@ pub(crate) enum AnyRowKind {
 impl Row for AnyRow {
     type Database = Any;
 
-    fn len(&self) -> usize {
-        match &self.0 {
-            #[cfg(feature = "postgres")]
-            AnyRowKind::Postgres(row) => row.len(),
-
-            #[cfg(feature = "mysql")]
-            AnyRowKind::MySql(row) => row.len(),
-
-            #[cfg(feature = "sqlite")]
-            AnyRowKind::Sqlite(row) => row.len(),
-
-            #[cfg(feature = "mssql")]
-            AnyRowKind::Mssql(row) => row.len(),
-        }
+    fn columns(&self) -> &[AnyColumn] {
+        &self.columns
     }
 
     fn try_get_raw<I>(
@@ -62,20 +52,19 @@ impl Row for AnyRow {
     {
         let index = index.index(self)?;
 
-        match &self.0 {
+        match &self.kind {
             #[cfg(feature = "postgres")]
-            AnyRowKind::Postgres(row) => row.try_get_raw(index).map(AnyValueRefKind::Postgres),
+            AnyRowKind::Postgres(row) => row.try_get_raw(index).map(Into::into),
 
             #[cfg(feature = "mysql")]
-            AnyRowKind::MySql(row) => row.try_get_raw(index).map(AnyValueRefKind::MySql),
+            AnyRowKind::MySql(row) => row.try_get_raw(index).map(Into::into),
 
             #[cfg(feature = "sqlite")]
-            AnyRowKind::Sqlite(row) => row.try_get_raw(index).map(AnyValueRefKind::Sqlite),
+            AnyRowKind::Sqlite(row) => row.try_get_raw(index).map(Into::into),
 
             #[cfg(feature = "mssql")]
-            AnyRowKind::Mssql(row) => row.try_get_raw(index).map(AnyValueRefKind::Mssql),
+            AnyRowKind::Mssql(row) => row.try_get_raw(index).map(Into::into),
         }
-        .map(AnyValueRef)
     }
 }
 
@@ -84,7 +73,7 @@ where
     &'i str: AnyColumnIndex,
 {
     fn index(&self, row: &AnyRow) -> Result<usize, Error> {
-        match &row.0 {
+        match &row.kind {
             #[cfg(feature = "postgres")]
             AnyRowKind::Postgres(row) => self.index(row),
 

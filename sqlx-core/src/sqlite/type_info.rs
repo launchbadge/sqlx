@@ -105,6 +105,14 @@ impl FromStr for DataType {
     }
 }
 
+#[cfg(feature = "any")]
+impl From<SqliteTypeInfo> for crate::any::AnyTypeInfo {
+    #[inline]
+    fn from(ty: SqliteTypeInfo) -> Self {
+        crate::any::AnyTypeInfo(crate::any::type_info::AnyTypeInfoKind::Sqlite(ty))
+    }
+}
+
 #[test]
 fn test_data_type_from_str() -> Result<(), BoxDynError> {
     assert_eq!(DataType::Int, "INT4".parse()?);

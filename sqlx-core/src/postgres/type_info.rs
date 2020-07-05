@@ -986,3 +986,11 @@ impl PartialEq<PgType> for PgType {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<PgTypeInfo> for crate::any::AnyTypeInfo {
+    #[inline]
+    fn from(ty: PgTypeInfo) -> Self {
+        crate::any::AnyTypeInfo(crate::any::type_info::AnyTypeInfoKind::Postgres(ty))
+    }
+}

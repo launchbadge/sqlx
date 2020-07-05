@@ -50,3 +50,14 @@ impl ColumnIndex<MySqlRow> for &'_ str {
             .map(|v| *v)
     }
 }
+
+#[cfg(feature = "any")]
+impl From<MySqlRow> for crate::any::AnyRow {
+    #[inline]
+    fn from(row: MySqlRow) -> Self {
+        crate::any::AnyRow {
+            columns: row.columns.iter().map(|col| col.clone().into()).collect(),
+            kind: crate::any::row::AnyRowKind::MySql(row),
+        }
+    }
+}

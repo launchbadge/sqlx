@@ -96,6 +96,28 @@ impl<'r> ValueRef<'r> for MySqlValueRef<'r> {
     }
 }
 
+#[cfg(feature = "any")]
+impl<'r> From<MySqlValueRef<'r>> for crate::any::AnyValueRef<'r> {
+    #[inline]
+    fn from(value: MySqlValueRef<'r>) -> Self {
+        crate::any::AnyValueRef {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueRefKind::MySql(value),
+        }
+    }
+}
+
+#[cfg(feature = "any")]
+impl From<MySqlValue> for crate::any::AnyValue {
+    #[inline]
+    fn from(value: MySqlValue) -> Self {
+        crate::any::AnyValue {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueKind::MySql(value),
+        }
+    }
+}
+
 fn is_null(value: Option<&[u8]>, ty: &MySqlTypeInfo) -> bool {
     if let Some(value) = value {
         // zero dates and date times should be treated the same as NULL

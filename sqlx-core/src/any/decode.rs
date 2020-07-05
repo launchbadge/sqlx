@@ -24,7 +24,7 @@ macro_rules! impl_any_decode {
             fn decode(
                 value: crate::any::AnyValueRef<'r>,
             ) -> Result<Self, crate::error::BoxDynError> {
-                match value.0 {
+                match value.kind {
                     #[cfg(feature = "mysql")]
                     crate::any::value::AnyValueRefKind::MySql(value) => {
                         <$ty as crate::decode::Decode<'r, crate::mysql::MySql>>::decode(value)

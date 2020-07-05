@@ -116,3 +116,25 @@ impl<'r> ValueRef<'r> for PgValueRef<'r> {
         self.value.is_none()
     }
 }
+
+#[cfg(feature = "any")]
+impl<'r> From<PgValueRef<'r>> for crate::any::AnyValueRef<'r> {
+    #[inline]
+    fn from(value: PgValueRef<'r>) -> Self {
+        crate::any::AnyValueRef {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueRefKind::Postgres(value),
+        }
+    }
+}
+
+#[cfg(feature = "any")]
+impl From<PgValue> for crate::any::AnyValue {
+    #[inline]
+    fn from(value: PgValue) -> Self {
+        crate::any::AnyValue {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueKind::Postgres(value),
+        }
+    }
+}

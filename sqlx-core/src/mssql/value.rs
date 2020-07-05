@@ -39,6 +39,17 @@ impl ValueRef<'_> for MssqlValueRef<'_> {
     }
 }
 
+#[cfg(feature = "any")]
+impl<'r> From<MssqlValueRef<'r>> for crate::any::AnyValueRef<'r> {
+    #[inline]
+    fn from(value: MssqlValueRef<'r>) -> Self {
+        crate::any::AnyValueRef {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueRefKind::Mssql(value),
+        }
+    }
+}
+
 /// Implementation of [`Value`] for MSSQL.
 #[derive(Clone)]
 pub struct MssqlValue {
@@ -62,5 +73,16 @@ impl Value for MssqlValue {
 
     fn is_null(&self) -> bool {
         self.data.is_none() || self.type_info.0.is_null()
+    }
+}
+
+#[cfg(feature = "any")]
+impl From<MssqlValue> for crate::any::AnyValue {
+    #[inline]
+    fn from(value: MssqlValue) -> Self {
+        crate::any::AnyValue {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueKind::Mssql(value),
+        }
     }
 }

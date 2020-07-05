@@ -101,3 +101,11 @@ impl PartialEq<MySqlTypeInfo> for MySqlTypeInfo {
 }
 
 impl Eq for MySqlTypeInfo {}
+
+#[cfg(feature = "any")]
+impl From<MySqlTypeInfo> for crate::any::AnyTypeInfo {
+    #[inline]
+    fn from(ty: MySqlTypeInfo) -> Self {
+        crate::any::AnyTypeInfo(crate::any::type_info::AnyTypeInfoKind::MySql(ty))
+    }
+}

@@ -151,3 +151,14 @@ impl ColumnIndex<SqliteRow> for &'_ str {
             .map(|v| *v)
     }
 }
+
+#[cfg(feature = "any")]
+impl From<SqliteRow> for crate::any::AnyRow {
+    #[inline]
+    fn from(row: SqliteRow) -> Self {
+        crate::any::AnyRow {
+            columns: row.columns.iter().map(|col| col.clone().into()).collect(),
+            kind: crate::any::row::AnyRowKind::Sqlite(row),
+        }
+    }
+}

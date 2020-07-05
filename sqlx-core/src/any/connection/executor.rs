@@ -4,15 +4,11 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::any::connection::AnyConnectionKind;
-use crate::any::row::AnyRowKind;
-use crate::any::type_info::AnyTypeInfoKind;
-use crate::any::{Any, AnyConnection, AnyRow, AnyTypeInfo};
-use crate::describe::{Column, Describe};
+use crate::any::{Any, AnyColumn, AnyConnection, AnyRow, AnyTypeInfo};
+use crate::database::Database;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-
-// FIXME: Some of the below, describe especially, is very messy/duplicated; perhaps we should have
-//        an `Into` that goes from `PgTypeInfo` to `AnyTypeInfo` and so on
+use crate::statement::StatementInfo;
 
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;
@@ -32,37 +28,25 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| match v {
-                    Either::Right(row) => Either::Right(AnyRow(AnyRowKind::Postgres(row))),
-                    Either::Left(count) => Either::Left(count),
-                })
+                .map_ok(|v| v.map_right(Into::into))
                 .boxed(),
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| match v {
-                    Either::Right(row) => Either::Right(AnyRow(AnyRowKind::MySql(row))),
-                    Either::Left(count) => Either::Left(count),
-                })
+                .map_ok(|v| v.map_right(Into::into))
                 .boxed(),
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| match v {
-                    Either::Right(row) => Either::Right(AnyRow(AnyRowKind::Sqlite(row))),
-                    Either::Left(count) => Either::Left(count),
-                })
+                .map_ok(|v| v.map_right(Into::into))
                 .boxed(),
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| match v {
-                    Either::Right(row) => Either::Right(AnyRow(AnyRowKind::Mssql(row))),
-                    Either::Left(count) => Either::Left(count),
-                })
+                .map_ok(|v| v.map_right(Into::into))
                 .boxed(),
         }
     }
@@ -84,34 +68,33 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
                 AnyConnectionKind::Postgres(conn) => conn
                     .fetch_optional((query, arguments.map(Into::into)))
                     .await?
-                    .map(AnyRowKind::Postgres),
+                    .map(Into::into),
 
                 #[cfg(feature = "mysql")]
                 AnyConnectionKind::MySql(conn) => conn
                     .fetch_optional((query, arguments.map(Into::into)))
                     .await?
-                    .map(AnyRowKind::MySql),
+                    .map(Into::into),
 
                 #[cfg(feature = "sqlite")]
                 AnyConnectionKind::Sqlite(conn) => conn
                     .fetch_optional((query, arguments.map(Into::into)))
                     .await?
-                    .map(AnyRowKind::Sqlite),
+                    .map(Into::into),
 
                 #[cfg(feature = "mssql")]
                 AnyConnectionKind::Mssql(conn) => conn
                     .fetch_optional((query, arguments.map(Into::into)))
                     .await?
-                    .map(AnyRowKind::Mssql),
-            }
-            .map(AnyRow))
+                    .map(Into::into),
+            })
         })
     }
 
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -122,100 +105,38 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             Ok(match &mut self.0 {
                 #[cfg(feature = "postgres")]
                 AnyConnectionKind::Postgres(conn) => {
-                    conn.describe(query).await.map(|desc| Describe {
-                        params: desc
-                            .params
-                            .into_iter()
-                            .map(|ty| ty.map(AnyTypeInfoKind::Postgres).map(AnyTypeInfo))
-                            .collect(),
-
-                        columns: desc
-                            .columns
-                            .into_iter()
-                            .map(|column| Column {
-                                name: column.name,
-                                not_null: column.not_null,
-                                type_info: column
-                                    .type_info
-                                    .map(AnyTypeInfoKind::Postgres)
-                                    .map(AnyTypeInfo),
-                            })
-                            .collect(),
-                    })?
+                    conn.describe(query).await.map(map_describe)?
                 }
 
                 #[cfg(feature = "mysql")]
-                AnyConnectionKind::MySql(conn) => {
-                    conn.describe(query).await.map(|desc| Describe {
-                        params: desc
-                            .params
-                            .into_iter()
-                            .map(|ty| ty.map(AnyTypeInfoKind::MySql).map(AnyTypeInfo))
-                            .collect(),
-
-                        columns: desc
-                            .columns
-                            .into_iter()
-                            .map(|column| Column {
-                                name: column.name,
-                                not_null: column.not_null,
-                                type_info: column
-                                    .type_info
-                                    .map(AnyTypeInfoKind::MySql)
-                                    .map(AnyTypeInfo),
-                            })
-                            .collect(),
-                    })?
-                }
+                AnyConnectionKind::MySql(conn) => conn.describe(query).await.map(map_describe)?,
 
                 #[cfg(feature = "sqlite")]
-                AnyConnectionKind::Sqlite(conn) => {
-                    conn.describe(query).await.map(|desc| Describe {
-                        params: desc
-                            .params
-                            .into_iter()
-                            .map(|ty| ty.map(AnyTypeInfoKind::Sqlite).map(AnyTypeInfo))
-                            .collect(),
-
-                        columns: desc
-                            .columns
-                            .into_iter()
-                            .map(|column| Column {
-                                name: column.name,
-                                not_null: column.not_null,
-                                type_info: column
-                                    .type_info
-                                    .map(AnyTypeInfoKind::Sqlite)
-                                    .map(AnyTypeInfo),
-                            })
-                            .collect(),
-                    })?
-                }
+                AnyConnectionKind::Sqlite(conn) => conn.describe(query).await.map(map_describe)?,
 
                 #[cfg(feature = "mssql")]
-                AnyConnectionKind::Mssql(conn) => {
-                    conn.describe(query).await.map(|desc| Describe {
-                        params: desc
-                            .params
-                            .into_iter()
-                            .map(|ty| ty.map(AnyTypeInfoKind::Mssql).map(AnyTypeInfo))
-                            .collect(),
-
-                        columns: desc
-                            .columns
-                            .into_iter()
-                            .map(|column| Column {
-                                name: column.name,
-                                not_null: column.not_null,
-                                type_info: column
-                                    .type_info
-                                    .map(AnyTypeInfoKind::Mssql)
-                                    .map(AnyTypeInfo),
-                            })
-                            .collect(),
-                    })?
-                }
+                AnyConnectionKind::Mssql(conn) => conn.describe(query).await.map(map_describe)?,
             })
         })
+    }
+}
+
+fn map_describe<DB: Database>(info: StatementInfo<DB>) -> StatementInfo<Any>
+where
+    AnyTypeInfo: From<DB::TypeInfo>,
+    AnyColumn: From<DB::Column>,
+{
+    let parameters = match info.parameters {
+        None => None,
+        Some(Either::Right(num)) => Some(Either::Right(num)),
+        Some(Either::Left(params)) => {
+            Some(Either::Left(params.into_iter().map(Into::into).collect()))
+        }
+    };
+
+    StatementInfo {
+        parameters,
+        nullable: info.nullable,
+        columns: info.columns.into_iter().map(Into::into).collect(),
     }
 }

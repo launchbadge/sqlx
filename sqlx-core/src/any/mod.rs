@@ -8,16 +8,18 @@ mod encode;
 mod r#type;
 
 mod arguments;
+pub(crate) mod column;
 mod connection;
 mod database;
 mod options;
-mod row;
+pub(crate) mod row;
 mod transaction;
-mod type_info;
+pub(crate) mod type_info;
 pub mod types;
-mod value;
+pub(crate) mod value;
 
 pub use arguments::{AnyArgumentBuffer, AnyArguments};
+pub use column::AnyColumn;
 pub use connection::AnyConnection;
 pub use database::Any;
 pub use decode::AnyDecode;

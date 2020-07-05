@@ -51,3 +51,14 @@ impl ColumnIndex<PgRow> for &'_ str {
             .map(|v| *v)
     }
 }
+
+#[cfg(feature = "any")]
+impl From<PgRow> for crate::any::AnyRow {
+    #[inline]
+    fn from(row: PgRow) -> Self {
+        crate::any::AnyRow {
+            columns: row.columns.iter().map(|col| col.clone().into()).collect(),
+            kind: crate::any::row::AnyRowKind::Postgres(row),
+        }
+    }
+}

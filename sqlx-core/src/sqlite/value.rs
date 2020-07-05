@@ -205,3 +205,25 @@ impl Drop for ValueHandle {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl<'r> From<SqliteValueRef<'r>> for crate::any::AnyValueRef<'r> {
+    #[inline]
+    fn from(value: SqliteValueRef<'r>) -> Self {
+        crate::any::AnyValueRef {
+            type_info: value.type_info().clone().into(),
+            kind: crate::any::value::AnyValueRefKind::Sqlite(value),
+        }
+    }
+}
+
+#[cfg(feature = "any")]
+impl From<SqliteValue> for crate::any::AnyValue {
+    #[inline]
+    fn from(value: SqliteValue) -> Self {
+        crate::any::AnyValue {
+            type_info: value.type_info().clone().into(),
+            kind: crate::any::value::AnyValueKind::Sqlite(value),
+        }
+    }
+}

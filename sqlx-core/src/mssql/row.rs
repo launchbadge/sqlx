@@ -43,3 +43,14 @@ impl ColumnIndex<MssqlRow> for &'_ str {
             .map(|v| *v)
     }
 }
+
+#[cfg(feature = "any")]
+impl From<MssqlRow> for crate::any::AnyRow {
+    #[inline]
+    fn from(row: MssqlRow) -> Self {
+        crate::any::AnyRow {
+            columns: row.columns.iter().map(|col| col.clone().into()).collect(),
+            kind: crate::any::row::AnyRowKind::Mssql(row),
+        }
+    }
+}

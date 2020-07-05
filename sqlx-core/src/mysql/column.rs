@@ -27,3 +27,14 @@ impl Column for MySqlColumn {
         &self.type_info
     }
 }
+
+#[cfg(feature = "any")]
+impl From<MySqlColumn> for crate::any::AnyColumn {
+    #[inline]
+    fn from(column: MySqlColumn) -> Self {
+        crate::any::AnyColumn {
+            type_info: column.type_info.clone().into(),
+            kind: crate::any::column::AnyColumnKind::MySql(column),
+        }
+    }
+}
