@@ -32,7 +32,7 @@ macro_rules! gen_macro_select_concats {
 
             Ok(())
         }
-    }
+    };
 }
 
 gen_macro_select_concats!("id, name, is_active");
