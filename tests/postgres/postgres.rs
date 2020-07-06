@@ -546,3 +546,9 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_can_handle_parameter_status_message_issue_484() -> anyhow::Result<()> {
+    new::<Postgres>().await?.execute("SET NAMES 'UTF8'").await?;
+    Ok(())
+}

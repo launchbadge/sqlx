@@ -104,6 +104,14 @@ impl PgStream {
                     }
                 }
 
+                MessageFormat::ParameterStatus => {
+                    // informs the frontend about the current (initial)
+                    // setting of backend parameters
+
+                    // we currently have no use for that data so we promptly ignore this message
+                    continue;
+                }
+
                 MessageFormat::NoticeResponse => {
                     // do we need this to be more configurable?
                     // if you are reading this comment and think so, open an issue
