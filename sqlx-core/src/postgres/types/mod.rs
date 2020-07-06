@@ -78,6 +78,14 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
 //!
+//! ### [`bit-vec`](https://crates.io/crates/bit-vec)
+//!
+//! Requires the `bit-vec` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `bit_vec::BitVec`                     | BIT, VARBIT                                          |
+//!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
 //! Requires the `json` Cargo feature flag.
@@ -192,6 +200,9 @@ mod json;
 
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
+
+#[cfg(feature = "bit-vec")]
+mod bit_vec;
 
 pub use interval::PgInterval;
 pub use money::PgMoney;

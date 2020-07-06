@@ -51,7 +51,7 @@ offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
 all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
-all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid" ]
+all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec" ]
 
 # runtime
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std" ]
@@ -73,6 +73,7 @@ ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
+bit-vec = [ "sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 
 [dependencies]
 sqlx-core = { version = "0.4.0-pre", path = "sqlx-core", default-features = false }

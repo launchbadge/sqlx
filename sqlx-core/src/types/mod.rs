@@ -36,6 +36,10 @@ pub mod chrono {
     };
 }
 
+#[cfg(feature = "bit-vec")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bit-vec")))]
+pub use bit_vec::BitVec;
+
 #[cfg(feature = "time")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time {

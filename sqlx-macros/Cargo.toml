@@ -39,6 +39,7 @@ chrono = [ "sqlx-core/chrono" ]
 time = [ "sqlx-core/time" ]
 ipnetwork = [ "sqlx-core/ipnetwork" ]
 uuid = [ "sqlx-core/uuid" ]
+bit-vec = [ "sqlx-core/bit-vec" ]
 json = [ "sqlx-core/json", "serde_json" ]
 
 [dependencies]

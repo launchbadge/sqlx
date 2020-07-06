@@ -61,6 +61,9 @@ impl_database_ext! {
         #[cfg(feature = "json")]
         serde_json::Value,
 
+        #[cfg(feature = "bit-vec")]
+        sqlx::types::BitVec,
+
         // Arrays
 
         Vec<bool> | &[bool],
