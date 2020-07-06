@@ -63,7 +63,10 @@ pub enum DatabaseCommand {
     Create,
 
     /// Drop database in url
-    Drop,
+    Drop {
+        #[structopt(long)]
+        force: bool,
+    },
 }
 
 pub async fn run(cmd: Command) -> anyhow::Result<()> {
@@ -78,7 +81,7 @@ pub async fn run(cmd: Command) -> anyhow::Result<()> {
 
         Command::Database(database) => match database {
             DatabaseCommand::Create => db::run_create().await?,
-            DatabaseCommand::Drop => db::run_drop().await?,
+            DatabaseCommand::Drop { force } => db::run_drop(force).await?,
         },
 
         Command::Prepare {

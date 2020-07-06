@@ -24,7 +24,7 @@ pub async fn run_create() -> anyhow::Result<()> {
     }
 }
 
-pub async fn run_drop() -> anyhow::Result<()> {
+pub async fn run_drop(force: bool) -> anyhow::Result<()> {
     let migrator = crate::migrator::get()?;
 
     if !migrator.can_drop_database() {
@@ -38,13 +38,14 @@ pub async fn run_drop() -> anyhow::Result<()> {
     let db_exists = migrator.check_if_database_exists(&db_name).await?;
 
     if db_exists {
-        if !Confirmation::new()
-            .with_text(&format!(
-                "\nAre you sure you want to drop the database: {}?",
-                db_name
-            ))
-            .default(false)
-            .interact()?
+        if !force
+            && !Confirmation::new()
+                .with_text(&format!(
+                    "\nAre you sure you want to drop the database: {}?",
+                    db_name
+                ))
+                .default(false)
+                .interact()?
         {
             println!("Aborting");
             return Ok(());

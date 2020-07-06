@@ -12,7 +12,8 @@ license = "MIT OR Apache-2.0"
 default-run = "sqlx"
 authors = [
     "Jesper Axelsson <jesperaxe@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>"
+    "Austin Bonander <austin.bonander@gmail.com>",
+    "Chloe Ross <orangesnowfox@gmail.com>",
 ]
 
 [[bin]]
