@@ -98,13 +98,6 @@ impl PgConnection {
                     }
                 },
 
-                MessageFormat::ParameterStatus => {
-                    // informs the frontend about the current (initial)
-                    // setting of backend parameters
-
-                    // we currently have no use for that data so we promptly ignore this message
-                }
-
                 MessageFormat::BackendKeyData => {
                     // provides secret-key data that the frontend must save if it wants to be
                     // able to issue cancel requests later
