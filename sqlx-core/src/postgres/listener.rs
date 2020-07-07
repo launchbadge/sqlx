@@ -283,7 +283,6 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         self.connection().fetch_optional(query)
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -293,6 +292,18 @@ impl<'c> Executor<'c> for &'c mut PgListener {
         E: Execute<'q, Self::Database>,
     {
         self.connection().describe(query)
+    }
+
+    #[doc(hidden)]
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        self.connection().describe_full(query)
     }
 }
 

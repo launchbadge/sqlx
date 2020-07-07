@@ -119,6 +119,41 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             })
         })
     }
+
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        let query = query.query();
+
+        Box::pin(async move {
+            Ok(match &mut self.0 {
+                #[cfg(feature = "postgres")]
+                AnyConnectionKind::Postgres(conn) => {
+                    conn.describe_full(query).await.map(map_describe)?
+                }
+
+                #[cfg(feature = "mysql")]
+                AnyConnectionKind::MySql(conn) => {
+                    conn.describe_full(query).await.map(map_describe)?
+                }
+
+                #[cfg(feature = "sqlite")]
+                AnyConnectionKind::Sqlite(conn) => {
+                    conn.describe_full(query).await.map(map_describe)?
+                }
+
+                #[cfg(feature = "mssql")]
+                AnyConnectionKind::Mssql(conn) => {
+                    conn.describe_full(query).await.map(map_describe)?
+                }
+            })
+        })
+    }
 }
 
 fn map_describe<DB: Database>(info: StatementInfo<DB>) -> StatementInfo<Any>

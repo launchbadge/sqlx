@@ -12,14 +12,20 @@ use crate::postgres::message::{
     RowDescription,
 };
 use crate::postgres::type_info::PgType;
-use crate::postgres::{PgArguments, PgConnection, PgDone, PgRow, PgValueFormat, Postgres};
+use crate::postgres::{
+    statement::PgStatement, PgArguments, PgConnection, PgDone, PgRow, PgValueFormat, Postgres,
+};
 use crate::statement::StatementInfo;
+use message::Flush;
 
 async fn prepare(
     conn: &mut PgConnection,
     query: &str,
     arguments: &PgArguments,
-) -> Result<u32, Error> {
+) -> Result<PgStatement, Error> {
+    // before we continue, wait until we are "ready" to accept more queries
+    conn.wait_until_ready().await?;
+
     let id = conn.next_statement_id;
     conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
 
@@ -64,7 +70,28 @@ async fn prepare(
 
     conn.recv_ready_for_query().await?;
 
-    Ok(id)
+    // get the statement columns and parameters
+    conn.stream.write(message::Describe::Statement(id));
+    conn.write_sync();
+
+    conn.stream.flush().await?;
+
+    let parameters = recv_desc_params(conn).await?;
+    let rows = recv_desc_rows(conn).await?;
+
+    conn.recv_ready_for_query().await?;
+
+    let parameters = conn.handle_parameter_description(parameters).await?;
+
+    conn.handle_row_description(rows, true).await?;
+
+    let columns = (&*conn.scratch_row_columns).clone();
+
+    Ok(PgStatement {
+        id,
+        parameters,
+        columns,
+    })
 }
 
 async fn recv_desc_params(conn: &mut PgConnection) -> Result<ParameterDescription, Error> {
@@ -128,16 +155,22 @@ impl PgConnection {
         self.pending_ready_for_query_count += 1;
     }
 
-    async fn prepare(&mut self, query: &str, arguments: &PgArguments) -> Result<u32, Error> {
-        if let Some(statement) = self.cache_statement.get_mut(query) {
-            return Ok(*statement);
+    async fn prepare(
+        &mut self,
+        query: &str,
+        arguments: &PgArguments,
+    ) -> Result<&mut PgStatement, Error> {
+        let contains = self.cache_statement.contains_key(query);
+
+        if contains {
+            return Ok(self.cache_statement.get_mut(query).unwrap());
         }
 
         let statement = prepare(self, query, arguments).await?;
 
         if let Some(statement) = self.cache_statement.insert(query, statement) {
-            self.stream.write(Close::Statement(statement));
-            self.write_sync();
+            self.stream.write(Close::Statement(statement.id));
+            self.stream.write(Flush);
 
             self.stream.flush().await?;
 
@@ -145,7 +178,7 @@ impl PgConnection {
             self.recv_ready_for_query().await?;
         }
 
-        Ok(statement)
+        Ok(self.cache_statement.get_mut(query).unwrap())
     }
 
     async fn run(
@@ -160,7 +193,7 @@ impl PgConnection {
         let format = if let Some(mut arguments) = arguments {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
-            let statement = self.prepare(query, &arguments).await?;
+            let statement = self.prepare(query, &arguments).await?.id;
 
             // patch holes created during encoding
             arguments.buffer.patch_type_holes(self).await?;
@@ -343,23 +376,33 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
 
         Box::pin(async move {
-            let id = prepare(self, s, &Default::default()).await?;
+            let statement = self.prepare(s, &Default::default()).await?;
+            let columns = statement.columns.clone();
+            let params = statement.parameters.clone();
+            let nullable = Vec::new();
 
-            self.stream.write(message::Describe::Statement(id));
-            self.write_sync();
+            Ok(StatementInfo {
+                columns,
+                nullable,
+                parameters: Some(Either::Left(params)),
+            })
+        })
+    }
 
-            self.stream.flush().await?;
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        let s = query.query();
 
-            let params = recv_desc_params(self).await?;
-            let rows = recv_desc_rows(self).await?;
-
-            self.recv_ready_for_query().await?;
-
-            let params = self.handle_parameter_description(params).await?;
-
-            self.handle_row_description(rows, true).await?;
-
-            let columns = (&*self.scratch_row_columns).clone();
+        Box::pin(async move {
+            let statement = self.prepare(s, &Default::default()).await?;
+            let columns = statement.columns.clone();
+            let params = statement.parameters.clone();
             let nullable = self.get_nullable_for_columns(&columns).await?;
 
             Ok(StatementInfo {

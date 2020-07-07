@@ -11,6 +11,7 @@ mod listener;
 mod message;
 mod options;
 mod row;
+mod statement;
 mod transaction;
 mod type_info;
 pub mod types;

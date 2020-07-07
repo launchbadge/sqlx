@@ -60,6 +60,19 @@ where
 
         Box::pin(async move { pool.acquire().await?.describe(query).await })
     }
+
+    #[doc(hidden)]
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        E: Execute<'q, Self::Database>,
+    {
+        let pool = self.clone();
+
+        Box::pin(async move { pool.acquire().await?.describe_full(query).await })
+    }
 }
 
 // NOTE: required due to lack of lazy normalization
@@ -113,6 +126,22 @@ macro_rules! impl_executor_for_pool_connection {
                 E: crate::executor::Execute<'q, $DB>,
             {
                 (**self).describe(query)
+            }
+
+            #[doc(hidden)]
+            #[inline]
+            fn describe_full<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::future::BoxFuture<
+                'e,
+                Result<crate::statement::StatementInfo<$DB>, crate::error::Error>,
+            >
+            where
+                'c: 'e,
+                E: crate::executor::Execute<'q, $DB>,
+            {
+                (**self).describe_full(query)
             }
         }
     };

@@ -145,6 +145,21 @@ macro_rules! impl_executor_for_transaction {
             {
                 (&mut **self).describe(query)
             }
+
+            #[doc(hidden)]
+            fn describe_full<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::future::BoxFuture<
+                'e,
+                Result<crate::statement::StatementInfo<Self::Database>, crate::error::Error>,
+            >
+            where
+                't: 'e,
+                E: crate::executor::Execute<'q, Self::Database>,
+            {
+                (&mut **self).describe(query)
+            }
         }
     };
 }

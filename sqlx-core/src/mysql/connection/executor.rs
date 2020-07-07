@@ -263,6 +263,17 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
+        self.describe_full(query)
+    }
+
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
         let query = query.query();
 
         Box::pin(async move {
