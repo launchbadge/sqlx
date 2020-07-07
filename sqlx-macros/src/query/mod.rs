@@ -1,5 +1,5 @@
-use std::borrow::Cow;
 use std::env;
+use std::{borrow::Cow, path::PathBuf};
 
 use proc_macro2::{Span, TokenStream};
 use syn::Type;
@@ -16,11 +16,28 @@ use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use either::Either;
+use lazy_static::lazy_static;
 
 mod args;
 mod data;
 mod input;
 mod output;
+
+// If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
+// reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
+lazy_static! {
+    static ref CRATE_ROOT: PathBuf = {
+        let manifest_dir =
+            env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+
+        let metadata = cargo_metadata::MetadataCommand::new()
+            .current_dir(manifest_dir)
+            .exec()
+            .expect("Could not fetch metadata");
+
+        metadata.workspace_root
+    };
+}
 
 pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     let manifest_dir =
@@ -47,8 +64,12 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
         _ => {
             let data_file_path = std::path::Path::new(&manifest_dir).join("sqlx-data.json");
 
+            let workspace_data_file_path = CRATE_ROOT.join("sqlx-data.json");
+
             if data_file_path.exists() {
                 expand_from_file(input, data_file_path)
+            } else if workspace_data_file_path.exists() {
+                expand_from_file(input, workspace_data_file_path)
             } else {
                 Err(
                     "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \

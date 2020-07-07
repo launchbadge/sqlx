@@ -13,7 +13,7 @@ use std::{env, fs};
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
-pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
+pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
     #[derive(serde::Serialize)]
     struct DataFile {
         db: &'static str,
@@ -22,7 +22,7 @@ pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
     }
 
     let db_kind = get_db_kind(url)?;
-    let data = run_prepare_step(cargo_args)?;
+    let data = run_prepare_step(merge, cargo_args)?;
 
     if data.is_empty() {
         println!(
@@ -45,9 +45,9 @@ pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn check(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
+pub fn check(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
     let db_kind = get_db_kind(url)?;
-    let data = run_prepare_step(cargo_args)?;
+    let data = run_prepare_step(merge, cargo_args)?;
 
     let data_file = fs::read("sqlx-data.json").context(
         "failed to open `sqlx-data.json`; you may need to run `cargo sqlx prepare` first",
@@ -78,7 +78,7 @@ pub fn check(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
+fn run_prepare_step(merge: bool, cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     // path to the Cargo executable
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare`")?;
@@ -92,20 +92,41 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     // have repeatedly caused issues in the past.
     let _ = remove_dir_all(metadata.target_directory.join("sqlx"));
 
-    let check_status = Command::new(&cargo)
-        .arg("rustc")
-        .args(cargo_args)
-        .arg("--")
-        .arg("--emit")
-        .arg("dep-info,metadata")
-        // set an always-changing cfg so we can consistently trigger recompile
-        .arg("--cfg")
-        .arg(format!(
-            "__sqlx_recompile_trigger=\"{}\"",
-            SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
-        ))
-        .env("SQLX_OFFLINE", "false")
-        .status()?;
+    let check_status = if merge {
+        let check_status = Command::new(&cargo).arg("clean").status()?;
+
+        if !check_status.success() {
+            bail!("`cargo clean` failed with status: {}", check_status);
+        }
+
+        Command::new(&cargo)
+            .arg("check")
+            .args(cargo_args)
+            .env(
+                "RUSTFLAGS",
+                format!(
+                    "--cfg __sqlx_recompile_trigger=\"{}\"",
+                    SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
+                ),
+            )
+            .env("SQLX_OFFLINE", "false")
+            .status()?
+    } else {
+        Command::new(&cargo)
+            .arg("rustc")
+            .args(cargo_args)
+            .arg("--")
+            .arg("--emit")
+            .arg("dep-info,metadata")
+            // set an always-changing cfg so we can consistently trigger recompile
+            .arg("--cfg")
+            .arg(format!(
+                "__sqlx_recompile_trigger=\"{}\"",
+                SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
+            ))
+            .env("SQLX_OFFLINE", "false")
+            .status()?
+    };
 
     if !check_status.success() {
         bail!("`cargo check` failed with status: {}", check_status);

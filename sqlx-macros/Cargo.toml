@@ -53,11 +53,13 @@ bit-vec = [ "sqlx-core/bit-vec" ]
 json = [ "sqlx-core/json", "serde_json" ]
 
 [dependencies]
+cargo_metadata = "0.12.1"
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 hex = { version = "0.4.2", optional = true }
 heck = "0.3.1"
 either = "1.5.3"
+lazy_static = "1.4.0"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.4.0", default-features = false, path = "../sqlx-core" }
 sqlx-rt = { version = "0.2.0", default-features = false, path = "../sqlx-rt" }
