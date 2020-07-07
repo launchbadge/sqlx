@@ -41,6 +41,7 @@ pub struct MySqlConnection {
     // Row type past a stream iteration (clone-on-write)
     scratch_row_columns: Arc<Vec<MySqlColumn>>,
     scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+    pub(in crate::mysql) transaction_depth: usize,
 }
 
 impl Debug for MySqlConnection {
@@ -94,18 +95,6 @@ impl Connection for MySqlConnection {
         !self.stream.wbuf.is_empty()
     }
 
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for MySqlConnection {
     type Options = MySqlConnectOptions;
 
     #[inline]
@@ -146,5 +135,9 @@ impl Connect for MySqlConnection {
 
             Ok(conn)
         })
+    }
+
+    fn transaction_depth(&self) -> usize {
+        self.transaction_depth
     }
 }

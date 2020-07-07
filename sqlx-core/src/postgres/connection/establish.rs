@@ -137,6 +137,7 @@ impl PgConnection {
             cache_type_info: HashMap::new(),
             scratch_row_columns: Default::default(),
             scratch_row_column_names: Default::default(),
+            transaction_depth: 0,
         })
     }
 }

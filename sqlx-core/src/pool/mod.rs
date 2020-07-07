@@ -66,10 +66,13 @@ mod inner;
 mod options;
 
 pub use self::connection::PoolConnection;
+
+pub(crate) use self::connection::MaybePooled;
+
 pub use self::options::Builder;
 
 /// An alias for [`Transaction`] when returned from [`Pool::begin`].
-pub type PoolTransaction<DB, C = PoolConnection<DB>> = Transaction<'static, DB, C>;
+pub type PoolTransaction<DB> = Transaction<'static, DB>;
 
 /// An asynchronous pool of SQLx database connections.
 pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
@@ -111,15 +114,13 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Retrieves a new connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> Result<Transaction<'static, DB, PoolConnection<DB>>, Error> {
+    pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
         Ok(Transaction::begin(self.acquire().await?).await?)
     }
 
     /// Attempts to retrieve a new connection and immediately begins a new transaction if there
     /// is one available.
-    pub async fn try_begin(
-        &self,
-    ) -> Result<Option<Transaction<'static, DB, PoolConnection<DB>>>, Error> {
+    pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(conn).await.map(Some),
             None => Ok(None),

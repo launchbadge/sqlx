@@ -19,6 +19,7 @@ impl TransactionManager for MySqlTransactionManager {
     fn begin(conn: &mut MySqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
+            conn.transaction_depth = depth + 1;
 
             Ok(())
         })

@@ -29,6 +29,11 @@ pub(super) struct Idle<DB: Database> {
     pub(super) since: Instant,
 }
 
+pub enum MaybePooled<'c, DB: Database> {
+    Borrowed(&'c mut DB::Connection),
+    Pooled(PoolConnection<DB>),
+}
+
 /// RAII wrapper for connections being handled by functions that may drop them
 pub(super) struct Floating<'p, C> {
     inner: C,
@@ -55,42 +60,6 @@ impl<DB: Database> Deref for PoolConnection<DB> {
 impl<DB: Database> DerefMut for PoolConnection<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(DEREF_ERR).raw
-    }
-}
-
-impl<DB: Database> Connection for PoolConnection<DB> {
-    type Database = DB;
-
-    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            let live = self.live.take().expect("PoolConnection double-dropped");
-            live.float(&self.pool).into_idle().close().await
-        })
-    }
-
-    #[inline]
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(self.deref_mut().ping())
-    }
-
-    #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.get_mut().flush()
-    }
-
-    #[doc(hidden)]
-    fn should_flush(&self) -> bool {
-        self.get_ref().should_flush()
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &DB::Connection {
-        self.deref().get_ref()
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut DB::Connection {
-        self.deref_mut().get_mut()
     }
 }
 
@@ -230,5 +199,47 @@ impl<C> Deref for Floating<'_, C> {
 impl<C> DerefMut for Floating<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl<DB: Database> MaybePooled<'_, DB> {
+    pub fn get_ref(&self) -> &DB::Connection {
+        self
+    }
+
+    pub fn get_mut(&mut self) -> &mut DB::Connection {
+        self
+    }
+}
+
+impl<DB: Database> Deref for MaybePooled<'_, DB> {
+    type Target = DB::Connection;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            MaybePooled::Borrowed(c) => c,
+            MaybePooled::Pooled(c) => c,
+        }
+    }
+}
+
+impl<DB: Database> DerefMut for MaybePooled<'_, DB> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            MaybePooled::Borrowed(c) => c,
+            MaybePooled::Pooled(c) => c,
+        }
+    }
+}
+
+impl<'c, DB: Database> From<&'c mut DB::Connection> for MaybePooled<'c, DB> {
+    fn from(c: &'c mut <DB as Database>::Connection) -> Self {
+        MaybePooled::Borrowed(c)
+    }
+}
+
+impl<DB: Database> From<PoolConnection<DB>> for MaybePooled<'static, DB> {
+    fn from(c: PoolConnection<DB>) -> Self {
+        MaybePooled::Pooled(c)
     }
 }

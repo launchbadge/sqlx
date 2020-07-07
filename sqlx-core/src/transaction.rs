@@ -8,7 +8,7 @@ use futures_util::{future, FutureExt};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::ext::maybe_owned::MaybeOwned;
+use crate::pool::MaybePooled;
 
 /// Generic management of database transactions.
 ///
@@ -55,12 +55,11 @@ pub trait TransactionManager {
 /// [`Pool::begin`]: struct.Pool.html#method.begin
 /// [`commit`]: #method.commit
 /// [`rollback`]: #method.rollback
-pub struct Transaction<'c, DB, C = <DB as Database>::Connection>
+pub struct Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    connection: MaybeOwned<'c, C>,
+    connection: MaybePooled<'c, DB>,
 
     // the depth of ~this~ transaction, depth directly equates to how many times [`begin()`]
     // was called without a corresponding [`commit()`] or [`rollback()`]
@@ -69,12 +68,13 @@ where
     open: bool,
 }
 
-impl<'c, DB, C> Transaction<'c, DB, C>
+impl<'c, DB> Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    pub(crate) fn begin(conn: impl Into<MaybeOwned<'c, C>>) -> BoxFuture<'c, Result<Self, Error>> {
+    pub(crate) fn begin(
+        conn: impl Into<MaybePooled<'c, DB>>,
+    ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
@@ -105,59 +105,14 @@ where
     }
 }
 
-impl<'c, DB, C> Connection for Transaction<'c, DB, C>
-where
-    DB: Database,
-    C: Sized + Connection<Database = DB>,
-{
-    type Database = C::Database;
-
-    // equivalent to dropping the transaction
-    // as this is bound to 'static, there is nothing more we can do here
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        future::ok(()).boxed()
-    }
-
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.connection.ping()
-    }
-
-    #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.get_mut().flush()
-    }
-
-    #[doc(hidden)]
-    fn should_flush(&self) -> bool {
-        self.get_ref().should_flush()
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &<Self::Database as Database>::Connection {
-        self.connection.get_ref()
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut <Self::Database as Database>::Connection {
-        self.connection.get_mut()
-    }
-
-    #[doc(hidden)]
-    fn transaction_depth(&self) -> usize {
-        self.depth
-    }
-}
-
 // NOTE: required due to lack of lazy normalization
 #[allow(unused_macros)]
 macro_rules! impl_executor_for_transaction {
     ($DB:ident, $Row:ident) => {
-        impl<'c, 't, C: Sized> crate::executor::Executor<'t>
-            for &'t mut crate::transaction::Transaction<'c, $DB, C>
-        where
-            C: crate::connection::Connection<Database = $DB>,
+        impl<'c, 't> crate::executor::Executor<'t>
+            for &'t mut crate::transaction::Transaction<'c, $DB>
         {
-            type Database = C::Database;
+            type Database = $DB;
 
             fn fetch_many<'e, 'q: 'e, E: 'q>(
                 self,
@@ -202,10 +157,9 @@ macro_rules! impl_executor_for_transaction {
     };
 }
 
-impl<'c, DB, C> Debug for Transaction<'c, DB, C>
+impl<'c, DB> Debug for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // TODO: Show the full type <..<..<..
@@ -213,12 +167,11 @@ where
     }
 }
 
-impl<'c, DB, C> Deref for Transaction<'c, DB, C>
+impl<'c, DB> Deref for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    type Target = <C::Database as Database>::Connection;
+    type Target = DB::Connection;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -226,10 +179,9 @@ where
     }
 }
 
-impl<'c, DB, C> DerefMut for Transaction<'c, DB, C>
+impl<'c, DB> DerefMut for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -237,10 +189,9 @@ where
     }
 }
 
-impl<'c, DB, C> Drop for Transaction<'c, DB, C>
+impl<'c, DB> Drop for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     fn drop(&mut self) {
         if self.open {
@@ -248,10 +199,7 @@ where
             // what this does depends on the database but generally this means we queue a rollback
             // operation that will happen on the next asynchronous invocation of the underlying
             // connection (including if the connection is returned to a pool)
-            <C::Database as Database>::TransactionManager::start_rollback(
-                self.connection.get_mut(),
-                self.depth,
-            );
+            DB::TransactionManager::start_rollback(self.connection.get_mut(), self.depth);
         }
     }
 }

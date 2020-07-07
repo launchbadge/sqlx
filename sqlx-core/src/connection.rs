@@ -10,6 +10,21 @@ use crate::transaction::Transaction;
 /// Represents a single database connection.
 pub trait Connection: Send {
     type Database: Database;
+    type Options: FromStr<Err = BoxDynError> + Send + Sync + 'static;
+
+    /// Establish a new database connection.
+    ///
+    /// A value of `Options` is parsed from the provided connection string. This parsing
+    /// is database-specific.
+    #[inline]
+    fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>> {
+        let options = url.parse().map_err(Error::ParseConnectOptions);
+
+        Box::pin(async move { Ok(Self::connect_with(&options?).await?) })
+    }
+
+    /// Establish a new database connection with the provided options.
+    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>>;
 
     /// Explicitly close this database connection.
     ///
@@ -24,9 +39,10 @@ pub trait Connection: Send {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database, Self>, Error>>
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
+        Self::Database: Database<Connection = Self>,
     {
         Transaction::begin(self)
     }
@@ -38,15 +54,16 @@ pub trait Connection: Send {
     fn transaction<'c: 'f, 'f, T, E, F, Fut>(&'c mut self, f: F) -> BoxFuture<'f, Result<T, E>>
     where
         Self: Sized,
+        Self::Database: Database<Connection = Self>,
         T: Send,
-        F: FnOnce(&mut <Self::Database as Database>::Connection) -> Fut + Send + 'f,
+        F: FnOnce(&mut Self) -> Fut + Send + 'f,
         E: From<Error> + Send,
         Fut: Future<Output = Result<T, E>> + Send,
     {
         Box::pin(async move {
             let mut tx = self.begin().await?;
 
-            match f(tx.get_mut()).await {
+            match f(&mut *tx).await {
                 Ok(r) => {
                     // no error occurred, commit the transaction
                     tx.commit().await?;
@@ -88,34 +105,5 @@ pub trait Connection: Send {
     fn should_flush(&self) -> bool;
 
     #[doc(hidden)]
-    fn get_ref(&self) -> &<Self::Database as Database>::Connection;
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut <Self::Database as Database>::Connection;
-
-    #[doc(hidden)]
-    fn transaction_depth(&self) -> usize {
-        // connections are not normally transactions, a zero depth implies there is no
-        // active transaction
-        0
-    }
-}
-
-/// Represents a type that can directly establish a new connection.
-pub trait Connect: Sized + Connection {
-    type Options: FromStr<Err = BoxDynError> + Send + Sync + 'static;
-
-    /// Establish a new database connection.
-    ///
-    /// A value of `Options` is parsed from the provided connection string. This parsing
-    /// is database-specific.
-    #[inline]
-    fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>> {
-        let options = url.parse().map_err(Error::ParseConnectOptions);
-
-        Box::pin(async move { Ok(Self::connect_with(&options?).await?) })
-    }
-
-    /// Establish a new database connection with the provided options.
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>>;
+    fn transaction_depth(&self) -> usize;
 }

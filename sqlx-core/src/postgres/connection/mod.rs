@@ -58,6 +58,8 @@ pub struct PgConnection {
 
     // current transaction status
     transaction_status: TransactionStatus,
+    // current transaction depth
+    pub(in crate::postgres) transaction_depth: usize,
 
     // working memory for the active row's column information
     scratch_row_columns: Arc<Vec<PgColumn>>,
@@ -87,6 +89,10 @@ impl PgConnection {
         self.pending_ready_for_query_count -= 1;
         self.transaction_status = ReadyForQuery::decode(message.contents)?.transaction_status;
 
+        if self.transaction_status == TransactionStatus::Idle {
+            self.transaction_depth = 0;
+        }
+
         Ok(())
     }
 }
@@ -99,6 +105,13 @@ impl Debug for PgConnection {
 
 impl Connection for PgConnection {
     type Database = Postgres;
+
+    type Options = PgConnectOptions;
+
+    #[inline]
+    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
+        Box::pin(PgConnection::establish(options))
+    }
 
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         // The normal, graceful termination procedure is that the frontend sends a Terminate
@@ -156,22 +169,7 @@ impl Connection for PgConnection {
         !self.stream.wbuf.is_empty()
     }
 
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for PgConnection {
-    type Options = PgConnectOptions;
-
-    #[inline]
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(PgConnection::establish(options))
+    fn transaction_depth(&self) -> usize {
+        self.transaction_depth
     }
 }

@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::pool::{Pool, PoolConnection};
+use crate::pool::{MaybePooled, Pool, PoolConnection};
 use crate::postgres::connection::{PgConnection, PgStream};
 use crate::postgres::message::{
     CommandComplete, CopyData, CopyDone, CopyFail, CopyResponse, MessageFormat, Notice, Query,
@@ -20,7 +20,7 @@ impl PgConnection {
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
     /// https://www.postgresql.org/docs/current/sql-copy.html
-    pub async fn copy_in_raw(&mut self, statement: &str) -> Result<PgCopyIn<&mut Self>> {
+    pub async fn copy_in_raw<'c>(&'c mut self, statement: &str) -> Result<PgCopyIn<'c>> {
         PgCopyIn::begin(self, statement).await
     }
 }
@@ -35,10 +35,7 @@ impl Pool<Postgres> {
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
     /// https://www.postgresql.org/docs/current/sql-copy.html
-    pub async fn copy_in_raw(
-        &mut self,
-        statement: &str,
-    ) -> Result<PgCopyIn<PoolConnection<Postgres>>> {
+    pub async fn copy_in_raw(&mut self, statement: &str) -> Result<PgCopyIn<'static>> {
         PgCopyIn::begin(self.acquire().await?, statement).await
     }
 }
@@ -51,13 +48,16 @@ impl Pool<Postgres> {
 /// [Self::finish] or [Self::fail] *must* be called or the connection will return an error
 /// the next time it is used.
 #[must_use = "connection will error on next use if .finish() or .fail() is not called"]
-pub struct PgCopyIn<C: DerefMut<Target = PgConnection>> {
-    conn: Option<C>,
+pub struct PgCopyIn<'c> {
+    conn: MaybePooled<'c, Postgres>,
     response: CopyResponse,
+    finished: bool,
 }
 
-impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
-    async fn begin(mut conn: C, statement: &str) -> Result<Self> {
+impl<'c> PgCopyIn<'c> {
+    async fn begin(conn: impl Into<MaybePooled<'c, Postgres>>, statement: &str) -> Result<Self> {
+        let mut conn = conn.into();
+
         conn.wait_until_ready().await?;
         conn.stream.send(Query(statement)).await?;
 
@@ -67,8 +67,9 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             .await?;
 
         Ok(PgCopyIn {
-            conn: Some(conn),
+            conn,
             response,
+            finished: false,
         })
     }
 
@@ -76,12 +77,7 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     ///
     /// If you're copying data from an `AsyncRead`, maybe consider [Self::copy_from] instead.
     pub async fn send(&mut self, data: impl Deref<Target = [u8]>) -> Result<&mut Self> {
-        self.conn
-            .as_deref_mut()
-            .expect("send_data: conn taken")
-            .stream
-            .send(CopyData(data))
-            .await?;
+        self.conn.stream.send(CopyData(data)).await?;
 
         Ok(self)
     }
@@ -102,13 +98,11 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             }
         }
 
-        let conn: &mut PgConnection = self.conn.as_deref_mut().expect("copy_from: conn taken");
-
         // flush any existing messages in the buffer and clear it
-        conn.stream.flush().await?;
+        self.conn.stream.flush().await?;
 
         {
-            let buf_stream = &mut *conn.stream;
+            let buf_stream = &mut *self.conn.stream;
             let stream = &mut buf_stream.stream;
 
             // ensures the buffer isn't left in an inconsistent state
@@ -157,51 +151,43 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     /// The given error message can be used for indicating the reason for the abort in the
     /// database logs.
     ///
-    /// The server is expected to respond with an error, so that is returned along with
-    /// the connection. Included in the error should be the given message.
-    ///
+    /// The server is expected to respond with an error, but we discard that.
     /// `Err` is only returned for an _unexpected_ error.
-    pub async fn fail(&mut self, msg: impl Into<String>) -> Result<(C, PgDatabaseError)> {
-        let mut conn = self
-            .conn
-            .take()
-            .expect("PgCopyIn::fail_with: conn taken illegally");
+    pub async fn abort(mut self, msg: impl Into<String>) -> Result<()> {
+        self.finished = true;
+        self.conn.stream.send(CopyFail::new(msg)).await?;
 
-        conn.stream.send(CopyFail::new(msg)).await?;
-
-        match conn.stream.recv().await {
+        match self.conn.stream.recv().await {
             Ok(msg) => Err(err_protocol!(
                 "fail_with: expected ErrorResponse, got: {:?}",
                 msg.format
             )),
-            Err(Error::Database(db)) => Ok((conn, *db.downcast::<PgDatabaseError>())),
+            // FIXME: introspect the response to be sure we're not discarding a different error
+            Err(Error::Database(db)) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
     /// Signal that the `COPY` process is complete.
     ///
-    /// The connection is returned along with the number of rows affected.
-    pub async fn finish(&mut self) -> Result<(C, u64)> {
-        let mut conn = self
+    /// Returns the number of rows affected.
+    pub async fn finish(mut self) -> Result<u64> {
+        self.finished = true;
+        self.conn.stream.send(CopyDone).await?;
+        let cc: CommandComplete = self
             .conn
-            .take()
-            .expect("CopyWriter::finish: conn taken illegally");
-
-        conn.stream.send(CopyDone).await?;
-        let cc: CommandComplete = conn
             .stream
             .recv_expect(MessageFormat::CommandComplete)
             .await?;
 
-        Ok((conn, cc.rows_affected()))
+        Ok(cc.rows_affected())
     }
 }
 
-impl<C: DerefMut<Target = PgConnection>> Drop for PgCopyIn<C> {
+impl<'c> Drop for PgCopyIn<'c> {
     fn drop(&mut self) {
-        if let Some(mut conn) = self.conn.take() {
-            conn.stream.write(CopyFail::new(
+        if !self.finished {
+            self.conn.stream.write(CopyFail::new(
                 "PgCopyIn dropped without calling finish() or fail()",
             ));
         }
