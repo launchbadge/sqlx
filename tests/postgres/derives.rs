@@ -381,3 +381,26 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_default() -> anyhow::Result<()> {
+    #[derive(Debug, sqlx::FromRow)]
+    struct HasDefault {
+        not_default: i32,
+        #[sqlx(default)]
+        default: Option<i32>,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let has_default: HasDefault = sqlx::query_as(r#"SELECT 1 AS not_default"#)
+        .fetch_one(&mut conn)
+        .await?;
+    println!("{:?}", has_default);
+
+    assert_eq!(has_default.not_default, 1);
+    assert_eq!(has_default.default, None);
+
+    Ok(())
+}
