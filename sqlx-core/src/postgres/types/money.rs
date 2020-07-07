@@ -44,6 +44,20 @@ impl PgMoney {
     pub fn to_decimal(self, scale: u32) -> rust_decimal::Decimal {
         rust_decimal::Decimal::new(self.0, scale)
     }
+
+    /// Convert a [`Decimal`] value into money using the correct precision
+    /// defined in the PostgreSQL settings. The default precision is two.
+    ///
+    /// [`Decimal`]: ../../types/struct.BigDecimal.html
+    #[cfg(feature = "decimal")]
+    pub fn from_decimal(decimal: rust_decimal::Decimal, scale: u32) -> Self {
+        let cents = (decimal * rust_decimal::Decimal::new(10i64.pow(scale), 0)).round();
+
+        let mut buf: [u8; 8] = [0; 8];
+        buf.copy_from_slice(&cents.serialize()[4..12]);
+
+        Self(i64::from_le_bytes(buf))
+    }
 }
 
 impl Type<Postgres> for PgMoney {
@@ -231,5 +245,13 @@ mod tests {
             rust_decimal::Decimal::new(12345, 2),
             PgMoney(12345).to_decimal(2)
         );
+    }
+
+    #[test]
+    #[cfg(feature = "decimal")]
+    fn conversion_from_decimal_works() {
+        let dec = rust_decimal::Decimal::new(12345, 2);
+
+        assert_eq!(PgMoney(12345), PgMoney::from_decimal(dec, 2));
     }
 }
