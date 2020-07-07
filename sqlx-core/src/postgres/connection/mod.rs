@@ -11,13 +11,14 @@ use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
-use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
     Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
+
+pub use self::stream::PgStream;
 
 pub(crate) mod describe;
 mod establish;
@@ -66,7 +67,7 @@ pub struct PgConnection {
 
 impl PgConnection {
     // will return when the connection is ready for another query
-    async fn wait_until_ready(&mut self) -> Result<(), Error> {
+    pub(in crate::postgres) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
             self.stream.flush().await?;
         }
