@@ -29,6 +29,10 @@ pub enum Command {
         #[clap(long)]
         check: bool,
 
+        /// Generate a single top-level `sqlx-data.json` file when using a cargo workspace.
+        #[clap(long)]
+        merged: bool,
+
         /// Arguments to be passed to `cargo rustc ...`.
         #[clap(last = true)]
         args: Vec<String>,

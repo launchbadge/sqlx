@@ -53,9 +53,17 @@ hint: This command only works in the manifest directory of a Cargo package."#
             DatabaseCommand::Setup { source } => database::setup(&source, &database_url).await?,
         },
 
-        Command::Prepare { check: false, args } => prepare::run(&database_url, args)?,
+        Command::Prepare {
+            check: false,
+            merged,
+            args,
+        } => prepare::run(&database_url, merged, args)?,
 
-        Command::Prepare { check: true, args } => prepare::check(&database_url, args)?,
+        Command::Prepare {
+            check: true,
+            merged,
+            args,
+        } => prepare::check(&database_url, merged, args)?,
     };
 
     Ok(())
