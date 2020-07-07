@@ -8,7 +8,9 @@ pub struct PgColumn {
     pub(crate) ordinal: usize,
     pub(crate) name: UStr,
     pub(crate) type_info: PgTypeInfo,
+    #[cfg_attr(feature = "offline", serde(skip))]
     pub(crate) relation_id: Option<i32>,
+    #[cfg_attr(feature = "offline", serde(skip))]
     pub(crate) relation_attribute_no: Option<i16>,
 }
 
