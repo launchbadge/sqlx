@@ -20,6 +20,8 @@ use crate::transaction::Transaction;
 
 pub use self::stream::PgStream;
 
+pub use self::stream::PgStream;
+
 pub(crate) mod describe;
 mod establish;
 mod executor;
