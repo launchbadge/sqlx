@@ -61,6 +61,32 @@ impl PgMoney {
 
         Self(i64::from_le_bytes(buf))
     }
+
+    /// Convert a [`BigDecimal`] value into money using the correct precision
+    /// defined in the PostgreSQL settings. The default precision is two.
+    ///
+    /// [`BigDecimal`]: ../../types/struct.BigDecimal.html
+    #[cfg(feature = "bigdecimal")]
+    pub fn from_bigdecimal(
+        decimal: bigdecimal::BigDecimal,
+        scale: u32,
+    ) -> Result<Self, BoxDynError> {
+        use bigdecimal::ToPrimitive;
+
+        let multiplier =
+            bigdecimal::BigDecimal::new(num_bigint::BigInt::from(10i128.pow(scale)), 0);
+
+        let cents = decimal * multiplier;
+
+        let money = cents.to_i64().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Provided BigDecimal could not convert to i64: overflow.",
+            )
+        })?;
+
+        Ok(Self(money))
+    }
 }
 
 impl Type<Postgres> for PgMoney {
@@ -256,5 +282,12 @@ mod tests {
         let dec = rust_decimal::Decimal::new(12345, 2);
 
         assert_eq!(PgMoney(12345), PgMoney::from_decimal(dec, 2));
+    }
+
+    #[cfg(feature = "bigdecimal")]
+    fn conversion_from_bigdecimal_works() {
+        let dec = bigdecimal::BigDecimal::new(num_bigint::BigInt::from(12345), 2);
+
+        assert_eq!(PgMoney(12345), PgMoney::from_bigdecimal(dec, 2).unwrap());
     }
 }
