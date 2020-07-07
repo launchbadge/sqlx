@@ -31,6 +31,11 @@ where
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
         self.inner.take_arguments()
     }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        self.inner.persistent()
+    }
 }
 
 impl<'q, DB: Database, O> QueryScalar<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {

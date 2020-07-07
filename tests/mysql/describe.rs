@@ -6,7 +6,7 @@ use sqlx_test::new;
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    let d = conn.describe("SELECT * FROM tweet").await?;
+    let d = conn.describe_full("SELECT * FROM tweet").await?;
 
     assert_eq!(d.column(0).name(), "id");
     assert_eq!(d.column(1).name(), "created_at");
@@ -31,7 +31,7 @@ async fn uses_alias_name() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     let d = conn
-        .describe("SELECT text AS tweet_text FROM tweet")
+        .describe_full("SELECT text AS tweet_text FROM tweet")
         .await?;
 
     assert_eq!(d.column(0).name(), "tweet_text");

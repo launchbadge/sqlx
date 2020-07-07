@@ -26,7 +26,7 @@ impl<DB: Database> QueryData<DB> {
     ) -> crate::Result<Self> {
         Ok(QueryData {
             query: query.into(),
-            describe: conn.describe(query).await?,
+            describe: conn.describe_full(query).await?,
             #[cfg(feature = "offline")]
             hash: offline::hash_string(query),
         })

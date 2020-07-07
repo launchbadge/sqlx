@@ -5,6 +5,7 @@ use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
 use hashbrown::HashMap;
 
+use super::statement::PgStatement;
 use crate::common::StatementCache;
 use crate::connection::Connection;
 use crate::error::Error;
@@ -47,7 +48,7 @@ pub struct PgConnection {
     next_statement_id: u32,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache<u32>,
+    cache_statement: StatementCache<PgStatement>,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<u32, PgTypeInfo>,
@@ -153,7 +154,7 @@ impl Connection for PgConnection {
             self.wait_until_ready().await?;
 
             while let Some(statement) = self.cache_statement.remove_lru() {
-                self.stream.write(Close::Statement(statement));
+                self.stream.write(Close::Statement(statement.id));
                 cleared += 1;
             }
 

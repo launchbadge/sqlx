@@ -35,6 +35,11 @@ where
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
         self.inner.take_arguments()
     }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        self.inner.arguments.is_some()
+    }
 }
 
 impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{FutureExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use hashbrown::HashMap;
 use libsqlite3_sys::sqlite3_last_insert_rowid;
 
@@ -15,7 +15,8 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::ConnectionHandle;
 use crate::sqlite::statement::{SqliteStatement, StatementHandle};
 use crate::sqlite::{
-    Sqlite, SqliteArguments, SqliteColumn, SqliteConnection, SqliteDone, SqliteRow,
+    type_info::DataType, Sqlite, SqliteArguments, SqliteColumn, SqliteConnection, SqliteDone,
+    SqliteRow, SqliteTypeInfo,
 };
 use crate::statement::StatementInfo;
 
@@ -211,7 +212,6 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         })
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -220,6 +220,67 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        describe(self, query.query()).boxed()
+        Box::pin(async move {
+            let persistent = query.persistent();
+            let query = query.query();
+
+            let SqliteConnection {
+                handle: ref mut conn,
+                ref mut statements,
+                ref mut statement,
+                ..
+            } = self;
+
+            // prepare statement object (or checkout from cache)
+            let statement = prepare(conn, statements, statement, query, persistent)?;
+
+            let mut params = 0;
+            let mut columns = Vec::new();
+
+            if let Some(statement) = statement.handles.get(0) {
+                // NOTE: we can infer *nothing* about parameters apart from the count
+                params = statement.bind_parameter_count();
+
+                let num_columns = statement.column_count();
+                columns.reserve(num_columns);
+
+                for i in 0..num_columns {
+                    let name = statement.column_name(i).to_owned().into();
+
+                    let type_info = statement
+                        .column_decltype(i)
+                        .unwrap_or(SqliteTypeInfo(DataType::Null));
+
+                    let ordinal = i;
+
+                    columns.push(SqliteColumn {
+                        name,
+                        type_info,
+                        ordinal,
+                    })
+                }
+            }
+
+            let parameters = Some(Either::Right(params));
+            let nullable = Vec::new();
+
+            Ok(StatementInfo {
+                parameters,
+                columns,
+                nullable,
+            })
+        })
+    }
+
+    #[doc(hidden)]
+    fn describe_full<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Sqlite>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        describe(self, query.query())
     }
 }

@@ -131,11 +131,21 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Prepare the SQL query and return type information about its parameters
     /// and results.
+    fn describe<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>;
+
+    /// Prepare the SQL query and return type information about its parameters
+    /// and results.
     ///
     /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e, E: 'q>(
+    fn describe_full<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
     ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
@@ -161,6 +171,9 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments>;
+
+    /// Returns true if query has any parameters.
+    fn persistent(&self) -> bool;
 }
 
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
@@ -175,6 +188,11 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
         None
     }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        false
+    }
 }
 
 impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
@@ -186,5 +204,10 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<
     #[inline]
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
         self.1.take()
+    }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        self.1.is_some()
     }
 }

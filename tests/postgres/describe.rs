@@ -5,7 +5,7 @@ use sqlx_test::new;
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let d = conn.describe("SELECT * FROM tweet").await?;
+    let d = conn.describe_full("SELECT * FROM tweet").await?;
 
     assert_eq!(d.column(0).name(), "id");
     assert_eq!(d.column(1).name(), "created_at");
@@ -29,7 +29,7 @@ async fn it_describes_simple() -> anyhow::Result<()> {
 async fn it_describes_expression() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let d = conn.describe("SELECT 1::int8 + 10").await?;
+    let d = conn.describe_full("SELECT 1::int8 + 10").await?;
 
     // ?column? will cause the macro to emit an error ad ask the user to explicitly name the type
     assert_eq!(d.column(0).name(), "?column?");
@@ -46,7 +46,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
 async fn it_describes_enum() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let d = conn.describe("SELECT 'open'::status as _1").await?;
+    let d = conn.describe_full("SELECT 'open'::status as _1").await?;
 
     assert_eq!(d.column(0).name(), "_1");
 
@@ -66,7 +66,7 @@ async fn it_describes_enum() -> anyhow::Result<()> {
 async fn it_describes_record() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let d = conn.describe("SELECT (true, 10::int2)").await?;
+    let d = conn.describe_full("SELECT (true, 10::int2)").await?;
 
     let ty = d.column(0).type_info();
     assert_eq!(ty.name(), "RECORD");
@@ -79,7 +79,7 @@ async fn it_describes_composite() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let d = conn
-        .describe("SELECT ROW('name',10,500)::inventory_item")
+        .describe_full("SELECT ROW('name',10,500)::inventory_item")
         .await?;
 
     let ty = d.column(0).type_info();
