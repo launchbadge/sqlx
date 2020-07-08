@@ -3,6 +3,7 @@ use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo};
 
 mod bool;
+mod chrono;
 mod float;
 mod int;
 mod str;
