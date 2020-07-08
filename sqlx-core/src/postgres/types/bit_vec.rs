@@ -33,6 +33,10 @@ impl Type<Postgres> for Vec<BitVec> {
     fn type_info() -> PgTypeInfo {
         <[BitVec] as Type<Postgres>>::type_info()
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <[BitVec] as Type<Postgres>>::compatible(ty)
+    }
 }
 
 impl Encode<'_, Postgres> for BitVec {
