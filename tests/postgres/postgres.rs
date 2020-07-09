@@ -116,6 +116,33 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     Ok(())
 }
 
+#[cfg(feature = "json")]
+#[sqlx_macros::test]
+async fn it_describes_and_inserts_json() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TEMPORARY TABLE json_stuff (id INTEGER PRIMARY KEY, obj json);
+            "#,
+        )
+        .await?;
+
+    let query = "INSERT INTO json_stuff (id, obj) VALUES ($1, $2)";
+    let _ = conn.describe(query).await?;
+
+    let cnt = sqlx::query(query)
+        .bind(1)
+        .bind(serde_json::json!({ "a": "a" }))
+        .execute(&mut conn)
+        .await?;
+
+    assert_eq!(cnt, 1);
+
+    Ok(())
+}
+
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool = sqlx_test::pool::<Postgres>().await?;
