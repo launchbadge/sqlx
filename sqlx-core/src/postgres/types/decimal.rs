@@ -1,8 +1,7 @@
-use std::convert::{TryFrom, TryInto};
-
 use num_bigint::{BigInt, Sign};
 use num_traits::ToPrimitive;
 use rust_decimal::{prelude::Zero, Decimal};
+use std::convert::{TryFrom, TryInto};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -105,19 +104,10 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
         // Bytes 5-8: lo portion of m
         // Bytes 9-12: mid portion of m
         // Bytes 13-16: high portion of m
-        let s = decimal.serialize();
+        let mut mantissa = u128::from_le_bytes(decimal.serialize());
 
-        // Moving the flags from the beginning of the array to the end, giving
-        // us a representation of u96 we can convert to u128.
-        //
-        // We also just set the flags as zero, so we don't need to chop them off
-        // from the resulting integer.
-        let mut mantissa = u128::from_le_bytes([
-            s[4], s[5], s[6], s[7], // lo portion
-            s[8], s[9], s[10], s[11], // mid portion
-            s[12], s[13], s[14], s[15], // hi portion
-            0, 0, 0, 0, // flags (cleared)
-        ]);
+        // chop off the flags
+        mantissa >>= 32;
 
         // If our scale is not a multiple of 4, we need to go to the next
         // multiple.
