@@ -46,6 +46,9 @@ impl_database_ext! {
         #[cfg(feature = "bigdecimal")]
         sqlx::types::BigDecimal,
 
+        #[cfg(feature = "decimal")]
+        sqlx::types::Decimal,
+
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
 
