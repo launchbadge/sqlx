@@ -156,12 +156,7 @@ impl<'r> Decode<'r, Postgres> for PgTimeTz {
                 // See `timetz_in` in `adt/date.c` and `ParseDateTime` in
                 // `dt_common.c`.
 
-                let error = io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Reading a `TIMETZ` value in text format is not supported.",
-                );
-
-                Err(Box::new(error))
+                Err("Reading a `TIMETZ` value in text format is not supported.".into())
             }
         }
     }
