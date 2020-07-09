@@ -25,10 +25,11 @@ use std::{
 pub struct PgMoney(pub i64);
 
 impl PgMoney {
-    /// Convert the money value into a [`BigDecimal`] using the correct precision
-    /// defined in the PostgreSQL settings. The default precision is two.
+    /// Convert the money value into a [`BigDecimal`] using the correct
+    /// precision defined in the PostgreSQL settings. The default precision is
+    /// two.
     ///
-    /// [`BigDecimal`]: ../../types/struct.BigDecimal.html
+    /// [`BigDecimal`]: crate::types::BigDecimal
     #[cfg(feature = "bigdecimal")]
     pub fn to_bigdecimal(self, scale: i64) -> bigdecimal::BigDecimal {
         let digits = num_bigint::BigInt::from(self.0);
@@ -39,7 +40,7 @@ impl PgMoney {
     /// Convert the money value into a [`Decimal`] using the correct precision
     /// defined in the PostgreSQL settings. The default precision is two.
     ///
-    /// [`Decimal`]: ../../types/struct.BigDecimal.html
+    /// [`Decimal`]: crate::types::Decimal
     #[cfg(feature = "decimal")]
     pub fn to_decimal(self, scale: u32) -> rust_decimal::Decimal {
         rust_decimal::Decimal::new(self.0, scale)
@@ -48,7 +49,9 @@ impl PgMoney {
     /// Convert a [`Decimal`] value into money using the correct precision
     /// defined in the PostgreSQL settings. The default precision is two.
     ///
-    /// [`Decimal`]: ../../types/struct.BigDecimal.html
+    /// Conversion may involve a loss of precision.
+    ///
+    /// [`Decimal`]: crate::types::Decimal
     #[cfg(feature = "decimal")]
     pub fn from_decimal(decimal: rust_decimal::Decimal, scale: u32) -> Self {
         let cents = (decimal * rust_decimal::Decimal::new(10i64.pow(scale), 0)).round();
