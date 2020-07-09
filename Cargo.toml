@@ -65,8 +65,8 @@ sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
 mssql = [ "sqlx-core/mssql", "sqlx-macros/mssql" ]
 
 # types
-bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
-decimal = ["sqlx-core/decimal"]
+bigdecimal = [ "sqlx-core/bigdecimal", "sqlx-macros/bigdecimal" ]
+decimal = [ "sqlx-core/decimal", "sqlx-macros/decimal" ]
 chrono = [ "sqlx-core/chrono", "sqlx-macros/chrono" ]
 ipnetwork = [ "sqlx-core/ipnetwork", "sqlx-macros/ipnetwork" ]
 uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
