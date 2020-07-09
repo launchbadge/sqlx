@@ -11,6 +11,7 @@ mod io;
 mod options;
 mod protocol;
 mod row;
+mod statement;
 mod transaction;
 mod type_info;
 pub mod types;
