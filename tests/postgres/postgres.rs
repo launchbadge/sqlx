@@ -124,16 +124,15 @@ async fn it_describes_and_inserts_json() -> anyhow::Result<()> {
     let _ = conn
         .execute(
             r#"
-CREATE TEMPORARY TABLE json_stuff (id INTEGER PRIMARY KEY, obj json);
+CREATE TEMPORARY TABLE json_stuff (obj json);
             "#,
         )
         .await?;
 
-    let query = "INSERT INTO json_stuff (id, obj) VALUES ($1, $2)";
+    let query = "INSERT INTO json_stuff (obj) VALUES ($1)";
     let _ = conn.describe(query).await?;
 
     let cnt = sqlx::query(query)
-        .bind(1)
         .bind(serde_json::json!({ "a": "a" }))
         .execute(&mut conn)
         .await?;
