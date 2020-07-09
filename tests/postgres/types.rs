@@ -221,9 +221,9 @@ mod chrono {
 
     test_prepared_type!(chrono_time_tz<PgTimeTz>(Postgres,
         "TIMETZ '05:10:20.115100+00'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::east(0)),
-        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::east(23400)),
-        "TIMETZ '05:10:20.115100-05'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::west(18000)),
-        "TIMETZ '05:10:20+02'" == PgTimeTz::new(NaiveTime::from_hms(5, 10, 20), FixedOffset::east(3600 * 2))
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::east(60 * 60 * 6 + 1800)),
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz::new(NaiveTime::from_hms_micro(5, 10, 20, 115100), FixedOffset::west(60 * 60 * 5)),
+        "TIMETZ '05:10:20+02'" == PgTimeTz::new(NaiveTime::from_hms(5, 10, 20), FixedOffset::east(60 * 60 * 2))
     ));
 }
 
