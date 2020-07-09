@@ -18,6 +18,7 @@ use crate::mysql::protocol::statement::{
 };
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::protocol::Packet;
+use crate::mysql::statement::MySqlStatement;
 use crate::mysql::{
     MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTypeInfo,
     MySqlValueFormat,
@@ -25,9 +26,9 @@ use crate::mysql::{
 use crate::statement::StatementInfo;
 
 impl MySqlConnection {
-    async fn prepare(&mut self, query: &str) -> Result<u32, Error> {
-        if let Some(statement) = self.cache_statement.get_mut(query) {
-            return Ok(*statement);
+    async fn prepare(&mut self, query: &str) -> Result<&mut MySqlStatement, Error> {
+        if self.cache_statement.contains_key(query) {
+            return Ok(self.cache_statement.get_mut(query).unwrap());
         }
 
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare.html
@@ -36,6 +37,8 @@ impl MySqlConnection {
         self.stream.send_packet(Prepare { query }).await?;
 
         let ok: PrepareOk = self.stream.recv().await?;
+        let mut columns = Vec::with_capacity(ok.columns as usize);
+        let mut nullable = Vec::with_capacity(ok.columns as usize);
 
         // the parameter definitions are very unreliable so we skip over them
         // as we have little use
@@ -53,19 +56,40 @@ impl MySqlConnection {
         // once more on execute so we wait for that
 
         if ok.columns > 0 {
-            for _ in 0..(ok.columns as usize) {
-                let _def: ColumnDefinition = self.stream.recv().await?;
+            for ordinal in 0..(ok.columns as usize) {
+                let def: ColumnDefinition = self.stream.recv().await?;
+                let ty = MySqlTypeInfo::from_column(&def);
+                let alias = def.alias()?;
+
+                nullable.push(Some(!def.flags.contains(ColumnFlags::NOT_NULL)));
+
+                columns.push(MySqlColumn {
+                    ordinal,
+                    name: UStr::new(if alias.is_empty() { def.name()? } else { alias }),
+                    type_info: ty,
+                })
             }
 
             self.stream.maybe_recv_eof().await?;
         }
 
+        let statement = MySqlStatement {
+            id: ok.statement_id,
+            parameters: ok.params as usize,
+            columns,
+            nullable,
+        };
+
         // in case of the cache being full, close the least recently used statement
-        if let Some(statement) = self.cache_statement.insert(query, ok.statement_id) {
-            self.stream.send_packet(StmtClose { statement }).await?;
+        if let Some(statement) = self.cache_statement.insert(query, statement) {
+            self.stream
+                .send_packet(StmtClose {
+                    statement: statement.id,
+                })
+                .await?;
         }
 
-        Ok(ok.statement_id)
+        Ok(self.cache_statement.get_mut(query).unwrap())
     }
 
     async fn recv_result_metadata(&mut self, mut packet: Packet<Bytes>) -> Result<(), Error> {
@@ -117,7 +141,7 @@ impl MySqlConnection {
         self.stream.busy = Busy::Result;
 
         let format = if let Some(arguments) = arguments {
-            let statement = self.prepare(query).await?;
+            let statement = self.prepare(query).await?.id;
 
             // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
             self.stream
@@ -254,7 +278,6 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         })
     }
 
-    #[doc(hidden)]
     fn describe<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -263,9 +286,22 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        self.describe_full(query)
+        let query = query.query();
+
+        Box::pin(async move {
+            let statement = self.prepare(query).await?;
+            let columns = statement.columns.clone();
+            let nullable = statement.nullable.clone();
+
+            Ok(StatementInfo {
+                parameters: Some(Either::Right(statement.parameters)),
+                columns,
+                nullable,
+            })
+        })
     }
 
+    #[doc(hidden)]
     fn describe_full<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -274,51 +310,6 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let query = query.query();
-
-        Box::pin(async move {
-            self.stream.send_packet(Prepare { query }).await?;
-
-            let ok: PrepareOk = self.stream.recv().await?;
-
-            let mut columns = Vec::with_capacity(ok.columns as usize);
-            let mut nullable = Vec::with_capacity(ok.columns as usize);
-
-            if ok.params > 0 {
-                for _ in 0..ok.params {
-                    let _ = self.stream.recv_packet().await?;
-                }
-
-                self.stream.maybe_recv_eof().await?;
-            }
-
-            // the column definitions are berefit the type information from the
-            // to-be-bound parameters; we will receive the output column definitions
-            // once more on execute so we wait for that
-
-            if ok.columns > 0 {
-                for ordinal in 0..(ok.columns as usize) {
-                    let def: ColumnDefinition = self.stream.recv().await?;
-                    let ty = MySqlTypeInfo::from_column(&def);
-                    let alias = def.alias()?;
-
-                    nullable.push(Some(!def.flags.contains(ColumnFlags::NOT_NULL)));
-
-                    columns.push(MySqlColumn {
-                        ordinal,
-                        name: UStr::new(if alias.is_empty() { def.name()? } else { alias }),
-                        type_info: ty,
-                    })
-                }
-
-                self.stream.maybe_recv_eof().await?;
-            }
-
-            Ok(StatementInfo {
-                parameters: Some(Either::Right(ok.params as usize)),
-                columns,
-                nullable,
-            })
-        })
+        self.describe(query)
     }
 }
