@@ -2429,6 +2429,7 @@ dependencies = [
  "time 0.2.16",
  "tokio 0.2.21",
  "trybuild",
+ "url 2.1.1",
 ]
 
 [[package]]

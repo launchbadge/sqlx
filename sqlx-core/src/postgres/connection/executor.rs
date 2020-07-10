@@ -3,7 +3,7 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -155,30 +155,37 @@ impl PgConnection {
         self.pending_ready_for_query_count += 1;
     }
 
-    async fn prepare(
-        &mut self,
+    async fn prepare<'a>(
+        &'a mut self,
         query: &str,
         arguments: &PgArguments,
-    ) -> Result<&mut PgStatement, Error> {
+    ) -> Result<Cow<'a, PgStatement>, Error> {
         let contains = self.cache_statement.contains_key(query);
 
         if contains {
-            return Ok(self.cache_statement.get_mut(query).unwrap());
+            return Ok(Cow::Borrowed(
+                &*self.cache_statement.get_mut(query).unwrap(),
+            ));
         }
 
         let statement = prepare(self, query, arguments).await?;
 
-        if let Some(statement) = self.cache_statement.insert(query, statement) {
-            self.stream.write(Close::Statement(statement.id));
-            self.stream.write(Flush);
+        if self.cache_statement.is_enabled() {
+            if let Some(statement) = self.cache_statement.insert(query, statement) {
+                self.stream.write(Close::Statement(statement.id));
+                self.stream.write(Flush);
 
-            self.stream.flush().await?;
+                self.stream.flush().await?;
 
-            self.wait_for_close_complete(1).await?;
-            self.recv_ready_for_query().await?;
+                self.wait_for_close_complete(1).await?;
+            }
+
+            Ok(Cow::Borrowed(
+                &*self.cache_statement.get_mut(query).unwrap(),
+            ))
+        } else {
+            Ok(Cow::Owned(statement))
         }
-
-        Ok(self.cache_statement.get_mut(query).unwrap())
     }
 
     async fn run(

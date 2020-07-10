@@ -2,9 +2,9 @@ use futures::TryStreamExt;
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow};
-use sqlx::{postgres::Postgres, Connection, Done, Executor, Row};
-use sqlx_test::new;
+use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
+use sqlx::{Connection, Done, Executor, PgPool, Row};
+use sqlx_test::{new, setup_if_needed};
 use std::env;
 use std::thread;
 use std::time::Duration;
@@ -124,7 +124,7 @@ async fn it_describes_and_inserts_json() -> anyhow::Result<()> {
     let _ = conn
         .execute(
             r#"
-CREATE TEMPORARY TABLE json_stuff (obj json);
+CREATE TEMPORARY TABLE json_stuff (obj jsonb);
             "#,
         )
         .await?;
@@ -138,6 +138,26 @@ CREATE TEMPORARY TABLE json_stuff (obj json);
         .await?;
 
     assert_eq!(cnt, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_works_with_cache_disabled() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    let mut url = url::Url::parse(&env::var("DATABASE_URL")?)?;
+    url.query_pairs_mut()
+        .append_pair("statement-cache-capacity", "0");
+
+    let mut conn = PgConnection::connect(url.as_ref()).await?;
+
+    for index in 1..=10_i32 {
+        let _ = sqlx::query("SELECT $1")
+            .bind(index)
+            .execute(&mut conn)
+            .await?;
+    }
 
     Ok(())
 }
