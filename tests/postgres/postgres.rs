@@ -124,7 +124,7 @@ async fn it_describes_and_inserts_json() -> anyhow::Result<()> {
     let _ = conn
         .execute(
             r#"
-CREATE TEMPORARY TABLE json_stuff (obj jsonb);
+CREATE TEMPORARY TABLE json_stuff (obj json);
             "#,
         )
         .await?;
