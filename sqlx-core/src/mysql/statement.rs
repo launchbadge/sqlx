@@ -1,6 +1,6 @@
 use super::MySqlColumn;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MySqlStatement {
     pub(crate) id: u32,
     pub(crate) columns: Vec<MySqlColumn>,

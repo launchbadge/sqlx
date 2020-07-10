@@ -1,7 +1,8 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Connection, Done, Executor, Row};
-use sqlx_test::new;
+use sqlx_test::{new, setup_if_needed};
+use std::env;
 
 #[sqlx_macros::test]
 async fn it_connects() -> anyhow::Result<()> {
@@ -93,6 +94,26 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(count, 2);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_works_with_cache_disabled() -> anyhow::Result<()> {
+    setup_if_needed();
+
+    let mut url = url::Url::parse(&env::var("DATABASE_URL")?)?;
+    url.query_pairs_mut()
+        .append_pair("statement-cache-capacity", "0");
+
+    let mut conn = MySqlConnection::connect(url.as_ref()).await?;
+
+    for index in 1..=10_i32 {
+        let _ = sqlx::query("SELECT ?")
+            .bind(index)
+            .execute(&mut conn)
+            .await?;
+    }
 
     Ok(())
 }

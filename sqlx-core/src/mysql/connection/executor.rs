@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use bytes::Bytes;
 use either::Either;
@@ -26,9 +26,10 @@ use crate::mysql::{
 use crate::statement::StatementInfo;
 
 impl MySqlConnection {
-    async fn prepare(&mut self, query: &str) -> Result<&mut MySqlStatement, Error> {
+    async fn prepare<'a>(&'a mut self, query: &str) -> Result<Cow<'a, MySqlStatement>, Error> {
         if self.cache_statement.contains_key(query) {
-            return Ok(self.cache_statement.get_mut(query).unwrap());
+            let stmt = self.cache_statement.get_mut(query).unwrap();
+            return Ok(Cow::Borrowed(&*stmt));
         }
 
         // https://dev.mysql.com/doc/internals/en/com-stmt-prepare.html
@@ -80,16 +81,21 @@ impl MySqlConnection {
             nullable,
         };
 
-        // in case of the cache being full, close the least recently used statement
-        if let Some(statement) = self.cache_statement.insert(query, statement) {
-            self.stream
-                .send_packet(StmtClose {
-                    statement: statement.id,
-                })
-                .await?;
-        }
+        if self.cache_statement.is_enabled() {
+            // in case of the cache being full, close the least recently used statement
+            if let Some(statement) = self.cache_statement.insert(query, statement) {
+                self.stream
+                    .send_packet(StmtClose {
+                        statement: statement.id,
+                    })
+                    .await?;
+            }
 
-        Ok(self.cache_statement.get_mut(query).unwrap())
+            let stmt = self.cache_statement.get_mut(query).unwrap();
+            Ok(Cow::Borrowed(&*stmt))
+        } else {
+            Ok(Cow::Owned(statement))
+        }
     }
 
     async fn recv_result_metadata(&mut self, mut packet: Packet<Bytes>) -> Result<(), Error> {

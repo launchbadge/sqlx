@@ -63,4 +63,9 @@ impl<T> StatementCache<T> {
     pub fn capacity(&self) -> usize {
         self.inner.capacity()
     }
+
+    /// Returns true if the cache capacity is more than 0.
+    pub fn is_enabled(&self) -> bool {
+        self.capacity() > 0
+    }
 }
