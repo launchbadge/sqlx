@@ -159,6 +159,7 @@ impl PgConnection {
         &'a mut self,
         query: &str,
         arguments: &PgArguments,
+        store_to_cache: bool,
     ) -> Result<Cow<'a, PgStatement>, Error> {
         let contains = self.cache_statement.contains_key(query);
 
@@ -170,7 +171,7 @@ impl PgConnection {
 
         let statement = prepare(self, query, arguments).await?;
 
-        if self.cache_statement.is_enabled() {
+        if store_to_cache && self.cache_statement.is_enabled() {
             if let Some(statement) = self.cache_statement.insert(query, statement) {
                 self.stream.write(Close::Statement(statement.id));
                 self.stream.write(Flush);
@@ -200,7 +201,7 @@ impl PgConnection {
         let format = if let Some(mut arguments) = arguments {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
-            let statement = self.prepare(query, &arguments).await?.id;
+            let statement = self.prepare(query, &arguments, true).await?.id;
 
             // patch holes created during encoding
             arguments.buffer.patch_type_holes(self).await?;
@@ -383,7 +384,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
 
         Box::pin(async move {
-            let statement = self.prepare(s, &Default::default()).await?;
+            let statement = self.prepare(s, &Default::default(), false).await?;
             let columns = statement.columns.clone();
             let params = statement.parameters.clone();
             let nullable = Vec::new();
@@ -407,7 +408,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
 
         Box::pin(async move {
-            let statement = self.prepare(s, &Default::default()).await?;
+            let statement = self.prepare(s, &Default::default(), false).await?;
             let columns = statement.columns.clone();
             let params = statement.parameters.clone();
             let nullable = self.get_nullable_for_columns(&columns).await?;
