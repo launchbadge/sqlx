@@ -1,3 +1,4 @@
+use crate::done::Done;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::mssql::connection::describe::describe;
@@ -66,7 +67,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, MssqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, MssqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -94,7 +95,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                         }
 
                         if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(done.affected_rows));
+                            r#yield!(Either::Left(Done {
+                                rows_affected: done.affected_rows,
+                                last_insert_id: None,
+                            }));
                         }
 
                         if !done.status.contains(Status::DONE_MORE) {
@@ -104,7 +108,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
                     Message::DoneInProc(done) => {
                         if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(done.affected_rows));
+                            r#yield!(Either::Left(Done {
+                                rows_affected: done.affected_rows,
+                                last_insert_id: None,
+                            }));
                         }
                     }
 

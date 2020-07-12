@@ -1,3 +1,4 @@
+use crate::done::Done;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::PoolOptions;
@@ -197,7 +198,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<u64, PgRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

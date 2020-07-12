@@ -6,6 +6,7 @@ use futures_util::{StreamExt, TryStreamExt};
 
 use crate::arguments::IntoArguments;
 use crate::database::{Database, HasArguments};
+use crate::done::Done;
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -74,7 +75,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<u64, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,

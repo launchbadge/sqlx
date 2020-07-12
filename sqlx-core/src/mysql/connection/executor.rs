@@ -7,6 +7,7 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 
+use crate::done::Done;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
@@ -111,7 +112,7 @@ impl MySqlConnection {
         &'c mut self,
         query: &str,
         arguments: Option<MySqlArguments>,
-    ) -> Result<impl Stream<Item = Result<Either<u64, MySqlRow>, Error>> + 'c, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<Done, MySqlRow>, Error>> + 'c, Error> {
         self.stream.wait_until_ready().await?;
         self.stream.busy = Busy::Result;
 
@@ -144,8 +145,12 @@ impl MySqlConnection {
                     // first packet in a query response is OK or ERR
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
+                    let done = Done {
+                        rows_affected: ok.affected_rows,
+                        last_insert_id: Some(ok.last_insert_id),
+                    };
 
-                    r#yield!(Either::Left(ok.affected_rows));
+                    r#yield!(Either::Left(done));
 
                     if ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                         // more result sets exist, continue to the next one
@@ -166,7 +171,11 @@ impl MySqlConnection {
 
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
-                        r#yield!(Either::Left(0));
+
+                        r#yield!(Either::Left(Done {
+                            rows_affected: 0,
+                            last_insert_id: None,
+                        }));
 
                         if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             // more result sets exist, continue to the next one
@@ -203,7 +212,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, MySqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, MySqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

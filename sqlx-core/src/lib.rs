@@ -52,6 +52,7 @@ pub mod acquire;
 pub mod column;
 mod common;
 pub mod database;
+pub mod done;
 pub mod executor;
 pub mod from_row;
 mod io;

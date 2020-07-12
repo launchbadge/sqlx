@@ -4,6 +4,7 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
 use crate::database::Database;
+use crate::done::Done;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
@@ -18,7 +19,7 @@ where
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<u64, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, DB::Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -75,7 +76,7 @@ macro_rules! impl_executor_for_pool_connection {
                 query: E,
             ) -> futures_core::stream::BoxStream<
                 'e,
-                Result<either::Either<u64, $R>, crate::error::Error>,
+                Result<either::Either<crate::done::Done, $R>, crate::error::Error>,
             >
             where
                 'c: 'e,

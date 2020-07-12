@@ -9,7 +9,7 @@ use crate::mysql::protocol::response::Status;
 #[derive(Debug)]
 pub struct OkPacket {
     pub affected_rows: u64,
-    pub last_insert_id: u64,
+    pub last_insert_id: i64,
     pub status: Status,
     pub warnings: u16,
 }
@@ -25,7 +25,7 @@ impl Decode<'_> for OkPacket {
         }
 
         let affected_rows = buf.get_uint_lenenc();
-        let last_insert_id = buf.get_uint_lenenc();
+        let last_insert_id = buf.get_uint_lenenc() as i64;
         let status = Status::from_bits_truncate(buf.get_u16_le());
         let warnings = buf.get_u16_le();
 

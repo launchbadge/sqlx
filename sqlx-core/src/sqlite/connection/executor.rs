@@ -5,8 +5,10 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{FutureExt, TryStreamExt};
 use hashbrown::HashMap;
+use libsqlite3_sys::sqlite3_last_insert_rowid;
 
 use crate::common::StatementCache;
+use crate::done::Done;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
@@ -92,7 +94,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, SqliteRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<Done, SqliteRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -145,7 +147,16 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                     match s {
                         Either::Left(changes) => {
-                            r#yield!(Either::Left(changes));
+                            let last_insert_id = unsafe {
+                                sqlite3_last_insert_rowid(conn.as_ptr())
+                            };
+
+                            let done = Done {
+                                rows_affected: changes,
+                                last_insert_id: Some(last_insert_id),
+                            };
+
+                            r#yield!(Either::Left(done));
 
                             break;
                         }
