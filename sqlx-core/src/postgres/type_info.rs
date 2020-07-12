@@ -141,6 +141,7 @@ pub struct PgCustomType {
 #[doc(hidden)]
 pub enum PgTypeKind {
     Simple,
+    Pseudo,
     Domain(PgTypeInfo),
     Composite(Arc<[(String, PgTypeInfo)]>),
     Array(PgTypeInfo),
