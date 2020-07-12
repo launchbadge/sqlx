@@ -6,7 +6,6 @@ mod connection;
 mod database;
 mod error;
 mod io;
-mod migrate;
 mod options;
 mod protocol;
 mod row;
@@ -14,6 +13,9 @@ mod transaction;
 mod type_info;
 pub mod types;
 mod value;
+
+#[cfg(feature = "migrate")]
+mod migrate;
 
 pub use arguments::MySqlArguments;
 pub use column::MySqlColumn;

@@ -8,13 +8,15 @@ mod error;
 mod io;
 mod listener;
 mod message;
-mod migrate;
 mod options;
 mod row;
 mod transaction;
 mod type_info;
 pub mod types;
 mod value;
+
+#[cfg(feature = "migrate")]
+mod migrate;
 
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;

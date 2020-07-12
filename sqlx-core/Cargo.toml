@@ -13,7 +13,7 @@ authors = [
 ]
 
 [features]
-default = [ "runtime-async-std" ]
+default = [ "runtime-async-std", "migrate" ]
 migrate = [ "sha2", "crc" ]
 
 # databases
