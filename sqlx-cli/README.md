@@ -5,6 +5,8 @@ mode with `sqlx::query!()` and friends.
 
 ### Install
 
+#### With Rust toolchain
+
 ```bash
 # supports all databases supported by SQLx
 $ cargo install sqlx-cli
@@ -13,7 +15,7 @@ $ cargo install sqlx-cli
 $ cargo install sqlx-cli --no-default-features --features postgres
 ```
 
-### Commands
+### Usage
 
 All commands require `DATABASE_URL` to be set, either in the environment or in a `.env` file
 in the current working directory.
@@ -48,10 +50,6 @@ $ sqlx migration run
 ```
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
-
-##### Note: Down-Migrations
-Down-migrations are currently a non-planned feature as their utility seems dubious but we welcome 
-any contributions (discussions/code) regarding this matter.
 
 #### Enable building in "offline" mode with `query!()` 
 Note: must be run as `cargo sqlx`.

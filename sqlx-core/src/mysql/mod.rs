@@ -6,6 +6,7 @@ mod connection;
 mod database;
 mod error;
 mod io;
+mod migrate;
 mod options;
 mod protocol;
 mod row;

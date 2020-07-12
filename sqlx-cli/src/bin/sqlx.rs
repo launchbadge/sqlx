@@ -1,8 +1,13 @@
-use sqlx_cli::Command;
-use structopt::StructOpt;
+use clap::{crate_version, FromArgMatches, IntoApp};
+use console::style;
+use sqlx_cli::Opt;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    let matches = Opt::into_app().version(crate_version!()).get_matches();
+
     // no special handling here
-    sqlx_cli::run(Command::from_args()).await
+    if let Err(error) = sqlx_cli::run(Opt::from_arg_matches(&matches)).await {
+        println!("{} {}", style("error:").bold().red(), error);
+    }
 }

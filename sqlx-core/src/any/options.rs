@@ -13,6 +13,7 @@ use crate::mysql::MySqlConnectOptions;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::SqliteConnectOptions;
 
+use crate::any::kind::AnyKind;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlConnectOptions;
 
@@ -25,6 +26,24 @@ use crate::mssql::MssqlConnectOptions;
 /// ```
 #[derive(Debug)]
 pub struct AnyConnectOptions(pub(crate) AnyConnectOptionsKind);
+
+impl AnyConnectOptions {
+    pub fn kind(&self) -> AnyKind {
+        match &self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectOptionsKind::Postgres(_) => AnyKind::Postgres,
+
+            #[cfg(feature = "mysql")]
+            AnyConnectOptionsKind::MySql(_) => AnyKind::MySql,
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectOptionsKind::Sqlite(_) => AnyKind::Sqlite,
+
+            #[cfg(feature = "mssql")]
+            AnyConnectOptionsKind::Mssql(_) => AnyKind::Mssql,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) enum AnyConnectOptionsKind {
@@ -45,49 +64,24 @@ impl FromStr for AnyConnectOptions {
     type Err = Error;
 
     fn from_str(url: &str) -> Result<Self, Self::Err> {
-        match url {
+        match AnyKind::from_str(url)? {
             #[cfg(feature = "postgres")]
-            _ if url.starts_with("postgres:") || url.starts_with("postgresql:") => {
+            AnyKind::Postgres => {
                 PgConnectOptions::from_str(url).map(AnyConnectOptionsKind::Postgres)
             }
 
-            #[cfg(not(feature = "postgres"))]
-            _ if url.starts_with("postgres:") || url.starts_with("postgresql:") => {
-                Err("database URL has the scheme of a PostgreSQL database but the `postgres` feature is not enabled".into())
-            }
-
             #[cfg(feature = "mysql")]
-            _ if url.starts_with("mysql:") || url.starts_with("mariadb:") => {
-                MySqlConnectOptions::from_str(url).map(AnyConnectOptionsKind::MySql)
-            }
-
-            #[cfg(not(feature = "mysql"))]
-            _ if url.starts_with("mysql:") || url.starts_with("mariadb:") => {
-                Err("database URL has the scheme of a MySQL database but the `mysql` feature is not enabled".into())
-            }
+            AnyKind::MySql => MySqlConnectOptions::from_str(url).map(AnyConnectOptionsKind::MySql),
 
             #[cfg(feature = "sqlite")]
-            _ if url.starts_with("sqlite:") => {
+            AnyKind::Sqlite => {
                 SqliteConnectOptions::from_str(url).map(AnyConnectOptionsKind::Sqlite)
             }
 
-            #[cfg(not(feature = "sqlite"))]
-            _ if url.starts_with("sqlite:") => {
-                Err("database URL has the scheme of a SQLite database but the `sqlite` feature is not enabled".into())
-            }
-
             #[cfg(feature = "mssql")]
-            _ if url.starts_with("mssql:") || url.starts_with("sqlserver:") => {
-                MssqlConnectOptions::from_str(url).map(AnyConnectOptionsKind::Mssql)
-            }
-
-            #[cfg(not(feature = "mssql"))]
-            _ if url.starts_with("mssql:") || url.starts_with("sqlserver:") => {
-                Err("database URL has the scheme of a MSSQL database but the `mssql` feature is not enabled".into())
-            }
-
-            _ => Err(Error::Configuration(format!("unrecognized database url: {:?}", url).into()))
-        }.map(AnyConnectOptions)
+            AnyKind::Mssql => MssqlConnectOptions::from_str(url).map(AnyConnectOptionsKind::Mssql),
+        }
+        .map(AnyConnectOptions)
     }
 }
 

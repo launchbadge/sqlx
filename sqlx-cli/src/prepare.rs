@@ -1,18 +1,17 @@
-use anyhow::{anyhow, bail, Context};
-use std::process::Command;
-use std::{env, fs};
-
+use anyhow::{bail, Context};
 use cargo_metadata::MetadataCommand;
+use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
-
+use std::process::Command;
+use std::str::FromStr;
 use std::time::SystemTime;
-use url::Url;
+use std::{env, fs};
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
-pub fn run(cargo_args: Vec<String>) -> anyhow::Result<()> {
+pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
     #[derive(serde::Serialize)]
     struct DataFile {
         db: &'static str,
@@ -20,7 +19,7 @@ pub fn run(cargo_args: Vec<String>) -> anyhow::Result<()> {
         data: QueryData,
     }
 
-    let db_kind = get_db_kind()?;
+    let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(cargo_args)?;
 
     serde_json::to_writer_pretty(
@@ -37,8 +36,8 @@ pub fn run(cargo_args: Vec<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn check(cargo_args: Vec<String>) -> anyhow::Result<()> {
-    let db_kind = get_db_kind()?;
+pub fn check(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
+    let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(cargo_args)?;
 
     let data_file = fs::read("sqlx-data.json").context(
@@ -133,17 +132,21 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     Ok(data)
 }
 
-fn get_db_kind() -> anyhow::Result<&'static str> {
-    let db_url = dotenv::var("DATABASE_URL")
-        .map_err(|_| anyhow!("`DATABASE_URL` must be set to use the `prepare` subcommand"))?;
-
-    let db_url = Url::parse(&db_url)?;
+fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
+    let options = AnyConnectOptions::from_str(&url)?;
 
     // these should match the values of `DatabaseExt::NAME` in `sqlx-macros`
-    match db_url.scheme() {
-        "postgres" | "postgresql" => Ok("PostgreSQL"),
-        "mysql" | "mariadb" => Ok("MySQL/MariaDB"),
-        "sqlite" => Ok("SQLite"),
-        _ => bail!("unexpected scheme in database URL: {}", db_url.scheme()),
+    match options.kind() {
+        #[cfg(feature = "postgres")]
+        AnyKind::Postgres => Ok("PostgreSQL"),
+
+        #[cfg(feature = "mysql")]
+        AnyKind::MySql => Ok("MySQL"),
+
+        #[cfg(feature = "sqlite")]
+        AnyKind::Sqlite => Ok("SQLite"),
+
+        #[cfg(feature = "mssql")]
+        AnyKind::Mssql => Ok("MSSQL"),
     }
 }

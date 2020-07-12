@@ -91,6 +91,10 @@ pub enum Error {
     /// [`Pool::close`]: crate::pool::Pool::close
     #[error("attempted to acquire a connection on a closed pool")]
     PoolClosed,
+
+    #[cfg(feature = "migrate")]
+    #[error("{0}")]
+    Migrate(#[source] Box<crate::migrate::MigrateError>),
 }
 
 impl Error {
@@ -218,6 +222,14 @@ where
     #[inline]
     fn from(error: E) -> Self {
         Error::Database(Box::new(error))
+    }
+}
+
+#[cfg(feature = "migrate")]
+impl From<crate::migrate::MigrateError> for Error {
+    #[inline]
+    fn from(error: crate::migrate::MigrateError) -> Self {
+        Error::Migrate(Box::new(error))
     }
 }
 

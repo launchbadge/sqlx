@@ -63,6 +63,9 @@ pub mod statement;
 pub mod type_info;
 pub mod value;
 
+#[cfg(feature = "migrate")]
+pub mod migrate;
+
 #[cfg(all(
     any(
         feature = "postgres",

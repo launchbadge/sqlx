@@ -11,6 +11,7 @@ mod arguments;
 pub(crate) mod column;
 mod connection;
 mod database;
+mod kind;
 mod options;
 pub(crate) mod row;
 mod transaction;
@@ -18,12 +19,16 @@ pub(crate) mod type_info;
 pub mod types;
 pub(crate) mod value;
 
+#[cfg(feature = "migrate")]
+mod migrate;
+
 pub use arguments::{AnyArgumentBuffer, AnyArguments};
 pub use column::AnyColumn;
 pub use connection::AnyConnection;
 pub use database::Any;
 pub use decode::AnyDecode;
 pub use encode::AnyEncode;
+pub use kind::AnyKind;
 pub use options::AnyConnectOptions;
 pub use r#type::AnyType;
 pub use row::AnyRow;

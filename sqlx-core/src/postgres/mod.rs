@@ -8,6 +8,7 @@ mod error;
 mod io;
 mod listener;
 mod message;
+mod migrate;
 mod options;
 mod row;
 mod transaction;
