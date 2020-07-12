@@ -15,7 +15,7 @@ This Cargo project implements various benchmarks for SQLx using
         the pool, with or without the pool being fair. Concurrently to the benchmark iteration
         function calling and blocking on `Pool::acquire()`, a varying number of background tasks are
         also calling `acquire()` and holding the acquired connection for 500µs each before releasing
-        it back to the pool. The pool is created with `.min_size(50).max_size(50)` so we shouldn't
+        it back to the pool. The pool is created with `.min_connections(50).max_connections(50)` so we shouldn't
         be measuring anything but the actual overhead of `Pool`'s bookeeping.
 
 ### Running

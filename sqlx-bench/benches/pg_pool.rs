@@ -27,11 +27,11 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
             // we don't want timeouts because we want to see how the pool degrades
             .connect_timeout(Duration::from_secs(3600))
             // force the pool to start full
-            .min_size(50)
-            .max_size(50)
+            .min_connections(50)
+            .max_connections(50)
             // we're not benchmarking `ping()`
-            .test_on_acquire(false)
-            .fair(fair)
+            .test_before_acquire(false)
+            .__fair(fair)
             .build(
                 &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
             ),

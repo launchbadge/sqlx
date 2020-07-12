@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate log;
 
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use anyhow::Result;
 use dotenv::dotenv;
 use listenfd::ListenFd;
-use std::env;
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use sqlx::PgPool;
-use anyhow::Result;
+use std::env;
 
 // import todo module (routes and model)
 mod todo;
@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
     // PgPool::builder()
-    //     .max_size(5) // maximum number of connections in the pool
+    //     .max_connections(5) // maximum number of connections in the pool
     //     .build(env::var("DATABASE_URL")?).await?;
     let db_pool = PgPool::new(&database_url).await?;
 

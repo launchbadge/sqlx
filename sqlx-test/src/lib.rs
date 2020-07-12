@@ -1,4 +1,5 @@
-use sqlx::{database::Database, Connect, Pool};
+use sqlx::pool::PoolOptions;
+use sqlx::{Connection, Database, Pool};
 use std::env;
 
 pub fn setup_if_needed() {
@@ -25,11 +26,11 @@ where
 {
     setup_if_needed();
 
-    let pool = Pool::<DB>::builder()
-        .min_size(0)
-        .max_size(5)
-        .test_on_acquire(true)
-        .build(&env::var("DATABASE_URL")?)
+    let pool = PoolOptions::<DB>::new(&env::var("DATABASE_URL")?)?
+        .min_connections(0)
+        .max_connections(5)
+        .test_before_acquire(true)
+        .connect()
         .await?;
 
     Ok(pool)

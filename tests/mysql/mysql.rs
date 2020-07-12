@@ -76,9 +76,9 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool: MySqlPool = MySqlPool::builder()
-        .min_size(2)
-        .max_size(2)
-        .test_on_acquire(false)
+        .min_connections(2)
+        .max_connections(2)
+        .test_before_acquire(false)
         .build(&dotenv::var("DATABASE_URL")?)
         .await?;
 

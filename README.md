@@ -161,9 +161,9 @@ use sqlx::postgres::PgPool;
 #[async_std::main] // or #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
-    let pool = PgPool::builder()
-        .max_size(5) // maximum number of connections in the pool
-        .build(&env::var("DATABASE_URL")?).await?;
+    let pool = PgPoolOptions::new(&env::var("DATABASE_URL")?)?
+        .max_connections(5)
+        .connect().await?;
     
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
