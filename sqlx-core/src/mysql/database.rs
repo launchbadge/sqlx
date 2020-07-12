@@ -1,7 +1,8 @@
 use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 use crate::mysql::value::{MySqlValue, MySqlValueRef};
 use crate::mysql::{
-    MySqlArguments, MySqlColumn, MySqlConnection, MySqlRow, MySqlTransactionManager, MySqlTypeInfo,
+    MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTransactionManager,
+    MySqlTypeInfo,
 };
 
 /// MySQL database driver.
@@ -14,6 +15,8 @@ impl Database for MySql {
     type TransactionManager = MySqlTransactionManager;
 
     type Row = MySqlRow;
+
+    type Done = MySqlDone;
 
     type Column = MySqlColumn;
 

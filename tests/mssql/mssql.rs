@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mssql::Mssql;
-use sqlx::{Connection, Executor, MssqlConnection, Row};
+use sqlx::{Connection, Done, Executor, MssqlConnection, Row};
 use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 
@@ -54,7 +54,7 @@ async fn it_can_fail_to_connect() -> anyhow::Result<()> {
 async fn it_can_inspect_errors() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 
-    let res: Result<u64, sqlx::Error> = sqlx::query("select f").execute(&mut conn).await;
+    let res: Result<_, sqlx::Error> = sqlx::query("select f").execute(&mut conn).await;
     let err = res.unwrap_err();
 
     // can also do [as_database_error] or use `match ..`
@@ -93,12 +93,12 @@ CREATE TABLE #users (id INTEGER PRIMARY KEY);
         .await?;
 
     for index in 1..=10_i32 {
-        let cnt = sqlx::query("INSERT INTO #users (id) VALUES (@p1)")
+        let done = sqlx::query("INSERT INTO #users (id) VALUES (@p1)")
             .bind(index * 2)
             .execute(&mut conn)
             .await?;
 
-        assert_eq!(cnt, 1);
+        assert_eq!(done.rows_affected(), 1);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM #users")

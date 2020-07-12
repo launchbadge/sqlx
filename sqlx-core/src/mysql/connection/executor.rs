@@ -19,7 +19,8 @@ use crate::mysql::protocol::statement::{
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::protocol::Packet;
 use crate::mysql::{
-    MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlRow, MySqlTypeInfo, MySqlValueFormat,
+    MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTypeInfo,
+    MySqlValueFormat,
 };
 use crate::statement::StatementInfo;
 
@@ -111,7 +112,7 @@ impl MySqlConnection {
         &'c mut self,
         query: &str,
         arguments: Option<MySqlArguments>,
-    ) -> Result<impl Stream<Item = Result<Either<u64, MySqlRow>, Error>> + 'c, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<MySqlDone, MySqlRow>, Error>> + 'c, Error> {
         self.stream.wait_until_ready().await?;
         self.stream.busy = Busy::Result;
 
@@ -145,7 +146,12 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
-                    r#yield!(Either::Left(ok.affected_rows));
+                    let done = MySqlDone {
+                        rows_affected: ok.affected_rows,
+                        last_insert_id: ok.last_insert_id,
+                    };
+
+                    r#yield!(Either::Left(done));
 
                     if ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                         // more result sets exist, continue to the next one
@@ -166,7 +172,11 @@ impl MySqlConnection {
 
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
-                        r#yield!(Either::Left(0));
+
+                        r#yield!(Either::Left(MySqlDone {
+                            rows_affected: 0,
+                            last_insert_id: 0,
+                        }));
 
                         if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             // more result sets exist, continue to the next one
@@ -203,7 +213,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, MySqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<MySqlDone, MySqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

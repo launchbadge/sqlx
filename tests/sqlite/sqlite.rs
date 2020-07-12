@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{
-    query, sqlite::Sqlite, sqlite::SqliteRow, Connection, Executor, Row, SqliteConnection,
+    query, sqlite::Sqlite, sqlite::SqliteRow, Connection, Done, Executor, Row, SqliteConnection,
     SqlitePool,
 };
 use sqlx_test::new;
@@ -179,9 +179,9 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_handles_empty_queries() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
-    let affected = conn.execute("").await?;
+    let done = conn.execute("").await?;
 
-    assert_eq!(affected, 0);
+    assert_eq!(done.rows_affected(), 0);
 
     Ok(())
 }
@@ -221,12 +221,12 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
         .await?;
 
     for index in 1..=10_i32 {
-        let cnt = sqlx::query("INSERT INTO users (id) VALUES (?)")
+        let done = sqlx::query("INSERT INTO users (id) VALUES (?)")
             .bind(index * 2)
             .execute(&mut conn)
             .await?;
 
-        assert_eq!(cnt, 1);
+        assert_eq!(done.rows_affected(), 1);
     }
 
     let sum: i32 = sqlx::query_as("SELECT id FROM users")
@@ -243,7 +243,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let affected = conn
+    let done = conn
         .execute(
             r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, other INTEGER);
@@ -252,7 +252,7 @@ INSERT INTO users DEFAULT VALUES;
         )
         .await?;
 
-    assert_eq!(affected, 1);
+    assert_eq!(done.rows_affected(), 1);
 
     for index in 2..5_i32 {
         let (id, other): (i32, i32) = sqlx::query_as(

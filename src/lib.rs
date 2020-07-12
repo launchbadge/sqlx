@@ -5,6 +5,7 @@ pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
+pub use sqlx_core::done::Done;
 pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
@@ -113,7 +114,7 @@ pub mod decode {
     pub use sqlx_macros::Decode;
 }
 
-/// Return types for the `query` family of functions and macros.
+/// Types and traits for the `query` family of functions and macros.
 pub mod query {
     pub use sqlx_core::query::{Map, Query};
     pub use sqlx_core::query::{MapRow, TryMapRow};
@@ -126,6 +127,7 @@ pub mod prelude {
     pub use super::Acquire;
     pub use super::ConnectOptions;
     pub use super::Connection;
+    pub use super::Done;
     pub use super::Executor;
     pub use super::FromRow;
     pub use super::IntoArguments;

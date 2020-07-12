@@ -3,7 +3,7 @@ use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
 use sqlx::postgres::{PgPoolOptions, PgRow};
-use sqlx::{postgres::Postgres, Connection, Executor, Row};
+use sqlx::{postgres::Postgres, Connection, Done, Executor, Row};
 use sqlx_test::new;
 use std::env;
 use std::thread;
@@ -51,7 +51,7 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn it_can_inspect_errors() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let res: Result<u64, sqlx::Error> = sqlx::query("select f").execute(&mut conn).await;
+    let res: Result<_, sqlx::Error> = sqlx::query("select f").execute(&mut conn).await;
     let err = res.unwrap_err();
 
     // can also do [as_database_error] or use `match ..`
@@ -85,12 +85,12 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         .await?;
 
     for index in 1..=10_i32 {
-        let cnt = sqlx::query("INSERT INTO users (id) VALUES ($1)")
+        let done = sqlx::query("INSERT INTO users (id) VALUES ($1)")
             .bind(index)
             .execute(&mut conn)
             .await?;
 
-        assert_eq!(cnt, 1);
+        assert_eq!(done.rows_affected(), 1);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM users")
@@ -441,9 +441,9 @@ async fn test_invalid_query() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_empty_query() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
-    let affected = conn.execute("").await?;
+    let done = conn.execute("").await?;
 
-    assert_eq!(affected, 0);
+    assert_eq!(done.rows_affected(), 0);
 
     Ok(())
 }

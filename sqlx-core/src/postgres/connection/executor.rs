@@ -12,7 +12,7 @@ use crate::postgres::message::{
     Query, RowDescription,
 };
 use crate::postgres::type_info::PgType;
-use crate::postgres::{PgArguments, PgConnection, PgRow, PgValueFormat, Postgres};
+use crate::postgres::{PgArguments, PgConnection, PgDone, PgRow, PgValueFormat, Postgres};
 use crate::statement::StatementInfo;
 
 async fn prepare(
@@ -142,7 +142,7 @@ impl PgConnection {
         query: &str,
         arguments: Option<PgArguments>,
         limit: u8,
-    ) -> Result<impl Stream<Item = Result<Either<u64, PgRow>, Error>> + '_, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + '_, Error> {
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
@@ -219,7 +219,9 @@ impl PgConnection {
                         // a SQL command completed normally
                         let cc: CommandComplete = message.decode()?;
 
-                        r#yield!(Either::Left(cc.rows_affected()));
+                        r#yield!(Either::Left(PgDone {
+                            rows_affected: cc.rows_affected(),
+                        }));
                     }
 
                     MessageFormat::EmptyQueryResponse => {
@@ -272,7 +274,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, PgRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<PgDone, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

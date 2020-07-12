@@ -1,13 +1,11 @@
-use std::fmt::Debug;
-
+use crate::database::{Database, HasArguments};
+use crate::error::Error;
+use crate::statement::StatementInfo;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
-
-use crate::database::{Database, HasArguments};
-use crate::error::Error;
-use crate::statement::StatementInfo;
+use std::fmt::Debug;
 
 /// A type that contains or can provide a database
 /// connection to use for executing queries against the database.
@@ -28,18 +26,22 @@ pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<u64, Error>>
+    fn execute<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Done, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        self.execute_many(query)
-            .try_fold(0, |acc, x| async move { Ok(acc + x) })
-            .boxed()
+        self.execute_many(query).try_collect().boxed()
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<u64, Error>>
+    fn execute_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Done, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -78,7 +80,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<u64, <Self::Database as Database>::Row>, Error>>
+    ) -> BoxStream<
+        'e,
+        Result<
+            Either<<Self::Database as Database>::Done, <Self::Database as Database>::Row>,
+            Error,
+        >,
+    >
     where
         'c: 'e,
         E: Execute<'q, Self::Database>;

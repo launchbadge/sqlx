@@ -1,8 +1,8 @@
 use sqlx::error::DatabaseError;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteError};
 use sqlx::ConnectOptions;
+use sqlx::TypeInfo;
 use sqlx::{sqlite::Sqlite, Column, Executor};
-use sqlx::{SqliteConnection, TypeInfo};
 use sqlx_test::new;
 use std::env;
 

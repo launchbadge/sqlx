@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use crate::arguments::Arguments;
 use crate::column::Column;
 use crate::connection::Connection;
+use crate::done::Done;
 use crate::row::Row;
 use crate::transaction::TransactionManager;
 use crate::type_info::TypeInfo;
@@ -30,6 +31,9 @@ pub trait Database:
 
     /// The concrete `Row` implementation for this database.
     type Row: Row<Database = Self>;
+
+    /// The concrete `Done` implementation for this database.
+    type Done: Done<Database = Self>;
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;

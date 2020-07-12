@@ -108,7 +108,10 @@ macro_rules! impl_executor_for_transaction {
                 query: E,
             ) -> futures_core::stream::BoxStream<
                 'e,
-                Result<either::Either<u64, $Row>, crate::error::Error>,
+                Result<
+                    either::Either<<$DB as crate::database::Database>::Done, $Row>,
+                    crate::error::Error,
+                >,
             >
             where
                 't: 'e,

@@ -74,7 +74,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<u64, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::Done, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,

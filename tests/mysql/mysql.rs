@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Connection, Executor, Row};
+use sqlx::{Connection, Done, Executor, Row};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -55,12 +55,12 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
         .await?;
 
     for index in 1..=10_i32 {
-        let cnt = sqlx::query("INSERT INTO users (id) VALUES (?)")
+        let done = sqlx::query("INSERT INTO users (id) VALUES (?)")
             .bind(index)
             .execute(&mut conn)
             .await?;
 
-        assert_eq!(cnt, 1);
+        assert_eq!(done.rows_affected(), 1);
     }
 
     let sum: i32 = sqlx::query("SELECT id FROM users")
@@ -102,12 +102,12 @@ async fn it_drops_results_in_affected_rows() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
     // ~1800 rows should be iterated and dropped
-    let affected = conn
+    let done = conn
         .execute("select * from mysql.time_zone limit 1575")
         .await?;
 
     // In MySQL, rows being returned isn't enough to flag it as an _affected_ row
-    assert_eq!(0, affected);
+    assert_eq!(0, done.rows_affected());
 
     Ok(())
 }

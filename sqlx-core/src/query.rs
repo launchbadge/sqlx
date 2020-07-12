@@ -104,7 +104,7 @@ where
 
     /// Execute the query and return the total number of rows affected.
     #[inline]
-    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<u64, Error>
+    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Done, Error>
     where
         'q: 'e,
         A: 'e,
@@ -115,7 +115,10 @@ where
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
     #[inline]
-    pub async fn execute_many<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<u64, Error>>
+    pub async fn execute_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<DB::Done, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -141,7 +144,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<u64, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::Done, DB::Row>, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -231,7 +234,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<u64, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::Done, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,
