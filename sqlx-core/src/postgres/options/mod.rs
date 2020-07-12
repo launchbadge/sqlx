@@ -43,7 +43,7 @@ pub use ssl_mode::PgSslMode;
 ///
 /// ```rust,no_run
 /// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::Connect;
+/// # use sqlx_core::connection::{Connection, ConnectOptions};
 /// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
 /// # fn main() -> Result<(), Error> {
@@ -53,13 +53,13 @@ pub use ssl_mode::PgSslMode;
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
 ///
 /// // Manually-constructed options
-/// let conn = PgConnection::connect_with(&PgConnectOptions::new()
+/// let conn = PgConnectOptions::new()
 ///     .host("secret-host")
 ///     .port(2525)
 ///     .username("secret-user")
 ///     .password("secret-password")
 ///     .ssl_mode(PgSslMode::Require)
-/// ).await?;
+///     .connect().await?;
 /// # Ok(())
 /// # })
 /// # }

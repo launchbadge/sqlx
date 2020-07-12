@@ -22,7 +22,7 @@ use std::borrow::Cow;
 ///
 /// # Example
 ///
-/// ```rust,no-run
+/// ```rust,no_run
 /// # use sqlx_core as sqlx;
 /// # use sqlx_core::connection::ConnectOptions;
 /// # use sqlx_core::error::Error;

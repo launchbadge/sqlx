@@ -30,7 +30,7 @@ pub use ssl_mode::MySqlSslMode;
 ///
 /// ```rust,no_run
 /// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::Connect;
+/// # use sqlx_core::connection::{Connection, ConnectOptions};
 /// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 /// #
 /// # fn main() -> Result<(), Error> {
@@ -40,12 +40,12 @@ pub use ssl_mode::MySqlSslMode;
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
 /// // Manually-constructed options
-/// let conn = MySqlConnection::connect_with(&MySqlConnectOptions::new()
+/// let conn = MySqlConnectOptions::new()
 ///     .host("localhost")
 ///     .username("root")
 ///     .password("password")
 ///     .database("db")
-/// ).await?;
+///     .connect().await?;
 /// # Ok(())
 /// # })
 /// # }

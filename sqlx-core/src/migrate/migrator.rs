@@ -14,7 +14,8 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # fn main() {
+    /// # use sqlx_core::migrate::MigrateError;
+    /// # fn main() -> Result<(), MigrateError> {
     /// # sqlx_rt::block_on(async move {
     /// # use sqlx_core::migrate::Migrator;
     /// use std::path::Path;
@@ -22,7 +23,7 @@ impl Migrator {
     /// // Read migrations from a local folder: ./migrations
     /// let m = Migrator::new(Path::new("./migrations")).await?;
     /// # Ok(())
-    /// # }).unwrap();
+    /// # })
     /// # }
     /// ```
     pub async fn new<'s, S>(source: S) -> Result<Self, MigrateError>
