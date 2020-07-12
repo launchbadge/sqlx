@@ -1,6 +1,7 @@
 use futures::TryStreamExt;
+use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{
-    query, sqlite::Sqlite, sqlite::SqliteRow, Connect, Connection, Executor, Row, SqliteConnection,
+    query, sqlite::Sqlite, sqlite::SqliteRow, Connection, Executor, Row, SqliteConnection,
     SqlitePool,
 };
 use sqlx_test::new;
@@ -126,11 +127,11 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool: SqlitePool = SqlitePool::builder()
+    let pool: SqlitePool = SqlitePoolOptions::new(&dotenv::var("DATABASE_URL")?)?
         .min_connections(2)
         .max_connections(2)
         .test_before_acquire(false)
-        .build(&dotenv::var("DATABASE_URL")?)
+        .connect()
         .await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;

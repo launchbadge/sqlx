@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlPool, MySqlRow};
+use sqlx::mysql::{MySql, MySqlPool, MySqlPoolOptions, MySqlRow};
 use sqlx::{Connection, Executor, Row};
 use sqlx_test::new;
 
@@ -73,13 +73,14 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 
     Ok(())
 }
+
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool: MySqlPool = MySqlPool::builder()
+    let pool: MySqlPool = MySqlPoolOptions::new(&dotenv::var("DATABASE_URL")?)?
         .min_connections(2)
         .max_connections(2)
         .test_before_acquire(false)
-        .build(&dotenv::var("DATABASE_URL")?)
+        .connect()
         .await?;
 
     let rows = pool.fetch_all("SELECT 1; SELECT 2").await?;

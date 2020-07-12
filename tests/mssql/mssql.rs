@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mssql::Mssql;
-use sqlx::{Connect, Connection, Executor, MssqlConnection, Row};
+use sqlx::{Connection, Executor, MssqlConnection, Row};
 use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 

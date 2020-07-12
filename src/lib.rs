@@ -3,7 +3,7 @@
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
-pub use sqlx_core::connection::Connection;
+pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
@@ -124,6 +124,7 @@ pub mod query {
 /// Convenience re-export of common traits.
 pub mod prelude {
     pub use super::Acquire;
+    pub use super::ConnectOptions;
     pub use super::Connection;
     pub use super::Executor;
     pub use super::FromRow;

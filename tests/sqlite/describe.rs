@@ -1,7 +1,8 @@
 use sqlx::error::DatabaseError;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteError};
+use sqlx::ConnectOptions;
 use sqlx::{sqlite::Sqlite, Column, Executor};
-use sqlx::{Connect, SqliteConnection, TypeInfo};
+use sqlx::{SqliteConnection, TypeInfo};
 use sqlx_test::new;
 use std::env;
 
@@ -159,7 +160,7 @@ async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
     let mut options: SqliteConnectOptions = env::var("DATABASE_URL")?.parse().unwrap();
     options = options.read_only(true);
 
-    let mut conn = SqliteConnection::connect_with(&options).await?;
+    let mut conn = options.connect().await?;
 
     let d = conn
         .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")

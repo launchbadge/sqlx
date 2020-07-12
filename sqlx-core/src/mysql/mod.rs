@@ -31,6 +31,9 @@ pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
 /// An alias for [`Pool`][crate::pool::Pool], specialized for MySQL.
 pub type MySqlPool = crate::pool::Pool<MySql>;
 
+/// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for MySQL.
+pub type MySqlPoolOptions = crate::pool::PoolOptions<MySql>;
+
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);
 impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);

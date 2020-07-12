@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use sqlx::PgPool;
 
+use sqlx::postgres::PgPoolOptions;
 use std::time::{Duration, Instant};
 
 fn bench_pgpool_acquire(c: &mut Criterion) {
@@ -23,18 +24,18 @@ fn bench_pgpool_acquire(c: &mut Criterion) {
 
 fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
     let pool = sqlx_rt::block_on(
-        PgPool::builder()
-            // we don't want timeouts because we want to see how the pool degrades
-            .connect_timeout(Duration::from_secs(3600))
-            // force the pool to start full
-            .min_connections(50)
-            .max_connections(50)
-            // we're not benchmarking `ping()`
-            .test_before_acquire(false)
-            .__fair(fair)
-            .build(
-                &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
-            ),
+        PgPoolOptions::new(
+            &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
+        )
+        // we don't want timeouts because we want to see how the pool degrades
+        .connect_timeout(Duration::from_secs(3600))
+        // force the pool to start full
+        .min_connections(50)
+        .max_connections(50)
+        // we're not benchmarking `ping()`
+        .test_before_acquire(false)
+        .__fair(fair)
+        .connect(),
     )
     .expect("failed to open PgPool");
 
