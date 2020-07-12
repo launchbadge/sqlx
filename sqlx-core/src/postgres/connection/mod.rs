@@ -6,7 +6,7 @@ use futures_util::{FutureExt, TryFutureExt};
 use hashbrown::HashMap;
 
 use crate::common::StatementCache;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connection;
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
@@ -16,6 +16,7 @@ use crate::postgres::message::{
     Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::{PgColumn, PgConnectOptions, PgTypeInfo, Postgres};
+use crate::transaction::Transaction;
 
 pub(crate) mod describe;
 mod establish;
@@ -57,6 +58,7 @@ pub struct PgConnection {
 
     // current transaction status
     transaction_status: TransactionStatus,
+    pub(crate) transaction_depth: usize,
 
     // working memory for the active row's column information
     scratch_row_columns: Arc<Vec<PgColumn>>,
@@ -99,6 +101,8 @@ impl Debug for PgConnection {
 impl Connection for PgConnection {
     type Database = Postgres;
 
+    type Options = PgConnectOptions;
+
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         // The normal, graceful termination procedure is that the frontend sends a Terminate
         // message and immediately closes the connection.
@@ -117,6 +121,13 @@ impl Connection for PgConnection {
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+    }
+
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self)
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -153,24 +164,5 @@ impl Connection for PgConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         !self.stream.wbuf.is_empty()
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for PgConnection {
-    type Options = PgConnectOptions;
-
-    #[inline]
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(PgConnection::establish(options))
     }
 }

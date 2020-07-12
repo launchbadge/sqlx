@@ -16,7 +16,7 @@ pub type Result<T> = StdResult<T, Error>;
 
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
-pub(crate) type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
+pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 /// An unexpected `NULL` was encountered during decoding.
 ///
@@ -31,8 +31,8 @@ pub struct UnexpectedNullError;
 #[non_exhaustive]
 pub enum Error {
     /// Error occurred while parsing a connection string.
-    #[error("error occurred while parsing a connection string: {0}")]
-    ParseConnectOptions(#[source] BoxDynError),
+    #[error("error with configuration: {0}")]
+    Configuration(#[source] BoxDynError),
 
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
@@ -112,6 +112,12 @@ impl Error {
     #[inline]
     pub(crate) fn protocol(err: impl Display) -> Self {
         Error::Protocol(err.to_string())
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
+        Error::Configuration(err.into())
     }
 
     #[allow(dead_code)]

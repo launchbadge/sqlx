@@ -1,63 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use url::Url;
 
-use crate::error::{BoxDynError, Error};
+mod connect;
+mod parse;
+mod ssl_mode;
 
-/// Options for controlling the desired security state of the connection to the MySQL server.
-///
-/// It is used by the [`ssl_mode`](MySqlConnectOptions::ssl_mode) method.
-#[derive(Debug, Clone, Copy)]
-pub enum MySqlSslMode {
-    /// Establish an unencrypted connection.
-    Disabled,
-
-    /// Establish an encrypted connection if the server supports encrypted connections, falling
-    /// back to an unencrypted connection if an encrypted connection cannot be established.
-    ///
-    /// This is the default if `ssl_mode` is not specified.
-    Preferred,
-
-    /// Establish an encrypted connection if the server supports encrypted connections.
-    /// The connection attempt fails if an encrypted connection cannot be established.
-    Required,
-
-    /// Like `Required`, but additionally verify the server Certificate Authority (CA)
-    /// certificate against the configured CA certificates. The connection attempt fails
-    /// if no valid matching CA certificates are found.
-    VerifyCa,
-
-    /// Like `VerifyCa`, but additionally perform host name identity verification by
-    /// checking the host name the client uses for connecting to the server against the
-    /// identity in the certificate that the server sends to the client.
-    VerifyIdentity,
-}
-
-impl Default for MySqlSslMode {
-    fn default() -> Self {
-        MySqlSslMode::Preferred
-    }
-}
-
-impl FromStr for MySqlSslMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match &*s.to_ascii_lowercase() {
-            "disabled" => MySqlSslMode::Disabled,
-            "preferred" => MySqlSslMode::Preferred,
-            "required" => MySqlSslMode::Required,
-            "verify_ca" => MySqlSslMode::VerifyCa,
-            "verify_identity" => MySqlSslMode::VerifyIdentity,
-
-            _ => {
-                return Err(Error::ParseConnectOptions(
-                    format!("unknown value {:?} for `ssl_mode`", s).into(),
-                ));
-            }
-        })
-    }
-}
+pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
@@ -226,60 +173,5 @@ impl MySqlConnectOptions {
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
         self
-    }
-}
-
-impl FromStr for MySqlConnectOptions {
-    type Err = BoxDynError;
-
-    fn from_str(s: &str) -> Result<Self, BoxDynError> {
-        let url: Url = s.parse()?;
-        let mut options = Self::new();
-
-        if let Some(host) = url.host_str() {
-            options = options.host(host);
-        }
-
-        if let Some(port) = url.port() {
-            options = options.port(port);
-        }
-
-        let username = url.username();
-        if !username.is_empty() {
-            options = options.username(username);
-        }
-
-        if let Some(password) = url.password() {
-            options = options.password(password);
-        }
-
-        let path = url.path().trim_start_matches('/');
-        if !path.is_empty() {
-            options = options.database(path);
-        }
-
-        for (key, value) in url.query_pairs().into_iter() {
-            match &*key {
-                "ssl-mode" => {
-                    options = options.ssl_mode(value.parse()?);
-                }
-
-                "ssl-ca" => {
-                    options = options.ssl_ca(&*value);
-                }
-
-                "statement-cache-capacity" => {
-                    options = options.statement_cache_capacity(value.parse()?);
-                }
-
-                "socket" => {
-                    options = options.socket(&*value);
-                }
-
-                _ => {}
-            }
-        }
-
-        Ok(options)
     }
 }

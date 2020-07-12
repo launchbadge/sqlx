@@ -1,8 +1,5 @@
-use std::str::FromStr;
-
-use url::Url;
-
-use crate::error::BoxDynError;
+mod connect;
+mod parse;
 
 #[derive(Debug, Clone)]
 pub struct MssqlConnectOptions {
@@ -53,38 +50,5 @@ impl MssqlConnectOptions {
     pub fn database(mut self, database: &str) -> Self {
         self.database = database.to_owned();
         self
-    }
-}
-
-impl FromStr for MssqlConnectOptions {
-    type Err = BoxDynError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url: Url = s.parse()?;
-        let mut options = Self::new();
-
-        if let Some(host) = url.host_str() {
-            options = options.host(host);
-        }
-
-        if let Some(port) = url.port() {
-            options = options.port(port);
-        }
-
-        let username = url.username();
-        if !username.is_empty() {
-            options = options.username(username);
-        }
-
-        if let Some(password) = url.password() {
-            options = options.password(password);
-        }
-
-        let path = url.path().trim_start_matches('/');
-        if !path.is_empty() {
-            options = options.database(path);
-        }
-
-        Ok(options)
     }
 }

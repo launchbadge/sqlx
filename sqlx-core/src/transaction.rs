@@ -3,12 +3,10 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
-use futures_util::{future, FutureExt};
 
-use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::ext::maybe_owned::MaybeOwned;
+use crate::pool::MaybePoolConnection;
 
 /// Generic management of database transactions.
 ///
@@ -20,23 +18,20 @@ pub trait TransactionManager {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     fn begin(
         conn: &mut <Self::Database as Database>::Connection,
-        depth: usize,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
         conn: &mut <Self::Database as Database>::Connection,
-        depth: usize,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Abort the active transaction or restore from the most recent savepoint.
     fn rollback(
         conn: &mut <Self::Database as Database>::Connection,
-        depth: usize,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
-    fn start_rollback(conn: &mut <Self::Database as Database>::Connection, depth: usize);
+    fn start_rollback(conn: &mut <Self::Database as Database>::Connection);
 }
 
 /// An in-progress database transaction or savepoint.
@@ -55,96 +50,39 @@ pub trait TransactionManager {
 /// [`Pool::begin`]: struct.Pool.html#method.begin
 /// [`commit`]: #method.commit
 /// [`rollback`]: #method.rollback
-pub struct Transaction<'c, DB, C = <DB as Database>::Connection>
+pub struct Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    connection: MaybeOwned<'c, C>,
-
-    // the depth of ~this~ transaction, depth directly equates to how many times [`begin()`]
-    // was called without a corresponding [`commit()`] or [`rollback()`]
-    depth: usize,
-
-    open: bool,
+    connection: MaybePoolConnection<'c, DB>,
 }
 
-impl<'c, DB, C> Transaction<'c, DB, C>
+impl<'c, DB> Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    pub(crate) fn begin(conn: impl Into<MaybeOwned<'c, C>>) -> BoxFuture<'c, Result<Self, Error>> {
+    pub(crate) fn begin(
+        conn: impl Into<MaybePoolConnection<'c, DB>>,
+    ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            let depth = conn.transaction_depth();
+            DB::TransactionManager::begin(&mut conn).await?;
 
-            DB::TransactionManager::begin(conn.get_mut(), depth).await?;
-
-            Ok(Self {
-                depth: depth + 1,
-                connection: conn,
-                open: true,
-            })
+            Ok(Self { connection: conn })
         })
     }
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
-        DB::TransactionManager::commit(self.connection.get_mut(), self.depth).await?;
-        self.open = false;
+        DB::TransactionManager::commit(&mut self.connection).await?;
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
-        DB::TransactionManager::rollback(self.connection.get_mut(), self.depth).await?;
-        self.open = false;
+        DB::TransactionManager::rollback(&mut self.connection).await?;
         Ok(())
-    }
-}
-
-impl<'c, DB, C> Connection for Transaction<'c, DB, C>
-where
-    DB: Database,
-    C: Sized + Connection<Database = DB>,
-{
-    type Database = C::Database;
-
-    // equivalent to dropping the transaction
-    // as this is bound to 'static, there is nothing more we can do here
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        future::ok(()).boxed()
-    }
-
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.connection.ping()
-    }
-
-    #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.get_mut().flush()
-    }
-
-    #[doc(hidden)]
-    fn should_flush(&self) -> bool {
-        self.get_ref().should_flush()
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &<Self::Database as Database>::Connection {
-        self.connection.get_ref()
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut <Self::Database as Database>::Connection {
-        self.connection.get_mut()
-    }
-
-    #[doc(hidden)]
-    fn transaction_depth(&self) -> usize {
-        self.depth
     }
 }
 
@@ -152,12 +90,10 @@ where
 #[allow(unused_macros)]
 macro_rules! impl_executor_for_transaction {
     ($DB:ident, $Row:ident) => {
-        impl<'c, 't, C: Sized> crate::executor::Executor<'t>
-            for &'t mut crate::transaction::Transaction<'c, $DB, C>
-        where
-            C: crate::connection::Connection<Database = $DB>,
+        impl<'c, 't> crate::executor::Executor<'t>
+            for &'t mut crate::transaction::Transaction<'c, $DB>
         {
-            type Database = C::Database;
+            type Database = $DB;
 
             fn fetch_many<'e, 'q: 'e, E: 'q>(
                 self,
@@ -170,7 +106,7 @@ macro_rules! impl_executor_for_transaction {
                 't: 'e,
                 E: crate::executor::Execute<'q, Self::Database>,
             {
-                crate::connection::Connection::get_mut(self).fetch_many(query)
+                (&mut **self).fetch_many(query)
             }
 
             fn fetch_optional<'e, 'q: 'e, E: 'q>(
@@ -181,7 +117,7 @@ macro_rules! impl_executor_for_transaction {
                 't: 'e,
                 E: crate::executor::Execute<'q, Self::Database>,
             {
-                crate::connection::Connection::get_mut(self).fetch_optional(query)
+                (&mut **self).fetch_optional(query)
             }
 
             #[doc(hidden)]
@@ -196,16 +132,15 @@ macro_rules! impl_executor_for_transaction {
                 't: 'e,
                 E: crate::executor::Execute<'q, Self::Database>,
             {
-                crate::connection::Connection::get_mut(self).describe(query)
+                (&mut **self).describe(query)
             }
         }
     };
 }
 
-impl<'c, DB, C> Debug for Transaction<'c, DB, C>
+impl<'c, DB> Debug for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // TODO: Show the full type <..<..<..
@@ -213,46 +148,41 @@ where
     }
 }
 
-impl<'c, DB, C> Deref for Transaction<'c, DB, C>
+impl<'c, DB> Deref for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
-    type Target = <C::Database as Database>::Connection;
+    type Target = DB::Connection;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.get_ref()
+        &self.connection
     }
 }
 
-impl<'c, DB, C> DerefMut for Transaction<'c, DB, C>
+impl<'c, DB> DerefMut for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.get_mut()
+        &mut self.connection
     }
 }
 
-impl<'c, DB, C> Drop for Transaction<'c, DB, C>
+impl<'c, DB> Drop for Transaction<'c, DB>
 where
     DB: Database,
-    C: Sized + Connection<Database = DB>,
 {
     fn drop(&mut self) {
-        if self.open {
-            // starts a rollback operation
-            // what this does depends on the database but generally this means we queue a rollback
-            // operation that will happen on the next asynchronous invocation of the underlying
-            // connection (including if the connection is returned to a pool)
-            <C::Database as Database>::TransactionManager::start_rollback(
-                self.connection.get_mut(),
-                self.depth,
-            );
-        }
+        // starts a rollback operation
+        // NOTE: this is a no-op if it does not need to be done
+
+        // what this does depends on the database but generally this means we queue a rollback
+        // operation that will happen on the next asynchronous invocation of the underlying
+        // connection (including if the connection is returned to a pool)
+
+        DB::TransactionManager::start_rollback(&mut self.connection);
     }
 }
 

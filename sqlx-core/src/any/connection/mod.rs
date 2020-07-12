@@ -1,7 +1,7 @@
 use futures_core::future::BoxFuture;
 
 use crate::any::{Any, AnyConnectOptions};
-use crate::connection::{Connect, Connection};
+use crate::connection::Connection;
 use crate::error::Error;
 
 #[cfg(feature = "postgres")]
@@ -15,6 +15,7 @@ use crate::mssql;
 
 #[cfg(feature = "mysql")]
 use crate::mysql;
+use crate::transaction::Transaction;
 
 mod establish;
 mod executor;
@@ -85,6 +86,8 @@ macro_rules! delegate_to_mut {
 impl Connection for AnyConnection {
     type Database = Any;
 
+    type Options = AnyConnectOptions;
+
     fn close(self) -> BoxFuture<'static, Result<(), Error>> {
         match self.0 {
             #[cfg(feature = "postgres")]
@@ -103,6 +106,13 @@ impl Connection for AnyConnection {
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         delegate_to_mut!(self.ping())
+    }
+
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self)
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -147,24 +157,5 @@ impl Connection for AnyConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         delegate_to!(self.should_flush())
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for AnyConnection {
-    type Options = AnyConnectOptions;
-
-    #[inline]
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(AnyConnection::establish(options))
     }
 }

@@ -32,6 +32,7 @@ pub(crate) struct MssqlStream {
     // current transaction descriptor
     // set from ENVCHANGE on `BEGIN` and reset to `0` on a ROLLBACK
     pub(crate) transaction_descriptor: u64,
+    pub(crate) transaction_depth: usize,
 
     // current TabularResult from the server that we are iterating over
     response: Option<(PacketHeader, Bytes)>,
@@ -55,6 +56,7 @@ impl MssqlStream {
             response: None,
             pending_done_count: 0,
             transaction_descriptor: 0,
+            transaction_depth: 0,
         })
     }
 

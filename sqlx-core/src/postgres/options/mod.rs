@@ -1,64 +1,11 @@
 use std::env::var;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
-use url::Url;
+mod connect;
+mod parse;
+mod ssl_mode;
 
-use crate::error::{BoxDynError, Error};
-
-/// Options for controlling the level of protection provided for PostgreSQL SSL connections.
-///
-/// It is used by the [`ssl_mode`](PgConnectOptions::ssl_mode) method.
-#[derive(Debug, Clone, Copy)]
-pub enum PgSslMode {
-    /// Only try a non-SSL connection.
-    Disable,
-
-    /// First try a non-SSL connection; if that fails, try an SSL connection.
-    Allow,
-
-    /// First try an SSL connection; if that fails, try a non-SSL connection.
-    Prefer,
-
-    /// Only try an SSL connection. If a root CA file is present, verify the connection
-    /// in the same way as if `VerifyCa` was specified.
-    Require,
-
-    /// Only try an SSL connection, and verify that the server certificate is issued by a
-    /// trusted certificate authority (CA).
-    VerifyCa,
-
-    /// Only try an SSL connection; verify that the server certificate is issued by a trusted
-    /// CA and that the requested server host name matches that in the certificate.
-    VerifyFull,
-}
-
-impl Default for PgSslMode {
-    fn default() -> Self {
-        PgSslMode::Prefer
-    }
-}
-
-impl FromStr for PgSslMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match &*s.to_ascii_lowercase() {
-            "disable" => PgSslMode::Disable,
-            "allow" => PgSslMode::Allow,
-            "prefer" => PgSslMode::Prefer,
-            "require" => PgSslMode::Require,
-            "verify-ca" => PgSslMode::VerifyCa,
-            "verify-full" => PgSslMode::VerifyFull,
-
-            _ => {
-                return Err(Error::ParseConnectOptions(
-                    format!("unknown value {:?} for `ssl_mode`", s).into(),
-                ));
-            }
-        })
-    }
-}
+pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
 ///
@@ -357,85 +304,4 @@ fn default_host(port: u16) -> String {
 
     // fallback to localhost if no socket was found
     "localhost".to_owned()
-}
-
-impl FromStr for PgConnectOptions {
-    type Err = BoxDynError;
-
-    fn from_str(s: &str) -> Result<Self, BoxDynError> {
-        let url: Url = s.parse()?;
-        let mut options = Self::new();
-
-        if let Some(host) = url.host_str() {
-            options = options.host(host);
-        }
-
-        if let Some(port) = url.port() {
-            options = options.port(port);
-        }
-
-        let username = url.username();
-        if !username.is_empty() {
-            options = options.username(username);
-        }
-
-        if let Some(password) = url.password() {
-            options = options.password(password);
-        }
-
-        let path = url.path().trim_start_matches('/');
-        if !path.is_empty() {
-            options = options.database(path);
-        }
-
-        for (key, value) in url.query_pairs().into_iter() {
-            match &*key {
-                "sslmode" => {
-                    options = options.ssl_mode(value.parse()?);
-                }
-
-                "sslrootcert" => {
-                    options = options.ssl_root_cert(&*value);
-                }
-
-                "statement-cache-capacity" => {
-                    options = options.statement_cache_capacity(value.parse()?);
-                }
-
-                "host" => {
-                    if value.starts_with("/") {
-                        options = options.socket(&*value);
-                    } else {
-                        options = options.host(&*value);
-                    }
-                }
-
-                _ => {}
-            }
-        }
-
-        Ok(options)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_socket_correctly_from_parameter() {
-        let uri = "postgres:///?host=/var/run/postgres/";
-        let opts = PgConnectOptions::from_str(uri).unwrap();
-
-        assert_eq!(Some("/var/run/postgres/".into()), opts.socket);
-    }
-
-    #[test]
-    fn parses_host_correctly_from_parameter() {
-        let uri = "postgres:///?host=google.database.com";
-        let opts = PgConnectOptions::from_str(uri).unwrap();
-
-        assert_eq!(None, opts.socket);
-        assert_eq!("google.database.com", &opts.host);
-    }
 }

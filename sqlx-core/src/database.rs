@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use crate::arguments::Arguments;
 use crate::column::Column;
-use crate::connection::Connect;
+use crate::connection::Connection;
 use crate::row::Row;
 use crate::transaction::TransactionManager;
 use crate::type_info::TypeInfo;
@@ -23,10 +23,9 @@ pub trait Database:
     + for<'q> HasArguments<'q, Database = Self>
 {
     /// The concrete `Connection` implementation for this database.
-    type Connection: Connect<Database = Self>;
+    type Connection: Connection<Database = Self>;
 
     /// The concrete `TransactionManager` implementation for this database.
-    #[doc(hidden)]
     type TransactionManager: TransactionManager<Database = Self>;
 
     /// The concrete `Row` implementation for this database.

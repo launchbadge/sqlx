@@ -1,18 +1,17 @@
-use std::fmt::{self, Debug};
-use std::io;
-use std::str::from_utf8;
-
-use futures_channel::mpsc;
-use futures_core::future::BoxFuture;
-use futures_core::stream::{BoxStream, Stream};
-
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::pool::PoolOptions;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::message::{MessageFormat, Notification};
 use crate::postgres::{PgConnection, PgRow, Postgres};
 use crate::statement::StatementInfo;
 use either::Either;
+use futures_channel::mpsc;
+use futures_core::future::BoxFuture;
+use futures_core::stream::{BoxStream, Stream};
+use std::fmt::{self, Debug};
+use std::io;
+use std::str::from_utf8;
 
 /// A stream of asynchronous notifications from Postgres.
 ///
@@ -32,20 +31,20 @@ pub struct PgListener {
 pub struct PgNotification(Notification);
 
 impl PgListener {
-    pub async fn new(url: &str) -> Result<Self, Error> {
+    pub async fn connect(uri: &str) -> Result<Self, Error> {
         // Create a pool of 1 without timeouts (as they don't apply here)
         // We only use the pool to handle re-connections
-        let pool = Pool::<Postgres>::builder()
-            .max_size(1)
+        let pool = PoolOptions::<Postgres>::new(uri)?
+            .max_connections(1)
             .max_lifetime(None)
             .idle_timeout(None)
-            .build(url)
+            .connect()
             .await?;
 
-        Self::from_pool(&pool).await
+        Self::connect_with(&pool).await
     }
 
-    pub async fn from_pool(pool: &Pool<Postgres>) -> Result<Self, Error> {
+    pub async fn connect_with(pool: &Pool<Postgres>) -> Result<Self, Error> {
         // Pull out an initial connection
         let mut connection = pool.acquire().await?;
 

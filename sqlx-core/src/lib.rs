@@ -46,6 +46,9 @@ pub mod types;
 #[macro_use]
 pub mod query;
 
+#[macro_use]
+pub mod acquire;
+
 pub mod column;
 mod common;
 pub mod database;

@@ -130,6 +130,7 @@ impl PgConnection {
             process_id,
             secret_key,
             transaction_status,
+            transaction_depth: 0,
             pending_ready_for_query_count: 0,
             next_statement_id: 1,
             cache_statement: StatementCache::new(options.statement_cache_capacity),

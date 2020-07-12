@@ -33,10 +33,14 @@ pub use value::{AnyValue, AnyValueRef};
 
 pub type AnyPool = crate::pool::Pool<Any>;
 
+pub type AnyPoolOptions = crate::pool::PoolOptions<Any>;
+
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(AnyArguments<'q>);
 impl_executor_for_pool_connection!(Any, AnyConnection, AnyRow);
 impl_executor_for_transaction!(Any, AnyRow);
+impl_acquire!(Any, AnyConnection);
+impl_into_maybe_pool!(Any, AnyConnection);
 impl_map_row!(Any, AnyRow);
 
 // required because some databases have a different handling of NULL

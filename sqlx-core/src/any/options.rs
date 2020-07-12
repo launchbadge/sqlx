@@ -1,6 +1,8 @@
+use crate::any::AnyConnection;
+use crate::connection::ConnectOptions;
+use crate::error::Error;
+use futures_core::future::BoxFuture;
 use std::str::FromStr;
-
-use crate::error::BoxDynError;
 
 #[cfg(feature = "postgres")]
 use crate::postgres::PgConnectOptions;
@@ -21,8 +23,10 @@ use crate::mssql::MssqlConnectOptions;
 /// postgres://postgres:password@localhost/database
 /// mysql://root:password@localhost/database
 /// ```
+#[derive(Debug)]
 pub struct AnyConnectOptions(pub(crate) AnyConnectOptionsKind);
 
+#[derive(Debug)]
 pub(crate) enum AnyConnectOptionsKind {
     #[cfg(feature = "postgres")]
     Postgres(PgConnectOptions),
@@ -38,7 +42,7 @@ pub(crate) enum AnyConnectOptionsKind {
 }
 
 impl FromStr for AnyConnectOptions {
-    type Err = BoxDynError;
+    type Err = Error;
 
     fn from_str(url: &str) -> Result<Self, Self::Err> {
         match url {
@@ -82,7 +86,16 @@ impl FromStr for AnyConnectOptions {
                 Err("database URL has the scheme of a MSSQL database but the `mssql` feature is not enabled".into())
             }
 
-            _ => Err(format!("unrecognized database url: {:?}", url).into())
+            _ => Err(Error::Configuration(format!("unrecognized database url: {:?}", url).into()))
         }.map(AnyConnectOptions)
+    }
+}
+
+impl ConnectOptions for AnyConnectOptions {
+    type Connection = AnyConnection;
+
+    #[inline]
+    fn connect(&self) -> BoxFuture<'_, Result<AnyConnection, Error>> {
+        Box::pin(AnyConnection::establish(self))
     }
 }

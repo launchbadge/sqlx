@@ -1,7 +1,7 @@
 use crate::any::connection::AnyConnectionKind;
 use crate::any::options::{AnyConnectOptions, AnyConnectOptionsKind};
 use crate::any::AnyConnection;
-use crate::connection::Connect;
+use crate::connection::Connection;
 use crate::error::Error;
 
 impl AnyConnection {

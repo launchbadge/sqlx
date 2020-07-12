@@ -33,6 +33,8 @@ impl_into_arguments_for_arguments!(MySqlArguments);
 impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
 impl_executor_for_transaction!(MySql, MySqlRow);
 impl_map_row!(MySql, MySqlRow);
+impl_acquire!(MySql, MySqlConnection);
+impl_into_maybe_pool!(MySql, MySqlConnection);
 
 // required because some databases have a different handling of NULL
 impl_encode_for_option!(MySql);

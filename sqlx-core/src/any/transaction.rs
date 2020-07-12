@@ -11,100 +11,98 @@ pub struct AnyTransactionManager;
 impl TransactionManager for AnyTransactionManager {
     type Database = Any;
 
-    fn begin(conn: &mut AnyConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
         match &mut conn.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => {
-                <crate::postgres::Postgres as Database>::TransactionManager::begin(conn, depth)
+                <crate::postgres::Postgres as Database>::TransactionManager::begin(conn)
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => {
-                <crate::mysql::MySql as Database>::TransactionManager::begin(conn, depth)
+                <crate::mysql::MySql as Database>::TransactionManager::begin(conn)
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => {
-                <crate::sqlite::Sqlite as Database>::TransactionManager::begin(conn, depth)
+                <crate::sqlite::Sqlite as Database>::TransactionManager::begin(conn)
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
-                <crate::mssql::Mssql as Database>::TransactionManager::begin(conn, depth)
+                <crate::mssql::Mssql as Database>::TransactionManager::begin(conn)
             }
         }
     }
 
-    fn commit(conn: &mut AnyConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn commit(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
         match &mut conn.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => {
-                <crate::postgres::Postgres as Database>::TransactionManager::commit(conn, depth)
+                <crate::postgres::Postgres as Database>::TransactionManager::commit(conn)
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => {
-                <crate::mysql::MySql as Database>::TransactionManager::commit(conn, depth)
+                <crate::mysql::MySql as Database>::TransactionManager::commit(conn)
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => {
-                <crate::sqlite::Sqlite as Database>::TransactionManager::commit(conn, depth)
+                <crate::sqlite::Sqlite as Database>::TransactionManager::commit(conn)
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
-                <crate::mssql::Mssql as Database>::TransactionManager::commit(conn, depth)
+                <crate::mssql::Mssql as Database>::TransactionManager::commit(conn)
             }
         }
     }
 
-    fn rollback(conn: &mut AnyConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn rollback(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
         match &mut conn.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => {
-                <crate::postgres::Postgres as Database>::TransactionManager::rollback(conn, depth)
+                <crate::postgres::Postgres as Database>::TransactionManager::rollback(conn)
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => {
-                <crate::mysql::MySql as Database>::TransactionManager::rollback(conn, depth)
+                <crate::mysql::MySql as Database>::TransactionManager::rollback(conn)
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => {
-                <crate::sqlite::Sqlite as Database>::TransactionManager::rollback(conn, depth)
+                <crate::sqlite::Sqlite as Database>::TransactionManager::rollback(conn)
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
-                <crate::mssql::Mssql as Database>::TransactionManager::rollback(conn, depth)
+                <crate::mssql::Mssql as Database>::TransactionManager::rollback(conn)
             }
         }
     }
 
-    fn start_rollback(conn: &mut AnyConnection, depth: usize) {
+    fn start_rollback(conn: &mut AnyConnection) {
         match &mut conn.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => {
-                <crate::postgres::Postgres as Database>::TransactionManager::start_rollback(
-                    conn, depth,
-                )
+                <crate::postgres::Postgres as Database>::TransactionManager::start_rollback(conn)
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => {
-                <crate::mysql::MySql as Database>::TransactionManager::start_rollback(conn, depth)
+                <crate::mysql::MySql as Database>::TransactionManager::start_rollback(conn)
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => {
-                <crate::sqlite::Sqlite as Database>::TransactionManager::start_rollback(conn, depth)
+                <crate::sqlite::Sqlite as Database>::TransactionManager::start_rollback(conn)
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
-                <crate::mssql::Mssql as Database>::TransactionManager::start_rollback(conn, depth)
+                <crate::mssql::Mssql as Database>::TransactionManager::start_rollback(conn)
             }
         }
     }

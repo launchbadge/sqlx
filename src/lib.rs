@@ -1,8 +1,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
-pub use sqlx_core::connection::{Connect, Connection};
+pub use sqlx_core::connection::Connection;
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
@@ -19,6 +20,9 @@ pub use sqlx_core::value::{Value, ValueRef};
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
+
+#[cfg(feature = "migrate")]
+pub use sqlx_core::migrate;
 
 #[cfg(all(
     any(
@@ -119,7 +123,7 @@ pub mod query {
 
 /// Convenience re-export of common traits.
 pub mod prelude {
-    pub use super::Connect;
+    pub use super::Acquire;
     pub use super::Connection;
     pub use super::Executor;
     pub use super::FromRow;

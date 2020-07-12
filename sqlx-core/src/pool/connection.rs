@@ -1,15 +1,12 @@
-use std::fmt::{self, Debug, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
-use std::time::Instant;
-
-use futures_core::future::BoxFuture;
-use sqlx_rt::spawn;
-
 use super::inner::{DecrementSizeGuard, SharedPool};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
+use sqlx_rt::spawn;
+use std::fmt::{self, Debug, Formatter};
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+use std::time::Instant;
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -20,12 +17,12 @@ pub struct PoolConnection<DB: Database> {
 }
 
 pub(super) struct Live<DB: Database> {
-    raw: DB::Connection,
+    pub(super) raw: DB::Connection,
     pub(super) created: Instant,
 }
 
 pub(super) struct Idle<DB: Database> {
-    live: Live<DB>,
+    pub(super) live: Live<DB>,
     pub(super) since: Instant,
 }
 
@@ -58,39 +55,10 @@ impl<DB: Database> DerefMut for PoolConnection<DB> {
     }
 }
 
-impl<DB: Database> Connection for PoolConnection<DB> {
-    type Database = DB;
-
-    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
-        Box::pin(async move {
-            let live = self.live.take().expect("PoolConnection double-dropped");
-            live.float(&self.pool).into_idle().close().await
-        })
-    }
-
-    #[inline]
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(self.deref_mut().ping())
-    }
-
-    #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        self.get_mut().flush()
-    }
-
-    #[doc(hidden)]
-    fn should_flush(&self) -> bool {
-        self.get_ref().should_flush()
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &DB::Connection {
-        self.deref().get_ref()
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut DB::Connection {
-        self.deref_mut().get_mut()
+impl<DB: Database> PoolConnection<DB> {
+    // explicitly release a connection from the pool
+    pub fn release(mut self) -> DB::Connection {
+        self.live.take().expect("PoolConnection double-dropped").raw
     }
 }
 

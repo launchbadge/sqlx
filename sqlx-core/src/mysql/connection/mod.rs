@@ -6,9 +6,8 @@ use futures_util::FutureExt;
 use hashbrown::HashMap;
 
 use crate::common::StatementCache;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connection;
 use crate::error::Error;
-use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
@@ -20,6 +19,7 @@ mod executor;
 mod stream;
 mod tls;
 
+use crate::transaction::Transaction;
 pub(crate) use stream::{Busy, MySqlStream};
 
 const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
@@ -32,6 +32,9 @@ pub struct MySqlConnection {
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
     pub(crate) stream: MySqlStream,
+
+    // transaction status
+    pub(crate) transaction_depth: usize,
 
     // cache by query string to the statement id
     cache_statement: StatementCache<u32>,
@@ -51,6 +54,8 @@ impl Debug for MySqlConnection {
 
 impl Connection for MySqlConnection {
     type Database = MySql;
+
+    type Options = MySqlConnectOptions;
 
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
@@ -94,57 +99,10 @@ impl Connection for MySqlConnection {
         !self.stream.wbuf.is_empty()
     }
 
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for MySqlConnection {
-    type Options = MySqlConnectOptions;
-
-    #[inline]
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(async move {
-            let mut conn = MySqlConnection::establish(options).await?;
-
-            // After the connection is established, we initialize by configuring a few
-            // connection parameters
-
-            // https://mariadb.com/kb/en/sql-mode/
-
-            // PIPES_AS_CONCAT - Allows using the pipe character (ASCII 124) as string concatenation operator.
-            //                   This means that "A" || "B" can be used in place of CONCAT("A", "B").
-
-            // NO_ENGINE_SUBSTITUTION - If not set, if the available storage engine specified by a CREATE TABLE is
-            //                          not available, a warning is given and the default storage
-            //                          engine is used instead.
-
-            // NO_ZERO_DATE - Don't allow '0000-00-00'. This is invalid in Rust.
-
-            // NO_ZERO_IN_DATE - Don't allow 'YYYY-00-00'. This is invalid in Rust.
-
-            // --
-
-            // Setting the time zone allows us to assume that the output
-            // from a TIMESTAMP field is UTC
-
-            // --
-
-            // https://mathiasbynens.be/notes/mysql-utf8mb4
-
-            conn.execute(concat!(
-                r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#,
-                r#"time_zone='+00:00',"#,
-                r#"NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;"#,
-            )).await?;
-
-            Ok(conn)
-        })
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self)
     }
 }

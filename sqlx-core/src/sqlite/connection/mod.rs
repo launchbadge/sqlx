@@ -8,27 +8,29 @@ use hashbrown::HashMap;
 use libsqlite3_sys::sqlite3;
 
 use crate::common::StatementCache;
-use crate::connection::{Connect, Connection};
+use crate::connection::Connection;
 use crate::error::Error;
-use crate::executor::Executor;
 use crate::ext::ustr::UStr;
-use crate::sqlite::connection::establish::establish;
 use crate::sqlite::statement::{SqliteStatement, StatementWorker};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
 
 mod collation;
 mod describe;
-mod establish;
+pub(crate) mod establish;
 mod executor;
 mod explain;
 mod handle;
 
+use crate::transaction::Transaction;
 pub(crate) use handle::ConnectionHandle;
 
 /// A connection to a [Sqlite] database.
 pub struct SqliteConnection {
     pub(crate) handle: ConnectionHandle,
     pub(crate) worker: StatementWorker,
+
+    // transaction status
+    pub(crate) transaction_depth: usize,
 
     // cache of semi-persistent statements
     pub(crate) statements: StatementCache<SqliteStatement>,
@@ -64,6 +66,8 @@ impl Debug for SqliteConnection {
 impl Connection for SqliteConnection {
     type Database = Sqlite;
 
+    type Options = SqliteConnectOptions;
+
     fn close(self) -> BoxFuture<'static, Result<(), Error>> {
         // nothing explicit to do; connection will close in drop
         Box::pin(future::ok(()))
@@ -72,6 +76,13 @@ impl Connection for SqliteConnection {
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // For SQLite connections, PING does effectively nothing
         Box::pin(future::ok(()))
+    }
+
+    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin(self)
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -94,38 +105,6 @@ impl Connection for SqliteConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         false
-    }
-
-    #[doc(hidden)]
-    fn get_ref(&self) -> &Self {
-        self
-    }
-
-    #[doc(hidden)]
-    fn get_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl Connect for SqliteConnection {
-    type Options = SqliteConnectOptions;
-
-    #[inline]
-    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self, Error>> {
-        Box::pin(async move {
-            let mut conn = establish(options).await?;
-
-            // send an initial sql statement comprised of options
-            let init = format!(
-                "PRAGMA journal_mode = {}; PRAGMA foreign_keys = {};",
-                options.journal_mode.as_str(),
-                if options.foreign_keys { "ON" } else { "OFF" }
-            );
-
-            conn.execute(&*init).await?;
-
-            Ok(conn)
-        })
     }
 }
 

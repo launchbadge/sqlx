@@ -7,7 +7,7 @@ use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
-use sqlx_core::connection::Connect;
+use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::statement::StatementInfo;
 use sqlx_rt::block_on;

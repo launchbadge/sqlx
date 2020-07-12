@@ -16,34 +16,53 @@ pub struct MySqlTransactionManager;
 impl TransactionManager for MySqlTransactionManager {
     type Database = MySql;
 
-    fn begin(conn: &mut MySqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
+            let depth = conn.transaction_depth;
+
             conn.execute(&*begin_ansi_transaction_sql(depth)).await?;
+            conn.transaction_depth = depth + 1;
 
             Ok(())
         })
     }
 
-    fn commit(conn: &mut MySqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn commit(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            conn.execute(&*commit_ansi_transaction_sql(depth)).await?;
+            let depth = conn.transaction_depth;
+
+            if depth > 0 {
+                conn.execute(&*commit_ansi_transaction_sql(depth)).await?;
+                conn.transaction_depth = depth - 1;
+            }
 
             Ok(())
         })
     }
 
-    fn rollback(conn: &mut MySqlConnection, depth: usize) -> BoxFuture<'_, Result<(), Error>> {
+    fn rollback(conn: &mut MySqlConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            conn.execute(&*rollback_ansi_transaction_sql(depth)).await?;
+            let depth = conn.transaction_depth;
+
+            if depth > 0 {
+                conn.execute(&*rollback_ansi_transaction_sql(depth)).await?;
+                conn.transaction_depth = depth - 1;
+            }
 
             Ok(())
         })
     }
 
-    fn start_rollback(conn: &mut MySqlConnection, depth: usize) {
-        conn.stream.busy = Busy::Result;
-        conn.stream.sequence_id = 0;
-        conn.stream
-            .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));
+    fn start_rollback(conn: &mut MySqlConnection) {
+        let depth = conn.transaction_depth;
+
+        if depth > 0 {
+            conn.stream.busy = Busy::Result;
+            conn.stream.sequence_id = 0;
+            conn.stream
+                .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));
+
+            conn.transaction_depth = depth - 1;
+        }
     }
 }

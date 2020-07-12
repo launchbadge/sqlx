@@ -16,7 +16,7 @@ use crate::{
     sqlite::{SqliteConnectOptions, SqliteConnection, SqliteError},
 };
 
-pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteConnection, Error> {
+pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteConnection, Error> {
     let mut filename = options
         .filename
         .to_str()
@@ -38,8 +38,10 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
 
     flags |= if options.read_only {
         SQLITE_OPEN_READONLY
+    } else if options.create_if_missing {
+        SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
     } else {
-        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
+        SQLITE_OPEN_READWRITE
     };
 
     if options.in_memory {
@@ -97,6 +99,7 @@ pub(super) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         worker: StatementWorker::new(),
         statements: StatementCache::new(options.statement_cache_capacity),
         statement: None,
+        transaction_depth: 0,
         scratch_row_column_names: Default::default(),
     })
 }

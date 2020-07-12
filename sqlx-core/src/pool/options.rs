@@ -1,56 +1,80 @@
-use std::{marker::PhantomData, time::Duration};
-
-use super::Pool;
-use crate::connection::Connect;
+use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::inner::SharedPool;
+use crate::pool::Pool;
+use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
+use sqlx_rt::spawn;
+use std::fmt::{self, Debug, Formatter};
+use std::future::Future;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-/// [`Pool`] factory, which can be used to configure the properties of a new connection pool.
-pub struct Builder<DB: Database> {
-    phantom: PhantomData<DB>,
-    options: Options,
+pub struct PoolOptions<DB: Database> {
+    pub(crate) connect_options: <DB::Connection as Connection>::Options,
+    pub(crate) test_before_acquire: bool,
+    pub(crate) after_connect: Option<
+        Box<
+            dyn Fn(&mut DB::Connection) -> BoxFuture<'_, Result<(), Error>> + 'static + Send + Sync,
+        >,
+    >,
+    pub(crate) before_acquire: Option<
+        Box<
+            dyn Fn(&mut DB::Connection) -> BoxFuture<'_, Result<bool, Error>>
+                + 'static
+                + Send
+                + Sync,
+        >,
+    >,
+    pub(crate) after_release:
+        Option<Box<dyn Fn(&mut DB::Connection) -> bool + 'static + Send + Sync>>,
+    pub(crate) max_connections: u32,
+    pub(crate) connect_timeout: Duration,
+    pub(crate) min_connections: u32,
+    pub(crate) max_lifetime: Option<Duration>,
+    pub(crate) idle_timeout: Option<Duration>,
+    pub(crate) fair: bool,
 }
 
-impl<DB: Database> Builder<DB> {
-    /// Get a new builder with default options.
-    ///
-    /// See the source of this method for current defaults.
-    pub(crate) fn new() -> Self {
-        Self {
-            phantom: PhantomData,
-            options: Options {
-                // pool a maximum of 10 connections to the same database
-                max_size: 10,
-                // don't open connections until necessary
-                min_size: 0,
-                // try to connect for 10 seconds before giving up
-                connect_timeout: Duration::from_secs(60),
-                // reap connections that have been alive > 30 minutes
-                // prevents unbounded live-leaking of memory due to naive prepared statement caching
-                // see src/cache.rs for context
-                max_lifetime: Some(Duration::from_secs(1800)),
-                // don't reap connections based on idle time
-                idle_timeout: None,
-                // If true, test the health of a connection on acquire
-                test_on_acquire: true,
-                // If true, calls to `acquire()` must always wait in line.
-                fair: true,
-            },
-        }
+fn default<DB: Database>(
+    connect_options: <DB::Connection as Connection>::Options,
+) -> PoolOptions<DB> {
+    PoolOptions {
+        connect_options,
+        after_connect: None,
+        test_before_acquire: true,
+        before_acquire: None,
+        after_release: None,
+        max_connections: 10,
+        min_connections: 0,
+        connect_timeout: Duration::from_secs(30),
+        idle_timeout: Some(Duration::from_secs(10 * 60)),
+        max_lifetime: Some(Duration::from_secs(30 * 60)),
+        fair: true,
+    }
+}
+
+impl<DB: Database> PoolOptions<DB> {
+    pub fn new(uri: &str) -> Result<Self, Error> {
+        Ok(default(uri.parse()?))
+    }
+
+    pub fn new_with(options: <DB::Connection as Connection>::Options) -> Self {
+        default(options)
     }
 
     /// Set the maximum number of connections that this pool should maintain.
-    pub fn max_size(mut self, max_size: u32) -> Self {
-        self.options.max_size = max_size;
+    pub fn max_connections(mut self, max: u32) -> Self {
+        self.max_connections = max;
         self
     }
 
     /// Set the amount of time to attempt connecting to the database.
     ///
     /// If this timeout elapses, [`Pool::acquire`] will return an error.
-    pub fn connect_timeout(mut self, connect_timeout: Duration) -> Self {
-        self.options.connect_timeout = connect_timeout;
+    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = timeout;
         self
     }
 
@@ -63,8 +87,8 @@ impl<DB: Database> Builder<DB> {
     ///
     /// [`max_lifetime`]: #method.max_lifetime
     /// [`idle_timeout`]: #method.idle_timeout
-    pub fn min_size(mut self, min_size: u32) -> Self {
-        self.options.min_size = min_size;
+    pub fn min_connections(mut self, min: u32) -> Self {
+        self.min_connections = min;
         self
     }
 
@@ -82,8 +106,8 @@ impl<DB: Database> Builder<DB> {
     /// session.
     ///
     /// [`idle_timeout`]: #method.idle_timeout
-    pub fn max_lifetime(mut self, max_lifetime: impl Into<Option<Duration>>) -> Self {
-        self.options.max_lifetime = max_lifetime.into();
+    pub fn max_lifetime(mut self, lifetime: impl Into<Option<Duration>>) -> Self {
+        self.max_lifetime = lifetime.into();
         self
     }
 
@@ -92,8 +116,8 @@ impl<DB: Database> Builder<DB> {
     /// Any connection with an idle duration longer than this will be closed.
     ///
     /// For usage-based database server billing, this can be a cost saver.
-    pub fn idle_timeout(mut self, idle_timeout: impl Into<Option<Duration>>) -> Self {
-        self.options.idle_timeout = idle_timeout.into();
+    pub fn idle_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
+        self.idle_timeout = timeout.into();
         self
     }
 
@@ -103,8 +127,8 @@ impl<DB: Database> Builder<DB> {
     /// Defaults to `true`.
     ///
     /// [`Connection::ping`]: crate::connection::Connection::ping
-    pub fn test_on_acquire(mut self, test: bool) -> Self {
-        self.options.test_on_acquire = test;
+    pub fn test_before_acquire(mut self, test: bool) -> Self {
+        self.test_before_acquire = test;
         self
     }
 
@@ -121,58 +145,92 @@ impl<DB: Database> Builder<DB> {
     /// Currently only exposed for benchmarking; `fair = true` seems to be the superior option
     /// in most cases.
     #[doc(hidden)]
-    pub fn fair(mut self, fair: bool) -> Self {
-        self.options.fair = fair;
+    pub fn __fair(mut self, fair: bool) -> Self {
+        self.fair = fair;
         self
     }
 
-    /// Consumes the builder, returning a new, initialized connection pool with the given
-    /// connection string.
-    ///
-    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
-    /// to resolve until that number of connections are connected and available in the pool.
-    ///
-    /// [`min_size`]: #method.min_size
-    pub async fn build(self, url: &str) -> Result<Pool<DB>, Error> {
-        Ok(Pool(
-            SharedPool::<DB>::new_arc(
-                url.parse().map_err(Error::ParseConnectOptions)?,
-                self.options,
-            )
-            .await?,
-        ))
+    pub fn after_connect<F>(mut self, callback: F) -> Self
+    where
+        for<'c> F:
+            Fn(&'c mut DB::Connection) -> BoxFuture<'c, Result<(), Error>> + 'static + Send + Sync,
+        // Fut: Future<Output = Result<(), Error>> + Send,
+    {
+        self.after_connect = Some(Box::new(callback));
+        self
     }
 
-    /// Consumes the builder, returning a new, initialized connection pool with the given connection
-    /// options.
-    ///
-    /// If [`min_size`] was set to a non-zero value (the default is zero), this will wait
-    /// to resolve until that number of connections are connected and available in the pool.
-    ///
-    /// [`min_size`]: #method.min_size
-    pub async fn build_with(
-        self,
-        options: <DB::Connection as Connect>::Options,
-    ) -> Result<Pool<DB>, Error> {
-        Ok(Pool(
-            SharedPool::<DB>::new_arc(options, self.options).await?,
-        ))
+    pub fn before_acquire<F, Fut>(mut self, callback: F) -> Self
+    where
+        F: Fn(&mut DB::Connection) -> Fut + 'static + Send + Sync,
+        Fut: Future<Output = Result<bool, Error>> + 'static + Send,
+    {
+        self.before_acquire = Some(Box::new(move |conn| callback(conn).boxed()));
+        self
+    }
+
+    pub fn after_release<F, Fut>(mut self, callback: F) -> Self
+    where
+        F: Fn(&mut DB::Connection) -> bool + 'static + Send + Sync,
+    {
+        self.after_release = Some(Box::new(callback));
+        self
+    }
+
+    /// Creates a new pool from this configuration and immediately establishes one connection.
+    pub async fn connect(self) -> Result<Pool<DB>, Error> {
+        let shared = SharedPool::new_arc(self);
+
+        init_min_connections(&shared).await?;
+
+        Ok(Pool(shared))
+    }
+
+    /// Creates a new pool from this configuration and will establish a connections as the pool
+    /// starts to be used.
+    pub fn connect_lazy(self) -> Pool<DB> {
+        let shared = SharedPool::new_arc(self);
+
+        let _ = spawn({
+            let shared = Arc::clone(&shared);
+            async move {
+                let _ = init_min_connections(&shared).await;
+            }
+        });
+
+        Pool(shared)
     }
 }
 
-impl<DB: Database> Default for Builder<DB> {
-    fn default() -> Self {
-        Self::new()
+async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(), Error> {
+    for _ in 0..pool.options.min_connections.max(1) {
+        let deadline = Instant::now() + pool.options.connect_timeout;
+
+        // this guard will prevent us from exceeding `max_size`
+        if let Some(guard) = pool.try_increment_size() {
+            // [connect] will raise an error when past deadline
+            // [connect] returns None if its okay to retry
+            if let Some(conn) = pool.connection(deadline, guard).await? {
+                pool.idle_conns
+                    .push(conn.into_idle().into_leakable())
+                    .expect("BUG: connection queue overflow in init_min_connections");
+            }
+        }
     }
+
+    Ok(())
 }
 
-#[derive(Debug)]
-pub(crate) struct Options {
-    pub max_size: u32,
-    pub connect_timeout: Duration,
-    pub min_size: u32,
-    pub max_lifetime: Option<Duration>,
-    pub idle_timeout: Option<Duration>,
-    pub test_on_acquire: bool,
-    pub fair: bool,
+impl<DB: Database> Debug for PoolOptions<DB> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PoolOptions")
+            .field("max_connections", &self.max_connections)
+            .field("min_connections", &self.min_connections)
+            .field("connect_timeout", &self.connect_timeout)
+            .field("max_lifetime", &self.max_lifetime)
+            .field("idle_timeout", &self.idle_timeout)
+            .field("test_before_acquire", &self.test_before_acquire)
+            .field("connect_options", &self.connect_options)
+            .finish()
+    }
 }

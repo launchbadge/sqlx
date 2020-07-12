@@ -98,6 +98,7 @@ impl MySqlConnection {
 
         Ok(Self {
             stream,
+            transaction_depth: 0,
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             scratch_row_columns: Default::default(),
             scratch_row_column_names: Default::default(),
