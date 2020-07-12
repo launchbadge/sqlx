@@ -55,6 +55,7 @@ where
     DB: Database,
 {
     connection: MaybePoolConnection<'c, DB>,
+    open: bool,
 }
 
 impl<'c, DB> Transaction<'c, DB>
@@ -69,19 +70,26 @@ where
         Box::pin(async move {
             DB::TransactionManager::begin(&mut conn).await?;
 
-            Ok(Self { connection: conn })
+            Ok(Self {
+                connection: conn,
+                open: true,
+            })
         })
     }
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
         DB::TransactionManager::commit(&mut self.connection).await?;
+        self.open = false;
+
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
         DB::TransactionManager::rollback(&mut self.connection).await?;
+        self.open = false;
+
         Ok(())
     }
 }
@@ -175,14 +183,15 @@ where
     DB: Database,
 {
     fn drop(&mut self) {
-        // starts a rollback operation
-        // NOTE: this is a no-op if it does not need to be done
+        if self.open {
+            // starts a rollback operation
 
-        // what this does depends on the database but generally this means we queue a rollback
-        // operation that will happen on the next asynchronous invocation of the underlying
-        // connection (including if the connection is returned to a pool)
+            // what this does depends on the database but generally this means we queue a rollback
+            // operation that will happen on the next asynchronous invocation of the underlying
+            // connection (including if the connection is returned to a pool)
 
-        DB::TransactionManager::start_rollback(&mut self.connection);
+            DB::TransactionManager::start_rollback(&mut self.connection);
+        }
     }
 }
 
