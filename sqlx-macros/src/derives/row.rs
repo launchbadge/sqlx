@@ -84,7 +84,7 @@ fn expand_derive_from_row_struct(
         if attributes.default {
             Some(
                 parse_quote!(let #id: #ty = row.try_get(#id_s).or_else(|e| match e {
-                sqlx_core::error::Error::ColumnNotFound(_) => {
+                sqlx::Error::ColumnNotFound(_) => {
                     Ok(Default::default())
                 },
                 e => Err(e)
