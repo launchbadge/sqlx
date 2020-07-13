@@ -19,6 +19,58 @@ use crate::row::Row;
 /// }
 /// ```
 ///
+/// Several attributes can be specified to customize how each column in a row is read:
+///
+/// ### rename
+///
+/// When the name of a field in Rust does not match the name of its corresponding column,
+/// you can use the `rename` attribute to specify the name that the field has in the row.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(rename = "description")]
+///     about_me: String
+/// }
+/// ```
+///
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name, description FROM users;
+/// ```
+///
+/// will read the content of the column `description` into the field `about_me`.
+///
+/// ### default
+///
+/// When your struct contains a field that is not present in your query,
+/// if the field type has an implementation for [`Default`],
+/// you can use the `default` attribute to assign the default value to said field.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(default)]
+///     location: Option<String>
+/// }
+/// ```
+///
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name FROM users;
+/// ```
+///
+/// will set the value of the field `location` to the default value of `Option<String>,
+/// which is `None`.
+///
 /// [`query_as`]: crate::query_as
 /// [`Row::try_get`]: crate::row::Row::try_get
 pub trait FromRow<'r, R: Row>: Sized {
