@@ -73,8 +73,8 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 let val = match &*val.value() {
                                     "lowercase" => RenameAll::LowerCase,
                                     "snake_case" => RenameAll::SnakeCase,
-                                    "uppercase" => RenameAll::UpperCase,
-                                    "screaming_snake_case" => RenameAll::ScreamingSnakeCase,
+                                    "UPPERCASE" => RenameAll::UpperCase,
+                                    "SCREAMING_SNAKE_CASE" => RenameAll::ScreamingSnakeCase,
 
                                     _ => fail!(meta, "unexpected value for rename_all"),
                                 };
