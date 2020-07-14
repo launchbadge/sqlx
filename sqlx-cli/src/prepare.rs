@@ -7,6 +7,7 @@ use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
+use console::style;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -21,6 +22,11 @@ pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
 
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(cargo_args)?;
+
+    if data.is_empty() {
+        println!("{} no queries found; do you have the `offline` feature enabled",
+            style("warning:").yellow());
+    }
 
     serde_json::to_writer_pretty(
         File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
