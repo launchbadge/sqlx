@@ -5,6 +5,154 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 - UNRELEASED
+
+### Highlights
+
+ - Enable compile-time type checking from cached metadata to enable building
+   in an environment without access to a development database (e.g., Docker, CI).
+
+ - Initial support for **Microsoft SQL Server**. If there is something missing that you need,
+   open an issue. We are happy to help.
+
+ - SQL migrations, both with a CLI tool and programmatically loading migrations at runtime.
+
+ - Runtime-determined database driver, `Any`, to support compile-once and run with a database
+   driver selected at runtime.
+
+ - Support for user-defined types and more generally overriding the inferred Rust type from SQL
+   with compile-time SQL verification.
+
+### Fixed
+
+#### MySQL
+
+ - [[#418]] Support zero dates and times [[@blackwolf12333]]
+
+### Added
+
+ - [[#174]] Inroduce a builder to construct connections to bypass the URI parsing
+
+    ```rust
+    // MSSQL
+    let conn = MssqlConnectOptions::new()
+        .host("localhost")
+        .database("master")
+        .username("sa")
+        .password("Password")
+        .connect().await?;
+
+    // SQLite
+    let conn = SqliteConnectOptions::from_str("sqlite://a.db")?
+        .foreign_keys(false)
+        .connect().await?;
+    ```
+
+ - [[#127]] Get the last ID or Row ID inserted for MySQL or SQLite
+
+    ```rust
+    // MySQL
+    let id: u64 = query!("INSERT INTO table ( col ) VALUES ( ? )", val)
+        .execute(&mut conn).await?
+        .last_insert_id(); // LAST_INSERT_ID()
+
+    // SQLite
+    let id: i64 = query!("INSERT INTO table ( col ) VALUES ( ?1 )", val)
+        .execute(&mut conn).await?
+        .last_insert_rowid(); // sqlite3_last_insert_rowid()
+    ```
+
+ - [[#263]] Add hooks to the Pool: `after_connect`, `before_release`, and `after_acquire`
+
+    ```rust
+    // PostgreSQL
+    let pool = PgPoolOptions::new()
+        .after_connect(|conn| Box::pin(async move {
+            conn.execute("SET application_name = 'your_app';").await?;
+            conn.execute("SET search_path = 'my_schema';").await?;
+
+            Ok(())
+        }))
+        .connect("postgres:// …").await?
+    ```
+
+ - [[#308]] [[#495]] Extend `derive(FromRow)` with support for `#[sqlx(default)]` on fields to allow reading in a partial query [[@OriolMunoz]]
+
+ - [[#454]] [[#456]] Support `rust_decimal::Decimal` as an alternative to `bigdecimal::BigDecimal` for `NUMERIC` columns in MySQL and PostgreSQL [[@pimeys]]
+
+ - [[#181]] Column names and type information is now accessible from `Row` via `Row::columns()` or `Row::column(name)`
+
+#### PostgreSQL
+
+ - [[#197]] [[#271]] Add initial support for `INTERVAL` (full support pending a `time::Period` type) [[@dimtion]]
+
+#### MySQL
+
+ - [[#449]] [[#450]] Support Unix Domain Sockets (UDS) for MySQL [[@pimeys]]
+
+#### SQLite
+
+ - Types are now inferred for expressions. This means its now possible to use `query!` and `query_as!` for:
+
+    ```rust
+    let row = query!("SELECT 10 as _1, x + 5 as _2 FROM table").fetch_one(&mut conn).await?;
+
+    assert_eq!(row._1, 10);
+    assert_eq!(row._2, 5); // 5 + x?
+    ```
+
+ - [[#167]] Support `foreign_keys` explicitly with a `foreign_keys(true)` method available on `SqliteConnectOptions` which is a builder
+            for new SQLite connections (and can be passed into `PoolOptions` to build a pool).
+
+    ```rust
+    let conn = SqliteConnectOptions::new()
+        .foreign_keys(true) // on by default
+        .connect().await?;
+    ```
+
+ - [[#430]] [[#438]] Add method to get the raw SQLite connection handle [[@agentsim]]
+
+    ```rust
+    // conn is `SqliteConnection`
+    // this is not unsafe, but what you do with the handle will be
+    let ptr: *mut libsqlite3::sqlite3 = conn.as_raw_handle();
+    ```
+
+ - [[#164]] Support `TIMESTAMP`, `DATETIME`, `DATE`, and `TIME` via `chrono` in SQLite [[@felipesere]] [[@meteficha]]
+
+### Changed
+
+ - `Transaction` now mutably borrows a connection instead of owning it. This enables a new (or nested) transaction to be started from `&mut conn`.
+
+ - [[#145]] [[#444]] Use a least-recently-used (LRU) cache to limit the growth of the prepared statement cache for SQLite, MySQL, and PostgreSQL [[@pimeys]]
+
+#### SQLite
+
+ - [[#499]] `INTEGER` now resolves to `i64` instead of `i32`, `INT4` will still resolve to `i32`
+
+### Removed
+
+[#127]: https://github.com/launchbadge/sqlx/issues/127
+[#174]: https://github.com/launchbadge/sqlx/issues/174
+[#145]: https://github.com/launchbadge/sqlx/issues/145
+[#164]: https://github.com/launchbadge/sqlx/issues/164
+[#167]: https://github.com/launchbadge/sqlx/issues/167
+[#181]: https://github.com/launchbadge/sqlx/issues/181
+[#197]: https://github.com/launchbadge/sqlx/issues/197
+[#263]: https://github.com/launchbadge/sqlx/issues/263
+[#308]: https://github.com/launchbadge/sqlx/issues/308
+[#418]: https://github.com/launchbadge/sqlx/issues/418
+[#430]: https://github.com/launchbadge/sqlx/issues/430
+[#449]: https://github.com/launchbadge/sqlx/issues/449
+[#499]: https://github.com/launchbadge/sqlx/issues/499
+[#454]: https://github.com/launchbadge/sqlx/issues/454
+
+[#271]: https://github.com/launchbadge/sqlx/pull/271
+[#444]: https://github.com/launchbadge/sqlx/pull/444
+[#438]: https://github.com/launchbadge/sqlx/pull/438
+[#495]: https://github.com/launchbadge/sqlx/pull/495
+[#495]: https://github.com/launchbadge/sqlx/pull/495
+
 ## 0.3.5 - 2020-05-06
 
 ### Fixed
@@ -466,3 +614,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [@blackwolf12333]: https://github.com/blackwolf12333
 [@xyzd]: https://github.com/xyzd
 [@hasali19]: https://github.com/hasali19
+[@OriolMunoz]: https://github.com/OriolMunoz
+[@pimeys]: https://github.com/pimeys
+[@agentsim]: https://github.com/agentsim
+[@meteficha]: https://github.com/meteficha
+[@felipesere]: https://github.com/felipesere
+[@dimtion]: https://github.com/dimtion
