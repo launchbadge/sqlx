@@ -370,11 +370,11 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     eprintln!("starting pool");
 
-    let pool = PgPoolOptions::new(&dotenv::var("DATABASE_URL")?)?
+    let pool = PgPoolOptions::new()
         .connect_timeout(Duration::from_secs(30))
         .min_connections(5)
         .max_connections(10)
-        .connect()
+        .connect(&dotenv::var("DATABASE_URL")?)
         .await?;
 
     // spin up more tasks than connections available, and ensure we don't deadlock

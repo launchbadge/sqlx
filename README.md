@@ -55,20 +55,20 @@
 
 <br />
 
-SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time checked queries without a DSL. 
+SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time checked queries without a DSL.
 
  * **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
- * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at 
+ * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
  compile time. (You can still use dynamic SQL queries if you like.)
 
- * **Database Agnostic**. Support for [PostgreSQL], [MySQL], and [SQLite].  
+ * **Database Agnostic**. Support for [PostgreSQL], [MySQL], and [SQLite].
 
  * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
-  
+
  * **Runtime Agnostic**. Works on [async-std](https://crates.io/crates/async-std) or [tokio](https://crates.io/crates/tokio) with the `runtime-async-std` or `runtime-tokio` cargo feature flag.
 
-<sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way 
+<sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
 
 <sub><sup>†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
@@ -83,19 +83,19 @@ with C, those interactions are `unsafe`.</sup></sub>
  * Cross-platform. Being native Rust, SQLx will compile anywhere Rust is supported.
 
  * Built-in connection pooling with `sqlx::Pool`.
- 
+
  * Row streaming. Data is read asynchronously from the database and decoded on-demand.
- 
- * Automatic statement preparation and caching. When using the high-level query API (`sqlx::query`), statements are 
-   prepared and cached per-connection.   
- 
- * Simple (unprepared) query execution including fetching results into the same `Row` types used by 
+
+ * Automatic statement preparation and caching. When using the high-level query API (`sqlx::query`), statements are
+   prepared and cached per-connection.
+
+ * Simple (unprepared) query execution including fetching results into the same `Row` types used by
    the high-level API. Supports batch execution and returning results from all statements.
-   
+
  * Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
- 
+
  * Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
- 
+
  * Nested transactions with support for save points.
 
 ## Install
@@ -124,29 +124,29 @@ sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio"
 #### Cargo Feature Flags
 
  * `runtime-async-std` (on by default): Use the `async-std` runtime.
- 
+
  * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive with the `runtime-async-std` feature.
- 
+
  * `postgres`: Add support for the Postgres database server.
- 
+
  * `mysql`: Add support for the MySQL (and MariaDB) database server.
- 
+
  * `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
- 
+
  * `uuid`: Add support for UUID (in Postgres).
- 
+
  * `chrono`: Add support for date and time types from `chrono`.
- 
+
  * `time`: Add support for date and time types from `time` crate (alternative to `chrono`, prefered by `query!` macro, if both enabled)
- 
+
  * `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
- 
+
  * `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
- 
+
  * `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
 
  * `tls`: Add support for TLS connections.
- 
+
 ## Usage
 
 ### Quickstart
@@ -161,15 +161,15 @@ use sqlx::postgres::PgPool;
 #[async_std::main] // or #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
-    let pool = PgPoolOptions::new(&env::var("DATABASE_URL")?)?
+    let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect().await?;
-    
+        .connect(&env::var("DATABASE_URL")?).await?;
+
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
         .bind(150_i64)
         .fetch_one(&pool).await?;
-    
+
     assert_eq!(row.0, 150);
 
     Ok(())
@@ -178,7 +178,7 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ### Connecting
 
-A single connection can be established using any of the database connection types and calling `connect()`. 
+A single connection can be established using any of the database connection types and calling `connect()`.
 
 ```rust
 use sqlx::Connect;
@@ -186,21 +186,21 @@ use sqlx::Connect;
 let conn = SqliteConnection::connect("sqlite::memory:").await?;
 ```
 
-Generally, you will want to instead create a connection pool (`sqlx::Pool`) in order for your application to 
+Generally, you will want to instead create a connection pool (`sqlx::Pool`) in order for your application to
 regulate how many server-side connections it's using.
 
 ```rust
 let pool = MySqlPool::new("mysql://user:pass@host/database").await?;
-``` 
+```
 
 ### Querying
 
 In SQL, queries can be separated into prepared (parameterized) or unprepared (simple). Prepared queries have their
 query plan _cached_, use a binary mode of communication (lower bandwidth and faster decoding), and utilize parameters
 to avoid SQL injection. Unprepared queries are simple and intended only for use case where a prepared statement
-will not work, such as various database commands (e.g., `PRAGMA` or `SET` or `BEGIN`). 
+will not work, such as various database commands (e.g., `PRAGMA` or `SET` or `BEGIN`).
 
-SQLx supports all operations with both types of queries. In SQLx, a `&str` is treated as an unprepared query 
+SQLx supports all operations with both types of queries. In SQLx, a `&str` is treated as an unprepared query
 and a `Query` or `QueryAs` struct is treated as a prepared query.
 
 ```rust
@@ -217,11 +217,11 @@ sqlx::query("DELETE FROM table").execute(&mut conn).await?;
 sqlx::query("DELETE FROM table").execute(&pool).await?;
 ```
 
-The `execute` query finalizer returns the number of affected rows, if any, and drops all received results. 
+The `execute` query finalizer returns the number of affected rows, if any, and drops all received results.
 In addition, there are `fetch`, `fetch_one`, `fetch_optional`, `fetch_all`, and `fetch_scalar` to receive results.
 
 The `Query` type returned from `sqlx::query` will return `Row<'conn>` from the database. Column values can be accessed
-by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow on the connection, only one 
+by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow on the connection, only one
 `Row` may exist at a time.
 
 The `fetch` query finalizer returns a stream-like type that iterates through the rows in the result sets.
@@ -232,7 +232,7 @@ let mut cursor = sqlx::query("SELECT * FROM users WHERE email = ?")
     .fetch(&mut conn);
 
 while let Some(row) = cursor.next().await? {
-    // map the row into a user-defined domain type 
+    // map the row into a user-defined domain type
 }
 ```
 
@@ -256,22 +256,22 @@ let mut stream = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ? 
     .fetch(&mut conn);
 ```
 
-Instead of a stream of results, we can use `fetch_one` or `fetch_optional` to request one required or optional result 
+Instead of a stream of results, we can use `fetch_one` or `fetch_optional` to request one required or optional result
 from the database.
 
 ### Compile-time verification
 
-We can use the macro, `sqlx::query!` to achieve compile-time syntactic and semantic verification of the SQL, with 
+We can use the macro, `sqlx::query!` to achieve compile-time syntactic and semantic verification of the SQL, with
 an output to an anonymous record type where each SQL column is a Rust field (using raw identifiers where needed).
 
 ```rust
 let countries = sqlx::query!(
         "
-SELECT country, COUNT(*) as count 
-FROM users 
-GROUP BY country 
+SELECT country, COUNT(*) as count
+FROM users
+GROUP BY country
 WHERE organization = ?
-        ", 
+        ",
         organization
     )
     .fetch_all(&pool) // -> Vec<{ country: String, count: i64 }>
@@ -282,28 +282,28 @@ WHERE organization = ?
 ```
 
 Differences from `query()`:
- 
- * The input (or bind) parameters must be given all at once (and they are compile-time validated to be 
+
+ * The input (or bind) parameters must be given all at once (and they are compile-time validated to be
    the right number and the right type).
-   
+
  * The output type is an anonymous record. In the above example the type would be similar to:
- 
+
     ```rust
     { country: String, count: i64 }
-    ``` 
-   
- * The `DATABASE_URL` environment variable must be set at build time to a database which it can prepare 
-   queries against; the database does not have to contain any data but must be the same 
+    ```
+
+ * The `DATABASE_URL` environment variable must be set at build time to a database which it can prepare
+   queries against; the database does not have to contain any data but must be the same
    kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
-   
+
    For convenience, you can use a .env file to set DATABASE_URL so that you don't have to pass it every time:
-   
+
    ```
    DATABASE_URL=mysql://localhost/my_database
-   ```   
+   ```
 
-The biggest downside to `query!()` is that the output type cannot be named (due to Rust not 
-officially supporting anonymous records). To address that, there is a `query_as!()` macro that is identical 
+The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
+officially supporting anonymous records). To address that, there is a `query_as!()` macro that is identical
 except that you can name the output type.
 
 
@@ -313,11 +313,11 @@ struct Country { country: String, count: i64 }
 
 let countries = sqlx::query_as!(Country,
         "
-SELECT country, COUNT(*) as count 
-FROM users 
-GROUP BY country 
+SELECT country, COUNT(*) as count
+FROM users
+GROUP BY country
 WHERE organization = ?
-        ", 
+        ",
         organization
     )
     .fetch_all() // -> Vec<Country>
@@ -329,9 +329,9 @@ WHERE organization = ?
 
 ## Safety
 
-This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust. 
+This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
 
-If the `sqlite` feature is enabled, this is downgraded to `#![deny(unsafe_code)]` with `#![allow(unsafe_code)]` on the 
+If the `sqlite` feature is enabled, this is downgraded to `#![deny(unsafe_code)]` with `#![allow(unsafe_code)]` on the
 `sqlx::sqlite` module. There are several places where we interact with the C SQLite API. We try to document each call for the invariants we're assuming. We absolutely welcome auditing of, and feedback on, our unsafe code usage.
 
 ## License
