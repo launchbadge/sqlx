@@ -127,7 +127,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool: SqlitePool = SqlitePoolOptions::new()?
+    let pool: SqlitePool = SqlitePoolOptions::new()
         .min_connections(2)
         .max_connections(2)
         .test_before_acquire(false)
