@@ -70,6 +70,12 @@ impl SqliteConnectOptions {
         }
     }
 
+    /// Sets the name of the database file.
+    pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
+        self.filename = Cow::Owned(filename.as_ref().to_owned());
+        self
+    }
+
     /// Set the enforcement of [foreign key constriants](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
     /// By default, this is enabled.
