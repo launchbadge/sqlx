@@ -30,3 +30,13 @@ impl Extend<MySqlDone> for MySqlDone {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<MySqlDone> for crate::any::AnyDone {
+    fn from(done: MySqlDone) -> Self {
+        crate::any::AnyDone {
+            rows_affected: done.rows_affected,
+            last_insert_id: Some(done.last_insert_id as i64),
+        }
+    }
+}

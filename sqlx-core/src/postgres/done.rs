@@ -22,3 +22,13 @@ impl Extend<PgDone> for PgDone {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<PgDone> for crate::any::AnyDone {
+    fn from(done: PgDone) -> Self {
+        crate::any::AnyDone {
+            rows_affected: done.rows_affected,
+            last_insert_id: None,
+        }
+    }
+}

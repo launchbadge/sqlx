@@ -4,7 +4,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::any::connection::AnyConnectionKind;
-use crate::any::{Any, AnyColumn, AnyConnection, AnyRow, AnyTypeInfo};
+use crate::any::{Any, AnyColumn, AnyDone, AnyConnection, AnyRow, AnyTypeInfo};
 use crate::database::Database;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -16,7 +16,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<u64, AnyRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<AnyDone, AnyRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -28,25 +28,25 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| v.map_right(Into::into))
+                .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
                 .boxed(),
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| v.map_right(Into::into))
+                .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
                 .boxed(),
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| v.map_right(Into::into))
+                .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
                 .boxed(),
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn
                 .fetch_many((query, arguments.map(Into::into)))
-                .map_ok(|v| v.map_right(Into::into))
+                .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
                 .boxed(),
         }
     }

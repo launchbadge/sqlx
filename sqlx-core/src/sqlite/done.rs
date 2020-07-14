@@ -30,3 +30,13 @@ impl Extend<SqliteDone> for SqliteDone {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<SqliteDone> for crate::any::AnyDone {
+    fn from(done: SqliteDone) -> Self {
+        crate::any::AnyDone {
+            rows_affected: done.changes,
+            last_insert_id: Some(done.last_insert_rowid),
+        }
+    }
+}

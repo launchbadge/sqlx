@@ -22,3 +22,13 @@ impl Extend<MssqlDone> for MssqlDone {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<MssqlDone> for crate::any::AnyDone {
+    fn from(done: MssqlDone) -> Self {
+        crate::any::AnyDone {
+            rows_affected: done.rows_affected,
+            last_insert_id: None,
+        }
+    }
+}

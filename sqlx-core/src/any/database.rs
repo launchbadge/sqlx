@@ -1,6 +1,7 @@
 use crate::any::{
     AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyRow, AnyTransactionManager,
     AnyTypeInfo, AnyValue, AnyValueRef,
+    AnyDone,
 };
 use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
 
@@ -15,6 +16,8 @@ impl Database for Any {
     type TransactionManager = AnyTransactionManager;
 
     type Row = AnyRow;
+
+    type Done = AnyDone;
 
     type Column = AnyColumn;
 
