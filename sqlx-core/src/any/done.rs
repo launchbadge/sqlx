@@ -1,5 +1,5 @@
-use crate::done::Done;
 use crate::any::Any;
+use crate::done::Done;
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]

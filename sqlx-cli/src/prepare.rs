@@ -1,5 +1,6 @@
 use anyhow::{bail, Context};
 use cargo_metadata::MetadataCommand;
+use console::style;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -7,7 +8,6 @@ use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
-use console::style;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -24,8 +24,10 @@ pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
     let data = run_prepare_step(cargo_args)?;
 
     if data.is_empty() {
-        println!("{} no queries found; do you have the `offline` feature enabled",
-            style("warning:").yellow());
+        println!(
+            "{} no queries found; do you have the `offline` feature enabled",
+            style("warning:").yellow()
+        );
     }
 
     serde_json::to_writer_pretty(

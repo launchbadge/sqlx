@@ -4,7 +4,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::any::connection::AnyConnectionKind;
-use crate::any::{Any, AnyColumn, AnyDone, AnyConnection, AnyRow, AnyTypeInfo};
+use crate::any::{Any, AnyColumn, AnyConnection, AnyDone, AnyRow, AnyTypeInfo};
 use crate::database::Database;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
