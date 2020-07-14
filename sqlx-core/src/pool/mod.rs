@@ -20,7 +20,7 @@
 //! use sqlx::Pool;
 //! use sqlx::postgres::Postgres;
 //!
-//! let pool = Pool::<Postgres>::new("postgres://").await?;
+//! let pool = Pool::<Postgres>::connect("postgres://").await?;
 //! ```
 //!
 //! For convenience, database-specific type aliases are provided:
@@ -28,7 +28,7 @@
 //! ```rust,ignore
 //! use sqlx::mssql::MssqlPool;
 //!
-//! let pool = MssqlPool::new("mssql://").await?;
+//! let pool = MssqlPool::connect("mssql://").await?;
 //! ```
 //!
 //! # Using a connection pool
@@ -46,11 +46,11 @@
 //!
 
 use self::inner::SharedPool;
+use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::Transaction;
 use std::fmt;
-
 use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -76,14 +76,29 @@ impl<DB: Database> Pool<DB> {
     /// Creates a new connection pool with a default pool configuration and
     /// the given connection URI; and, immediately establishes one connection.
     pub async fn connect(uri: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new(uri)?.connect().await
+        PoolOptions::<DB>::new().connect(uri).await
+    }
+
+    /// Creates a new connection pool with a default pool configuration and
+    /// the given connection options; and, immediately establishes one connection.
+    pub async fn connect_with(
+        options: <DB::Connection as Connection>::Options,
+    ) -> Result<Self, Error> {
+        PoolOptions::<DB>::new().connect_with(options).await
     }
 
     /// Creates a new connection pool with a default pool configuration and
     /// the given connection URI; and, will establish a connections as the pool
     /// starts to be used.
     pub fn connect_lazy(uri: &str) -> Result<Self, Error> {
-        Ok(PoolOptions::<DB>::new(uri)?.connect_lazy())
+        PoolOptions::<DB>::new().connect_lazy(uri)
+    }
+
+    /// Creates a new connection pool with a default pool configuration and
+    /// the given connection options; and, will establish a connections as the pool
+    /// starts to be used.
+    pub fn connect_lazy_with(options: <DB::Connection as Connection>::Options) -> Self {
+        PoolOptions::<DB>::new().connect_lazy_with(options)
     }
 
     /// Retrieves a connection from the pool.

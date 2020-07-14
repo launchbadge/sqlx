@@ -26,11 +26,11 @@ where
 {
     setup_if_needed();
 
-    let pool = PoolOptions::<DB>::new(&env::var("DATABASE_URL")?)?
+    let pool = PoolOptions::<DB>::new()
         .min_connections(0)
         .max_connections(5)
         .test_before_acquire(true)
-        .connect()
+        .connect(&env::var("DATABASE_URL")?)
         .await?;
 
     Ok(pool)

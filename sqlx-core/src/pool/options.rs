@@ -4,15 +4,12 @@ use crate::error::Error;
 use crate::pool::inner::SharedPool;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
-use futures_util::FutureExt;
 use sqlx_rt::spawn;
 use std::fmt::{self, Debug, Formatter};
-use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub struct PoolOptions<DB: Database> {
-    pub(crate) connect_options: <DB::Connection as Connection>::Options,
     pub(crate) test_before_acquire: bool,
     pub(crate) after_connect: Option<
         Box<
@@ -37,31 +34,26 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) fair: bool,
 }
 
-fn default<DB: Database>(
-    connect_options: <DB::Connection as Connection>::Options,
-) -> PoolOptions<DB> {
-    PoolOptions {
-        connect_options,
-        after_connect: None,
-        test_before_acquire: true,
-        before_acquire: None,
-        after_release: None,
-        max_connections: 10,
-        min_connections: 0,
-        connect_timeout: Duration::from_secs(30),
-        idle_timeout: Some(Duration::from_secs(10 * 60)),
-        max_lifetime: Some(Duration::from_secs(30 * 60)),
-        fair: true,
+impl<DB: Database> Default for PoolOptions<DB> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl<DB: Database> PoolOptions<DB> {
-    pub fn new(uri: &str) -> Result<Self, Error> {
-        Ok(default(uri.parse()?))
-    }
-
-    pub fn new_with(options: <DB::Connection as Connection>::Options) -> Self {
-        default(options)
+    pub fn new() -> Self {
+        Self {
+            after_connect: None,
+            test_before_acquire: true,
+            before_acquire: None,
+            after_release: None,
+            max_connections: 10,
+            min_connections: 0,
+            connect_timeout: Duration::from_secs(30),
+            idle_timeout: Some(Duration::from_secs(10 * 60)),
+            max_lifetime: Some(Duration::from_secs(30 * 60)),
+            fair: true,
+        }
     }
 
     /// Set the maximum number of connections that this pool should maintain.
@@ -154,7 +146,6 @@ impl<DB: Database> PoolOptions<DB> {
     where
         for<'c> F:
             Fn(&'c mut DB::Connection) -> BoxFuture<'c, Result<(), Error>> + 'static + Send + Sync,
-        // Fut: Future<Output = Result<(), Error>> + Send,
     {
         self.after_connect = Some(Box::new(callback));
         self
@@ -162,10 +153,12 @@ impl<DB: Database> PoolOptions<DB> {
 
     pub fn before_acquire<F, Fut>(mut self, callback: F) -> Self
     where
-        F: Fn(&mut DB::Connection) -> Fut + 'static + Send + Sync,
-        Fut: Future<Output = Result<bool, Error>> + 'static + Send,
+        for<'c> F: Fn(&'c mut DB::Connection) -> BoxFuture<'c, Result<bool, Error>>
+            + 'static
+            + Send
+            + Sync,
     {
-        self.before_acquire = Some(Box::new(move |conn| callback(conn).boxed()));
+        self.before_acquire = Some(Box::new(callback));
         self
     }
 
@@ -178,8 +171,16 @@ impl<DB: Database> PoolOptions<DB> {
     }
 
     /// Creates a new pool from this configuration and immediately establishes one connection.
-    pub async fn connect(self) -> Result<Pool<DB>, Error> {
-        let shared = SharedPool::new_arc(self);
+    pub async fn connect(self, uri: &str) -> Result<Pool<DB>, Error> {
+        self.connect_with(uri.parse()?).await
+    }
+
+    /// Creates a new pool from this configuration and immediately establishes one connection.
+    pub async fn connect_with(
+        self,
+        options: <DB::Connection as Connection>::Options,
+    ) -> Result<Pool<DB>, Error> {
+        let shared = SharedPool::new_arc(self, options);
 
         init_min_connections(&shared).await?;
 
@@ -188,8 +189,14 @@ impl<DB: Database> PoolOptions<DB> {
 
     /// Creates a new pool from this configuration and will establish a connections as the pool
     /// starts to be used.
-    pub fn connect_lazy(self) -> Pool<DB> {
-        let shared = SharedPool::new_arc(self);
+    pub fn connect_lazy(self, uri: &str) -> Result<Pool<DB>, Error> {
+        Ok(self.connect_lazy_with(uri.parse()?))
+    }
+
+    /// Creates a new pool from this configuration and will establish a connections as the pool
+    /// starts to be used.
+    pub fn connect_lazy_with(self, options: <DB::Connection as Connection>::Options) -> Pool<DB> {
+        let shared = SharedPool::new_arc(self, options);
 
         let _ = spawn({
             let shared = Arc::clone(&shared);
@@ -230,7 +237,6 @@ impl<DB: Database> Debug for PoolOptions<DB> {
             .field("max_lifetime", &self.max_lifetime)
             .field("idle_timeout", &self.idle_timeout)
             .field("test_before_acquire", &self.test_before_acquire)
-            .field("connect_options", &self.connect_options)
             .finish()
     }
 }

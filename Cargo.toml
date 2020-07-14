@@ -102,6 +102,11 @@ name = "any"
 path = "tests/any/any.rs"
 required-features = [ "any" ]
 
+[[test]]
+name = "any-pool"
+path = "tests/any/pool.rs"
+required-features = [ "any" ]
+
 #
 # SQLite
 #

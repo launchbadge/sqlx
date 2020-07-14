@@ -1,4 +1,5 @@
 use super::connection::{Floating, Idle, Live};
+use crate::connection::ConnectOptions;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
@@ -15,6 +16,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 pub(crate) struct SharedPool<DB: Database> {
+    pub(super) connect_options: <DB::Connection as Connection>::Options,
     pub(super) idle_conns: ArrayQueue<Idle<DB>>,
     waiters: SegQueue<Waker>,
     pub(super) size: AtomicU32,
@@ -140,8 +142,12 @@ impl<DB: Database> SharedPool<DB> {
         .map_err(|_| Error::PoolTimedOut)
     }
 
-    pub(super) fn new_arc(options: PoolOptions<DB>) -> Arc<Self> {
+    pub(super) fn new_arc(
+        options: PoolOptions<DB>,
+        connect_options: <DB::Connection as Connection>::Options,
+    ) -> Arc<Self> {
         let pool = Self {
+            connect_options,
             idle_conns: ArrayQueue::new(options.max_connections as usize),
             waiters: SegQueue::new(),
             size: AtomicU32::new(0),
@@ -207,12 +213,7 @@ impl<DB: Database> SharedPool<DB> {
         let timeout = super::deadline_as_timeout::<DB>(deadline)?;
 
         // result here is `Result<Result<C, Error>, TimeoutError>`
-        match sqlx_rt::timeout(
-            timeout,
-            DB::Connection::connect_with(&self.options.connect_options),
-        )
-        .await
-        {
+        match sqlx_rt::timeout(timeout, self.connect_options.connect()).await {
             // successfully established connection
             Ok(Ok(mut raw)) => {
                 if let Some(callback) = &self.options.after_connect {

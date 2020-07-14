@@ -34,11 +34,11 @@ impl PgListener {
     pub async fn connect(uri: &str) -> Result<Self, Error> {
         // Create a pool of 1 without timeouts (as they don't apply here)
         // We only use the pool to handle re-connections
-        let pool = PoolOptions::<Postgres>::new(uri)?
+        let pool = PoolOptions::<Postgres>::new()
             .max_connections(1)
             .max_lifetime(None)
             .idle_timeout(None)
-            .connect()
+            .connect(uri)
             .await?;
 
         Self::connect_with(&pool).await
