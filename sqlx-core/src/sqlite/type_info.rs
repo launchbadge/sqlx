@@ -40,6 +40,10 @@ impl Display for SqliteTypeInfo {
 }
 
 impl TypeInfo for SqliteTypeInfo {
+    fn is_null(&self) -> bool {
+        matches!(self.0, DataType::Null)
+    }
+
     fn name(&self) -> &str {
         match self.0 {
             DataType::Null => "NULL",

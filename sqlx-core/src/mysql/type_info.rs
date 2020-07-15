@@ -60,6 +60,10 @@ impl Display for MySqlTypeInfo {
 }
 
 impl TypeInfo for MySqlTypeInfo {
+    fn is_null(&self) -> bool {
+        matches!(self.r#type, ColumnType::Null)
+    }
+
     fn name(&self) -> &str {
         self.r#type.name(self.char_set, self.flags)
     }

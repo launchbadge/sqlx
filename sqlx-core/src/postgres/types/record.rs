@@ -6,6 +6,7 @@ use crate::error::{mismatched_types, BoxDynError};
 use crate::postgres::type_info::{PgType, PgTypeKind};
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
+use crate::type_info::TypeInfo;
 
 #[doc(hidden)]
 pub struct PgRecordEncoder<'a> {
@@ -126,7 +127,7 @@ impl<'r> PgRecordDecoder<'r> {
                 self.ind += 1;
 
                 if let Some(ty) = &element_type_opt {
-                    if !T::compatible(ty) {
+                    if !ty.is_null() && !T::compatible(ty) {
                         return Err(mismatched_types::<Postgres, T>(ty));
                     }
                 }

@@ -2,6 +2,7 @@ use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
 use crate::types::Type;
+use crate::type_info::TypeInfo;
 
 /// An owned value from the database.
 pub trait Value {
@@ -65,7 +66,7 @@ pub trait Value {
         if !self.is_null() {
             let ty = self.type_info();
 
-            if !T::compatible(&ty) {
+            if !ty.is_null() && !T::compatible(&ty) {
                 return Err(Error::Decode(mismatched_types::<Self::Database, T>(&ty)));
             }
         }

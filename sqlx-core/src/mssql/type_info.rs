@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::mssql::protocol::type_info::TypeInfo as ProtocolTypeInfo;
+use crate::mssql::protocol::type_info::{TypeInfo as ProtocolTypeInfo, DataType};
 use crate::type_info::TypeInfo;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8,6 +8,10 @@ use crate::type_info::TypeInfo;
 pub struct MssqlTypeInfo(pub(crate) ProtocolTypeInfo);
 
 impl TypeInfo for MssqlTypeInfo {
+    fn is_null(&self) -> bool {
+        matches!(self.0.ty, DataType::Null)
+    }
+
     fn name(&self) -> &str {
         self.0.name()
     }

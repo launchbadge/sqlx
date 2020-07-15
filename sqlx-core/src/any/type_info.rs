@@ -33,6 +33,22 @@ pub(crate) enum AnyTypeInfoKind {
 }
 
 impl TypeInfo for AnyTypeInfo {
+    fn is_null(&self) -> bool {
+        match &self.0 {
+            #[cfg(feature = "postgres")]
+            AnyTypeInfoKind::Postgres(ty) => ty.is_null(),
+
+            #[cfg(feature = "mysql")]
+            AnyTypeInfoKind::MySql(ty) => ty.is_null(),
+
+            #[cfg(feature = "sqlite")]
+            AnyTypeInfoKind::Sqlite(ty) => ty.is_null(),
+
+            #[cfg(feature = "mssql")]
+            AnyTypeInfoKind::Mssql(ty) => ty.is_null(),
+        }
+    }
+
     fn name(&self) -> &str {
         match &self.0 {
             #[cfg(feature = "postgres")]

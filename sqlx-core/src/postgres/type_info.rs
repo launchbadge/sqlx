@@ -741,6 +741,10 @@ impl TypeInfo for PgTypeInfo {
     fn name(&self) -> &str {
         self.0.display_name()
     }
+
+    fn is_null(&self) -> bool {
+        false
+    }
 }
 
 impl PartialEq<PgCustomType> for PgCustomType {

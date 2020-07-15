@@ -4,6 +4,7 @@ use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
 use crate::types::Type;
+use crate::type_info::TypeInfo;
 use crate::value::ValueRef;
 
 /// A type that can be used to index into a [`Row`].
@@ -171,7 +172,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
         if !value.is_null() {
             let ty = value.type_info();
 
-            if !T::compatible(&ty) {
+            if !ty.is_null() && !T::compatible(&ty) {
                 return Err(Error::ColumnDecode {
                     index: format!("{:?}", index),
                     source: mismatched_types::<Self::Database, T>(&ty),
