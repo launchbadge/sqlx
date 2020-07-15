@@ -51,7 +51,7 @@ enum ColorSnake {
 
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_upper")]
-#[sqlx(rename_all = "uppercase")]
+#[sqlx(rename_all = "UPPERCASE")]
 enum ColorUpper {
     Red,
     Green,
@@ -60,7 +60,7 @@ enum ColorUpper {
 
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_screaming_snake")]
-#[sqlx(rename_all = "screaming_snake_case")]
+#[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]
 enum ColorScreamingSnake {
     RedGreen,
     BlueBlack,
