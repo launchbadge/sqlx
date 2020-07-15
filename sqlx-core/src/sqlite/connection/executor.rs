@@ -89,6 +89,12 @@ fn emplace_row_metadata(
     Ok(())
 }
 
+fn update_column_type_metadata(statement: &StatementHandle, columns: &mut Vec<SqliteColumn>) {
+    for col in columns.iter_mut() {
+        col.type_info = statement.column_type_info(col.ordinal);
+    }
+}
+
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
 
@@ -144,6 +150,8 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                             Arc::make_mut(columns),
                             Arc::make_mut(scratch_row_column_names),
                         )?;
+                    } else {
+                        update_column_type_metadata(handle, Arc::make_mut(columns));
                     }
 
                     match s {

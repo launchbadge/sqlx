@@ -93,6 +93,34 @@ async fn it_maths() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
+    use sqlx::{ValueRef, TypeInfo, Decode};
+
+    let mut conn = new::<Sqlite>().await?;
+
+    let defaults = sqlx::query("pragma table_info (tweet)")
+        .try_map(|row: SqliteRow| {
+            let val = row.try_get_raw("dflt_value")?;
+            let ty = val.type_info().clone();
+
+            let val: Option<i32> = Decode::decode(val).map_err(sqlx::Error::Decode)?;
+
+            if val.is_some() {
+                assert_eq!(ty.name(), "TEXT");
+            }
+
+            Ok(val)
+        })
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(defaults[0], None);
+    assert_eq!(defaults[2], Some(0));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
