@@ -5,8 +5,8 @@ use crate::encode::Encode;
 use crate::error::{mismatched_types, BoxDynError};
 use crate::postgres::type_info::{PgType, PgTypeKind};
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
-use crate::types::Type;
 use crate::type_info::TypeInfo;
+use crate::types::Type;
 
 #[doc(hidden)]
 pub struct PgRecordEncoder<'a> {

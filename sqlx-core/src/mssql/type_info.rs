@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::mssql::protocol::type_info::{TypeInfo as ProtocolTypeInfo, DataType};
+use crate::mssql::protocol::type_info::{DataType, TypeInfo as ProtocolTypeInfo};
 use crate::type_info::TypeInfo;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
-use crate::types::Type;
 use crate::type_info::TypeInfo;
+use crate::types::Type;
 use crate::value::ValueRef;
 
 /// A type that can be used to index into a [`Row`].

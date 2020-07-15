@@ -131,8 +131,8 @@ pub mod prelude {
     pub use super::Acquire;
     pub use super::ConnectOptions;
     pub use super::Connection;
-    pub use super::Done;
     pub use super::Decode;
+    pub use super::Done;
     pub use super::Encode;
     pub use super::Executor;
     pub use super::FromRow;

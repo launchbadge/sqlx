@@ -1,8 +1,8 @@
 use crate::database::{Database, HasValueRef};
 use crate::decode::Decode;
 use crate::error::{mismatched_types, Error};
-use crate::types::Type;
 use crate::type_info::TypeInfo;
+use crate::types::Type;
 
 /// An owned value from the database.
 pub trait Value {

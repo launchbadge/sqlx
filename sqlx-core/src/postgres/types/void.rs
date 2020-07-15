@@ -1,7 +1,7 @@
-use crate::types::Type;
-use crate::error::BoxDynError;
 use crate::decode::Decode;
-use crate::postgres::{PgTypeInfo, Postgres, PgValueRef};
+use crate::error::BoxDynError;
+use crate::postgres::{PgTypeInfo, PgValueRef, Postgres};
+use crate::types::Type;
 
 impl Type<Postgres> for () {
     fn type_info() -> PgTypeInfo {

@@ -94,7 +94,7 @@ async fn it_maths() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use sqlx::{ValueRef, TypeInfo, Decode};
+    use sqlx::{Decode, TypeInfo, ValueRef};
 
     let mut conn = new::<Sqlite>().await?;
 
