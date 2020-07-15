@@ -49,6 +49,12 @@ impl_database_ext! {
 
         #[cfg(feature = "decimal")]
         sqlx::types::Decimal,
+
+        #[cfg(feature = "json")]
+        serde_json::Value,
+
+        #[cfg(feature = "json")]
+        sqlx::types::Json<_>,
     },
     ParamChecking::Weak,
     feature-types: info => info.__type_feature_gate(),

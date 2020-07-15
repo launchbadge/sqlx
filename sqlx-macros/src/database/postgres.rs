@@ -56,6 +56,7 @@ impl_database_ext! {
         serde_json::Value,
 
         // Arrays
+
         Vec<bool> | &[bool],
         Vec<String> | &[String],
         Vec<i8> | &[i8],
@@ -65,7 +66,6 @@ impl_database_ext! {
         Vec<i64> | &[i64],
         Vec<f32> | &[f32],
         Vec<f64> | &[f64],
-
 
         #[cfg(feature = "uuid")]
         Vec<sqlx::types::Uuid> | &[sqlx::types::Uuid],
@@ -100,6 +100,9 @@ impl_database_ext! {
 
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
+
+        #[cfg(feature = "json")]
+        Vec<serde_json::Value> | &[serde_json::Value],
 
     },
     ParamChecking::Strong,

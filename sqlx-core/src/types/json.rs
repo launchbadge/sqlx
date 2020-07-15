@@ -14,7 +14,7 @@ use crate::types::Type;
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
 )]
 #[serde(transparent)]
-pub struct Json<T>(pub T);
+pub struct Json<T: ?Sized>(pub T);
 
 impl<T> Deref for Json<T> {
     type Target = T;
@@ -41,6 +41,34 @@ where
 
     fn compatible(ty: &DB::TypeInfo) -> bool {
         <Json<Self> as Type<DB>>::compatible(ty)
+    }
+}
+
+impl<DB> Type<DB> for Vec<JsonValue>
+where
+    Vec<Json<JsonValue>>: Type<DB>,
+    DB: Database,
+{
+    fn type_info() -> DB::TypeInfo {
+        <Vec<Json<JsonValue>> as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <Vec<Json<JsonValue>> as Type<DB>>::compatible(ty)
+    }
+}
+
+impl<DB> Type<DB> for [JsonValue]
+where
+    [Json<JsonValue>]: Type<DB>,
+    DB: Database,
+{
+    fn type_info() -> DB::TypeInfo {
+        <[Json<JsonValue>] as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <[Json<JsonValue>] as Type<DB>>::compatible(ty)
     }
 }
 
