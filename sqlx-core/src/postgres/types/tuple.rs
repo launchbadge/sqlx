@@ -45,8 +45,6 @@ macro_rules! impl_type_for_tuple {
     };
 }
 
-impl_type_for_tuple!();
-
 impl_type_for_tuple!(_1: T1);
 
 impl_type_for_tuple!(_1: T1, _2: T2);

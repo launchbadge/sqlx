@@ -116,6 +116,9 @@ pub enum PgType {
     Money,
     MoneyArray,
 
+    // https://www.postgresql.org/docs/9.3/datatype-pseudo.html
+    Void,
+
     // A realized user-defined type. When a connection sees a DeclareXX variant it resolves
     // into this one before passing it along to `accepts` or inside of `Value` objects.
     Custom(Arc<PgCustomType>),
@@ -301,6 +304,7 @@ impl PgType {
             1562 => PgType::Varbit,
             1563 => PgType::VarbitArray,
             1700 => PgType::Numeric,
+            2278 => PgType::Void,
             2249 => PgType::Record,
             2287 => PgType::RecordArray,
             2950 => PgType::Uuid,
@@ -408,6 +412,7 @@ impl PgType {
             PgType::Varbit => 1562,
             PgType::VarbitArray => 1563,
             PgType::Numeric => 1700,
+            PgType::Void => 2278,
             PgType::Record => 2249,
             PgType::RecordArray => 2287,
             PgType::Uuid => 2950,
@@ -530,6 +535,7 @@ impl PgType {
             PgType::JsonpathArray => "JSONPATH[]",
             PgType::Money => "MONEY",
             PgType::MoneyArray => "MONEY[]",
+            PgType::Void => "VOID",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -629,6 +635,7 @@ impl PgType {
             PgType::JsonpathArray => "_jsonpath",
             PgType::Money => "money",
             PgType::MoneyArray => "_money",
+            PgType::Void => "void",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
             PgType::DeclareWithName(name) => name,
@@ -728,6 +735,9 @@ impl PgType {
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
             PgType::Money => &PgTypeKind::Simple,
             PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
+
+            PgType::Void => &PgTypeKind::Pseudo,
+
             PgType::Custom(ty) => &ty.kind,
 
             PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
@@ -961,6 +971,13 @@ impl PgTypeInfo {
 
     pub(crate) const INT8_RANGE: Self = Self(PgType::Int8Range);
     pub(crate) const INT8_RANGE_ARRAY: Self = Self(PgType::Int8RangeArray);
+
+    //
+    // pseudo types
+    // https://www.postgresql.org/docs/9.3/datatype-pseudo.html
+    //
+
+    pub(crate) const VOID: Self = Self(PgType::Void);
 }
 
 impl Display for PgTypeInfo {

@@ -156,6 +156,7 @@ use crate::types::Type;
 mod array;
 mod bool;
 mod bytes;
+mod void;
 mod float;
 mod int;
 mod interval;
