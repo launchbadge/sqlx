@@ -105,6 +105,8 @@ pub mod encode {
     pub use sqlx_macros::Encode;
 }
 
+pub use self::encode::Encode;
+
 /// Provides [`Decode`](decode/trait.Decode.html) for decoding values from the database.
 pub mod decode {
     pub use sqlx_core::decode::Decode;
@@ -113,6 +115,8 @@ pub mod decode {
     #[doc(hidden)]
     pub use sqlx_macros::Decode;
 }
+
+pub use self::decode::Decode;
 
 /// Types and traits for the `query` family of functions and macros.
 pub mod query {
@@ -128,6 +132,8 @@ pub mod prelude {
     pub use super::ConnectOptions;
     pub use super::Connection;
     pub use super::Done;
+    pub use super::Decode;
+    pub use super::Encode;
     pub use super::Executor;
     pub use super::FromRow;
     pub use super::IntoArguments;
