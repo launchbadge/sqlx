@@ -1,8 +1,8 @@
 use futures::TryStreamExt;
+use sqlx::postgres::{types::PgAny, PgPoolOptions, PgRow, Postgres};
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Done, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -277,6 +277,18 @@ async fn it_can_query_scalar() -> anyhow::Result<()> {
 
     let scalar: Option<i16> = sqlx::query_scalar("").fetch_optional(&mut conn).await?;
     assert_eq!(scalar, None);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_query_with_untyped_parameters() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let scalar: i32 = sqlx::query_scalar("SELECT $1::int")
+        .bind(PgAny(32i32))
+        .fetch_one(&mut conn)
+        .await?;
 
     Ok(())
 }

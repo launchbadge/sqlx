@@ -24,6 +24,7 @@ impl Deref for PgTypeInfo {
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u32)]
 pub enum PgType {
+    Any,
     Bool,
     Bytea,
     Char,
@@ -232,6 +233,7 @@ impl PgType {
     /// Returns the corresponding `PgType` if the OID is a built-in type and recognized by SQLx.
     pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
         Some(match oid {
+            0 => PgType::Any,
             16 => PgType::Bool,
             17 => PgType::Bytea,
             18 => PgType::Char,
@@ -340,6 +342,7 @@ impl PgType {
 
     pub(crate) fn try_oid(&self) -> Option<u32> {
         Some(match self {
+            PgType::Any => 0,
             PgType::Bool => 16,
             PgType::Bytea => 17,
             PgType::Char => 18,
@@ -443,6 +446,7 @@ impl PgType {
 
     pub(crate) fn display_name(&self) -> &str {
         match self {
+            PgType::Any => "ANY",
             PgType::Bool => "BOOL",
             PgType::Bytea => "BYTEA",
             PgType::Char => "\"CHAR\"",
@@ -543,6 +547,7 @@ impl PgType {
 
     pub(crate) fn name(&self) -> &str {
         match self {
+            PgType::Any => "any",
             PgType::Bool => "bool",
             PgType::Bytea => "bytea",
             PgType::Char => "char",
@@ -735,6 +740,7 @@ impl PgType {
             PgType::Money => &PgTypeKind::Simple,
             PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
 
+            PgType::Any => &PgTypeKind::Pseudo,
             PgType::Void => &PgTypeKind::Pseudo,
 
             PgType::Custom(ty) => &ty.kind,
@@ -977,6 +983,7 @@ impl PgTypeInfo {
     //
 
     pub(crate) const VOID: Self = Self(PgType::Void);
+    pub(crate) const ANY: Self = Self(PgType::Any);
 }
 
 impl Display for PgTypeInfo {

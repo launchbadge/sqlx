@@ -153,6 +153,7 @@ use crate::postgres::type_info::PgTypeKind;
 use crate::postgres::{PgTypeInfo, Postgres};
 use crate::types::Type;
 
+mod any;
 mod array;
 mod bool;
 mod bytes;
@@ -193,6 +194,7 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+pub use any::PgAny;
 pub use interval::PgInterval;
 pub use money::PgMoney;
 pub use range::PgRange;
