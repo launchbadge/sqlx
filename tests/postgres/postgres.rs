@@ -3,7 +3,7 @@ use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
 use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
-use sqlx::{Connection, Done, Executor, PgPool, Row};
+use sqlx::{Connection, Done, Executor, Row};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 use std::thread;
@@ -28,7 +28,7 @@ async fn it_can_select_void() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // pg_notify just happens to be a function that returns void
-    let _value: () = sqlx::query_scalar("select pg_notify('chan', 'message');")
+    let _: () = sqlx::query_scalar("select pg_notify('chan', 'message');")
         .fetch_one(&mut conn)
         .await?;
 
@@ -132,12 +132,12 @@ CREATE TEMPORARY TABLE json_stuff (obj json);
     let query = "INSERT INTO json_stuff (obj) VALUES ($1)";
     let _ = conn.describe(query).await?;
 
-    let cnt = sqlx::query(query)
+    let done = sqlx::query(query)
         .bind(serde_json::json!({ "a": "a" }))
         .execute(&mut conn)
         .await?;
 
-    assert_eq!(cnt, 1);
+    assert_eq!(done.rows_affected(), 1);
 
     Ok(())
 }
@@ -563,6 +563,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     for i in 0..2 {
         let row = sqlx::query("SELECT $1 AS val")
             .bind(i)
+            .persistent(true)
             .fetch_one(&mut conn)
             .await?;
 
@@ -573,6 +574,20 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     assert_eq!(1, conn.cached_statements_size());
     conn.clear_cached_statements().await?;
+    assert_eq!(0, conn.cached_statements_size());
+
+    for i in 0..2 {
+        let row = sqlx::query("SELECT $1 AS val")
+            .bind(i)
+            .persistent(false)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: u32 = row.get("val");
+
+        assert_eq!(i, val);
+    }
+
     assert_eq!(0, conn.cached_statements_size());
 
     Ok(())

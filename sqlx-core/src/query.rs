@@ -5,7 +5,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
-use crate::database::{Database, HasArguments};
+use crate::database::{Database, HasArguments, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -17,6 +17,7 @@ pub struct Query<'q, DB: Database, A> {
     pub(crate) query: &'q str,
     pub(crate) arguments: Option<A>,
     pub(crate) database: PhantomData<DB>,
+    pub(crate) persistent: bool,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -50,7 +51,7 @@ where
 
     #[inline]
     fn persistent(&self) -> bool {
-        self.arguments.is_some()
+        self.persistent
     }
 }
 
@@ -68,6 +69,24 @@ impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
             arguments.add(value);
         }
 
+        self
+    }
+}
+
+impl<'q, DB, A> Query<'q, DB, A>
+where
+    DB: Database + HasStatementCache,
+{
+    /// If `true`, the statement will get prepared once and cached to the
+    /// connection's statement cache.
+    ///
+    /// If queried once with the flag set to `true`, all subsequent queries
+    /// matching the one with the flag will use the cached statement until the
+    /// cache is cleared.
+    ///
+    /// Default: `true`.
+    pub fn persistent(mut self, value: bool) -> Self {
+        self.persistent = value;
         self
     }
 }
@@ -360,6 +379,7 @@ where
         database: PhantomData,
         arguments: Some(Default::default()),
         query: sql,
+        persistent: true,
     }
 }
 
@@ -374,6 +394,7 @@ where
         database: PhantomData,
         arguments: Some(arguments),
         query: sql,
+        persistent: true,
     }
 }
 
