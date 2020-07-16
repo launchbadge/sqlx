@@ -51,7 +51,8 @@ $ sqlx migration run
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
 
-#### Enable building in "offline" mode with `query!()` 
+#### Enable building in "offline" mode with `query!()`
+
 Note: must be run as `cargo sqlx`.
 
 ```bash
@@ -74,3 +75,9 @@ cargo sqlx prepare --check
 ```
 Exits with a nonzero exit status if the data in `sqlx-data.json` is out of date with the current
 database schema and queries in the project. Intended for use in Continuous Integration.
+
+#### Force building in offline mode
+
+To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
+result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
+variable.
