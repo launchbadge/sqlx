@@ -35,11 +35,14 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 
     // if `dotenv` wasn't initialized by the above we make sure to do it here
-    match dotenv::var("DATABASE_URL").ok() {
-        Some(db_url) => expand_from_db(input, &db_url),
+    match (
+        dotenv::var("SQLX_OFFLINE").is_ok(),
+        dotenv::var("DATABASE_URL"),
+    ) {
+        (false, Ok(db_url)) => expand_from_db(input, &db_url),
 
         #[cfg(feature = "offline")]
-        None => {
+        _ => {
             let data_file_path = std::path::Path::new(&manifest_dir).join("sqlx-data.json");
 
             if data_file_path.exists() {
@@ -54,7 +57,12 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
         }
 
         #[cfg(not(feature = "offline"))]
-        None => Err("`DATABASE_URL` must be set to use query macros".into()),
+        (true, _) => {
+            Err("The cargo feature `offline` has to be enabled to use `SQLX_OFFLINE`".into())
+        }
+
+        #[cfg(not(feature = "offline"))]
+        (false, Err(_)) => Err("`DATABASE_URL` must be set to use query macros".into()),
     }
 }
 
