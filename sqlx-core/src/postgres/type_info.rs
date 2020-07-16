@@ -221,6 +221,16 @@ impl PgTypeInfo {
     pub const fn with_oid(oid: u32) -> Self {
         Self(PgType::DeclareWithOid(oid))
     }
+
+    /// Returns `true` if the underlying type kind is enum.
+    pub fn is_enum(&self) -> bool {
+        matches!(self.0.kind(), PgTypeKind::Enum(_))
+    }
+
+    /// Returns `true` if the underlying type kind is an array of enums.
+    pub fn is_enum_array(&self) -> bool {
+        matches!(self.0.kind(), PgTypeKind::Array(ti) if ti.is_enum())
+    }
 }
 
 // DEVELOPER PRO TIP: find builtin type OIDs easily by grepping this file
