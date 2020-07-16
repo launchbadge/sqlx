@@ -172,7 +172,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     /// will be prepared (and cached) before execution.
     fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments>;
 
-    /// Returns true if query has any parameters.
+    /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
 }
 
@@ -191,7 +191,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
 
     #[inline]
     fn persistent(&self) -> bool {
-        false
+        true
     }
 }
 
@@ -208,6 +208,6 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<
 
     #[inline]
     fn persistent(&self) -> bool {
-        self.1.is_some()
+        true
     }
 }

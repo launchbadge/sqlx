@@ -374,6 +374,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")
             .bind(i)
+            .persistent(true)
             .fetch_one(&mut conn)
             .await?;
 
@@ -384,6 +385,22 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     assert_eq!(1, conn.cached_statements_size());
     conn.clear_cached_statements().await?;
+    assert_eq!(0, conn.cached_statements_size());
+
+    let mut conn = new::<Sqlite>().await?;
+
+    for i in 0..2 {
+        let row = sqlx::query("SELECT ? AS val")
+            .bind(i)
+            .persistent(false)
+            .fetch_one(&mut conn)
+            .await?;
+
+        let val: i32 = row.get("val");
+
+        assert_eq!(i, val);
+    }
+
     assert_eq!(0, conn.cached_statements_size());
 
     Ok(())

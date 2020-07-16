@@ -109,6 +109,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     {
         let s = query.query();
         let arguments = query.take_arguments();
+        let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(try_stream! {
             let SqliteConnection {
@@ -121,7 +122,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             } = self;
 
             // prepare statement object (or checkout from cache)
-            let mut stmt = prepare(conn, statements, statement, s, arguments.is_some())?;
+            let mut stmt = prepare(conn, statements, statement, s, persistent)?;
 
             // bind arguments, if any, to the statement
             bind(&mut stmt, arguments)?;

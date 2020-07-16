@@ -26,7 +26,11 @@ use crate::mysql::{
 use crate::statement::StatementInfo;
 
 impl MySqlConnection {
-    async fn prepare<'a>(&'a mut self, query: &str) -> Result<Cow<'a, MySqlStatement>, Error> {
+    async fn prepare<'a>(
+        &'a mut self,
+        query: &str,
+        persistent: bool,
+    ) -> Result<Cow<'a, MySqlStatement>, Error> {
         if self.cache_statement.contains_key(query) {
             let stmt = self.cache_statement.get_mut(query).unwrap();
             return Ok(Cow::Borrowed(&*stmt));
@@ -81,7 +85,7 @@ impl MySqlConnection {
             nullable,
         };
 
-        if self.cache_statement.is_enabled() {
+        if persistent && self.cache_statement.is_enabled() {
             // in case of the cache being full, close the least recently used statement
             if let Some(statement) = self.cache_statement.insert(query, statement) {
                 self.stream
@@ -142,12 +146,13 @@ impl MySqlConnection {
         &'c mut self,
         query: &str,
         arguments: Option<MySqlArguments>,
+        persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlDone, MySqlRow>, Error>> + 'c, Error> {
         self.stream.wait_until_ready().await?;
         self.stream.busy = Busy::Result;
 
         let format = if let Some(arguments) = arguments {
-            let statement = self.prepare(query).await?.id;
+            let statement = self.prepare(query, persistent).await?.id;
 
             // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
             self.stream
@@ -250,9 +255,10 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     {
         let s = query.query();
         let arguments = query.take_arguments();
+        let persistent = query.persistent();
 
         Box::pin(try_stream! {
-            let s = self.run(s, arguments).await?;
+            let s = self.run(s, arguments, persistent).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
@@ -295,7 +301,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
         let query = query.query();
 
         Box::pin(async move {
-            let statement = self.prepare(query).await?;
+            let statement = self.prepare(query, false).await?;
             let columns = statement.columns.clone();
             let nullable = statement.nullable.clone();
 

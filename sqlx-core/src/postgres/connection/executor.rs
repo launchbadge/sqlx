@@ -16,16 +16,12 @@ use crate::postgres::{
     statement::PgStatement, PgArguments, PgConnection, PgDone, PgRow, PgValueFormat, Postgres,
 };
 use crate::statement::StatementInfo;
-use message::Flush;
 
 async fn prepare(
     conn: &mut PgConnection,
     query: &str,
     arguments: &PgArguments,
 ) -> Result<PgStatement, Error> {
-    // before we continue, wait until we are "ready" to accept more queries
-    conn.wait_until_ready().await?;
-
     let id = conn.next_statement_id;
     conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
 
@@ -72,8 +68,8 @@ async fn prepare(
 
     // get the statement columns and parameters
     conn.stream.write(message::Describe::Statement(id));
-    conn.write_sync();
 
+    conn.write_sync();
     conn.stream.flush().await?;
 
     let parameters = recv_desc_params(conn).await?;
@@ -86,6 +82,8 @@ async fn prepare(
     conn.handle_row_description(rows, true).await?;
 
     let columns = (&*conn.scratch_row_columns).clone();
+
+    conn.wait_until_ready().await?;
 
     Ok(PgStatement {
         id,
@@ -174,11 +172,12 @@ impl PgConnection {
         if store_to_cache && self.cache_statement.is_enabled() {
             if let Some(statement) = self.cache_statement.insert(query, statement) {
                 self.stream.write(Close::Statement(statement.id));
-                self.stream.write(Flush);
+                self.write_sync();
 
                 self.stream.flush().await?;
 
                 self.wait_for_close_complete(1).await?;
+                self.recv_ready_for_query().await?;
             }
 
             Ok(Cow::Borrowed(
@@ -194,6 +193,7 @@ impl PgConnection {
         query: &str,
         arguments: Option<PgArguments>,
         limit: u8,
+        persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + '_, Error> {
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
@@ -201,7 +201,7 @@ impl PgConnection {
         let format = if let Some(mut arguments) = arguments {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
-            let statement = self.prepare(query, &arguments, true).await?.id;
+            let statement = self.prepare(query, &arguments, persistent).await?.id;
 
             // patch holes created during encoding
             arguments.buffer.patch_type_holes(self).await?;
@@ -334,9 +334,10 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     {
         let s = query.query();
         let arguments = query.take_arguments();
+        let persistent = query.persistent();
 
         Box::pin(try_stream! {
-            let s = self.run(s, arguments, 0).await?;
+            let s = self.run(s, arguments, 0, persistent).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
@@ -357,9 +358,10 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     {
         let s = query.query();
         let arguments = query.take_arguments();
+        let persistent = query.persistent();
 
         Box::pin(async move {
-            let s = self.run(s, arguments, 1).await?;
+            let s = self.run(s, arguments, 1, persistent).await?;
             pin_mut!(s);
 
             while let Some(s) = s.try_next().await? {
