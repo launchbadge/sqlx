@@ -5,6 +5,7 @@
 //! | Rust type                             | Postgres type(s)                                     |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bool`                                | BOOL                                                 |
+//! | `i8`                                  | "CHAR"                                               |
 //! | `i16`                                 | SMALLINT, SMALLSERIAL, INT2                          |
 //! | `i32`                                 | INT, SERIAL, INT4                                    |
 //! | `i64`                                 | BIGINT, BIGSERIAL, INT8                              |
@@ -142,11 +143,6 @@
 //! #[repr(i32)]
 //! enum Mood { Sad = 0, Ok = 1, Happy = 2 }
 //! ```
-//!
-//! # Nullable
-//!
-//! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
-//! a potentially `NULL` value from Postgres.
 //!
 
 use crate::postgres::type_info::PgTypeKind;
