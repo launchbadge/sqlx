@@ -46,6 +46,7 @@
 //! | `chrono::NaiveDateTime`               | TIMESTAMP                                            |
 //! | `chrono::NaiveDate`                   | DATE                                                 |
 //! | `chrono::NaiveTime`                   | TIME                                                 |
+//! | [`PgTimeTz`]                          | TIMETZ                                               |
 //!
 //! ### [`time`](https://crates.io/crates/time)
 //!
@@ -57,6 +58,9 @@
 //! | `time::OffsetDateTime`                | TIMESTAMPTZ                                          |
 //! | `time::Date`                          | DATE                                                 |
 //! | `time::Time`                          | TIME                                                 |
+//! | [`PgTimeTz`]                          | TIMETZ                                               |
+//!
+//! [`PgTimeTz`]: struct.PgTimeTz.html
 //!
 //! ### [`uuid`](https://crates.io/crates/uuid)
 //!
@@ -162,6 +166,9 @@ mod str;
 mod tuple;
 mod void;
 
+#[cfg(any(feature = "chrono", feature = "time"))]
+mod time_tz;
+
 #[cfg(feature = "bigdecimal")]
 mod bigdecimal;
 
@@ -189,6 +196,9 @@ mod ipnetwork;
 pub use interval::PgInterval;
 pub use money::PgMoney;
 pub use range::PgRange;
+
+#[cfg(any(feature = "chrono", feature = "time"))]
+pub use time_tz::PgTimeTz;
 
 // used in derive(Type) for `struct`
 // but the interface is not considered part of the public API

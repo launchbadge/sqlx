@@ -11,8 +11,9 @@ impl_database_ext! {
         i64,
         f32,
         f64,
-
         Vec<u8> | &[u8],
+
+        sqlx::postgres::types::PgInterval,
 
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
@@ -29,6 +30,9 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc> | sqlx::types::chrono::DateTime<_>,
 
+        #[cfg(feature = "chrono")]
+        sqlx::postgres::types::PgTimeTz<sqlx::types::chrono::NaiveTime, sqlx::types::chrono::FixedOffset>,
+
         #[cfg(feature = "time")]
         sqlx::types::time::Time,
 
@@ -41,7 +45,8 @@ impl_database_ext! {
         #[cfg(feature = "time")]
         sqlx::types::time::OffsetDateTime,
 
-        sqlx::postgres::types::PgInterval,
+        #[cfg(feature = "time")]
+        sqlx::postgres::types::PgTimeTz<sqlx::types::time::Time, sqlx::types::time::UtcOffset>,
 
         #[cfg(feature = "bigdecimal")]
         sqlx::types::BigDecimal,

@@ -3,7 +3,9 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
-use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{
+    DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc,
+};
 use std::mem;
 
 impl Type<Postgres> for NaiveDateTime {
@@ -108,5 +110,12 @@ impl<'r> Decode<'r, Postgres> for DateTime<Utc> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
         Ok(Utc.from_utc_datetime(&naive))
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for DateTime<FixedOffset> {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
+        Ok(Utc.fix().from_utc_datetime(&naive))
     }
 }

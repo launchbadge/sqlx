@@ -179,7 +179,11 @@ test_type!(ipnetwork_vec<Vec<sqlx::types::ipnetwork::IpNetwork>>(Postgres,
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use sqlx::types::chrono::{
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
+    };
+
+    type PgTimeTz = sqlx::postgres::types::PgTimeTz<NaiveTime, FixedOffset>;
 
     test_type!(chrono_date<NaiveDate>(Postgres,
         "DATE '2001-01-05'" == NaiveDate::from_ymd(2001, 1, 5),
@@ -199,12 +203,17 @@ mod chrono {
             == vec![NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)]
     ));
 
-    test_type!(chrono_date_time_tz<DateTime::<Utc>>(Postgres,
+    test_type!(chrono_date_time_tz_utc<DateTime::<Utc>>(Postgres,
         "TIMESTAMPTZ '2019-01-02 05:10:20.115100'"
             == DateTime::<Utc>::from_utc(
                 NaiveDate::from_ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100),
                 Utc,
             )
+    ));
+
+    test_type!(chrono_date_time_tz<DateTime::<FixedOffset>>(Postgres,
+        "TIMESTAMPTZ '2019-01-02 05:10:20.115100+06:30'"
+            == FixedOffset::east(60 * 60 * 6 + 1800).ymd(2019, 1, 2).and_hms_micro(5, 10, 20, 115100)
     ));
 
     test_type!(chrono_date_time_tz_vec<Vec<DateTime::<Utc>>>(Postgres,
@@ -216,13 +225,22 @@ mod chrono {
                 )
             ]
     ));
+
+    test_type!(chrono_time_tz<PgTimeTz>(Postgres,
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(0) },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::east(60 * 60 * 6 + 1800) },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: NaiveTime::from_hms_micro(5, 10, 20, 115100), offset: FixedOffset::west(60 * 60 * 5) },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: NaiveTime::from_hms(5, 10, 20), offset: FixedOffset::east(60 * 60 * 2 )}
+    ));
 }
 
 #[cfg(feature = "time")]
 mod time_tests {
     use super::*;
-    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
     use time::{date, time};
+
+    type PgTimeTz = sqlx::postgres::types::PgTimeTz<Time, UtcOffset>;
 
     test_type!(time_date<Date>(
         Postgres,
@@ -248,6 +266,13 @@ mod time_tests {
             == date!(2019 - 1 - 2)
                 .with_time(time!(5:10:20.115100))
                 .assume_utc()
+    ));
+
+    test_prepared_type!(time_time_tz<PgTimeTz>(Postgres,
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(0) },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(60 * 60 * 6 + 1800) },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::west_seconds(60 * 60 * 5) },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: time!(5:10:20), offset: UtcOffset::east_seconds(60 * 60 * 2 )}
     ));
 }
 
