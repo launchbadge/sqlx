@@ -113,6 +113,38 @@ CREATE TABLE #users (id INTEGER PRIMARY KEY);
 }
 
 #[sqlx_macros::test]
+async fn it_can_return_1000_rows() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+
+    let _ = conn
+        .execute(
+            r#"
+CREATE TABLE #users (id INTEGER PRIMARY KEY);
+            "#,
+        )
+        .await?;
+
+    for index in 1..=1000_i32 {
+        let done = sqlx::query("INSERT INTO #users (id) VALUES (@p1)")
+            .bind(index * 2)
+            .execute(&mut conn)
+            .await?;
+
+        assert_eq!(done.rows_affected(), 1);
+    }
+
+    let sum: i32 = sqlx::query("SELECT id FROM #users")
+        .try_map(|row: MssqlRow| row.try_get::<i32, _>(0))
+        .fetch(&mut conn)
+        .try_fold(0_i32, |acc, x| async move { Ok(acc + x) })
+        .await?;
+
+    assert_eq!(sum, 1001000);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_selects_null() -> anyhow::Result<()> {
     let mut conn = new::<Mssql>().await?;
 

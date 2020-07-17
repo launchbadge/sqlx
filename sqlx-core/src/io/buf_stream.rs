@@ -69,28 +69,18 @@ where
     where
         T: Decode<'de, C>,
     {
-        // zero-fills the space in the read buffer
-        self.rbuf.resize(cnt, 0);
+        T::decode_with(self.read_raw(cnt).await?.freeze(), context)
+    }
 
-        let mut read = 0;
-        while cnt > read {
-            // read in bytes from the stream into the read buffer starting
-            // from the offset we last read from
-            let n = self.stream.read(&mut self.rbuf[read..]).await?;
+    pub async fn read_raw(&mut self, cnt: usize) -> Result<BytesMut, Error> {
+        read_raw_into(&mut self.stream, &mut self.rbuf, cnt).await?;
+        let buf = self.rbuf.split_to(cnt);
 
-            if n == 0 {
-                // a zero read when we had space in the read buffer
-                // should be treated as an EOF
+        Ok(buf)
+    }
 
-                // and an unexpected EOF means the server told us to go away
-
-                return Err(io::Error::from(io::ErrorKind::ConnectionAborted).into());
-            }
-
-            read += n;
-        }
-
-        T::decode_with(self.rbuf.split_to(cnt).freeze(), context)
+    pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
+        read_raw_into(&mut self.stream, buf, cnt).await
     }
 }
 
@@ -112,4 +102,35 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
     }
+}
+
+async fn read_raw_into<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    buf: &mut BytesMut,
+    cnt: usize,
+) -> Result<(), Error> {
+    let offset = buf.len();
+
+    // zero-fills the space in the read buffer
+    buf.resize(offset + cnt, 0);
+
+    let mut read = offset;
+    while (offset + cnt) > read {
+        // read in bytes from the stream into the read buffer starting
+        // from the offset we last read from
+        let n = stream.read(&mut buf[read..]).await?;
+
+        if n == 0 {
+            // a zero read when we had space in the read buffer
+            // should be treated as an EOF
+
+            // and an unexpected EOF means the server told us to go away
+
+            return Err(io::Error::from(io::ErrorKind::ConnectionAborted).into());
+        }
+
+        read += n;
+    }
+
+    Ok(())
 }

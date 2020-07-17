@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use sqlx_rt::TcpStream;
 
 use crate::error::Error;
@@ -92,9 +92,7 @@ impl MssqlStream {
     // receive the next packet from the database
     // blocks until a packet is available
     pub(super) async fn recv_packet(&mut self) -> Result<(PacketHeader, Bytes), Error> {
-        // TODO: Support packet chunking for large packet sizes
-
-        let header: PacketHeader = self.inner.read(8).await?;
+        let mut header: PacketHeader = self.inner.read(8).await?;
 
         // NOTE: From what I can tell, the response type from the server should ~always~
         //       be TabularResult. Here we expect that and die otherwise.
@@ -105,10 +103,21 @@ impl MssqlStream {
             ));
         }
 
-        let payload_len = (header.length - 8) as usize;
-        let payload: Bytes = self.inner.read(payload_len).await?;
+        let mut payload = BytesMut::new();
 
-        Ok((header, payload))
+        loop {
+            self.inner
+                .read_raw_into(&mut payload, (header.length - 8) as usize)
+                .await?;
+
+            if header.status.contains(Status::END_OF_MESSAGE) {
+                break;
+            }
+
+            header = self.inner.read(8).await?;
+        }
+
+        Ok((header, payload.freeze()))
     }
 
     // receive the next ~message~
