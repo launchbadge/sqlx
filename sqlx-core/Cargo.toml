@@ -64,7 +64,7 @@ hashbrown = "0.8.0"
 hex = "0.4.2"
 hmac = { version = "0.8.0", default-features = false, optional = true }
 itoa = "0.4.5"
-ipnetwork = { version = "0.16.0", default-features = false, optional = true }
+ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 libc = "0.2.71"
 libsqlite3-sys = { version = "0.18.0", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
 log = { version = "0.4.8", default-features = false }
