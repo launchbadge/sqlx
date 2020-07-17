@@ -19,9 +19,11 @@ use crate::row::Row;
 /// }
 /// ```
 ///
+/// ### Field attributes
+///
 /// Several attributes can be specified to customize how each column in a row is read:
 ///
-/// ### rename
+/// #### `rename`
 ///
 /// When the name of a field in Rust does not match the name of its corresponding column,
 /// you can use the `rename` attribute to specify the name that the field has in the row.
@@ -45,7 +47,7 @@ use crate::row::Row;
 ///
 /// will read the content of the column `description` into the field `about_me`.
 ///
-/// ### default
+/// #### `default`
 ///
 /// When your struct contains a field that is not present in your query,
 /// if the field type has an implementation for [`Default`],
@@ -68,11 +70,11 @@ use crate::row::Row;
 /// SELECT id, name FROM users;
 /// ```
 ///
-/// will set the value of the field `location` to the default value of `Option<String>,
+/// will set the value of the field `location` to the default value of `Option<String>`,
 /// which is `None`.
 ///
-/// [`query_as`]: crate::query_as
-/// [`Row::try_get`]: crate::row::Row::try_get
+/// [`query_as`]: fn.query_as.html
+/// [`Row::try_get`]: trait.Row.html#method.try_get
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
