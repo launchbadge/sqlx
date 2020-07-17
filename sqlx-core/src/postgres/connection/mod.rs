@@ -13,7 +13,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Close, Flush, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::{PgColumn, PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
@@ -84,6 +84,18 @@ impl PgConnection {
         Ok(())
     }
 
+    async fn recv_ready_for_query(&mut self) -> Result<(), Error> {
+        let r: ReadyForQuery = self
+            .stream
+            .recv_expect(MessageFormat::ReadyForQuery)
+            .await?;
+
+        self.pending_ready_for_query_count -= 1;
+        self.transaction_status = r.transaction_status;
+
+        Ok(())
+    }
+
     fn handle_ready_for_query(&mut self, message: Message) -> Result<(), Error> {
         self.pending_ready_for_query_count -= 1;
         self.transaction_status = ReadyForQuery::decode(message.contents)?.transaction_status;
@@ -146,10 +158,11 @@ impl Connection for PgConnection {
             }
 
             if cleared > 0 {
-                self.stream.write(Flush);
+                self.write_sync();
                 self.stream.flush().await?;
 
                 self.wait_for_close_complete(cleared).await?;
+                self.recv_ready_for_query().await?;
             }
 
             Ok(())
