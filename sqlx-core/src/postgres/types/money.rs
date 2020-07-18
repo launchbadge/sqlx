@@ -284,6 +284,7 @@ mod tests {
         assert_eq!(PgMoney(12345), PgMoney::from_decimal(dec, 2));
     }
 
+    #[test]
     #[cfg(feature = "bigdecimal")]
     fn conversion_from_bigdecimal_works() {
         let dec = bigdecimal::BigDecimal::new(num_bigint::BigInt::from(12345), 2);

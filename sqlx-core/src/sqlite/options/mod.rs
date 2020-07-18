@@ -29,15 +29,15 @@ use std::borrow::Cow;
 /// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
-/// # fn main() -> Result<(), Error> {
+/// # fn main() {
 /// # #[cfg(feature = "runtime-async-std")]
-/// # sqlx_rt::async_std::task::block_on(async move {
+/// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
 /// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
 ///     .read_only(true)
 ///     .connect().await?;
 /// # Ok(())
-/// # })
+/// # }).unwrap();
 /// # }
 /// ```
 #[derive(Clone, Debug)]
