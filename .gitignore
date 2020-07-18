@@ -9,4 +9,3 @@ target/
 
 # Environment
 .env
-!tests/.env

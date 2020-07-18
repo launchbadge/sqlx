@@ -5,8 +5,8 @@ import os
 import sys
 import time
 import argparse
-import getpass
 from glob import glob
+from docker import start_database
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--target")
@@ -16,23 +16,14 @@ parser.add_argument("--test")
 
 argv, unknown = parser.parse_known_args()
 
+# base dir of sqlx workspace
+dir_workspace = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-def start(service):
-    res = subprocess.run(
-        ["docker-compose", "up", "-d", service],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=os.path.dirname(__file__),
-    )
-
-    if res.returncode != 0:
-        print(res.stderr, file=sys.stderr)
-
-    if b"done" in res.stderr:
-        time.sleep(30)
+# dir of tests
+dir_tests = os.path.join(dir_workspace, "tests")
 
 
-def run(command, comment=None, env=None, service=None, tag=None, args=None):
+def run(command, comment=None, env=None, service=None, tag=None, args=None, database_url_args=None):
     if argv.list_targets:
         if tag:
             print(f"{tag}")
@@ -48,8 +39,18 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
     if comment is not None:
         print(f"\x1b[2m # {comment}\x1b[0m")
 
+    environ = env or {}
+
     if service is not None:
-        start(service)
+        database_url = start_database(service, database="sqlite/sqlite.db" if service == "sqlite" else "sqlx", cwd=dir_tests)
+
+        if database_url_args:
+            database_url += "?" + database_url_args
+
+        environ["DATABASE_URL"] = database_url
+
+        # show the database url
+        print(f"\x1b[94m @ {database_url}\x1b[0m")
 
     command_args = []
 
@@ -70,7 +71,7 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
             *command.split(" "),
             *command_args
         ],
-        env=env,
+        env=dict(**os.environ, **environ),
         cwd=cwd,
     )
 
@@ -134,56 +135,44 @@ for runtime in ["async-std", "tokio", "actix"]:
     #
 
     run(
-        f"cargo test --no-default-features --features all-types,sqlite,runtime-{runtime}",
+        f"cargo test --no-default-features --features macros,offline,all-types,sqlite,runtime-{runtime}",
         comment=f"test sqlite",
-        env={"DATABASE_URL": f"sqlite://tests/sqlite/sqlite.db"},
+        service="sqlite",
         tag=f"sqlite" if runtime == "async-std" else f"sqlite_{runtime}",
-        # FIXME: The SQLite driver does not currently support concurrent access to the same database
-        args=["--test-threads=1"],
     )
 
     #
     # postgres
     #
 
-    for version in ["12", "10", "9.6", "9.5"]:
-        v = version.replace(".", "_")
+    for version in ["12", "10", "9_6", "9_5"]:
         run(
-            f"cargo test --no-default-features --features all-types,postgres,runtime-{runtime}",
+            f"cargo test --no-default-features --features macros,offline,all-types,postgres,runtime-{runtime}",
             comment=f"test postgres {version}",
-            env={"DATABASE_URL": f"postgres://postgres:password@postgres_{v}/sqlx"},
-            service=f"postgres_{v}",
-            tag=f"postgres_{v}" if runtime == "async-std" else f"postgres_{v}_{runtime}",
+            service=f"postgres_{version}",
+            tag=f"postgres_{version}" if runtime == "async-std" else f"postgres_{version}_{runtime}",
         )
 
-    #
-    # postgres ssl
-    #
-
-    for version in ["12", "10", "9.6", "9.5"]:
-        v = version.replace(".", "_")
+    # +ssl
+    for version in ["12", "10", "9_6", "9_5"]:
         run(
-            f"cargo test --no-default-features --features all-types,postgres,runtime-{runtime}",
+            f"cargo test --no-default-features --features macros,offline,all-types,postgres,runtime-{runtime}",
             comment=f"test postgres {version} ssl",
-            env={
-                "DATABASE_URL": f"postgres://postgres:password@postgres_{v}/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt"
-            },
-            service=f"postgres_{v}",
-            tag=f"postgres_{v}_ssl" if runtime == "async-std" else f"postgres_{v}_ssl_{runtime}",
+            database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt",
+            service=f"postgres_{version}",
+            tag=f"postgres_{version}_ssl" if runtime == "async-std" else f"postgres_{version}_ssl_{runtime}",
         )
 
     #
     # mysql
     #
 
-    for version in ["8", "5.7", "5.6"]:
-        v = version.replace(".", "_")
+    for version in ["8", "5_7", "5_6"]:
         run(
-            f"cargo test --no-default-features --features all-types,mysql,runtime-{runtime}",
+            f"cargo test --no-default-features --features macros,offline,all-types,mysql,runtime-{runtime}",
             comment=f"test mysql {version}",
-            env={"DATABASE_URL": f"mysql://root:password@mysql_{v}/sqlx"},
-            service=f"mysql_{v}",
-            tag=f"mysql_{v}" if runtime == "async-std" else f"mysql_{v}_{runtime}",
+            service=f"mysql_{version}",
+            tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
         )
 
     #
@@ -191,13 +180,23 @@ for runtime in ["async-std", "tokio", "actix"]:
     #
 
     for version in ["10_5", "10_4", "10_3", "10_2", "10_1"]:
-        v = version.replace(".", "_")
         run(
-            f"cargo test --no-default-features --features all-types,mysql,runtime-{runtime}",
+            f"cargo test --no-default-features --features macros,offline,all-types,mysql,runtime-{runtime}",
             comment=f"test mariadb {version}",
-            env={"DATABASE_URL": f"mysql://root:password@mariadb_{v}/sqlx"},
-            service=f"mariadb_{v}",
-            tag=f"mariadb_{v}" if runtime == "async-std" else f"mariadb_{v}_{runtime}",
+            service=f"mariadb_{version}",
+            tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
+        )
+
+    #
+    # mssql
+    #
+
+    for version in ["2019"]:
+        run(
+            f"cargo test --no-default-features --features macros,offline,all-types,mssql,runtime-{runtime}",
+            comment=f"test mssql {version}",
+            service=f"mssql_{version}",
+            tag=f"mssql_{version}" if runtime == "async-std" else f"mssql_{version}_{runtime}",
         )
 
 # TODO: Use [grcov] if available

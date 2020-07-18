@@ -28,7 +28,7 @@ async fn it_can_select_void() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     // pg_notify just happens to be a function that returns void
-    let value: () = sqlx::query_scalar("select pg_notify('chan', 'message');")
+    let _value: () = sqlx::query_scalar("select pg_notify('chan', 'message');")
         .fetch_one(&mut conn)
         .await?;
 

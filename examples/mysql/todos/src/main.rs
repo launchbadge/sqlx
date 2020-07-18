@@ -1,5 +1,5 @@
-use anyhow::Context;
-use sqlx::MySqlPool;
+use sqlx::mysql::MySqlPool;
+use sqlx::Done;
 use std::env;
 use structopt::StructOpt;
 
@@ -18,10 +18,7 @@ enum Command {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    let pool = MySqlPool::new(
-        &env::var("DATABASE_URL").context("`DATABASE_URL` must be set to run this example")?,
-    )
-    .await?;
+    let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {
         Some(Command::Add { description }) => {
@@ -47,8 +44,8 @@ async fn main(args: Args) -> anyhow::Result<()> {
 }
 
 async fn add_todo(pool: &MySqlPool, description: String) -> anyhow::Result<u64> {
-    // Insert the TODO, then obtain the ID of this row
-    sqlx::query!(
+    // Insert the task, then obtain the ID of this row
+    let todo_id = sqlx::query!(
         r#"
 INSERT INTO todos ( description )
 VALUES ( ? )
@@ -56,13 +53,10 @@ VALUES ( ? )
         description
     )
     .execute(pool)
-    .await?;
+    .await?
+    .last_insert_id();
 
-    let rec: (u64,) = sqlx::query_as("SELECT LAST_INSERT_ID()")
-        .fetch_one(pool)
-        .await?;
-
-    Ok(rec.0)
+    Ok(todo_id)
 }
 
 async fn complete_todo(pool: &MySqlPool, id: u64) -> anyhow::Result<bool> {
@@ -75,7 +69,8 @@ WHERE id = ?
         id
     )
     .execute(pool)
-    .await?;
+    .await?
+    .rows_affected();
 
     Ok(rows_affected > 0)
 }

@@ -1,27 +1,41 @@
 # TODOs Example
 
+## Setup
+
+1. Declare the database URL
+
+    ```
+    export DATABASE_URL="sqlite:todos.db"
+    ```
+
+2. Create the database.
+
+    ```
+    $ sqlx db create
+    ```
+
+3. Run sql migrations
+
+    ```
+    $ sqlx migrate run
+    ```
+
 ## Usage
 
-Declare the database URL:
+Add a todo 
 
 ```
-export DATABASE_URL="sqlite:///path/to/this/directory/todos.db"
+cargo run -- add "todo description"
 ```
 
-Create the database:
+Complete a todo.
 
 ```
-sqlite3 todos.db
+cargo run -- done <todo id>
 ```
 
-Load the database schema (using the SQLite CLI interface opened from the previous command):
+List all todos
 
 ```
-sqlite> .read schema.sql
+cargo run
 ```
-
-Use `.exit` to leave the SQLite CLI. Then, to run this example:
-
-- Add a todo: `cargo run -- add "todo description"`
-- Complete a todo: `cargo run -- done <todo id>`
-- List all todos: `cargo run`

@@ -1,29 +1,41 @@
 # TODOs Example
 
+## Setup
+
+1. Declare the database URL
+
+    ```
+    export DATABASE_URL="mysql://root:password@localhost/todos"
+    ```
+
+2. Create the database.
+
+    ```
+    $ sqlx db create
+    ```
+
+3. Run sql migrations
+
+    ```
+    $ sqlx migrate run
+    ```
+
 ## Usage
 
-Declare the database URL:
+Add a todo 
 
 ```
-export DATABASE_URL="mysql://localhost/todos"
+cargo run -- add "todo description"
 ```
 
-Connect to `mysql` and create the database:
+Complete a todo.
 
 ```
-$ mysql
-mysql> CREATE DATABASE todos;
+cargo run -- done <todo id>
 ```
 
-Load the database schema (using the MySQL CLI interface thats already open):
+List all todos
 
 ```
-mysql> USE todos;
-mysql> source schema.sql
+cargo run
 ```
-
-Use `exit` to exit the MySQL CLI. Then, to run this example:
-
-- Add a todo: `cargo run -- add "todo description"`
-- Complete a todo: `cargo run -- done <todo id>`
-- List all todos: `cargo run`

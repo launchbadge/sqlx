@@ -241,7 +241,7 @@ mod json_tests {
     // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
     //       need to wrap the Vec in Json<_> to make the example work.
 
-    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
     struct Customer {
         json_column: Json<Vec<i64>>,
     }

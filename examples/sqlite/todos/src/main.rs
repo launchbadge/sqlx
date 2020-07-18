@@ -1,5 +1,5 @@
-use anyhow::Context;
-use sqlx::SqlitePool;
+use sqlx::sqlite::SqlitePool;
+use sqlx::Done;
 use std::env;
 use structopt::StructOpt;
 
@@ -18,10 +18,7 @@ enum Command {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    let pool = SqlitePool::new(
-        &env::var("DATABASE_URL").context("`DATABASE_URL` must be set to run this example")?,
-    )
-    .await?;
+    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {
         Some(Command::Add { description }) => {
@@ -49,22 +46,19 @@ async fn main(args: Args) -> anyhow::Result<()> {
 async fn add_todo(pool: &SqlitePool, description: String) -> anyhow::Result<i64> {
     let mut conn = pool.acquire().await?;
 
-    // Insert the TODO, then obtain the ID of this row
-    sqlx::query!(
+    // Insert the task, then obtain the ID of this row
+    let id = sqlx::query!(
         r#"
 INSERT INTO todos ( description )
-VALUES ( $1 )
+VALUES ( ?1 )
         "#,
         description
     )
     .execute(&mut conn)
-    .await?;
+    .await?
+    .last_insert_rowid();
 
-    let rec: (i64,) = sqlx::query_as("SELECT last_insert_rowid()")
-        .fetch_one(&mut conn)
-        .await?;
-
-    Ok(rec.0)
+    Ok(id)
 }
 
 async fn complete_todo(pool: &SqlitePool, id: i64) -> anyhow::Result<bool> {
@@ -72,12 +66,13 @@ async fn complete_todo(pool: &SqlitePool, id: i64) -> anyhow::Result<bool> {
         r#"
 UPDATE todos
 SET done = TRUE
-WHERE id = $1
+WHERE id = ?1
         "#,
         id
     )
     .execute(pool)
-    .await?;
+    .await?
+    .rows_affected();
 
     Ok(rows_affected > 0)
 }

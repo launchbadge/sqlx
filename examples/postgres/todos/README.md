@@ -1,29 +1,41 @@
 # TODOs Example
 
+## Setup
+
+1. Declare the database URL
+
+    ```
+    export DATABASE_URL="postgres://postgres:password@localhost/todos"
+    ```
+
+2. Create the database.
+
+    ```
+    $ sqlx db create
+    ```
+
+3. Run sql migrations
+
+    ```
+    $ sqlx migrate run
+    ```
+
 ## Usage
 
-Declare the database URL:
+Add a todo 
 
 ```
-export DATABASE_URL="postgres://postgres@localhost/todos"
+cargo run -- add "todo description"
 ```
 
-Create the database:
+Complete a todo.
 
 ```
-createdb -U postgres todos
+cargo run -- done <todo id>
 ```
 
-Load the database schema:
+List all todos
 
 ```
-psql -d "$DATABASE_URL" -f ./schema.sql
+cargo run
 ```
-
-Run:
-
-- Add a todo: `cargo run -- add "todo description"`
-- Complete a todo: `cargo run -- done <todo id>`
-- List all todos: `cargo run`
-
-

@@ -1,5 +1,5 @@
-use anyhow::Context;
-use sqlx::PgPool;
+use sqlx::postgres::PgPool;
+use sqlx::Done;
 use std::env;
 use structopt::StructOpt;
 
@@ -18,10 +18,7 @@ enum Command {
 #[async_std::main]
 #[paw::main]
 async fn main(args: Args) -> anyhow::Result<()> {
-    let mut pool = PgPool::new(
-        &env::var("DATABASE_URL").context("`DATABASE_URL` must be set to run this example")?,
-    )
-    .await?;
+    let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {
         Some(Command::Add { description }) => {
@@ -39,14 +36,14 @@ async fn main(args: Args) -> anyhow::Result<()> {
         }
         None => {
             println!("Printing list of all todos");
-            list_todos(&mut pool).await?;
+            list_todos(&pool).await?;
         }
     }
 
     Ok(())
 }
 
-async fn add_todo(mut pool: &PgPool, description: String) -> anyhow::Result<i64> {
+async fn add_todo(pool: &PgPool, description: String) -> anyhow::Result<i64> {
     let rec = sqlx::query!(
         r#"
 INSERT INTO todos ( description )
@@ -55,13 +52,13 @@ RETURNING id
         "#,
         description
     )
-    .fetch_one(&mut pool)
+    .fetch_one(pool)
     .await?;
 
     Ok(rec.id)
 }
 
-async fn complete_todo(mut pool: &PgPool, id: i64) -> anyhow::Result<bool> {
+async fn complete_todo(pool: &PgPool, id: i64) -> anyhow::Result<bool> {
     let rows_affected = sqlx::query!(
         r#"
 UPDATE todos
@@ -70,8 +67,9 @@ WHERE id = $1
         "#,
         id
     )
-    .execute(&mut pool)
-    .await?;
+    .execute(pool)
+    .await?
+    .rows_affected();
 
     Ok(rows_affected > 0)
 }

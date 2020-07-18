@@ -10,7 +10,10 @@ services:
         image: mysql:8.0
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
+            MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
@@ -18,7 +21,10 @@ services:
         image: mysql:5.7
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
+            MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
@@ -26,7 +32,10 @@ services:
         image: mysql:5.6
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
+            MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
@@ -39,6 +48,8 @@ services:
         image: mariadb:10.5
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
@@ -47,6 +58,8 @@ services:
         image: mariadb:10.4
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
@@ -55,6 +68,8 @@ services:
         image: mariadb:10.3
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
@@ -63,6 +78,8 @@ services:
         image: mariadb:10.2
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
@@ -71,6 +88,8 @@ services:
         image: mariadb:10.1
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        ports:
+            - 3306
         environment:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
@@ -86,6 +105,8 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 13-beta1
+        ports:
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -103,6 +124,8 @@ services:
             dockerfile: postgres/Dockerfile
             args:
               VERSION: 12.3
+        ports:
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -120,6 +143,8 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 10.13
+        ports:
+          - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -136,6 +161,8 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 9.6
+        ports:
+          - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -152,6 +179,8 @@ services:
             dockerfile: postgres/Dockerfile
             args:
                 VERSION: 9.5
+        ports:
+          - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
@@ -173,6 +202,8 @@ services:
             dockerfile: mssql/Dockerfile
             args:
                 VERSION: 2019-latest
+        ports:
+          - 1433
         environment:
             ACCEPT_EULA: Y
             SA_PASSWORD: Password123!
