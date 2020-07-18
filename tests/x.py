@@ -10,6 +10,7 @@ from glob import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--target")
+parser.add_argument("-e", "--target-exact")
 parser.add_argument("-l", "--list-targets", action="store_true")
 parser.add_argument("--test")
 
@@ -38,7 +39,10 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
 
         return
 
-    if argv.target and tag != argv.target:
+    if argv.target and not tag.startswith(argv.target):
+        return
+
+    if argv.target_exact and tag != argv.target_exact:
         return
 
     if comment is not None:
@@ -60,13 +64,14 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
 
     print(f"\x1b[93m $ {command} {' '.join(command_args)}\x1b[0m")
 
+    cwd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     res = subprocess.run(
         [
             *command.split(" "),
             *command_args
         ],
         env=env,
-        cwd=os.path.dirname(__file__),
+        cwd=cwd,
     )
 
     if res.returncode != 0:
