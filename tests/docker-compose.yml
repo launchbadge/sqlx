@@ -1,18 +1,6 @@
 version: "3"
 
 services:
-    sqlx:
-        build: "."
-        volumes:
-            - "../:/home/rust/src"
-            - "$HOME/.cargo/registry:/usr/local/cargo/registry"
-        working_dir: "/home/rust/src"
-        environment:
-            CARGO_TARGET_DIR: "/home/rust/src/tests/target"
-            CARGO_INCREMENTAL: "0"
-            RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-            RUSTDOCFLAGS: "-Cpanic=abort"
-
     #
     # MySQL 5.6.x, 5.7.x, 8.x
     # https://www.mysql.com/support/supportedplatforms/database.html

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import subprocess
 import os
 import sys
@@ -42,12 +44,6 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
     if comment is not None:
         print(f"\x1b[2m # {comment}\x1b[0m")
 
-    environ = []
-    if env is not None:
-        for name, value in env.items():
-            print(f"\x1b[93m $ {name}={value}\x1b[0m")
-            environ.append(f"-e{name}={value}")
-
     if service is not None:
         start(service)
 
@@ -64,25 +60,12 @@ def run(command, comment=None, env=None, service=None, tag=None, args=None):
 
     print(f"\x1b[93m $ {command} {' '.join(command_args)}\x1b[0m")
 
-    # try and rebind the user by id
-    # this only matters on *nix
-
-    try:
-        user = ["--user", f"{os.getuid()}:{os.getgid()}"]
-    except:  # noqa
-        user = []
-
     res = subprocess.run(
         [
-            "docker-compose",
-            "run",
-            *user,
-            "--rm",
-            *environ,
-            "sqlx",
             *command.split(" "),
             *command_args
         ],
+        env=env,
         cwd=os.path.dirname(__file__),
     )
 
@@ -102,19 +85,19 @@ for path in glob(os.path.join(os.path.dirname(__file__), "target/**/*.gc*"), rec
 run("cargo c", comment="check with a default set of features", tag="check")
 
 run(
-    "cargo c --no-default-features --features runtime-async-std,all-databases,all-types",
+    "cargo c --no-default-features --features runtime-async-std,all-databases,all-types,offline,macros",
     comment="check with async-std",
     tag="check_async_std"
 )
 
 run(
-    "cargo c --no-default-features --features runtime-tokio,all-databases,all-types",
+    "cargo c --no-default-features --features runtime-tokio,all-databases,all-types,offline,macros",
     comment="check with tokio",
     tag="check_tokio"
 )
 
 run(
-    "cargo c --no-default-features --features runtime-actix,all-databases,all-types",
+    "cargo c --no-default-features --features runtime-actix,all-databases,all-types,offline,macros",
     comment="check with actix",
     tag="check_actix"
 )
