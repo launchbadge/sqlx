@@ -1,3 +1,5 @@
+//! Generic database driver with the specific driver selected at runtime.
+
 #[macro_use]
 mod decode;
 
