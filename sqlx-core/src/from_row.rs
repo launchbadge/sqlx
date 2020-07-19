@@ -7,7 +7,7 @@ use crate::row::Row;
 ///
 /// ## Derivable
 ///
-/// This trait can be automatically derived by SQLx for any struct. The generated implementation
+/// This trait can be derived by SQLx for any struct. The generated implementation
 /// will consist of a sequence of calls to [`Row::try_get`] using the name from each
 /// struct field.
 ///
