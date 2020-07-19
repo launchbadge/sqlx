@@ -1,6 +1,7 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
+use crate::mysql::connection::{COLLATE_UTF8MB4_UNICODE_CI, COLLATE_UTF8_UNICODE_CI};
 use crate::mysql::io::MySqlBufMutExt;
 use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
@@ -26,7 +27,8 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && ty.char_set == 224
+        ) && (ty.char_set == COLLATE_UTF8MB4_UNICODE_CI.into()
+            || ty.char_set == COLLATE_UTF8_UNICODE_CI.into())
     }
 }
 

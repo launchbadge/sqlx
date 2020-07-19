@@ -22,7 +22,8 @@ mod tls;
 use crate::transaction::Transaction;
 pub(crate) use stream::{Busy, MySqlStream};
 
-const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
+pub(crate) const COLLATE_UTF8_UNICODE_CI: u8 = 192;
+pub(crate) const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 
 const MAX_PACKET_SIZE: u32 = 1024;
 

@@ -2,7 +2,9 @@ use bytes::Bytes;
 
 use crate::common::StatementCache;
 use crate::error::Error;
-use crate::mysql::connection::{tls, MySqlStream, COLLATE_UTF8MB4_UNICODE_CI, MAX_PACKET_SIZE};
+use crate::mysql::connection::{
+    tls, MySqlStream, COLLATE_UTF8MB4_UNICODE_CI, COLLATE_UTF8_UNICODE_CI, MAX_PACKET_SIZE,
+};
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
@@ -22,6 +24,35 @@ impl MySqlConnection {
         let mut plugin = handshake.auth_plugin;
         let mut nonce = handshake.auth_plugin_data;
 
+        // FIXME: server version parse is a bit ugly
+        // expecting MAJOR.MINOR.PATCH
+
+        let mut server_version = handshake.server_version.split('.');
+
+        let server_version_major: u16 = server_version
+            .next()
+            .unwrap_or_default()
+            .parse()
+            .unwrap_or(0);
+
+        let server_version_minor: u16 = server_version
+            .next()
+            .unwrap_or_default()
+            .parse()
+            .unwrap_or(0);
+
+        let server_version_patch: u16 = server_version
+            .next()
+            .unwrap_or_default()
+            .parse()
+            .unwrap_or(0);
+
+        stream.server_version = (
+            server_version_major,
+            server_version_minor,
+            server_version_patch,
+        );
+
         stream.capabilities &= handshake.server_capabilities;
         stream.capabilities |= Capabilities::PROTOCOL_41;
 
@@ -39,8 +70,14 @@ impl MySqlConnection {
             None
         };
 
+        let char_set = if stream.server_version >= (5, 5, 3) {
+            COLLATE_UTF8MB4_UNICODE_CI
+        } else {
+            COLLATE_UTF8_UNICODE_CI
+        };
+
         stream.write_packet(HandshakeResponse {
-            char_set: COLLATE_UTF8MB4_UNICODE_CI,
+            char_set,
             max_packet_size: MAX_PACKET_SIZE,
             username: &options.username,
             database: options.database.as_deref(),

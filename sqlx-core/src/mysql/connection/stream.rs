@@ -12,6 +12,7 @@ use crate::net::{MaybeTlsStream, Socket};
 
 pub struct MySqlStream {
     stream: BufStream<MaybeTlsStream<Socket>>,
+    pub(crate) server_version: (u16, u16, u16),
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
     pub(crate) busy: Busy,
@@ -55,6 +56,7 @@ impl MySqlStream {
         Ok(Self {
             busy: Busy::NotBusy,
             capabilities,
+            server_version: (0, 0, 0),
             sequence_id: 0,
             stream: BufStream::new(MaybeTlsStream::Raw(socket)),
         })

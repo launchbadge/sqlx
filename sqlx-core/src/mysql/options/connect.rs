@@ -39,11 +39,19 @@ impl ConnectOptions for MySqlConnectOptions {
 
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
-            conn.execute(concat!(
-                r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#,
-                r#"time_zone='+00:00',"#,
-                r#"NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;"#,
-            )).await?;
+            let mut options = String::new();
+            options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
+            options.push_str(r#"time_zone='+00:00',"#);
+
+            let char_set = if conn.stream.server_version >= (5, 5, 3) {
+                "utf8mb4"
+            } else {
+                "utf8"
+            };
+
+            options.push_str(&format!(r#"NAMES {0} COLLATE {0}_unicode_ci;"#, char_set));
+
+            conn.execute(&*options).await?;
 
             Ok(conn)
         })
