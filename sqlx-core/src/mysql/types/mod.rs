@@ -55,6 +55,14 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `rust_decimal::Decimal`               | DECIMAL                                              |
 //!
+//! ### [`uuid`](https://crates.io/crates/uuid)
+//!
+//! Requires the `uuid` Cargo feature flag.
+//!
+//! | Rust type                             | MySQL type(s)                                        |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
+//!
 //! ### [`json`](https://crates.io/crates/json)
 //!
 //! Requires the `json` Cargo feature flag.
@@ -87,6 +95,9 @@ mod chrono;
 
 #[cfg(feature = "time")]
 mod time;
+
+#[cfg(feature = "uuid")]
+mod uuid;
 
 #[cfg(feature = "json")]
 mod json;
