@@ -25,6 +25,7 @@ fn uint_compatible(ty: &MySqlTypeInfo) -> bool {
             | ColumnType::Long
             | ColumnType::Int24
             | ColumnType::LongLong
+            | ColumnType::Year
     ) && ty.flags.contains(ColumnFlags::UNSIGNED)
 }
 
