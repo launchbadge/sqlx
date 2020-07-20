@@ -27,8 +27,8 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && (ty.char_set == COLLATE_UTF8MB4_UNICODE_CI.into()
-            || ty.char_set == COLLATE_UTF8_UNICODE_CI.into())
+        ) && (ty.char_set == COLLATE_UTF8MB4_UNICODE_CI as u16
+            || ty.char_set == COLLATE_UTF8_UNICODE_CI as u16)
     }
 }
 
