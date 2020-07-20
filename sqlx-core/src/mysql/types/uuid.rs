@@ -16,7 +16,7 @@ impl Type<MySql> for Uuid {
 
 impl Encode<'_, MySql> for Uuid {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
-        buf.put_bytes_lenenc(self);
+        buf.put_bytes_lenenc(self.as_bytes());
 
         IsNull::No
     }
