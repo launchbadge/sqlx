@@ -69,10 +69,6 @@ mod macros;
 #[doc(hidden)]
 pub mod ty_match;
 
-#[cfg(feature = "macros")]
-#[doc(hidden)]
-pub mod result_ext;
-
 /// Conversions between Rust and SQL types.
 ///
 /// To see how each SQL type maps to a Rust type, see the corresponding `types` module for each

@@ -81,6 +81,10 @@ impl<'a> MatchBorrowExt for MatchBorrow<&'a [u8], Vec<u8>> {
     type Matched = &'a [u8];
 }
 
+impl<'a, T> MatchBorrowExt for MatchBorrow<&'a T, T> {
+    type Matched = T;
+}
+
 impl<T, U> MatchBorrowExt for &'_ MatchBorrow<T, U> {
     type Matched = U;
 }
@@ -118,5 +122,8 @@ fn test_match_borrow() {
     if false {
         let (_, match_borrow) = MatchBorrow::new("", &String::new());
         let _: &str = match_borrow.match_borrow();
+
+        let (_, match_borrow) = MatchBorrow::new(&&0i64, &0i64);
+        let _: i64 = match_borrow.match_borrow();
     }
 }

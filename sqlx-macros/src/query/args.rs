@@ -2,10 +2,10 @@ use crate::database::DatabaseExt;
 use crate::query::QueryMacroInput;
 use either::Either;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned};
 use sqlx_core::statement::StatementInfo;
 use syn::spanned::Spanned;
-use syn::{Expr, Type};
+use syn::{Expr, ExprCast, ExprGroup, ExprType, Type};
 
 /// Returns a tokenstream which typechecks the arguments passed to the macro
 /// and binds them to `DB::Arguments` with the ident `query_args`.
@@ -15,13 +15,22 @@ pub fn quote_args<DB: DatabaseExt>(
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
 
-    if input.arg_names.is_empty() {
+    if input.arg_exprs.is_empty() {
         return Ok(quote! {
             let query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
         });
     }
 
-    let arg_name = &input.arg_names;
+    let arg_names = (0..input.arg_exprs.len())
+        .map(|i| format_ident!("arg{}", i))
+        .collect::<Vec<_>>();
+
+    let arg_name = &arg_names;
+    let arg_expr = input.arg_exprs.iter().cloned().map(strip_wildcard);
+
+    let arg_bindings = quote! {
+        #(let ref #arg_name = #arg_expr;)*
+    };
 
     let args_check = match info.parameters() {
         None | Some(Either::Right(_)) => {
@@ -32,19 +41,12 @@ pub fn quote_args<DB: DatabaseExt>(
         Some(Either::Left(params)) => {
             params
                 .iter()
-                .zip(input.arg_names.iter().zip(&input.arg_exprs))
+                .zip(arg_names.iter().zip(&input.arg_exprs))
                 .enumerate()
                 .map(|(i, (param_ty, (name, expr)))| -> crate::Result<_> {
                     let param_ty = match get_type_override(expr) {
-                        // TODO: enable this in 1.45 when we can strip `as _`
-                        // without stripping these we get some pretty nasty type errors
-                        Some(Type::Infer(_)) => return Err(
-                            syn::Error::new_spanned(
-                                expr,
-                                "casts to `_` are not allowed in bind parameters yet"
-                            ).into()
-                        ),
                         // cast or type ascription will fail to compile if the type does not match
+                        // and we strip casts to wildcard
                         Some(_) => return Ok(quote!()),
                         None => {
                             DB::param_type_for_id(&param_ty)
@@ -72,14 +74,14 @@ pub fn quote_args<DB: DatabaseExt>(
                             use sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
                             // evaluate the expression only once in case it contains moves
-                            let _expr = sqlx::ty_match::dupe_value(&$#name);
+                            let _expr = sqlx::ty_match::dupe_value(#name);
 
                             // if `_expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
                             let ty_check = sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
                             // if `_expr` is `&str`, convert `String` to `&str`
-                            let (mut ty_check, match_borrow) = sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
+                            let (mut _ty_check, match_borrow) = sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
 
-                            ty_check = match_borrow.match_borrow();
+                            _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
                             panic!();
@@ -90,13 +92,13 @@ pub fn quote_args<DB: DatabaseExt>(
         }
     };
 
-    let args_count = input.arg_names.len();
+    let args_count = input.arg_exprs.len();
 
     Ok(quote! {
+        #arg_bindings
+
         #args_check
 
-        // bind as a local expression, by-ref
-        #(let #arg_name = &$#arg_name;)*
         let mut query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
         query_args.reserve(
             #args_count,
@@ -112,5 +114,38 @@ fn get_type_override(expr: &Expr) -> Option<&Type> {
         Expr::Cast(cast) => Some(&cast.ty),
         Expr::Type(ascription) => Some(&ascription.ty),
         _ => None,
+    }
+}
+
+fn strip_wildcard(expr: Expr) -> Expr {
+    match expr {
+        Expr::Group(ExprGroup {
+            attrs,
+            group_token,
+            expr,
+        }) => Expr::Group(ExprGroup {
+            attrs,
+            group_token,
+            expr: Box::new(strip_wildcard(*expr)),
+        }),
+        // type ascription syntax is experimental so we always strip it
+        Expr::Type(ExprType { expr, .. }) => *expr,
+        // we want to retain casts if they semantically matter
+        Expr::Cast(ExprCast {
+            attrs,
+            expr,
+            as_token,
+            ty,
+        }) => match *ty {
+            // cast to wildcard `_` will produce weird errors; we interpret it as taking the value as-is
+            Type::Infer(_) => *expr,
+            _ => Expr::Cast(ExprCast {
+                attrs,
+                expr,
+                as_token,
+                ty,
+            }),
+        },
+        _ => expr,
     }
 }

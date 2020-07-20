@@ -100,15 +100,20 @@ pub fn quote_query_as<DB: DatabaseExt>(
             match (input.checked, type_) {
                 // we guarantee the type is valid so we can skip the runtime check
                 (true, Some(type_)) => quote! {
-                    #ident: row.try_get_unchecked::<#type_, _>(#i).try_unwrap_optional()?
+                    // binding to a `let` avoids confusing errors about
+                    // "try expression alternatives have incompatible types"
+                    // it doesn't seem to hurt inference in the other branches
+                    let #ident = row.try_get_unchecked::<#type_, _>(#i)?;
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
-                (true, None) => quote! ( #ident: row.try_get(#i)? ),
+                (true, None) => quote! ( let #ident = row.try_get(#i)?; ),
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
-                (false, _) => quote!( #ident: row.try_get_unchecked(#i)? ),
+                (false, _) => quote!( let #ident = row.try_get_unchecked(#i)?; ),
             }
         },
     );
+
+    let ident = columns.iter().map(|col| &col.ident);
 
     let db_path = DB::db_path();
     let row_path = DB::row_path();
@@ -117,9 +122,10 @@ pub fn quote_query_as<DB: DatabaseExt>(
     quote! {
         sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
             use sqlx::Row as _;
-            use sqlx::result_ext::ResultExt as _;
 
-            Ok(#out_ty { #(#instantiations),* })
+            #(#instantiations)*
+
+            Ok(#out_ty { #(#ident: #ident),* })
         })
     }
 }

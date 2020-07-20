@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 
 use proc_macro2::{Ident, Span};
-use quote::format_ident;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Expr, LitBool, LitStr, Token};
@@ -17,8 +16,6 @@ pub struct QueryMacroInput {
 
     pub(super) record_type: RecordType,
 
-    // `arg0 .. argN` for N arguments
-    pub(super) arg_names: Vec<Ident>,
     pub(super) arg_exprs: Vec<Expr>,
 
     pub(super) checked: bool,
@@ -82,15 +79,11 @@ impl Parse for QueryMacroInput {
             query_src.ok_or_else(|| input.error("expected `source` or `source_file` key"))?;
 
         let arg_exprs = args.unwrap_or_default();
-        let arg_names = (0..arg_exprs.len())
-            .map(|i| format_ident!("arg{}", i))
-            .collect();
 
         Ok(QueryMacroInput {
             src: src.resolve(src_span)?,
             src_span,
             record_type,
-            arg_names,
             arg_exprs,
             checked,
         })

@@ -195,10 +195,10 @@ where
     };
 
     if let Some(num) = num_parameters {
-        if num != input.arg_names.len() {
+        if num != input.arg_exprs.len() {
             return Err(syn::Error::new(
                 Span::call_site(),
-                format!("expected {} parameters, got {}", num, input.arg_names.len()),
+                format!("expected {} parameters, got {}", num, input.arg_exprs.len()),
             )
             .into());
         }
@@ -260,19 +260,13 @@ where
         record_tokens
     };
 
-    let arg_names = &input.arg_names;
+    let ret_tokens = quote! {{
+        use sqlx::Arguments as _;
 
-    let ret_tokens = quote! {
-        macro_rules! macro_result {
-            (#($#arg_names:expr),*) => {{
-                use sqlx::Arguments as _;
+        #args_tokens
 
-                #args_tokens
-
-                #output
-            }}
-        }
-    };
+        #output
+    }};
 
     #[cfg(feature = "offline")]
     {
