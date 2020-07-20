@@ -24,10 +24,10 @@ impl Encode<'_, MySql> for Uuid {
 
 impl Decode<'_, MySql> for Uuid {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        match value.format() {
-            MySqlValueFormat::Binary => Uuid::from_slice(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse(),
-        }
-        .map_err(Into::into)
+        // delegate to the &[u8] type to decode from MySQL
+        let bytes = <&[u8] as Decode<MySql>>::decode(value)?;
+
+        // construct a Uuid from the returned bytes
+        Uuid::from_slice(bytes).map_err(Into::into)
     }
 }
