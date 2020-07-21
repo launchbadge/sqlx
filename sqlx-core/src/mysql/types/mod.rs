@@ -62,6 +62,7 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
+//! | `uuid::adapter::Hyphenated`           | CHAR(36)                                             |
 //!
 //! ### [`json`](https://crates.io/crates/json)
 //!
@@ -96,7 +97,7 @@ mod chrono;
 #[cfg(feature = "time")]
 mod time;
 
-#[cfg(feature = "uuid")]
+// #[cfg(feature = "uuid")]
 mod uuid;
 
 #[cfg(feature = "json")]
