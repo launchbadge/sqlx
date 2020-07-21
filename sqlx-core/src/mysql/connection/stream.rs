@@ -7,6 +7,7 @@ use crate::io::{BufStream, Decode, Encode};
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
+use crate::mysql::collation::{CharSet, Collation};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
 use crate::net::{MaybeTlsStream, Socket};
 
@@ -16,6 +17,8 @@ pub struct MySqlStream {
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
     pub(crate) busy: Busy,
+    pub(crate) charset: CharSet,
+    pub(crate) collation: Collation,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -31,6 +34,9 @@ pub(crate) enum Busy {
 
 impl MySqlStream {
     pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
+        let charset: CharSet = options.charset.parse()?;
+        let collation: Collation = options.collation.as_deref().map(|collation| collation.parse()).transpose()?.unwrap_or_else(|| charset.default_collation());
+
         let socket = match options.socket {
             Some(ref path) => Socket::connect_uds(path).await?,
             None => Socket::connect_tcp(&options.host, options.port).await?,
@@ -58,6 +64,8 @@ impl MySqlStream {
             capabilities,
             server_version: (0, 0, 0),
             sequence_id: 0,
+            collation,
+            charset,
             stream: BufStream::new(MaybeTlsStream::Raw(socket)),
         })
     }

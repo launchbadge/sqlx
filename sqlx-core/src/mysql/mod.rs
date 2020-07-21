@@ -9,6 +9,7 @@ mod error;
 mod io;
 mod options;
 mod protocol;
+mod collation;
 mod row;
 mod transaction;
 mod type_info;

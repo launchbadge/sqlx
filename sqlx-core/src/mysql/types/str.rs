@@ -1,22 +1,25 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::mysql::connection::{COLLATE_UTF8MB4_UNICODE_CI, COLLATE_UTF8_UNICODE_CI};
 use crate::mysql::io::MySqlBufMutExt;
 use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
 
+const COLLATE_UTF8_UNICODE_CI: u16 = 192;
+const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
+
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
-            r#type: ColumnType::VarString, // VARCHAR
-            char_set: 224,                 // utf8mb4_unicode_ci
+            r#type: ColumnType::VarString,          // VARCHAR
+            char_set: COLLATE_UTF8MB4_UNICODE_CI,   // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
         }
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
+        // TODO: Support more collations being returned from SQL?
         matches!(
             ty.r#type,
             ColumnType::VarChar

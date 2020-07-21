@@ -42,14 +42,7 @@ impl ConnectOptions for MySqlConnectOptions {
             let mut options = String::new();
             options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
             options.push_str(r#"time_zone='+00:00',"#);
-
-            let char_set = if conn.stream.server_version >= (5, 5, 3) {
-                "utf8mb4"
-            } else {
-                "utf8"
-            };
-
-            options.push_str(&format!(r#"NAMES {0} COLLATE {0}_unicode_ci;"#, char_set));
+            options.push_str(&format!(r#"NAMES {} COLLATE {};"#, conn.stream.charset.as_str(), conn.stream.collation.as_str()));
 
             conn.execute(&*options).await?;
 

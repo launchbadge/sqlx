@@ -3,7 +3,7 @@ use bytes::Bytes;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::mysql::connection::{
-    tls, MySqlStream, COLLATE_UTF8MB4_UNICODE_CI, COLLATE_UTF8_UNICODE_CI, MAX_PACKET_SIZE,
+    tls, MySqlStream, MAX_PACKET_SIZE,
 };
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
@@ -70,14 +70,8 @@ impl MySqlConnection {
             None
         };
 
-        let char_set = if stream.server_version >= (5, 5, 3) {
-            COLLATE_UTF8MB4_UNICODE_CI
-        } else {
-            COLLATE_UTF8_UNICODE_CI
-        };
-
         stream.write_packet(HandshakeResponse {
-            char_set,
+            collation: stream.collation as u8,
             max_packet_size: MAX_PACKET_SIZE,
             username: &options.username,
             database: options.database.as_deref(),

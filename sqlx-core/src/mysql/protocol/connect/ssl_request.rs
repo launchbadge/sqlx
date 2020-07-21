@@ -7,14 +7,14 @@ use crate::mysql::protocol::Capabilities;
 #[derive(Debug)]
 pub struct SslRequest {
     pub max_packet_size: u32,
-    pub char_set: u8,
+    pub collation: u8,
 }
 
 impl Encode<'_, Capabilities> for SslRequest {
     fn encode_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) {
         buf.extend(&(capabilities.bits() as u32).to_le_bytes());
         buf.extend(&self.max_packet_size.to_le_bytes());
-        buf.push(self.char_set);
+        buf.push(self.collation);
 
         // reserved: string<19>
         buf.extend(&[0_u8; 19]);
