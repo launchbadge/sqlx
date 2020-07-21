@@ -4,10 +4,10 @@ use bytes::{Buf, Bytes};
 
 use crate::error::Error;
 use crate::io::{BufStream, Decode, Encode};
+use crate::mysql::collation::{CharSet, Collation};
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
-use crate::mysql::collation::{CharSet, Collation};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
 use crate::net::{MaybeTlsStream, Socket};
 
@@ -35,7 +35,12 @@ pub(crate) enum Busy {
 impl MySqlStream {
     pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
         let charset: CharSet = options.charset.parse()?;
-        let collation: Collation = options.collation.as_deref().map(|collation| collation.parse()).transpose()?.unwrap_or_else(|| charset.default_collation());
+        let collation: Collation = options
+            .collation
+            .as_deref()
+            .map(|collation| collation.parse())
+            .transpose()?
+            .unwrap_or_else(|| charset.default_collation());
 
         let socket = match options.socket {
             Some(ref path) => Socket::connect_uds(path).await?,

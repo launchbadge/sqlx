@@ -1,6 +1,7 @@
 //! **MySQL** database driver.
 
 mod arguments;
+mod collation;
 mod column;
 mod connection;
 mod database;
@@ -9,7 +10,6 @@ mod error;
 mod io;
 mod options;
 mod protocol;
-mod collation;
 mod row;
 mod transaction;
 mod type_info;

@@ -2,9 +2,7 @@ use bytes::Bytes;
 
 use crate::common::StatementCache;
 use crate::error::Error;
-use crate::mysql::connection::{
-    tls, MySqlStream, MAX_PACKET_SIZE,
-};
+use crate::mysql::connection::{tls, MySqlStream, MAX_PACKET_SIZE};
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };

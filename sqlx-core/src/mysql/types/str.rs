@@ -12,8 +12,8 @@ const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
-            r#type: ColumnType::VarString,          // VARCHAR
-            char_set: COLLATE_UTF8MB4_UNICODE_CI,   // utf8mb4_unicode_ci
+            r#type: ColumnType::VarString,        // VARCHAR
+            char_set: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
         }
     }
