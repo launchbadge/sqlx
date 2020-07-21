@@ -343,6 +343,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let s = query.query();
 
         Box::pin(async move {
+            self.wait_until_ready().await?;
             let id = prepare(self, s, &Default::default()).await?;
 
             self.stream.write(message::Describe::Statement(id));
