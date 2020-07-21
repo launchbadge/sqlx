@@ -37,6 +37,10 @@ impl<T> Type<Postgres> for Vec<Json<T>> {
     fn type_info() -> PgTypeInfo {
         <[Json<T>] as Type<Postgres>>::type_info()
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <[Json<T>] as Type<Postgres>>::compatible(ty)
+    }
 }
 
 impl<'q, T> Encode<'q, Postgres> for Json<T>

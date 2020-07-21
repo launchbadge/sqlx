@@ -80,7 +80,7 @@ where
     Self: Type<Postgres>,
 {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let element_type_info = T::type_info();
+        let element_type_info;
         let format = value.format();
 
         match format {
@@ -107,7 +107,10 @@ where
                 let _flags = buf.get_i32();
 
                 // the OID of the element
-                let _element_type = buf.get_u32();
+                let element_type_oid = buf.get_u32();
+                element_type_info = PgTypeInfo::try_from_oid(element_type_oid).unwrap_or_else(|| {
+                    PgTypeInfo(PgType::DeclareWithOid(element_type_oid))
+                });
 
                 // length of the array axis
                 let len = buf.get_i32();
@@ -133,6 +136,9 @@ where
             }
 
             PgValueFormat::Text => {
+                // no type is provided from the database for the element
+                element_type_info = T::type_info();
+
                 let s = value.as_str()?;
 
                 // https://github.com/postgres/postgres/blob/a995b371ae29de2d38c4b7881cf414b1560e9746/src/backend/utils/adt/arrayfuncs.c#L718
