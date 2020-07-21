@@ -97,7 +97,7 @@ mod chrono;
 #[cfg(feature = "time")]
 mod time;
 
-// #[cfg(feature = "uuid")]
+#[cfg(feature = "uuid")]
 mod uuid;
 
 #[cfg(feature = "json")]
