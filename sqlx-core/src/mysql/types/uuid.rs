@@ -3,7 +3,6 @@ use uuid::{adapter::Hyphenated, Uuid};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::mysql::connection::COLLATE_UTF8MB4_UNICODE_CI;
 use crate::mysql::io::MySqlBufMutExt;
 use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
@@ -37,7 +36,7 @@ impl Type<MySql> for Hyphenated {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
             r#type: ColumnType::String, // CHAR
-            char_set: COLLATE_UTF8MB4_UNICODE_CI.into(),
+            char_set: 224,              // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
         }
     }
