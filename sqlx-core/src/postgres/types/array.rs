@@ -108,9 +108,8 @@ where
 
                 // the OID of the element
                 let element_type_oid = buf.get_u32();
-                element_type_info = PgTypeInfo::try_from_oid(element_type_oid).unwrap_or_else(|| {
-                    PgTypeInfo(PgType::DeclareWithOid(element_type_oid))
-                });
+                element_type_info = PgTypeInfo::try_from_oid(element_type_oid)
+                    .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
 
                 // length of the array axis
                 let len = buf.get_i32();
