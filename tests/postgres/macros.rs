@@ -355,10 +355,18 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
 #[sqlx(transparent)]
 struct MyInt4(i32);
 
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct MyInt8(i64);
+
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
     struct Record {
         id: MyInt4,
+    }
+
+    struct OptionalRecord {
+        owner_id: Option<MyInt8>,
     }
 
     let mut conn = new::<Postgres>().await?;
@@ -368,6 +376,15 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, MyInt4(1));
+
+    let record = sqlx::query_as!(
+        OptionalRecord,
+        r#"select owner_id as "owner_id: _" from tweet"#
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(record.owner_id, Some(MyInt8(1)));
 
     Ok(())
 }
@@ -381,6 +398,38 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, MyInt4(1));
+
+    let record = sqlx::query!(r#"select owner_id as "owner_id: MyInt8" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.owner_id, Some(MyInt8(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let record = sqlx::query!(r#"select owner_id as "owner_id!: MyInt8" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.owner_id, MyInt8(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let record = sqlx::query!(r#"select 1 as "id?: MyInt4""#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt4(1)));
 
     Ok(())
 }

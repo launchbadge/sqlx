@@ -6,3 +6,5 @@ CREATE TABLE tweet
     text       TEXT      NOT NULL,
     owner_id   BIGINT
 );
+INSERT INTO tweet(id, text, owner_id)
+VALUES (1, '#sqlx is pretty cool!', 1);
