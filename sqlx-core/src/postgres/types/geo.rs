@@ -6,7 +6,7 @@ use crate::{
     types::Type,
 };
 use byteorder::{BigEndian, ByteOrder};
-use geo::{Line, Coordinate};
+use geo::{Coordinate, Line};
 use std::{mem, num::ParseFloatError};
 
 // <https://www.postgresql.org/docs/12/datatype-geometric.html>
@@ -53,14 +53,6 @@ impl Decode<'_, Postgres> for Coordinate<f64> {
     }
 }
 
-fn decode_coordinate_binary(buf: &[u8]) -> Result<Coordinate<f64>, BoxDynError> {
-    let x = BigEndian::read_f64(buf);
-
-    let y = BigEndian::read_f64(buf);
-
-    Ok((x, y).into())
-}
-
 impl Encode<'_, Postgres> for Coordinate<f64> {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         let _ = Encode::<Postgres>::encode(self.x, buf);
@@ -71,6 +63,18 @@ impl Encode<'_, Postgres> for Coordinate<f64> {
 
     fn size_hint(&self) -> usize {
         2 * mem::size_of::<f64>()
+    }
+}
+
+fn decode_coordinate_binary(buf: &[u8]) -> Result<Coordinate<f64>, BoxDynError> {
+    if buf.len() != 16 {
+        Err("Invalid data received when expecting a POINT".into())
+    } else {
+        let x = BigEndian::read_f64(&buf[..8]);
+
+        let y = BigEndian::read_f64(&buf[8..]);
+
+        Ok((x, y).into())
     }
 }
 
@@ -85,9 +89,8 @@ impl Decode<'_, Postgres> for Line<f64> {
         match value.format() {
             PgValueFormat::Binary => {
                 let buf = value.as_bytes()?;
-                let start = decode_coordinate_binary(buf)?;
-                // buf.advance(Encode::<Postgres>::size_hint(&start));
-                let end = decode_coordinate_binary(buf)?;
+                let start = decode_coordinate_binary(&buf[..16])?;
+                let end = decode_coordinate_binary(&buf[16..])?;
 
                 Ok(Line::new(start, end))
             }
@@ -95,17 +98,26 @@ impl Decode<'_, Postgres> for Line<f64> {
             // TODO: is there no way to make this make use of the Decode for Coordinate?
             PgValueFormat::Text => {
                 let brackets: &[_] = &['[', ']'];
-                let mut s = value.as_str()?
+                let mut s = value
+                    .as_str()?
                     .trim_matches(brackets)
                     .split(|c| c == '(' || c == ')' || c == ',')
                     .filter_map(|part| if part == "" { None } else { Some(part) });
 
                 match (s.next(), s.next(), s.next(), s.next()) {
                     (Some(x1), Some(y1), Some(x2), Some(y2)) => {
-                        let x1 = x1.parse().map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
-                        let y1 = y1.parse().map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
-                        let x2 = x2.parse().map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
-                        let y2 = y2.parse().map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
+                        let x1 = x1
+                            .parse()
+                            .map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
+                        let y1 = y1
+                            .parse()
+                            .map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
+                        let x2 = x2
+                            .parse()
+                            .map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
+                        let y2 = y2
+                            .parse()
+                            .map_err(|e: ParseFloatError| crate::error::Error::Decode(e.into()))?;
 
                         let start = Coordinate::from((x1, y1));
                         let end = Coordinate::from((x2, y2));

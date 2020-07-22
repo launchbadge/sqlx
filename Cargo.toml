@@ -82,6 +82,7 @@ sqlx-macros = { version = "0.4.0-pre", path = "sqlx-macros", default-features = 
 [dev-dependencies]
 anyhow = "1.0.31"
 time_ = { version = "0.2.16", package = "time" }
+geo_ = { version = "0.13.0", package = "geo" }
 futures = "0.3.5"
 env_logger = "0.7.1"
 async-std = { version = "1.6.0", features = [ "attributes" ] }

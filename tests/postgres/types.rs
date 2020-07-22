@@ -386,6 +386,24 @@ test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
 ));
 
+#[cfg(feature = "geo")]
+mod geometric {
+    use super::*;
+    use geo_::{Coordinate, Line};
+
+    test_type!(point<Coordinate<f64>>(Postgres,
+        "SELECT ({0} ~= $1)::int4, {0} as _2, $2 as _3",
+        "point (1, 5)" == Coordinate::<f64>::from((1.0, 5.0)),
+        "point (1.5, 7)" == Coordinate::<f64>::from((1.5, 7.0)),
+        "point (5.0, 12.5)" == Coordinate::<f64>::from((5.0, 12.5)),
+    ));
+
+    test_type!(line<Line<f64>>(Postgres,
+        "lseg (point (1, 0), point (2, 0))" == Line::<f64>::new((1.0, 0.0), (2.0, 0.0)),
+        "lseg (point (2, 0), point (1, 0))" == Line::<f64>::new((2.0, 0.0), (1.0, 0.0)),
+    ));
+}
+
 const EXC2: Bound<i32> = Bound::Excluded(2);
 const EXC3: Bound<i32> = Bound::Excluded(3);
 const INC1: Bound<i32> = Bound::Included(1);

@@ -2516,6 +2516,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures 0.3.5",
+ "geo",
  "paste",
  "serde",
  "serde_json",
