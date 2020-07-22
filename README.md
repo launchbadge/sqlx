@@ -221,7 +221,7 @@ The `execute` query finalizer returns the number of affected rows, if any, and d
 In addition, there are `fetch`, `fetch_one`, `fetch_optional`, `fetch_all`, and `fetch_scalar` to receive results.
 
 The `Query` type returned from `sqlx::query` will return `Row<'conn>` from the database. Column values can be accessed
-by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow on the connection, only one
+by ordinal or by name with `row.get()`. As the `Row` retains a mutable borrow on the connection, only one
 `Row` may exist at a time.
 
 The `fetch` query finalizer returns a stream-like type that iterates through the rows in the result sets.
