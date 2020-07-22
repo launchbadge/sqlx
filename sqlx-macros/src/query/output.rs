@@ -214,7 +214,7 @@ impl Parse for ColumnOverride {
             ColumnNullabilityOverride::None
         };
 
-        let type_ = if lookahead.peek(Token![:]) {
+        let type_ = if input.lookahead1().peek(Token![:]) {
             input.parse::<Token![:]>()?;
 
             let ty = Type::parse(input)?;
