@@ -37,7 +37,7 @@ impl Migrator {
     }
 
     /// Creates a new instance from a static slice of migrations.
-    pub async fn from_static(migrations: &'static [Migration]) -> Self {
+    pub fn from_static(migrations: &'static [Migration]) -> Self {
         Self {
             migrations: Cow::Borrowed(migrations),
         }

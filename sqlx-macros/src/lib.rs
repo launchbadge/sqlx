@@ -87,12 +87,8 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
 pub fn migrate(input: TokenStream) -> TokenStream {
     use syn::LitStr;
 
-    let input = syn::parse_macro_input!(input as Option<LitStr>);
-    let dir = input
-        .as_ref()
-        .map_or("migrations".to_owned(), LitStr::value);
-
-    match migrate::expand_migrator_from_dir(dir) {
+    let input = syn::parse_macro_input!(input as LitStr);
+    match migrate::expand_migrator_from_dir(input.value()) {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {

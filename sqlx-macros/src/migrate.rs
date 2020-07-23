@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha384};
 use std::fs;
-use std::fs::DirEntry;
 use std::path::Path;
 
 struct QuotedMigration {

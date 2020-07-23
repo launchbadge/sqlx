@@ -61,10 +61,6 @@ pub extern crate sqlx_macros;
 #[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
 
-// embedded migrations
-#[cfg(all(feature = "migrate", features = "macros"))]
-pub use sqlx_macros::migrate;
-
 #[cfg(feature = "macros")]
 mod macros;
 

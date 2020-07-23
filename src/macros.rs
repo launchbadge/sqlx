@@ -573,3 +573,46 @@ macro_rules! query_file_as_unchecked (
         macro_result!($($args),*)
     })
 );
+
+/// Creates a static [Migrator][crate::migrate::Migrator] by embedding the migrations in the binary.
+///
+/// The macro takes an optional migrations directory and defaults to `"migrations"` if it's not specified.
+///
+/// ```rust,ignore
+/// sqlx::migrate!("migrations") // same as sqlx::migrate!()
+///     .run(&pool)
+///     .await?;
+/// ```
+///
+/// It can also be used as a static constructor.
+///
+/// ```rust,ignore
+/// use sqlx::migrate::Migrator;
+///
+/// static MIGRATOR: Migrator = sqlx::migrate!();
+/// ```
+#[cfg(feature = "migrate")]
+#[macro_export]
+macro_rules! migrate {
+    ($dir:literal) => {
+        #[allow(dead_code)]
+        {
+            #[macro_use]
+            mod _macro_result {
+                $crate::sqlx_macros::migrate!($dir);
+            }
+            macro_result!()
+        }
+    };
+
+    () => {
+        #[allow(dead_code)]
+        {
+            #[macro_use]
+            mod _macro_result {
+                $crate::sqlx_macros::migrate!("migrations");
+            }
+            macro_result!()
+        }
+    };
+}
