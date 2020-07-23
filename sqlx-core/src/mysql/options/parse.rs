@@ -42,6 +42,14 @@ impl FromStr for MySqlConnectOptions {
                     options = options.ssl_ca(&*value);
                 }
 
+                "charset" => {
+                    options = options.charset(&*value);
+                }
+
+                "collation" => {
+                    options = options.collation(&*value);
+                }
+
                 "statement-cache-capacity" => {
                     options =
                         options.statement_cache_capacity(value.parse().map_err(Error::config)?);

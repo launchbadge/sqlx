@@ -29,7 +29,7 @@ def start_database(driver, database, cwd):
         time.sleep(30)
 
     # determine appropriate port for driver
-    if driver.startswith("mysql"):
+    if driver.startswith("mysql") or driver.startswith("mariadb"):
         port = 3306
 
     elif driver.startswith("postgres"):
@@ -56,7 +56,7 @@ def start_database(driver, database, cwd):
     port = int(res.stdout[1:-2].decode())
 
     # construct appropriate database URL
-    if driver.startswith("mysql"):
+    if driver.startswith("mysql") or driver.startswith("mariadb"):
         return f"mysql://root:password@127.0.0.1:{port}/{database}"
 
     elif driver.startswith("postgres"):

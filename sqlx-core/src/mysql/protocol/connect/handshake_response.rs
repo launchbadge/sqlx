@@ -14,8 +14,8 @@ pub struct HandshakeResponse<'a> {
     /// Max size of a command packet that the client wants to send to the server
     pub max_packet_size: u32,
 
-    /// Default character set for the connection
-    pub char_set: u8,
+    /// Default collation for the connection
+    pub collation: u8,
 
     /// Name of the SQL account which client wants to log in
     pub username: &'a str,
@@ -37,7 +37,7 @@ impl Encode<'_, Capabilities> for HandshakeResponse<'_> {
         // NOTE: Half of this packet is identical to the SSL Request packet
         SslRequest {
             max_packet_size: self.max_packet_size,
-            char_set: self.char_set,
+            collation: self.collation,
         }
         .encode_with(buf, capabilities);
 

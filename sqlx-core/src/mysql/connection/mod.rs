@@ -12,6 +12,7 @@ use crate::ext::ustr::UStr;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
 use crate::mysql::{MySql, MySqlColumn, MySqlConnectOptions};
+use crate::transaction::Transaction;
 
 mod auth;
 mod establish;
@@ -19,11 +20,7 @@ mod executor;
 mod stream;
 mod tls;
 
-use crate::transaction::Transaction;
 pub(crate) use stream::{Busy, MySqlStream};
-
-pub(crate) const COLLATE_UTF8_UNICODE_CI: u8 = 192;
-pub(crate) const COLLATE_UTF8MB4_UNICODE_CI: u8 = 224;
 
 const MAX_PACKET_SIZE: u32 = 1024;
 

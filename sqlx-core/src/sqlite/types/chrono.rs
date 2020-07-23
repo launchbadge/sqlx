@@ -115,8 +115,6 @@ fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, B
 }
 
 fn decode_datetime_from_text(value: &str) -> Option<DateTime<FixedOffset>> {
-    println!("decode_datetime_from_text --> {}", value);
-
     // Loop over common date time patterns, inspired by Diesel
     // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L56-L97
     let sqlite_datetime_formats = &[

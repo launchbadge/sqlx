@@ -200,3 +200,38 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_can_bind_null_and_non_null_issue_540() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let row = sqlx::query("SELECT ?, ?")
+        .bind(50_i32)
+        .bind(None::<i32>)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let v0: Option<i32> = row.get(0);
+    let v1: Option<i32> = row.get(1);
+
+    assert_eq!(v0, Some(50));
+    assert_eq!(v1, None);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    let row = sqlx::query("SELECT ?")
+        .bind(None::<i32>)
+        .fetch_one(&mut conn)
+        .await?;
+
+    let v0: Option<i32> = row.get(0);
+
+    assert_eq!(v0, None);
+
+    Ok(())
+}

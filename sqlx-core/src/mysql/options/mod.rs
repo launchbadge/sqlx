@@ -63,6 +63,8 @@ pub struct MySqlConnectOptions {
     pub(crate) ssl_mode: MySqlSslMode,
     pub(crate) ssl_ca: Option<PathBuf>,
     pub(crate) statement_cache_capacity: usize,
+    pub(crate) charset: String,
+    pub(crate) collation: Option<String>,
 }
 
 impl Default for MySqlConnectOptions {
@@ -81,6 +83,8 @@ impl MySqlConnectOptions {
             username: String::from("root"),
             password: None,
             database: None,
+            charset: String::from("utf8mb4"),
+            collation: None,
             ssl_mode: MySqlSslMode::Preferred,
             ssl_ca: None,
             statement_cache_capacity: 100,
@@ -172,6 +176,24 @@ impl MySqlConnectOptions {
     /// The default cache capacity is 100 statements.
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Sets the character set for the connection.
+    ///
+    /// The default character set is `utf8mb4`. This is supported from MySQL 5.5.3.
+    /// If you need to connect to an older version, we recommend you to change this to `utf8`.
+    pub fn charset(mut self, charset: &str) -> Self {
+        self.charset = charset.to_owned();
+        self
+    }
+
+    /// Sets the collation for the connection.
+    ///
+    /// The default collation is derived from the `charset`. Normally, you should only have to set
+    /// the `charset`.
+    pub fn collation(mut self, collation: &str) -> Self {
+        self.collation = Some(collation.to_owned());
         self
     }
 }

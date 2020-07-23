@@ -40,6 +40,7 @@ serde_json = { version = "1.0.53", features = ["preserve_order"] }
 serde = "1.0.110"
 glob = "0.3.0"
 cargo_metadata = "0.10.0"
+openssl = { version = "0.10.30", optional = true }
 
 [features]
 default = [ "postgres", "sqlite", "mysql" ]
@@ -48,3 +49,6 @@ default = [ "postgres", "sqlite", "mysql" ]
 mysql = [ "sqlx/mysql" ]
 postgres = [ "sqlx/postgres" ]
 sqlite = [ "sqlx/sqlite" ]
+
+# workaround for musl + openssl issues
+openssl-vendored = [ "openssl/vendored" ]

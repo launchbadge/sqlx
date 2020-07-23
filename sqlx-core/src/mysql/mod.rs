@@ -1,6 +1,7 @@
 //! **MySQL** database driver.
 
 mod arguments;
+mod collation;
 mod column;
 mod connection;
 mod database;

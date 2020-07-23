@@ -41,7 +41,7 @@ async fn upgrade(stream: &mut MySqlStream, options: &MySqlConnectOptions) -> Res
 
     stream.write_packet(SslRequest {
         max_packet_size: super::MAX_PACKET_SIZE,
-        char_set: super::COLLATE_UTF8MB4_UNICODE_CI,
+        collation: stream.collation as u8,
     });
 
     stream.flush().await?;

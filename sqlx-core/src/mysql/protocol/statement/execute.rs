@@ -18,7 +18,7 @@ impl<'q> Encode<'_, Capabilities> for Execute<'q> {
         buf.push(0); // NO_CURSOR
         buf.extend(&0_u32.to_le_bytes()); // iterations (always 1): int<4>
 
-        if !self.arguments.values.is_empty() {
+        if !self.arguments.types.is_empty() {
             buf.extend(&*self.arguments.null_bitmap);
             buf.push(1); // send type to server
 

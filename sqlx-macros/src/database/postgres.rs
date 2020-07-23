@@ -2,6 +2,7 @@ use sqlx_core as sqlx;
 
 impl_database_ext! {
     sqlx::postgres::Postgres {
+        (),
         bool,
         String | &str,
         i8,
