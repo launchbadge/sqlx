@@ -1,11 +1,12 @@
 use crate::acquire::Acquire;
 use crate::migrate::{Migrate, MigrateError, Migration, MigrationSource};
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::slice;
 
 #[derive(Debug)]
 pub struct Migrator {
-    migrations: Vec<Migration>,
+    migrations: Cow<'static, [Migration]>,
 }
 
 impl Migrator {
@@ -31,8 +32,15 @@ impl Migrator {
         S: MigrationSource<'s>,
     {
         Ok(Self {
-            migrations: source.resolve().await.map_err(MigrateError::Source)?,
+            migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
         })
+    }
+
+    /// Creates a new instance from a static slice of migrations.
+    pub async fn from_static(migrations: &'static [Migration]) -> Self {
+        Self {
+            migrations: Cow::Borrowed(migrations),
+        }
     }
 
     /// Get an iterator over all known migrations.
