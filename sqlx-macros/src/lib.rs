@@ -16,6 +16,9 @@ mod database;
 mod derives;
 mod query;
 
+#[cfg(feature = "migrate")]
+mod migrate;
+
 fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
     quote!(
         macro_rules! macro_result {
@@ -76,6 +79,29 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
     match derives::expand_derive_from_row(&input) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[cfg(feature = "migrate")]
+#[proc_macro]
+pub fn migrate(input: TokenStream) -> TokenStream {
+    use syn::LitStr;
+
+    let input = syn::parse_macro_input!(input as Option<LitStr>);
+    let dir = input
+        .as_ref()
+        .map_or("migrations".to_owned(), LitStr::value);
+
+    match migrate::expand_migrator_from_dir(dir) {
+        Ok(ts) => ts.into(),
+        Err(e) => {
+            if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
+                macro_result(parse_err.to_compile_error())
+            } else {
+                let msg = e.to_string();
+                macro_result(quote!(compile_error!(#msg)))
+            }
+        }
     }
 }
 

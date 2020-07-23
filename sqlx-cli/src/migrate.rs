@@ -50,7 +50,7 @@ pub async fn info(uri: &str) -> anyhow::Result<()> {
             } else {
                 style("pending").yellow()
             },
-            migration.description(),
+            migration.description,
         );
     }
 
@@ -77,7 +77,7 @@ pub async fn run(uri: &str) -> anyhow::Result<()> {
                 "{}/{} {} {}",
                 style(migration.version()).cyan(),
                 style("migrate").green(),
-                migration.description(),
+                migration.description,
                 style(format!("({:?})", elapsed)).dim()
             );
         } else {

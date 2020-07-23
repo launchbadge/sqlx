@@ -71,7 +71,7 @@ impl Migrator {
         }
 
         for migration in self.iter() {
-            if migration.version() > version {
+            if migration.version > version {
                 conn.apply(migration).await?;
             } else {
                 conn.validate(migration).await?;
