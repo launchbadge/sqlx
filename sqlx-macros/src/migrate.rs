@@ -85,9 +85,11 @@ pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<proc_macro2
     Ok(quote! {
         macro_rules! macro_result {
             () => {
-                sqlx::migrate::Migrator::from_static(&[
-                    #(#migrations),*
-                ])
+                sqlx::migrate::Migrator {
+                    migrations: std::borrow::Cow::Borrowed(&[
+                        #(#migrations),*
+                    ])
+                }
             }
         }
     })
