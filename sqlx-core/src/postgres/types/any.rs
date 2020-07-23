@@ -37,3 +37,29 @@ where
         true
     }
 }
+
+impl<T> Type<Postgres> for [PgAny<T>]
+where
+    T: for<'e> Encode<'e, Postgres>,
+{
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::ANY
+    }
+
+    fn compatible(_: &PgTypeInfo) -> bool {
+        true
+    }
+}
+
+impl<T> Type<Postgres> for Vec<PgAny<T>>
+where
+    T: for<'e> Encode<'e, Postgres>,
+{
+    fn type_info() -> PgTypeInfo {
+        <[PgAny<T>] as Type<Postgres>>::type_info()
+    }
+
+    fn compatible(_: &PgTypeInfo) -> bool {
+        true
+    }
+}
