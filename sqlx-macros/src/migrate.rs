@@ -2,7 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha384};
 use std::fs;
-use std::path::Path;
 use syn::LitStr;
 
 struct QuotedMigration {
@@ -26,7 +25,7 @@ impl ToTokens for QuotedMigration {
                 version: #version,
                 description: std::borrow::Cow::Borrowed(#description),
                 sql: std::borrow::Cow::Borrowed(#sql),
-                checksum: std::borow::Cow::Borrowed(&[
+                checksum: std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
                 ]),
             }

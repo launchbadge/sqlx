@@ -108,6 +108,15 @@ path = "tests/any/pool.rs"
 required-features = [ "any" ]
 
 #
+# Migrations
+#
+
+[[test]]
+name = "migrate-macro"
+path = "tests/migrate/macro.rs"
+required-features = [ "macros", "migrate" ]
+
+#
 # SQLite
 #
 

@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 
 use proc_macro2::{Ident, Span};
