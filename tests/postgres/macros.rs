@@ -1,4 +1,4 @@
-use sqlx::{Connection, Postgres};
+use sqlx::{Connection, PgConnection, Postgres, Transaction};
 use sqlx_test::new;
 
 use futures::TryStreamExt;
@@ -351,40 +351,76 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn with_test_row<'a>(
+    conn: &'a mut PgConnection,
+) -> anyhow::Result<Transaction<'a, Postgres>> {
+    let mut transaction = conn.begin().await?;
+    sqlx::query!("INSERT INTO tweet(id, text, owner_id) VALUES (1, '#sqlx is pretty cool!', 1)")
+        .execute(&mut transaction)
+        .await?;
+    Ok(transaction)
+}
+
+#[derive(PartialEq, Eq, Debug, sqlx::Type)]
+#[sqlx(transparent)]
+struct MyInt(i64);
+
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
 struct MyInt4(i32);
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
-#[sqlx(transparent)]
-struct MyInt8(i64);
+struct Record {
+    id: MyInt,
+}
+
+struct OptionalRecord {
+    id: Option<MyInt>,
+}
 
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
-    struct Record {
-        id: MyInt4,
-    }
-
-    struct OptionalRecord {
-        owner_id: Option<MyInt8>,
-    }
-
     let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query_as!(Record, r#"select 1 as "id: _""#)
+    let record = sqlx::query_as!(Record, r#"select id as "id: _" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.id, MyInt4(1));
+    assert_eq!(record.id, MyInt(1));
 
-    let record = sqlx::query_as!(
-        OptionalRecord,
-        r#"select owner_id as "owner_id: _" from tweet"#
-    )
-    .fetch_one(&mut conn)
-    .await?;
+    let record = sqlx::query_as!(OptionalRecord, r#"select owner_id as "id: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
 
-    assert_eq!(record.owner_id, Some(MyInt8(1)));
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as!(Record, r#"select owner_id as "id!: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as!(OptionalRecord, r#"select id as "id?: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
 
     Ok(())
 }
@@ -392,18 +428,19 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!(r#"select 1 as "id: MyInt4""#)
+    let record = sqlx::query!(r#"select id as "id: MyInt" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.id, MyInt4(1));
+    assert_eq!(record.id, MyInt(1));
 
-    let record = sqlx::query!(r#"select owner_id as "owner_id: MyInt8" from tweet"#)
+    let record = sqlx::query!(r#"select owner_id as "id: MyInt" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.owner_id, Some(MyInt8(1)));
+    assert_eq!(record.id, Some(MyInt(1)));
 
     Ok(())
 }
@@ -411,12 +448,13 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!(r#"select owner_id as "owner_id!: MyInt8" from tweet"#)
+    let record = sqlx::query!(r#"select owner_id as "id!: MyInt" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.owner_id, MyInt8(1));
+    assert_eq!(record.id, MyInt(1));
 
     Ok(())
 }
@@ -424,12 +462,13 @@ async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
 
-    let record = sqlx::query!(r#"select 1 as "id?: MyInt4""#)
+    let record = sqlx::query!(r#"select id as "id?: MyInt" from tweet"#)
         .fetch_one(&mut conn)
         .await?;
 
-    assert_eq!(record.id, Some(MyInt4(1)));
+    assert_eq!(record.id, Some(MyInt(1)));
 
     Ok(())
 }

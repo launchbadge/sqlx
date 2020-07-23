@@ -1,4 +1,4 @@
-use sqlx::MySql;
+use sqlx::{Connection, MySql, MySqlConnection, Transaction};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -120,13 +120,137 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(PartialEq, Eq, Debug, sqlx::Type)]
-#[sqlx(transparent)]
-struct MyInt4(i32);
+async fn with_test_row<'a>(
+    conn: &'a mut MySqlConnection,
+) -> anyhow::Result<Transaction<'a, MySql>> {
+    let mut transaction = conn.begin().await?;
+    sqlx::query!("INSERT INTO tweet(id, text, owner_id) VALUES (1, '#sqlx is pretty cool!', 1)")
+        .execute(&mut transaction)
+        .await?;
+    Ok(transaction)
+}
 
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(transparent)]
-struct MyInt8(i64);
+struct MyInt(i64);
+
+struct Record {
+    id: MyInt,
+}
+
+struct OptionalRecord {
+    id: Option<MyInt>,
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as!(Record, "select id as `id: _` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    // this syntax is also useful for expressions
+    let record = sqlx::query_as!(Record, "select * from (select 1 as `id: _`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    let record = sqlx::query_as!(OptionalRecord, "select owner_id as `id: _` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as!(Record, "select owner_id as `id!: _` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as!(OptionalRecord, "select id as `id?: _` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query!("select id as `id: MyInt` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    // we can also support this syntax for expressions
+    let record = sqlx::query!("select * from (select 1 as `id: MyInt`) records")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    let record = sqlx::query!("select owner_id as `id: MyInt` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query!("select owner_id as `id!: MyInt` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut conn = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query!("select id as `id?: MyInt` from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
 
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
@@ -145,55 +269,6 @@ enum MyCEnum {
 }
 
 #[sqlx_macros::test]
-async fn test_column_override_wildcard() -> anyhow::Result<()> {
-    struct Record {
-        id: MyInt4,
-    }
-
-    struct OptionalRecord {
-        owner_id: Option<MyInt8>,
-    }
-
-    let mut conn = new::<MySql>().await?;
-
-    let record = sqlx::query_as!(Record, "select * from (select 1 as `id: _`) records")
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(record.id, MyInt4(1));
-
-    let record = sqlx::query_as!(
-        OptionalRecord,
-        "select owner_id as `owner_id: _` from tweet"
-    )
-    .fetch_one(&mut conn)
-    .await?;
-
-    assert_eq!(record.owner_id, Some(MyInt8(1)));
-
-    Ok(())
-}
-
-#[sqlx_macros::test]
-async fn test_column_override_exact() -> anyhow::Result<()> {
-    let mut conn = new::<MySql>().await?;
-
-    let record = sqlx::query!("select * from (select 1 as `id: MyInt4`) records")
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(record.id, MyInt4(1));
-
-    let record = sqlx::query!("select owner_id as `owner_id: MyInt8` from tweet")
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(record.owner_id, Some(MyInt8(1)));
-
-    Ok(())
-}
-
-#[sqlx_macros::test]
 async fn test_column_override_exact_enum() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
@@ -208,32 +283,6 @@ async fn test_column_override_exact_enum() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.color, MyCEnum::Blue);
-
-    Ok(())
-}
-
-#[sqlx_macros::test]
-async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
-    let mut conn = new::<MySql>().await?;
-
-    let record = sqlx::query!("select owner_id as `owner_id!: MyInt8` from tweet")
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(record.owner_id, MyInt8(1));
-
-    Ok(())
-}
-
-#[sqlx_macros::test]
-async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
-    let mut conn = new::<MySql>().await?;
-
-    let record = sqlx::query!("select * from (select 1 as `id?: MyInt4`) records")
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(record.id, Some(MyInt4(1)));
 
     Ok(())
 }
