@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, ToTokens, TokenStreamExt};
 use syn::Type;
 
 use sqlx_core::column::Column;
@@ -10,12 +10,36 @@ use crate::database::DatabaseExt;
 use crate::query::QueryMacroInput;
 use std::fmt::{self, Display, Formatter};
 use syn::parse::{Parse, ParseStream};
-use syn::spanned::Spanned;
 use syn::Token;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
-    pub(super) type_: Option<TokenStream>,
+    pub(super) type_: ColumnType,
+}
+
+pub(super) enum ColumnType {
+    Exact(TokenStream),
+    Wildcard,
+    OptWildcard,
+}
+
+impl ColumnType {
+    pub(super) fn is_wildcard(&self) -> bool {
+        match self {
+            ColumnType::Exact(_) => false,
+            _ => true,
+        }
+    }
+}
+
+impl ToTokens for ColumnType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append_all(match &self {
+            ColumnType::Exact(type_) => type_.clone().into_iter(),
+            ColumnType::Wildcard => quote! { _ }.into_iter(),
+            ColumnType::OptWildcard => quote! { Option<_> }.into_iter(),
+        })
+    }
 }
 
 struct DisplayColumn<'a> {
@@ -65,23 +89,31 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
 
             let ColumnOverride { nullability, type_ } = decl.r#override;
 
-            // using a wildcard with a nullability override will error when parsing
-            let type_ = match type_ {
-                ColumnTypeOverride::Wildcard => None,
-                ColumnTypeOverride::Exact(ty) => Some(ty.to_token_stream()),
-                ColumnTypeOverride::None => Some(get_column_type::<DB>(i, column)),
-            }
-            .map(|type_| match nullability {
-                ColumnNullabilityOverride::NonNull => type_,
-                ColumnNullabilityOverride::Nullable => quote! { Option<#type_> },
-                ColumnNullabilityOverride::None => {
-                    if !describe.nullable(i).unwrap_or(true) {
-                        type_
+            let nullable = match nullability {
+                ColumnNullabilityOverride::NonNull => false,
+                ColumnNullabilityOverride::Nullable => true,
+                ColumnNullabilityOverride::None => describe.nullable(i).unwrap_or(true),
+            };
+            let type_ = match (type_, nullable) {
+                (ColumnTypeOverride::Exact(type_), false) => {
+                    ColumnType::Exact(type_.to_token_stream())
+                }
+                (ColumnTypeOverride::Exact(type_), true) => {
+                    ColumnType::Exact(quote! { Option<#type_> })
+                }
+
+                (ColumnTypeOverride::Wildcard, false) => ColumnType::Wildcard,
+                (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,
+
+                (ColumnTypeOverride::None, _) => {
+                    let type_ = get_column_type::<DB>(i, column);
+                    if !nullable {
+                        ColumnType::Exact(type_)
                     } else {
-                        quote! { Option<#type_> }
+                        ColumnType::Exact(quote! { Option<#type_> })
                     }
                 }
-            });
+            };
 
             Ok(RustColumn {
                 ident: decl.ident,
@@ -108,14 +140,17 @@ pub fn quote_query_as<DB: DatabaseExt>(
         )| {
             match (input.checked, type_) {
                 // we guarantee the type is valid so we can skip the runtime check
-                (true, Some(type_)) => quote! {
+                (true, ColumnType::Exact(type_)) => quote! {
                     // binding to a `let` avoids confusing errors about
                     // "try expression alternatives have incompatible types"
                     // it doesn't seem to hurt inference in the other branches
                     let #ident = row.try_get_unchecked::<#type_, _>(#i)?;
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
-                (true, None) => quote! ( let #ident = row.try_get(#i)?; ),
+                (true, ColumnType::Wildcard) => quote! ( let #ident = row.try_get(#i)?; ),
+                (true, ColumnType::OptWildcard) => {
+                    quote! ( let #ident = row.try_get::<Option<_>, _>(#i)?; )
+                }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
                 (false, _) => quote!( let #ident = row.try_get_unchecked(#i)?; ),
             }
@@ -220,13 +255,6 @@ impl Parse for ColumnOverride {
             let ty = Type::parse(input)?;
 
             if let Type::Infer(_) = ty {
-                if nullability != ColumnNullabilityOverride::None {
-                    return Err(syn::Error::new(
-                        ty.span(),
-                        "wildcard type overrides cannot be used with explicit nullability overrides",
-                    ));
-                }
-
                 ColumnTypeOverride::Wildcard
             } else {
                 ColumnTypeOverride::Exact(ty)

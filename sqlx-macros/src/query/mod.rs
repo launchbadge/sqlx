@@ -223,7 +223,7 @@ where
                 let record_name: Type = syn::parse_str("Record").unwrap();
 
                 for rust_col in &columns {
-                    if rust_col.type_.is_none() {
+                    if rust_col.type_.is_wildcard() {
                         return Err(
                             "columns may not have wildcard overrides in `query!()` or `query_as!()"
                                 .into(),
