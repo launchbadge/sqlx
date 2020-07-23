@@ -83,8 +83,12 @@ pub(crate) fn expand_migrator_from_dir<P: AsRef<Path>>(
     migrations.sort_by_key(|m| m.version);
 
     Ok(quote! {
-        sqlx::migrate::Migrator::from_static(&[
-            #(#migrations),*
-        ])
+        macro_rules! macro_result {
+            () => {
+                sqlx::migrate::Migrator::from_static(&[
+                    #(#migrations),*
+                ])
+            }
+        }
     })
 }

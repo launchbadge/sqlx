@@ -574,23 +574,23 @@ macro_rules! query_file_as_unchecked (
     })
 );
 
-/// Creates a static [Migrator][crate::migrate::Migrator] by embedding the migrations in the binary.
-///
-/// The macro takes an optional migrations directory and defaults to `"migrations"` if it's not specified.
+/// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
 ///
 /// ```rust,ignore
-/// sqlx::migrate!("migrations") // same as sqlx::migrate!()
+/// sqlx::migrate!("db/migrations")
 ///     .run(&pool)
 ///     .await?;
 /// ```
 ///
-/// It can also be used as a static constructor.
-///
 /// ```rust,ignore
 /// use sqlx::migrate::Migrator;
 ///
-/// static MIGRATOR: Migrator = sqlx::migrate!();
+/// static MIGRATOR: Migrator = sqlx::migrate!(); // defaults to "migrations"
 /// ```
+///
+/// The directory must be relative to the project root (the directory containing `Cargo.toml`),
+/// unlike `include_str!()` which uses compiler internals to get the path of the file where it
+/// was invoked.
 #[cfg(feature = "migrate")]
 #[macro_export]
 macro_rules! migrate {
