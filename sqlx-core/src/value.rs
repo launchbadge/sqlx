@@ -56,7 +56,7 @@ pub trait Value {
     ///
     ///  * [`Decode`] if the value could not be decoded into the requested type.
     ///
-    /// [`Decode`]: crate::Error::Decode
+    /// [`Decode`]: Error::Decode
     ///
     #[inline]
     fn try_decode<'r, T>(&'r self) -> Result<T, Error>
@@ -83,7 +83,7 @@ pub trait Value {
     ///
     ///  * [`Decode`] if the value could not be decoded into the requested type.
     ///
-    /// [`Decode`]: crate::Error::Decode
+    /// [`Decode`]: Error::Decode
     ///
     #[inline]
     fn try_decode_unchecked<'r, T>(&'r self) -> Result<T, Error>

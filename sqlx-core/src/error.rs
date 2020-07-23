@@ -20,7 +20,7 @@ pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
 
 /// An unexpected `NULL` was encountered during decoding.
 ///
-/// Returned from [`Row::get`] if the value from the database is `NULL`,
+/// Returned from [`Row::get`](sqlx_core::row::Row::get) if the value from the database is `NULL`,
 /// and you are not decoding into an `Option`.
 #[derive(thiserror::Error, Debug)]
 #[error("unexpected null; try decoding as an `Option`")]
