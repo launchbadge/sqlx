@@ -10,7 +10,7 @@ use crate::types::Type;
 
 impl Type<MySql> for Uuid {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::binary(ColumnType::Blob)
+        MySqlTypeInfo::binary(ColumnType::String)
     }
 }
 
