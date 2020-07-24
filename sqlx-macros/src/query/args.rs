@@ -38,6 +38,11 @@ pub fn quote_args<DB: DatabaseExt>(
             TokenStream::new()
         }
 
+        Some(Either::Left(_)) if !input.checked => {
+            // this is an `*_unchecked!()` macro invocation
+            TokenStream::new()
+        }
+
         Some(Either::Left(params)) => {
             params
                 .iter()
