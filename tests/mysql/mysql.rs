@@ -273,6 +273,30 @@ async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_bind_and_return_years() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute(r#"
+CREATE TEMPORARY TABLE too_many_years (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    the YEAR NOT NULL
+);
+    "#).await?;
+
+    sqlx::query(r#"
+INSERT INTO too_many_years ( the ) VALUES ( ? );
+    "#).bind(2142).execute(&mut conn).await?;
+
+    let the: u16 = sqlx::query_scalar("SELECT the FROM too_many_years")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(the, 2142);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
