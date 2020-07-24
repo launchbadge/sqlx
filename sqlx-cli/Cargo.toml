@@ -34,7 +34,7 @@ chrono = "0.4"
 anyhow = "1.0"
 url = { version = "2.1.1", default-features = false }
 async-trait = "0.1.30"
-console = "0.10.0"
+console = "0.11.3"
 dialoguer = "0.6.2"
 serde_json = { version = "1.0.53", features = ["preserve_order"] }
 serde = "1.0.110"
