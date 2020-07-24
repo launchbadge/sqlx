@@ -1,4 +1,4 @@
-use crate::any::{Any, AnyColumnIndex, AnyColumn};
+use crate::any::{Any, AnyColumn, AnyColumnIndex};
 use crate::column::ColumnIndex;
 use crate::database::HasValueRef;
 use crate::error::Error;

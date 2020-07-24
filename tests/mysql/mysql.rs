@@ -276,16 +276,24 @@ async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
 async fn it_can_bind_and_return_years() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    conn.execute(r#"
+    conn.execute(
+        r#"
 CREATE TEMPORARY TABLE too_many_years (
     id INT PRIMARY KEY AUTO_INCREMENT,
     the YEAR NOT NULL
 );
-    "#).await?;
+    "#,
+    )
+    .await?;
 
-    sqlx::query(r#"
+    sqlx::query(
+        r#"
 INSERT INTO too_many_years ( the ) VALUES ( ? );
-    "#).bind(2142).execute(&mut conn).await?;
+    "#,
+    )
+    .bind(2142)
+    .execute(&mut conn)
+    .await?;
 
     let the: u16 = sqlx::query_scalar("SELECT the FROM too_many_years")
         .fetch_one(&mut conn)

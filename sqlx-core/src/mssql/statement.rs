@@ -61,7 +61,12 @@ impl<'q> From<MssqlStatement<'q>> for crate::any::AnyStatement<'q> {
     #[inline]
     fn from(statement: MssqlStatement<'q>) -> Self {
         crate::any::AnyStatement::<'q> {
-            columns: statement.metadata.columns.iter().map(|col| col.clone().into()).collect(),
+            columns: statement
+                .metadata
+                .columns
+                .iter()
+                .map(|col| col.clone().into())
+                .collect(),
             column_names: std::sync::Arc::new(statement.metadata.column_names.clone()),
             parameters: None,
             sql: statement.sql,

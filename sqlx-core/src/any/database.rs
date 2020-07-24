@@ -1,7 +1,6 @@
 use crate::any::{
-    AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyDone, AnyRow,
+    AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyDone, AnyRow, AnyStatement,
     AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
-    AnyStatement,
 };
 use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
 

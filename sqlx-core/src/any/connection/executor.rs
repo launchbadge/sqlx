@@ -1,13 +1,13 @@
-use either::Either;
-use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryStreamExt};
 use crate::any::connection::AnyConnectionKind;
-use crate::any::{Any, AnyStatement, AnyColumn, AnyConnection, AnyDone, AnyRow, AnyTypeInfo};
+use crate::any::{Any, AnyColumn, AnyConnection, AnyDone, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use either::Either;
+use futures_core::future::BoxFuture;
+use futures_core::stream::BoxStream;
+use futures_util::{StreamExt, TryStreamExt};
 
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;
@@ -126,9 +126,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         Box::pin(async move {
             Ok(match &mut self.0 {
                 #[cfg(feature = "postgres")]
-                AnyConnectionKind::Postgres(conn) => {
-                    conn.describe(sql).await.map(map_describe)?
-                }
+                AnyConnectionKind::Postgres(conn) => conn.describe(sql).await.map(map_describe)?,
 
                 #[cfg(feature = "mysql")]
                 AnyConnectionKind::MySql(conn) => conn.describe(sql).await.map(map_describe)?,

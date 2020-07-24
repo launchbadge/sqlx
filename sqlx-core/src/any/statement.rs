@@ -1,12 +1,12 @@
-use crate::any::{Any, AnyTypeInfo, AnyColumn, AnyArguments, AnyColumnIndex};
-use crate::statement::Statement;
+use crate::any::{Any, AnyArguments, AnyColumn, AnyColumnIndex, AnyTypeInfo};
 use crate::column::ColumnIndex;
-use either::Either;
-use std::sync::Arc;
-use hashbrown::HashMap;
-use crate::ext::ustr::UStr;
-use std::borrow::Cow;
 use crate::error::Error;
+use crate::ext::ustr::UStr;
+use crate::statement::Statement;
+use either::Either;
+use hashbrown::HashMap;
+use std::borrow::Cow;
+use std::sync::Arc;
 
 pub struct AnyStatement<'q> {
     pub(crate) sql: Cow<'q, str>,
@@ -35,7 +35,7 @@ impl<'q> Statement<'q> for AnyStatement<'q> {
         match &self.parameters {
             Some(Either::Left(types)) => Some(Either::Left(&types)),
             Some(Either::Right(count)) => Some(Either::Right(*count)),
-            None => None
+            None => None,
         }
     }
 

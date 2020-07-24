@@ -1,7 +1,7 @@
 use crate::any::{Any, AnyTypeInfo};
 use crate::database::HasValueRef;
-use std::borrow::Cow;
 use crate::value::{Value, ValueRef};
+use std::borrow::Cow;
 
 #[cfg(feature = "postgres")]
 use crate::postgres::{PgValue, PgValueRef};

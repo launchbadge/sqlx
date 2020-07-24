@@ -17,17 +17,16 @@ mod done;
 mod kind;
 mod options;
 pub(crate) mod row;
+mod statement;
 mod transaction;
 pub(crate) mod type_info;
 pub mod types;
-mod statement;
 pub(crate) mod value;
 
 #[cfg(feature = "migrate")]
 mod migrate;
 
 pub use arguments::{AnyArgumentBuffer, AnyArguments};
-pub use statement::AnyStatement;
 pub use column::{AnyColumn, AnyColumnIndex};
 pub use connection::AnyConnection;
 pub use database::Any;
@@ -38,6 +37,7 @@ pub use kind::AnyKind;
 pub use options::AnyConnectOptions;
 pub use r#type::AnyType;
 pub use row::AnyRow;
+pub use statement::AnyStatement;
 pub use transaction::AnyTransactionManager;
 pub use type_info::AnyTypeInfo;
 pub use value::{AnyValue, AnyValueRef};
