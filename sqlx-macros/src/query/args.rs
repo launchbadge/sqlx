@@ -3,7 +3,7 @@ use crate::query::QueryMacroInput;
 use either::Either;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
-use sqlx_core::statement::StatementInfo;
+use sqlx_core::describe::Describe;
 use syn::spanned::Spanned;
 use syn::{Expr, Type};
 
@@ -11,7 +11,7 @@ use syn::{Expr, Type};
 /// and binds them to `DB::Arguments` with the ident `query_args`.
 pub fn quote_args<DB: DatabaseExt>(
     input: &QueryMacroInput,
-    info: &StatementInfo<DB>,
+    info: &Describe<DB>,
 ) -> crate::Result<TokenStream> {
     let db_path = DB::db_path();
 

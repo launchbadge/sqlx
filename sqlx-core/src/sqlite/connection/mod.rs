@@ -1,18 +1,14 @@
-use std::cmp::Ordering;
-use std::fmt::{self, Debug, Formatter};
-use std::sync::Arc;
-
-use futures_core::future::BoxFuture;
-use futures_util::future;
-use hashbrown::HashMap;
-use libsqlite3_sys::sqlite3;
-
 use crate::common::StatementCache;
 use crate::connection::Connection;
 use crate::error::Error;
-use crate::ext::ustr::UStr;
-use crate::sqlite::statement::{SqliteStatement, StatementWorker};
+use crate::sqlite::statement::{StatementWorker, VirtualStatement};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
+use crate::transaction::Transaction;
+use futures_core::future::BoxFuture;
+use futures_util::future;
+use libsqlite3_sys::sqlite3;
+use std::cmp::Ordering;
+use std::fmt::{self, Debug, Formatter};
 
 mod collation;
 mod describe;
@@ -21,7 +17,6 @@ mod executor;
 mod explain;
 mod handle;
 
-use crate::transaction::Transaction;
 pub(crate) use handle::ConnectionHandle;
 
 /// A connection to a [Sqlite] database.
@@ -33,13 +28,10 @@ pub struct SqliteConnection {
     pub(crate) transaction_depth: usize,
 
     // cache of semi-persistent statements
-    pub(crate) statements: StatementCache<SqliteStatement>,
+    pub(crate) statements: StatementCache<VirtualStatement>,
 
     // most recent non-persistent statement
-    pub(crate) statement: Option<SqliteStatement>,
-
-    // working memory for the active row's column information
-    scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+    pub(crate) statement: Option<VirtualStatement>,
 }
 
 impl SqliteConnection {

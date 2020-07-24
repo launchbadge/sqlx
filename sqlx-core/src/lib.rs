@@ -49,9 +49,15 @@ pub mod query;
 #[macro_use]
 pub mod acquire;
 
+#[macro_use]
 pub mod column;
+
+#[macro_use]
+pub mod statement;
+
 mod common;
 pub mod database;
+pub mod describe;
 pub mod done;
 pub mod executor;
 pub mod from_row;
@@ -60,7 +66,6 @@ mod net;
 pub mod query_as;
 pub mod query_scalar;
 pub mod row;
-pub mod statement;
 pub mod type_info;
 pub mod value;
 

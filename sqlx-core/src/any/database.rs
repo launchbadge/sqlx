@@ -1,8 +1,9 @@
 use crate::any::{
     AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyDone, AnyRow,
     AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
+    AnyStatement,
 };
-use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
 
 /// Opaque database driver. Capable of being used in place of any SQLx database driver. The actual
 /// driver used will be selected at runtime, from the connection uri.
@@ -29,6 +30,12 @@ impl<'r> HasValueRef<'r> for Any {
     type Database = Any;
 
     type ValueRef = AnyValueRef<'r>;
+}
+
+impl<'q> HasStatement<'q> for Any {
+    type Database = Any;
+
+    type Statement = AnyStatement<'q>;
 }
 
 impl<'q> HasArguments<'q> for Any {

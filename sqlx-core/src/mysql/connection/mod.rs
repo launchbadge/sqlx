@@ -1,19 +1,14 @@
-use std::fmt::{self, Debug, Formatter};
-use std::sync::Arc;
-
-use futures_core::future::BoxFuture;
-use futures_util::FutureExt;
-use hashbrown::HashMap;
-
 use crate::common::StatementCache;
 use crate::connection::Connection;
 use crate::error::Error;
-use crate::ext::ustr::UStr;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
-use crate::mysql::statement::MySqlStatement;
-use crate::mysql::{MySql, MySqlColumn, MySqlConnectOptions};
+use crate::mysql::statement::MySqlStatementMetadata;
+use crate::mysql::{MySql, MySqlConnectOptions};
 use crate::transaction::Transaction;
+use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
+use std::fmt::{self, Debug, Formatter};
 
 mod auth;
 mod establish;
@@ -35,14 +30,8 @@ pub struct MySqlConnection {
     // transaction status
     pub(crate) transaction_depth: usize,
 
-    // cache by query string to the statement id
-    cache_statement: StatementCache<MySqlStatement>,
-
-    // working memory for the active row's column information
-    // this allows us to re-use these allocations unless the user is persisting the
-    // Row type past a stream iteration (clone-on-write)
-    scratch_row_columns: Arc<Vec<MySqlColumn>>,
-    scratch_row_column_names: Arc<HashMap<UStr, usize>>,
+    // cache by query string to the statement id and metadata
+    cache_statement: StatementCache<(u32, MySqlStatementMetadata)>,
 }
 
 impl Debug for MySqlConnection {
@@ -75,6 +64,7 @@ impl Connection for MySqlConnection {
         })
     }
 
+    #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.stream.wait_until_ready().boxed()
     }
@@ -85,10 +75,10 @@ impl Connection for MySqlConnection {
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            while let Some(statement) = self.cache_statement.remove_lru() {
+            while let Some((statement_id, _)) = self.cache_statement.remove_lru() {
                 self.stream
                     .send_packet(StmtClose {
-                        statement: statement.id,
+                        statement: statement_id,
                     })
                     .await?;
             }

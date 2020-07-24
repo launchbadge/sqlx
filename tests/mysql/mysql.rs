@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Connection, Done, Executor, Row};
+use sqlx::{Column, Connection, Done, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 
@@ -268,6 +268,36 @@ async fn it_can_bind_only_null_issue_540() -> anyhow::Result<()> {
     let v0: Option<i32> = row.get(0);
 
     assert_eq!(v0, None);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    let mut tx = conn.begin().await?;
+
+    let tweet_id: u64 = sqlx::query("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' )")
+        .execute(&mut tx)
+        .await?
+        .last_insert_id();
+
+    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?").await?;
+
+    assert_eq!(statement.column(0).name(), "id");
+    assert_eq!(statement.column(1).name(), "created_at");
+    assert_eq!(statement.column(2).name(), "text");
+    assert_eq!(statement.column(3).name(), "owner_id");
+
+    assert_eq!(statement.column(0).type_info().name(), "BIGINT");
+    assert_eq!(statement.column(1).type_info().name(), "TIMESTAMP");
+    assert_eq!(statement.column(2).type_info().name(), "TEXT");
+    assert_eq!(statement.column(3).type_info().name(), "BIGINT");
+
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let tweet_text: &str = row.try_get("text")?;
+
+    assert_eq!(tweet_text, "Hello, World");
 
     Ok(())
 }

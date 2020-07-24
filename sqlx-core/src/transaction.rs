@@ -131,32 +131,33 @@ macro_rules! impl_executor_for_transaction {
                 (&mut **self).fetch_optional(query)
             }
 
-            #[doc(hidden)]
-            fn describe<'e, 'q: 'e, E: 'q>(
+            fn prepare_with<'e, 'q: 'e>(
                 self,
-                query: E,
+                sql: &'q str,
+                parameters: &'e [<Self::Database as crate::database::Database>::TypeInfo],
             ) -> futures_core::future::BoxFuture<
                 'e,
-                Result<crate::statement::StatementInfo<Self::Database>, crate::error::Error>,
+                Result<
+                    <Self::Database as crate::database::HasStatement<'q>>::Statement,
+                    crate::error::Error,
+                >,
             >
             where
                 't: 'e,
-                E: crate::executor::Execute<'q, Self::Database>,
             {
-                (&mut **self).describe(query)
+                (&mut **self).prepare_with(sql, parameters)
             }
 
             #[doc(hidden)]
-            fn describe_full<'e, 'q: 'e, E: 'q>(
+            fn describe<'e, 'q: 'e>(
                 self,
-                query: E,
+                query: &'q str,
             ) -> futures_core::future::BoxFuture<
                 'e,
-                Result<crate::statement::StatementInfo<Self::Database>, crate::error::Error>,
+                Result<crate::describe::Describe<Self::Database>, crate::error::Error>,
             >
             where
                 't: 'e,
-                E: crate::executor::Execute<'q, Self::Database>,
             {
                 (&mut **self).describe(query)
             }

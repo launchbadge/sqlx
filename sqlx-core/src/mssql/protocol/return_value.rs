@@ -13,8 +13,8 @@ pub(crate) struct ReturnValue {
     status: ReturnValueStatus,
     user_type: u32,
     flags: Flags,
-    type_info: TypeInfo,
-    value: Option<Bytes>,
+    pub(crate) type_info: TypeInfo,
+    pub(crate) value: Option<Bytes>,
 }
 
 bitflags! {

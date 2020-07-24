@@ -87,6 +87,13 @@ impl StatementHandle {
         SqliteTypeInfo(DataType::from_code(self.column_type(index)))
     }
 
+    pub(crate) fn column_type_info_opt(&self, index: usize) -> Option<SqliteTypeInfo> {
+        match DataType::from_code(self.column_type(index)) {
+            DataType::Null => None,
+            dt => Some(SqliteTypeInfo(dt)),
+        }
+    }
+
     #[inline]
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteTypeInfo> {
         unsafe {

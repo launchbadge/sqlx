@@ -20,13 +20,15 @@ pub(crate) mod row;
 mod transaction;
 pub(crate) mod type_info;
 pub mod types;
+mod statement;
 pub(crate) mod value;
 
 #[cfg(feature = "migrate")]
 mod migrate;
 
 pub use arguments::{AnyArgumentBuffer, AnyArguments};
-pub use column::AnyColumn;
+pub use statement::AnyStatement;
+pub use column::{AnyColumn, AnyColumnIndex};
 pub use connection::AnyConnection;
 pub use database::Any;
 pub use decode::AnyDecode;
@@ -49,6 +51,8 @@ impl_into_arguments_for_arguments!(AnyArguments<'q>);
 impl_executor_for_pool_connection!(Any, AnyConnection, AnyRow);
 impl_executor_for_transaction!(Any, AnyRow);
 impl_acquire!(Any, AnyConnection);
+impl_column_index_for_row!(AnyRow);
+impl_column_index_for_statement!(AnyStatement);
 impl_into_maybe_pool!(Any, AnyConnection);
 impl_map_row!(Any, AnyRow);
 

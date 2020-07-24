@@ -10,7 +10,7 @@ use std::env;
 async fn it_describes_simple() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let info = conn.describe_full("SELECT * FROM tweet").await?;
+    let info = conn.describe("SELECT * FROM tweet").await?;
     let columns = info.columns();
 
     assert_eq!(columns[0].name(), "id");
@@ -41,15 +41,15 @@ async fn it_describes_variables() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     // without any context, we resolve to NULL
-    let info = conn.describe_full("SELECT ?1").await?;
+    let info = conn.describe("SELECT ?1").await?;
 
-    assert_eq!(info.column(0).type_info().name(), "NULL");
+    assert_eq!(info.columns()[0].type_info().name(), "NULL");
     assert_eq!(info.nullable(0), None); // unknown
 
     // context can be provided by using CAST(_ as _)
-    let info = conn.describe_full("SELECT CAST(?1 AS REAL)").await?;
+    let info = conn.describe("SELECT CAST(?1 AS REAL)").await?;
 
-    assert_eq!(info.column(0).type_info().name(), "REAL");
+    assert_eq!(info.columns()[0].type_info().name(), "REAL");
     assert_eq!(info.nullable(0), None); // unknown
 
     Ok(())
@@ -60,7 +60,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe_full("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef'")
+        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef'")
         .await?;
 
     let columns = d.columns();
@@ -92,22 +92,22 @@ async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
         .await?;
 
     let d = conn
-        .describe_full("SELECT COUNT(*), a + 1, name, 5.12, 'Hello' FROM _temp_empty")
+        .describe("SELECT COUNT(*), a + 1, name, 5.12, 'Hello' FROM _temp_empty")
         .await?;
 
-    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.columns()[0].type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false)); // COUNT(*)
 
-    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.columns()[1].type_info().name(), "INTEGER");
     assert_eq!(d.nullable(1), None); // `a + 1` is potentially nullable but we don't know for sure currently
 
-    assert_eq!(d.column(2).type_info().name(), "TEXT");
+    assert_eq!(d.columns()[2].type_info().name(), "TEXT");
     assert_eq!(d.nullable(2), Some(false)); // `name` is not nullable
 
-    assert_eq!(d.column(3).type_info().name(), "REAL");
+    assert_eq!(d.columns()[3].type_info().name(), "REAL");
     assert_eq!(d.nullable(3), Some(false)); // literal constant
 
-    assert_eq!(d.column(4).type_info().name(), "TEXT");
+    assert_eq!(d.columns()[4].type_info().name(), "TEXT");
     assert_eq!(d.nullable(4), Some(false)); // literal constant
 
     Ok(())
@@ -121,13 +121,13 @@ async fn it_describes_expression_from_empty_table_with_star() -> anyhow::Result<
         .await?;
 
     let d = conn
-        .describe_full("SELECT *, 5, 'Hello' FROM _temp_empty")
+        .describe("SELECT *, 5, 'Hello' FROM _temp_empty")
         .await?;
 
-    assert_eq!(d.column(0).type_info().name(), "TEXT");
-    assert_eq!(d.column(1).type_info().name(), "INTEGER");
-    assert_eq!(d.column(2).type_info().name(), "INTEGER");
-    assert_eq!(d.column(3).type_info().name(), "TEXT");
+    assert_eq!(d.columns()[0].type_info().name(), "TEXT");
+    assert_eq!(d.columns()[1].type_info().name(), "INTEGER");
+    assert_eq!(d.columns()[2].type_info().name(), "INTEGER");
+    assert_eq!(d.columns()[3].type_info().name(), "TEXT");
 
     Ok(())
 }
@@ -137,19 +137,17 @@ async fn it_describes_insert() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe_full("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
         .await?;
 
     assert_eq!(d.columns().len(), 0);
 
     let d = conn
-        .describe_full(
-            "INSERT INTO tweet (id, text) VALUES (2, 'Hello'); SELECT last_insert_rowid();",
-        )
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello'); SELECT last_insert_rowid();")
         .await?;
 
     assert_eq!(d.columns().len(), 1);
-    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.columns()[0].type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
     Ok(())
@@ -165,7 +163,7 @@ async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
     let mut conn = options.connect().await?;
 
     let d = conn
-        .describe_full("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello')")
         .await?;
 
     assert_eq!(d.columns().len(), 0);
@@ -177,10 +175,7 @@ async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
 async fn it_describes_bad_statement() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let err = conn
-        .describe_full("SELECT 1 FROM not_found")
-        .await
-        .unwrap_err();
+    let err = conn.describe("SELECT 1 FROM not_found").await.unwrap_err();
     let err = err
         .as_database_error()
         .unwrap()

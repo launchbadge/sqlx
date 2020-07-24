@@ -7,9 +7,34 @@ use crate::ext::ustr::UStr;
 use crate::postgres::{PgConnection, PgTypeInfo, Postgres};
 use crate::types::Type;
 
+// TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
+// TODO: Extend the patch system to support dynamic lengths
+//       Considerations:
+//          - The prefixed-len offset needs to be back-tracked and updated
+//          - message::Bind needs to take a &PgArguments and use a `write` method instead of
+//            referencing a buffer directly
+//          - The basic idea is that we write bytes for the buffer until we get somewhere
+//            that has a patch, we then apply the patch which should write to &mut Vec<u8>,
+//            backtrack and update the prefixed-len, then write until the next patch offset
+
 #[derive(Default)]
 pub struct PgArgumentBuffer {
     buffer: Vec<u8>,
+
+    // Number of arguments
+    count: usize,
+
+    // Whenever an `Encode` impl needs to defer some work until after we resolve parameter types
+    // it can use `patch`.
+    //
+    // This currently is only setup to be useful if there is a *fixed-size* slot that needs to be
+    // tweaked from the input type. However, that's the only use case we currently have.
+    //
+    patches: Vec<(
+        usize, // offset
+        usize, // argument index
+        Box<dyn Fn(&mut [u8], &PgTypeInfo) -> () + 'static + Send + Sync>,
+    )>,
 
     // Whenever an `Encode` impl encounters a `PgTypeInfo` object that does not have an OID
     // It pushes a "hole" that must be patched later.
@@ -42,6 +67,38 @@ impl PgArguments {
 
         // encode the value into our buffer
         self.buffer.encode(value);
+
+        // increment the number of arguments we are tracking
+        self.buffer.count += 1;
+    }
+
+    // Apply patches
+    // This should only go out and ask postgres if we have not seen the type name yet
+    pub(crate) async fn apply_patches(
+        &mut self,
+        conn: &mut PgConnection,
+        parameters: &[PgTypeInfo],
+    ) -> Result<(), Error> {
+        let PgArgumentBuffer {
+            ref patches,
+            ref type_holes,
+            ref mut buffer,
+            ..
+        } = self.buffer;
+
+        for (offset, ty, callback) in patches {
+            let buf = &mut buffer[*offset..];
+            let ty = &parameters[*ty];
+
+            callback(buf, ty);
+        }
+
+        for (offset, name) in type_holes {
+            let oid = conn.fetch_type_id_by_name(&*name).await?;
+            buffer[*offset..(*offset + 4)].copy_from_slice(&oid.to_be_bytes());
+        }
+
+        Ok(())
     }
 }
 
@@ -84,24 +141,25 @@ impl PgArgumentBuffer {
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
     }
 
+    // Adds a callback to be invoked later when we know the parameter type
+    #[allow(dead_code)]
+    pub(crate) fn patch<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync,
+    {
+        let offset = self.len();
+        let index = self.count;
+
+        self.patches.push((offset, index, Box::new(callback)));
+    }
+
     // Extends the inner buffer by enough space to have an OID
     // Remembers where the OID goes and type name for the OID
-    pub(crate) fn push_type_hole(&mut self, type_name: &UStr) {
+    pub(crate) fn patch_type_by_name(&mut self, type_name: &UStr) {
         let offset = self.len();
 
         self.extend_from_slice(&0_u32.to_be_bytes());
         self.type_holes.push((offset, type_name.clone()));
-    }
-
-    // Patch all remembered type holes
-    // This should only go out and ask postgres if we have not seen the type name yet
-    pub(crate) async fn patch_type_holes(&mut self, conn: &mut PgConnection) -> Result<(), Error> {
-        for (offset, name) in &self.type_holes {
-            let oid = conn.fetch_type_id_by_name(&*name).await?;
-            self.buffer[*offset..(*offset + 4)].copy_from_slice(&oid.to_be_bytes());
-        }
-
-        Ok(())
     }
 }
 

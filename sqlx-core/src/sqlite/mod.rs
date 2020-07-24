@@ -30,6 +30,7 @@ pub use done::SqliteDone;
 pub use error::SqliteError;
 pub use options::{SqliteConnectOptions, SqliteJournalMode};
 pub use row::SqliteRow;
+pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
@@ -45,6 +46,8 @@ impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_executor_for_pool_connection!(Sqlite, SqliteConnection, SqliteRow);
 impl_executor_for_transaction!(Sqlite, SqliteRow);
 impl_map_row!(Sqlite, SqliteRow);
+impl_column_index_for_row!(SqliteRow);
+impl_column_index_for_statement!(SqliteStatement);
 impl_acquire!(Sqlite, SqliteConnection);
 impl_into_maybe_pool!(Sqlite, SqliteConnection);
 

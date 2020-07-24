@@ -11,8 +11,10 @@ use libsqlite3_sys::{
 
 use crate::error::BoxDynError;
 use crate::sqlite::statement::StatementHandle;
+use crate::sqlite::type_info::DataType;
 use crate::sqlite::{Sqlite, SqliteTypeInfo};
 use crate::value::{Value, ValueRef};
+use std::borrow::Cow;
 
 enum SqliteValueData<'r> {
     Statement {
@@ -109,10 +111,18 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> &SqliteTypeInfo {
+    fn type_info(&self) -> Cow<'_, SqliteTypeInfo> {
         match self.0 {
-            SqliteValueData::Statement { ref type_info, .. } => &type_info,
-            SqliteValueData::Value(v) => &v.type_info,
+            SqliteValueData::Value(v) => v.type_info(),
+
+            SqliteValueData::Statement {
+                ref type_info,
+                statement,
+                index,
+            } => statement
+                .column_type_info_opt(index)
+                .map(Cow::Owned)
+                .unwrap_or(Cow::Borrowed(type_info)),
         }
     }
 
@@ -148,6 +158,16 @@ impl SqliteValue {
             handle: Arc::new(ValueHandle(NonNull::new_unchecked(sqlite3_value_dup(
                 value,
             )))),
+        }
+    }
+
+    fn type_info_opt(&self) -> Option<SqliteTypeInfo> {
+        let dt = DataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
+
+        if let DataType::Null = dt {
+            None
+        } else {
+            Some(SqliteTypeInfo(dt))
         }
     }
 
@@ -189,8 +209,10 @@ impl Value for SqliteValue {
         SqliteValueRef::value(self)
     }
 
-    fn type_info(&self) -> &SqliteTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, SqliteTypeInfo> {
+        self.type_info_opt()
+            .map(Cow::Owned)
+            .unwrap_or(Cow::Borrowed(&self.type_info))
     }
 
     fn is_null(&self) -> bool {
@@ -211,7 +233,7 @@ impl<'r> From<SqliteValueRef<'r>> for crate::any::AnyValueRef<'r> {
     #[inline]
     fn from(value: SqliteValueRef<'r>) -> Self {
         crate::any::AnyValueRef {
-            type_info: value.type_info().clone().into(),
+            type_info: value.type_info().clone().into_owned().into(),
             kind: crate::any::value::AnyValueRefKind::Sqlite(value),
         }
     }
@@ -222,7 +244,7 @@ impl From<SqliteValue> for crate::any::AnyValue {
     #[inline]
     fn from(value: SqliteValue) -> Self {
         crate::any::AnyValue {
-            type_info: value.type_info().clone().into(),
+            type_info: value.type_info().clone().into_owned().into(),
             kind: crate::any::value::AnyValueKind::Sqlite(value),
         }
     }

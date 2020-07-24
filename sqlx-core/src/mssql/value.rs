@@ -1,8 +1,8 @@
-use bytes::Bytes;
-
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::mssql::{Mssql, MssqlTypeInfo};
 use crate::value::{Value, ValueRef};
+use bytes::Bytes;
+use std::borrow::Cow;
 
 /// Implementation of [`ValueRef`] for MSSQL.
 #[derive(Clone)]
@@ -30,8 +30,8 @@ impl ValueRef<'_> for MssqlValueRef<'_> {
         }
     }
 
-    fn type_info(&self) -> &MssqlTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, MssqlTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {
@@ -67,8 +67,8 @@ impl Value for MssqlValue {
         }
     }
 
-    fn type_info(&self) -> &MssqlTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, MssqlTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {

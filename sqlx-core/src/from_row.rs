@@ -87,6 +87,7 @@ macro_rules! impl_from_row_for_tuple {
         impl<'r, R, $($T,)+> FromRow<'r, R> for ($($T,)+)
         where
             R: Row,
+            usize: crate::column::ColumnIndex<R>,
             $($T: crate::decode::Decode<'r, R::Database> + crate::types::Type<R::Database>,)+
         {
             #[inline]

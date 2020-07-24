@@ -1,8 +1,8 @@
-use crate::database::{Database, HasArguments, HasStatementCache, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
 use crate::mysql::value::{MySqlValue, MySqlValueRef};
 use crate::mysql::{
-    MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTransactionManager,
-    MySqlTypeInfo,
+    MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlStatement,
+    MySqlTransactionManager, MySqlTypeInfo,
 };
 
 /// MySQL database driver.
@@ -37,6 +37,12 @@ impl HasArguments<'_> for MySql {
     type Arguments = MySqlArguments;
 
     type ArgumentBuffer = Vec<u8>;
+}
+
+impl<'q> HasStatement<'q> for MySql {
+    type Database = MySql;
+
+    type Statement = MySqlStatement<'q>;
 }
 
 impl HasStatementCache for MySql {}

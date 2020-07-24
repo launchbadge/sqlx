@@ -1,13 +1,11 @@
-use std::borrow::Cow;
-
-use atoi::atoi;
-use libsqlite3_sys::SQLITE_OK;
-
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
-use crate::sqlite::statement::{SqliteStatement, StatementHandle};
+use crate::sqlite::statement::StatementHandle;
 use crate::sqlite::Sqlite;
+use atoi::atoi;
+use libsqlite3_sys::SQLITE_OK;
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub enum SqliteArgumentValue<'q> {
@@ -51,39 +49,40 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
 }
 
 impl SqliteArguments<'_> {
-    pub(super) fn bind(&self, statement: &SqliteStatement) -> Result<(), Error> {
-        let mut arg_i = 0;
-        for handle in &statement.handles {
-            let cnt = handle.bind_parameter_count();
-            for param_i in 1..=cnt {
-                // figure out the index of this bind parameter into our argument tuple
-                let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
-                    if name.starts_with('?') {
-                        // parameter should have the form ?NNN
-                        atoi(name[1..].as_bytes()).expect("parameter of the form ?NNN")
-                    } else {
-                        return Err(err_protocol!("unsupported SQL parameter format: {}", name));
-                    }
+    pub(super) fn bind(&self, handle: &StatementHandle, offset: usize) -> Result<usize, Error> {
+        let mut arg_i = offset;
+        // for handle in &statement.handles {
+
+        let cnt = handle.bind_parameter_count();
+
+        for param_i in 1..=cnt {
+            // figure out the index of this bind parameter into our argument tuple
+            let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
+                if name.starts_with('?') {
+                    // parameter should have the form ?NNN
+                    atoi(name[1..].as_bytes()).expect("parameter of the form ?NNN")
                 } else {
-                    arg_i += 1;
-                    arg_i
-                };
-
-                if n > self.values.len() {
-                    // SQLite treats unbound variables as NULL
-                    // we reproduce this here
-                    // If you are reading this and think this should be an error, open an issue and we can
-                    // discuss configuring this somehow
-                    // Note that the query macros have a different way of enforcing
-                    // argument arity
-                    break;
+                    return Err(err_protocol!("unsupported SQL parameter format: {}", name));
                 }
+            } else {
+                arg_i += 1;
+                arg_i
+            };
 
-                self.values[n - 1].bind(handle, param_i)?;
+            if n > self.values.len() {
+                // SQLite treats unbound variables as NULL
+                // we reproduce this here
+                // If you are reading this and think this should be an error, open an issue and we can
+                // discuss configuring this somehow
+                // Note that the query macros have a different way of enforcing
+                // argument arity
+                break;
             }
+
+            self.values[n - 1].bind(handle, param_i)?;
         }
 
-        Ok(())
+        Ok(arg_i - offset)
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
 use crate::mssql::connection::stream::MssqlStream;
@@ -74,6 +75,13 @@ impl MssqlConnection {
             }
         }
 
-        Ok(Self { stream })
+        // FIXME: Do we need to expose the capacity count here? It's not tied to
+        //        server-side resources but just .prepare() calls which return
+        //        client-side data.
+
+        Ok(Self {
+            stream,
+            cache_statement: StatementCache::new(1024),
+        })
     }
 }

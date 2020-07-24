@@ -3,7 +3,7 @@ use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
 use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
-use sqlx::{Connection, Done, Executor, Row};
+use sqlx::{Column, Connection, Done, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 use std::thread;
@@ -118,21 +118,22 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
 
 #[cfg(feature = "json")]
 #[sqlx_macros::test]
-async fn it_describes_and_inserts_json() -> anyhow::Result<()> {
+async fn it_describes_and_inserts_json_and_jsonb() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let _ = conn
         .execute(
             r#"
-CREATE TEMPORARY TABLE json_stuff (obj json);
+CREATE TEMPORARY TABLE json_stuff (obj json, obj2 jsonb);
             "#,
         )
         .await?;
 
-    let query = "INSERT INTO json_stuff (obj) VALUES ($1)";
+    let query = "INSERT INTO json_stuff (obj, obj2) VALUES ($1, $2)";
     let _ = conn.describe(query).await?;
 
     let done = sqlx::query(query)
+        .bind(serde_json::json!({ "a": "a" }))
         .bind(serde_json::json!({ "a": "a" }))
         .execute(&mut conn)
         .await?;
@@ -623,5 +624,35 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn it_can_handle_parameter_status_message_issue_484() -> anyhow::Result<()> {
     new::<Postgres>().await?.execute("SET NAMES 'UTF8'").await?;
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    let mut tx = conn.begin().await?;
+
+    let tweet_id: i64 =
+        sqlx::query_scalar("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' ) RETURNING id")
+            .fetch_one(&mut tx)
+            .await?;
+
+    let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
+
+    assert_eq!(statement.column(0).name(), "id");
+    assert_eq!(statement.column(1).name(), "created_at");
+    assert_eq!(statement.column(2).name(), "text");
+    assert_eq!(statement.column(3).name(), "owner_id");
+
+    assert_eq!(statement.column(0).type_info().name(), "INT8");
+    assert_eq!(statement.column(1).type_info().name(), "TIMESTAMPTZ");
+    assert_eq!(statement.column(2).type_info().name(), "TEXT");
+    assert_eq!(statement.column(3).type_info().name(), "INT8");
+
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let tweet_text: &str = row.try_get("text")?;
+
+    assert_eq!(tweet_text, "Hello, World");
+
     Ok(())
 }

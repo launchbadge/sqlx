@@ -5,16 +5,17 @@ use futures_core::stream::BoxStream;
 use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
-use crate::database::{Database, HasArguments, HasStatementCache};
+use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::statement::Statement;
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
-    pub(crate) query: &'q str,
+    pub(crate) statement: Either<&'q str, &'q <DB as HasStatement<'q>>::Statement>,
     pub(crate) arguments: Option<A>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,
@@ -40,8 +41,18 @@ where
     A: Send + IntoArguments<'q, DB>,
 {
     #[inline]
-    fn query(&self) -> &'q str {
-        self.query
+    fn sql(&self) -> &'q str {
+        match self.statement {
+            Either::Right(ref statement) => statement.sql(),
+            Either::Left(sql) => sql,
+        }
+    }
+
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        match self.statement {
+            Either::Right(ref statement) => Some(&statement),
+            Either::Left(_) => None,
+        }
     }
 
     #[inline]
@@ -217,8 +228,13 @@ where
     A: IntoArguments<'q, DB>,
 {
     #[inline]
-    fn query(&self) -> &'q str {
-        self.inner.query()
+    fn sql(&self) -> &'q str {
+        self.inner.sql()
+    }
+
+    #[inline]
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        self.inner.statement()
     }
 
     #[inline]
@@ -369,8 +385,39 @@ where
     }
 }
 
+// Make a SQL query from a statement.
+pub(crate) fn query_statement<'q, DB>(
+    statement: &'q <DB as HasStatement<'q>>::Statement,
+) -> Query<'q, DB, <DB as HasArguments<'_>>::Arguments>
+where
+    DB: Database,
+{
+    Query {
+        database: PhantomData,
+        arguments: Some(Default::default()),
+        statement: Either::Right(statement),
+        persistent: true,
+    }
+}
+
+// Make a SQL query from a statement, with the given arguments.
+pub(crate) fn query_statement_with<'q, DB, A>(
+    statement: &'q <DB as HasStatement<'q>>::Statement,
+    arguments: A,
+) -> Query<'q, DB, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
+    Query {
+        database: PhantomData,
+        arguments: Some(arguments),
+        statement: Either::Right(statement),
+        persistent: true,
+    }
+}
+
 /// Make a SQL query.
-#[inline]
 pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as HasArguments<'_>>::Arguments>
 where
     DB: Database,
@@ -378,13 +425,12 @@ where
     Query {
         database: PhantomData,
         arguments: Some(Default::default()),
-        query: sql,
+        statement: Either::Left(sql),
         persistent: true,
     }
 }
 
 /// Make a SQL query, with the given arguments.
-#[inline]
 pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
 where
     DB: Database,
@@ -393,7 +439,7 @@ where
     Query {
         database: PhantomData,
         arguments: Some(arguments),
-        query: sql,
+        statement: Either::Left(sql),
         persistent: true,
     }
 }

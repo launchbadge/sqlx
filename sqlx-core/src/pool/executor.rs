@@ -3,11 +3,11 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
-use crate::database::Database;
+use crate::database::{Database, HasStatement};
+use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::pool::Pool;
-use crate::statement::StatementInfo;
 
 impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
@@ -48,30 +48,24 @@ where
         Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e, E: 'q>(
+    fn prepare_with<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
+        sql: &'q str,
+        parameters: &'e [<Self::Database as Database>::TypeInfo],
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.describe(query).await })
+        Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
     }
 
     #[doc(hidden)]
-    fn describe_full<'e, 'q: 'e, E: 'q>(
+    fn describe<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
-    where
-        E: Execute<'q, Self::Database>,
-    {
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.describe_full(query).await })
+        Box::pin(async move { pool.acquire().await?.describe(sql).await })
     }
 }
 
@@ -112,36 +106,34 @@ macro_rules! impl_executor_for_pool_connection {
                 (**self).fetch_optional(query)
             }
 
-            #[doc(hidden)]
             #[inline]
-            fn describe<'e, 'q: 'e, E: 'q>(
+            fn prepare_with<'e, 'q: 'e>(
                 self,
-                query: E,
+                sql: &'q str,
+                parameters: &'e [<$DB as crate::database::Database>::TypeInfo],
             ) -> futures_core::future::BoxFuture<
                 'e,
-                Result<crate::statement::StatementInfo<$DB>, crate::error::Error>,
+                Result<<$DB as crate::database::HasStatement<'q>>::Statement, crate::error::Error>,
             >
             where
                 'c: 'e,
-                E: crate::executor::Execute<'q, $DB>,
             {
-                (**self).describe(query)
+                (**self).prepare_with(sql, parameters)
             }
 
             #[doc(hidden)]
             #[inline]
-            fn describe_full<'e, 'q: 'e, E: 'q>(
+            fn describe<'e, 'q: 'e>(
                 self,
-                query: E,
+                sql: &'q str,
             ) -> futures_core::future::BoxFuture<
                 'e,
-                Result<crate::statement::StatementInfo<$DB>, crate::error::Error>,
+                Result<crate::describe::Describe<$DB>, crate::error::Error>,
             >
             where
                 'c: 'e,
-                E: crate::executor::Execute<'q, $DB>,
             {
-                (**self).describe_full(query)
+                (**self).describe(sql)
             }
         }
     };

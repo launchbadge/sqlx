@@ -1,21 +1,25 @@
+use crate::common::StatementCache;
 use crate::connection::Connection;
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::mssql::connection::stream::MssqlStream;
+use crate::mssql::statement::MssqlStatementMetadata;
 use crate::mssql::{Mssql, MssqlConnectOptions};
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
 use futures_util::{future::ready, FutureExt, TryFutureExt};
 use std::fmt::{self, Debug, Formatter};
 use std::net::Shutdown;
+use std::sync::Arc;
 
-mod describe;
 mod establish;
 mod executor;
+mod prepare;
 mod stream;
 
 pub struct MssqlConnection {
     pub(crate) stream: MssqlStream,
+    pub(crate) cache_statement: StatementCache<Arc<MssqlStatementMetadata>>,
 }
 
 impl Debug for MssqlConnection {
