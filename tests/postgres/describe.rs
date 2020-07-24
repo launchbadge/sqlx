@@ -55,7 +55,7 @@ async fn it_describes_enum() -> anyhow::Result<()> {
     assert_eq!(ty.name(), "status");
 
     assert_eq!(
-        format!("{:?}", ty.__kind()),
+        format!("{:?}", ty.kind()),
         r#"Enum(["new", "open", "closed"])"#
     );
 
@@ -87,7 +87,7 @@ async fn it_describes_composite() -> anyhow::Result<()> {
     assert_eq!(ty.name(), "inventory_item");
 
     assert_eq!(
-        format!("{:?}", ty.__kind()),
+        format!("{:?}", ty.kind()),
         r#"Composite([("name", PgTypeInfo(Text)), ("supplier_id", PgTypeInfo(Int4)), ("price", PgTypeInfo(Int8))])"#
     );
 

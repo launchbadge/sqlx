@@ -141,7 +141,6 @@ pub struct PgCustomType {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-#[doc(hidden)]
 pub enum PgTypeKind {
     Simple,
     Pseudo,
@@ -158,8 +157,8 @@ impl PgTypeInfo {
         PgType::try_from_oid(oid).map(Self)
     }
 
-    #[doc(hidden)]
-    pub fn __kind(&self) -> &PgTypeKind {
+    /// Returns the _kind_ (simple, array, enum, etc.) for this type.
+    pub fn kind(&self) -> &PgTypeKind {
         self.0.kind()
     }
 
