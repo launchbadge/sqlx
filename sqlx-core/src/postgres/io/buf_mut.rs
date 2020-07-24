@@ -30,6 +30,7 @@ impl PgBufMutExt for Vec<u8> {
     // writes a statement name by ID
     #[inline]
     fn put_statement_name(&mut self, id: u32) {
+        // N.B. if you change this don't forget to update it in ../describe.rs
         self.extend(b"sqlx_s_");
 
         itoa::write(&mut *self, id).unwrap();
