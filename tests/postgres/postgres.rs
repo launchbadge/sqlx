@@ -656,3 +656,76 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    // test nullability inference for various joins
+
+    // inner join, nullability should not be overridden
+    // language=PostgreSQL
+    let describe = conn
+        .describe(
+            "select tweet.id
+from (values (null)) vals(val)
+         inner join tweet on false",
+        )
+        .await?;
+
+    assert_eq!(describe.nullable(0), Some(false));
+
+    // language=PostgreSQL
+    let describe = conn
+        .describe(
+            "select tweet.id
+from (values (null)) vals(val)
+         left join tweet on false",
+        )
+        .await?;
+
+    // tweet.id is marked NOT NULL but it's brought in from a left-join here
+    // which should make it nullable
+    assert_eq!(describe.nullable(0), Some(true));
+
+    // make sure we don't mis-infer for the outer half of the join
+    // language=PostgreSQL
+    let describe = conn
+        .describe(
+            "select tweet1.id, tweet2.id
+    from tweet tweet1
+    left join tweet tweet2 on false",
+        )
+        .await?;
+
+    assert_eq!(describe.nullable(0), Some(false));
+    assert_eq!(describe.nullable(1), Some(true));
+
+    // right join, nullability should be inverted
+    // language=PostgreSQL
+    let describe = conn
+        .describe(
+            "select tweet1.id, tweet2.id
+    from tweet tweet1
+    right join tweet tweet2 on false",
+        )
+        .await?;
+
+    assert_eq!(describe.nullable(0), Some(true));
+    assert_eq!(describe.nullable(1), Some(false));
+
+    // full outer join, both tables are nullable
+    // language=PostgreSQL
+    let describe = conn
+        .describe(
+            "select tweet1.id, tweet2.id
+    from tweet tweet1
+    full join tweet tweet2 on false",
+        )
+        .await?;
+
+    assert_eq!(describe.nullable(0), Some(true));
+    assert_eq!(describe.nullable(1), Some(true));
+
+    Ok(())
+}

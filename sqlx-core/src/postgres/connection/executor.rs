@@ -415,9 +415,9 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         Box::pin(async move {
             self.wait_until_ready().await?;
 
-            let (_, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
+            let (stmt_id, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
 
-            let nullable = self.get_nullable_for_columns(&metadata.columns).await?;
+            let nullable = self.get_nullable_for_columns(stmt_id, &metadata).await?;
 
             Ok(Describe {
                 columns: metadata.columns.clone(),

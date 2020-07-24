@@ -1,10 +1,12 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::message::{ParameterDescription, RowDescription};
+use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
 use crate::postgres::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use crate::query_as::query_as;
 use crate::query_scalar::{query_scalar, query_scalar_with};
+use crate::types::Json;
 use futures_core::future::BoxFuture;
 use hashbrown::HashMap;
 use std::fmt::Write;
@@ -245,22 +247,23 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
 
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
-        columns: &[PgColumn],
+        stmt_id: u32,
+        meta: &PgStatementMetadata,
     ) -> Result<Vec<Option<bool>>, Error> {
-        if columns.is_empty() {
+        if meta.columns.is_empty() {
             return Ok(vec![]);
         }
 
-        let mut query = String::from("SELECT NOT pg_attribute.attnotnull FROM (VALUES ");
+        let mut nullable_query = String::from("SELECT NOT pg_attribute.attnotnull FROM (VALUES ");
         let mut args = PgArguments::default();
 
-        for (i, (column, bind)) in columns.iter().zip((1..).step_by(3)).enumerate() {
+        for (i, (column, bind)) in meta.columns.iter().zip((1..).step_by(3)).enumerate() {
             if !args.buffer.is_empty() {
-                query += ", ";
+                nullable_query += ", ";
             }
 
             let _ = write!(
-                query,
+                nullable_query,
                 "(${}::int4, ${}::int4, ${}::int2)",
                 bind,
                 bind + 1,
@@ -272,7 +275,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
             args.add(column.relation_attribute_no);
         }
 
-        query.push_str(
+        nullable_query.push_str(
             ") as col(idx, table_id, col_idx) \
             LEFT JOIN pg_catalog.pg_attribute \
                 ON table_id IS NOT NULL \
@@ -281,8 +284,104 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
             ORDER BY col.idx",
         );
 
-        query_scalar_with::<_, Option<bool>, _>(&query, args)
-            .fetch_all(self)
-            .await
+        let mut nullables = query_scalar_with::<_, Option<bool>, _>(&nullable_query, args)
+            .fetch_all(&mut *self)
+            .await?;
+
+        // patch up our null inference with data from EXPLAIN
+        let nullable_patch = self
+            .nullables_from_explain(stmt_id, meta.parameters.len())
+            .await?;
+
+        for (nullable, patch) in nullables.iter_mut().zip(nullable_patch) {
+            *nullable = patch.or(*nullable);
+        }
+
+        Ok(nullables)
     }
+
+    /// Infer nullability for columns of this statement using EXPLAIN VERBOSE.
+    ///
+    /// This currently only marks columns that are on the inner half of an outer join
+    /// and returns `None` for all others.
+    async fn nullables_from_explain(
+        &mut self,
+        stmt_id: u32,
+        params_len: usize,
+    ) -> Result<Vec<Option<bool>>, Error> {
+        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}", stmt_id);
+        let mut comma = false;
+
+        if params_len > 0 {
+            explain += "(";
+
+            // fill the arguments list with NULL, which should theoretically be valid
+            for _ in 0..params_len {
+                if comma {
+                    explain += ", ";
+                }
+
+                explain += "NULL";
+                comma = true;
+            }
+
+            explain += ")";
+        }
+
+        let (Json([explain]),): (Json<[Explain; 1]>,) = query_as(&explain).fetch_one(self).await?;
+
+        let mut nullables = Vec::new();
+
+        if let Some(outputs) = &explain.plan.output {
+            nullables.resize(outputs.len(), None);
+            visit_plan(&explain.plan, outputs, &mut nullables);
+        }
+
+        Ok(nullables)
+    }
+}
+
+fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>) {
+    if let Some(plan_outputs) = &plan.output {
+        // all outputs of a Full Join must be marked nullable
+        // otherwise, all outputs of the inner half of an outer join must be marked nullable
+        if let Some("Full") | Some("Inner") = plan
+            .join_type
+            .as_deref()
+            .or(plan.parent_relation.as_deref())
+        {
+            for output in plan_outputs {
+                if let Some(i) = outputs.iter().position(|o| o == output) {
+                    // N.B. this may produce false positives but those don't cause runtime errors
+                    nullables[i] = Some(true);
+                }
+            }
+        }
+    }
+
+    if let Some(plans) = &plan.plans {
+        if let Some("Left") | Some("Right") = plan.join_type.as_deref() {
+            for plan in plans {
+                visit_plan(plan, outputs, nullables);
+            }
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct Explain {
+    #[serde(rename = "Plan")]
+    plan: Plan,
+}
+
+#[derive(serde::Deserialize)]
+struct Plan {
+    #[serde(rename = "Join Type")]
+    join_type: Option<String>,
+    #[serde(rename = "Parent Relationship")]
+    parent_relation: Option<String>,
+    #[serde(rename = "Output")]
+    output: Option<Vec<String>>,
+    #[serde(rename = "Plans")]
+    plans: Option<Vec<Plan>>,
 }
