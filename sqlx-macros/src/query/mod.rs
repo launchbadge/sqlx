@@ -9,7 +9,7 @@ pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
-use sqlx_core::statement::StatementInfo;
+use sqlx_core::describe::Describe;
 use sqlx_rt::block_on;
 
 use crate::database::DatabaseExt;
@@ -163,28 +163,28 @@ pub fn expand_from_file(
     }
 }
 
-// marker trait for `StatementInfo` that lets us conditionally require it to be `Serialize + Deserialize`
+// marker trait for `Describe` that lets us conditionally require it to be `Serialize + Deserialize`
 #[cfg(feature = "offline")]
-trait StatementInfoExt: serde::Serialize + serde::de::DeserializeOwned {}
+trait DescribeExt: serde::Serialize + serde::de::DeserializeOwned {}
 
 #[cfg(feature = "offline")]
-impl<DB: Database> StatementInfoExt for StatementInfo<DB> where
-    StatementInfo<DB>: serde::Serialize + serde::de::DeserializeOwned
+impl<DB: Database> DescribeExt for Describe<DB> where
+    Describe<DB>: serde::Serialize + serde::de::DeserializeOwned
 {
 }
 
 #[cfg(not(feature = "offline"))]
-trait StatementInfoExt {}
+trait DescribeExt {}
 
 #[cfg(not(feature = "offline"))]
-impl<DB: Database> StatementInfoExt for StatementInfo<DB> {}
+impl<DB: Database> DescribeExt for Describe<DB> {}
 
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
 ) -> crate::Result<TokenStream>
 where
-    StatementInfo<DB>: StatementInfoExt,
+    Describe<DB>: DescribeExt,
 {
     // validate at the minimum that our args match the query's input parameters
     let num_parameters = match data.describe.parameters() {

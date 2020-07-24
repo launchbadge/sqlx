@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 // U meaning micro
 // a micro-string is either a reference-counted string or a static string
 // this guarantees these are cheap to clone everywhere
-#[derive(Debug, Clone, Eq)]
+#[derive(Clone, Eq)]
 pub enum UStr {
     Static(&'static str),
     Shared(Arc<str>),
@@ -65,6 +65,13 @@ impl From<String> for UStr {
     #[inline]
     fn from(s: String) -> Self {
         UStr::Shared(s.into())
+    }
+}
+
+impl Debug for UStr {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.pad(self)
     }
 }
 

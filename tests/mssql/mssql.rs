@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mssql::Mssql;
-use sqlx::{Connection, Done, Executor, MssqlConnection, Row};
+use sqlx::{Column, Connection, Done, Executor, MssqlConnection, Row, Statement, TypeInfo};
 use sqlx_core::mssql::MssqlRow;
 use sqlx_test::new;
 
@@ -291,6 +291,37 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(count, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
+    let mut conn = new::<Mssql>().await?;
+    let mut tx = conn.begin().await?;
+
+    let tweet_id: i64 = sqlx::query_scalar(
+        "INSERT INTO tweet ( id, text ) OUTPUT INSERTED.id VALUES ( 50, 'Hello, World' )",
+    )
+    .fetch_one(&mut tx)
+    .await?;
+
+    let statement = tx.prepare("SELECT * FROM tweet WHERE id = @p1").await?;
+
+    assert_eq!(statement.column(0).name(), "id");
+    assert_eq!(statement.column(1).name(), "text");
+    assert_eq!(statement.column(2).name(), "is_sent");
+    assert_eq!(statement.column(3).name(), "owner_id");
+
+    assert_eq!(statement.column(0).type_info().name(), "BIGINT");
+    assert_eq!(statement.column(1).type_info().name(), "NVARCHAR");
+    assert_eq!(statement.column(2).type_info().name(), "TINYINT");
+    assert_eq!(statement.column(3).type_info().name(), "BIGINT");
+
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let tweet_text: String = row.try_get("text")?;
+
+    assert_eq!(tweet_text, "Hello, World");
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 /// Provides information about a SQL type for the database driver.
-pub trait TypeInfo: Debug + Display + Clone + PartialEq<Self> {
+pub trait TypeInfo: Debug + Display + Clone + PartialEq<Self> + Send + Sync {
     fn is_null(&self) -> bool;
 
     /// Returns the database system name of the type. Length specifiers should not be included.

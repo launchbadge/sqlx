@@ -1,11 +1,10 @@
-use serde::{Deserialize, Serialize};
-
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::{Json, Type};
+use serde::{Deserialize, Serialize};
 
 // <https://www.postgresql.org/docs/12/datatype-json.html>
 
@@ -48,9 +47,18 @@ where
     T: Serialize,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        // we have a tiny amount of dynamic behavior depending if we are resolved to be JSON
+        // instead of JSONB
+        buf.patch(|buf, ty: &PgTypeInfo| {
+            if *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSON_ARRAY {
+                buf[0] = b' ';
+            }
+        });
+
         // JSONB version (as of 2020-03-20)
         buf.push(1);
 
+        // the JSON data written to the buffer is the same regardless of parameter type
         serde_json::to_writer(&mut **buf, &self.0)
             .expect("failed to serialize to JSON for encoding on transmission to the database");
 

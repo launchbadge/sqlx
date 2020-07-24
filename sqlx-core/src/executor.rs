@@ -1,6 +1,6 @@
-use crate::database::{Database, HasArguments};
+use crate::database::{Database, HasArguments, HasStatement};
+use crate::describe::Describe;
 use crate::error::Error;
-use crate::statement::StatementInfo;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -129,29 +129,50 @@ pub trait Executor<'c>: Send + Debug + Sized {
         'c: 'e,
         E: Execute<'q, Self::Database>;
 
-    /// Prepare the SQL query and return type information about its parameters
+    /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.
-    fn describe<'e, 'q: 'e, E: 'q>(
+    ///
+    /// Be advised that when using the `query`, `query_as`, or `query_scalar` functions, the query
+    /// is transparently prepared and executed.
+    ///
+    /// This explicit API is provided to allow access to the statement metadata available after
+    /// it prepared but before the first row is returned.
+    #[inline]
+    fn prepare<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+        query: &'q str,
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>;
+    {
+        self.prepare_with(query, &[])
+    }
 
-    /// Prepare the SQL query and return type information about its parameters
+    /// Prepare the SQL query, with parameter type information, to inspect the
+    /// type information about its parameters and results.
+    ///
+    /// Only some database drivers (PostgreSQL, MSSQL) can take advantage of
+    /// this extra information to influence parameter type inference.
+    fn prepare_with<'e, 'q: 'e>(
+        self,
+        sql: &'q str,
+        parameters: &'e [<Self::Database as Database>::TypeInfo],
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    where
+        'c: 'e;
+
+    /// Describe the SQL query and return type information about its parameters
     /// and results.
     ///
     /// This is used by compile-time verification in the query macros to
     /// power their type inference.
     #[doc(hidden)]
-    fn describe_full<'e, 'q: 'e, E: 'q>(
+    fn describe<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
-        'c: 'e,
-        E: Execute<'q, Self::Database>;
+        'c: 'e;
 }
 
 /// A type that may be executed against a database connection.
@@ -162,8 +183,11 @@ pub trait Executor<'c>: Send + Debug + Sized {
 ///  * [`Query`]
 ///
 pub trait Execute<'q, DB: Database>: Send + Sized {
-    /// Returns the query string that will be executed.
-    fn query(&self) -> &'q str;
+    /// Gets the SQL that will be executed.
+    fn sql(&self) -> &'q str;
+
+    /// Gets the previously cached statement, if available.
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement>;
 
     /// Returns the arguments to be bound against the query string.
     ///
@@ -180,8 +204,13 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
 //       involved to write `conn.execute(format!("SELECT {}", val))`
 impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     #[inline]
-    fn query(&self) -> &'q str {
+    fn sql(&self) -> &'q str {
         self
+    }
+
+    #[inline]
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        None
     }
 
     #[inline]
@@ -197,8 +226,13 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
 
 impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
     #[inline]
-    fn query(&self) -> &'q str {
+    fn sql(&self) -> &'q str {
         self.0
+    }
+
+    #[inline]
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        None
     }
 
     #[inline]

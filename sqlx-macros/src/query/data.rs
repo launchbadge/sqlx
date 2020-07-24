@@ -1,20 +1,20 @@
 use sqlx_core::database::Database;
+use sqlx_core::describe::Describe;
 use sqlx_core::executor::Executor;
-use sqlx_core::statement::StatementInfo;
 
 #[cfg_attr(feature = "offline", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(
     feature = "offline",
     serde(bound(
-        serialize = "StatementInfo<DB>: serde::Serialize",
-        deserialize = "StatementInfo<DB>: serde::de::DeserializeOwned"
+        serialize = "Describe<DB>: serde::Serialize",
+        deserialize = "Describe<DB>: serde::de::DeserializeOwned"
     ))
 )]
 #[derive(Debug)]
 pub struct QueryData<DB: Database> {
     #[allow(dead_code)]
     pub(super) query: String,
-    pub(super) describe: StatementInfo<DB>,
+    pub(super) describe: Describe<DB>,
     #[cfg(feature = "offline")]
     pub(super) hash: String,
 }
@@ -26,7 +26,7 @@ impl<DB: Database> QueryData<DB> {
     ) -> crate::Result<Self> {
         Ok(QueryData {
             query: query.into(),
-            describe: conn.describe_full(query).await?,
+            describe: conn.describe(query).await?,
             #[cfg(feature = "offline")]
             hash: offline::hash_string(query),
         })
@@ -43,7 +43,7 @@ pub mod offline {
     use crate::database::DatabaseExt;
     use proc_macro2::Span;
     use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
-    use sqlx_core::statement::StatementInfo;
+    use sqlx_core::describe::Describe;
     use std::path::Path;
 
     #[derive(serde::Deserialize)]
@@ -75,14 +75,14 @@ pub mod offline {
 
     impl<DB: DatabaseExt> QueryData<DB>
     where
-        StatementInfo<DB>: serde::Serialize + serde::de::DeserializeOwned,
+        Describe<DB>: serde::Serialize + serde::de::DeserializeOwned,
     {
         pub fn from_dyn_data(dyn_data: DynQueryData) -> crate::Result<Self> {
             assert!(!dyn_data.db_name.is_empty());
             assert!(!dyn_data.hash.is_empty());
 
             if DB::NAME == dyn_data.db_name {
-                let describe: StatementInfo<DB> = serde_json::from_value(dyn_data.describe)?;
+                let describe: Describe<DB> = serde_json::from_value(dyn_data.describe)?;
                 Ok(QueryData {
                     query: dyn_data.query,
                     describe,

@@ -3,6 +3,7 @@ use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::{MySql, MySqlTypeInfo};
 use crate::value::{Value, ValueRef};
 use bytes::Bytes;
+use std::borrow::Cow;
 use std::str::from_utf8;
 
 #[derive(Debug, Clone, Copy)]
@@ -58,8 +59,8 @@ impl Value for MySqlValue {
         }
     }
 
-    fn type_info(&self) -> &MySqlTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, MySqlTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {
@@ -86,8 +87,8 @@ impl<'r> ValueRef<'r> for MySqlValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> &MySqlTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, MySqlTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     #[inline]

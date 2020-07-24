@@ -1,9 +1,9 @@
+use crate::describe::Describe;
 use crate::error::Error;
 use crate::sqlite::connection::explain::explain;
-use crate::sqlite::statement::SqliteStatement;
+use crate::sqlite::statement::VirtualStatement;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{Sqlite, SqliteColumn, SqliteConnection};
-use crate::statement::StatementInfo;
 use either::Either;
 use futures_core::future::BoxFuture;
 use std::convert::identity;
@@ -11,12 +11,12 @@ use std::convert::identity;
 pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
     conn: &'c mut SqliteConnection,
     query: &'q str,
-) -> BoxFuture<'e, Result<StatementInfo<Sqlite>, Error>> {
+) -> BoxFuture<'e, Result<Describe<Sqlite>, Error>> {
     Box::pin(async move {
         // describing a statement from SQLite can be involved
         // each SQLx statement is comprised of multiple SQL statements
 
-        let statement = SqliteStatement::prepare(&mut conn.handle, query, false);
+        let statement = VirtualStatement::new(query, false);
 
         let mut columns = Vec::new();
         let mut nullable = Vec::new();
@@ -25,7 +25,7 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
         let mut statement = statement?;
 
         // we start by finding the first statement that *can* return results
-        while let Some((statement, ..)) = statement.execute()? {
+        while let Some((statement, ..)) = statement.prepare(&mut conn.handle)? {
             num_params += statement.bind_parameter_count();
 
             let mut stepped = false;
@@ -95,7 +95,7 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
             }
         }
 
-        Ok(StatementInfo {
+        Ok(Describe {
             columns,
             parameters: Some(Either::Right(num_params)),
             nullable,

@@ -1,19 +1,18 @@
-use std::sync::Arc;
-
-use hashbrown::HashMap;
-
+use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::mysql::{protocol, MySql, MySqlColumn, MySqlValueFormat, MySqlValueRef};
-use crate::row::{ColumnIndex, Row};
+use crate::row::Row;
+use hashbrown::HashMap;
+use std::sync::Arc;
 
 /// Implementation of [`Row`] for MySQL.
 #[derive(Debug)]
 pub struct MySqlRow {
     pub(crate) row: protocol::Row,
+    pub(crate) format: MySqlValueFormat,
     pub(crate) columns: Arc<Vec<MySqlColumn>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
-    pub(crate) format: MySqlValueFormat,
 }
 
 impl crate::row::private_row::Sealed for MySqlRow {}
@@ -57,6 +56,7 @@ impl From<MySqlRow> for crate::any::AnyRow {
     fn from(row: MySqlRow) -> Self {
         crate::any::AnyRow {
             columns: row.columns.iter().map(|col| col.clone().into()).collect(),
+
             kind: crate::any::row::AnyRowKind::MySql(row),
         }
     }

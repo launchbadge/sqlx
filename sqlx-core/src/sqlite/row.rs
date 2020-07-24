@@ -5,9 +5,10 @@ use std::sync::{Arc, Weak};
 
 use hashbrown::HashMap;
 
+use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
-use crate::row::{ColumnIndex, Row};
+use crate::row::Row;
 use crate::sqlite::statement::StatementHandle;
 use crate::sqlite::{Sqlite, SqliteColumn, SqliteValue, SqliteValueRef};
 

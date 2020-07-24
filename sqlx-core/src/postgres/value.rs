@@ -1,10 +1,9 @@
-use std::str::from_utf8;
-
-use bytes::{Buf, Bytes};
-
 use crate::error::{BoxDynError, UnexpectedNullError};
 use crate::postgres::{PgTypeInfo, Postgres};
 use crate::value::{Value, ValueRef};
+use bytes::{Buf, Bytes};
+use std::borrow::Cow;
+use std::str::from_utf8;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(u8)]
@@ -80,8 +79,8 @@ impl Value for PgValue {
         }
     }
 
-    fn type_info(&self) -> &PgTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, PgTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {
@@ -108,8 +107,8 @@ impl<'r> ValueRef<'r> for PgValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> &PgTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, PgTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {

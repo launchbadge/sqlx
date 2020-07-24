@@ -1,3 +1,4 @@
+use crate::arguments::Arguments;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::message::{ParameterDescription, RowDescription};
@@ -8,7 +9,6 @@ use crate::query_scalar::{query_scalar, query_scalar_with};
 use futures_core::future::BoxFuture;
 use hashbrown::HashMap;
 use std::fmt::Write;
-use std::mem;
 use std::sync::Arc;
 
 impl PgConnection {
@@ -16,24 +16,15 @@ impl PgConnection {
         &mut self,
         desc: Option<RowDescription>,
         should_fetch: bool,
-    ) -> Result<(), Error> {
+    ) -> Result<(Vec<PgColumn>, HashMap<UStr, usize>), Error> {
         let mut columns = Vec::new();
         let mut column_names = HashMap::new();
-
-        mem::swap(Arc::make_mut(&mut self.scratch_row_columns), &mut columns);
-        mem::swap(
-            Arc::make_mut(&mut self.scratch_row_column_names),
-            &mut column_names,
-        );
-
-        columns.clear();
-        column_names.clear();
 
         let desc = if let Some(desc) = desc {
             desc
         } else {
             // no rows
-            return Ok(());
+            return Ok((columns, column_names));
         };
 
         columns.reserve(desc.fields.len());
@@ -58,13 +49,7 @@ impl PgConnection {
             column_names.insert(name, index);
         }
 
-        mem::swap(Arc::make_mut(&mut self.scratch_row_columns), &mut columns);
-        mem::swap(
-            Arc::make_mut(&mut self.scratch_row_column_names),
-            &mut column_names,
-        );
-
-        Ok(())
+        Ok((columns, column_names))
     }
 
     pub(super) async fn handle_parameter_description(

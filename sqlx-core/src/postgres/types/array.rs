@@ -56,7 +56,7 @@ where
 
         // element type
         match T::type_info().0 {
-            PgType::DeclareWithName(name) => buf.push_type_hole(&name),
+            PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
 
             ty => {
                 buf.extend(&ty.oid().to_be_bytes());

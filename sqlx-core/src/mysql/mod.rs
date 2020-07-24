@@ -28,6 +28,7 @@ pub use done::MySqlDone;
 pub use error::MySqlDatabaseError;
 pub use options::{MySqlConnectOptions, MySqlSslMode};
 pub use row::MySqlRow;
+pub use statement::MySqlStatement;
 pub use transaction::MySqlTransactionManager;
 pub use type_info::MySqlTypeInfo;
 pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
@@ -44,6 +45,8 @@ impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
 impl_executor_for_transaction!(MySql, MySqlRow);
 impl_map_row!(MySql, MySqlRow);
 impl_acquire!(MySql, MySqlConnection);
+impl_column_index_for_row!(MySqlRow);
+impl_column_index_for_statement!(MySqlStatement);
 impl_into_maybe_pool!(MySql, MySqlConnection);
 
 // required because some databases have a different handling of NULL

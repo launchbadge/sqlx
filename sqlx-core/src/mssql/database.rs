@@ -1,7 +1,7 @@
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::{Database, HasArguments, HasStatement, HasValueRef};
 use crate::mssql::{
-    MssqlArguments, MssqlColumn, MssqlConnection, MssqlDone, MssqlRow, MssqlTransactionManager,
-    MssqlTypeInfo, MssqlValue, MssqlValueRef,
+    MssqlArguments, MssqlColumn, MssqlConnection, MssqlDone, MssqlRow, MssqlStatement,
+    MssqlTransactionManager, MssqlTypeInfo, MssqlValue, MssqlValueRef,
 };
 
 /// MSSQL database driver.
@@ -28,6 +28,12 @@ impl<'r> HasValueRef<'r> for Mssql {
     type Database = Mssql;
 
     type ValueRef = MssqlValueRef<'r>;
+}
+
+impl<'q> HasStatement<'q> for Mssql {
+    type Database = Mssql;
+
+    type Statement = MssqlStatement<'q>;
 }
 
 impl HasArguments<'_> for Mssql {

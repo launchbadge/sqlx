@@ -1,8 +1,8 @@
 use futures::TryStreamExt;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{
-    query, sqlite::Sqlite, sqlite::SqliteRow, Connection, Done, Executor, Row, SqliteConnection,
-    SqlitePool,
+    query, sqlite::Sqlite, sqlite::SqliteRow, Column, Connection, Done, Executor, Row,
+    SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
 
@@ -93,6 +93,39 @@ async fn it_maths() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let values: Vec<i32> = sqlx::query_scalar::<_, i32>("select ?; select ?")
+        .bind(5_i32)
+        .bind(15_i32)
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0], 5);
+    assert_eq!(values[1], 15);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let values: Vec<i32> = sqlx::query_scalar::<_, i32>("select ?1; select ?1")
+        .bind(25_i32)
+        .fetch_all(&mut conn)
+        .await?;
+
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0], 25);
+    assert_eq!(values[1], 25);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
     use sqlx::{Decode, TypeInfo, ValueRef};
 
@@ -101,7 +134,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
     let defaults = sqlx::query("pragma table_info (tweet)")
         .try_map(|row: SqliteRow| {
             let val = row.try_get_raw("dflt_value")?;
-            let ty = val.type_info().clone();
+            let ty = val.type_info().clone().into_owned();
 
             let val: Option<i32> = Decode::<Sqlite>::decode(val).map_err(sqlx::Error::Decode)?;
 
@@ -402,6 +435,37 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     }
 
     assert_eq!(0, conn.cached_statements_size());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let mut tx = conn.begin().await?;
+
+    let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 2, 'Hello, World' )")
+        .execute(&mut tx)
+        .await?;
+
+    let tweet_id: i32 = 2;
+
+    let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
+
+    assert_eq!(statement.column(0).name(), "id");
+    assert_eq!(statement.column(1).name(), "text");
+    assert_eq!(statement.column(2).name(), "is_sent");
+    assert_eq!(statement.column(3).name(), "owner_id");
+
+    assert_eq!(statement.column(0).type_info().name(), "INTEGER");
+    assert_eq!(statement.column(1).type_info().name(), "TEXT");
+    assert_eq!(statement.column(2).type_info().name(), "BOOLEAN");
+    assert_eq!(statement.column(3).type_info().name(), "INTEGER");
+
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let tweet_text: &str = row.try_get("text")?;
+
+    assert_eq!(tweet_text, "Hello, World");
 
     Ok(())
 }

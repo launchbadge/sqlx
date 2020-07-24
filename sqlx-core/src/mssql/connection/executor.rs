@@ -1,17 +1,21 @@
+use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::mssql::connection::describe::describe;
+use crate::mssql::connection::prepare::prepare;
+use crate::mssql::protocol::col_meta_data::Flags;
 use crate::mssql::protocol::done::Status;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
-use crate::mssql::{Mssql, MssqlArguments, MssqlConnection, MssqlDone, MssqlRow};
-use crate::statement::StatementInfo;
+use crate::mssql::{
+    Mssql, MssqlArguments, MssqlConnection, MssqlDone, MssqlRow, MssqlStatement, MssqlTypeInfo,
+};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{FutureExt, TryStreamExt};
+use futures_util::TryStreamExt;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 impl MssqlConnection {
@@ -71,11 +75,11 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let s = query.query();
+        let sql = query.sql();
         let arguments = query.take_arguments();
 
         Box::pin(try_stream! {
-            self.run(s, arguments).await?;
+            self.run(sql, arguments).await?;
 
             loop {
                 let message = self.stream.recv_message().await?;
@@ -141,25 +145,45 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
         })
     }
 
-    fn describe<'e, 'q: 'e, E: 'q>(
+    fn prepare_with<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+        sql: &'q str,
+        _parameters: &[MssqlTypeInfo],
+    ) -> BoxFuture<'e, Result<MssqlStatement<'q>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
     {
-        describe(self, query.query()).boxed()
+        Box::pin(async move {
+            let metadata = prepare(self, sql).await?;
+
+            Ok(MssqlStatement {
+                sql: Cow::Borrowed(sql),
+                metadata,
+            })
+        })
     }
 
-    fn describe_full<'e, 'q: 'e, E: 'q>(
+    fn describe<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
     {
-        describe(self, query.query()).boxed()
+        Box::pin(async move {
+            let metadata = prepare(self, sql).await?;
+
+            let mut nullable = Vec::with_capacity(metadata.columns.len());
+
+            for col in metadata.columns.iter() {
+                nullable.push(Some(col.flags.contains(Flags::NULLABLE)));
+            }
+
+            Ok(Describe {
+                nullable,
+                columns: (metadata.columns).clone(),
+                parameters: None,
+            })
+        })
     }
 }

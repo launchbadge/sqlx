@@ -1,8 +1,9 @@
+use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::mssql::protocol::row::Row as ProtocolRow;
 use crate::mssql::{Mssql, MssqlColumn, MssqlValueRef};
-use crate::row::{ColumnIndex, Row};
+use crate::row::Row;
 use hashbrown::HashMap;
 use std::sync::Arc;
 

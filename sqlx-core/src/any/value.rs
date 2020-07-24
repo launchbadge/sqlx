@@ -1,5 +1,6 @@
 use crate::any::{Any, AnyTypeInfo};
 use crate::database::HasValueRef;
+use std::borrow::Cow;
 use crate::value::{Value, ValueRef};
 
 #[cfg(feature = "postgres")]
@@ -71,8 +72,8 @@ impl Value for AnyValue {
         }
     }
 
-    fn type_info(&self) -> &AnyTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, AnyTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {
@@ -111,8 +112,8 @@ impl<'r> ValueRef<'r> for AnyValueRef<'r> {
         }
     }
 
-    fn type_info(&self) -> &AnyTypeInfo {
-        &self.type_info
+    fn type_info(&self) -> Cow<'_, AnyTypeInfo> {
+        Cow::Borrowed(&self.type_info)
     }
 
     fn is_null(&self) -> bool {

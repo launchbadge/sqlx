@@ -63,6 +63,7 @@ use crate::column::Column;
 use crate::connection::Connection;
 use crate::done::Done;
 use crate::row::Row;
+use crate::statement::Statement;
 use crate::transaction::TransactionManager;
 use crate::type_info::TypeInfo;
 use crate::value::{Value, ValueRef};
@@ -78,6 +79,7 @@ pub trait Database:
     + Debug
     + for<'r> HasValueRef<'r, Database = Self>
     + for<'q> HasArguments<'q, Database = Self>
+    + for<'q> HasStatement<'q, Database = Self>
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connection<Database = Self>;
@@ -136,6 +138,22 @@ pub trait HasArguments<'q> {
 
     /// The concrete type used as a buffer for arguments while encoding.
     type ArgumentBuffer;
+}
+
+/// Associate [`Database`] with a [`Statement`](crate::statement::Statement) of a generic lifetime.
+///
+/// ---
+///
+/// The upcoming Rust feature, [Generic Associated Types], should obviate
+/// the need for this trait.
+///
+/// [`Database`]: trait.Database.html
+/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
+pub trait HasStatement<'q> {
+    type Database: Database;
+
+    /// The concrete `Statement` implementation for this database.
+    type Statement: Statement<'q, Database = Self::Database>;
 }
 
 /// A [`Database`] that maintains a client-side cache of prepared statements.

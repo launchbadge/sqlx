@@ -1,5 +1,6 @@
 use crate::column::Column;
 use crate::ext::ustr::UStr;
+use crate::mysql::protocol::text::ColumnFlags;
 use crate::mysql::{MySql, MySqlTypeInfo};
 
 #[derive(Debug, Clone)]
@@ -8,6 +9,9 @@ pub struct MySqlColumn {
     pub(crate) ordinal: usize,
     pub(crate) name: UStr,
     pub(crate) type_info: MySqlTypeInfo,
+
+    #[cfg_attr(feature = "offline", serde(skip))]
+    pub(crate) flags: Option<ColumnFlags>,
 }
 
 impl crate::column::private_column::Sealed for MySqlColumn {}

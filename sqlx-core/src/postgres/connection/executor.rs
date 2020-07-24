@@ -1,3 +1,16 @@
+use crate::describe::Describe;
+use crate::error::Error;
+use crate::executor::{Execute, Executor};
+use crate::postgres::message::{
+    self, Bind, Close, CommandComplete, DataRow, MessageFormat, ParameterDescription, Parse, Query,
+    RowDescription,
+};
+use crate::postgres::statement::PgStatementMetadata;
+use crate::postgres::type_info::PgType;
+use crate::postgres::{
+    statement::PgStatement, PgArguments, PgConnection, PgDone, PgRow, PgTypeInfo, PgValueFormat,
+    Postgres,
+};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -5,23 +18,12 @@ use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use std::{borrow::Cow, sync::Arc};
 
-use crate::error::Error;
-use crate::executor::{Execute, Executor};
-use crate::postgres::message::{
-    self, Bind, Close, CommandComplete, DataRow, MessageFormat, ParameterDescription, Parse, Query,
-    RowDescription,
-};
-use crate::postgres::type_info::PgType;
-use crate::postgres::{
-    statement::PgStatement, PgArguments, PgConnection, PgDone, PgRow, PgValueFormat, Postgres,
-};
-use crate::statement::StatementInfo;
-
 async fn prepare(
     conn: &mut PgConnection,
-    query: &str,
-    arguments: &PgArguments,
-) -> Result<PgStatement, Error> {
+    sql: &str,
+    parameters: &[PgTypeInfo],
+    metadata: Option<Arc<PgStatementMetadata>>,
+) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
     let id = conn.next_statement_id;
     conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
 
@@ -29,12 +31,10 @@ async fn prepare(
     // we have not yet started the query sequence, so we are *safe* to cleanly make
     // additional queries here to get any missing OIDs
 
-    let mut param_types = Vec::with_capacity(arguments.types.len());
-    let mut has_fetched = false;
+    let mut param_types = Vec::with_capacity(parameters.len());
 
-    for ty in &arguments.types {
+    for ty in parameters {
         param_types.push(if let PgType::DeclareWithName(name) = &ty.0 {
-            has_fetched = true;
             conn.fetch_type_id_by_name(name).await?
         } else {
             ty.0.oid()
@@ -42,54 +42,60 @@ async fn prepare(
     }
 
     // flush and wait until we are re-ready
-    if has_fetched {
-        conn.wait_until_ready().await?;
-    }
+    conn.wait_until_ready().await?;
 
     // next we send the PARSE command to the server
     conn.stream.write(Parse {
         param_types: &*param_types,
-        query,
+        query: sql,
         statement: id,
     });
 
-    // we ask for the server to immediately send us the result of the PARSE command by using FLUSH
+    if metadata.is_none() {
+        // get the statement columns and parameters
+        conn.stream.write(message::Describe::Statement(id));
+    }
 
+    // we ask for the server to immediately send us the result of the PARSE command
     conn.write_sync();
     conn.stream.flush().await?;
 
     // indicates that the SQL query string is now successfully parsed and has semantic validity
-    let _: () = conn
+    let _ = conn
         .stream
         .recv_expect(MessageFormat::ParseComplete)
         .await?;
 
-    conn.recv_ready_for_query().await?;
+    let metadata = if let Some(metadata) = metadata {
+        // each SYNC produces one READY FOR QUERY
+        conn.recv_ready_for_query().await?;
 
-    // get the statement columns and parameters
-    conn.stream.write(message::Describe::Statement(id));
+        // we already have metadata
+        metadata
+    } else {
+        let parameters = recv_desc_params(conn).await?;
 
-    conn.write_sync();
-    conn.stream.flush().await?;
+        let rows = recv_desc_rows(conn).await?;
 
-    let parameters = recv_desc_params(conn).await?;
-    let rows = recv_desc_rows(conn).await?;
+        // each SYNC produces one READY FOR QUERY
+        conn.recv_ready_for_query().await?;
 
-    conn.recv_ready_for_query().await?;
+        let parameters = conn.handle_parameter_description(parameters).await?;
 
-    let parameters = conn.handle_parameter_description(parameters).await?;
+        let (columns, column_names) = conn.handle_row_description(rows, true).await?;
 
-    conn.handle_row_description(rows, true).await?;
+        // ensure that if we did fetch custom data, we wait until we are fully ready before
+        // continuing
+        conn.wait_until_ready().await?;
 
-    let columns = (&*conn.scratch_row_columns).clone();
+        Arc::new(PgStatementMetadata {
+            parameters,
+            columns,
+            column_names,
+        })
+    };
 
-    conn.wait_until_ready().await?;
-
-    Ok(PgStatement {
-        id,
-        parameters,
-        columns,
-    })
+    Ok((id, metadata))
 }
 
 async fn recv_desc_params(conn: &mut PgConnection) -> Result<ParameterDescription, Error> {
@@ -153,25 +159,25 @@ impl PgConnection {
         self.pending_ready_for_query_count += 1;
     }
 
-    async fn prepare<'a>(
-        &'a mut self,
-        query: &str,
-        arguments: &PgArguments,
+    async fn get_or_prepare<'a>(
+        &mut self,
+        sql: &str,
+        parameters: &[PgTypeInfo],
+        // should we store the result of this prepare to the cache
         store_to_cache: bool,
-    ) -> Result<Cow<'a, PgStatement>, Error> {
-        let contains = self.cache_statement.contains_key(query);
-
-        if contains {
-            return Ok(Cow::Borrowed(
-                &*self.cache_statement.get_mut(query).unwrap(),
-            ));
+        // optional metadata that was provided by the user, this means they are reusing
+        // a statement object
+        metadata: Option<Arc<PgStatementMetadata>>,
+    ) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
+        if let Some(statement) = self.cache_statement.get_mut(sql) {
+            return Ok((*statement).clone());
         }
 
-        let statement = prepare(self, query, arguments).await?;
+        let statement = prepare(self, sql, parameters, metadata).await?;
 
         if store_to_cache && self.cache_statement.is_enabled() {
-            if let Some(statement) = self.cache_statement.insert(query, statement) {
-                self.stream.write(Close::Statement(statement.id));
+            if let Some((id, _)) = self.cache_statement.insert(sql, statement.clone()) {
+                self.stream.write(Close::Statement(id));
                 self.write_sync();
 
                 self.stream.flush().await?;
@@ -179,13 +185,9 @@ impl PgConnection {
                 self.wait_for_close_complete(1).await?;
                 self.recv_ready_for_query().await?;
             }
-
-            Ok(Cow::Borrowed(
-                &*self.cache_statement.get_mut(query).unwrap(),
-            ))
-        } else {
-            Ok(Cow::Owned(statement))
         }
+
+        Ok(statement)
     }
 
     async fn run(
@@ -194,30 +196,24 @@ impl PgConnection {
         arguments: Option<PgArguments>,
         limit: u8,
         persistent: bool,
+        metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + '_, Error> {
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
+        let mut metadata: Arc<PgStatementMetadata>;
+
         let format = if let Some(mut arguments) = arguments {
             // prepare the statement if this our first time executing it
             // always return the statement ID here
-            let statement = self.prepare(query, &arguments, persistent).await?.id;
+            let (statement, metadata_) = self
+                .get_or_prepare(query, &arguments.types, persistent, metadata_opt)
+                .await?;
+
+            metadata = metadata_;
 
             // patch holes created during encoding
-            arguments.buffer.patch_type_holes(self).await?;
-
-            // describe the statement and, again, ask the server to immediately respond
-            // we need to fully realize the types
-            self.stream.write(message::Describe::Statement(statement));
-
-            self.write_sync();
-            self.stream.flush().await?;
-
-            let _ = recv_desc_params(self).await?;
-            let rows = recv_desc_rows(self).await?;
-
-            self.handle_row_description(rows, true).await?;
-            self.wait_until_ready().await?;
+            arguments.apply_patches(self, &metadata.parameters).await?;
 
             // bind to attach the arguments to the statement and create a portal
             self.stream.write(Bind {
@@ -249,6 +245,9 @@ impl PgConnection {
             // Query will trigger a ReadyForQuery
             self.stream.write(Query(query));
             self.pending_ready_for_query_count += 1;
+
+            // metadata starts out as "nothing"
+            metadata = Arc::new(PgStatementMetadata::default());
 
             // and unprepared statements are text
             PgValueFormat::Text
@@ -283,9 +282,15 @@ impl PgConnection {
 
                     MessageFormat::RowDescription => {
                         // indicates that a *new* set of rows are about to be returned
-                        self
+                        let (columns, column_names) = self
                             .handle_row_description(Some(message.decode()?), false)
                             .await?;
+
+                        metadata = Arc::new(PgStatementMetadata {
+                            column_names,
+                            columns,
+                            parameters: Vec::default(),
+                        });
                     }
 
                     MessageFormat::DataRow => {
@@ -294,8 +299,7 @@ impl PgConnection {
                         let row = PgRow {
                             data,
                             format,
-                            columns: Arc::clone(&self.scratch_row_columns),
-                            column_names: Arc::clone(&self.scratch_row_column_names),
+                            metadata: Arc::clone(&metadata),
                         };
 
                         r#yield!(Either::Right(row));
@@ -332,12 +336,13 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let s = query.query();
+        let sql = query.sql();
+        let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
         let arguments = query.take_arguments();
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
-            let s = self.run(s, arguments, 0, persistent).await?;
+            let s = self.run(sql, arguments, 0, persistent, metadata).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
@@ -356,12 +361,13 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
         E: Execute<'q, Self::Database>,
     {
-        let s = query.query();
+        let sql = query.sql();
+        let metadata = query.statement().map(|s| Arc::clone(&s.metadata));
         let arguments = query.take_arguments();
         let persistent = query.persistent();
 
         Box::pin(async move {
-            let s = self.run(s, arguments, 1, persistent).await?;
+            let s = self.run(sql, arguments, 1, persistent, metadata).await?;
             pin_mut!(s);
 
             while let Some(s) = s.try_next().await? {
@@ -374,51 +380,44 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         })
     }
 
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e, E: 'q>(
+    fn prepare_with<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Postgres>, Error>>
+        sql: &'q str,
+        parameters: &'e [PgTypeInfo],
+    ) -> BoxFuture<'e, Result<PgStatement<'q>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
     {
-        let s = query.query();
-
         Box::pin(async move {
-            let statement = self.prepare(s, &Default::default(), false).await?;
-            let columns = statement.columns.clone();
-            let params = statement.parameters.clone();
-            let nullable = Vec::new();
+            self.wait_until_ready().await?;
 
-            Ok(StatementInfo {
-                columns,
-                nullable,
-                parameters: Some(Either::Left(params)),
+            let (_, metadata) = self.get_or_prepare(sql, parameters, true, None).await?;
+
+            Ok(PgStatement {
+                sql: Cow::Borrowed(sql),
+                metadata,
             })
         })
     }
 
-    fn describe_full<'e, 'q: 'e, E: 'q>(
+    fn describe<'e, 'q: 'e>(
         self,
-        query: E,
-    ) -> BoxFuture<'e, Result<StatementInfo<Self::Database>, Error>>
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
     {
-        let s = query.query();
-
         Box::pin(async move {
-            let statement = self.prepare(s, &Default::default(), false).await?;
-            let columns = statement.columns.clone();
-            let params = statement.parameters.clone();
-            let nullable = self.get_nullable_for_columns(&columns).await?;
+            self.wait_until_ready().await?;
 
-            Ok(StatementInfo {
-                columns,
+            let (_, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
+
+            let nullable = self.get_nullable_for_columns(&metadata.columns).await?;
+
+            Ok(Describe {
+                columns: metadata.columns.clone(),
                 nullable,
-                parameters: Some(Either::Left(params)),
+                parameters: Some(Either::Left(metadata.parameters.clone())),
             })
         })
     }

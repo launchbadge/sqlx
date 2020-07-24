@@ -43,7 +43,7 @@ impl<'a> PgRecordEncoder<'a> {
         if let PgType::DeclareWithName(name) = ty.0 {
             // push a hole for this type ID
             // to be filled in on query execution
-            self.buf.push_type_hole(&name);
+            self.buf.patch_type_by_name(&name);
         } else {
             // write type id
             self.buf.extend(&ty.0.oid().to_be_bytes());

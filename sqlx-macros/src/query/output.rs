@@ -3,7 +3,7 @@ use quote::{quote, ToTokens};
 use syn::Type;
 
 use sqlx_core::column::Column;
-use sqlx_core::statement::StatementInfo;
+use sqlx_core::describe::Describe;
 
 use crate::database::DatabaseExt;
 
@@ -42,9 +42,7 @@ impl Display for DisplayColumn<'_> {
     }
 }
 
-pub fn columns_to_rust<DB: DatabaseExt>(
-    describe: &StatementInfo<DB>,
-) -> crate::Result<Vec<RustColumn>> {
+pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Result<Vec<RustColumn>> {
     describe
         .columns()
         .iter()
