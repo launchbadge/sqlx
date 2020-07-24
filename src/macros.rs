@@ -101,7 +101,7 @@
 /// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
 /// the `query!()` macro adjusts the field types of the returned struct accordingly.
 ///
-/// For Postgres and SQLite, this only works for columns which come directly from actual tables,
+/// For Postgres, this only works for columns which come directly from actual tables,
 /// as the implementation will need to query the table metadata to find if a given column
 /// has a `NOT NULL` constraint. Columns that do not have a `NOT NULL` constraint or are the result
 /// of an expression are assumed to be nullable and so `Option<T>` is used instead of `T`.
@@ -114,6 +114,10 @@
 /// is the result of an expression, depending on if the expression may in any case result in
 /// `NULL` which then depends on the semantics of what functions are used. Consult the MySQL
 /// manual for the functions you are using to find the cases in which they return `NULL`.
+///
+/// For SQLite we perform a similar check to Postgres, looking for `NOT NULL` constraints
+/// on columns that come from tables. However, for SQLite we also can step through the output
+/// of `EXPLAIN` to identify columns that may or may not be `NULL`.
 ///
 /// To override the nullability of an output column, [see below](#type-overrides-output-columns).
 ///
@@ -227,14 +231,10 @@
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
-/// // For Postgres this would have been inferred to be `Option<i32>`, MySQL `i32`
-/// // and SQLite it wouldn't have worked at all because we couldn't know the type.
+/// // For Postgres this would have been inferred to be `Option<i32>`, MySQL/SQLite `i32`
 /// assert_eq!(record.id, MyInt4(1));
 /// # }
 /// ```
-///
-/// As mentioned, this allows specifying the type of a pure expression column which is normally
-/// forbidden for SQLite as there's no way we can ask SQLite what type the column is expected to be.
 ///
 /// ## Offline Mode (requires the `offline` feature)
 /// The macros can be configured to not require a live database connection for compilation,
