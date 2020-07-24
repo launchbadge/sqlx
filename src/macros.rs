@@ -1,6 +1,6 @@
 /// Statically checked SQL query with `println!()` style syntax.
 ///
-/// This expands to an instance of [QueryAs][crate::QueryAs] that outputs an ad-hoc anonymous struct type,
+/// This expands to an instance of [`QueryAs`](sqlx_core::query_as::QueryAs) that outputs an ad-hoc anonymous struct type,
 /// if the query has output columns, or `()` (unit) otherwise:
 ///
 /// ```rust,ignore

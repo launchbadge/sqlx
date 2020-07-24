@@ -152,7 +152,7 @@ where
 }
 
 /// Make a SQL query that is mapped to a concrete type
-/// using [`FromRow`](crate::row::FromRow).
+/// using [`FromRow`].
 #[inline]
 pub fn query_as<'q, DB, O>(sql: &'q str) -> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments>
 where
@@ -166,7 +166,7 @@ where
 }
 
 /// Make a SQL query, with the given arguments, that is mapped to a concrete type
-/// using [`FromRow`](crate::row::FromRow).
+/// using [`FromRow`].
 #[inline]
 pub fn query_as_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, DB, O, A>
 where

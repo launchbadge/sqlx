@@ -18,9 +18,9 @@ use std::fmt::Debug;
 ///
 /// Implemented for the following:
 ///
-///  * [`&Pool`]
-///  * [`&mut PoolConnection`]
-///  * [`&mut Connection`]
+///  * [`&Pool`](super::pool::Pool)
+///  * [`&mut PoolConnection`](super::pool::PoolConnection)
+///  * [`&mut Connection`](super::connection::Connection)
 ///
 pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
@@ -179,8 +179,8 @@ pub trait Executor<'c>: Send + Debug + Sized {
 ///
 /// Implemented for the following:
 ///
-///  * [`&str`]
-///  * [`Query`]
+///  * [`&str`](std::str)
+///  * [`Query`](super::query::Query)
 ///
 pub trait Execute<'q, DB: Database>: Send + Sized {
     /// Gets the SQL that will be executed.

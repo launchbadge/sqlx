@@ -111,8 +111,8 @@ where
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
     ///
-    /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](crate::row::FromRow) implementation.
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
     pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>, A>
     where
@@ -124,8 +124,8 @@ where
 
     /// Map each row in the result to another type.
     ///
-    /// The [`query_as`](crate::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](crate::row::FromRow) implementation.
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
     pub fn try_map<F>(self, f: F) -> Map<'q, DB, F, A>
     where

@@ -104,9 +104,9 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
     ///  * [`ColumnDecode`] if the value could not be decoded into the requested type.
     ///
-    /// [`ColumnDecode`]: crate::Error::ColumnDecode
-    /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
+    /// [`ColumnDecode`]: Error::ColumnDecode
+    /// [`ColumnNotFound`]: Error::ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     ///
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
@@ -144,9 +144,9 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
     ///  * [`ColumnDecode`] if the value could not be decoded into the requested type.
     ///
-    /// [`ColumnDecode`]: crate::Error::ColumnDecode
-    /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
+    /// [`ColumnDecode`]: Error::ColumnDecode
+    /// [`ColumnNotFound`]: Error::ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     ///
     #[inline]
     fn try_get_unchecked<'r, T, I>(&'r self, index: I) -> Result<T, Error>
@@ -169,8 +169,8 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     ///  * [`ColumnNotFound`] if the column by the given name was not found.
     ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
     ///
-    /// [`ColumnNotFound`]: crate::Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: crate::Error::ColumnIndexOutOfBounds
+    /// [`ColumnNotFound`]: Error::ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     ///
     fn try_get_raw<I>(
         &self,

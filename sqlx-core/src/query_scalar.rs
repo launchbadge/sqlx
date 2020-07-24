@@ -141,7 +141,7 @@ where
 }
 
 /// Make a SQL query that is mapped to a single concrete type
-/// using [`FromRow`](crate::row::FromRow).
+/// using [`FromRow`].
 #[inline]
 pub fn query_scalar<'q, DB, O>(
     sql: &'q str,
@@ -156,7 +156,7 @@ where
 }
 
 /// Make a SQL query, with the given arguments, that is mapped to a single concrete type
-/// using [`FromRow`](crate::row::FromRow).
+/// using [`FromRow`].
 #[inline]
 pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScalar<'q, DB, O, A>
 where

@@ -34,10 +34,10 @@ pub(crate) mod private_column {
 ///
 /// This trait is sealed and cannot be implemented for types outside of SQLx.
 ///
-/// [`Row`]: trait.Row.html
-/// [`Statement`]: trait.Statement.html
-/// [`get`]: trait.Row.html#method.get
-/// [`try_get`]: trait.Row.html#method.try_get
+/// [`Row`]: crate::row::Row
+/// [`Statement`]: crate::statement::Statement
+/// [`get`]: crate::row::Row::get
+/// [`try_get`]: crate::row::Row::try_get
 ///
 pub trait ColumnIndex<T: ?Sized>: private_column_index::Sealed + Debug {
     /// Returns a valid positional index into the row or statement, [`ColumnIndexOutOfBounds`], or,
