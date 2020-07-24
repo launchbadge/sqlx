@@ -1,7 +1,7 @@
 use clap::{crate_version, AppSettings, FromArgMatches, IntoApp};
 use console::style;
 use sqlx_cli::Opt;
-use std::env;
+use std::{env, process};
 
 #[tokio::main]
 async fn main() {
@@ -17,5 +17,6 @@ async fn main() {
 
     if let Err(error) = sqlx_cli::run(Opt::from_arg_matches(&matches)).await {
         println!("{} {}", style("error:").bold().red(), error);
+        process::exit(1);
     }
 }
