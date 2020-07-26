@@ -5,7 +5,7 @@ pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
 pub use sqlx_core::column::ColumnIndex;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
-pub use sqlx_core::database::{self, Database};
+pub use sqlx_core::database::{self, Database, HasStatement};
 pub use sqlx_core::describe::Describe;
 pub use sqlx_core::done::Done;
 pub use sqlx_core::executor::{Execute, Executor};
