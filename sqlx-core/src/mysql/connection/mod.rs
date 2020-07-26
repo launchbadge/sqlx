@@ -15,6 +15,7 @@ mod establish;
 mod executor;
 mod stream;
 mod tls;
+use log::info;
 
 pub(crate) use stream::{Busy, MySqlStream};
 
@@ -55,11 +56,15 @@ impl Connection for MySqlConnection {
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        info!("ping:0 @{}", self.stream.id);
         Box::pin(async move {
+            info!("ping:1 @{}", self.stream.id);
             self.stream.wait_until_ready().await?;
+            info!("ping:2 @{}", self.stream.id);
             self.stream.send_packet(Ping).await?;
+            info!("ping:3 @{}", self.stream.id);
             self.stream.recv_ok().await?;
-
+            info!("ping:4 @{}", self.stream.id);
             Ok(())
         })
     }

@@ -10,6 +10,10 @@ use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
 use crate::net::{MaybeTlsStream, Socket};
+use log::{error, info};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static next_id : AtomicUsize = AtomicUsize::new(0);
 
 pub struct MySqlStream {
     stream: BufStream<MaybeTlsStream<Socket>>,
@@ -19,6 +23,7 @@ pub struct MySqlStream {
     pub(crate) busy: Busy,
     pub(crate) charset: CharSet,
     pub(crate) collation: Collation,
+    pub(crate) id: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +39,8 @@ pub(crate) enum Busy {
 
 impl MySqlStream {
     pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
+        let id = next_id.fetch_add(1, Ordering::SeqCst);
+        info!("connect:0 @{}", id);
         let charset: CharSet = options.charset.parse()?;
         let collation: Collation = options
             .collation
@@ -41,12 +48,12 @@ impl MySqlStream {
             .map(|collation| collation.parse())
             .transpose()?
             .unwrap_or_else(|| charset.default_collation());
-
         let socket = match options.socket {
             Some(ref path) => Socket::connect_uds(path).await?,
             None => Socket::connect_tcp(&options.host, options.port).await?,
         };
-
+        info!("connect:1 @{}", id);
+    
         let mut capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE
             | Capabilities::DEPRECATE_EOF
@@ -72,18 +79,21 @@ impl MySqlStream {
             collation,
             charset,
             stream: BufStream::new(MaybeTlsStream::Raw(socket)),
+            id,
         })
     }
 
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        info!("wait_until_ready:1 @{}", self.id);
         if !self.stream.wbuf.is_empty() {
             self.stream.flush().await?;
         }
 
         while self.busy != Busy::NotBusy {
             while self.busy == Busy::Row {
+                info!("wait_until_ready:2 @{}", self.id);
                 let packet = self.recv_packet().await?;
-
+                info!("wait_until_ready:3 @{}", self.id);
                 if packet[0] == 0xfe && packet.len() < 9 {
                     let eof = packet.eof(self.capabilities)?;
 
@@ -96,7 +106,9 @@ impl MySqlStream {
             }
 
             while self.busy == Busy::Result {
+                info!("wait_until_ready:4 @{}", self.id);
                 let packet = self.recv_packet().await?;
+                info!("wait_until_ready:5 @{}", self.id);
 
                 if packet[0] == 0x00 || packet[0] == 0xff {
                     let ok = packet.ok()?;
@@ -127,6 +139,7 @@ impl MySqlStream {
     where
         T: Encode<'en, Capabilities>,
     {
+        info!("mysql write_packet @{}", self.id);
         self.stream
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
     }
@@ -136,7 +149,7 @@ impl MySqlStream {
     pub(crate) async fn recv_packet(&mut self) -> Result<Packet<Bytes>, Error> {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
-
+        info!("mysql recv_packet:1 @{} ", self.id);
         let mut header: Bytes = self.stream.read(4).await?;
 
         let packet_size = header.get_uint_le(3) as usize;
@@ -145,10 +158,16 @@ impl MySqlStream {
         self.sequence_id = sequence_id.wrapping_add(1);
 
         let payload: Bytes = self.stream.read(packet_size).await?;
+        info!("mysql recv_packet:1 @{} sequence_id: {}, packet_size: {}, payload.len(): {}, header.len(): {}", self.id, sequence_id, packet_size, payload.len(), header.len());
 
         // TODO: packet compression
         // TODO: packet joining
-
+        if payload.is_empty() {
+            error!("Mysql package payload is empty {} {}", packet_size, payload.len());
+            return Err(
+                Error::Protocol("Empty package".to_string())
+            );
+        }
         if payload[0] == 0xff {
             self.busy = Busy::NotBusy;
 

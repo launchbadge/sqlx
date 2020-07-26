@@ -9,11 +9,12 @@ use crate::mysql::protocol::connect::{
 use crate::mysql::protocol::Capabilities;
 use crate::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 use bytes::buf::BufExt;
+use log::info;
 
 impl MySqlConnection {
     pub(crate) async fn establish(options: &MySqlConnectOptions) -> Result<Self, Error> {
         let mut stream: MySqlStream = MySqlStream::connect(options).await?;
-
+        info!("establish:1 @{}", stream.id);
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase.html
         // https://mariadb.com/kb/en/connection/
 
@@ -124,6 +125,7 @@ impl MySqlConnection {
                 }
             }
         }
+        info!("establish:2 @{}", stream.id);
 
         Ok(Self {
             stream,
