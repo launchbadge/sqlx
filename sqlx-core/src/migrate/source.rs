@@ -2,7 +2,6 @@ use crate::error::BoxDynError;
 use crate::migrate::Migration;
 use futures_core::future::BoxFuture;
 use futures_util::TryStreamExt;
-use sha2::{Digest, Sha384};
 use sqlx_rt::fs;
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -44,14 +43,11 @@ impl<'s> MigrationSource<'s> for &'s Path {
 
                 let sql = fs::read_to_string(&entry.path()).await?;
 
-                let checksum = Vec::from(Sha384::digest(sql.as_bytes()).as_slice());
-
-                migrations.push(Migration {
+                migrations.push(Migration::new(
                     version,
-                    description: Cow::Owned(description),
-                    sql: Cow::Owned(sql),
-                    checksum: Cow::Owned(checksum),
-                })
+                    Cow::Owned(description),
+                    Cow::Owned(sql),
+                ));
             }
 
             // ensure that we are sorted by `VERSION ASC`
