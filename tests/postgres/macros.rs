@@ -211,7 +211,7 @@ async fn query_by_bigdecimal() -> anyhow::Result<()> {
     // this tests querying by a non-`Copy` type that doesn't have special reborrow semantics
 
     let decimal = "1234".parse::<BigDecimal>()?;
-    let ref tuple = ("Hello, world!".to_string(),);
+    let ref tuple = ("51245.121232".parse::<BigDecimal>()?,);
 
     let result = sqlx::query!(
         "SELECT * from (VALUES(1234.0)) decimals(decimal)\
@@ -424,21 +424,20 @@ async fn test_bind_arg_override_exact() -> anyhow::Result<()> {
     Ok(())
 }
 
-// we can't test this yet but will want to when 1.45 drops and we can strip casts to `_`
-// #[sqlx_macros::test]
-// async fn test_bind_arg_override_wildcard() -> anyhow::Result<()> {
-//     let mut conn = new::<Postgres>().await?;
-//
-//     let my_int = MyInt4(1);
-//
-//     let record = sqlx::query!(
-//         "select * from (select 1::int4) records(id) where id = $1",
-//         my_int as _
-//     )
-//     .fetch_one(&mut conn)
-//     .await?;
-//
-//     assert_eq!(record.id, 1i32);
-//
-//     Ok(())
-// }
+#[sqlx_macros::test]
+async fn test_bind_arg_override_wildcard() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let my_int = MyInt4(1);
+
+    let record = sqlx::query!(
+        "select * from (select 1::int4) records(id) where id = $1",
+        my_int as _
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(record.id, Some(1i32));
+
+    Ok(())
+}
