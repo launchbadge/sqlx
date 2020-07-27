@@ -26,7 +26,7 @@ mod json;
 
 #[cfg(feature = "uuid")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
-pub use uuid::Uuid;
+pub use uuid::{self, Uuid};
 
 #[cfg(feature = "chrono")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono")))]

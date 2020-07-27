@@ -4,13 +4,16 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mysql::io::MySqlBufMutExt;
-use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
 
 impl Type<MySql> for Uuid {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo::binary(ColumnType::String)
+        <&[u8] as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&[u8] as Type<MySql>>::compatible(ty)
     }
 }
 
@@ -34,11 +37,11 @@ impl Decode<'_, MySql> for Uuid {
 
 impl Type<MySql> for Hyphenated {
     fn type_info() -> MySqlTypeInfo {
-        MySqlTypeInfo {
-            r#type: ColumnType::String, // CHAR
-            char_set: 224,              // utf8mb4_unicode_ci
-            flags: ColumnFlags::empty(),
-        }
+        <&str as Type<MySql>>::type_info()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&str as Type<MySql>>::compatible(ty)
     }
 }
 
@@ -52,7 +55,10 @@ impl Encode<'_, MySql> for Hyphenated {
 
 impl Decode<'_, MySql> for Hyphenated {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        let uuid: Result<Uuid, BoxDynError> = Uuid::parse_str(value.as_str()?).map_err(Into::into);
-        Ok(uuid?.to_hyphenated())
+        // delegate to the &str type to decode from MySQL
+        let text = <&str as Decode<MySql>>::decode(value)?;
+
+        // parse a UUID from the text
+        Uuid::parse_str(text).map_err(Into::into).map(|u| u.to_hyphenated())
     }
 }
