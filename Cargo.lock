@@ -2376,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.4.0-pre"
+version = "0.4.0-beta.1"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2409,7 +2409,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.1.0-pre"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2431,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.4.0-pre"
+version = "0.4.0-beta.1"
 dependencies = [
  "atoi",
  "base64 0.12.3",
@@ -2560,7 +2560,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.4.0-pre"
+version = "0.4.0-beta.1"
 dependencies = [
  "dotenv",
  "either",
