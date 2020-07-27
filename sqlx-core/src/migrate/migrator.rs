@@ -1,11 +1,12 @@
 use crate::acquire::Acquire;
 use crate::migrate::{Migrate, MigrateError, Migration, MigrationSource};
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::slice;
 
 #[derive(Debug)]
 pub struct Migrator {
-    migrations: Vec<Migration>,
+    pub migrations: Cow<'static, [Migration]>,
 }
 
 impl Migrator {
@@ -31,7 +32,7 @@ impl Migrator {
         S: MigrationSource<'s>,
     {
         Ok(Self {
-            migrations: source.resolve().await.map_err(MigrateError::Source)?,
+            migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
         })
     }
 
@@ -63,7 +64,7 @@ impl Migrator {
         }
 
         for migration in self.iter() {
-            if migration.version() > version {
+            if migration.version > version {
                 conn.apply(migration).await?;
             } else {
                 conn.validate(migration).await?;

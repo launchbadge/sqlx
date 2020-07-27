@@ -579,3 +579,40 @@ macro_rules! query_file_as_unchecked (
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, args = [$($args)*], checked = false)
     })
 );
+
+/// Embeds migrations into the binary by expanding to a static instance of [Migrator][crate::migrate::Migrator].
+///
+/// ```rust,ignore
+/// sqlx::migrate!("db/migrations")
+///     .run(&pool)
+///     .await?;
+/// ```
+///
+/// ```rust,ignore
+/// use sqlx::migrate::Migrator;
+///
+/// static MIGRATOR: Migrator = sqlx::migrate!(); // defaults to "migrations"
+/// ```
+///
+/// The directory must be relative to the project root (the directory containing `Cargo.toml`),
+/// unlike `include_str!()` which uses compiler internals to get the path of the file where it
+/// was invoked.
+#[cfg(feature = "migrate")]
+#[macro_export]
+macro_rules! migrate {
+    ($dir:literal) => {{
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::migrate!($dir);
+        }
+        macro_result!()
+    }};
+
+    () => {{
+        #[macro_use]
+        mod _macro_result {
+            $crate::sqlx_macros::migrate!("migrations");
+        }
+        macro_result!()
+    }};
+}

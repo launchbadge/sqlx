@@ -39,7 +39,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = [ "macros", "runtime-async-std", "migrate" ]
 macros = [ "sqlx-macros" ]
-migrate = [ "sqlx-core/migrate" ]
+migrate = [ "sqlx-macros/migrate", "sqlx-core/migrate" ]
 
 # [deprecated] TLS is not possible to disable due to it being conditional on multiple features
 #              Hopefully Cargo can handle this in the future
@@ -107,6 +107,15 @@ required-features = [ "any" ]
 name = "any-pool"
 path = "tests/any/pool.rs"
 required-features = [ "any" ]
+
+#
+# Migrations
+#
+
+[[test]]
+name = "migrate-macro"
+path = "tests/migrate/macro.rs"
+required-features = [ "macros", "migrate" ]
 
 #
 # SQLite

@@ -44,13 +44,13 @@ pub async fn info(uri: &str) -> anyhow::Result<()> {
     for migration in migrator.iter() {
         println!(
             "{}/{} {}",
-            style(migration.version()).cyan(),
-            if version >= migration.version() {
+            style(migration.version).cyan(),
+            if version >= migration.version {
                 style("installed").green()
             } else {
                 style("pending").yellow()
             },
-            migration.description(),
+            migration.description,
         );
     }
 
@@ -70,14 +70,14 @@ pub async fn run(uri: &str) -> anyhow::Result<()> {
     }
 
     for migration in migrator.iter() {
-        if migration.version() > version {
+        if migration.version > version {
             let elapsed = conn.apply(migration).await?;
 
             println!(
                 "{}/{} {} {}",
-                style(migration.version()).cyan(),
+                style(migration.version).cyan(),
                 style("migrate").green(),
-                migration.description(),
+                migration.description,
                 style(format!("({:?})", elapsed)).dim()
             );
         } else {

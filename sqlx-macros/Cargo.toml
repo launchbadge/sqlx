@@ -16,7 +16,8 @@ authors = [
 proc-macro = true
 
 [features]
-default = [ "runtime-async-std" ]
+default = [ "runtime-async-std", "migrate" ]
+migrate = [ "sha2" ]
 
 # runtimes
 runtime-async-std = [ "sqlx-core/runtime-async-std", "sqlx-rt/runtime-async-std" ]
