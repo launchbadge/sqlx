@@ -125,7 +125,7 @@ async fn test_query_as() -> anyhow::Result<()> {
     let name: Option<&str> = None;
     let account = sqlx::query_as!(
         Account,
-        "SELECT * from (VALUES (1, $1)) accounts(id, name)",
+        r#"SELECT id "id!", name from (VALUES (1, $1)) accounts(id, name)"#,
         name
     )
     .fetch_one(&mut conn)
@@ -150,7 +150,7 @@ async fn test_query_as_raw() -> anyhow::Result<()> {
 
     let account = sqlx::query_as!(
         RawAccount,
-        "SELECT * from (VALUES (1, null)) accounts(type, name)"
+        r#"SELECT type "type!", name from (VALUES (1, null)) accounts(type, name)"#
     )
     .fetch_one(&mut conn)
     .await?;
@@ -203,6 +203,36 @@ async fn query_by_string() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+#[cfg(feature = "bigdecimal")]
+async fn query_by_bigdecimal() -> anyhow::Result<()> {
+    use sqlx_core::types::BigDecimal;
+    let mut conn = new::<Postgres>().await?;
+
+    // this tests querying by a non-`Copy` type that doesn't have special reborrow semantics
+
+    let decimal = "1234".parse::<BigDecimal>()?;
+    let ref tuple = ("Hello, world!".to_string(),);
+
+    let result = sqlx::query!(
+        "SELECT * from (VALUES(1234.0)) decimals(decimal)\
+         where decimal in ($1, $2, $3, $4, $5, $6, $7)",
+        decimal,  // make sure we don't actually take ownership here
+        &decimal, // allow query-by-reference
+        Some(&decimal),
+        Some(&decimal),
+        Option::<BigDecimal>::None,
+        decimal.clone(),
+        tuple.0 // make sure we're not trying to move out of a field expression
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(result.decimal, Some(decimal));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_nullable_err() -> anyhow::Result<()> {
     #[derive(Debug)]
     struct Account {
@@ -214,7 +244,7 @@ async fn test_nullable_err() -> anyhow::Result<()> {
 
     let err = sqlx::query_as!(
         Account,
-        "SELECT * from (VALUES (1, null::text)) accounts(id, name)"
+        r#"SELECT id "id!", name "name!" from (VALUES (1, null::text)) accounts(id, name)"#
     )
     .fetch_one(&mut conn)
     .await

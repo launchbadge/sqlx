@@ -16,15 +16,6 @@ mod database;
 mod derives;
 mod query;
 
-fn macro_result(tokens: proc_macro2::TokenStream) -> TokenStream {
-    quote!(
-        macro_rules! macro_result {
-            ($($args:tt)*) => (#tokens)
-        }
-    )
-    .into()
-}
-
 #[proc_macro]
 pub fn expand_query(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as query::QueryMacroInput);
@@ -33,10 +24,10 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
-                macro_result(parse_err.to_compile_error())
+                parse_err.to_compile_error().into()
             } else {
                 let msg = e.to_string();
-                macro_result(quote!(compile_error!(#msg)))
+                quote!(compile_error!(#msg)).into()
             }
         }
     }
