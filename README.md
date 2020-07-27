@@ -62,7 +62,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
  * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
  compile time. (You can still use dynamic SQL queries if you like.)
 
- * **Database Agnostic**. Support for [PostgreSQL], [MySQL], and [SQLite].
+ * **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
 
  * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
@@ -77,6 +77,7 @@ with C, those interactions are `unsafe`.</sup></sub>
 [PostgreSQL]: http://postgresql.org/
 [SQLite]: https://sqlite.org/
 [MySQL]: https://www.mysql.com/
+[MSSQL]: https://www.microsoft.com/en-us/sql-server
 
 ---
 
@@ -98,6 +99,8 @@ with C, those interactions are `unsafe`.</sup></sub>
 
  * Nested transactions with support for save points.
 
+ * `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URI scheme.
+
 ## Install
 
 SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
@@ -110,7 +113,7 @@ SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = "0.3"
+sqlx = "0.4-beta.1"
 ```
 
 **tokio**
@@ -118,7 +121,7 @@ sqlx = "0.3"
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio", "macros" ] }
+sqlx = { version = "0.4-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
 ```
 
 #### Cargo Feature Flags
@@ -131,7 +134,11 @@ sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio"
 
  * `mysql`: Add support for the MySQL (and MariaDB) database server.
 
+ * `mssql`: Add support for the MSSQL database server.
+
  * `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
+
+ * `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
  * `uuid`: Add support for UUID (in Postgres).
 
@@ -154,8 +161,8 @@ sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio"
 ```rust
 use std::env;
 
-use sqlx::postgres::PgPool;
-// use sqlx::mysql::MySqlPool;
+use sqlx::postgres::PgPoolOptions;
+// use sqlx::mysql::MySqlPoolOptions;
 // etc.
 
 #[async_std::main] // or #[tokio::main]
@@ -181,7 +188,7 @@ async fn main() -> Result<(), sqlx::Error> {
 A single connection can be established using any of the database connection types and calling `connect()`.
 
 ```rust
-use sqlx::Connect;
+use sqlx::Connection;
 
 let conn = SqliteConnection::connect("sqlite::memory:").await?;
 ```
@@ -190,7 +197,7 @@ Generally, you will want to instead create a connection pool (`sqlx::Pool`) in o
 regulate how many server-side connections it's using.
 
 ```rust
-let pool = MySqlPool::new("mysql://user:pass@host/database").await?;
+let pool = MySqlPool::connect("mysql://user:pass@host/database").await?;
 ```
 
 ### Querying
@@ -227,12 +234,16 @@ by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow
 The `fetch` query finalizer returns a stream-like type that iterates through the rows in the result sets.
 
 ```rust
-let mut cursor = sqlx::query("SELECT * FROM users WHERE email = ?")
+// provides `try_next`
+use futures::TryStreamExt;
+
+let mut rows = sqlx::query("SELECT * FROM users WHERE email = ?")
     .bind(email)
     .fetch(&mut conn);
 
-while let Some(row) = cursor.next().await? {
+while let Some(row) = rows.try_next().await? {
     // map the row into a user-defined domain type
+    let email: &str = row.try_get("email")?;
 }
 ```
 
