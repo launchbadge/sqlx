@@ -1,4 +1,3 @@
-use crate::arguments::Arguments;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::message::{ParameterDescription, RowDescription};
