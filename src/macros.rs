@@ -614,18 +614,10 @@ macro_rules! query_file_as_unchecked (
 #[macro_export]
 macro_rules! migrate {
     ($dir:literal) => {{
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::migrate!($dir);
-        }
-        macro_result!()
+        $crate::sqlx_macros::migrate!($dir)
     }};
 
     () => {{
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::migrate!("migrations");
-        }
-        macro_result!()
+        $crate::sqlx_macros::migrate!("migrations")
     }};
 }
