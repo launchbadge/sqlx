@@ -12,10 +12,10 @@ type Error = Box<dyn std::error::Error>;
 
 type Result<T> = std::result::Result<T, Error>;
 
+mod common;
 mod database;
 mod derives;
 mod query;
-mod common;
 
 #[cfg(feature = "migrate")]
 mod migrate;
