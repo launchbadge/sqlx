@@ -29,7 +29,7 @@ pub fn quote_args<DB: DatabaseExt>(
     let arg_expr = input.arg_exprs.iter().cloned().map(strip_wildcard);
 
     let arg_bindings = quote! {
-        #(let ref #arg_name = #arg_expr;)*
+        #(let #arg_name = &(#arg_expr);)*
     };
 
     let args_check = match info.parameters() {
