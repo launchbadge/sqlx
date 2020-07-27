@@ -54,9 +54,6 @@ CREATE TEMPORARY TABLE with_bit_and_tinyint (
     assert!(<bool as Type<MySql>>::compatible(&d.column(1).type_info()));
     assert!(<bool as Type<MySql>>::compatible(&d.column(2).type_info()));
 
-    assert!(!<bool as Type<MySql>>::compatible(&d.column(3).type_info()));
-    assert!(!<bool as Type<MySql>>::compatible(&d.column(4).type_info()));
-
     Ok(())
 }
 
