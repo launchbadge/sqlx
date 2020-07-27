@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
-use sqlx_test::test_type;
+use sqlx_test::{test_type, new};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
 
@@ -250,4 +250,39 @@ mod json_tests {
         MySql,
         "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
     ));
+}
+
+#[sqlx_macros::test]
+async fn test_bits() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute(r#"
+CREATE TEMPORARY TABLE with_bits (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    value_1 BIT(1) NOT NULL,
+    value_n BIT(64) NOT NULL
+);
+    "#).await?;
+
+    sqlx::query("INSERT INTO with_bits (value_1, value_n) VALUES (?, ?)")
+        .bind(&1_u8)
+        .bind(&510202_u32)
+        .execute(&mut conn)
+        .await?;
+
+    // BINARY
+    let (v1, vn): (u8, u64) = sqlx::query_as("SELECT value_1, value_n FROM with_bits").fetch_one(&mut conn).await?;
+
+    assert_eq!(v1, 1);
+    assert_eq!(vn, 510202);
+
+    // TEXT
+    let row = conn.fetch_one("SELECT value_1, value_n FROM with_bits").await?;
+    let v1: u8 = row.try_get(0)?;
+    let vn: u64 = row.try_get(1)?;
+
+    assert_eq!(v1, 1);
+    assert_eq!(vn, 510202);
+
+    Ok(())
 }
