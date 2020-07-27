@@ -82,10 +82,11 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
                     ty
                 };
 
-                nullable.push(statement.column_nullable(col)?.or_else(|| {
-                    // if we do not *know* if this is nullable, check the EXPLAIN fallback
-                    fallback_nullable.get(col).copied().and_then(identity)
-                }));
+                // check explain
+                let col_nullable = statement.column_nullable(col)?;
+                let exp_nullable = fallback_nullable.get(col).copied().and_then(identity);
+
+                nullable.push(exp_nullable.or(col_nullable));
 
                 columns.push(SqliteColumn {
                     name: name.into(),

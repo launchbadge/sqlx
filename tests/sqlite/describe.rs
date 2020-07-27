@@ -186,3 +186,36 @@ async fn it_describes_bad_statement() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_left_join() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn.describe("select accounts.id from accounts").await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    let d = conn.describe("select tweet.id from accounts left join tweet on owner_id = accounts.id").await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    let d = conn.describe("select tweet.id, accounts.id from accounts left join tweet on owner_id = accounts.id").await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(1), Some(false));
+
+    let d = conn.describe("select tweet.id, accounts.id from accounts inner join tweet on owner_id = accounts.id").await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(1), Some(false));
+
+    Ok(())
+}
