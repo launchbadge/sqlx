@@ -84,10 +84,10 @@ pub fn migrate(input: TokenStream) -> TokenStream {
         Ok(ts) => ts.into(),
         Err(e) => {
             if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
-                macro_result(parse_err.to_compile_error())
+                parse_err.to_compile_error().into()
             } else {
                 let msg = e.to_string();
-                macro_result(quote!(compile_error!(#msg)))
+                quote!(compile_error!(#msg)).into()
             }
         }
     }
