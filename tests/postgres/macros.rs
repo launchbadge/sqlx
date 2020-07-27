@@ -250,8 +250,8 @@ async fn test_nullable_err() -> anyhow::Result<()> {
     .await
     .unwrap_err();
 
-    if let sqlx::Error::Decode(err) = &err {
-        if let Some(sqlx::error::UnexpectedNullError) = err.downcast_ref() {
+    if let sqlx::Error::ColumnDecode { source, ..} = &err {
+        if let Some(sqlx::error::UnexpectedNullError) = source.downcast_ref() {
             return Ok(());
         }
     }
