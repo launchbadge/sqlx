@@ -103,7 +103,7 @@ impl SqliteConnectOptions {
     /// Sets the [access mode](https://www.sqlite.org/c3ref/open.html) to create the database file
     /// if the file does not exist.
     ///
-    /// By default, a new file **will be** created if one is not found.
+    /// By default, a new file **will not be** created if one is not found.
     pub fn create_if_missing(mut self, create: bool) -> Self {
         self.create_if_missing = create;
         self
