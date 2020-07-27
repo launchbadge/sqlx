@@ -10,6 +10,10 @@ pub struct MySqlTypeInfo {
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
     pub(crate) char_set: u16,
+
+    // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
+    #[cfg_attr(feature = "offline", serde(default))]
+    pub(crate) max_size: Option<u32>,
 }
 
 impl MySqlTypeInfo {
@@ -18,6 +22,7 @@ impl MySqlTypeInfo {
             r#type: ty,
             flags: ColumnFlags::BINARY,
             char_set: 63,
+            max_size: None,
         }
     }
 
@@ -27,6 +32,7 @@ impl MySqlTypeInfo {
             r#type: ColumnType::Enum,
             flags: ColumnFlags::BINARY,
             char_set: 63,
+            max_size: None,
         }
     }
 
@@ -49,6 +55,7 @@ impl MySqlTypeInfo {
             r#type: column.r#type,
             flags: column.flags,
             char_set: column.char_set,
+            max_size: Some(column.max_size),
         }
     }
 }
@@ -65,7 +72,7 @@ impl TypeInfo for MySqlTypeInfo {
     }
 
     fn name(&self) -> &str {
-        self.r#type.name(self.char_set, self.flags)
+        self.r#type.name(self.char_set, self.flags, self.max_size)
     }
 }
 

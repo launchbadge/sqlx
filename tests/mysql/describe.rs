@@ -1,5 +1,5 @@
 use sqlx::mysql::MySql;
-use sqlx::{Column, Executor, TypeInfo};
+use sqlx::{Column, Executor, Type, TypeInfo};
 use sqlx_test::new;
 
 #[sqlx_macros::test]
@@ -22,6 +22,40 @@ async fn it_describes_simple() -> anyhow::Result<()> {
     assert_eq!(d.columns()[1].type_info().name(), "TIMESTAMP");
     assert_eq!(d.columns()[2].type_info().name(), "TEXT");
     assert_eq!(d.columns()[3].type_info().name(), "BIGINT");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_boolean() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+
+    conn.execute(
+        r#"
+CREATE TEMPORARY TABLE with_bit_and_tinyint (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    value_bit_1 BIT(1),
+    value_bool BOOLEAN,
+    bit_n BIT(64),
+    value_int TINYINT
+);
+    "#,
+    )
+    .await?;
+
+    let d = conn.describe("SELECT * FROM with_bit_and_tinyint").await?;
+
+    assert_eq!(d.column(2).name(), "value_bool");
+    assert_eq!(d.column(2).type_info().name(), "BOOLEAN");
+
+    assert_eq!(d.column(1).name(), "value_bit_1");
+    assert_eq!(d.column(1).type_info().name(), "BIT");
+
+    assert!(<bool as Type<MySql>>::compatible(&d.column(1).type_info()));
+    assert!(<bool as Type<MySql>>::compatible(&d.column(2).type_info()));
+
+    assert!(!<bool as Type<MySql>>::compatible(&d.column(3).type_info()));
+    assert!(!<bool as Type<MySql>>::compatible(&d.column(4).type_info()));
 
     Ok(())
 }

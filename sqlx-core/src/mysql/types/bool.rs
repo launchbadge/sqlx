@@ -1,17 +1,33 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
+use crate::mysql::{
+    protocol::text::{ColumnFlags, ColumnType},
+    MySql, MySqlTypeInfo, MySqlValueRef,
+};
 use crate::types::Type;
 
 impl Type<MySql> for bool {
     fn type_info() -> MySqlTypeInfo {
         // MySQL has no actual `BOOLEAN` type, the type is an alias of `TINYINT(1)`
-        <i8 as Type<MySql>>::type_info()
+        MySqlTypeInfo {
+            flags: ColumnFlags::BINARY | ColumnFlags::UNSIGNED,
+            char_set: 63,
+            max_size: Some(1),
+            r#type: ColumnType::Tiny,
+        }
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <i8 as Type<MySql>>::compatible(ty)
+        matches!(
+            ty.r#type,
+            ColumnType::Tiny
+                | ColumnType::Short
+                | ColumnType::Long
+                | ColumnType::Int24
+                | ColumnType::LongLong
+                | ColumnType::Bit
+        )
     }
 }
 

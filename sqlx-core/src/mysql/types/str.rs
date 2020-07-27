@@ -15,6 +15,7 @@ impl Type<MySql> for str {
             r#type: ColumnType::VarString,        // VARCHAR
             char_set: COLLATE_UTF8MB4_UNICODE_CI, // utf8mb4_unicode_ci
             flags: ColumnFlags::empty(),
+            max_size: None,
         }
     }
 

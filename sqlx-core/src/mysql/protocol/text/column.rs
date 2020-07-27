@@ -108,7 +108,7 @@ pub(crate) struct ColumnDefinition {
     alias: Bytes,
     name: Bytes,
     pub(crate) char_set: u16,
-    max_size: u32,
+    pub(crate) max_size: u32,
     pub(crate) r#type: ColumnType,
     pub(crate) flags: ColumnFlags,
     decimals: u8,
@@ -159,11 +159,17 @@ impl Decode<'_, Capabilities> for ColumnDefinition {
 }
 
 impl ColumnType {
-    pub(crate) fn name(self, char_set: u16, flags: ColumnFlags) -> &'static str {
+    pub(crate) fn name(
+        self,
+        char_set: u16,
+        flags: ColumnFlags,
+        max_size: Option<u32>,
+    ) -> &'static str {
         let is_binary = char_set == 63;
         let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
 
         match self {
+            ColumnType::Tiny if max_size == Some(1) => "BOOLEAN",
             ColumnType::Tiny if is_unsigned => "TINYINT UNSIGNED",
             ColumnType::Short if is_unsigned => "SMALLINT UNSIGNED",
             ColumnType::Long if is_unsigned => "INT UNSIGNED",
