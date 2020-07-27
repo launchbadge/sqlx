@@ -1,6 +1,7 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::logger::QueryLogger;
 use crate::mssql::connection::prepare::prepare;
 use crate::mssql::protocol::col_meta_data::Flags;
 use crate::mssql::protocol::done::Status;
@@ -77,6 +78,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
+        let mut logger = QueryLogger::new(sql);
 
         Box::pin(try_stream! {
             self.run(sql, arguments).await?;
@@ -88,6 +90,8 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                     Message::Row(row) => {
                         let columns = Arc::clone(&self.stream.columns);
                         let column_names = Arc::clone(&self.stream.column_names);
+
+                        logger.increment_rows();
 
                         r#yield!(Either::Right(MssqlRow { row, column_names, columns }));
                     }

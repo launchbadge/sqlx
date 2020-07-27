@@ -3,6 +3,7 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
+use crate::logger::QueryLogger;
 use crate::mysql::connection::stream::Busy;
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::Status;
@@ -88,6 +89,8 @@ impl MySqlConnection {
         arguments: Option<MySqlArguments>,
         persistent: bool,
     ) -> Result<impl Stream<Item = Result<Either<MySqlDone, MySqlRow>, Error>> + 'e, Error> {
+        let mut logger = QueryLogger::new(sql);
+
         self.stream.wait_until_ready().await?;
         self.stream.busy = Busy::Result;
 
@@ -194,6 +197,8 @@ impl MySqlConnection {
                         columns: Arc::clone(&columns),
                         column_names: Arc::clone(&column_names),
                     });
+
+                    logger.increment_rows();
 
                     r#yield!(v);
                 }

@@ -62,6 +62,7 @@ pub mod done;
 pub mod executor;
 pub mod from_row;
 mod io;
+mod logger;
 mod net;
 pub mod query_as;
 pub mod query_scalar;

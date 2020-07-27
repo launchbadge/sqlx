@@ -128,18 +128,15 @@ impl PgStream {
                     };
 
                     if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
-                        // let message = notice.message();
-                        // let args = format_args!("{}", notice.message().to_string());
-                        let mut builder = log::Record::builder();
-                        let record = builder
-                            // .args(args)
-                            .level(lvl)
-                            .module_path_static(Some("sqlx::postgres::notice"))
-                            .file_static(Some(file!()))
-                            .line(Some(line!()))
-                            .build();
-
-                        log::logger().log(&record);
+                        log::logger().log(
+                            &log::Record::builder()
+                                .args(format_args!("{}", notice.message()))
+                                .level(lvl)
+                                .module_path_static(Some("sqlx::postgres::notice"))
+                                .file_static(Some(file!()))
+                                .line(Some(line!()))
+                                .build(),
+                        );
                     }
 
                     continue;

@@ -1,6 +1,7 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+use crate::logger::QueryLogger;
 use crate::postgres::message::{
     self, Bind, Close, CommandComplete, DataRow, MessageFormat, ParameterDescription, Parse, Query,
     RowDescription,
@@ -190,14 +191,16 @@ impl PgConnection {
         Ok(statement)
     }
 
-    async fn run(
-        &mut self,
-        query: &str,
+    async fn run<'e, 'c: 'e, 'q: 'e>(
+        &'c mut self,
+        query: &'q str,
         arguments: Option<PgArguments>,
         limit: u8,
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
-    ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + '_, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + 'e, Error> {
+        let mut logger = QueryLogger::new(query);
+
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
@@ -294,6 +297,8 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
+                        logger.increment_rows();
+
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;
                         let row = PgRow {
