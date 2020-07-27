@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use sqlx::mysql::MySql;
 use sqlx::{Executor, Row};
-use sqlx_test::{test_type, new};
+use sqlx_test::{new, test_type};
 
 test_type!(bool(MySql, "false" == false, "true" == true));
 
@@ -272,13 +272,16 @@ mod json_tests {
 async fn test_bits() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
 
-    conn.execute(r#"
+    conn.execute(
+        r#"
 CREATE TEMPORARY TABLE with_bits (
     id INT PRIMARY KEY AUTO_INCREMENT,
     value_1 BIT(1) NOT NULL,
     value_n BIT(64) NOT NULL
 );
-    "#).await?;
+    "#,
+    )
+    .await?;
 
     sqlx::query("INSERT INTO with_bits (value_1, value_n) VALUES (?, ?)")
         .bind(&1_u8)
@@ -287,13 +290,17 @@ CREATE TEMPORARY TABLE with_bits (
         .await?;
 
     // BINARY
-    let (v1, vn): (u8, u64) = sqlx::query_as("SELECT value_1, value_n FROM with_bits").fetch_one(&mut conn).await?;
+    let (v1, vn): (u8, u64) = sqlx::query_as("SELECT value_1, value_n FROM with_bits")
+        .fetch_one(&mut conn)
+        .await?;
 
     assert_eq!(v1, 1);
     assert_eq!(vn, 510202);
 
     // TEXT
-    let row = conn.fetch_one("SELECT value_1, value_n FROM with_bits").await?;
+    let row = conn
+        .fetch_one("SELECT value_1, value_n FROM with_bits")
+        .await?;
     let v1: u8 = row.try_get(0)?;
     let vn: u64 = row.try_get(1)?;
 

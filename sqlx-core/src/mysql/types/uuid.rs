@@ -59,6 +59,8 @@ impl Decode<'_, MySql> for Hyphenated {
         let text = <&str as Decode<MySql>>::decode(value)?;
 
         // parse a UUID from the text
-        Uuid::parse_str(text).map_err(Into::into).map(|u| u.to_hyphenated())
+        Uuid::parse_str(text)
+            .map_err(Into::into)
+            .map(|u| u.to_hyphenated())
     }
 }
