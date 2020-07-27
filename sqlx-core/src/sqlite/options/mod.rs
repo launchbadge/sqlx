@@ -63,7 +63,7 @@ impl SqliteConnectOptions {
             filename: Cow::Borrowed(Path::new(":memory:")),
             in_memory: false,
             read_only: false,
-            create_if_missing: false,
+            create_if_missing: true,
             foreign_keys: true,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
