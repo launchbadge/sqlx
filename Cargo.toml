@@ -9,9 +9,7 @@ members = [
     "sqlx-bench",
     "examples/mysql/todos",
     "examples/postgres/listen",
-    "examples/postgres/todos",
     "examples/sqlite/todos",
-    "examples/realworld",
 ]
 
 [package]
