@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, ToTokens, TokenStreamExt};
 use syn::Type;
 
 use sqlx_core::column::Column;
@@ -14,7 +14,32 @@ use syn::Token;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
-    pub(super) type_: Option<TokenStream>,
+    pub(super) type_: ColumnType,
+}
+
+pub(super) enum ColumnType {
+    Exact(TokenStream),
+    Wildcard,
+    OptWildcard,
+}
+
+impl ColumnType {
+    pub(super) fn is_wildcard(&self) -> bool {
+        match self {
+            ColumnType::Exact(_) => false,
+            _ => true,
+        }
+    }
+}
+
+impl ToTokens for ColumnType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.append_all(match &self {
+            ColumnType::Exact(type_) => type_.clone().into_iter(),
+            ColumnType::Wildcard => quote! { _ }.into_iter(),
+            ColumnType::OptWildcard => quote! { Option<_> }.into_iter(),
+        })
+    }
 }
 
 struct DisplayColumn<'a> {
@@ -25,15 +50,25 @@ struct DisplayColumn<'a> {
 
 struct ColumnDecl {
     ident: Ident,
-    // TIL Rust still has OOP keywords like `abstract`, `final`, `override` and `virtual` reserved
-    r#override: Option<ColumnOverride>,
+    r#override: ColumnOverride,
 }
 
-enum ColumnOverride {
+struct ColumnOverride {
+    nullability: ColumnNullabilityOverride,
+    type_: ColumnTypeOverride,
+}
+
+#[derive(PartialEq)]
+enum ColumnNullabilityOverride {
     NonNull,
     Nullable,
-    Wildcard,
+    None,
+}
+
+enum ColumnTypeOverride {
     Exact(Type),
+    Wildcard,
+    None,
 }
 
 impl Display for DisplayColumn<'_> {
@@ -52,22 +87,30 @@ pub fn columns_to_rust<DB: DatabaseExt>(describe: &Describe<DB>) -> crate::Resul
             let decl = ColumnDecl::parse(&column.name())
                 .map_err(|e| format!("column name {:?} is invalid: {}", column.name(), e))?;
 
-            let type_ = match decl.r#override {
-                Some(ColumnOverride::Exact(ty)) => Some(ty.to_token_stream()),
-                Some(ColumnOverride::Wildcard) => None,
-                // these three could be combined but I prefer the clarity here
-                Some(ColumnOverride::NonNull) => Some(get_column_type::<DB>(i, column)),
-                Some(ColumnOverride::Nullable) => {
-                    let type_ = get_column_type::<DB>(i, column);
-                    Some(quote! { Option<#type_> })
-                }
-                None => {
-                    let type_ = get_column_type::<DB>(i, column);
+            let ColumnOverride { nullability, type_ } = decl.r#override;
 
-                    if !describe.nullable(i).unwrap_or(true) {
-                        Some(type_)
+            let nullable = match nullability {
+                ColumnNullabilityOverride::NonNull => false,
+                ColumnNullabilityOverride::Nullable => true,
+                ColumnNullabilityOverride::None => describe.nullable(i).unwrap_or(true),
+            };
+            let type_ = match (type_, nullable) {
+                (ColumnTypeOverride::Exact(type_), false) => {
+                    ColumnType::Exact(type_.to_token_stream())
+                }
+                (ColumnTypeOverride::Exact(type_), true) => {
+                    ColumnType::Exact(quote! { Option<#type_> })
+                }
+
+                (ColumnTypeOverride::Wildcard, false) => ColumnType::Wildcard,
+                (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,
+
+                (ColumnTypeOverride::None, _) => {
+                    let type_ = get_column_type::<DB>(i, column);
+                    if !nullable {
+                        ColumnType::Exact(type_)
                     } else {
-                        Some(quote! { Option<#type_> })
+                        ColumnType::Exact(quote! { Option<#type_> })
                     }
                 }
             };
@@ -97,14 +140,17 @@ pub fn quote_query_as<DB: DatabaseExt>(
         )| {
             match (input.checked, type_) {
                 // we guarantee the type is valid so we can skip the runtime check
-                (true, Some(type_)) => quote! {
+                (true, ColumnType::Exact(type_)) => quote! {
                     // binding to a `let` avoids confusing errors about
                     // "try expression alternatives have incompatible types"
                     // it doesn't seem to hurt inference in the other branches
                     let #ident = row.try_get_unchecked::<#type_, _>(#i)?;
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
-                (true, None) => quote! ( let #ident = row.try_get(#i)?; ),
+                (true, ColumnType::Wildcard) => quote! ( let #ident = row.try_get(#i)?; ),
+                (true, ColumnType::OptWildcard) => {
+                    quote! ( let #ident = row.try_get::<Option<_>, _>(#i)?; )
+                }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
                 (false, _) => quote!( let #ident = row.try_get_unchecked(#i)?; ),
             }
@@ -176,9 +222,12 @@ impl ColumnDecl {
         Ok(ColumnDecl {
             ident,
             r#override: if !remainder.is_empty() {
-                Some(syn::parse_str(remainder)?)
+                syn::parse_str(remainder)?
             } else {
-                None
+                ColumnOverride {
+                    nullability: ColumnNullabilityOverride::None,
+                    type_: ColumnTypeOverride::None,
+                }
             },
         })
     }
@@ -188,27 +237,33 @@ impl Parse for ColumnOverride {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
 
-        if lookahead.peek(Token![:]) {
+        let nullability = if lookahead.peek(Token![!]) {
+            input.parse::<Token![!]>()?;
+
+            ColumnNullabilityOverride::NonNull
+        } else if lookahead.peek(Token![?]) {
+            input.parse::<Token![?]>()?;
+
+            ColumnNullabilityOverride::Nullable
+        } else {
+            ColumnNullabilityOverride::None
+        };
+
+        let type_ = if input.lookahead1().peek(Token![:]) {
             input.parse::<Token![:]>()?;
 
             let ty = Type::parse(input)?;
 
             if let Type::Infer(_) = ty {
-                Ok(ColumnOverride::Wildcard)
+                ColumnTypeOverride::Wildcard
             } else {
-                Ok(ColumnOverride::Exact(ty))
+                ColumnTypeOverride::Exact(ty)
             }
-        } else if lookahead.peek(Token![!]) {
-            input.parse::<Token![!]>()?;
-
-            Ok(ColumnOverride::NonNull)
-        } else if lookahead.peek(Token![?]) {
-            input.parse::<Token![?]>()?;
-
-            Ok(ColumnOverride::Nullable)
         } else {
-            Err(lookahead.error())
-        }
+            ColumnTypeOverride::None
+        };
+
+        Ok(Self { nullability, type_ })
     }
 }
 

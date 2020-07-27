@@ -156,12 +156,16 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
 #[sqlx(transparent)]
 struct MyInt(i64);
 
+struct Record {
+    id: MyInt,
+}
+
+struct OptionalRecord {
+    id: Option<MyInt>,
+}
+
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
-    struct Record {
-        id: MyInt,
-    }
-
     let mut conn = new::<Sqlite>().await?;
 
     let record = sqlx::query_as!(Record, r#"select id as "id: _" from tweet"#)
@@ -176,6 +180,38 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, MyInt(1));
+
+    let record = sqlx::query_as!(OptionalRecord, r#"select owner_id as "id: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query_as!(Record, r#"select owner_id as "id!: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query_as!(OptionalRecord, r#"select id as "id?: _" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
 
     Ok(())
 }
@@ -196,6 +232,38 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(record.id, MyInt(1));
+
+    let record = sqlx::query!(r#"select owner_id as "id: MyInt" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query!(r#"select owner_id as "id!: MyInt" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, MyInt(1));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let record = sqlx::query!(r#"select id as "id?: MyInt" from tweet"#)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Some(MyInt(1)));
 
     Ok(())
 }

@@ -215,7 +215,8 @@
 /// Selecting a column `foo as "foo: T"` (Postgres / SQLite) or `` foo as `foo: T` `` (MySQL)
 /// overrides the inferred type which is useful when selecting user-defined custom types
 /// (dynamic type checking is still done so if the types are incompatible this will be an error
-/// at runtime instead of compile-time):
+/// at runtime instead of compile-time). Note that this syntax alone doesn't override inferred nullability,
+/// but it is compatible with the forced not-null and forced nullable annotations:
 ///
 /// ```rust,ignore
 /// # async fn main() {
@@ -227,14 +228,26 @@
 /// let my_int = MyInt4(1);
 ///
 /// // Postgres/SQLite
-/// sqlx::query!(r#"select 1 as "id: MyInt4""#) // MySQL: use "select 1 as `id: MyInt4`" instead
+/// sqlx::query!(r#"select 1 as "id!: MyInt4""#) // MySQL: use "select 1 as `id: MyInt4`" instead
 ///     .fetch_one(&mut conn)
 ///     .await?;
 ///
 /// // For Postgres this would have been inferred to be `Option<i32>`, MySQL/SQLite `i32`
+/// // Note that while using `id: MyInt4` (without the `!`) would work the same for MySQL/SQLite,
+/// // Postgres would expect `Some(MyInt4(1))` and the code wouldn't compile
 /// assert_eq!(record.id, MyInt4(1));
 /// # }
 /// ```
+///
+/// ##### Overrides cheatsheet
+///
+/// | Syntax    | Nullability     | Type       |
+/// | --------- | --------------- | ---------- |
+/// | `foo!`    | Forced not-null | Inferred   |
+/// | `foo?`    | Forced nullable | Inferred   |
+/// | `foo: T`  | Inferred        | Overridden |
+/// | `foo!: T` | Forced not-null | Overridden |
+/// | `foo?: T` | Forced nullable | Overridden |
 ///
 /// ## Offline Mode (requires the `offline` feature)
 /// The macros can be configured to not require a live database connection for compilation,
@@ -601,18 +614,10 @@ macro_rules! query_file_as_unchecked (
 #[macro_export]
 macro_rules! migrate {
     ($dir:literal) => {{
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::migrate!($dir);
-        }
-        macro_result!()
+        $crate::sqlx_macros::migrate!($dir)
     }};
 
     () => {{
-        #[macro_use]
-        mod _macro_result {
-            $crate::sqlx_macros::migrate!("migrations");
-        }
-        macro_result!()
+        $crate::sqlx_macros::migrate!("migrations")
     }};
 }

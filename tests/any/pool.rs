@@ -1,8 +1,4 @@
-use futures::{FutureExt, TryFutureExt};
 use sqlx::any::AnyPoolOptions;
-use sqlx::prelude::*;
-use sqlx_core::any::AnyPool;
-use sqlx_test::new;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -16,7 +12,7 @@ async fn pool_should_invoke_after_connect() -> anyhow::Result<()> {
     let pool = AnyPoolOptions::new()
         .after_connect({
             let counter = counter.clone();
-            move |conn| {
+            move |_conn| {
                 let counter = counter.clone();
                 Box::pin(async move {
                     counter.fetch_add(1, Ordering::SeqCst);
