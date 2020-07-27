@@ -11,9 +11,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Building PG pool.");
     let conn_str =
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
-    let pool = sqlx::PgPool::new(&conn_str).await?;
+    let pool = sqlx::PgPool::connect(&conn_str).await?;
 
-    let mut listener = PgListener::new(&conn_str).await?;
+    let mut listener = PgListener::connect(&conn_str).await?;
 
     // let notify_pool = pool.clone();
     let _t = async_std::task::spawn(async move {
