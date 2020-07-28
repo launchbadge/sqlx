@@ -178,8 +178,6 @@ pub(super) async fn explain(
                 // r[p2] = <value of constant>
                 r.insert(p2, opcode_to_type(&opcode));
                 n.insert(p2, n.get(&p2).copied().unwrap_or(false));
-
-                println!("[x] <?> set column {} as INTEGER", p2);
             }
 
             OP_NOT => {
