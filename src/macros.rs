@@ -1,7 +1,7 @@
 /// Statically checked SQL query with `println!()` style syntax.
 ///
 /// This expands to an instance of [`query::Map`][crate::query::Map] that outputs an ad-hoc anonymous
-/// struct type, if the query has output columns, or `()` (unit) otherwise:
+/// struct type, if the query has at least one output column that is not `Void`, or `()` (unit) otherwise:
 ///
 /// ```rust,ignore
 /// # use sqlx::Connect;
