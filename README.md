@@ -113,7 +113,7 @@ SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = "0.4-beta.1"
+sqlx = "0.4.0-beta.1"
 ```
 
 **tokio**
@@ -121,7 +121,7 @@ sqlx = "0.4-beta.1"
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.4-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
 ```
 
 #### Cargo Feature Flags
