@@ -9,7 +9,7 @@ pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
-use sqlx_core::describe::Describe;
+use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
 use sqlx_rt::block_on;
 
 use crate::database::DatabaseExt;
@@ -208,7 +208,7 @@ where
 
     let query_args = format_ident!("query_args");
 
-    let output = if data.describe.columns().is_empty() {
+    let output = if data.describe.columns().iter().all(|it| it.type_info().is_void()) {
         let db_path = DB::db_path();
         let sql = &input.src;
 

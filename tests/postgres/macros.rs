@@ -89,11 +89,9 @@ async fn test_text_var_char_char_n() -> anyhow::Result<()> {
 async fn test_void() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let record = sqlx::query!(r#"select pg_notify('chan', 'message') as _1"#)
-        .fetch_one(&mut conn)
+    let _ = sqlx::query!(r#"select pg_notify('chan', 'message')"#)
+        .execute(&mut conn)
         .await?;
-
-    assert_eq!(record._1, Some(()));
 
     Ok(())
 }

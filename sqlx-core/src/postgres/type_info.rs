@@ -755,6 +755,10 @@ impl TypeInfo for PgTypeInfo {
     fn is_null(&self) -> bool {
         false
     }
+
+    fn is_void(&self) -> bool {
+        matches!(self.0, PgType::Void)
+    }
 }
 
 impl PartialEq<PgCustomType> for PgCustomType {
