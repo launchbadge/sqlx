@@ -196,12 +196,18 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
-    let d = conn.describe("select tweet.id from accounts left join tweet on owner_id = accounts.id").await?;
+    let d = conn
+        .describe("select tweet.id from accounts left join tweet on owner_id = accounts.id")
+        .await?;
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
 
-    let d = conn.describe("select tweet.id, accounts.id from accounts left join tweet on owner_id = accounts.id").await?;
+    let d = conn
+        .describe(
+            "select tweet.id, accounts.id from accounts left join tweet on owner_id = accounts.id",
+        )
+        .await?;
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(true));
@@ -209,7 +215,11 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
     assert_eq!(d.column(1).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(1), Some(false));
 
-    let d = conn.describe("select tweet.id, accounts.id from accounts inner join tweet on owner_id = accounts.id").await?;
+    let d = conn
+        .describe(
+            "select tweet.id, accounts.id from accounts inner join tweet on owner_id = accounts.id",
+        )
+        .await?;
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));

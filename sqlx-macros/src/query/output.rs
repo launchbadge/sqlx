@@ -305,9 +305,9 @@ fn parse_ident(name: &str) -> crate::Result<Ident> {
     // workaround for the following issue (it's semi-fixed but still spits out extra diagnostics)
     // https://github.com/dtolnay/syn/issues/749#issuecomment-575451318
 
-    let is_valid_ident = !name.is_empty() &&
-        name.starts_with(|c: char| c.is_alphabetic() || c == '_') &&
-        name.chars().all(|c| c.is_alphanumeric() || c == '_');
+    let is_valid_ident = !name.is_empty()
+        && name.starts_with(|c: char| c.is_alphabetic() || c == '_')
+        && name.chars().all(|c| c.is_alphanumeric() || c == '_');
 
     if is_valid_ident {
         let ident = String::from("r#") + name;
