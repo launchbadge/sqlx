@@ -58,6 +58,7 @@ impl<'q> QueryLogger<'q> {
                     ))
                     .level(lvl)
                     .module_path_static(Some("sqlx::query"))
+                    .target("sqlx::query")
                     .build(),
             );
         }
