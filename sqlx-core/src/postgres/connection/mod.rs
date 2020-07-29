@@ -74,7 +74,6 @@ impl PgConnection {
 
             if let MessageFormat::ReadyForQuery = message.format {
                 self.handle_ready_for_query(message)?;
-                break;
             }
         }
 

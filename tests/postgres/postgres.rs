@@ -417,6 +417,39 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("CREATE TABLE IF NOT EXISTS _sqlx_users_3952 (id INTEGER PRIMARY KEY)")
+        .await?;
+
+    conn.execute("TRUNCATE _sqlx_users_3952").await?;
+
+    // begin .. (drop)
+
+    // run 2 times to see what happens if we drop transactions repeatedly
+    for _ in 0..2 {
+        {
+            let mut tx = conn.begin().await?;
+
+            // do actually something before dropping
+            let _user = sqlx::query("INSERT INTO _sqlx_users_3952 (id) VALUES ($1) RETURNING id")
+                .bind(20_i32)
+                .fetch_one(&mut tx)
+                .await?;
+        }
+
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_3952")
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(count, 0);
+    }
+
+    Ok(())
+}
+
 // run with `cargo test --features postgres -- --ignored --nocapture pool_smoke_test`
 #[ignore]
 #[sqlx_macros::test]
