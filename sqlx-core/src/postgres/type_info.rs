@@ -134,6 +134,7 @@ pub enum PgType {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgCustomType {
+    #[cfg_attr(feature = "offline", serde(skip))]
     pub(crate) oid: u32,
     pub(crate) name: UStr,
     pub(crate) kind: PgTypeKind,
