@@ -245,3 +245,249 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<
         true
     }
 }
+
+impl<'ex, 'c, Ex> Executor<'c> for &'ex mut &'ex Ex
+where
+    &'ex Ex: Executor<'c>,
+{
+    type Database = <&'ex Ex as Executor<'c>>::Database;
+
+    fn execute<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Done, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::execute(*self, query)
+    }
+
+    fn execute_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Done, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::execute_many(*self, query)
+    }
+
+    fn fetch<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Row, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::fetch(*self, query)
+    }
+
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<
+        'e,
+        Result<
+            Either<<Self::Database as Database>::Done, <Self::Database as Database>::Row>,
+            Error,
+        >,
+    >
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::fetch_many(*self, query)
+    }
+
+    fn fetch_all<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Vec<<Self::Database as Database>::Row>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::fetch_all(*self, query)
+    }
+
+    fn fetch_one<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Row, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::fetch_one(*self, query)
+    }
+
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex Ex>::fetch_optional(*self, query)
+    }
+
+    #[inline]
+    fn prepare<'e, 'q: 'e>(
+        self,
+        query: &'q str,
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex Ex>::prepare(*self, query)
+    }
+
+    fn prepare_with<'e, 'q: 'e>(
+        self,
+        sql: &'q str,
+        parameters: &'e [<Self::Database as Database>::TypeInfo],
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex Ex>::prepare_with(*self, sql, parameters)
+    }
+
+    #[doc(hidden)]
+    fn describe<'e, 'q: 'e>(
+        self,
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex Ex>::describe(*self, sql)
+    }
+}
+
+impl<'ex, 'c, Ex> Executor<'c> for &'ex mut &'ex mut Ex
+where
+    &'ex mut Ex: Executor<'c>,
+{
+    type Database = <&'ex mut Ex as Executor<'c>>::Database;
+
+    fn execute<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Done, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::execute(*self, query)
+    }
+
+    fn execute_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Done, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::execute_many(*self, query)
+    }
+
+    fn fetch<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Row, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::fetch(*self, query)
+    }
+
+    fn fetch_many<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxStream<
+        'e,
+        Result<
+            Either<<Self::Database as Database>::Done, <Self::Database as Database>::Row>,
+            Error,
+        >,
+    >
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::fetch_many(*self, query)
+    }
+
+    fn fetch_all<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Vec<<Self::Database as Database>::Row>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::fetch_all(*self, query)
+    }
+
+    fn fetch_one<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Row, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::fetch_one(*self, query)
+    }
+
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+        self,
+        query: E,
+    ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
+    where
+        'c: 'e,
+        E: Execute<'q, Self::Database>,
+    {
+        <&'ex mut Ex>::fetch_optional(*self, query)
+    }
+
+    #[inline]
+    fn prepare<'e, 'q: 'e>(
+        self,
+        query: &'q str,
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex mut Ex>::prepare(*self, query)
+    }
+
+    fn prepare_with<'e, 'q: 'e>(
+        self,
+        sql: &'q str,
+        parameters: &'e [<Self::Database as Database>::TypeInfo],
+    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex mut Ex>::prepare_with(*self, sql, parameters)
+    }
+
+    #[doc(hidden)]
+    fn describe<'e, 'q: 'e>(
+        self,
+        sql: &'q str,
+    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>>
+    where
+        'c: 'e,
+    {
+        <&'ex mut Ex>::describe(*self, sql)
+    }
+}
