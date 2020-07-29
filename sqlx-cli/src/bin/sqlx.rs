@@ -9,5 +9,6 @@ async fn main() {
     // no special handling here
     if let Err(error) = sqlx_cli::run(Opt::from_arg_matches(&matches)).await {
         println!("{} {}", style("error:").bold().red(), error);
+        std::process::exit(1);
     }
 }
