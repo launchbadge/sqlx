@@ -1,6 +1,5 @@
 use num_bigint::{BigInt, Sign};
-use num_traits::ToPrimitive;
-use rust_decimal::{prelude::Zero, Decimal};
+use rust_decimal::{Decimal, prelude::{Zero, ToPrimitive}};
 use std::convert::{TryFrom, TryInto};
 
 use crate::decode::Decode;

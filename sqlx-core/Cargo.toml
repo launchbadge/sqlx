@@ -27,7 +27,7 @@ any = []
 # types
 all-types = [ "chrono", "time", "bigdecimal", "decimal", "ipnetwork", "json", "uuid", "bit-vec" ]
 bigdecimal = [ "bigdecimal_", "num-bigint" ]
-decimal = [ "rust_decimal", "num-bigint", "num-traits" ]
+decimal = [ "rust_decimal", "num-bigint" ]
 json = [ "serde", "serde_json" ]
 
 # runtimes
@@ -43,8 +43,7 @@ atoi = "0.3.2"
 sqlx-rt = { path = "../sqlx-rt", version = "0.1.1" }
 base64 = { version = "0.12.1", default-features = false, optional = true, features = [ "std" ] }
 bigdecimal_ = { version = "0.1.0", optional = true, package = "bigdecimal" }
-rust_decimal = { version = "1.6.0", optional = true }
-num-traits = { version = "0.2.12", optional = true }
+rust_decimal = { version = "1.7.0", optional = true }
 bit-vec = { version = "0.6.2", optional = true }
 bitflags = { version = "1.2.1", default-features = false }
 bytes = "0.5.4"
