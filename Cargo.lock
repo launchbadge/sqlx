@@ -2067,7 +2067,6 @@ dependencies = [
  "md-5",
  "memchr",
  "num-bigint",
- "num-traits",
  "once_cell",
  "parking_lot",
  "percent-encoding",
