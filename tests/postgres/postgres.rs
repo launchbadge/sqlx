@@ -9,13 +9,11 @@ use std::env;
 use std::thread;
 use std::time::Duration;
 
-#[sqlx_macros::test]
-async fn it_connects() -> anyhow::Result<()> {
-    let mut conn = new::<Postgres>().await?;
-
+#[sqlx_macros::test(cancelable)]
+async fn it_connects(conn: &mut PgConnection) -> anyhow::Result<()> {
     let value = sqlx::query("select 1 + 1")
         .try_map(|row: PgRow| row.try_get::<i32, _>(0))
-        .fetch_one(&mut conn)
+        .fetch_one(conn)
         .await?;
 
     assert_eq!(2i32, value);

@@ -95,37 +95,114 @@ pub fn migrate(input: TokenStream) -> TokenStream {
 
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn test(meta: TokenStream, input: TokenStream) -> TokenStream {
+    macro_rules! err_spanned (
+        ($tokens:expr, $msg:expr) => (
+            return syn::Error::new_spanned($tokens, $msg)
+                .to_compile_error()
+                .into()
+        )
+    );
+
     let input = syn::parse_macro_input!(input as syn::ItemFn);
+
+    let cancelable = if !meta.is_empty() {
+        let ident = syn::parse_macro_input!(meta as syn::Ident);
+
+        if ident != "cancelable" {
+            err_spanned!(ident, "expected `cancelable` or nothing");
+        }
+
+        true
+    } else {
+        false
+    };
+
+    if input.sig.asyncness.is_none() {
+        err_spanned!(input.sig.fn_token, "expected `async fn`");
+    }
+
+    if cancelable && input.sig.inputs.is_empty() {
+        err_spanned!(
+            input.sig,
+            "in order to test cancellation this function must accept a mutable reference to a connection"
+        );
+    }
+
+    if input.sig.inputs.len() > 1 {
+        err_spanned!(input.sig, "test functions may have *at most* one argument")
+    }
+
+    let conn_arg = if let Some(arg) = input.sig.inputs.first() {
+        match arg {
+            syn::FnArg::Receiver(recv) => err_spanned!(recv, "test functions may not take `self`"),
+            syn::FnArg::Typed(pat_ty) => Some(pat_ty),
+        }
+    } else {
+        None
+    };
 
     let ret = &input.sig.output;
     let name = &input.sig.ident;
-    let body = &input.block;
+    let block = &input.block;
     let attrs = &input.attrs;
 
-    let result = if cfg!(feature = "runtime-tokio") {
+    // expression that connects to the database
+    let (connect, bind_conn) = if let Some(conn_arg) = conn_arg {
+        let ty = &conn_arg.ty;
+        let pat = &conn_arg.pat;
+
+        if let syn::Type::Reference(syn::TypeReference {
+            mutability: Some(_),
+            elem,
+            ..
+        }) = &**ty
+        {
+            (
+                quote! {
+                    let mut conn = sqlx_test::connect::<#elem>().await?;
+                },
+                // these are separate so the `test_cancellation()` tokens below can use `conn`
+                quote! {
+                    let #pat = &mut conn;
+                },
+            )
+        } else {
+            err_spanned!(ty, "expected `&mut <PgConnection | MySqlConnection | ...>`")
+        }
+    } else {
+        (quote! {}, quote! {})
+    };
+
+    // override that switches to `test_cancellation()` instead of just running the text
+    let test_cancel = if cancelable {
+        let conn_arg = conn_arg.expect("BUG: conn_arg should have been checked above");
+
+        let inner_name = quote::format_ident!("{}_test_cancellation", input.sig.ident);
+
         quote! {
-            #[test]
-            #(#attrs)*
-            fn #name() #ret {
-                sqlx_rt::tokio::runtime::Builder::new()
-                    .threaded_scheduler()
-                    .enable_io()
-                    .enable_time()
-                    .build()
-                    .unwrap()
-                    .block_on(async { #body })
+            if std::env::var("SQLX_TEST_CANCELLATION").map_or(false, |var| var != "0") {
+                // useful so we can hint the return type of the block
+                async fn #inner_name(#conn_arg) #ret {
+                    #block
+                }
+
+                return sqlx_test::test_cancellation(&mut conn, #inner_name).await;
             }
         }
-    } else if cfg!(feature = "runtime-async-std") {
-        quote! {
-            #[test]
-            #(#attrs)*
-            fn #name() #ret {
-                sqlx_rt::async_std::task::block_on(async { #body })
-            }
-        }
-    } else if cfg!(feature = "runtime-actix") {
+    } else {
+        quote! {}
+    };
+
+    let body = quote! {
+        #connect
+        #test_cancel
+        #bind_conn
+
+        #block
+    };
+
+    let result = if cfg!(feature = "runtime-actix") {
         quote! {
             #[test]
             #(#attrs)*
@@ -135,7 +212,13 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
     } else {
-        panic!("one of 'runtime-actix', 'runtime-async-std' or 'runtime-tokio' features must be enabled");
+        quote! {
+            #[test]
+            #(#attrs)*
+            fn #name() #ret {
+                sqlx_rt::block_on(async { #body })
+            }
+        }
     };
 
     result.into()

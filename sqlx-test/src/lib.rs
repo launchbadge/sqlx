@@ -2,6 +2,9 @@ use sqlx::pool::PoolOptions;
 use sqlx::{Connection, Database, Pool};
 use std::env;
 
+use anyhow::bail;
+use futures::{future::poll_fn, pin_mut, task::Poll, Future};
+
 pub fn setup_if_needed() {
     let _ = dotenv::dotenv();
     let _ = env_logger::builder().is_test(true).try_init();
@@ -13,9 +16,14 @@ pub async fn new<DB>() -> anyhow::Result<DB::Connection>
 where
     DB: Database,
 {
-    setup_if_needed();
+    connect::<DB::Connection>().await
+}
 
-    Ok(DB::Connection::connect(&env::var("DATABASE_URL")?).await?)
+// prefer `new`
+#[doc(hidden)]
+pub async fn connect<C: Connection>() -> anyhow::Result<C> {
+    setup_if_needed();
+    Ok(C::connect(&env::var("DATABASE_URL")?).await?)
 }
 
 // Make a new pool
@@ -34,6 +42,85 @@ where
         .await?;
 
     Ok(pool)
+}
+
+/// for N in 0 .. { create future, poll up to N times, drop future, test connection with ping() }
+pub async fn test_cancellation<C, Tc, E>(conn: &mut C, mut test: Tc) -> anyhow::Result<()>
+where
+    C: Connection,
+    Tc: for<'c> TestCancellation<'c, C, E>,
+    anyhow::Error: From<E>,
+{
+    for max_polls in 0.. {
+        let mut num_polls = 0;
+
+        let mut last_await = {
+            let fut = test.test_cancel(conn);
+            pin_mut!(fut);
+
+            let (res, mut last_await) = sqlx_rt::capture_last_await(poll_fn(move |cx| {
+                if num_polls == max_polls {
+                    return Poll::Ready(Ok(()));
+                }
+
+                num_polls += 1;
+
+                fut.as_mut().poll(cx)
+            }))
+            .await;
+
+            let _ = res?;
+
+            if log::log_enabled!(log::Level::Trace) {
+                if let Some(last_await) = last_await.as_mut() {
+                    last_await.resolve();
+
+                    log::trace!("last await backtrace: {:?}", last_await);
+                }
+            }
+
+            last_await
+        };
+
+        if let Err(e) = conn.ping().await {
+            if let Some(last_await) = last_await.as_mut() {
+                last_await.resolve();
+            }
+
+            bail!(
+                "test ended in broken connection after {} polls\nerror: {:?}\nlast await backtrace: {:?}",
+                num_polls,
+                e,
+                last_await
+            )
+        }
+    }
+
+    Ok(())
+}
+
+// needed to work with a closure that returns a future which borrows its argument
+pub trait TestCancellation<'c, C: Connection + 'c, E>
+where
+    anyhow::Error: From<E>,
+{
+    type Future: Future<Output = Result<(), E>> + 'c;
+
+    fn test_cancel(&mut self, conn: &'c mut C) -> Self::Future;
+}
+
+impl<'c, C, F, Fut, E> TestCancellation<'c, C, E> for F
+where
+    C: Connection + 'c,
+    F: FnMut(&'c mut C) -> Fut,
+    Fut: Future<Output = Result<(), E>> + 'c,
+    anyhow::Error: From<E>,
+{
+    type Future = Fut;
+
+    fn test_cancel(&mut self, conn: &'c mut C) -> Self::Future {
+        (self)(conn)
+    }
 }
 
 // Test type encoding and decoding
