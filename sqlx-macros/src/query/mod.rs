@@ -208,7 +208,12 @@ where
 
     let query_args = format_ident!("query_args");
 
-    let output = if data.describe.columns().iter().all(|it| it.type_info().is_void()) {
+    let output = if data
+        .describe
+        .columns()
+        .iter()
+        .all(|it| it.type_info().is_void())
+    {
         let db_path = DB::db_path();
         let sql = &input.src;
 
