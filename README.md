@@ -148,6 +148,8 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 
  * `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
+ * `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
+
  * `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
  * `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
