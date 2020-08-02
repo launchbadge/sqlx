@@ -46,7 +46,7 @@ this new file.
 
 ---
 ```bash
-$ sqlx migration run
+$ sqlx migrate run
 ```
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
