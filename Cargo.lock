@@ -2090,6 +2090,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-core2"
+version = "0.4.0-beta.2"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "sqlx-rt",
+ "thiserror",
+]
+
+[[package]]
 name = "sqlx-example-mysql-todos"
 version = "0.1.0"
 dependencies = [

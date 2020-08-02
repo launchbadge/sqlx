@@ -1,10 +1,11 @@
-use crate::database::{Database, HasStatementCache};
+//! Provides the [`Connection`] trait to represent a single database connection.
+use crate::database::HasStatementCache;
 use crate::error::Error;
-use crate::transaction::Transaction;
+use crate::{database::Database, options::ConnectOptions};
 use futures_core::future::BoxFuture;
-use futures_core::Future;
-use std::fmt::Debug;
-use std::str::FromStr;
+
+// TODO: Connection#transaction()
+// TODO: Connection#begin()
 
 /// Represents a single database connection.
 pub trait Connection: Send {
@@ -21,46 +22,6 @@ pub trait Connection: Send {
 
     /// Checks if a connection to the database is still valid.
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>>;
-
-    /// Begin a new transaction or establish a savepoint within the active transaction.
-    ///
-    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
-    where
-        Self: Sized;
-
-    /// Execute the function inside a transaction.
-    ///
-    /// If the function returns an error, the transaction will be rolled back. If it does not
-    /// return an error, the transaction will be committed.
-    fn transaction<'c: 'f, 'f, T, E, F, Fut>(&'c mut self, f: F) -> BoxFuture<'f, Result<T, E>>
-    where
-        Self: Sized,
-        T: Send,
-        F: FnOnce(&mut <Self::Database as Database>::Connection) -> Fut + Send + 'f,
-        E: From<Error> + Send,
-        Fut: Future<Output = Result<T, E>> + Send,
-    {
-        Box::pin(async move {
-            let mut tx = self.begin().await?;
-
-            match f(&mut tx).await {
-                Ok(r) => {
-                    // no error occurred, commit the transaction
-                    tx.commit().await?;
-
-                    Ok(r)
-                }
-
-                Err(e) => {
-                    // an error occurred, rollback the transaction
-                    tx.rollback().await?;
-
-                    Err(e)
-                }
-            }
-        })
-    }
 
     /// The number of statements currently cached in the connection.
     fn cached_statements_size(&self) -> usize
@@ -106,13 +67,4 @@ pub trait Connection: Send {
     {
         options.connect()
     }
-}
-
-pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug {
-    type Connection: Connection + ?Sized;
-
-    /// Establish a new database connection with the options specified by `self`.
-    fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
-    where
-        Self::Connection: Sized;
 }
