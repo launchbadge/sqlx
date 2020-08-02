@@ -1,5 +1,5 @@
-use crate::error::Error;
-use crate::postgres::PgConnectOptions;
+use crate::PgConnectOptions;
+use sqlx_core::error::Error;
 use std::str::FromStr;
 use url::Url;
 
@@ -7,7 +7,14 @@ impl FromStr for PgConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        let url: Url = s.parse().map_err(Error::config)?;
+        let url: Url = s.parse().map_err(Error::configuration)?;
+
+        if !matches!(url.scheme(), "postgres" | "postgresql") {
+            return Err(Error::configuration_msg(format!(
+                "unsupported URI scheme {:?} for PostgreSQL",
+                url.scheme()
+            )));
+        }
 
         let mut options = Self::default();
 
@@ -36,7 +43,7 @@ impl FromStr for PgConnectOptions {
         for (key, value) in url.query_pairs().into_iter() {
             match &*key {
                 "sslmode" | "ssl-mode" => {
-                    options = options.ssl_mode(value.parse().map_err(Error::config)?);
+                    options = options.ssl_mode(value.parse().map_err(Error::configuration)?);
                 }
 
                 "sslrootcert" | "ssl-root-cert" | "ssl-ca" => {
@@ -44,8 +51,8 @@ impl FromStr for PgConnectOptions {
                 }
 
                 "statement-cache-capacity" => {
-                    options =
-                        options.statement_cache_capacity(value.parse().map_err(Error::config)?);
+                    options = options
+                        .statement_cache_capacity(value.parse().map_err(Error::configuration)?);
                 }
 
                 "host" => {

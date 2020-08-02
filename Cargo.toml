@@ -3,6 +3,7 @@ members = [
     ".",
     "sqlx-core",
     "sqlx-core2",
+    "sqlx-postgres",
     "sqlx-rt",
     "sqlx-macros",
     "sqlx-test",

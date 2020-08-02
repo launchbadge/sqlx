@@ -1,10 +1,7 @@
-use std::str::from_utf8;
-
 use bytes::{Buf, Bytes};
 use memchr::memchr;
-
-use crate::error::Error;
-use crate::io::Decode;
+use sqlx_core::{error::Error, io::Decode};
+use std::str::from_utf8;
 
 // On startup, the server sends an appropriate authentication request message,
 // to which the frontend must reply with an appropriate authentication
@@ -21,7 +18,7 @@ use crate::io::Decode;
 // <https://www.postgresql.org/docs/devel/protocol-message-formats.html>
 
 #[derive(Debug)]
-pub enum Authentication {
+pub(crate) enum Authentication {
     /// The authentication exchange is successfully completed.
     Ok,
 
@@ -77,7 +74,10 @@ impl Decode<'_> for Authentication {
             12 => Authentication::SaslFinal(AuthenticationSaslFinal::decode(buf)?),
 
             ty => {
-                return Err(err_protocol!("unknown authentication method: {}", ty));
+                return Err(Error::protocol_msg(format!(
+                    "unknown authentication method: {}",
+                    ty
+                )));
             }
         })
     }
@@ -85,23 +85,23 @@ impl Decode<'_> for Authentication {
 
 /// Body of [Authentication::Md5Password].
 #[derive(Debug)]
-pub struct AuthenticationMd5Password {
-    pub salt: [u8; 4],
+pub(crate) struct AuthenticationMd5Password {
+    pub(crate) salt: [u8; 4],
 }
 
 /// Body of [Authentication::Sasl].
 #[derive(Debug)]
-pub struct AuthenticationSasl(Bytes);
+pub(crate) struct AuthenticationSasl(Bytes);
 
 impl AuthenticationSasl {
     #[inline]
-    pub fn mechanisms(&self) -> SaslMechanisms<'_> {
+    pub(crate) fn mechanisms(&self) -> SaslMechanisms<'_> {
         SaslMechanisms(&self.0)
     }
 }
 
 /// An iterator over the SASL authentication mechanisms provided by the server.
-pub struct SaslMechanisms<'a>(&'a [u8]);
+pub(crate) struct SaslMechanisms<'a>(&'a [u8]);
 
 impl<'a> Iterator for SaslMechanisms<'a> {
     type Item = &'a str;
@@ -120,11 +120,11 @@ impl<'a> Iterator for SaslMechanisms<'a> {
 }
 
 #[derive(Debug)]
-pub struct AuthenticationSaslContinue {
-    pub salt: Vec<u8>,
-    pub iterations: u32,
-    pub nonce: String,
-    pub message: String,
+pub(crate) struct AuthenticationSaslContinue {
+    pub(crate) salt: Vec<u8>,
+    pub(crate) iterations: u32,
+    pub(crate) nonce: String,
+    pub(crate) message: String,
 }
 
 impl Decode<'_> for AuthenticationSaslContinue {
@@ -167,8 +167,8 @@ impl Decode<'_> for AuthenticationSaslContinue {
 }
 
 #[derive(Debug)]
-pub struct AuthenticationSaslFinal {
-    pub verifier: Vec<u8>,
+pub(crate) struct AuthenticationSaslFinal {
+    pub(crate) verifier: Vec<u8>,
 }
 
 impl Decode<'_> for AuthenticationSaslFinal {
@@ -185,5 +185,42 @@ impl Decode<'_> for AuthenticationSaslFinal {
         }
 
         Ok(Self { verifier })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode() -> Result<(), Error> {
+        // \0\0\0\x05\xccSZ\x7f
+
+        let v = Authentication::decode(Bytes::from_static(b"\0\0\0\x05\xccSZ\x7f"))?;
+
+        assert!(matches!(
+            v,
+            Authentication::Md5Password(AuthenticationMd5Password {
+                salt: [204, 83, 90, 127],
+            })
+        ));
+
+        Ok(())
+    }
+}
+
+#[cfg(all(test, not(debug_assertions)))]
+mod bench {
+    use super::*;
+
+    #[bench]
+    fn decode(b: &mut test::Bencher) {
+        use test::black_box;
+
+        let mut buf = Bytes::from_static(b"\0\0\0\x05\xccSZ\x7f");
+
+        b.iter(|| {
+            let _ = Authentication::decode(black_box(buf.clone())).unwrap();
+        });
     }
 }

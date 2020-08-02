@@ -2153,6 +2153,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-postgres"
+version = "0.1.0-pre"
+dependencies = [
+ "atoi",
+ "base64",
+ "bytes",
+ "futures-core",
+ "futures-util",
+ "md-5",
+ "memchr",
+ "sqlx-core2",
+ "sqlx-rt",
+ "url",
+ "whoami",
+]
+
+[[package]]
 name = "sqlx-rt"
 version = "0.1.1"
 dependencies = [

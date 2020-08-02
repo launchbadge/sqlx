@@ -1,12 +1,10 @@
+use crate::io::{put_length_prefixed, put_str};
+use md5::{Digest, Md5};
+use sqlx_core::{error::Error, io::Encode};
 use std::fmt::Write;
 
-use md5::{Digest, Md5};
-
-use crate::io::{BufMutExt, Encode};
-use crate::postgres::io::PgBufMutExt;
-
 #[derive(Debug)]
-pub enum Password<'a> {
+pub(crate) enum Password<'a> {
     Cleartext(&'a str),
 
     Md5 {
@@ -27,14 +25,14 @@ impl Password<'_> {
 }
 
 impl Encode<'_> for Password<'_> {
-    fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
+    fn encode_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<(), Error> {
         buf.reserve(1 + 4 + self.len());
         buf.push(b'p');
 
-        buf.put_length_prefixed(|buf| {
+        put_length_prefixed(buf, |buf| {
             match self {
                 Password::Cleartext(password) => {
-                    buf.put_str_nul(password);
+                    put_str(buf, password);
                 }
 
                 Password::Md5 {
@@ -63,70 +61,68 @@ impl Encode<'_> for Password<'_> {
 
                     let _ = write!(output, "md5{:x}", hasher.finalize());
 
-                    buf.put_str_nul(&output);
+                    put_str(buf, &output);
                 }
             }
-        });
+
+            Ok(())
+        })
     }
 }
 
-#[test]
-fn test_encode_clear_password() {
-    const EXPECTED: &[u8] = b"p\0\0\0\rpassword\0";
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut buf = Vec::new();
-    let m = Password::Cleartext("password");
+    #[test]
+    fn encode_md5() {
+        const EXPECTED: &[u8] = b"p\0\0\0(md53e2c9d99d49b201ef867a36f3f9ed62c\0";
 
-    m.encode(&mut buf);
-
-    assert_eq!(buf, EXPECTED);
-}
-
-#[test]
-fn test_encode_md5_password() {
-    const EXPECTED: &[u8] = b"p\0\0\0(md53e2c9d99d49b201ef867a36f3f9ed62c\0";
-
-    let mut buf = Vec::new();
-    let m = Password::Md5 {
-        password: "password",
-        username: "root",
-        salt: [147, 24, 57, 152],
-    };
-
-    m.encode(&mut buf);
-
-    assert_eq!(buf, EXPECTED);
-}
-
-#[cfg(all(test, not(debug_assertions)))]
-#[bench]
-fn bench_encode_clear_password(b: &mut test::Bencher) {
-    use test::black_box;
-
-    let mut buf = Vec::with_capacity(128);
-
-    b.iter(|| {
-        buf.clear();
-
-        black_box(Password::Cleartext("password")).encode(&mut buf);
-    });
-}
-
-#[cfg(all(test, not(debug_assertions)))]
-#[bench]
-fn bench_encode_md5_password(b: &mut test::Bencher) {
-    use test::black_box;
-
-    let mut buf = Vec::with_capacity(128);
-
-    b.iter(|| {
-        buf.clear();
-
-        black_box(Password::Md5 {
+        let mut buf = Vec::new();
+        let m = Password::Md5 {
             password: "password",
             username: "root",
             salt: [147, 24, 57, 152],
-        })
-        .encode(&mut buf);
-    });
+        };
+
+        m.encode(&mut buf);
+
+        assert_eq!(buf, EXPECTED);
+    }
+}
+
+#[cfg(all(test, not(debug_assertions)))]
+mod bench {
+    use super::*;
+
+    #[bench]
+    fn encode_clear(b: &mut test::Bencher) {
+        use test::black_box;
+
+        let mut buf = Vec::with_capacity(128);
+
+        b.iter(|| {
+            buf.clear();
+
+            black_box(Password::Cleartext("password")).encode(&mut buf);
+        });
+    }
+
+    #[bench]
+    fn encode_md5(b: &mut test::Bencher) {
+        use test::black_box;
+
+        let mut buf = Vec::with_capacity(128);
+
+        b.iter(|| {
+            buf.clear();
+
+            black_box(Password::Md5 {
+                password: "password",
+                username: "root",
+                salt: [147, 24, 57, 152],
+            })
+            .encode(&mut buf);
+        });
+    }
 }

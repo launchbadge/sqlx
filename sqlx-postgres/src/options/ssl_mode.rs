@@ -1,4 +1,4 @@
-use crate::error::Error;
+use sqlx_core::error::Error;
 use std::str::FromStr;
 
 /// Options for controlling the level of protection provided for PostgreSQL SSL connections.

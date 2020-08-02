@@ -5,6 +5,8 @@ mod connect;
 mod parse;
 mod ssl_mode;
 
+// false positive
+#[allow(unreachable_pub)]
 pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
@@ -43,8 +45,9 @@ pub use ssl_mode::PgSslMode;
 ///
 /// ```rust,no_run
 /// # use sqlx_core::error::Error;
-/// # use sqlx_core::connection::{Connection, ConnectOptions};
-/// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
+/// # use sqlx_core::connection::Connection;
+/// # use sqlx_core::options::ConnectOptions;
+/// # use sqlx_postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
 /// # fn main() {
 /// # #[cfg(feature = "runtime-async-std")]
@@ -102,7 +105,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
@@ -141,7 +144,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .host("localhost");
     /// ```
@@ -157,7 +160,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .port(5432);
     /// ```
@@ -183,7 +186,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("postgres");
     /// ```
@@ -197,7 +200,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .username("root")
     ///     .password("safe-and-secure");
@@ -212,7 +215,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// # use sqlx_postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
     ///     .database("postgres");
     /// ```
@@ -232,7 +235,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     .ssl_mode(PgSslMode::Require);
     /// ```
@@ -248,7 +251,7 @@ impl PgConnectOptions {
     /// # Example
     ///
     /// ```rust
-    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// # use sqlx_postgres::{PgSslMode, PgConnectOptions};
     /// let options = PgConnectOptions::new()
     ///     // Providing a CA certificate with less than VerifyCa is pointless
     ///     .ssl_mode(PgSslMode::VerifyCa)

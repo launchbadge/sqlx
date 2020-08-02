@@ -1,11 +1,9 @@
 use bytes::Bytes;
-
-use crate::error::Error;
-use crate::io::Decode;
+use sqlx_core::{error::Error, io::Decode};
 
 #[derive(Debug)]
 #[repr(u8)]
-pub enum TransactionStatus {
+pub(crate) enum TransactionStatus {
     /// Not in a transaction block.
     Idle = b'I',
 
@@ -17,8 +15,8 @@ pub enum TransactionStatus {
 }
 
 #[derive(Debug)]
-pub struct ReadyForQuery {
-    pub transaction_status: TransactionStatus,
+pub(crate) struct ReadyForQuery {
+    pub(crate) transaction_status: TransactionStatus,
 }
 
 impl Decode<'_> for ReadyForQuery {
@@ -29,10 +27,10 @@ impl Decode<'_> for ReadyForQuery {
             b'E' => TransactionStatus::Error,
 
             status => {
-                return Err(err_protocol!(
+                return Err(Error::protocol_msg(format!(
                     "unknown transaction status: {:?}",
                     status as char
-                ));
+                )));
             }
         };
 
@@ -42,13 +40,18 @@ impl Decode<'_> for ReadyForQuery {
     }
 }
 
-#[test]
-fn test_decode_ready_for_query() -> Result<(), Error> {
-    const DATA: &[u8] = b"E";
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let m = ReadyForQuery::decode(Bytes::from_static(DATA))?;
+    #[test]
+    fn decode() -> Result<(), Error> {
+        const DATA: &[u8] = b"E";
 
-    assert!(matches!(m.transaction_status, TransactionStatus::Error));
+        let m = ReadyForQuery::decode(Bytes::from_static(DATA))?;
 
-    Ok(())
+        assert!(matches!(m.transaction_status, TransactionStatus::Error));
+
+        Ok(())
+    }
 }
