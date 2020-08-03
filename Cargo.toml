@@ -35,9 +35,10 @@ features = [ "all" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ "macros", "runtime-async-std", "migrate" ]
+default = [ "macros", "runtime-async-std", "migrate", "querylog" ]
 macros = [ "sqlx-macros" ]
 migrate = [ "sqlx-macros/migrate", "sqlx-core/migrate" ]
+querylog = []
 
 # [deprecated] TLS is not possible to disable due to it being conditional on multiple features
 #              Hopefully Cargo can handle this in the future
@@ -47,7 +48,7 @@ tls = [ ]
 offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 
 # intended mainly for CI and docs
-all = [ "tls", "all-databases", "all-types" ]
+all = [ "tls", "all-databases", "all-types", "querylog" ]
 all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
 all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec" ]
 

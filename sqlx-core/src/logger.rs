@@ -5,7 +5,9 @@ const SLOW_QUERY_THRESHOLD: Duration = Duration::from_secs(1);
 
 pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
+    #[cfg(feature = "querylog")]
     rows: usize,
+    #[cfg(feature = "querylog")]
     start: Instant,
 }
 
@@ -13,54 +15,62 @@ impl<'q> QueryLogger<'q> {
     pub(crate) fn new(sql: &'q str) -> Self {
         Self {
             sql,
+            #[cfg(feature = "querylog")]
             rows: 0,
+            #[cfg(feature = "querylog")]
             start: Instant::now(),
         }
     }
 
     pub(crate) fn increment_rows(&mut self) {
-        self.rows += 1;
+        #[cfg(feature = "querylog")]
+        {
+            self.rows += 1;
+        }
     }
 
     pub(crate) fn finish(&self) {
-        let elapsed = self.start.elapsed();
+        #[cfg(feature = "querylog")]
+        {
+            let elapsed = self.start.elapsed();
 
-        let lvl = if elapsed >= SLOW_QUERY_THRESHOLD {
-            Level::Warn
-        } else {
-            Level::Info
-        };
-
-        if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
-            let mut summary = parse_query_summary(&self.sql);
-
-            let sql = if summary != self.sql {
-                summary.push_str(" …");
-                format!(
-                    "\n\n{}\n",
-                    sqlformat::format(
-                        &self.sql,
-                        &sqlformat::QueryParams::None,
-                        sqlformat::FormatOptions::default()
-                    )
-                )
+            let lvl = if elapsed >= SLOW_QUERY_THRESHOLD {
+                Level::Warn
             } else {
-                String::new()
+                Level::Info
             };
 
-            let rows = self.rows;
+            if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
+                let mut summary = parse_query_summary(&self.sql);
 
-            log::logger().log(
-                &log::Record::builder()
-                    .args(format_args!(
-                        "{}; rows: {}, elapsed: {:.3?}{}",
-                        summary, rows, elapsed, sql
-                    ))
-                    .level(lvl)
-                    .module_path_static(Some("sqlx::query"))
-                    .target("sqlx::query")
-                    .build(),
-            );
+                let sql = if summary != self.sql {
+                    summary.push_str(" …");
+                    format!(
+                        "\n\n{}\n",
+                        sqlformat::format(
+                            &self.sql,
+                            &sqlformat::QueryParams::None,
+                            sqlformat::FormatOptions::default()
+                        )
+                    )
+                } else {
+                    String::new()
+                };
+
+                let rows = self.rows;
+
+                log::logger().log(
+                    &log::Record::builder()
+                        .args(format_args!(
+                            "{}; rows: {}, elapsed: {:.3?}{}",
+                            summary, rows, elapsed, sql
+                        ))
+                        .level(lvl)
+                        .module_path_static(Some("sqlx::query"))
+                        .target("sqlx::query")
+                        .build(),
+                );
+            }
         }
     }
 }
