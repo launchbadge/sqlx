@@ -167,6 +167,7 @@ impl ColumnType {
     ) -> &'static str {
         let is_binary = char_set == 63;
         let is_unsigned = flags.contains(ColumnFlags::UNSIGNED);
+        let is_enum = flags.contains(ColumnFlags::ENUM);
 
         match self {
             ColumnType::Tiny if max_size == Some(1) => "BOOLEAN",
@@ -196,6 +197,7 @@ impl ColumnType {
             ColumnType::Json => "JSON",
 
             ColumnType::String if is_binary => "BINARY",
+            ColumnType::String if is_enum => "ENUM",
             ColumnType::VarChar | ColumnType::VarString if is_binary => "VARBINARY",
 
             ColumnType::String => "CHAR",
