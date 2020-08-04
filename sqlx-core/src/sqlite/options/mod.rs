@@ -5,7 +5,7 @@ mod journal_mode;
 mod parse;
 
 pub use journal_mode::SqliteJournalMode;
-use std::borrow::Cow;
+use std::{borrow::Cow, time::Duration};
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
@@ -49,6 +49,7 @@ pub struct SqliteConnectOptions {
     pub(crate) journal_mode: SqliteJournalMode,
     pub(crate) foreign_keys: bool,
     pub(crate) statement_cache_capacity: usize,
+    pub(crate) busy_timeout: Duration,
 }
 
 impl Default for SqliteConnectOptions {
@@ -67,6 +68,7 @@ impl SqliteConnectOptions {
             foreign_keys: true,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
+            busy_timeout: Duration::from_secs(5),
         }
     }
 
@@ -117,6 +119,15 @@ impl SqliteConnectOptions {
     /// The default cache capacity is 100 statements.
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Sets a timeout value to wait when the database is locked, before
+    /// returning a busy timeout error.
+    ///
+    /// The default busy timeout is 5 seconds.
+    pub fn busy_timeout(mut self, timeout: Duration) -> Self {
+        self.busy_timeout = timeout;
         self
     }
 }
