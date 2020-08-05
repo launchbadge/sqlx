@@ -1,3 +1,5 @@
+use crate::connection::LogSettings;
+
 mod connect;
 mod parse;
 
@@ -8,6 +10,7 @@ pub struct MssqlConnectOptions {
     pub(crate) username: String,
     pub(crate) database: String,
     pub(crate) password: Option<String>,
+    pub(crate) log_settings: LogSettings,
 }
 
 impl Default for MssqlConnectOptions {
@@ -24,6 +27,7 @@ impl MssqlConnectOptions {
             database: String::from("master"),
             username: String::from("sa"),
             password: None,
+            log_settings: Default::default(),
         }
     }
 

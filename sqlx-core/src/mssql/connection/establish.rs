@@ -82,6 +82,7 @@ impl MssqlConnection {
         Ok(Self {
             stream,
             cache_statement: StatementCache::new(1024),
+            log_settings: options.log_settings.clone(),
         })
     }
 }

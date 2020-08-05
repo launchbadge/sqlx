@@ -78,7 +78,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
-        let mut logger = QueryLogger::new(sql);
+        let mut logger = QueryLogger::new(sql, self.log_settings.clone());
 
         Box::pin(try_stream! {
             self.run(sql, arguments).await?;
