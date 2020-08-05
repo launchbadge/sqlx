@@ -60,6 +60,34 @@ pub(crate) enum AnyConnectOptionsKind {
     Mssql(MssqlConnectOptions),
 }
 
+#[cfg(feature = "postgres")]
+impl From<PgConnectOptions> for AnyConnectOptions {
+    fn from(options: PgConnectOptions) -> Self {
+        Self(AnyConnectOptionsKind::Postgres(options))
+    }
+}
+
+#[cfg(feature = "mysql")]
+impl From<MySqlConnectOptions> for AnyConnectOptions {
+    fn from(options: MySqlConnectOptions) -> Self {
+        Self(AnyConnectOptionsKind::MySql(options))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl From<SqliteConnectOptions> for AnyConnectOptions {
+    fn from(options: SqliteConnectOptions) -> Self {
+        Self(AnyConnectOptionsKind::Sqlite(options))
+    }
+}
+
+#[cfg(feature = "mssql")]
+impl From<MssqlConnectOptions> for AnyConnectOptions {
+    fn from(options: MssqlConnectOptions) -> Self {
+        Self(AnyConnectOptionsKind::Mssql(options))
+    }
+}
+
 impl FromStr for AnyConnectOptions {
     type Err = Error;
 
