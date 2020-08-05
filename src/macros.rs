@@ -512,10 +512,14 @@ macro_rules! query_file_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as (
-    ($out_struct:path, $query:expr) => ( {
+    ($out_struct:path, $query:expr) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query)
     });
-    ($out_struct:path, $query:expr, $($args:tt)*) => ( {
+    ($out_struct:path, $query:expr, $($args:tt)*) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args)*])
     })
 );
@@ -556,10 +560,14 @@ macro_rules! query_as (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as (
-    ($out_struct:path, $path:literal) => ( {
+    ($out_struct:path, $path:literal) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path)
     });
-    ($out_struct:path, $path:literal, $($args:tt)*) => ( {
+    ($out_struct:path, $path:literal, $($args:tt)*) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, args = [$($args)*])
     })
 );
@@ -569,11 +577,15 @@ macro_rules! query_file_as (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as_unchecked (
-    ($out_struct:path, $query:expr) => ( {
+    ($out_struct:path, $query:expr) => ( 
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, checked = false)
     });
 
-    ($out_struct:path, $query:expr, $($args:tt)*) => ( {
+    ($out_struct:path, $query:expr, $($args:tt)*) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args)*], checked = false)
     })
 );
@@ -584,11 +596,15 @@ macro_rules! query_as_unchecked (
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as_unchecked (
-    ($out_struct:path, $path:literal) => ( {
+    ($out_struct:path, $path:literal) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, checked = false)
     });
 
-    ($out_struct:path, $path:literal, $($args:tt)*) => ( {
+    ($out_struct:path, $path:literal, $($args:tt)*) => (
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, args = [$($args)*], checked = false)
     })
 );
@@ -613,11 +629,15 @@ macro_rules! query_file_as_unchecked (
 #[cfg(feature = "migrate")]
 #[macro_export]
 macro_rules! migrate {
-    ($dir:literal) => {{
+    ($dir:literal) => {
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::migrate!($dir)
     }};
 
-    () => {{
+    () => {
+    #[allow(clippy::all)]
+    {
         $crate::sqlx_macros::migrate!("migrations")
     }};
 }
