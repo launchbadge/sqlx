@@ -2,7 +2,9 @@ use crate::any::AnyConnection;
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use futures_core::future::BoxFuture;
+use log::LevelFilter;
 use std::str::FromStr;
+use std::time::Duration;
 
 #[cfg(feature = "postgres")]
 use crate::postgres::PgConnectOptions;
@@ -119,5 +121,55 @@ impl ConnectOptions for AnyConnectOptions {
     #[inline]
     fn connect(&self) -> BoxFuture<'_, Result<AnyConnection, Error>> {
         Box::pin(AnyConnection::establish(self))
+    }
+
+    fn log_statements(&mut self, level: LevelFilter) -> &mut Self {
+        match &mut self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectOptionsKind::Postgres(o) => {
+                o.log_statements(level);
+            }
+
+            #[cfg(feature = "mysql")]
+            AnyConnectOptionsKind::MySql(o) => {
+                o.log_statements(level);
+            }
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectOptionsKind::Sqlite(o) => {
+                o.log_statements(level);
+            }
+
+            #[cfg(feature = "mssql")]
+            AnyConnectOptionsKind::Mssql(o) => {
+                o.log_statements(level);
+            }
+        };
+        self
+    }
+
+    fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self {
+        match &mut self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectOptionsKind::Postgres(o) => {
+                o.log_slow_statements(level, duration);
+            }
+
+            #[cfg(feature = "mysql")]
+            AnyConnectOptionsKind::MySql(o) => {
+                o.log_slow_statements(level, duration);
+            }
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectOptionsKind::Sqlite(o) => {
+                o.log_slow_statements(level, duration);
+            }
+
+            #[cfg(feature = "mssql")]
+            AnyConnectOptionsKind::Mssql(o) => {
+                o.log_slow_statements(level, duration);
+            }
+        };
+        self
     }
 }

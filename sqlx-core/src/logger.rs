@@ -1,20 +1,20 @@
-use log::Level;
-use std::time::{Duration, Instant};
-
-const SLOW_QUERY_THRESHOLD: Duration = Duration::from_secs(1);
+use crate::connection::LogSettings;
+use std::time::Instant;
 
 pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
     rows: usize,
     start: Instant,
+    settings: LogSettings,
 }
 
 impl<'q> QueryLogger<'q> {
-    pub(crate) fn new(sql: &'q str) -> Self {
+    pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
         Self {
             sql,
             rows: 0,
             start: Instant::now(),
+            settings,
         }
     }
 
@@ -25,42 +25,44 @@ impl<'q> QueryLogger<'q> {
     pub(crate) fn finish(&self) {
         let elapsed = self.start.elapsed();
 
-        let lvl = if elapsed >= SLOW_QUERY_THRESHOLD {
-            Level::Warn
+        let lvl = if elapsed >= self.settings.slow_statements_duration {
+            self.settings.slow_statements_level
         } else {
-            Level::Info
+            self.settings.statements_level
         };
 
-        if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
-            let mut summary = parse_query_summary(&self.sql);
+        if let Some(lvl) = lvl.to_level() {
+            if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
+                let mut summary = parse_query_summary(&self.sql);
 
-            let sql = if summary != self.sql {
-                summary.push_str(" …");
-                format!(
-                    "\n\n{}\n",
-                    sqlformat::format(
-                        &self.sql,
-                        &sqlformat::QueryParams::None,
-                        sqlformat::FormatOptions::default()
+                let sql = if summary != self.sql {
+                    summary.push_str(" …");
+                    format!(
+                        "\n\n{}\n",
+                        sqlformat::format(
+                            &self.sql,
+                            &sqlformat::QueryParams::None,
+                            sqlformat::FormatOptions::default()
+                        )
                     )
-                )
-            } else {
-                String::new()
-            };
+                } else {
+                    String::new()
+                };
 
-            let rows = self.rows;
+                let rows = self.rows;
 
-            log::logger().log(
-                &log::Record::builder()
-                    .args(format_args!(
-                        "{}; rows: {}, elapsed: {:.3?}{}",
-                        summary, rows, elapsed, sql
-                    ))
-                    .level(lvl)
-                    .module_path_static(Some("sqlx::query"))
-                    .target("sqlx::query")
-                    .build(),
-            );
+                log::logger().log(
+                    &log::Record::builder()
+                        .args(format_args!(
+                            "{}; rows: {}, elapsed: {:.3?}{}",
+                            summary, rows, elapsed, sql
+                        ))
+                        .level(lvl)
+                        .module_path_static(Some("sqlx::query"))
+                        .target("sqlx::query")
+                        .build(),
+                );
+            }
         }
     }
 }

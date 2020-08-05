@@ -199,7 +199,7 @@ impl PgConnection {
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgDone, PgRow>, Error>> + 'e, Error> {
-        let mut logger = QueryLogger::new(query);
+        let mut logger = QueryLogger::new(query, self.log_settings.clone());
 
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;

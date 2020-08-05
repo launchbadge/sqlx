@@ -72,7 +72,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         E: Execute<'q, Self::Database>,
     {
         let sql = query.sql();
-        let mut logger = QueryLogger::new(sql);
+        let mut logger = QueryLogger::new(sql, self.log_settings.clone());
         let arguments = query.take_arguments();
         let persistent = query.persistent() && arguments.is_some();
 

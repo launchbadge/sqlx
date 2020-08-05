@@ -114,5 +114,6 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         statements: StatementCache::new(options.statement_cache_capacity),
         statement: None,
         transaction_depth: 0,
+        log_settings: options.log_settings.clone(),
     })
 }
