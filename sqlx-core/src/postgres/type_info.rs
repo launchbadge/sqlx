@@ -735,14 +735,8 @@ impl PgType {
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
             PgType::Money => &PgTypeKind::Simple,
             PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
-
             PgType::Void => &PgTypeKind::Pseudo,
-
-            PgType::Custom(ty) => &ty.kind,
-
-            PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
-                unreachable!("(bug) use of unresolved type declaration [kind]")
-            }
+            PgType::Other(ty) => &ty.kind,
         }
     }
 }

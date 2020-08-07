@@ -1,5 +1,5 @@
-use crate::PgConnection;
-use sqlx_core::database::{Database, HasStatementCache};
+use crate::{PgConnection, PgTypeId, PgTypeInfo};
+use sqlx_core::database::{Database, HasStatementCache, HasTypeId};
 
 /// PostgreSQL database driver.
 #[derive(Debug)]
@@ -16,9 +16,15 @@ impl Database for Postgres {
     //
     // type Column = PgColumn;
     //
-    // type TypeInfo = PgTypeInfo;
+    type TypeInfo = PgTypeInfo;
     //
     // type Value = PgValue;
+}
+
+impl<'a> HasTypeId<'a> for Postgres {
+    type Database = Postgres;
+
+    type TypeId = PgTypeId<'a>;
 }
 
 // impl<'r> HasValueRef<'r> for Postgres {

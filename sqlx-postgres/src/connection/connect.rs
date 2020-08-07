@@ -42,7 +42,7 @@ impl PgConnection {
         // Wrap our network in the connection type with default values for its properties
         // This lets us access methods on self
 
-        let mut conn = Self::new(stream);
+        let mut conn = Self::new(stream, options);
 
         // The server then uses this information and the contents of
         // its configuration files (such as pg_hba.conf) to determine whether the connection is

@@ -1,15 +1,21 @@
-// mod bind;
-// mod close;
-// mod describe;
-// mod execute;
-// mod flush;
-// mod parse;
+mod bind;
+mod close;
+mod describe;
+mod execute;
+mod flush;
+mod parse;
 mod password;
 mod query;
 mod startup;
 mod sync;
 mod terminate;
 
+pub(crate) use bind::Bind;
+pub(crate) use close::Close;
+pub(crate) use describe::Describe;
+pub(crate) use execute::Execute;
+pub(crate) use flush::Flush;
+pub(crate) use parse::Parse;
 pub(crate) use password::Password;
 pub(crate) use query::Query;
 pub(crate) use startup::Startup;

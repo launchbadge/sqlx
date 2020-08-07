@@ -80,6 +80,7 @@ pub struct PgConnectOptions {
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<PathBuf>,
     pub(crate) statement_cache_capacity: usize,
+    pub(crate) metadata_cache_capacity: usize,
 }
 
 impl Default for PgConnectOptions {
@@ -129,6 +130,7 @@ impl PgConnectOptions {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
+            metadata_cache_capacity: 1000,
         }
     }
 
@@ -270,6 +272,17 @@ impl PgConnectOptions {
     /// The default cache capacity is 100 statements.
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Sets the capacity of the connection's metadata cache in a number of stored
+    /// distinct statements. Caching is handled using LRU, meaning when the
+    /// amount of queries hits the defined limit, the metadata for the oldest statement will get
+    /// dropped.
+    ///
+    /// The default cache capacity is 1000 statements.
+    pub fn metadata_cache_capacity(mut self, capacity: usize) -> Self {
+        self.metadata_cache_capacity = capacity;
         self
     }
 

@@ -7,19 +7,21 @@ mod command_complete;
 // mod data_row;
 // mod notice;
 // mod notification;
-// mod parameter_description;
+mod parameter_description;
 mod ready_for_query;
-// mod row_description;
+mod row_description;
 // mod ssl_request;
 
 pub(crate) use authentication::{Authentication, AuthenticationMd5Password};
 pub(crate) use backend_key_data::BackendKeyData;
 pub(crate) use command_complete::CommandComplete;
+pub(crate) use parameter_description::ParameterDescription;
 pub(crate) use ready_for_query::{ReadyForQuery, TransactionStatus};
+pub(crate) use row_description::RowDescription;
 
 // https://www.postgresql.org/docs/current/protocol-message-formats.html
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[repr(u8)]
 pub(crate) enum MessageFormat {
     Authentication,

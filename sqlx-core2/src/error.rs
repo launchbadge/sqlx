@@ -48,6 +48,19 @@ pub enum Error {
     /// Error occurred while attempting to establish a TLS connection.
     #[error("error occurred while attempting to establish a TLS connection: {0}")]
     Tls(#[source] BoxStdError),
+
+    /// Error occurred while converting a Rust value to a SQL value for use as an argument.
+    #[error("error occurred while converting the argument at index {index} to SQL: {source}")]
+    ToArgument {
+        index: usize,
+
+        #[source]
+        source: BoxStdError,
+    },
+
+    /// Error occurred while converting a Rust value from a SQL value.
+    #[error("error occurred while converting a value from SQL: {0}")]
+    FromValue(#[source] BoxStdError),
 }
 
 #[doc(hidden)]

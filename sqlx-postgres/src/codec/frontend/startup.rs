@@ -11,7 +11,7 @@ pub(crate) struct Startup<'a>(pub(crate) &'a [(&'a str, Option<&'a str>)]);
 
 impl Encode<'_> for Startup<'_> {
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<(), Error> {
-        put_length_prefixed(buf, |buf| {
+        put_length_prefixed(buf, true, |buf| {
             // The protocol version number.
             //
             // The most significant 16 bits are the major version

@@ -4,6 +4,17 @@ use bytes::{Buf, Bytes};
 use sqlx_core::error::Error;
 
 impl PgConnection {
+    /// Wait for a specific message from the database server.
+    pub(crate) async fn recv_exact(&mut self, format: MessageFormat) -> Result<RawMessage, Error> {
+        loop {
+            let message = self.recv().await?;
+
+            if message.format == format {
+                return Ok(message);
+            }
+        }
+    }
+
     /// Wait for the next message from the database server.
     /// Handles standard and asynchronous messages.
     pub(crate) async fn recv(&mut self) -> Result<RawMessage, Error> {

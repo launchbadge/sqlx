@@ -2094,7 +2094,10 @@ name = "sqlx-core2"
 version = "0.4.0-beta.2"
 dependencies = [
  "bytes",
+ "fnv",
  "futures-core",
+ "lru-cache",
+ "smallvec",
  "sqlx-rt",
  "thiserror",
 ]
@@ -2161,8 +2164,10 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "itoa",
  "md-5",
  "memchr",
+ "smallvec",
  "sqlx-core2",
  "sqlx-rt",
  "url",

@@ -73,8 +73,6 @@ impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
     /// appear in the query (`?` for most SQL flavors, `$1 .. $N` for Postgres) then an error
     /// will be returned when this query is executed.
     ///
-    /// There is no validation that the value is of the type expected by the query. Most SQL
-    /// flavors will perform type coercion (Postgres will return a database error).
     pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);

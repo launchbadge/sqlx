@@ -29,7 +29,7 @@ impl Encode<'_> for Password<'_> {
         buf.reserve(1 + 4 + self.len());
         buf.push(b'p');
 
-        put_length_prefixed(buf, |buf| {
+        put_length_prefixed(buf, true, |buf| {
             match self {
                 Password::Cleartext(password) => {
                     put_str(buf, password);

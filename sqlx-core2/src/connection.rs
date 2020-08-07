@@ -1,6 +1,7 @@
 //! Provides the [`Connection`] trait to represent a single database connection.
 use crate::database::HasStatementCache;
 use crate::error::Error;
+use crate::execute::Execute;
 use crate::{database::Database, options::ConnectOptions};
 use futures_core::future::BoxFuture;
 
@@ -12,6 +13,16 @@ pub trait Connection: Send {
     type Database: Database;
 
     type Options: ConnectOptions<Connection = Self>;
+
+    /// Execute the SQL query.
+    ///
+    /// Returns a value of [`Done`] which signals successful query completion and provides
+    /// the number of rows affected; plus, any additional database-specific information (such as
+    /// the last inserted ID).
+    fn execute<'x, 'c: 'x, 'q: 'x, E: 'x + Execute<'q, Self::Database>>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'x, Result<u64, Error>>;
 
     /// Explicitly close this database connection.
     ///

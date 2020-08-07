@@ -56,6 +56,7 @@
 //! [`Any`]: ../any/index.html
 //!
 
+use std::hash::Hash;
 // use crate::arguments::Arguments;
 // use crate::column::Column;
 use crate::connection::Connection;
@@ -63,7 +64,7 @@ use crate::connection::Connection;
 // use crate::row::Row;
 // use crate::statement::Statement;
 // use crate::transaction::TransactionManager;
-// use crate::type_info::TypeInfo;
+use crate::type_info::TypeInfo;
 // use crate::value::{Value, ValueRef};
 use std::fmt::Debug;
 
@@ -72,7 +73,7 @@ use std::fmt::Debug;
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database (e.g., MySQL, PostgreSQL).
 pub trait Database: 'static + Sized + Send + Debug
-// + for<'r> HasValueRef<'r, Database = Self>
++ for<'t> HasTypeId<'t, Database = Self>
 // + for<'q> HasArguments<'q, Database = Self>
 // + for<'q> HasStatement<'q, Database = Self>
 {
@@ -90,13 +91,28 @@ pub trait Database: 'static + Sized + Send + Debug
     //
     // /// The concrete `Column` implementation for this database.
     // type Column: Column<Database = Self>;
-    //
-    // /// The concrete `TypeInfo` implementation for this database.
-    // type TypeInfo: TypeInfo;
+
+    /// The concrete `TypeInfo` implementation for this database.
+    type TypeInfo: TypeInfo;
 
     // /// The concrete type used to hold an owned copy of the not-yet-decoded value that was
     // /// received from the database.
     // type Value: Value<Database = Self> + 'static;
+}
+
+/// Associate [`Database`] with a `TypeId` of a generic lifetime.
+///
+/// ---
+///
+/// The upcoming Rust feature, [Generic Associated Types], should obviate
+/// the need for this trait.
+///
+/// [`Database`]: trait.Database.html
+/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
+pub trait HasTypeId<'t> {
+    type Database: Database;
+
+    type TypeId: Eq + Debug + Hash + Copy;
 }
 
 // /// Associate [`Database`] with a [`ValueRef`](crate::value::ValueRef) of a generic lifetime.
