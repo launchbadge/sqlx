@@ -1,4 +1,6 @@
-use sqlx::sqlite::Sqlite;
+use sqlx::sqlite::{Sqlite, SqliteRow};
+use sqlx_core::row::Row;
+use sqlx_test::new;
 use sqlx_test::test_type;
 
 test_type!(null<Option<i32>>(Sqlite,
@@ -70,6 +72,21 @@ mod json_tests {
         Sqlite,
         "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
     ));
+
+    #[sqlx_macros::test]
+    async fn it_json_extracts() -> anyhow::Result<()> {
+        let mut conn = new::<Sqlite>().await?;
+
+        let value = sqlx::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+            .bind(42_i32)
+            .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(true, value);
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "chrono")]
