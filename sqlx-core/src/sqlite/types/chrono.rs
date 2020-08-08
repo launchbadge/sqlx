@@ -169,7 +169,7 @@ impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
 
 impl<'r> Decode<'r, Sqlite> for NaiveDate {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(NaiveDate::parse_from_str("%F", value.text()?)?)
+        Ok(NaiveDate::parse_from_str(value.text()?, "%F")?)
     }
 }
 
