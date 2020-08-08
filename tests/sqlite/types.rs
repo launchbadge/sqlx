@@ -32,6 +32,46 @@ test_type!(bytes<Vec<u8>>(Sqlite,
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
 
+#[cfg(feature = "json")]
+mod json_tests {
+    use super::*;
+    use serde_json::{json, Value as JsonValue};
+    use sqlx::types::Json;
+    use sqlx_test::test_type;
+
+    test_type!(json<JsonValue>(
+        Sqlite,
+        "'\"Hello, World\"'" == json!("Hello, World"),
+        "'\"😎\"'" == json!("😎"),
+        "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
+        "'[\"Hello\",\"World!\"]'" == json!(["Hello", "World!"])
+    ));
+
+    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+    struct Friend {
+        name: String,
+        age: u32,
+    }
+
+    test_type!(json_struct<Json<Friend>>(
+        Sqlite,
+        "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
+    ));
+
+    // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
+    //       need to wrap the Vec in Json<_> to make the example work.
+
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct Customer {
+        json_column: Json<Vec<i64>>,
+    }
+
+    test_type!(json_struct_json_column<Json<Customer>>(
+        Sqlite,
+        "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
+    ));
+}
+
 #[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
