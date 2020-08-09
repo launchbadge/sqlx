@@ -25,12 +25,12 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
         let mut statement = statement?;
 
         // we start by finding the first statement that *can* return results
-        while let Some((statement, ..)) = statement.prepare(&mut conn.handle)? {
-            num_params += statement.bind_parameter_count();
+        while let Some((stmt, ..)) = statement.prepare(&mut conn.handle)? {
+            num_params += stmt.bind_parameter_count();
 
             let mut stepped = false;
 
-            let num = statement.column_count();
+            let num = stmt.column_count();
             if num == 0 {
                 // no columns in this statement; skip
                 continue;
@@ -44,7 +44,7 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
             // to [column_decltype]
 
             // if explain.. fails, ignore the failure and we'll have no fallback
-            let (fallback, fallback_nullable) = match explain(conn, statement.sql()).await {
+            let (fallback, fallback_nullable) = match explain(conn, stmt.sql()).await {
                 Ok(v) => v,
                 Err(err) => {
                     log::debug!("describe: explain introspection failed: {}", err);
@@ -54,24 +54,20 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
             };
 
             for col in 0..num {
-                let name = statement.column_name(col).to_owned();
+                let name = stmt.column_name(col).to_owned();
 
-                let type_info = if let Some(ty) = statement.column_decltype(col) {
+                let type_info = if let Some(ty) = stmt.column_decltype(col) {
                     ty
                 } else {
                     // if that fails, we back up and attempt to step the statement
                     // once *if* its read-only and then use [column_type] as a
                     // fallback to [column_decltype]
-                    if !stepped && statement.read_only() {
+                    if !stepped && stmt.read_only() {
                         stepped = true;
-
-                        conn.worker.execute(statement);
-                        conn.worker.wake();
-
-                        let _ = conn.worker.step(statement).await;
+                        let _ = conn.worker.step(*stmt).await;
                     }
 
-                    let mut ty = statement.column_type_info(col);
+                    let mut ty = stmt.column_type_info(col);
 
                     if ty.0 == DataType::Null {
                         if let Some(fallback) = fallback.get(col).cloned() {
@@ -82,7 +78,7 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
                     ty
                 };
 
-                nullable.push(statement.column_nullable(col)?.or_else(|| {
+                nullable.push(stmt.column_nullable(col)?.or_else(|| {
                     // if we do not *know* if this is nullable, check the EXPLAIN fallback
                     fallback_nullable.get(col).copied().and_then(identity)
                 }));

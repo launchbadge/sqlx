@@ -106,8 +106,5 @@ impl Drop for SqliteConnection {
         // we must explicitly drop the statements as the drop-order in a struct is undefined
         self.statements.clear();
         self.statement.take();
-
-        // we then explicitly close the worker
-        self.worker.close();
     }
 }
