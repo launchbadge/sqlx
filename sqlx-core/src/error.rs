@@ -92,6 +92,12 @@ pub enum Error {
     #[error("attempted to acquire a connection on a closed pool")]
     PoolClosed,
 
+    /// A background worker (e.g. [`StatementWorker`]) has crashed.
+    ///
+    /// [`StatementWorker`]: crate::sqlite::StatementWorker
+    #[error("attempted to communicate with a crashed background worker")]
+    WorkerCrashed,
+
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
