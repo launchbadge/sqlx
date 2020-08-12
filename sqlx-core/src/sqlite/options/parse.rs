@@ -2,10 +2,13 @@ use crate::error::Error;
 use crate::sqlite::SqliteConnectOptions;
 use percent_encoding::percent_decode_str;
 use std::borrow::Cow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 // https://www.sqlite.org/uri.html
+
+static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 impl FromStr for SqliteConnectOptions {
     type Err = Error;
@@ -24,6 +27,9 @@ impl FromStr for SqliteConnectOptions {
 
         if database == ":memory:" {
             options.in_memory = true;
+            options.shared_cache = true;
+            let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
+            options.filename = Cow::Owned(PathBuf::from(format!("file:sqlx-in-memory-{}", seqno)));
         } else {
             // % decode to allow for `?` or `#` in the filename
             options.filename = Cow::Owned(
@@ -58,6 +64,7 @@ impl FromStr for SqliteConnectOptions {
 
                             "memory" => {
                                 options.in_memory = true;
+                                options.shared_cache = true;
                             }
 
                             _ => {
@@ -67,6 +74,25 @@ impl FromStr for SqliteConnectOptions {
                             }
                         }
                     }
+
+                    // The cache query parameter specifies the cache behaviour across multiple
+                    // connections to the same database within the process. A shared cache is
+                    // essential for persisting data across connections to an in-memory database.
+                    "cache" => match &*value {
+                        "private" => {
+                            options.shared_cache = false;
+                        }
+
+                        "shared" => {
+                            options.shared_cache = true;
+                        }
+
+                        _ => {
+                            return Err(Error::Configuration(
+                                format!("unknown value {:?} for `cache`", value).into(),
+                            ));
+                        }
+                    },
 
                     _ => {
                         return Err(Error::Configuration(
@@ -89,12 +115,19 @@ impl FromStr for SqliteConnectOptions {
 fn test_parse_in_memory() -> Result<(), Error> {
     let options: SqliteConnectOptions = "sqlite::memory:".parse()?;
     assert!(options.in_memory);
+    assert!(options.shared_cache);
 
     let options: SqliteConnectOptions = "sqlite://?mode=memory".parse()?;
     assert!(options.in_memory);
+    assert!(options.shared_cache);
 
     let options: SqliteConnectOptions = "sqlite://:memory:".parse()?;
     assert!(options.in_memory);
+    assert!(options.shared_cache);
+
+    let options: SqliteConnectOptions = "sqlite://?mode=memory&cache=private".parse()?;
+    assert!(options.in_memory);
+    assert!(!options.shared_cache);
 
     Ok(())
 }
@@ -103,6 +136,15 @@ fn test_parse_in_memory() -> Result<(), Error> {
 fn test_parse_read_only() -> Result<(), Error> {
     let options: SqliteConnectOptions = "sqlite://a.db?mode=ro".parse()?;
     assert!(options.read_only);
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    Ok(())
+}
+
+#[test]
+fn test_parse_shared_in_memory() -> Result<(), Error> {
+    let options: SqliteConnectOptions = "sqlite://a.db?cache=shared".parse()?;
+    assert!(options.shared_cache);
     assert_eq!(&*options.filename.to_string_lossy(), "a.db");
 
     Ok(())

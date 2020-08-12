@@ -48,6 +48,7 @@ pub struct SqliteConnectOptions {
     pub(crate) create_if_missing: bool,
     pub(crate) journal_mode: SqliteJournalMode,
     pub(crate) foreign_keys: bool,
+    pub(crate) shared_cache: bool,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) busy_timeout: Duration,
 }
@@ -66,6 +67,7 @@ impl SqliteConnectOptions {
             read_only: false,
             create_if_missing: false,
             foreign_keys: true,
+            shared_cache: false,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
             busy_timeout: Duration::from_secs(5),
