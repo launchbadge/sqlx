@@ -9,6 +9,9 @@ use crate::types::Type;
 const COLLATE_UTF8_UNICODE_CI: u16 = 192;
 const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
 
+// The default collation of utf8mb4 in TiDB.
+const COLLATE_UTF8MB4_BIN: u16 = 46;
+
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo {
