@@ -442,7 +442,7 @@ macro_rules! query_file_unchecked (
 ///
 /// ```rust,ignore
 /// #[derive(sqlx::Type)]
-/// #[sqlx(transparent)
+/// #[sqlx(transparent)]
 /// struct MyInt4(i32);
 ///
 /// struct Record {
