@@ -1,7 +1,8 @@
 use crate::opt::{Command, DatabaseCommand, MigrateCommand};
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use dotenv::dotenv;
 use std::env;
+use std::path::Path;
 
 mod database;
 // mod migration;
@@ -13,6 +14,13 @@ mod prepare;
 pub use crate::opt::Opt;
 
 pub async fn run(opt: Opt) -> anyhow::Result<()> {
+    if !Path::new("Cargo.toml").exists() {
+        bail!(
+            r#"Failed to read `Cargo.toml`.
+hint: This command only works in the manifest directory of a Cargo package."#
+        );
+    }
+
     dotenv().ok();
 
     let database_url = match opt.database_url {
