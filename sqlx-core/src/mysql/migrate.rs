@@ -185,18 +185,15 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let _ = query(
                 r#"
     INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( ?, ?, ?, ?, ? )
+    VALUES ( ?, ?, TRUE, ?, ? )
                 "#,
             )
             .bind(migration.version)
             .bind(&*migration.description)
-            .bind(res.is_ok())
             .bind(&*migration.checksum)
             .bind(elapsed.as_nanos() as i64)
             .execute(self)
             .await?;
-
-            res?;
 
             Ok(elapsed)
         })
