@@ -4,6 +4,9 @@ use clap::Clap;
 pub struct Opt {
     #[clap(subcommand)]
     pub command: Command,
+
+    #[clap(short = "D", long)]
+    pub database_url: Option<String>,
 }
 
 #[derive(Clap, Debug)]
