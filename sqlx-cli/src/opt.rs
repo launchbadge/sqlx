@@ -70,7 +70,12 @@ pub enum MigrateCommand {
     Add { description: String },
 
     /// Run all pending migrations.
-    Run,
+    Run {
+        /// Don't run any migrations, but update the state as if we did. This is intended to
+        /// resolve situations where you've applied the migration elsewhere.
+        #[clap(long)]
+        fake: bool,
+    },
 
     /// List all available migrations.
     Info,

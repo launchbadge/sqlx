@@ -21,7 +21,7 @@ pub async fn run(opt: Opt) -> anyhow::Result<()> {
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add { description } => migrate::add(&description)?,
-            MigrateCommand::Run => migrate::run(&database_url).await?,
+            MigrateCommand::Run { fake } => migrate::run(&database_url, fake).await?,
             MigrateCommand::Info => migrate::info(&database_url).await?,
         },
 

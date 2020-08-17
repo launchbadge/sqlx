@@ -150,16 +150,17 @@ impl Migrate for AnyConnection {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        fake: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
-            AnyConnectionKind::Postgres(conn) => conn.apply(migration),
+            AnyConnectionKind::Postgres(conn) => conn.apply(migration, fake),
 
             #[cfg(feature = "sqlite")]
-            AnyConnectionKind::Sqlite(conn) => conn.apply(migration),
+            AnyConnectionKind::Sqlite(conn) => conn.apply(migration, fake),
 
             #[cfg(feature = "mysql")]
-            AnyConnectionKind::MySql(conn) => conn.apply(migration),
+            AnyConnectionKind::MySql(conn) => conn.apply(migration, fake),
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => unimplemented!(),

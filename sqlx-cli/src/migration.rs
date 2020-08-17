@@ -34,7 +34,7 @@ pub fn add_file(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn run() -> anyhow::Result<()> {
+pub async fn run(fake: bool) -> anyhow::Result<()> {
     let migrator = crate::migrator::get()?;
 
     if !migrator.can_migrate_database() {

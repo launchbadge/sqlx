@@ -122,12 +122,15 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        fake: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let _ = tx.execute(&*migration.sql).await?;
+            if !fake {
+                let _ = tx.execute(&*migration.sql).await?;
+            }
 
             tx.commit().await?;
 

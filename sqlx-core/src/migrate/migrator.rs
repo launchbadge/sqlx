@@ -43,7 +43,7 @@ impl Migrator {
 
     /// Run any pending migrations against the database; and, validate previously applied migrations
     /// against the current migration source to detect accidental changes in previously-applied migrations.
-    pub async fn run<'a, A>(&self, migrator: A) -> Result<(), MigrateError>
+    pub async fn run<'a, A>(&self, migrator: A, fake: bool) -> Result<(), MigrateError>
     where
         A: Acquire<'a>,
         <A::Connection as Deref>::Target: Migrate,
@@ -65,7 +65,7 @@ impl Migrator {
 
         for migration in self.iter() {
             if migration.version > version {
-                conn.apply(migration).await?;
+                conn.apply(migration, fake).await?;
             } else {
                 conn.validate(migration).await?;
             }

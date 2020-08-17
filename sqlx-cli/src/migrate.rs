@@ -57,7 +57,7 @@ pub async fn info(uri: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn run(uri: &str) -> anyhow::Result<()> {
+pub async fn run(uri: &str, fake: bool) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(MIGRATION_FOLDER)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
@@ -71,7 +71,7 @@ pub async fn run(uri: &str) -> anyhow::Result<()> {
 
     for migration in migrator.iter() {
         if migration.version > version {
-            let elapsed = conn.apply(migration).await?;
+            let elapsed = conn.apply(migration, fake).await?;
 
             println!(
                 "{}/{} {} {}",

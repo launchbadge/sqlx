@@ -49,5 +49,6 @@ pub trait Migrate {
     fn apply<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
+        fake: bool,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
 }
