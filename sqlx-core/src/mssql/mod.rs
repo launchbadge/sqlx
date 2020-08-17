@@ -29,7 +29,7 @@ pub use transaction::MssqlTransactionManager;
 pub use type_info::MssqlTypeInfo;
 pub use value::{MssqlValue, MssqlValueRef};
 
-/// An alias for [`Pool`][crate::pool::Pool], specialized for MySQL.
+/// An alias for [`Pool`][crate::pool::Pool], specialized for MSSQL.
 pub type MssqlPool = crate::pool::Pool<Mssql>;
 
 // NOTE: required due to the lack of lazy normalization
