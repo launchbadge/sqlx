@@ -17,7 +17,7 @@ $ cargo install --version=0.1.0-beta.1 sqlx-cli --no-default-features --features
 
 ### Usage
 
-All commands require `DATABASE_URL` to be set, either in the environment or in a `.env` file
+All commands require that a database url is provided. This can be done either with the `--database-url` command line option or by setting `DATABASE_URL`, either in the environment or in a `.env` file
 in the current working directory.
 
 `database` and `migrate` subcommands support only Postgres; MySQL and SQLite are TODO.
