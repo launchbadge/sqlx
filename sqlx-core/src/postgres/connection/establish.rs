@@ -22,23 +22,29 @@ impl PgConnection {
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
 
+        let mut params = vec![
+            // Sets the display format for date and time values,
+            // as well as the rules for interpreting ambiguous date input values.
+            ("DateStyle", "ISO, MDY"),
+            // Sets the client-side encoding (character set).
+            // <https://www.postgresql.org/docs/devel/multibyte.html#MULTIBYTE-CHARSET-SUPPORTED>
+            ("client_encoding", "UTF8"),
+            // Sets the time zone for displaying and interpreting time stamps.
+            ("TimeZone", "UTC"),
+            // Adjust postgres to return precise values for floats
+            // NOTE: This is default in postgres 12+
+            ("extra_float_digits", "3"),
+        ];
+
+        if let Some(ref application_name) = options.application_name {
+            params.push(("application_name", application_name));
+        }
+
         stream
             .send(Startup {
                 username: Some(&options.username),
                 database: options.database.as_deref(),
-                params: &[
-                    // Sets the display format for date and time values,
-                    // as well as the rules for interpreting ambiguous date input values.
-                    ("DateStyle", "ISO, MDY"),
-                    // Sets the client-side encoding (character set).
-                    // <https://www.postgresql.org/docs/devel/multibyte.html#MULTIBYTE-CHARSET-SUPPORTED>
-                    ("client_encoding", "UTF8"),
-                    // Sets the time zone for displaying and interpreting time stamps.
-                    ("TimeZone", "UTC"),
-                    // Adjust postgres to return precise values for floats
-                    // NOTE: This is default in postgres 12+
-                    ("extra_float_digits", "3"),
-                ],
+                params: &params,
             })
             .await?;
 
