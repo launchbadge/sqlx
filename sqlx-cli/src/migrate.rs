@@ -8,11 +8,12 @@ use std::path::Path;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
-pub fn add(description: &str) -> anyhow::Result<()> {
+pub fn add(source_path: &Option<String>, description: &str) -> anyhow::Result<()> {
     use chrono::prelude::*;
     use std::path::PathBuf;
+    let migration_folder = migration_path(source_path);
 
-    fs::create_dir_all(MIGRATION_FOLDER).context("Unable to create migrations directory")?;
+    fs::create_dir_all(migration_folder).context("Unable to create migrations directory")?;
 
     let dt = Utc::now();
     let mut file_name = dt.format("%Y%m%d%H%M%S").to_string();
@@ -21,7 +22,7 @@ pub fn add(description: &str) -> anyhow::Result<()> {
     file_name.push_str(".sql");
 
     let mut path = PathBuf::new();
-    path.push(MIGRATION_FOLDER);
+    path.push(migration_folder);
     path.push(&file_name);
 
     println!("Creating {}", style(path.display()).cyan());
@@ -33,8 +34,9 @@ pub fn add(description: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn info(uri: &str) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(MIGRATION_FOLDER)).await?;
+pub async fn info(source_path: &Option<String>, uri: &str) -> anyhow::Result<()> {
+    let migration_folder = migration_path(source_path);
+    let migrator = Migrator::new(Path::new(migration_folder)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
     conn.ensure_migrations_table().await?;
@@ -57,8 +59,9 @@ pub async fn info(uri: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn run(uri: &str) -> anyhow::Result<()> {
-    let migrator = Migrator::new(Path::new(MIGRATION_FOLDER)).await?;
+pub async fn run(source_path: &Option<String>, uri: &str) -> anyhow::Result<()> {
+    let migration_folder = migration_path(source_path);
+    let migrator = Migrator::new(Path::new(migration_folder)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
     conn.ensure_migrations_table().await?;
@@ -86,4 +89,8 @@ pub async fn run(uri: &str) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn migration_path<'a>(source_path: &'a Option<String>) -> &'a str {
+    source_path.as_deref().unwrap_or(MIGRATION_FOLDER)
 }
