@@ -71,6 +71,10 @@ pub enum DatabaseCommand {
 /// Group of commands for creating and running migrations.
 #[derive(Clap, Debug)]
 pub struct MigrateOpt {
+    /// Path to folder containing migrations. Defaults to 'migrations'
+    #[clap(long)]
+    pub source: Option<String>,
+
     #[clap(subcommand)]
     pub command: MigrateCommand,
 }
