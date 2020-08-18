@@ -72,8 +72,8 @@ pub enum DatabaseCommand {
 #[derive(Clap, Debug)]
 pub struct MigrateOpt {
     /// Path to folder containing migrations. Defaults to 'migrations'
-    #[clap(long)]
-    pub source: Option<String>,
+    #[clap(long, default_value = "migrations")]
+    pub source: String,
 
     #[clap(subcommand)]
     pub command: MigrateCommand,
