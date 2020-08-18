@@ -56,6 +56,10 @@ impl FromStr for PgConnectOptions {
                     }
                 }
 
+                "application_name" => {
+                    options = options.application_name(&*value);
+                }
+
                 _ => {}
             }
         }
@@ -79,4 +83,12 @@ fn it_parses_host_correctly_from_parameter() {
 
     assert_eq!(None, opts.socket);
     assert_eq!("google.database.com", &opts.host);
+}
+
+#[test]
+fn it_parses_application_name_correctly_from_parameter() {
+    let uri = "postgres:///?application_name=some_name";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(Some("some_name"), opts.application_name.as_deref());
 }

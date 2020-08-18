@@ -77,6 +77,7 @@ pub struct PgConnectOptions {
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<PathBuf>,
     pub(crate) statement_cache_capacity: usize,
+    pub(crate) application_name: Option<String>,
 }
 
 impl Default for PgConnectOptions {
@@ -98,6 +99,7 @@ impl PgConnectOptions {
     ///  * `PGDATABASE`
     ///  * `PGSSLROOTCERT`
     ///  * `PGSSLMODE`
+    ///  * `PGAPPNAME`
     ///
     /// # Example
     ///
@@ -126,6 +128,7 @@ impl PgConnectOptions {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
+            application_name: var("PGAPPNAME").ok(),
         }
     }
 
@@ -267,6 +270,20 @@ impl PgConnectOptions {
     /// The default cache capacity is 100 statements.
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Sets the application name. Defaults to None
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .application_name("my-app");
+    /// ```
+    pub fn application_name(mut self, application_name: &str) -> Self {
+        self.application_name = Some(application_name.to_owned());
         self
     }
 
