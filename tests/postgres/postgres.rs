@@ -655,6 +655,26 @@ async fn it_closes_statement_from_cache_issue_470() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_sets_application_name() -> anyhow::Result<()> {
+    sqlx_test::setup_if_needed();
+
+    let mut options: PgConnectOptions = env::var("DATABASE_URL")?.parse().unwrap();
+    options = options.application_name("some-name");
+
+    let mut conn = PgConnection::connect_with(&options).await?;
+
+    let row = sqlx::query("select current_setting('application_name') as app_name")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let val: String = row.get("app_name");
+
+    assert_eq!("some-name", &val);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_can_handle_parameter_status_message_issue_484() -> anyhow::Result<()> {
     new::<Postgres>().await?.execute("SET NAMES 'UTF8'").await?;
     Ok(())
