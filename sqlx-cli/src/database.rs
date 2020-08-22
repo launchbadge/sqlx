@@ -40,5 +40,5 @@ pub async fn reset(migration_source: &str, uri: &str, confirm: bool) -> anyhow::
 
 pub async fn setup(migration_source: &str, uri: &str) -> anyhow::Result<()> {
     create(uri).await?;
-    migrate::run(migration_source, uri).await
+    migrate::run(migration_source, uri, false).await
 }

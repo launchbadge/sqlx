@@ -201,6 +201,27 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+
+    fn revert<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let start = Instant::now();
+
+            self.execute(&*migration.sql).await?;
+
+            let elapsed = start.elapsed();
+
+            // language=SQL
+            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?"#)
+                .bind(migration.version)
+                .execute(self)
+                .await?;
+
+            Ok(elapsed)
+        })
+    }
 }
 
 async fn current_database(conn: &mut MySqlConnection) -> Result<String, MigrateError> {

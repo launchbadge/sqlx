@@ -1,5 +1,5 @@
 use crate::error::BoxDynError;
-use crate::migrate::Migration;
+use crate::migrate::{Migration, MigrationType};
 use futures_core::future::BoxFuture;
 use futures_util::TryStreamExt;
 use sqlx_rt::fs;
@@ -35,9 +35,10 @@ impl<'s> MigrationSource<'s> for &'s Path {
 
                 let version: i64 = parts[0].parse()?;
 
+                let migration_type = MigrationType::from_filename(parts[1]);
                 // remove the `.sql` and replace `_` with ` `
                 let description = parts[1]
-                    .trim_end_matches(".sql")
+                    .trim_end_matches(migration_type.suffix())
                     .replace('_', " ")
                     .to_owned();
 
@@ -46,6 +47,7 @@ impl<'s> MigrationSource<'s> for &'s Path {
                 migrations.push(Migration::new(
                     version,
                     Cow::Owned(description),
+                    migration_type,
                     Cow::Owned(sql),
                 ));
             }

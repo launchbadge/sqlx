@@ -171,4 +171,23 @@ impl Migrate for AnyConnection {
             }
         }
     }
+
+    fn revert<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        match &mut self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.revert(migration),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.revert(migration),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.revert(migration),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+        }
+    }
 }
