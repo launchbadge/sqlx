@@ -211,6 +211,30 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             Ok(elapsed)
         })
     }
+
+    fn revert<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
+        Box::pin(async move {
+            let mut tx = self.begin().await?;
+            let start = Instant::now();
+
+            let _ = tx.execute(&*migration.sql).await?;
+
+            tx.commit().await?;
+
+            let elapsed = start.elapsed();
+
+            // language=SQL
+            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
+                .bind(migration.version)
+                .execute(self)
+                .await?;
+
+            Ok(elapsed)
+        })
+    }
 }
 
 async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateError> {
