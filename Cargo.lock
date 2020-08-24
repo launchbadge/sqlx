@@ -1027,6 +1027,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "json"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "dotenv",
+ "futures",
+ "paw",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "structopt",
+]
+
+[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

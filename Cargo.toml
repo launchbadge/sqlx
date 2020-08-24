@@ -8,6 +8,7 @@ members = [
     "sqlx-cli",
     "sqlx-bench",
     "examples/mysql/todos",
+    "examples/postgres/json",
     "examples/postgres/listen",
     "examples/postgres/todos",
     "examples/sqlite/todos",
