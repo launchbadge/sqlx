@@ -157,7 +157,7 @@ pub async fn revert(migration_source: &str, uri: &str, dry_run: bool) -> anyhow:
     for migration in migrator.iter().rev() {
         if !migration.migration_type.is_down_migration() {
             // Skipping non down migration
-            // This will skip any standard or up migration file
+            // This will skip any simple or up migration file
             continue;
         }
         if migration.version > version {
