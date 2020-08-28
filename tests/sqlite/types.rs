@@ -106,3 +106,19 @@ mod chrono {
         "datetime('2016-11-08T03:50:23-05:00')" == FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23)
     ));
 }
+
+#[cfg(feature = "uuid")]
+test_type!(uuid<sqlx::types::Uuid>(Sqlite,
+    "x'b731678f636f4135bc6f19440c13bd19'"
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+    "x'00000000000000000000000000000000'"
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+));
+
+#[cfg(feature = "uuid")]
+test_type!(uuid_hyphenated<sqlx::types::uuid::adapter::Hyphenated>(Sqlite,
+    "'b731678f-636f-4135-bc6f-19440c13bd19'"
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().to_hyphenated(),
+    "'00000000-0000-0000-0000-000000000000'"
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().to_hyphenated()
+));
