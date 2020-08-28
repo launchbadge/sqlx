@@ -134,3 +134,19 @@ mod git2 {
             == Oid::from_str("000102030405060708090a0b0c0d0e0f10111213")
     ));
 }
+
+#[cfg(feature = "uuid")]
+test_type!(uuid<sqlx::types::Uuid>(Sqlite,
+    "x'b731678f636f4135bc6f19440c13bd19'"
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+    "x'00000000000000000000000000000000'"
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+));
+
+#[cfg(feature = "uuid")]
+test_type!(uuid_hyphenated<sqlx::types::uuid::adapter::Hyphenated>(Sqlite,
+    "'b731678f-636f-4135-bc6f-19440c13bd19'"
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().to_hyphenated(),
+    "'00000000-0000-0000-0000-000000000000'"
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().to_hyphenated()
+));
