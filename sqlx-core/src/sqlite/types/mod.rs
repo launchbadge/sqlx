@@ -42,10 +42,10 @@ mod bool;
 mod bytes;
 #[cfg(feature = "chrono")]
 mod chrono;
-#[cfg(feature = "uuid")]
-mod uuid;
 mod float;
 mod int;
 #[cfg(feature = "json")]
 mod json;
 mod str;
+#[cfg(feature = "uuid")]
+mod uuid;
