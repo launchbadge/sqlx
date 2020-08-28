@@ -23,6 +23,15 @@
 //! | `chrono::DateTime<Utc>`               | DATETIME                                             |
 //! | `chrono::DateTime<Local>`             | DATETIME                                             |
 //!
+//! ### [`uuid`](https://crates.io/crates/uuid)
+//!
+//! Requires the `uuid` Cargo feature flag.
+//!
+//! | Rust type                             | Sqlite type(s)                                       |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `uuid::Uuid`                          | BLOB, TEXT                                           |
+//! | `uuid::adapter::Hyphenated`           | TEXT                                                 |
+//!
 //! # Nullable
 //!
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
@@ -33,6 +42,8 @@ mod bool;
 mod bytes;
 #[cfg(feature = "chrono")]
 mod chrono;
+#[cfg(feature = "uuid")]
+mod uuid;
 mod float;
 mod int;
 #[cfg(feature = "json")]
