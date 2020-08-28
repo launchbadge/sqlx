@@ -42,8 +42,8 @@ mod bool;
 mod bytes;
 #[cfg(feature = "chrono")]
 mod chrono;
-#[cfg(feature = "uuid")]
-mod uuid;
 mod float;
 mod int;
 mod str;
+#[cfg(feature = "uuid")]
+mod uuid;
