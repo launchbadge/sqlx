@@ -6,6 +6,7 @@ use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
 
+const COLLATE_UTF8_GENERAL_CI: u16 = 33;
 const COLLATE_UTF8_UNICODE_CI: u16 = 192;
 const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
 
@@ -31,8 +32,12 @@ impl Type<MySql> for str {
                 | ColumnType::String
                 | ColumnType::VarString
                 | ColumnType::Enum
-        ) && (ty.char_set == COLLATE_UTF8MB4_UNICODE_CI as u16
-            || ty.char_set == COLLATE_UTF8_UNICODE_CI as u16)
+        ) && matches!(
+            ty.char_set,
+            COLLATE_UTF8MB4_UNICODE_CI
+                | COLLATE_UTF8_UNICODE_CI
+                | COLLATE_UTF8_GENERAL_CI
+        )
     }
 }
 
