@@ -34,9 +34,7 @@ impl Type<MySql> for str {
                 | ColumnType::Enum
         ) && matches!(
             ty.char_set,
-            COLLATE_UTF8MB4_UNICODE_CI
-                | COLLATE_UTF8_UNICODE_CI
-                | COLLATE_UTF8_GENERAL_CI
+            COLLATE_UTF8MB4_UNICODE_CI | COLLATE_UTF8_UNICODE_CI | COLLATE_UTF8_GENERAL_CI
         )
     }
 }
