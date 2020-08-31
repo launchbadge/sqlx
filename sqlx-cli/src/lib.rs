@@ -39,6 +39,11 @@ hint: This command only works in the manifest directory of a Cargo package."#
         Command::Database(database) => match database.command {
             DatabaseCommand::Create => database::create(&database_url).await?,
             DatabaseCommand::Drop { yes } => database::drop(&database_url, !yes).await?,
+            DatabaseCommand::Reset { yes } => {
+                database::drop(&database_url, yes).await?;
+                database::create(&database_url).await?;
+                migrate::run(&database_url).await?;
+            }
         },
 
         Command::Prepare { check: false, args } => prepare::run(&database_url, args)?,

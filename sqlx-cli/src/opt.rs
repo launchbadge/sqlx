@@ -57,6 +57,13 @@ pub enum DatabaseCommand {
         #[clap(short)]
         yes: bool,
     },
+    /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
+    Reset {
+        /// Automatic confirmation. Without this option, you will be prompted before dropping
+        /// your database.
+        #[clap(short)]
+        yes: bool,
+    },
 }
 
 /// Group of commands for creating and running migrations.
