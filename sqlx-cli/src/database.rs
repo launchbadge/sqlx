@@ -1,3 +1,4 @@
+use crate::migrate;
 use console::style;
 use dialoguer::Confirm;
 use sqlx::any::Any;
@@ -29,4 +30,14 @@ pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn reset(uri: &str, confirm: bool) -> anyhow::Result<()> {
+    drop(uri, confirm).await?;
+    setup(uri).await
+}
+
+pub async fn setup(uri: &str) -> anyhow::Result<()> {
+    create(uri).await?;
+    migrate::run(uri).await
 }
