@@ -64,6 +64,8 @@ pub enum DatabaseCommand {
         #[clap(short)]
         yes: bool,
     },
+    /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
+    Setup,
 }
 
 /// Group of commands for creating and running migrations.
