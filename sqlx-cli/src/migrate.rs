@@ -8,7 +8,7 @@ use std::path::Path;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
-pub fn add(description: &str) -> anyhow::Result<()> {
+pub fn add(description: &str, non_revertable: bool) -> anyhow::Result<()> {
     use chrono::prelude::*;
     use std::path::PathBuf;
 

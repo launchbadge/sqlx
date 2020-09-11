@@ -79,7 +79,13 @@ pub struct MigrateOpt {
 pub enum MigrateCommand {
     /// Create a new migration with the given description,
     /// and the current time as the version.
-    Add { description: String },
+    Add {
+        description: String,
+        /// Creates a migration that can't be reverted
+        /// (doesn't create up / down files)
+        #[clap(short, long)]
+        not_revertable: bool,
+    },
 
     /// Run all pending migrations.
     Run,
