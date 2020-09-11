@@ -31,7 +31,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
 
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
-            MigrateCommand::Add { description, non_revertable } => migrate::add(&description, non_revertable)?,
+            MigrateCommand::Add { description, not_revertable } => migrate::add(&description, not_revertable)?,
             MigrateCommand::Run => migrate::run(&database_url).await?,
             MigrateCommand::Info => migrate::info(&database_url).await?,
         },

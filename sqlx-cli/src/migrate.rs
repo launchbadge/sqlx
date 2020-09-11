@@ -8,27 +8,37 @@ use std::path::Path;
 
 const MIGRATION_FOLDER: &'static str = "migrations";
 
-pub fn add(description: &str, non_revertable: bool) -> anyhow::Result<()> {
+pub fn add(description: &str, not_revertable: bool) -> anyhow::Result<()> {
     use chrono::prelude::*;
     use std::path::PathBuf;
 
     fs::create_dir_all(MIGRATION_FOLDER).context("Unable to create migrations directory")?;
 
-    let dt = Utc::now();
-    let mut file_name = dt.format("%Y%m%d%H%M%S").to_string();
-    file_name.push_str("_");
-    file_name.push_str(&description.replace(' ', "_"));
-    file_name.push_str(".sql");
+    let date_time = Utc::now().format("%Y%m%d%H%M%S").to_string();
+    let description = &description.replace(' ', "_");
+    let base_file_name = format!("{}_{}", date_time, description);
 
-    let mut path = PathBuf::new();
-    path.push(MIGRATION_FOLDER);
-    path.push(&file_name);
+    let file_names: Vec<String>;
 
-    println!("Creating {}", style(path.display()).cyan());
-
-    let mut file = File::create(&path).context("Failed to create migration file")?;
-
-    file.write_all(b"-- Add migration script here\n")?;
+    if not_revertable {
+        file_names = vec![format!("{}.sql", base_file_name)]
+    } else {
+        let up = format!("{}_up.sql", base_file_name);
+        let down = format!("{}_down.sql", base_file_name);
+        file_names = vec![up, down]
+    }
+    
+    for name in file_names {
+        let mut path = PathBuf::new();
+        path.push(MIGRATION_FOLDER);
+        path.push(&name);
+    
+        println!("Creating {}", style(path.display()).cyan());
+    
+        let mut file = File::create(&path).context("Failed to create migration file")?;
+    
+        file.write_all(b"-- Add migration script here\n")?;
+    }
 
     Ok(())
 }
