@@ -141,6 +141,16 @@ impl<DB: Database> Pool<DB> {
         self.0.close().await;
     }
 
+    /// Returns the current size of the pool.
+    pub fn size(&self) -> u32 {
+        self.0.size()
+    }
+
+    /// Returns the current number of idle connections in the pool.
+    pub fn num_idle(&self) -> usize {
+        self.0.num_idle()
+    }
+
     /// Returns `true` if [`.close()`][Pool::close] has been called on the pool, `false` otherwise.
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
