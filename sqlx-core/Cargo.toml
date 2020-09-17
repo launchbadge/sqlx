@@ -62,7 +62,7 @@ futures-util = { version = "0.3.5", features = [ "sink" ] }
 generic-array = { version = "0.14.2", default-features = false, optional = true }
 hashbrown = "0.9.0"
 hex = "0.4.2"
-hmac = { version = "0.8.0", default-features = false, optional = true }
+hmac = { version = "0.9.0", default-features = false, optional = true }
 itoa = "0.4.5"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 libc = "0.2.71"
