@@ -14,7 +14,11 @@ impl FromStr for PgConnectOptions {
         let mut options = Self::default();
 
         if let Some(host) = url.host_str() {
-            options = options.host(host);
+            let host_decoded = percent_decode_str(host);
+            options = match host_decoded.clone().next() {
+                Some(b'/') => options.socket(&*host_decoded.decode_utf8().map_err(Error::config)?),
+                _ => options.host(host),
+            }
         }
 
         if let Some(port) = url.port() {
@@ -173,4 +177,21 @@ fn it_parses_password_with_non_ascii_chars_correctly() {
     let opts = PgConnectOptions::from_str(uri).unwrap();
 
     assert_eq!(Some("p@ssw0rd".into()), opts.password);
+}
+
+#[test]
+fn it_parses_socket_correctly_percent_encoded() {
+    let uri = "postgres://%2Fvar%2Flib%2Fpostgres/database";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(Some("/var/lib/postgres/".into()), opts.socket);
+}
+#[test]
+fn it_parses_socket_correctly_with_username_percent_encoded() {
+    let uri = "postgres://some_user@%2Fvar%2Flib%2Fpostgres/database";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!("some_user", opts.username);
+    assert_eq!(Some("/var/lib/postgres/".into()), opts.socket);
+    assert_eq!(Some("database"), opts.database.as_deref());
 }
