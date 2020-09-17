@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::postgres::PgConnectOptions;
 use percent_encoding::percent_decode_str;
+use std::net::IpAddr;
 use std::str::FromStr;
 use url::Url;
 
@@ -65,13 +66,12 @@ impl FromStr for PgConnectOptions {
                     }
                 }
 
-                "application_name" => {
-                    options = options.application_name(&*value);
+                "hostaddr" => {
+                    value.parse::<IpAddr>().map_err(Error::config)?;
+                    options = options.host(&*value)
                 }
 
-                "port" => {
-                    options = options.port(value.parse().map_err(Error::config)?);
-                }
+                "port" => options = options.port(value.parse().map_err(Error::config)?),
 
                 "dbname" => options = options.database(&*value),
 
@@ -79,7 +79,9 @@ impl FromStr for PgConnectOptions {
 
                 "password" => options = options.password(&*value),
 
-                _ => {}
+                "application_name" => options = options.application_name(&*value),
+
+                _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }
 
@@ -102,6 +104,51 @@ fn it_parses_host_correctly_from_parameter() {
 
     assert_eq!(None, opts.socket);
     assert_eq!("google.database.com", &opts.host);
+}
+
+#[test]
+fn it_parses_hostaddr_correctly_from_parameter() {
+    let uri = "postgres:///?hostaddr=8.8.8.8";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!("8.8.8.8", &opts.host);
+}
+
+#[test]
+fn it_parses_port_correctly_from_parameter() {
+    let uri = "postgres:///?port=1234";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!(1234, opts.port);
+}
+
+#[test]
+fn it_parses_dbname_correctly_from_parameter() {
+    let uri = "postgres:///?dbname=some_db";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!(Some("some_db"), opts.database.as_deref());
+}
+
+#[test]
+fn it_parses_user_correctly_from_parameter() {
+    let uri = "postgres:///?user=some_user";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!("some_user", opts.username);
+}
+
+#[test]
+fn it_parses_password_correctly_from_parameter() {
+    let uri = "postgres:///?password=some_pass";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(None, opts.socket);
+    assert_eq!(Some("some_pass"), opts.password.as_deref());
 }
 
 #[test]

@@ -26,6 +26,7 @@ pub use ssl_mode::PgSslMode;
 /// | `sslrootcert` | `None` | Sets the name of a file containing a list of trusted SSL Certificate Authorities. |
 /// | `statement-cache-capacity` | `100` | The maximum number of prepared statements stored in the cache. Set to `0` to disable. |
 /// | `host` | `None` | Path to the directory containing a PostgreSQL unix domain socket, which will be used instead of TCP if set. |
+/// | `hostaddr` | `None` | Same as `host`, but only accepts IP addresses. |
 /// | `application-name` | `None` | The name will be displayed in the pg_stat_activity view and included in CSV log entries. |
 /// | `user` | result of `whoami` | PostgreSQL user name to connect as. |
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
