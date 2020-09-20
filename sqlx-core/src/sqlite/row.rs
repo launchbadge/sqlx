@@ -13,6 +13,7 @@ use crate::sqlite::statement::StatementHandle;
 use crate::sqlite::{Sqlite, SqliteColumn, SqliteValue, SqliteValueRef};
 
 /// Implementation of [`Row`] for SQLite.
+#[derive(Debug)]
 pub struct SqliteRow {
     // Raw handle of the SQLite statement
     // This is valid to access IFF the atomic [values] is null
