@@ -428,6 +428,44 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
 
 #[cfg(feature = "macros")]
 #[sqlx_macros::test]
+async fn test_from_row_tuple() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct Account(i32, String);
+
+    let account: Account = sqlx::query_as(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(account.0, 1);
+    assert_eq!(account.1, "Herp Derpinson");
+
+    // A _single_ lifetime may be used but only when using the lowest-level API currently (Query::fetch)
+
+    #[derive(sqlx::FromRow)]
+    struct RefAccount<'a>(i32, &'a str);
+
+    let mut cursor = sqlx::query(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch(&mut conn);
+
+    let row = cursor.try_next().await?.unwrap();
+    let account = RefAccount::from_row(&row)?;
+
+    assert_eq!(account.0, 1);
+    assert_eq!(account.1, "Herp Derpinson");
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
 async fn test_default() -> anyhow::Result<()> {
     #[derive(Debug, sqlx::FromRow)]
     struct HasDefault {
