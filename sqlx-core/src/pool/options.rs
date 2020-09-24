@@ -142,6 +142,26 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
+    /// Perform an action after connecting to the database.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
+    /// use sqlx_core::executor::Executor;
+    /// use sqlx_core::postgres::PgPoolOptions;
+    /// // PostgreSQL
+    /// let pool = PgPoolOptions::new()
+    ///     .after_connect(|conn| Box::pin(async move {
+    ///        conn.execute("SET application_name = 'your_app';").await?;
+    ///        conn.execute("SET search_path = 'my_schema';").await?;
+    ///
+    ///        Ok(())
+    ///     }))
+    ///     .connect("postgres:// …").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn after_connect<F>(mut self, callback: F) -> Self
     where
         for<'c> F:
