@@ -69,6 +69,16 @@ impl FromStr for PgConnectOptions {
                     options = options.application_name(&*value);
                 }
 
+                "port" => {
+                    options = options.port(value.parse().map_err(Error::config)?);
+                }
+
+                "dbname" => options = options.database(&*value),
+
+                "user" => options = options.username(&*value),
+
+                "password" => options = options.password(&*value),
+
                 _ => {}
             }
         }
