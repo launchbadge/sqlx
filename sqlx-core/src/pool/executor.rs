@@ -73,7 +73,15 @@ where
 #[allow(unused_macros)]
 macro_rules! impl_executor_for_pool_connection {
     ($DB:ident, $C:ident, $R:ident) => {
-        impl<'c> crate::executor::Executor<'c> for &'c mut crate::pool::PoolConnection<$DB> {
+        impl_executor_inner!($DB, $C, $R, |this| **this, &'c mut crate::pool::PoolConnection<$DB>);
+        impl_executor_inner!($DB, $C, $R, |this| *this, crate::pool::PoolConnection<$DB>);
+    }
+}
+
+macro_rules! impl_executor_inner {
+    // NOTE: $conn must be a closure because of macro hygiene
+    ($DB:ident, $C:ident, $R:ident, $conn: expr, $conn_ty: ty) => {
+        impl<'c> crate::executor::Executor<'c> for $conn_ty {
             type Database = $DB;
 
             #[inline]
@@ -91,7 +99,8 @@ macro_rules! impl_executor_for_pool_connection {
                 'c: 'e,
                 E: crate::executor::Execute<'q, $DB>,
             {
-                (**self).fetch_many(query)
+                let get_conn: fn($conn_ty) -> _ = $conn;
+                get_conn(self).fetch_many(query)
             }
 
             #[inline]
@@ -103,7 +112,8 @@ macro_rules! impl_executor_for_pool_connection {
                 'c: 'e,
                 E: crate::executor::Execute<'q, $DB>,
             {
-                (**self).fetch_optional(query)
+                let get_conn: fn($conn_ty) -> _ = $conn;
+                get_conn(self).fetch_optional(query)
             }
 
             #[inline]
@@ -118,7 +128,8 @@ macro_rules! impl_executor_for_pool_connection {
             where
                 'c: 'e,
             {
-                (**self).prepare_with(sql, parameters)
+                let get_conn: fn($conn_ty) -> _ = $conn;
+                get_conn(self).prepare_with(sql, parameters)
             }
 
             #[doc(hidden)]
@@ -133,8 +144,9 @@ macro_rules! impl_executor_for_pool_connection {
             where
                 'c: 'e,
             {
-                (**self).describe(sql)
+                let get_conn: fn($conn_ty) -> _ = $conn;
+                get_conn(self).describe(sql)
             }
         }
-    };
+    }
 }
