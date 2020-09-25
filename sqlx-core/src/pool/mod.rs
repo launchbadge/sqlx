@@ -145,6 +145,20 @@ impl<DB: Database> Pool<DB> {
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
     }
+
+    /// Returns the number of connections currently active. This includes idle connections.
+    pub fn size(&self) -> u32 {
+        self.0.size()
+    }
+
+    /// Returns the number of connections active and idle (not in use).
+    ///
+    /// This will block until the number of connections stops changing for at
+    /// least 2 atomic accesses in a row. If the number of idle connections is
+    /// changing rapidly, this may run indefinitely.
+    pub fn num_idle(&self) -> usize {
+        self.0.num_idle()
+    }
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
