@@ -356,13 +356,13 @@ where
 //
 // See https://github.com/rust-lang/rust/issues/62529
 
-pub trait TryMapRow<DB: Database> {
+pub trait TryMapRow<DB: Database>: Send {
     type Output: Unpin;
 
     fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error>;
 }
 
-pub trait MapRow<DB: Database> {
+pub trait MapRow<DB: Database>: Send {
     type Output: Unpin;
 
     fn map_row(&mut self, row: DB::Row) -> Self::Output;
@@ -449,7 +449,7 @@ macro_rules! impl_map_row {
     ($DB:ident, $R:ident) => {
         impl<O: Unpin, F> crate::query::MapRow<$DB> for F
         where
-            F: FnMut($R) -> O,
+            F: Send + FnMut($R) -> O,
         {
             type Output = O;
 
@@ -460,7 +460,7 @@ macro_rules! impl_map_row {
 
         impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
         where
-            F: FnMut($R) -> Result<O, crate::error::Error>,
+            F: Send + FnMut($R) -> Result<O, crate::error::Error>,
         {
             type Output = O;
 
