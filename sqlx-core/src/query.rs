@@ -114,7 +114,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>, A>
+    pub fn map<F, O>(self, f: F) -> Map<'q, DB, MapRowAdapter<F>, A>
     where
         F: MapRow<DB, Output = O>,
         O: Unpin,
@@ -371,7 +371,7 @@ pub trait MapRow<DB: Database> {
 // A private adapter that implements [MapRow] in terms of [TryMapRow]
 // Just ends up Ok wrapping it
 
-struct MapRowAdapter<F>(F);
+pub struct MapRowAdapter<F>(F);
 
 impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
 where
