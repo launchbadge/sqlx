@@ -89,7 +89,7 @@ dotenv = "0.15.0"
 trybuild = "1.0.24"
 sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
-paste = "0.1.16"
+paste = "1.0.1"
 serde = { version = "1.0.111", features = [ "derive" ] }
 serde_json = "1.0.53"
 url = "2.1.1"
