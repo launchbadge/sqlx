@@ -24,7 +24,13 @@ impl FromStr for MySqlConnectOptions {
         }
 
         if let Some(password) = url.password() {
-            options = options.password(password);
+            // Percent decode password in case it contains non-URL safe
+            // characters (issues #77, #603)
+            let password = percent_encoding::percent_decode_str(password)
+                .decode_utf8()
+                .map_err(|e| Error::Decode(e.into()))?;
+
+            options = options.password(&*password);
         }
 
         let path = url.path().trim_start_matches('/');
@@ -65,4 +71,11 @@ impl FromStr for MySqlConnectOptions {
 
         Ok(options)
     }
+}
+
+#[test]
+fn percent_decodes_password() {
+    let url_str = "mysql://root:aa@bb@localhost/db";
+    let options = MySqlConnectOptions::from_str(url_str).unwrap();
+    assert_eq!(options.password.as_deref(), Some("aa@bb"));
 }
