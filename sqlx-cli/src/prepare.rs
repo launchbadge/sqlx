@@ -1,6 +1,7 @@
 use anyhow::{bail, Context};
 use cargo_metadata::MetadataCommand;
 use console::style;
+use remove_dir_all::remove_dir_all;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -82,6 +83,15 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare``")?;
 
+    let metadata = MetadataCommand::new()
+        .cargo_path(&cargo)
+        .exec()
+        .context("failed to execute `cargo metadata`")?;
+
+    // try removing the target/sqlx directory before running, as stale files
+    // have repeatedly caused issues in the past.
+    let _ = remove_dir_all(metadata.target_directory.join("sqlx"));
+
     let check_status = Command::new(&cargo)
         .arg("rustc")
         .args(cargo_args)
@@ -99,11 +109,6 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     if !check_status.success() {
         bail!("`cargo check` failed with status: {}", check_status);
     }
-
-    let metadata = MetadataCommand::new()
-        .cargo_path(cargo)
-        .exec()
-        .context("failed to execute `cargo metadata`")?;
 
     let pattern = metadata.target_directory.join("sqlx/query-*.json");
 
