@@ -36,7 +36,9 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
     // if `dotenv` wasn't initialized by the above we make sure to do it here
     match (
-        dotenv::var("SQLX_OFFLINE").is_ok(),
+        dotenv::var("SQLX_OFFLINE")
+            .map(|s| s.to_lowercase() == "true")
+            .unwrap_or(false),
         dotenv::var("DATABASE_URL"),
     ) {
         (false, Ok(db_url)) => expand_from_db(input, &db_url),
