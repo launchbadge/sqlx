@@ -12,6 +12,9 @@ authors = [
     "Daniel Akhterov <akhterovd@gmail.com>",
 ]
 
+[package.metadata.docs.rs]
+features = ["all-databases", "all-types", "offline"]
+
 [features]
 default = [ "runtime-async-std", "migrate" ]
 migrate = [ "sha2", "crc" ]
