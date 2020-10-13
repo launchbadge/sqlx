@@ -16,7 +16,7 @@ compile_error!(
     "only one of 'runtime-actix', 'runtime-async-std' or 'runtime-tokio' features can be enabled"
 );
 
-pub use native_tls;
+pub use native_tls::{self, Error as TlsError};
 
 //
 // Actix *OR* Tokio
@@ -38,6 +38,9 @@ pub use tokio::{
 ))]
 pub use tokio::net::UnixStream;
 
+#[cfg(all(feature = "tokio-native-tls", not(feature = "async-native-tls")))]
+pub use tokio_native_tls::{TlsConnector, TlsStream};
+
 //
 // tokio
 //
@@ -52,12 +55,6 @@ macro_rules! blocking {
         $crate::tokio::task::block_in_place(move || { $($expr)* })
     };
 }
-
-#[cfg(all(feature = "tokio-native-tls", not(feature = "async-native-tls")))]
-pub use tokio_native_tls::{TlsConnector, TlsStream};
-
-#[cfg(all(feature = "tokio-native-tls", not(feature = "async-native-tls")))]
-pub use native_tls::Error as TlsError;
 
 //
 // actix
@@ -113,7 +110,7 @@ macro_rules! blocking {
 pub use async_std::os::unix::net::UnixStream;
 
 #[cfg(all(feature = "async-native-tls", not(feature = "tokio-native-tls")))]
-pub use async_native_tls::{Error as TlsError, TlsConnector, TlsStream};
+pub use async_native_tls::{TlsConnector, TlsStream};
 
 #[cfg(all(
     feature = "runtime-async-std",
