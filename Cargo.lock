@@ -42,9 +42,13 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.4.5"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0adac150c2dd5a9c864d054e07bda5e6bc010cd10036ea5f17e82a2f5867f735"
+checksum = "f166b31431056f04477a03e281aed5655a3fb751c67cd82f70761fe062896d37"
+dependencies = [
+ "getrandom 0.2.0",
+ "lazy_static",
+]
 
 [[package]]
 name = "aho-corasick"
@@ -855,6 +859,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "getrandom"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8025cf36f917e6a52cce185b7c7177689b838b7ec138364e50cc2277a56cf4"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -884,9 +899,6 @@ name = "hashbrown"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00d63df3d41950fb462ed38308eea019113ad1508da725bbedcd0fa5a85ef5f7"
-dependencies = [
- "ahash",
-]
 
 [[package]]
 name = "heck"
@@ -1561,7 +1573,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a6b1679d49b24bbfe0c803429aa1874472f50d9b363131f0e89fc356b544d03"
 dependencies = [
- "getrandom",
+ "getrandom 0.1.14",
  "libc",
  "rand_chacha",
  "rand_core",
@@ -1584,7 +1596,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90bde5296fc891b0cef12a6d03ddccc162ce7b2aff54160af9338f8d40df6d19"
 dependencies = [
- "getrandom",
+ "getrandom 0.1.14",
 ]
 
 [[package]]
@@ -2015,6 +2027,7 @@ dependencies = [
 name = "sqlx-core"
 version = "0.4.0-beta.1"
 dependencies = [
+ "ahash",
  "atoi",
  "base64 0.13.0",
  "bigdecimal",
@@ -2034,7 +2047,6 @@ dependencies = [
  "futures-core",
  "futures-util",
  "generic-array",
- "hashbrown",
  "hex",
  "hmac",
  "ipnetwork",

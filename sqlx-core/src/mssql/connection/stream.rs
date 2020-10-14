@@ -20,7 +20,7 @@ use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
 use crate::mssql::{MssqlColumn, MssqlConnectOptions, MssqlDatabaseError};
 use crate::net::MaybeTlsStream;
-use hashbrown::HashMap;
+use crate::HashMap;
 use std::sync::Arc;
 
 pub(crate) struct MssqlStream {

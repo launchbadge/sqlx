@@ -4,8 +4,8 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::postgres::{PgArguments, Postgres};
 use crate::statement::Statement;
+use crate::HashMap;
 use either::Either;
-use hashbrown::HashMap;
 use std::borrow::Cow;
 use std::sync::Arc;
 
