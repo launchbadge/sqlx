@@ -23,8 +23,8 @@ pub use native_tls::{self, Error as TlsError};
 //
 
 #[cfg(all(
-    not(feature = "runtime-async-std"),
     any(feature = "runtime-tokio", feature = "runtime-actix"),
+    not(feature = "runtime-async-std"),
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
@@ -33,8 +33,8 @@ pub use tokio::{
 
 #[cfg(all(
     unix,
-    not(feature = "runtime-async-std"),
     any(feature = "runtime-tokio", feature = "runtime-actix"),
+    not(feature = "runtime-async-std"),
 ))]
 pub use tokio::net::UnixStream;
 
@@ -152,7 +152,6 @@ mod tokio_runtime {
             .expect("failed to initialize Tokio runtime")
     });
 
-    #[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
     pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
         RUNTIME.enter(|| RUNTIME.handle().block_on(future))
     }
