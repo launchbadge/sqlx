@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::query_as::query_as;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteConnection, SqliteTypeInfo};
-use hashbrown::HashMap;
+use crate::HashMap;
 use std::str::from_utf8;
 
 // affinity
@@ -136,7 +136,8 @@ pub(super) async fn explain(
                 } else if let Some(v) = r.get(&p2).copied() {
                     // r[p3] = AGG ( r[p2] )
                     r.insert(p3, v);
-                    n.insert(p3, n.get(&p2).copied().unwrap_or(true));
+                    let val = n.get(&p2).copied().unwrap_or(true);
+                    n.insert(p3, val);
                 }
             }
 
@@ -151,7 +152,8 @@ pub(super) async fn explain(
                 // r[p2] = r[p1]
                 if let Some(v) = r.get(&p1).copied() {
                     r.insert(p2, v);
-                    n.insert(p2, n.get(&p1).copied().unwrap_or(true));
+                    let val = n.get(&p1).copied().unwrap_or(true);
+                    n.insert(p2, val);
                 }
             }
 
@@ -165,7 +167,8 @@ pub(super) async fn explain(
                 // r[p2] = NOT r[p1]
                 if let Some(a) = r.get(&p1).copied() {
                     r.insert(p2, a);
-                    n.insert(p2, n.get(&p1).copied().unwrap_or(true));
+                    let val = n.get(&p1).copied().unwrap_or(true);
+                    n.insert(p2, val);
                 }
             }
 

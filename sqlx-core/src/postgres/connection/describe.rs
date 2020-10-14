@@ -5,8 +5,8 @@ use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
 use crate::postgres::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use crate::query_as::query_as;
 use crate::query_scalar::{query_scalar, query_scalar_with};
+use crate::HashMap;
 use futures_core::future::BoxFuture;
-use hashbrown::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 

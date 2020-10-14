@@ -3,8 +3,8 @@ use crate::ext::ustr::UStr;
 use crate::sqlite::connection::ConnectionHandle;
 use crate::sqlite::statement::StatementHandle;
 use crate::sqlite::{SqliteColumn, SqliteError, SqliteRow, SqliteValue};
+use crate::HashMap;
 use bytes::{Buf, Bytes};
-use hashbrown::HashMap;
 use libsqlite3_sys::{
     sqlite3, sqlite3_clear_bindings, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset,
     sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,

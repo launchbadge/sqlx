@@ -16,12 +16,12 @@ use crate::mysql::{
     MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlTypeInfo,
     MySqlValueFormat,
 };
+use crate::HashMap;
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
-use hashbrown::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
 impl MySqlConnection {
