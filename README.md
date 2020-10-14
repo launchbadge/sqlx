@@ -140,6 +140,8 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 
  * `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
+ * `macros`: Add support for the `query*!` macros, which allow compile-time checked queries.
+
  * `uuid`: Add support for UUID (in Postgres).
 
  * `chrono`: Add support for date and time types from `chrono`.
