@@ -88,9 +88,8 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         Vec<sqlx::types::chrono::NaiveDateTime> | &[sqlx::types::chrono::NaiveDateTime],
 
-        // TODO
-        // #[cfg(feature = "chrono")]
-        // Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
+        #[cfg(feature = "chrono")]
+        Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
 
         #[cfg(feature = "time")]
         Vec<sqlx::types::time::Time> | &[sqlx::types::time::Time],
