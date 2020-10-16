@@ -9,7 +9,7 @@ use crate::types::Type;
 const COLLATE_UTF8_GENERAL_CI: u16 = 33;
 const COLLATE_UTF8_UNICODE_CI: u16 = 192;
 const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
-const COLLATE_UTF8MB4_BIN: u16 = 46
+const COLLATE_UTF8MB4_BIN: u16 = 46;
 
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
@@ -35,7 +35,10 @@ impl Type<MySql> for str {
                 | ColumnType::Enum
         ) && matches!(
             ty.char_set,
-            COLLATE_UTF8MB4_UNICODE_CI | COLLATE_UTF8_UNICODE_CI | COLLATE_UTF8_GENERAL_CI | COLLATE_UTF8MB4_BIN
+            COLLATE_UTF8MB4_UNICODE_CI
+                | COLLATE_UTF8_UNICODE_CI
+                | COLLATE_UTF8_GENERAL_CI
+                | COLLATE_UTF8MB4_BIN
         )
     }
 }
@@ -75,3 +78,4 @@ impl Decode<'_, MySql> for String {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }
+
