@@ -78,4 +78,3 @@ impl Decode<'_, MySql> for String {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
     }
 }
-
