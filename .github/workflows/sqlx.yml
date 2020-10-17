@@ -107,9 +107,10 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bin: target/debug/cargo-sqlx.exe
-          - os: macOS-latest
-            target: x86_64-apple-darwin
-            bin: target/debug/cargo-sqlx
+          # FIXME: macOS build fails because of missing pin-project-internal
+#          - os: macOS-latest
+#            target: x86_64-apple-darwin
+#            bin: target/debug/cargo-sqlx
 
     steps:
       - uses: actions/checkout@v2
