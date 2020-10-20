@@ -24,7 +24,7 @@ You must choose a runtime to execute the benchmarks on; the feature flags are th
 
 ```bash
 cargo bench --features runtime-tokio-native-tls
-cargo bench --features runtime-async-std-native-tls
+cargo bench --features runtime-async-std-rustls
 ```
 
 When complete, the benchmark results will be in `target/criterion/`. 

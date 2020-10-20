@@ -66,7 +66,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
--   **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)).
+*   **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)) and TLS backends ([native-tls](https://crates.io/crates/native-tls), [rustls](https://crates.io/crates/rustls)).
 
 <sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
@@ -109,12 +109,14 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes.
 [`tokio`]: https://github.com/tokio-rs/tokio
 [`actix`]: https://github.com/actix/actix-net
 
-By default, you get `async-std`. If you want a different runtime or TLS backend, just disable the default features and activate the corresponding feature, for example for tokio:
+You can also select between [`native-tls`] and [`rustls`] for the TLS backend.
+
+By default, you get `async-std` + `native-tls`. If you want a different runtime or TLS backend, just disable the default features and activate the corresponding feature, for example for tokio + rustls:
 
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio-native-tls", "macros" ] }
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio-rustls", "macros" ] }
 ```
 
 <sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
@@ -133,11 +135,17 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 
 -   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
 
+-   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
+
+-   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
+
+-   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend.
+
 -   `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
 
--   `postgres`: Add support for the Postgres database server.
+-   `runtime-actix-rustls`: Use the `actix` runtime and `rustls` TLS backend.
 
--   `mysql`: Add support for the MySQL (and MariaDB) database server.
+-   `postgres`: Add support for the Postgres database server.
 
 -   `mssql`: Add support for the MSSQL database server.
 

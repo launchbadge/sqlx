@@ -2,20 +2,26 @@
     feature = "runtime-actix-native-tls",
     feature = "runtime-async-std-native-tls",
     feature = "runtime-tokio-native-tls",
+    feature = "runtime-actix-rustls",
+    feature = "runtime-async-std-rustls",
+    feature = "runtime-tokio-rustls",
 )))]
 compile_error!(
     "one of the features ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
-     'runtime-tokio-native-tls'] must be enabled"
+     'runtime-tokio-native-tls', 'runtime-actix-rustls', 'runtime-async-std-rustls', \
+     'runtime-tokio-rustls'] must be enabled"
 );
 
 #[cfg(any(
     all(feature = "_rt-actix", feature = "_rt-async-std"),
     all(feature = "_rt-actix", feature = "_rt-tokio"),
     all(feature = "_rt-async-std", feature = "_rt-tokio"),
+    all(feature = "_tls-native-tls", feature = "_tls-rustls"),
 ))]
 compile_error!(
     "only one of ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
-     'runtime-tokio-native-tls'] can be enabled"
+     'runtime-tokio-native-tls', 'runtime-actix-rustls', 'runtime-async-std-rustls', \
+     'runtime-tokio-rustls'] can be enabled"
 );
 
 #[cfg(all(feature = "_tls-native-tls"))]
@@ -78,9 +84,16 @@ mod tokio_runtime {
 #[cfg(all(
     feature = "_tls-native-tls",
     any(feature = "_rt-tokio", feature = "_rt-actix"),
-    not(feature = "_rt-async-std"),
+    not(any(feature = "_tls-rustls", feature = "_rt-async-std")),
 ))]
 pub use tokio_native_tls::{TlsConnector, TlsStream};
+
+#[cfg(all(
+    feature = "_tls-rustls",
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(any(feature = "_tls-native-tls", feature = "_rt-async-std")),
+))]
+pub use tokio_rustls::{client::TlsStream, TlsConnector};
 
 //
 // tokio
@@ -170,3 +183,14 @@ where
 
 #[cfg(all(feature = "async-native-tls", not(feature = "tokio-native-tls")))]
 pub use async_native_tls::{TlsConnector, TlsStream};
+
+#[cfg(all(
+    feature = "_tls-rustls",
+    feature = "_rt-async-std",
+    not(any(
+        feature = "_tls-native-tls",
+        feature = "_rt-tokio",
+        feature = "_rt-actix"
+    )),
+))]
+pub use async_rustls::{client::TlsStream, TlsConnector};
