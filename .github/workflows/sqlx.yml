@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     steps:
       - uses: actions/checkout@v2
 
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -181,7 +181,7 @@ jobs:
     strategy:
       matrix:
         postgres: [12, 10, 9_6, 9_5]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -233,7 +233,7 @@ jobs:
     strategy:
       matrix:
         mysql: [8, 5_7, 5_6]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -276,7 +276,7 @@ jobs:
     strategy:
       matrix:
         mariadb: [10_5, 10_4, 10_3, 10_2, 10_1]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -320,7 +320,7 @@ jobs:
     strategy:
       matrix:
         mssql: [2019]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
