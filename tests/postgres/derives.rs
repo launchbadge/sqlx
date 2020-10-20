@@ -276,7 +276,7 @@ SELECT id, mood FROM people WHERE id = $1
 
     let rec: (bool, ColorKebabCase) = sqlx::query_as(
         "
-    SELECT $1 = 'red-green'::color-kebab-case, $1
+    SELECT $1 = 'red-green'::\"color-kebab-case\", $1
             ",
     )
     .bind(&ColorKebabCase::RedGreen)
