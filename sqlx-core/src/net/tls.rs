@@ -2,10 +2,15 @@
 
 use std::io;
 use std::ops::{Deref, DerefMut};
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use sqlx_rt::{AsyncRead, AsyncWrite, TlsConnector, TlsStream};
+use sqlx_rt::{
+    fs,
+    native_tls::{Certificate, TlsConnector},
+    AsyncRead, AsyncWrite, TlsStream,
+};
 
 use crate::error::Error;
 use std::mem::replace;
@@ -28,7 +33,33 @@ where
         matches!(self, Self::Tls(_))
     }
 
-    pub async fn upgrade(&mut self, host: &str, connector: TlsConnector) -> Result<(), Error> {
+    pub async fn upgrade(
+        &mut self,
+        host: &str,
+        accept_invalid_certs: bool,
+        accept_invalid_hostnames: bool,
+        root_cert_path: Option<&Path>,
+    ) -> Result<(), Error> {
+        let mut builder = TlsConnector::builder();
+        builder
+            .danger_accept_invalid_certs(accept_invalid_certs)
+            .danger_accept_invalid_hostnames(accept_invalid_hostnames);
+
+        if !accept_invalid_certs {
+            if let Some(ca) = root_cert_path {
+                let data = fs::read(ca).await?;
+                let cert = Certificate::from_pem(&data).map_err(Error::tls)?;
+
+                builder.add_root_certificate(cert);
+            }
+        }
+
+        #[cfg(not(feature = "_rt-async-std"))]
+        let connector = builder.build().map_err(Error::tls)?;
+
+        #[cfg(feature = "_rt-async-std")]
+        let connector = builder;
+
         let stream = match replace(self, MaybeTlsStream::Upgrading) {
             MaybeTlsStream::Raw(stream) => stream,
 
@@ -45,7 +76,7 @@ where
         };
 
         *self = MaybeTlsStream::Tls(
-            connector
+            sqlx_rt::TlsConnector::from(connector)
                 .connect(host, stream)
                 .await
                 .map_err(|err| Error::Tls(err.into()))?,
