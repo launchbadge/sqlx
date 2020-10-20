@@ -24,6 +24,10 @@ runtime-actix-native-tls = [ "sqlx-core/runtime-actix-native-tls", "sqlx-rt/runt
 runtime-async-std-native-tls = [ "sqlx-core/runtime-async-std-native-tls", "sqlx-rt/runtime-async-std-native-tls", "_rt-async-std" ]
 runtime-tokio-native-tls = [ "sqlx-core/runtime-tokio-native-tls", "sqlx-rt/runtime-tokio-native-tls", "_rt-tokio" ]
 
+runtime-actix-rustls = [ "sqlx-core/runtime-actix-rustls", "sqlx-rt/runtime-actix-rustls", "_rt-actix" ]
+runtime-async-std-rustls = [ "sqlx-core/runtime-async-std-rustls", "sqlx-rt/runtime-async-std-rustls", "_rt-async-std" ]
+runtime-tokio-rustls = [ "sqlx-core/runtime-tokio-rustls", "sqlx-rt/runtime-tokio-rustls", "_rt-tokio" ]
+
 # for conditional compilation
 _rt-actix = []
 _rt-async-std = []

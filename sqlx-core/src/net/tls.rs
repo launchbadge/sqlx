@@ -6,11 +6,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use sqlx_rt::{
-    fs,
-    native_tls::{Certificate, TlsConnector},
-    AsyncRead, AsyncWrite, TlsStream,
-};
+use sqlx_rt::{fs, AsyncRead, AsyncWrite, TlsStream};
 
 use crate::error::Error;
 use std::mem::replace;
@@ -40,25 +36,12 @@ where
         accept_invalid_hostnames: bool,
         root_cert_path: Option<&Path>,
     ) -> Result<(), Error> {
-        let mut builder = TlsConnector::builder();
-        builder
-            .danger_accept_invalid_certs(accept_invalid_certs)
-            .danger_accept_invalid_hostnames(accept_invalid_hostnames);
-
-        if !accept_invalid_certs {
-            if let Some(ca) = root_cert_path {
-                let data = fs::read(ca).await?;
-                let cert = Certificate::from_pem(&data)?;
-
-                builder.add_root_certificate(cert);
-            }
-        }
-
-        #[cfg(not(feature = "_rt-async-std"))]
-        let connector = sqlx_rt::TlsConnector::from(builder.build()?);
-
-        #[cfg(feature = "_rt-async-std")]
-        let connector = sqlx_rt::TlsConnector::from(builder);
+        let connector = configure_tls_connector(
+            accept_invalid_certs,
+            accept_invalid_hostnames,
+            root_cert_path,
+        )
+        .await?;
 
         let stream = match replace(self, MaybeTlsStream::Upgrading) {
             MaybeTlsStream::Raw(stream) => stream,
@@ -75,10 +58,69 @@ where
             }
         };
 
+        #[cfg(feature = "_tls-rustls")]
+        let host = webpki::DNSNameRef::try_from_ascii_str(host)?;
+
         *self = MaybeTlsStream::Tls(connector.connect(host, stream).await?);
 
         Ok(())
     }
+}
+
+#[cfg(feature = "_tls-native-tls")]
+async fn configure_tls_connector(
+    accept_invalid_certs: bool,
+    accept_invalid_hostnames: bool,
+    root_cert_path: Option<&Path>,
+) -> Result<sqlx_rt::TlsConnector, Error> {
+    use sqlx_rt::native_tls::{Certificate, TlsConnector};
+
+    let mut builder = TlsConnector::builder();
+    builder
+        .danger_accept_invalid_certs(accept_invalid_certs)
+        .danger_accept_invalid_hostnames(accept_invalid_hostnames);
+
+    if !accept_invalid_certs {
+        if let Some(ca) = root_cert_path {
+            let data = fs::read(ca).await?;
+            let cert = Certificate::from_pem(&data)?;
+
+            builder.add_root_certificate(cert);
+        }
+    }
+
+    #[cfg(not(feature = "_rt-async-std"))]
+    let connector = builder.build()?.into();
+
+    #[cfg(feature = "_rt-async-std")]
+    let connector = builder.into();
+
+    Ok(connector)
+}
+
+#[cfg(feature = "_tls-rustls")]
+async fn configure_tls_connector(
+    _accept_invalid_certs: bool,
+    _accept_invalid_hostnames: bool,
+    root_cert_path: Option<&Path>,
+) -> Result<sqlx_rt::TlsConnector, Error> {
+    // FIXME: Support accept_invalid_certs / accept_invalid_hostnames
+
+    use rustls::ClientConfig;
+    use std::io::Cursor;
+    use std::sync::Arc;
+
+    let mut config = ClientConfig::new();
+
+    if let Some(ca) = root_cert_path {
+        let data = fs::read(ca).await?;
+        let mut cursor = Cursor::new(data);
+        config.root_store.add_pem_file(&mut cursor).map_err(|_| {
+            Error::Tls(format!("Invalid certificate file: {}", ca.display()).into())
+        })?;
+    }
+
+    Ok(Arc::new(config).into())
 }
 
 impl<S> AsyncRead for MaybeTlsStream<S>
@@ -192,11 +234,14 @@ where
         match self {
             MaybeTlsStream::Raw(s) => s,
 
-            #[cfg(not(feature = "_rt-async-std"))]
-            MaybeTlsStream::Tls(s) => s.get_ref().get_ref().get_ref(),
+            #[cfg(feature = "_tls-rustls")]
+            MaybeTlsStream::Tls(s) => s.get_ref().0,
 
-            #[cfg(feature = "_rt-async-std")]
+            #[cfg(all(feature = "_rt-async-std", feature = "_tls-native-tls"))]
             MaybeTlsStream::Tls(s) => s.get_ref(),
+
+            #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
+            MaybeTlsStream::Tls(s) => s.get_ref().get_ref().get_ref(),
 
             MaybeTlsStream::Upgrading => panic!(io::Error::from(io::ErrorKind::ConnectionAborted)),
         }
@@ -211,11 +256,14 @@ where
         match self {
             MaybeTlsStream::Raw(s) => s,
 
-            #[cfg(not(feature = "_rt-async-std"))]
-            MaybeTlsStream::Tls(s) => s.get_mut().get_mut().get_mut(),
+            #[cfg(feature = "_tls-rustls")]
+            MaybeTlsStream::Tls(s) => s.get_mut().0,
 
-            #[cfg(feature = "_rt-async-std")]
+            #[cfg(all(feature = "_rt-async-std", feature = "_tls-native-tls"))]
             MaybeTlsStream::Tls(s) => s.get_mut(),
+
+            #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
+            MaybeTlsStream::Tls(s) => s.get_mut().get_mut().get_mut(),
 
             MaybeTlsStream::Upgrading => panic!(io::Error::from(io::ErrorKind::ConnectionAborted)),
         }
