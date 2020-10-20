@@ -5,7 +5,7 @@
 ///
 /// ```rust,ignore
 /// # use sqlx::Connect;
-/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -24,7 +24,7 @@
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
 /// # fn main() {}
 /// ```
 ///
@@ -54,7 +54,7 @@
 ///
 /// ```rust,ignore
 /// # use sqlx::Connect;
-/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -75,7 +75,7 @@
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
 /// # fn main() {}
 /// ```
 ///
@@ -328,7 +328,7 @@ macro_rules! query_unchecked (
 /// `src/my_query.rs`:
 /// ```rust,ignore
 /// # use sqlx::Connect;
-/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -345,7 +345,7 @@ macro_rules! query_unchecked (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
 /// # fn main() {}
 /// ```
 #[macro_export]
@@ -397,7 +397,7 @@ macro_rules! query_file_unchecked (
 /// string:
 /// ```rust,ignore
 /// # use sqlx::Connect;
-/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -425,7 +425,7 @@ macro_rules! query_file_unchecked (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
 /// # fn main() {}
 /// ```
 ///
@@ -526,7 +526,7 @@ macro_rules! query_as (
 ///
 /// ```rust,ignore
 /// # use sqlx::Connect;
-/// # #[cfg(all(feature = "mysql", feature = "runtime-async-std"))]
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
 /// # #[async_std::main]
 /// # async fn main() -> sqlx::Result<()>{
 /// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -550,7 +550,7 @@ macro_rules! query_as (
 /// # Ok(())
 /// # }
 /// #
-/// # #[cfg(any(not(feature = "mysql"), not(feature = "runtime-async-std")))]
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
 /// # fn main() {}
 /// ```
 #[macro_export]

@@ -16,7 +16,7 @@ authors = [
 features = ["all-databases", "all-types", "offline"]
 
 [features]
-default = [ "runtime-async-std", "migrate" ]
+default = [ "runtime-async-std-native-tls", "migrate" ]
 migrate = [ "sha2", "crc" ]
 
 # databases
@@ -34,9 +34,14 @@ decimal = [ "rust_decimal", "num-bigint" ]
 json = [ "serde", "serde_json" ]
 
 # runtimes
-runtime-async-std = [ "sqlx-rt/runtime-async-std" ]
-runtime-tokio = [ "sqlx-rt/runtime-tokio" ]
-runtime-actix = [ "sqlx-rt/runtime-actix" ]
+runtime-actix-native-tls = [ "sqlx-rt/runtime-actix-native-tls", "_rt-actix" ]
+runtime-async-std-native-tls = [ "sqlx-rt/runtime-async-std-native-tls", "_rt-async-std" ]
+runtime-tokio-native-tls = [ "sqlx-rt/runtime-tokio-native-tls", "_rt-tokio" ]
+
+# for conditional compilation
+_rt-actix = []
+_rt-async-std = []
+_rt-tokio = []
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = [ "serde", "either/serde" ]

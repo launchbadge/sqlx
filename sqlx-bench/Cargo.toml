@@ -6,9 +6,9 @@ edition = "2018"
 publish = false
 
 [features]
-runtime-actix = ["sqlx/runtime-actix", "sqlx-rt/runtime-actix"]
-runtime-async-std = ["sqlx/runtime-async-std", "sqlx-rt/runtime-async-std"]
-runtime-tokio = ["sqlx/runtime-tokio", "sqlx-rt/runtime-tokio"]
+runtime-actix-native-tls = [ "sqlx/runtime-actix-native-tls", "sqlx-rt/runtime-actix-native-tls" ]
+runtime-async-std-native-tls = [ "sqlx/runtime-async-std-native-tls", "sqlx-rt/runtime-async-std-native-tls" ]
+runtime-tokio-native-tls = [ "sqlx/runtime-tokio-native-tls", "sqlx-rt/runtime-tokio-native-tls" ]
 
 postgres = ["sqlx/postgres"]
 

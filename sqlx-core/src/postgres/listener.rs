@@ -150,7 +150,7 @@ impl PgListener {
     /// # use sqlx_core::postgres::PgListener;
     /// # use sqlx_core::error::Error;
     /// #
-    /// # #[cfg(feature = "runtime-async-std")]
+    /// # #[cfg(feature = "_rt-async-std")]
     /// # sqlx_rt::block_on::<_, Result<(), Error>>(async move {
     /// # let mut listener = PgListener::connect("postgres:// ...").await?;
     /// loop {
@@ -183,7 +183,7 @@ impl PgListener {
     /// # use sqlx_core::postgres::PgListener;
     /// # use sqlx_core::error::Error;
     /// #
-    /// # #[cfg(feature = "runtime-async-std")]
+    /// # #[cfg(feature = "_rt-async-std")]
     /// # sqlx_rt::block_on::<_, Result<(), Error>>(async move {
     /// # let mut listener = PgListener::connect("postgres:// ...").await?;
     /// loop {

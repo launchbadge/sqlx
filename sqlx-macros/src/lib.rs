@@ -103,7 +103,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let body = &input.block;
     let attrs = &input.attrs;
 
-    let result = if cfg!(feature = "runtime-tokio") {
+    let result = if cfg!(feature = "_rt-tokio") {
         quote! {
             #[test]
             #(#attrs)*
@@ -117,7 +117,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     .block_on(async { #body })
             }
         }
-    } else if cfg!(feature = "runtime-async-std") {
+    } else if cfg!(feature = "_rt-async-std") {
         quote! {
             #[test]
             #(#attrs)*
@@ -125,7 +125,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
                 sqlx_rt::async_std::task::block_on(async { #body })
             }
         }
-    } else if cfg!(feature = "runtime-actix") {
+    } else if cfg!(feature = "_rt-actix") {
         quote! {
             #[test]
             #(#attrs)*

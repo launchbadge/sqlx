@@ -27,7 +27,7 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "0.2", features = ["macros"] }
-sqlx = { version = "0.4.0-beta.1", path = "..", default-features = false, features = [ "runtime-async-std", "migrate", "any", "offline" ] }
+sqlx = { version = "0.4.0-beta.1", path = "..", default-features = false, features = [ "runtime-async-std-native-tls", "migrate", "any", "offline" ] }
 futures = "0.3"
 clap = "=3.0.0-beta.2"
 chrono = "0.4"

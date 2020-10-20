@@ -57,16 +57,16 @@
 
 SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time checked queries without a DSL.
 
- * **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
+-   **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
- * **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
- compile time. (You can still use dynamic SQL queries if you like.)
+-   **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
+    compile time. (You can still use dynamic SQL queries if you like.)
 
- * **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
+-   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
 
- * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
+-   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
- * **Runtime Agnostic**. Works on [async-std](https://crates.io/crates/async-std) or [tokio](https://crates.io/crates/tokio) with the `runtime-async-std` or `runtime-tokio` cargo feature flag.
+-   **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)).
 
 <sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
@@ -74,55 +74,50 @@ we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></
 <sub><sup>†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
 with C, those interactions are `unsafe`.</sup></sub>
 
-[PostgreSQL]: http://postgresql.org/
-[SQLite]: https://sqlite.org/
-[MySQL]: https://www.mysql.com/
-[MSSQL]: https://www.microsoft.com/en-us/sql-server
+[postgresql]: http://postgresql.org/
+[sqlite]: https://sqlite.org/
+[mysql]: https://www.mysql.com/
+[mssql]: https://www.microsoft.com/en-us/sql-server
 
 ---
 
- * Cross-platform. Being native Rust, SQLx will compile anywhere Rust is supported.
+-   Cross-platform. Being native Rust, SQLx will compile anywhere Rust is supported.
 
- * Built-in connection pooling with `sqlx::Pool`.
+-   Built-in connection pooling with `sqlx::Pool`.
 
- * Row streaming. Data is read asynchronously from the database and decoded on-demand.
+-   Row streaming. Data is read asynchronously from the database and decoded on-demand.
 
- * Automatic statement preparation and caching. When using the high-level query API (`sqlx::query`), statements are
-   prepared and cached per-connection.
+-   Automatic statement preparation and caching. When using the high-level query API (`sqlx::query`), statements are
+    prepared and cached per-connection.
 
- * Simple (unprepared) query execution including fetching results into the same `Row` types used by
-   the high-level API. Supports batch execution and returning results from all statements.
+-   Simple (unprepared) query execution including fetching results into the same `Row` types used by
+    the high-level API. Supports batch execution and returning results from all statements.
 
- * Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
+-   Transport Layer Security (TLS) where supported ([MySQL] and [PostgreSQL]).
 
- * Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
+-   Asynchronous notifications using `LISTEN` and `NOTIFY` for [PostgreSQL].
 
- * Nested transactions with support for save points.
+-   Nested transactions with support for save points.
 
- * `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URI scheme.
+-   `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URI scheme.
 
 ## Install
 
-SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
+SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes.
 
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
+[`actix`]: https://github.com/actix/actix-net
 
-**async-std**
-
-```toml
-# Cargo.toml
-[dependencies]
-sqlx = "0.4.0-beta.1"
-```
-
-**tokio**
+By default, you get `async-std`. If you want a different runtime or TLS backend, just disable the default features and activate the corresponding feature, for example for tokio:
 
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio-native-tls", "macros" ] }
 ```
+
+<sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
 
 **actix**
 
@@ -134,41 +129,41 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 
 #### Cargo Feature Flags
 
- * `runtime-async-std` (on by default): Use the `async-std` runtime.
+-   `runtime-async-std-native-tls` (on by default): Use the `async-std` runtime and `native-tls` TLS backend.
 
- * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive to all other runtimes.
- 
- * `runtime-actix`: Use the `actix_rt` runtime. Mutually exclusive to all other runtimes.
+-   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
 
- * `postgres`: Add support for the Postgres database server.
+-   `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
 
- * `mysql`: Add support for the MySQL (and MariaDB) database server.
+-   `postgres`: Add support for the Postgres database server.
 
- * `mssql`: Add support for the MSSQL database server.
+-   `mysql`: Add support for the MySQL (and MariaDB) database server.
 
- * `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
+-   `mssql`: Add support for the MSSQL database server.
 
- * `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
+-   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
 
- * `macros`: Add support for the `query*!` macros, which allow compile-time checked queries.
- 
- * `migrate`: Add support for the migration management and `migrate!` macro, which allow compile-time embedded migrations.
+-   `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
- * `uuid`: Add support for UUID (in Postgres).
+-   `macros`: Add support for the `query*!` macros, which allow compile-time checked queries.
 
- * `chrono`: Add support for date and time types from `chrono`.
+-   `migrate`: Add support for the migration management and `migrate!` macro, which allow compile-time embedded migrations.
 
- * `time`: Add support for date and time types from `time` crate (alternative to `chrono`, prefered by `query!` macro, if both enabled)
+-   `uuid`: Add support for UUID (in Postgres).
 
- * `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
+-   `chrono`: Add support for date and time types from `chrono`.
 
- * `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
+-   `time`: Add support for date and time types from `time` crate (alternative to `chrono`, prefered by `query!` macro, if both enabled)
 
- * `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
+-   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
- * `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
+-   `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
 
- * `tls`: Add support for TLS connections.
+-   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
+
+-   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
+
+-   `tls`: Add support for TLS connections.
 
 ## Usage
 
@@ -310,29 +305,28 @@ WHERE organization = ?
 
 Differences from `query()`:
 
- * The input (or bind) parameters must be given all at once (and they are compile-time validated to be
-   the right number and the right type).
+-   The input (or bind) parameters must be given all at once (and they are compile-time validated to be
+    the right number and the right type).
 
- * The output type is an anonymous record. In the above example the type would be similar to:
+-   The output type is an anonymous record. In the above example the type would be similar to:
 
     ```rust
     { country: String, count: i64 }
     ```
 
- * The `DATABASE_URL` environment variable must be set at build time to a database which it can prepare
-   queries against; the database does not have to contain any data but must be the same
-   kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
+-   The `DATABASE_URL` environment variable must be set at build time to a database which it can prepare
+    queries against; the database does not have to contain any data but must be the same
+    kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
 
-   For convenience, you can use a .env file to set DATABASE_URL so that you don't have to pass it every time:
+    For convenience, you can use a .env file to set DATABASE_URL so that you don't have to pass it every time:
 
-   ```
-   DATABASE_URL=mysql://localhost/my_database
-   ```
+    ```
+    DATABASE_URL=mysql://localhost/my_database
+    ```
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
 officially supporting anonymous records). To address that, there is a `query_as!()` macro that is identical
 except that you can name the output type.
-
 
 ```rust
 // no traits are needed
@@ -365,10 +359,10 @@ If the `sqlite` feature is enabled, this is downgraded to `#![deny(unsafe_code)]
 
 Licensed under either of
 
- * Apache License, Version 2.0
-   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license
-   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+-   Apache License, Version 2.0
+    ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+-   MIT license
+    ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
 
