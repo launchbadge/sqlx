@@ -129,12 +129,6 @@ impl Error {
     pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
         Error::Configuration(err.into())
     }
-
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) fn tls(err: impl StdError + Send + Sync + 'static) -> Self {
-        Error::Tls(err.into())
-    }
 }
 
 pub(crate) fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
@@ -237,6 +231,14 @@ impl From<crate::migrate::MigrateError> for Error {
     #[inline]
     fn from(error: crate::migrate::MigrateError) -> Self {
         Error::Migrate(Box::new(error))
+    }
+}
+
+#[cfg(feature = "_tls-native-tls")]
+impl From<sqlx_rt::native_tls::Error> for Error {
+    #[inline]
+    fn from(error: sqlx_rt::native_tls::Error) -> Self {
+        Error::Tls(Box::new(error))
     }
 }
 

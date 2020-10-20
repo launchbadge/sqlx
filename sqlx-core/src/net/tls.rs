@@ -48,17 +48,17 @@ where
         if !accept_invalid_certs {
             if let Some(ca) = root_cert_path {
                 let data = fs::read(ca).await?;
-                let cert = Certificate::from_pem(&data).map_err(Error::tls)?;
+                let cert = Certificate::from_pem(&data)?;
 
                 builder.add_root_certificate(cert);
             }
         }
 
         #[cfg(not(feature = "_rt-async-std"))]
-        let connector = builder.build().map_err(Error::tls)?;
+        let connector = sqlx_rt::TlsConnector::from(builder.build()?);
 
         #[cfg(feature = "_rt-async-std")]
-        let connector = builder;
+        let connector = sqlx_rt::TlsConnector::from(builder);
 
         let stream = match replace(self, MaybeTlsStream::Upgrading) {
             MaybeTlsStream::Raw(stream) => stream,
@@ -75,12 +75,7 @@ where
             }
         };
 
-        *self = MaybeTlsStream::Tls(
-            sqlx_rt::TlsConnector::from(connector)
-                .connect(host, stream)
-                .await
-                .map_err(|err| Error::Tls(err.into()))?,
-        );
+        *self = MaybeTlsStream::Tls(connector.connect(host, stream).await?);
 
         Ok(())
     }
