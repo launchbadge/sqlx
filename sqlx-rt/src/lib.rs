@@ -19,7 +19,7 @@ compile_error!(
 );
 
 #[cfg(all(feature = "_tls-native-tls"))]
-pub use native_tls::{self, Error as TlsError};
+pub use native_tls;
 
 //
 // Actix *OR* Tokio
