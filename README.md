@@ -66,7 +66,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
  * **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
- * **Runtime Agnostic**. Works on [async-std](https://crates.io/crates/async-std) or [tokio](https://crates.io/crates/tokio) with the `runtime-async-std` or `runtime-tokio` cargo feature flag.
+ * **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)).
 
 <sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
 we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
@@ -103,32 +103,29 @@ with C, those interactions are `unsafe`.</sup></sub>
 
 ## Install
 
-SQLx is compatible with the [`async-std`] and [`tokio`] runtimes.
+SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes.
 
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
+[`actix`]: https://github.com/actix/actix-net
 
-**async-std**
-
-```toml
-# Cargo.toml
-[dependencies]
-sqlx = "0.4.0-beta.1"
-```
-
-**tokio**
+By default, you get `async-std`. If you want a different runtime or TLS backend, just disable the default features and activate the corresponding feature, for example for tokio:
 
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio-native-tls", "macros" ] }
 ```
+
+<sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
 
 #### Cargo Feature Flags
 
- * `runtime-async-std` (on by default): Use the `async-std` runtime.
+ * `runtime-async-std-native-tls` (on by default): Use the `async-std` runtime and `native-tls` TLS backend.
 
- * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive with the `runtime-async-std` feature.
+ * `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
+
+ * `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
 
  * `postgres`: Add support for the Postgres database server.
 

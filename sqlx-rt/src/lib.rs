@@ -1,21 +1,24 @@
 #[cfg(not(any(
-    feature = "runtime-actix",
-    feature = "runtime-async-std",
-    feature = "runtime-tokio",
+    feature = "runtime-actix-native-tls",
+    feature = "runtime-async-std-native-tls",
+    feature = "runtime-tokio-native-tls",
 )))]
 compile_error!(
-    "one of 'runtime-actix', 'runtime-async-std' or 'runtime-tokio' features must be enabled"
+    "one of the features ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
+     'runtime-tokio-native-tls'] must be enabled"
 );
 
 #[cfg(any(
-    all(feature = "runtime-actix", feature = "runtime-async-std"),
-    all(feature = "runtime-actix", feature = "runtime-tokio"),
-    all(feature = "runtime-async-std", feature = "runtime-tokio"),
+    all(feature = "_rt-actix", feature = "_rt-async-std"),
+    all(feature = "_rt-actix", feature = "_rt-tokio"),
+    all(feature = "_rt-async-std", feature = "_rt-tokio"),
 ))]
 compile_error!(
-    "only one of 'runtime-actix', 'runtime-async-std' or 'runtime-tokio' features can be enabled"
+    "only one of ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
+     'runtime-tokio-native-tls'] can be enabled"
 );
 
+#[cfg(all(feature = "_tls-native-tls"))]
 pub use native_tls::{self, Error as TlsError};
 
 //
@@ -23,8 +26,8 @@ pub use native_tls::{self, Error as TlsError};
 //
 
 #[cfg(all(
-    any(feature = "runtime-tokio", feature = "runtime-actix"),
-    not(feature = "runtime-async-std"),
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(feature = "_rt-async-std"),
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
@@ -33,12 +36,16 @@ pub use tokio::{
 
 #[cfg(all(
     unix,
-    any(feature = "runtime-tokio", feature = "runtime-actix"),
-    not(feature = "runtime-async-std"),
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(feature = "_rt-async-std"),
 ))]
 pub use tokio::net::UnixStream;
 
-#[cfg(all(feature = "tokio-native-tls", not(feature = "async-native-tls")))]
+#[cfg(all(
+    feature = "_tls-native-tls",
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(feature = "_rt-async-std"),
+))]
 pub use tokio_native_tls::{TlsConnector, TlsStream};
 
 //
@@ -46,8 +53,8 @@ pub use tokio_native_tls::{TlsConnector, TlsStream};
 //
 
 #[cfg(all(
-    feature = "runtime-tokio",
-    not(any(feature = "runtime-actix", feature = "runtime-async-std",))
+    feature = "_rt-tokio",
+    not(any(feature = "_rt-actix", feature = "_rt-async-std")),
 ))]
 #[macro_export]
 macro_rules! blocking {
@@ -60,12 +67,12 @@ macro_rules! blocking {
 // actix
 //
 
-#[cfg(feature = "runtime-actix")]
+#[cfg(feature = "_rt-actix")]
 pub use {actix_rt, actix_threadpool};
 
 #[cfg(all(
-    feature = "runtime-actix",
-    not(any(feature = "runtime-tokio", feature = "runtime-async-std",))
+    feature = "_rt-actix",
+    not(any(feature = "_rt-tokio", feature = "_rt-async-std")),
 ))]
 #[macro_export]
 macro_rules! blocking {
@@ -82,8 +89,8 @@ macro_rules! blocking {
 //
 
 #[cfg(all(
-    feature = "runtime-async-std",
-    not(any(feature = "runtime-actix", feature = "runtime-tokio",))
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
 ))]
 pub use async_std::{
     self, fs, future::timeout, io::prelude::ReadExt as AsyncReadExt,
@@ -92,8 +99,8 @@ pub use async_std::{
 };
 
 #[cfg(all(
-    feature = "runtime-async-std",
-    not(any(feature = "runtime-actix", feature = "runtime-tokio",))
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
 ))]
 #[macro_export]
 macro_rules! blocking {
@@ -104,8 +111,8 @@ macro_rules! blocking {
 
 #[cfg(all(
     unix,
-    feature = "runtime-async-std",
-    not(any(feature = "runtime-actix", feature = "runtime-tokio",))
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
 ))]
 pub use async_std::os::unix::net::UnixStream;
 
@@ -113,14 +120,14 @@ pub use async_std::os::unix::net::UnixStream;
 pub use async_native_tls::{TlsConnector, TlsStream};
 
 #[cfg(all(
-    feature = "runtime-async-std",
-    not(any(feature = "runtime-actix", feature = "runtime-tokio"))
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
 ))]
 pub use async_std::task::block_on;
 
 #[cfg(all(
-    feature = "runtime-async-std",
-    not(any(feature = "runtime-actix", feature = "runtime-tokio"))
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
 ))]
 pub fn enter_runtime<F, R>(f: F) -> R
 where
@@ -131,12 +138,12 @@ where
 }
 
 #[cfg(all(
-    any(feature = "runtime-tokio", feature = "runtime-actix"),
-    not(feature = "runtime-async-std")
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(feature = "_rt-async-std"),
 ))]
 pub use tokio_runtime::{block_on, enter_runtime};
 
-#[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
+#[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
 mod tokio_runtime {
     use once_cell::sync::Lazy;
     use tokio::runtime::{self, Runtime};

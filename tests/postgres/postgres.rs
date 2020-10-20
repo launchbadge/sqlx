@@ -454,10 +454,10 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    #[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
     use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
 
-    #[cfg(feature = "runtime-async-std")]
+    #[cfg(feature = "_rt-async-std")]
     use async_std::{future::timeout, task::sleep, task::spawn};
 
     eprintln!("starting pool");
@@ -711,7 +711,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 }
 
 // repro is more reliable with the basic scheduler used by `#[tokio::test]`
-#[cfg(feature = "runtime-tokio")]
+#[cfg(feature = "_rt-tokio")]
 #[tokio::test]
 async fn test_issue_622() -> anyhow::Result<()> {
     use std::time::Instant;

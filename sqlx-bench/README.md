@@ -23,8 +23,8 @@ This Cargo project implements various benchmarks for SQLx using
 You must choose a runtime to execute the benchmarks on; the feature flags are the same as the `sqlx` crate:
 
 ```bash
-cargo bench --features runtime-tokio
-cargo bench --features runtime-async-std
+cargo bench --features runtime-tokio-native-tls
+cargo bench --features runtime-async-std-native-tls
 ```
 
 When complete, the benchmark results will be in `target/criterion/`. 
