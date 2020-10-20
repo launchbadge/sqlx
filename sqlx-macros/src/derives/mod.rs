@@ -10,7 +10,7 @@ pub(crate) use r#type::expand_derive_type;
 pub(crate) use row::expand_derive_from_row;
 
 use self::attributes::RenameAll;
-use heck::{ShoutySnakeCase, SnakeCase, KebabCase};
+use heck::{KebabCase, ShoutySnakeCase, SnakeCase};
 use std::iter::FromIterator;
 use syn::DeriveInput;
 
