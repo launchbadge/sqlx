@@ -42,6 +42,40 @@ pub use tokio::{
 pub use tokio::net::UnixStream;
 
 #[cfg(all(
+    any(feature = "_rt-tokio", feature = "_rt-actix"),
+    not(feature = "_rt-async-std"),
+))]
+pub use tokio_runtime::{block_on, enter_runtime};
+
+#[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+mod tokio_runtime {
+    use once_cell::sync::Lazy;
+    use tokio::runtime::{self, Runtime};
+
+    // lazily initialize a global runtime once for multiple invocations of the macros
+    static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
+        runtime::Builder::new()
+            // `.basic_scheduler()` requires calling `Runtime::block_on()` which needs mutability
+            .threaded_scheduler()
+            .enable_io()
+            .enable_time()
+            .build()
+            .expect("failed to initialize Tokio runtime")
+    });
+
+    pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        RUNTIME.enter(|| RUNTIME.handle().block_on(future))
+    }
+
+    pub fn enter_runtime<F, R>(f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        RUNTIME.enter(f)
+    }
+}
+
+#[cfg(all(
     feature = "_tls-native-tls",
     any(feature = "_rt-tokio", feature = "_rt-actix"),
     not(feature = "_rt-async-std"),
@@ -116,9 +150,6 @@ macro_rules! blocking {
 ))]
 pub use async_std::os::unix::net::UnixStream;
 
-#[cfg(all(feature = "async-native-tls", not(feature = "tokio-native-tls")))]
-pub use async_native_tls::{TlsConnector, TlsStream};
-
 #[cfg(all(
     feature = "_rt-async-std",
     not(any(feature = "_rt-actix", feature = "_rt-tokio")),
@@ -137,36 +168,5 @@ where
     f()
 }
 
-#[cfg(all(
-    any(feature = "_rt-tokio", feature = "_rt-actix"),
-    not(feature = "_rt-async-std"),
-))]
-pub use tokio_runtime::{block_on, enter_runtime};
-
-#[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-mod tokio_runtime {
-    use once_cell::sync::Lazy;
-    use tokio::runtime::{self, Runtime};
-
-    // lazily initialize a global runtime once for multiple invocations of the macros
-    static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-        runtime::Builder::new()
-            // `.basic_scheduler()` requires calling `Runtime::block_on()` which needs mutability
-            .threaded_scheduler()
-            .enable_io()
-            .enable_time()
-            .build()
-            .expect("failed to initialize Tokio runtime")
-    });
-
-    pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-        RUNTIME.enter(|| RUNTIME.handle().block_on(future))
-    }
-
-    pub fn enter_runtime<F, R>(f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        RUNTIME.enter(f)
-    }
-}
+#[cfg(all(feature = "async-native-tls", not(feature = "tokio-native-tls")))]
+pub use async_native_tls::{TlsConnector, TlsStream};
