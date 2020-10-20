@@ -141,13 +141,13 @@ DROP TYPE IF EXISTS color_lower CASCADE;
 DROP TYPE IF EXISTS color_snake CASCADE;
 DROP TYPE IF EXISTS color_upper CASCADE;
 DROP TYPE IF EXISTS color_screaming_snake CASCADE;
-DROP TYPE IF EXISTS color-kebab-case CASCADE;
+DROP TYPE IF EXISTS "color-kebab-case" CASCADE;
 
 CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
 CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
 CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
 CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
-CREATE TYPE color-kebab-case AS ENUM ( 'red-green', 'blue-black' );
+CREATE TYPE "color-kebab-case" AS ENUM ( 'red-green', 'blue-black' );
 
 CREATE TABLE people (
     id      serial PRIMARY KEY,
