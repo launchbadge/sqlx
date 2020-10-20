@@ -1,8 +1,4 @@
 use bytes::Bytes;
-use sqlx_rt::{
-    fs,
-    native_tls::{Certificate, TlsConnector},
-};
 
 use crate::error::Error;
 use crate::postgres::connection::stream::PgStream;
@@ -63,34 +59,20 @@ async fn upgrade(stream: &mut PgStream, options: &PgConnectOptions) -> Result<bo
         }
     }
 
-    // FIXME: de-duplicate with mysql/connection/tls.rs
-
     let accept_invalid_certs = !matches!(
         options.ssl_mode,
         PgSslMode::VerifyCa | PgSslMode::VerifyFull
     );
+    let accept_invalid_hostnames = !matches!(options.ssl_mode, PgSslMode::VerifyFull);
 
-    let mut builder = TlsConnector::builder();
-    builder
-        .danger_accept_invalid_certs(accept_invalid_certs)
-        .danger_accept_invalid_hostnames(!matches!(options.ssl_mode, PgSslMode::VerifyFull));
-
-    if !accept_invalid_certs {
-        if let Some(ca) = &options.ssl_root_cert {
-            let data = fs::read(ca).await?;
-            let cert = Certificate::from_pem(&data).map_err(Error::tls)?;
-
-            builder.add_root_certificate(cert);
-        }
-    }
-
-    #[cfg(not(feature = "_rt-async-std"))]
-    let connector = builder.build().map_err(Error::tls)?;
-
-    #[cfg(feature = "_rt-async-std")]
-    let connector = builder;
-
-    stream.upgrade(&options.host, connector.into()).await?;
+    stream
+        .upgrade(
+            &options.host,
+            accept_invalid_certs,
+            accept_invalid_hostnames,
+            options.ssl_root_cert.as_deref(),
+        )
+        .await?;
 
     Ok(true)
 }
