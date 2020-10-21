@@ -35,7 +35,7 @@ anyhow = "1.0"
 url = { version = "2.1.1", default-features = false }
 async-trait = "0.1.30"
 console = "0.11.3"
-dialoguer = "0.6.2"
+dialoguer = "0.7.1"
 serde_json = { version = "1.0.53", features = ["preserve_order"] }
 serde = "1.0.110"
 glob = "0.3.0"
