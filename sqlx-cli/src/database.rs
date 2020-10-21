@@ -19,6 +19,7 @@ pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
                 "\nAre you sure you want to drop the database at {}?",
                 style(uri).cyan()
             ))
+            .wait_for_newline(true)
             .default(false)
             .interact()?
     {
