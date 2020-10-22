@@ -161,7 +161,8 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 ## Usage
 
 ### Quickstart
-```
+
+```toml
 [dependencies]
 sqlx = { version = "0.4.0-beta.1", features = [ "postgres" ] }
 async-std = { version = "1.6", features = [ "attributes" ] }
