@@ -169,7 +169,8 @@ sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 ## Usage
 
 ### Quickstart
-```
+
+```toml
 [dependencies]
 sqlx = { version = "0.4.0-beta.1", features = [ "postgres" ] }
 async-std = { version = "1.6", features = [ "attributes" ] }
