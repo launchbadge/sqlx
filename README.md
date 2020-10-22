@@ -168,8 +168,6 @@ async-std = { version = "1.6", features = [ "attributes" ] }
 ```
 
 ```rust
-use std::env;
-
 use sqlx::postgres::PgPoolOptions;
 // use sqlx::mysql::MySqlPoolOptions;
 // etc.
