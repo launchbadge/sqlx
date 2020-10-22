@@ -47,7 +47,7 @@ _rt-actix = []
 _rt-async-std = []
 _rt-tokio = []
 _tls-native-tls = []
-_tls-rustls = [ "rustls", "webpki" ]
+_tls-rustls = [ "rustls", "webpki", "webpki-roots" ]
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = [ "serde", "either/serde" ]
@@ -91,7 +91,7 @@ parking_lot = "0.11.0"
 rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
 regex = { version = "1.3.9", optional = true }
 rsa = { version = "0.3.0", optional = true }
-rustls = { version = "0.18.1", optional = true }
+rustls = { version = "0.18.1", features = [ "dangerous_configuration" ], optional = true }
 serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
 serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
 sha-1 = { version = "0.9.0", default-features = false, optional = true }
@@ -103,6 +103,7 @@ smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
 webpki = { version = "0.21.3", optional = true }
+webpki-roots = { version = "0.20.0", optional = true }
 whoami = "0.9.0"
 stringprep = "0.1.2"
 lru-cache = "0.1.2"

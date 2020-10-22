@@ -6,10 +6,13 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use sqlx_rt::{fs, AsyncRead, AsyncWrite, TlsStream};
+use sqlx_rt::{AsyncRead, AsyncWrite, TlsStream};
 
 use crate::error::Error;
 use std::mem::replace;
+
+#[cfg(feature = "_tls-rustls")]
+mod rustls;
 
 pub enum MaybeTlsStream<S>
 where
@@ -73,7 +76,10 @@ async fn configure_tls_connector(
     accept_invalid_hostnames: bool,
     root_cert_path: Option<&Path>,
 ) -> Result<sqlx_rt::TlsConnector, Error> {
-    use sqlx_rt::native_tls::{Certificate, TlsConnector};
+    use sqlx_rt::{
+        fs,
+        native_tls::{Certificate, TlsConnector},
+    };
 
     let mut builder = TlsConnector::builder();
     builder
@@ -99,29 +105,7 @@ async fn configure_tls_connector(
 }
 
 #[cfg(feature = "_tls-rustls")]
-async fn configure_tls_connector(
-    _accept_invalid_certs: bool,
-    _accept_invalid_hostnames: bool,
-    root_cert_path: Option<&Path>,
-) -> Result<sqlx_rt::TlsConnector, Error> {
-    // FIXME: Support accept_invalid_certs / accept_invalid_hostnames
-
-    use rustls::ClientConfig;
-    use std::io::Cursor;
-    use std::sync::Arc;
-
-    let mut config = ClientConfig::new();
-
-    if let Some(ca) = root_cert_path {
-        let data = fs::read(ca).await?;
-        let mut cursor = Cursor::new(data);
-        config.root_store.add_pem_file(&mut cursor).map_err(|_| {
-            Error::Tls(format!("Invalid certificate file: {}", ca.display()).into())
-        })?;
-    }
-
-    Ok(Arc::new(config).into())
-}
+use self::rustls::configure_tls_connector;
 
 impl<S> AsyncRead for MaybeTlsStream<S>
 where
