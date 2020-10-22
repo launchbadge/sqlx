@@ -161,6 +161,11 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 ## Usage
 
 ### Quickstart
+```
+[dependencies]
+sqlx = { version = "0.4.0-beta.1", features = [ "postgres" ] }
+async-std = { version = "1.6", features = [ "attributes" ] }
+```
 
 ```rust
 use std::env;
@@ -174,7 +179,7 @@ async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&env::var("DATABASE_URL")?).await?;
+        .connect("postgres://postgres:password@localhost/test").await?;
 
     // Make a simple query to return the given parameter
     let row: (i64,) = sqlx::query_as("SELECT $1")
