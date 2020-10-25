@@ -15,16 +15,11 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
-    /// # fn main() -> Result<(), MigrateError> {
-    /// # sqlx_rt::block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
-    /// use std::path::Path;
-    ///
+    /// # fn main() -> Result<(), sqlx::migrate::MigrateError> {
+    /// #     sqlx_rt::block_on(async move {
     /// // Read migrations from a local folder: ./migrations
-    /// let m = Migrator::new(Path::new("./migrations")).await?;
-    /// # Ok(())
-    /// # })
+    /// let m = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// #     })
     /// # }
     /// ```
     pub async fn new<'s, S>(source: S) -> Result<Self, MigrateError>
@@ -43,6 +38,18 @@ impl Migrator {
 
     /// Run any pending migrations against the database; and, validate previously applied migrations
     /// against the current migration source to detect accidental changes in previously-applied migrations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # fn main() -> Result<(), sqlx::migrate::MigrateError> {
+    /// #     sqlx_rt::block_on(async move {
+    /// let m = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let pool = sqlx::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// m.run(&pool).await
+    /// #     })
+    /// # }
+    /// ```
     pub async fn run<'a, A>(&self, migrator: A) -> Result<(), MigrateError>
     where
         A: Acquire<'a>,
