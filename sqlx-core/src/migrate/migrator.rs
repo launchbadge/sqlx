@@ -15,10 +15,10 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # fn main() -> Result<(), sqlx::migrate::MigrateError> {
+    /// # fn main() -> Result<(), sqlx_core::migrate::MigrateError> {
     /// #     sqlx_rt::block_on(async move {
     /// // Read migrations from a local folder: ./migrations
-    /// let m = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let m = sqlx_core::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
     /// #     })
     /// # }
     /// ```
@@ -42,9 +42,9 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # fn main() -> Result<(), sqlx::migrate::MigrateError> {
+    /// # fn main() -> Result<(), sqlx_core::migrate::MigrateError> {
     /// #     sqlx_rt::block_on(async move {
-    /// let m = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let m = sqlx_core::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
     /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.run(&pool).await
     /// #     })
