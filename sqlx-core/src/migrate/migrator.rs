@@ -42,6 +42,7 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
+    /// # use sqlx_core::sqlite::SqlitePoolOptions;
     /// # fn main() -> Result<(), sqlx::migrate::MigrateError> {
     /// #     sqlx_rt::block_on(async move {
     /// let m = sqlx::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
