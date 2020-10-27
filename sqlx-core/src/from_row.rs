@@ -47,6 +47,25 @@ use crate::row::Row;
 ///
 /// will read the content of the column `description` into the field `about_me`.
 ///
+/// #### `rename_all`
+/// By default, field names are expected verbatim (with the exception of the raw identifier prefix `r#`, if present).
+/// Placed at the struct level, this attribute changes how the field name is mapped to its SQL column name:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// #[sqlx(rename_all = "camelCase")]
+/// struct UserPost {
+///     id: i32,
+///     // remapped to "userId"
+///     user_id: i32,
+///     contents: String
+/// }
+/// ```
+///
+/// The supported values are `snake_case` (available if you have non-snake-case field names for some
+/// reason), `lowercase`, `UPPERCASE`, `camelCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
+/// The styling of each option is intended to be an example of its behavior.
+///
 /// #### `default`
 ///
 /// When your struct contains a field that is not present in your query,
