@@ -18,6 +18,7 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use std::{borrow::Cow, sync::Arc};
+use crate::connection::Connection;
 
 async fn prepare(
     conn: &mut PgConnection,
@@ -347,12 +348,18 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let persistent = query.persistent();
 
         Box::pin(try_stream! {
-            let s = self.run(sql, arguments, 0, persistent, metadata).await?;
+            let mut guard = self.cancellation_guard();
+
+            let s = guard.conn.run(sql, arguments, 0, persistent, metadata).await?;
             pin_mut!(s);
 
             while let Some(v) = s.try_next().await? {
                 r#yield!(v);
             }
+
+            drop(s);
+
+            guard.ignore = true;
 
             Ok(())
         })
@@ -372,7 +379,8 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         let persistent = query.persistent();
 
         Box::pin(async move {
-            let s = self.run(sql, arguments, 1, persistent, metadata).await?;
+            let mut guard = self.cancellation_guard();
+            let s = guard.conn.run(sql, arguments, 1, persistent, metadata).await?;
             pin_mut!(s);
 
             while let Some(s) = s.try_next().await? {
@@ -380,6 +388,8 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
                     return Ok(Some(r));
                 }
             }
+
+            guard.ignore = true;
 
             Ok(None)
         })
@@ -394,9 +404,13 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            self.wait_until_ready().await?;
+            let mut guard = self.cancellation_guard();
 
-            let (_, metadata) = self.get_or_prepare(sql, parameters, true, None).await?;
+            guard.conn.wait_until_ready().await?;
+
+            let (_, metadata) = guard.conn.get_or_prepare(sql, parameters, true, None).await?;
+
+            guard.ignore = true;
 
             Ok(PgStatement {
                 sql: Cow::Borrowed(sql),
@@ -413,11 +427,15 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            self.wait_until_ready().await?;
+            let mut guard = self.cancellation_guard();
 
-            let (_, metadata) = self.get_or_prepare(sql, &[], true, None).await?;
+            guard.conn.wait_until_ready().await?;
 
-            let nullable = self.get_nullable_for_columns(&metadata.columns).await?;
+            let (_, metadata) = guard.conn.get_or_prepare(sql, &[], true, None).await?;
+
+            let nullable = guard.conn.get_nullable_for_columns(&metadata.columns).await?;
+
+            guard.ignore = true;
 
             Ok(Describe {
                 columns: metadata.columns.clone(),

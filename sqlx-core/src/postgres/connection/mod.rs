@@ -60,6 +60,8 @@ pub struct PgConnection {
     // current transaction status
     transaction_status: TransactionStatus,
     pub(crate) transaction_depth: usize,
+
+    pub(crate) has_cancellation: bool,
 }
 
 impl PgConnection {
@@ -173,5 +175,13 @@ impl Connection for PgConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         !self.stream.wbuf.is_empty()
+    }
+
+    fn set_has_cancellation(&mut self, has_cancellation: bool) {
+        self.has_cancellation = has_cancellation;
+    }
+
+    fn has_cancellation(&self) -> bool {
+        self.has_cancellation
     }
 }

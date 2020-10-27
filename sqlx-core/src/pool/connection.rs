@@ -68,6 +68,12 @@ impl<DB: Database> Drop for PoolConnection<DB> {
         if let Some(mut live) = self.live.take() {
             let pool = self.pool.clone();
 
+            if live.raw.has_cancellation() {
+                // drop the connection as it may be in an inconsistent state
+                drop(live.float(&pool));
+                return;
+            }
+
             if live.raw.should_flush() {
                 spawn(async move {
                     // flush the connection (will immediately return if not needed) before

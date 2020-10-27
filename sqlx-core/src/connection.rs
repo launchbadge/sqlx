@@ -85,6 +85,21 @@ pub trait Connection: Send {
     #[doc(hidden)]
     fn should_flush(&self) -> bool;
 
+    #[doc(hidden)]
+    fn set_has_cancellation(&mut self, has_cancellation: bool);
+
+    /// If this connection previously had a canceled execution future. If true, the connection
+    /// should be closed as it may be in an inconsistent state.
+    #[doc(hidden)]
+    fn has_cancellation(&self) -> bool;
+
+    #[doc(hidden)]
+    #[must_use = "don't forget to call `.forget()`"]
+    fn cancellation_guard(&mut self) -> CancellationGuard<'_, Self> where Self: Sized {
+        self.set_has_cancellation(false);
+        CancellationGuard { conn: self, ignore: false }
+    }
+
     /// Establish a new database connection.
     ///
     /// A value of `Options` is parsed from the provided connection string. This parsing
@@ -115,4 +130,17 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug {
     fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
     where
         Self::Connection: Sized;
+}
+
+pub struct CancellationGuard<'a, C: Connection> {
+    pub conn: &'a mut C,
+    pub ignore: bool
+}
+
+impl<'a, C: Connection> Drop for CancellationGuard<'a, C> {
+    fn drop(&mut self) {
+        if !self.ignore {
+            self.conn.set_has_cancellation(true);
+        }
+    }
 }
