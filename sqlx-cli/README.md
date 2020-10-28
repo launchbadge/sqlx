@@ -80,4 +80,4 @@ database schema and queries in the project. Intended for use in Continuous Integ
 
 To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
-variable.
+variable to `true`.
