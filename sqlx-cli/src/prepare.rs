@@ -104,6 +104,7 @@ fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
             "__sqlx_recompile_trigger=\"{}\"",
             SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
         ))
+        .env("SQLX_OFFLINE", "false")
         .status()?;
 
     if !check_status.success() {
