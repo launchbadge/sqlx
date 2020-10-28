@@ -81,7 +81,7 @@ pub fn check(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
 fn run_prepare_step(cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
     // path to the Cargo executable
     let cargo = env::var("CARGO")
-        .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare``")?;
+        .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare`")?;
 
     let metadata = MetadataCommand::new()
         .cargo_path(&cargo)
