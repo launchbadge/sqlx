@@ -65,6 +65,7 @@ impl<T> StatementCache<T> {
     }
 
     /// Returns true if the cache capacity is more than 0.
+    #[allow(dead_code)] // Only used for some `cfg`s
     pub fn is_enabled(&self) -> bool {
         self.capacity() > 0
     }

@@ -187,7 +187,7 @@ impl<DB: Database> DescribeExt for Describe<DB> {}
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
-    offline: bool,
+    #[allow(unused_variables)] offline: bool,
 ) -> crate::Result<TokenStream>
 where
     Describe<DB>: DescribeExt,
