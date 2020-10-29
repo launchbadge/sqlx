@@ -335,7 +335,7 @@ WHERE organization = ?
         ",
         organization
     )
-    .fetch_all() // -> Vec<Country>
+    .fetch_all(&pool) // -> Vec<Country>
     .await?;
 
 // countries[0].country
