@@ -1,9 +1,9 @@
 use crate::error::Error;
 use crate::sqlite::statement::StatementHandle;
-use crossbeam_channel::{bounded, unbounded, Sender};
+use crossbeam_channel::{unbounded, Sender};
 use either::Either;
+use futures_channel::oneshot;
 use libsqlite3_sys::{sqlite3_step, SQLITE_DONE, SQLITE_ROW};
-use sqlx_rt::yield_now;
 use std::thread;
 
 // Each SQLite connection has a dedicated thread.
@@ -19,7 +19,7 @@ pub(crate) struct StatementWorker {
 enum StatementWorkerCommand {
     Step {
         statement: StatementHandle,
-        tx: Sender<Result<Either<u64, ()>, Error>>,
+        tx: oneshot::Sender<Result<Either<u64, ()>, Error>>,
     },
 }
 
@@ -52,16 +52,12 @@ impl StatementWorker {
         &mut self,
         statement: StatementHandle,
     ) -> Result<Either<u64, ()>, Error> {
-        let (tx, rx) = bounded(1);
+        let (tx, rx) = oneshot::channel();
 
         self.tx
             .send(StatementWorkerCommand::Step { statement, tx })
             .map_err(|_| Error::WorkerCrashed)?;
 
-        while rx.is_empty() {
-            yield_now().await;
-        }
-
-        rx.recv().map_err(|_| Error::WorkerCrashed)?
+        rx.await.map_err(|_| Error::WorkerCrashed)?
     }
 }
