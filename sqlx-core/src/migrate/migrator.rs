@@ -19,6 +19,7 @@ impl Migrator {
     /// #     sqlx_rt::block_on(async move {
     /// // Read migrations from a local folder: ./migrations
     /// let m = sqlx_core::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// Ok(())
     /// #     })
     /// # }
     /// ```
