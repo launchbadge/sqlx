@@ -124,11 +124,21 @@ sqlx = "0.4.0-beta.1"
 sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }
 ```
 
+**actix**
+
+```toml
+# Cargo.toml
+[dependencies]
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-actix", "macros" ] }
+```
+
 #### Cargo Feature Flags
 
  * `runtime-async-std` (on by default): Use the `async-std` runtime.
 
- * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive with the `runtime-async-std` feature.
+ * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive all other runtimes.
+ 
+ * `runtime-actix`: Use the `actix_rt` runtime. Mutually exclusive all other runtimes.
 
  * `postgres`: Add support for the Postgres database server.
 
@@ -141,6 +151,8 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
  * `any`: Add support for the `Any` database driver, which can proxy to a database driver at runtime.
 
  * `macros`: Add support for the `query*!` macros, which allow compile-time checked queries.
+ 
+ * `migrate`: Add support for the migration management and `migrate!` macro, which allow compile-time embedded migrations.
 
  * `uuid`: Add support for UUID (in Postgres).
 
