@@ -136,9 +136,9 @@ sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runti
 
  * `runtime-async-std` (on by default): Use the `async-std` runtime.
 
- * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive all other runtimes.
+ * `runtime-tokio`: Use the `tokio` runtime. Mutually exclusive to all other runtimes.
  
- * `runtime-actix`: Use the `actix_rt` runtime. Mutually exclusive all other runtimes.
+ * `runtime-actix`: Use the `actix_rt` runtime. Mutually exclusive to all other runtimes.
 
  * `postgres`: Add support for the Postgres database server.
 
