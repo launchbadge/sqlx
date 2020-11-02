@@ -43,6 +43,18 @@ impl Migrator {
 
     /// Run any pending migrations against the database; and, validate previously applied migrations
     /// against the current migration source to detect accidental changes in previously-applied migrations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # fn main() -> Result<(), sqlx_core::migrate::MigrateError> {
+    /// #     sqlx_rt::block_on(async move {
+    /// let m = sqlx_core::migrate::Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// m.run(&pool).await
+    /// #     })
+    /// # }
+    /// ```
     pub async fn run<'a, A>(&self, migrator: A) -> Result<(), MigrateError>
     where
         A: Acquire<'a>,
