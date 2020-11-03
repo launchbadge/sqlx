@@ -270,6 +270,22 @@ fn it_binds_parameters() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+fn it_binds_dollar_parameters() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let v: (i32, i32) = sqlx::query_as("SELECT $1, $2")
+        .bind(10_i32)
+        .bind(11_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(v.0, 10);
+    assert_eq!(v.1, 11);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_executes_queries() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
