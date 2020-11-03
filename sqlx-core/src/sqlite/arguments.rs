@@ -61,6 +61,14 @@ impl SqliteArguments<'_> {
                 if name.starts_with('?') {
                     // parameter should have the form ?NNN
                     atoi(name[1..].as_bytes()).expect("parameter of the form ?NNN")
+                } else if name.starts_with('$') {
+                    // parameter should have the form $NNN
+                    atoi(name[1..].as_bytes()).ok_or_else(|| {
+                        err_protocol!(
+                            "parameters with non-integer names are not currently supported: {}",
+                            name
+                        )
+                    })?
                 } else {
                     return Err(err_protocol!("unsupported SQL parameter format: {}", name));
                 }
