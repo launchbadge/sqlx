@@ -26,7 +26,7 @@ pub fn run(url: &str, cargo_args: Vec<String>) -> anyhow::Result<()> {
 
     if data.is_empty() {
         println!(
-            "{} no queries found; do you have the `offline` feature enabled",
+            "{} no queries found; do you have the `offline` feature enabled in sqlx?",
             style("warning:").yellow()
         );
     }
