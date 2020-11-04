@@ -123,13 +123,13 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
     let mut rename = None;
     let mut default = false;
 
-    for attr in input {
+    for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
         let meta = attr
             .parse_meta()
             .map_err(|e| syn::Error::new_spanned(attr, e))?;
 
         match meta {
-            Meta::List(list) if list.path.is_ident("sqlx") => {
+            Meta::List(list) => {
                 for value in list.nested.iter() {
                     match value {
                         NestedMeta::Meta(meta) => match meta {
