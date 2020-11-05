@@ -81,7 +81,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 handle: ref mut conn,
                 ref mut statements,
                 ref mut statement,
-                ref worker,
+                ref mut worker,
                 ..
             } = self;
 
@@ -91,25 +91,18 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             // keep track of how many arguments we have bound
             let mut num_arguments = 0;
 
-            while let Some((handle, columns, column_names, last_row_values)) = stmt.prepare(conn)? {
+            while let Some((stmt, columns, column_names, last_row_values)) = stmt.prepare(conn)? {
                 // bind values to the statement
-                num_arguments += bind(handle, &arguments, num_arguments)?;
-
-                // tell the worker about the new statement
-                worker.execute(handle);
-
-                // wake up the worker if needed
-                // the worker parks its thread on async-std when not in use
-                worker.wake();
+                num_arguments += bind(stmt, &arguments, num_arguments)?;
 
                 loop {
                     // save the rows from the _current_ position on the statement
                     // and send them to the still-live row object
-                    SqliteRow::inflate_if_needed(handle, &*columns, last_row_values.take());
+                    SqliteRow::inflate_if_needed(stmt, &*columns, last_row_values.take());
 
                     // invoke [sqlite3_step] on the dedicated worker thread
                     // this will move us forward one row or finish the statement
-                    let s = worker.step(handle).await?;
+                    let s = worker.step(*stmt).await?;
 
                     match s {
                         Either::Left(changes) => {
@@ -129,7 +122,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                         Either::Right(()) => {
                             let (row, weak_values_ref) = SqliteRow::current(
-                                *handle,
+                                *stmt,
                                 columns,
                                 column_names
                             );

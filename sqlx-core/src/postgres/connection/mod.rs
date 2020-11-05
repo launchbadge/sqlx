@@ -1,9 +1,9 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
+use crate::HashMap;
 use futures_core::future::BoxFuture;
 use futures_util::{FutureExt, TryFutureExt};
-use hashbrown::HashMap;
 
 use crate::common::StatementCache;
 use crate::connection::Connection;

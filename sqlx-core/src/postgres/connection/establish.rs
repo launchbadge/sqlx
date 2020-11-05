@@ -1,4 +1,4 @@
-use hashbrown::HashMap;
+use crate::HashMap;
 
 use crate::common::StatementCache;
 use crate::error::Error;

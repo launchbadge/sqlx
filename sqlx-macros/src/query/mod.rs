@@ -36,7 +36,9 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
     // if `dotenv` wasn't initialized by the above we make sure to do it here
     match (
-        dotenv::var("SQLX_OFFLINE").is_ok(),
+        dotenv::var("SQLX_OFFLINE")
+            .map(|s| s.to_lowercase() == "true")
+            .unwrap_or(false),
         dotenv::var("DATABASE_URL"),
     ) {
         (false, Ok(db_url)) => expand_from_db(input, &db_url),
@@ -80,7 +82,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
-            expand_with_data(input, data)
+            expand_with_data(input, data, false)
         },
 
         #[cfg(not(feature = "postgres"))]
@@ -93,7 +95,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
-            expand_with_data(input, data)
+            expand_with_data(input, data, false)
         },
 
         #[cfg(not(feature = "mssql"))]
@@ -106,7 +108,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
-            expand_with_data(input, data)
+            expand_with_data(input, data, false)
         },
 
         #[cfg(not(feature = "mysql"))]
@@ -119,7 +121,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.src).await
             })?;
 
-            expand_with_data(input, data)
+            expand_with_data(input, data, false)
         },
 
         #[cfg(not(feature = "sqlite"))]
@@ -144,16 +146,19 @@ pub fn expand_from_file(
         sqlx_core::postgres::Postgres::NAME => expand_with_data(
             input,
             QueryData::<sqlx_core::postgres::Postgres>::from_dyn_data(query_data)?,
+            true,
         ),
         #[cfg(feature = "mysql")]
         sqlx_core::mysql::MySql::NAME => expand_with_data(
             input,
             QueryData::<sqlx_core::mysql::MySql>::from_dyn_data(query_data)?,
+            true,
         ),
         #[cfg(feature = "sqlite")]
         sqlx_core::sqlite::Sqlite::NAME => expand_with_data(
             input,
             QueryData::<sqlx_core::sqlite::Sqlite>::from_dyn_data(query_data)?,
+            true,
         ),
         _ => Err(format!(
             "found query data for {} but the feature for that database was not enabled",
@@ -182,6 +187,7 @@ impl<DB: Database> DescribeExt for Describe<DB> {}
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
     data: QueryData<DB>,
+    #[allow(unused_variables)] offline: bool,
 ) -> crate::Result<TokenStream>
 where
     Describe<DB>: DescribeExt,
@@ -273,8 +279,10 @@ where
         #output
     }};
 
+    // Store query metadata only if offline support is enabled but the current build is online.
+    // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
-    {
+    if !offline {
         let mut save_dir = std::path::PathBuf::from(
             env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()),
         );

@@ -3,7 +3,7 @@ use std::slice;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Weak};
 
-use hashbrown::HashMap;
+use crate::HashMap;
 
 use crate::column::ColumnIndex;
 use crate::error::Error;

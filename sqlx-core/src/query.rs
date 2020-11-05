@@ -251,7 +251,7 @@ where
 impl<'q, DB, F, O, A> Map<'q, DB, F, A>
 where
     DB: Database,
-    F: Send + Sync + Fn(DB::Row) -> Result<O, Error>,
+    F: TryMapRow<DB, Output = O>,
     O: Send + Unpin,
     A: 'q + Send + IntoArguments<'q, DB>,
 {
@@ -277,7 +277,7 @@ where
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
     pub fn fetch_many<'e, 'c: 'e, E>(
-        self,
+        mut self,
         executor: E,
     ) -> BoxStream<'e, Result<Either<DB::Done, O>, Error>>
     where
@@ -294,7 +294,7 @@ where
                 r#yield!(match v {
                     Either::Left(v) => Either::Left(v),
                     Either::Right(row) => {
-                        Either::Right((self.mapper)(row)?)
+                        Either::Right(self.mapper.try_map_row(row)?)
                     }
                 });
             }
@@ -333,7 +333,7 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'e, 'c: 'e, E>(mut self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,
@@ -344,7 +344,7 @@ where
         let row = executor.fetch_optional(self.inner).await?;
 
         if let Some(row) = row {
-            (self.mapper)(row).map(Some)
+            self.mapper.try_map_row(row).map(Some)
         } else {
             Ok(None)
         }
@@ -356,13 +356,13 @@ where
 //
 // See https://github.com/rust-lang/rust/issues/62529
 
-pub trait TryMapRow<DB: Database> {
+pub trait TryMapRow<DB: Database>: Send {
     type Output: Unpin;
 
     fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error>;
 }
 
-pub trait MapRow<DB: Database> {
+pub trait MapRow<DB: Database>: Send {
     type Output: Unpin;
 
     fn map_row(&mut self, row: DB::Row) -> Self::Output;
@@ -449,7 +449,7 @@ macro_rules! impl_map_row {
     ($DB:ident, $R:ident) => {
         impl<O: Unpin, F> crate::query::MapRow<$DB> for F
         where
-            F: FnMut($R) -> O,
+            F: Send + FnMut($R) -> O,
         {
             type Output = O;
 
@@ -460,7 +460,7 @@ macro_rules! impl_map_row {
 
         impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
         where
-            F: FnMut($R) -> Result<O, crate::error::Error>,
+            F: Send + FnMut($R) -> Result<O, crate::error::Error>,
         {
             type Output = O;
 

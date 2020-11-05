@@ -604,7 +604,7 @@ macro_rules! query_file_as_unchecked (
 /// ```rust,ignore
 /// use sqlx::migrate::Migrator;
 ///
-/// static MIGRATOR: Migrator = sqlx::migrate!(); // defaults to "migrations"
+/// static MIGRATOR: Migrator = sqlx::migrate!(); // defaults to "./migrations"
 /// ```
 ///
 /// The directory must be relative to the project root (the directory containing `Cargo.toml`),
@@ -618,6 +618,6 @@ macro_rules! migrate {
     }};
 
     () => {{
-        $crate::sqlx_macros::migrate!("migrations")
+        $crate::sqlx_macros::migrate!("./migrations")
     }};
 }

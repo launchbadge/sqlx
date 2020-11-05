@@ -16,7 +16,7 @@ impl<'q> Encode<'_, Capabilities> for Execute<'q> {
         buf.push(0x17); // COM_STMT_EXECUTE
         buf.extend(&self.statement.to_le_bytes());
         buf.push(0); // NO_CURSOR
-        buf.extend(&0_u32.to_le_bytes()); // iterations (always 1): int<4>
+        buf.extend(&1_u32.to_le_bytes()); // iterations (always 1): int<4>
 
         if !self.arguments.types.is_empty() {
             buf.extend(&*self.arguments.null_bitmap);

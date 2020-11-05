@@ -13,12 +13,13 @@ use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::task::Context;
 use std::time::Instant;
 
 pub(crate) struct SharedPool<DB: Database> {
     pub(super) connect_options: <DB::Connection as Connection>::Options,
     pub(super) idle_conns: ArrayQueue<Idle<DB>>,
-    waiters: SegQueue<Waker>,
+    waiters: SegQueue<Arc<Waiter>>,
     pub(super) size: AtomicU32,
     is_closed: AtomicBool,
     pub(super) options: PoolOptions<DB>,
@@ -122,19 +123,22 @@ impl<DB: Database> SharedPool<DB> {
             return Err(Error::PoolClosed);
         }
 
-        let mut waker_pushed = false;
+        let mut waiter = None;
 
         timeout(
             deadline_as_timeout::<DB>(deadline)?,
             // `poll_fn` gets us easy access to a `Waker` that we can push to our queue
-            future::poll_fn(|ctx| -> Poll<()> {
-                if !waker_pushed {
-                    // only push the waker once
-                    self.waiters.push(ctx.waker().to_owned());
-                    waker_pushed = true;
-                    Poll::Pending
-                } else {
+            future::poll_fn(|cx| -> Poll<()> {
+                let waiter = waiter.get_or_insert_with(|| {
+                    let waiter = Waiter::new(cx);
+                    self.waiters.push(waiter.clone());
+                    waiter
+                });
+
+                if waiter.is_woken() {
                     Poll::Ready(())
+                } else {
+                    Poll::Pending
                 }
             }),
         )
@@ -346,7 +350,7 @@ fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
 /// (where the pool thinks it has more connections than it does).
 pub(in crate::pool) struct DecrementSizeGuard<'a> {
     size: &'a AtomicU32,
-    waiters: &'a SegQueue<Waker>,
+    waiters: &'a SegQueue<Arc<Waiter>>,
     dropped: bool,
 }
 
@@ -377,5 +381,28 @@ impl Drop for DecrementSizeGuard<'_> {
         if let Ok(waker) = self.waiters.pop() {
             waker.wake();
         }
+    }
+}
+
+struct Waiter {
+    woken: AtomicBool,
+    waker: Waker,
+}
+
+impl Waiter {
+    fn new(cx: &mut Context<'_>) -> Arc<Self> {
+        Arc::new(Self {
+            woken: AtomicBool::new(false),
+            waker: cx.waker().clone(),
+        })
+    }
+
+    fn wake(&self) {
+        self.woken.store(true, Ordering::Release);
+        self.waker.wake_by_ref();
+    }
+
+    fn is_woken(&self) -> bool {
+        self.woken.load(Ordering::Acquire)
     }
 }

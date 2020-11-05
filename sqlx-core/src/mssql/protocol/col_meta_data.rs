@@ -6,7 +6,7 @@ use crate::ext::ustr::UStr;
 use crate::mssql::io::MssqlBufExt;
 use crate::mssql::protocol::type_info::TypeInfo;
 use crate::mssql::MssqlColumn;
-use hashbrown::HashMap;
+use crate::HashMap;
 
 #[derive(Debug)]
 pub(crate) struct ColMetaData;

@@ -88,9 +88,8 @@ impl_database_ext! {
         #[cfg(feature = "chrono")]
         Vec<sqlx::types::chrono::NaiveDateTime> | &[sqlx::types::chrono::NaiveDateTime],
 
-        // TODO
-        // #[cfg(feature = "chrono")]
-        // Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
+        #[cfg(feature = "chrono")]
+        Vec<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> | &[sqlx::types::chrono::DateTime<_>],
 
         #[cfg(feature = "time")]
         Vec<sqlx::types::time::Time> | &[sqlx::types::time::Time],
@@ -113,6 +112,69 @@ impl_database_ext! {
         #[cfg(feature = "json")]
         Vec<serde_json::Value> | &[serde_json::Value],
 
+        // Ranges
+
+        sqlx::postgres::types::PgRange<i32>,
+        sqlx::postgres::types::PgRange<i64>,
+
+        #[cfg(feature = "bigdecimal")]
+        sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>,
+
+        #[cfg(feature = "chrono")]
+        sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>,
+
+        #[cfg(feature = "chrono")]
+        sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>,
+
+        #[cfg(feature = "chrono")]
+        sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>> |
+            sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>,
+
+        #[cfg(feature = "time")]
+        sqlx::postgres::types::PgRange<sqlx::types::time::Date>,
+
+        #[cfg(feature = "time")]
+        sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>,
+
+        #[cfg(feature = "time")]
+        sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>,
+
+        // Range arrays
+
+        Vec<sqlx::postgres::types::PgRange<i32>> | &[sqlx::postgres::types::PgRange<i32>],
+        Vec<sqlx::postgres::types::PgRange<i64>> | &[sqlx::postgres::types::PgRange<i64>],
+
+        #[cfg(feature = "bigdecimal")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::BigDecimal>],
+
+        #[cfg(feature = "chrono")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDate>],
+
+        #[cfg(feature = "chrono")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::NaiveDateTime>],
+
+        #[cfg(feature = "chrono")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>>> |
+            Vec<sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>>,
+
+        #[cfg(feature = "chrono")]
+        &[sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<sqlx::types::chrono::Utc>>] |
+            &[sqlx::postgres::types::PgRange<sqlx::types::chrono::DateTime<_>>],
+
+        #[cfg(feature = "time")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::Date>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::time::Date>],
+
+        #[cfg(feature = "time")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::time::PrimitiveDateTime>],
+
+        #[cfg(feature = "time")]
+        Vec<sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>> |
+            &[sqlx::postgres::types::PgRange<sqlx::types::time::OffsetDateTime>],
     },
     ParamChecking::Strong,
     feature-types: info => info.__type_feature_gate(),

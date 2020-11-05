@@ -709,3 +709,57 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// repro is more reliable with the basic scheduler used by `#[tokio::test]`
+#[cfg(feature = "runtime-tokio")]
+#[tokio::test]
+async fn test_issue_622() -> anyhow::Result<()> {
+    use std::time::Instant;
+
+    setup_if_needed();
+
+    let pool = PgPoolOptions::new()
+        .max_connections(1) // also fails with higher counts, e.g. 5
+        .connect(&std::env::var("DATABASE_URL").unwrap())
+        .await?;
+
+    println!("pool state: {:?}", pool);
+
+    let mut handles = vec![];
+
+    // given repro spawned 100 tasks but I found it reliably reproduced with 3
+    for i in 0..3 {
+        let pool = pool.clone();
+
+        handles.push(sqlx_rt::spawn(async move {
+            {
+                let mut conn = pool.acquire().await.unwrap();
+
+                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+
+                // conn gets dropped here and should be returned to the pool
+            }
+
+            // (do some other work here without holding on to a connection)
+            // this actually fixes the issue, depending on the timeout used
+            // sqlx_rt::sleep(Duration::from_millis(500)).await;
+
+            {
+                let start = Instant::now();
+                match pool.acquire().await {
+                    Ok(conn) => {
+                        println!("{} acquire took {:?}", i, start.elapsed());
+                        drop(conn);
+                    }
+                    Err(e) => panic!("{} acquire returned error: {} pool state: {:?}", i, e, pool),
+                }
+            }
+
+            Result::<(), anyhow::Error>::Ok(())
+        }));
+    }
+
+    futures::future::try_join_all(handles).await?;
+
+    Ok(())
+}

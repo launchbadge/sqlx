@@ -66,6 +66,14 @@ enum ColorScreamingSnake {
     BlueBlack,
 }
 
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color-kebab-case")]
+#[sqlx(rename_all = "kebab-case")]
+enum ColorKebabCase {
+    RedGreen,
+    BlueBlack,
+}
+
 // "Strong" enum can map to a custom type
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "mood")]
@@ -133,11 +141,13 @@ DROP TYPE IF EXISTS color_lower CASCADE;
 DROP TYPE IF EXISTS color_snake CASCADE;
 DROP TYPE IF EXISTS color_upper CASCADE;
 DROP TYPE IF EXISTS color_screaming_snake CASCADE;
+DROP TYPE IF EXISTS "color-kebab-case" CASCADE;
 
 CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
 CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
 CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
 CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
+CREATE TYPE "color-kebab-case" AS ENUM ( 'red-green', 'blue-black' );
 
 CREATE TABLE people (
     id      serial PRIMARY KEY,
@@ -263,6 +273,18 @@ SELECT id, mood FROM people WHERE id = $1
 
     assert!(rec.0);
     assert_eq!(rec.1, ColorScreamingSnake::RedGreen);
+
+    let rec: (bool, ColorKebabCase) = sqlx::query_as(
+        "
+    SELECT $1 = 'red-green'::\"color-kebab-case\", $1
+            ",
+    )
+    .bind(&ColorKebabCase::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorKebabCase::RedGreen);
 
     Ok(())
 }
@@ -400,6 +422,44 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
     assert_eq!(None, account.def_struct);
     assert_eq!(Some("bar".to_owned()), account.custom_let);
     assert_eq!(None, account.name);
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_from_row_tuple() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct Account(i32, String);
+
+    let account: Account = sqlx::query_as(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(account.0, 1);
+    assert_eq!(account.1, "Herp Derpinson");
+
+    // A _single_ lifetime may be used but only when using the lowest-level API currently (Query::fetch)
+
+    #[derive(sqlx::FromRow)]
+    struct RefAccount<'a>(i32, &'a str);
+
+    let mut cursor = sqlx::query(
+        "SELECT * from (VALUES (1, 'Herp Derpinson')) accounts(id, name) where id = $1",
+    )
+    .bind(1_i32)
+    .fetch(&mut conn);
+
+    let row = cursor.try_next().await?.unwrap();
+    let account = RefAccount::from_row(&row)?;
+
+    assert_eq!(account.0, 1);
+    assert_eq!(account.1, "Herp Derpinson");
 
     Ok(())
 }

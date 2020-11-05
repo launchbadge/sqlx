@@ -76,7 +76,7 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.ensure_migrations_table(),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
         }
     }
 
@@ -92,7 +92,7 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.version(),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
         }
     }
 
@@ -108,7 +108,7 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.lock(),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
         }
     }
 
@@ -124,7 +124,7 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.unlock(),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
         }
     }
 
@@ -143,7 +143,10 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.validate(migration),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => {
+                let _ = migration;
+                unimplemented!()
+            }
         }
     }
 
@@ -162,7 +165,10 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.apply(migration),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => {
+                let _ = migration;
+                unimplemented!()
+            }
         }
     }
 }

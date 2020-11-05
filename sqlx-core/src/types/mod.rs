@@ -98,6 +98,14 @@ pub use json::Json;
 /// struct UserId(i64);
 /// ```
 ///
+/// ##### Attributes
+///
+/// * `#[sqlx(rename = "<SQL type name>")]` on struct definition: instead of inferring the SQL type name from the inner
+/// field (in the above case, `BIGINT`), explicitly set it to `<SQL type name>` instead. May trigger
+/// errors or unexpected behavior if the encoding of the given type is different than that of the
+/// inferred type (e.g. if you rename the above to `VARCHAR`).
+/// Affects Postgres only.
+///
 /// ### Enumeration
 ///
 /// Enumerations may be defined in Rust and can match SQL by

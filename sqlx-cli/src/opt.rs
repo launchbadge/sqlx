@@ -5,7 +5,7 @@ pub struct Opt {
     #[clap(subcommand)]
     pub command: Command,
 
-    #[clap(short = "D", long)]
+    #[clap(short = 'D', long)]
     pub database_url: Option<String>,
 }
 
@@ -57,6 +57,15 @@ pub enum DatabaseCommand {
         #[clap(short)]
         yes: bool,
     },
+    /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
+    Reset {
+        /// Automatic confirmation. Without this option, you will be prompted before dropping
+        /// your database.
+        #[clap(short)]
+        yes: bool,
+    },
+    /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
+    Setup,
 }
 
 /// Group of commands for creating and running migrations.

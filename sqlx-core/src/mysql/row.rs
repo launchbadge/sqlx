@@ -3,7 +3,7 @@ use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::mysql::{protocol, MySql, MySqlColumn, MySqlValueFormat, MySqlValueRef};
 use crate::row::Row;
-use hashbrown::HashMap;
+use crate::HashMap;
 use std::sync::Arc;
 
 /// Implementation of [`Row`] for MySQL.

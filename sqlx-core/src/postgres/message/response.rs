@@ -26,6 +26,29 @@ impl PgSeverity {
     }
 }
 
+impl std::convert::TryFrom<&str> for PgSeverity {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<PgSeverity, Error> {
+        let result = match s {
+            "PANIC" => PgSeverity::Panic,
+            "FATAL" => PgSeverity::Fatal,
+            "ERROR" => PgSeverity::Error,
+            "WARNING" => PgSeverity::Warning,
+            "NOTICE" => PgSeverity::Notice,
+            "DEBUG" => PgSeverity::Debug,
+            "INFO" => PgSeverity::Info,
+            "LOG" => PgSeverity::Log,
+
+            severity => {
+                return Err(err_protocol!("unknown severity: {:?}", severity));
+            }
+        };
+
+        Ok(result)
+    }
+}
+
 #[derive(Debug)]
 pub struct Notice {
     storage: Bytes,
@@ -84,7 +107,12 @@ impl Notice {
 
 impl Decode<'_> for Notice {
     fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
-        let mut severity = PgSeverity::Log;
+        // In order to support PostgreSQL 9.5 and older we need to parse the localized S field.
+        // Newer versions additionally come with the V field that is guaranteed to be in English.
+        // We thus read both versions and prefer the unlocalized one if available.
+        const DEFAULT_SEVERITY: PgSeverity = PgSeverity::Log;
+        let mut severity_v = None;
+        let mut severity_s = None;
         let mut message = (0, 0);
         let mut code = (0, 0);
 
@@ -103,23 +131,24 @@ impl Decode<'_> for Notice {
                 break;
             }
 
+            use std::convert::TryInto;
             match field {
-                b'S' | b'V' => {
-                    // unwrap: impossible to fail at this point
-                    severity = match from_utf8(&buf[v.0 as usize..v.1 as usize]).unwrap() {
-                        "PANIC" => PgSeverity::Panic,
-                        "FATAL" => PgSeverity::Fatal,
-                        "ERROR" => PgSeverity::Error,
-                        "WARNING" => PgSeverity::Warning,
-                        "NOTICE" => PgSeverity::Notice,
-                        "DEBUG" => PgSeverity::Debug,
-                        "INFO" => PgSeverity::Info,
-                        "LOG" => PgSeverity::Log,
+                b'S' => {
+                    // Discard potential errors, because the message might be localized
+                    severity_s = from_utf8(&buf[v.0 as usize..v.1 as usize])
+                        .unwrap()
+                        .try_into()
+                        .ok();
+                }
 
-                        severity => {
-                            return Err(err_protocol!("unknown severity: {:?}", severity));
-                        }
-                    };
+                b'V' => {
+                    // Propagate errors here, because V is not localized and thus we are missing a possible
+                    // variant.
+                    severity_v = Some(
+                        from_utf8(&buf[v.0 as usize..v.1 as usize])
+                            .unwrap()
+                            .try_into()?,
+                    );
                 }
 
                 b'M' => {
@@ -135,7 +164,7 @@ impl Decode<'_> for Notice {
         }
 
         Ok(Self {
-            severity,
+            severity: severity_v.or(severity_s).unwrap_or(DEFAULT_SEVERITY),
             message,
             code,
             storage: buf,

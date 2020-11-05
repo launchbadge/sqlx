@@ -1,4 +1,6 @@
-use sqlx::sqlite::Sqlite;
+use sqlx::sqlite::{Sqlite, SqliteRow};
+use sqlx_core::row::Row;
+use sqlx_test::new;
 use sqlx_test::test_type;
 
 test_type!(null<Option<i32>>(Sqlite,
@@ -31,6 +33,61 @@ test_type!(bytes<Vec<u8>>(Sqlite,
     "X'0000000052'"
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
+
+#[cfg(feature = "json")]
+mod json_tests {
+    use super::*;
+    use serde_json::{json, Value as JsonValue};
+    use sqlx::types::Json;
+    use sqlx_test::test_type;
+
+    test_type!(json<JsonValue>(
+        Sqlite,
+        "'\"Hello, World\"'" == json!("Hello, World"),
+        "'\"😎\"'" == json!("😎"),
+        "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
+        "'[\"Hello\",\"World!\"]'" == json!(["Hello", "World!"])
+    ));
+
+    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
+    struct Friend {
+        name: String,
+        age: u32,
+    }
+
+    test_type!(json_struct<Json<Friend>>(
+        Sqlite,
+        "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
+    ));
+
+    // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
+    //       need to wrap the Vec in Json<_> to make the example work.
+
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct Customer {
+        json_column: Json<Vec<i64>>,
+    }
+
+    test_type!(json_struct_json_column<Json<Customer>>(
+        Sqlite,
+        "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
+    ));
+
+    #[sqlx_macros::test]
+    async fn it_json_extracts() -> anyhow::Result<()> {
+        let mut conn = new::<Sqlite>().await?;
+
+        let value = sqlx::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+            .bind(42_i32)
+            .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(true, value);
+
+        Ok(())
+    }
+}
 
 #[cfg(feature = "chrono")]
 mod chrono {

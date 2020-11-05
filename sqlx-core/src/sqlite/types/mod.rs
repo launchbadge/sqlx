@@ -35,4 +35,6 @@ mod bytes;
 mod chrono;
 mod float;
 mod int;
+#[cfg(feature = "json")]
+mod json;
 mod str;

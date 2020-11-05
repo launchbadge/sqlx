@@ -4,7 +4,7 @@ use crate::ext::ustr::UStr;
 use crate::mssql::protocol::row::Row as ProtocolRow;
 use crate::mssql::{Mssql, MssqlColumn, MssqlValueRef};
 use crate::row::Row;
-use hashbrown::HashMap;
+use crate::HashMap;
 use std::sync::Arc;
 
 pub struct MssqlRow {
