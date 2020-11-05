@@ -27,7 +27,7 @@ pub use native_tls::{self, Error as TlsError};
     not(feature = "runtime-async-std"),
 ))]
 pub use tokio::{
-    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
+    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf, net::TcpStream,
     task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
@@ -152,13 +152,14 @@ mod tokio_runtime {
     });
 
     pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-        RUNTIME.enter(|| RUNTIME.handle().block_on(future))
+        RUNTIME.block_on(future)
     }
 
     pub fn enter_runtime<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
     {
-        RUNTIME.enter(f)
+        RUNTIME.enter();
+        f()
     }
 }

@@ -59,6 +59,7 @@ impl<S> AsyncRead for MaybeTlsStream<S>
 where
     S: Unpin + AsyncWrite + AsyncRead,
 {
+    #[cfg(not(feature = "runtime-tokio" ))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -72,7 +73,21 @@ where
         }
     }
 
-    #[cfg(any(feature = "runtime-actix", feature = "runtime-tokio"))]
+    #[cfg(any(feature = "runtime-tokio" ))]
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut sqlx_rt::ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeTlsStream::Raw(s) => Pin::new(s).poll_read(cx, buf),
+            MaybeTlsStream::Tls(s) => Pin::new(s).poll_read(cx, buf),
+
+            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
+        }
+    }
+
+    #[cfg(any(feature = "runtime-actix"))]
     fn poll_read_buf<B>(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -137,7 +152,7 @@ where
         }
     }
 
-    #[cfg(any(feature = "runtime-actix", feature = "runtime-tokio"))]
+    #[cfg(any(feature = "runtime-actix"))]
     fn poll_write_buf<B>(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

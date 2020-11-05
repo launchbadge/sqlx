@@ -47,6 +47,7 @@ impl Socket {
 }
 
 impl AsyncRead for Socket {
+    #[cfg(not(feature = "runtime-tokio"))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -60,7 +61,21 @@ impl AsyncRead for Socket {
         }
     }
 
-    #[cfg(any(feature = "runtime-actix", feature = "runtime-tokio"))]
+    #[cfg(any(feature = "runtime-tokio"))]
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut sqlx_rt::ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        match &mut *self {
+            Socket::Tcp(s) => Pin::new(s).poll_read(cx, buf),
+
+            #[cfg(unix)]
+            Socket::Unix(s) => Pin::new(s).poll_read(cx, buf),
+        }
+    }
+
+    #[cfg(any(feature = "runtime-actix"))]
     fn poll_read_buf<B>(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -122,7 +137,7 @@ impl AsyncWrite for Socket {
         }
     }
 
-    #[cfg(any(feature = "runtime-actix", feature = "runtime-tokio"))]
+    #[cfg(any(feature = "runtime-actix"))]
     fn poll_write_buf<B>(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
