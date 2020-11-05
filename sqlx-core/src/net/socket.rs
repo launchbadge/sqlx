@@ -47,6 +47,7 @@ impl Socket {
 }
 
 impl AsyncRead for Socket {
+    #[cfg(not(any(feature = "runtime-actix", feature = "runtime-tokio")))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
