@@ -59,7 +59,7 @@ impl<S> AsyncRead for MaybeTlsStream<S>
 where
     S: Unpin + AsyncWrite + AsyncRead,
 {
-    #[cfg(not(feature = "runtime-tokio" ))]
+    #[cfg(not(feature = "runtime-tokio"))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -73,7 +73,7 @@ where
         }
     }
 
-    #[cfg(any(feature = "runtime-tokio" ))]
+    #[cfg(any(feature = "runtime-tokio"))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

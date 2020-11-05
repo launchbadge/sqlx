@@ -27,8 +27,8 @@ pub use native_tls::{self, Error as TlsError};
     not(feature = "runtime-async-std"),
 ))]
 pub use tokio::{
-    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf, net::TcpStream,
-    task::spawn, task::yield_now, time::sleep, time::timeout,
+    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
+    net::TcpStream, task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
