@@ -28,7 +28,7 @@ pub use native_tls::{self, Error as TlsError};
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
-    task::spawn, task::yield_now, time::delay_for as sleep, time::timeout,
+    task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
