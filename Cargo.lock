@@ -792,12 +792,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fnv"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
-
-[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1267,18 +1261,6 @@ dependencies = [
  "log",
  "miow 0.3.5",
  "ntapi",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "mio-named-pipes"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0840c1c50fd55e521b247f949c241c9997709f23bd7f023b9762cd561e935656"
-dependencies = [
- "log",
- "mio 0.6.22",
- "miow 0.3.5",
  "winapi 0.3.9",
 ]
 
@@ -2133,7 +2115,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
- "tokio 0.2.22",
+ "tokio 0.3.3",
  "url",
 ]
 
@@ -2283,7 +2265,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "sqlx",
- "tokio 0.2.22",
+ "tokio 0.3.3",
 ]
 
 [[package]]
@@ -2599,20 +2581,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d34ca54d84bf2b5b4d7d31e901a8464f7b60ac145a284fba25ceb801f2ddccd"
 dependencies = [
  "bytes 0.5.6",
- "fnv",
  "futures-core",
  "iovec",
  "lazy_static",
  "libc",
- "memchr",
  "mio 0.6.22",
- "mio-named-pipes",
  "mio-uds",
- "num_cpus",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",
- "tokio-macros 0.2.5",
  "winapi 0.3.9",
 ]
 
@@ -2634,19 +2611,8 @@ dependencies = [
  "pin-project-lite",
  "signal-hook-registry",
  "slab",
- "tokio-macros 0.3.1",
+ "tokio-macros",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "tokio-macros"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3acc6aa564495a0f2e1d59fab677cd7f81a19994cfc7f3ad0e64301560389"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
