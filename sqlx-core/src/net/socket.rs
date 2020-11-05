@@ -136,22 +136,4 @@ impl AsyncWrite for Socket {
             Socket::Unix(s) => Pin::new(s).poll_close(cx),
         }
     }
-
-    #[cfg(any(feature = "runtime-actix"))]
-    fn poll_write_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::Buf,
-    {
-        match &mut *self {
-            Socket::Tcp(s) => Pin::new(s).poll_write_buf(cx, buf),
-
-            #[cfg(unix)]
-            Socket::Unix(s) => Pin::new(s).poll_write_buf(cx, buf),
-        }
-    }
 }

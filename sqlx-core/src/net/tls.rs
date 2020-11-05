@@ -59,7 +59,7 @@ impl<S> AsyncRead for MaybeTlsStream<S>
 where
     S: Unpin + AsyncWrite + AsyncRead,
 {
-    #[cfg(not(feature = "runtime-tokio"))]
+    #[cfg(not(any(feature = "runtime-actix", feature = "runtime-tokio")))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -73,7 +73,7 @@ where
         }
     }
 
-    #[cfg(any(feature = "runtime-tokio"))]
+    #[cfg(any(feature = "runtime-actix", feature = "runtime-tokio"))]
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -82,24 +82,6 @@ where
         match &mut *self {
             MaybeTlsStream::Raw(s) => Pin::new(s).poll_read(cx, buf),
             MaybeTlsStream::Tls(s) => Pin::new(s).poll_read(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(any(feature = "runtime-actix"))]
-    fn poll_read_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::BufMut,
-    {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_read_buf(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_read_buf(cx, buf),
 
             MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
         }
@@ -147,24 +129,6 @@ where
         match &mut *self {
             MaybeTlsStream::Raw(s) => Pin::new(s).poll_close(cx),
             MaybeTlsStream::Tls(s) => Pin::new(s).poll_close(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(any(feature = "runtime-actix"))]
-    fn poll_write_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::Buf,
-    {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_write_buf(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_write_buf(cx, buf),
 
             MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
         }
