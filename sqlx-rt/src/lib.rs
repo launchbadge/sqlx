@@ -143,9 +143,8 @@ mod tokio_runtime {
 
     // lazily initialize a global runtime once for multiple invocations of the macros
     static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-        runtime::Builder::new()
+        runtime::Builder::new_multi_thread()
             // `.basic_scheduler()` requires calling `Runtime::block_on()` which needs mutability
-            .threaded_scheduler()
             .enable_io()
             .enable_time()
             .build()
