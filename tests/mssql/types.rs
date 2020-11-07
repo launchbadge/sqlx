@@ -41,3 +41,13 @@ test_type!(bool(
     "CAST(1 as BIT)" == true,
     "CAST(0 as BIT)" == false
 ));
+
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx::types::chrono::{NaiveDate, NaiveDateTime};
+
+    test_type!(chrono_date_time<NaiveDateTime>(Mssql,
+        "CAST('2019-01-02 05:10:20' as DATETIME)" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+    ));
+}

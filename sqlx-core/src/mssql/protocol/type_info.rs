@@ -521,6 +521,7 @@ impl TypeInfo {
 
     pub(crate) fn fmt(&self, s: &mut String) {
         match self.ty {
+            DataType::DateTime => s.push_str("datetime"),
             DataType::Null => s.push_str("nvarchar(1)"),
             DataType::TinyInt => s.push_str("tinyint"),
             DataType::SmallInt => s.push_str("smallint"),
