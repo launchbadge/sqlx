@@ -85,6 +85,10 @@ impl FromStr for PgConnectOptions {
 
                 "application_name" => options = options.application_name(&*value),
 
+                "compatible" => {
+                    options = options.compatible(value.parse::<f32>().map_err(Error::config)?)
+                }
+
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }

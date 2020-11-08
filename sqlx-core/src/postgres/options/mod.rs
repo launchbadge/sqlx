@@ -32,6 +32,8 @@ pub use ssl_mode::PgSslMode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
+/// | `compatible` | `None` | Act like an older version of the driver to retain compatibility with older applications. At the moment this controls the number of `extra_float_digits` set at startup. |
+
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -86,6 +88,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) compatible: Option<f32>,
 }
 
 impl Default for PgConnectOptions {
@@ -138,6 +141,7 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
+            compatible: None,
         }
     }
 
@@ -293,6 +297,20 @@ impl PgConnectOptions {
     /// ```
     pub fn application_name(mut self, application_name: &str) -> Self {
         self.application_name = Some(application_name.to_owned());
+        self
+    }
+
+    /// Sets the compatibility to a specific version of postgres. Defaults to None
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .compatible(81);
+    /// ```
+    pub fn compatible(mut self, version: f32) -> Self {
+        self.compatible = Some(version.to_owned());
         self
     }
 

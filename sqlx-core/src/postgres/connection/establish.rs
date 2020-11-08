@@ -22,6 +22,11 @@ impl PgConnection {
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
 
+        let extra_float_digits = options
+            .compatible
+            .map(|version| if version < 9_f32 { "2" } else { "3" })
+            .unwrap_or("3");
+
         let mut params = vec![
             // Sets the display format for date and time values,
             // as well as the rules for interpreting ambiguous date input values.
@@ -33,7 +38,7 @@ impl PgConnection {
             ("TimeZone", "UTC"),
             // Adjust postgres to return precise values for floats
             // NOTE: This is default in postgres 12+
-            ("extra_float_digits", "3"),
+            ("extra_float_digits", extra_float_digits),
         ];
 
         if let Some(ref application_name) = options.application_name {
