@@ -55,3 +55,12 @@ impl_any_decode!(f64);
 
 impl_any_decode!(&'r str);
 impl_any_decode!(String);
+
+// Chrono
+
+#[cfg(all(feature = "chrono", feature = "any"))]
+impl_any_decode!(chrono::NaiveDateTime);
+#[cfg(all(feature = "chrono", feature = "any"))]
+impl_any_encode!(chrono::NaiveDateTime);
+#[cfg(all(feature = "chrono", feature = "any"))]
+impl_any_type!(chrono::NaiveDateTime);
