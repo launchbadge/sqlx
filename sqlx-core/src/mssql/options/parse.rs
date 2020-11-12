@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::mssql::MssqlConnectOptions;
+use percent_encoding::percent_decode_str;
 use std::str::FromStr;
 use url::Url;
 
@@ -20,11 +21,19 @@ impl FromStr for MssqlConnectOptions {
 
         let username = url.username();
         if !username.is_empty() {
-            options = options.username(username);
+            options = options.username(
+                &*percent_decode_str(username)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         if let Some(password) = url.password() {
-            options = options.password(password);
+            options = options.password(
+                &*percent_decode_str(password)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         let path = url.path().trim_start_matches('/');
@@ -34,4 +43,20 @@ impl FromStr for MssqlConnectOptions {
 
         Ok(options)
     }
+}
+
+#[test]
+fn it_parses_username_with_at_sign_correctly() {
+    let uri = "mysql://user@hostname:password@hostname:5432/database";
+    let opts = MssqlConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!("user@hostname", &opts.username);
+}
+
+#[test]
+fn it_parses_password_with_non_ascii_chars_correctly() {
+    let uri = "mysql://username:p@ssw0rd@hostname:5432/database";
+    let opts = MssqlConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(Some("p@ssw0rd".into()), opts.password);
 }
