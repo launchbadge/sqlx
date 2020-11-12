@@ -103,31 +103,22 @@ with C, those interactions are `unsafe`.</sup></sub>
 
 ## Install
 
-SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes.
+SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and, the [`native-tls`] and [`rustls`] TLS backends. When adding the dependency, you must chose a runtime feature that is `runtime` + `tls`.
 
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
 [`actix`]: https://github.com/actix/actix-net
 
-You can also select between [`native-tls`] and [`rustls`] for the TLS backend.
-
-By default, you get `async-std` + `native-tls`. If you want a different runtime or TLS backend, just disable the default features and activate the corresponding feature, for example for tokio + rustls:
-
 ```toml
 # Cargo.toml
 [dependencies]
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio-rustls", "macros" ] }
+# tokio + rustls
+sqlx = { version = "0.4.0", features = [ "runtime-tokio-rustls" ] }
+# async-std + native-tls
+sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 ```
 
 <sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
-
-**actix**
-
-```toml
-# Cargo.toml
-[dependencies]
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-actix", "macros" ] }
-```
 
 #### Cargo Feature Flags
 

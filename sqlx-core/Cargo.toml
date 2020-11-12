@@ -16,7 +16,7 @@ authors = [
 features = ["all-databases", "all-types", "offline"]
 
 [features]
-default = [ "runtime-async-std-native-tls", "migrate" ]
+default = [ "migrate" ]
 migrate = [ "sha2", "crc" ]
 
 # databases

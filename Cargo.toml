@@ -37,7 +37,7 @@ features = [ "all" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = [ "macros", "runtime-async-std-native-tls", "migrate" ]
+default = [ "macros", "migrate" ]
 macros = [ "sqlx-macros" ]
 migrate = [ "sqlx-macros/migrate", "sqlx-core/migrate" ]
 
