@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::mysql::MySqlConnectOptions;
+use percent_encoding::percent_decode_str;
 use std::str::FromStr;
 use url::Url;
 
@@ -20,17 +21,19 @@ impl FromStr for MySqlConnectOptions {
 
         let username = url.username();
         if !username.is_empty() {
-            options = options.username(username);
+            options = options.username(
+                &*percent_decode_str(username)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         if let Some(password) = url.password() {
-            // Percent decode password in case it contains non-URL safe
-            // characters (issues #77, #603)
-            let password = percent_encoding::percent_decode_str(password)
-                .decode_utf8()
-                .map_err(|e| Error::Decode(e.into()))?;
-
-            options = options.password(&*password);
+            options = options.password(
+                &*percent_decode_str(password)
+                    .decode_utf8()
+                    .map_err(Error::config)?,
+            );
         }
 
         let path = url.path().trim_start_matches('/');
@@ -74,8 +77,17 @@ impl FromStr for MySqlConnectOptions {
 }
 
 #[test]
-fn percent_decodes_password() {
-    let url_str = "mysql://root:aa@bb@localhost/db";
-    let options = MySqlConnectOptions::from_str(url_str).unwrap();
-    assert_eq!(options.password.as_deref(), Some("aa@bb"));
+fn it_parses_username_with_at_sign_correctly() {
+    let uri = "mysql://user@hostname:password@hostname:5432/database";
+    let opts = MySqlConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!("user@hostname", &opts.username);
+}
+
+#[test]
+fn it_parses_password_with_non_ascii_chars_correctly() {
+    let uri = "mysql://username:p@ssw0rd@hostname:5432/database";
+    let opts = MySqlConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(Some("p@ssw0rd".into()), opts.password);
 }
