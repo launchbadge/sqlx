@@ -128,8 +128,6 @@ sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 
 -   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
 
--   `runtime-tokio-native-tls`: Use the `tokio` runtime and `native-tls` TLS backend.
-
 -   `runtime-tokio-rustls`: Use the `tokio` runtime and `rustls` TLS backend.
 
 -   `runtime-actix-native-tls`: Use the `actix` runtime and `native-tls` TLS backend.
