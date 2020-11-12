@@ -207,7 +207,7 @@ jobs:
         with:
           command: build
           args: >
-            --features postgres,all-types
+            --features postgres,all-types,runtime-${{ matrix.runtime }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_${{ matrix.postgres }}
       - run: sleep 10
