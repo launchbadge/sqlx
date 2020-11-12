@@ -346,7 +346,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mssql,all-types
+            --features mssql,all-types,runtime-${{ matrix.runtime }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 1433:1433 mssql_${{ matrix.mssql }}
       - run: sleep 80 # MSSQL takes a "bit" to startup
