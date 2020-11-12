@@ -68,6 +68,9 @@ jobs:
   test:
     name: Unit Test
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
     steps:
       - uses: actions/checkout@v2
 
@@ -90,7 +93,7 @@ jobs:
           command: test
           args: >
             --manifest-path sqlx-core/Cargo.toml
-            --features offline,all-databases,all-types
+            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}
 
   cli:
     name: CLI Binaries
