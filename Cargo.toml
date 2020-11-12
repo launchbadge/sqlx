@@ -33,7 +33,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = [ "all" ]
+features = [ "all", "runtime-async-std-native-tls" ]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
