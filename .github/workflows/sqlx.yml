@@ -259,7 +259,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mysql,all-types
+            --features mysql,all-types,runtime-${{ matrix.runtime }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
       - run: sleep 60
