@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "actix-rt",
  "actix-threadpool",
