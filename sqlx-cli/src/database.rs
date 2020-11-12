@@ -33,12 +33,12 @@ pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn reset(uri: &str, confirm: bool) -> anyhow::Result<()> {
+pub async fn reset(migration_source: &str, uri: &str, confirm: bool) -> anyhow::Result<()> {
     drop(uri, confirm).await?;
-    setup(uri).await
+    setup(migration_source, uri).await
 }
 
-pub async fn setup(uri: &str) -> anyhow::Result<()> {
+pub async fn setup(migration_source: &str, uri: &str) -> anyhow::Result<()> {
     create(uri).await?;
-    migrate::run(uri).await
+    migrate::run(migration_source, uri).await
 }
