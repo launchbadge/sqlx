@@ -48,7 +48,7 @@ impl Migrator {
     ///
     /// ```rust,no_run
     /// # use sqlx_core::migrate::MigrateError;
-    /// # [cfg(feature = "sqlite")]
+    /// # #[cfg(feature = "sqlite")]
     /// # fn main() -> Result<(), MigrateError> {
     /// #     sqlx_rt::block_on(async move {
     /// # use sqlx_core::migrate::Migrator;
