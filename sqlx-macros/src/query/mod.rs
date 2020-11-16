@@ -271,13 +271,16 @@ where
         record_tokens
     };
 
-    let ret_tokens = quote! {{
-        use sqlx::Arguments as _;
+    let ret_tokens = quote! {
+        #[allow(clippy::all)]
+        {
+            use sqlx::Arguments as _;
 
-        #args_tokens
+            #args_tokens
 
-        #output
-    }};
+            #output
+        }
+    };
 
     // Store query metadata only if offline support is enabled but the current build is online.
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
