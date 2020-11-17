@@ -169,7 +169,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
             #(#instantiations)*
 
-            Ok(#out_ty { #(#ident: #ident),* })
+            Ok(#out_ty { #(#ident: #ident.into()),* })
         })
     }
 }
