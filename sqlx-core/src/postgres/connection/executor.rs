@@ -317,10 +317,10 @@ impl PgConnection {
                     }
 
                     _ => {
-                        Err(err_protocol!(
+                        return Err(err_protocol!(
                             "execute: unexpected message: {:?}",
                             message.format
-                        ))?;
+                        ));
                     }
                 }
             }

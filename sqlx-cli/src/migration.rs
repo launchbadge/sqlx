@@ -3,7 +3,7 @@ use console::style;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 
-const MIGRATION_FOLDER: &'static str = "migrations";
+const MIGRATION_FOLDER: &str = "migrations";
 
 pub struct Migration {
     pub name: String,
