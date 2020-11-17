@@ -54,7 +54,7 @@ impl<'a, T> Stream for TryAsyncStream<'a, T> {
         pin_mut!(receiver);
 
         // then we check to see if we have anything to return
-        return receiver.poll_next(cx);
+        receiver.poll_next(cx)
     }
 }
 

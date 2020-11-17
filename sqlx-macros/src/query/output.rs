@@ -25,10 +25,7 @@ pub(super) enum ColumnType {
 
 impl ColumnType {
     pub(super) fn is_wildcard(&self) -> bool {
-        match self {
-            ColumnType::Exact(_) => false,
-            _ => true,
-        }
+        !matches!(self, ColumnType::Exact(_))
     }
 }
 

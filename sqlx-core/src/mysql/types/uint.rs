@@ -145,6 +145,6 @@ impl Decode<'_, MySql> for u32 {
 
 impl Decode<'_, MySql> for u64 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        uint_decode(value)?.try_into().map_err(Into::into)
+        uint_decode(value)
     }
 }

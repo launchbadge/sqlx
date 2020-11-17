@@ -122,6 +122,6 @@ impl Decode<'_, MySql> for i32 {
 
 impl Decode<'_, MySql> for i64 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        int_decode(value)?.try_into().map_err(Into::into)
+        int_decode(value)
     }
 }
