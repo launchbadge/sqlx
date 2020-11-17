@@ -995,20 +995,18 @@ impl PartialEq<PgType> for PgType {
         if let (Some(a), Some(b)) = (self.try_oid(), other.try_oid()) {
             // If there are OIDs available, use OIDs to perform a direct match
             a == b
+        } else if (matches!(self, PgType::DeclareWithName(_))
+            && matches!(other, PgType::DeclareWithOid(_)))
+            || (matches!(other, PgType::DeclareWithName(_))
+                && matches!(self, PgType::DeclareWithOid(_)))
+        {
+            // One is a declare-with-name and the other is a declare-with-id
+            // This only occurs in the TEXT protocol with custom types
+            // Just opt-out of type checking here
+            true
         } else {
-            if (matches!(self, PgType::DeclareWithName(_))
-                && matches!(other, PgType::DeclareWithOid(_)))
-                || (matches!(other, PgType::DeclareWithName(_))
-                    && matches!(self, PgType::DeclareWithOid(_)))
-            {
-                // One is a declare-with-name and the other is a declare-with-id
-                // This only occurs in the TEXT protocol with custom types
-                // Just opt-out of type checking here
-                true
-            } else {
-                // Otherwise, perform a match on the name
-                self.name().eq_ignore_ascii_case(other.name())
-            }
+            // Otherwise, perform a match on the name
+            self.name().eq_ignore_ascii_case(other.name())
         }
     }
 }

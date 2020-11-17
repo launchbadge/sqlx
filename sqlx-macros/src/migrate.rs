@@ -38,11 +38,9 @@ impl ToTokens for QuotedMigration {
 // mostly copied from sqlx-core/src/migrate/source.rs
 pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<proc_macro2::TokenStream> {
     let path = crate::common::resolve_path(&dir.value(), dir.span())?;
-    let mut s = fs::read_dir(path)?;
-
     let mut migrations = Vec::new();
 
-    while let Some(entry) = s.next() {
+    for entry in fs::read_dir(path)? {
         let entry = entry?;
         if !entry.metadata()?.is_file() {
             // not a file; ignore

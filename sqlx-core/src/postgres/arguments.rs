@@ -33,7 +33,7 @@ pub struct PgArgumentBuffer {
     patches: Vec<(
         usize, // offset
         usize, // argument index
-        Box<dyn Fn(&mut [u8], &PgTypeInfo) -> () + 'static + Send + Sync>,
+        Box<dyn Fn(&mut [u8], &PgTypeInfo) + 'static + Send + Sync>,
     )>,
 
     // Whenever an `Encode` impl encounters a `PgTypeInfo` object that does not have an OID
