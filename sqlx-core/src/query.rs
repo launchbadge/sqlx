@@ -259,6 +259,44 @@ where
     O: Send + Unpin,
     A: 'q + Send + IntoArguments<'q, DB>,
 {
+    /// Map each row in the result to another type.
+    ///
+    /// See [`try_map`](Map::try_map) for a fallible version of this method.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn map<G, P>(
+        self,
+        mut g: G,
+    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    where
+        G: FnMut(O) -> P + Send,
+        P: Unpin,
+    {
+        self.try_map(move |data| Ok(g(data)))
+    }
+
+    /// Map each row in the result to another type.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn try_map<G, P>(
+        self,
+        mut g: G,
+    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    where
+        G: FnMut(O) -> Result<P, Error> + Send,
+        P: Unpin,
+    {
+        let mut f = self.mapper;
+        Map {
+            inner: self.inner,
+            mapper: move |row| f(row).and_then(|o| g(o)),
+        }
+    }
+
     /// Execute the query and return the generated results as a stream.
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
