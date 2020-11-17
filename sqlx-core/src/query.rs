@@ -115,12 +115,15 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(self, f: F) -> Map<'q, DB, impl TryMapRow<DB, Output = O>, A>
+    pub fn map<F, O>(
+        self,
+        mut f: F,
+    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send, A>
     where
-        F: MapRow<DB, Output = O>,
+        F: FnMut(DB::Row) -> O + Send,
         O: Unpin,
     {
-        self.try_map(MapRowAdapter(f))
+        self.try_map(move |row| Ok(f(row)))
     }
 
     /// Map each row in the result to another type.
@@ -128,9 +131,10 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn try_map<F>(self, f: F) -> Map<'q, DB, F, A>
+    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
     where
-        F: TryMapRow<DB>,
+        F: FnMut(DB::Row) -> Result<O, Error> + Send,
+        O: Unpin,
     {
         Map {
             inner: self,
@@ -252,7 +256,7 @@ where
 impl<'q, DB, F, O, A> Map<'q, DB, F, A>
 where
     DB: Database,
-    F: TryMapRow<DB, Output = O>,
+    F: FnMut(DB::Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
     A: 'q + Send + IntoArguments<'q, DB>,
 {
@@ -295,7 +299,7 @@ where
                 r#yield!(match v {
                     Either::Left(v) => Either::Left(v),
                     Either::Right(row) => {
-                        Either::Right(self.mapper.try_map_row(row)?)
+                        Either::Right((self.mapper)(row)?)
                     }
                 });
             }
@@ -345,44 +349,10 @@ where
         let row = executor.fetch_optional(self.inner).await?;
 
         if let Some(row) = row {
-            self.mapper.try_map_row(row).map(Some)
+            (self.mapper)(row).map(Some)
         } else {
             Ok(None)
         }
-    }
-}
-
-// A (hopefully) temporary workaround for an internal compiler error (ICE) involving higher-ranked
-// trait bounds (HRTBs), associated types and closures.
-//
-// See https://github.com/rust-lang/rust/issues/62529
-
-pub trait TryMapRow<DB: Database>: Send {
-    type Output: Unpin;
-
-    fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error>;
-}
-
-pub trait MapRow<DB: Database>: Send {
-    type Output: Unpin;
-
-    fn map_row(&mut self, row: DB::Row) -> Self::Output;
-}
-
-// A private adapter that implements [MapRow] in terms of [TryMapRow]
-// Just ends up Ok wrapping it
-
-struct MapRowAdapter<F>(F);
-
-impl<DB: Database, O, F> TryMapRow<DB> for MapRowAdapter<F>
-where
-    O: Unpin,
-    F: MapRow<DB, Output = O>,
-{
-    type Output = O;
-
-    fn try_map_row(&mut self, row: DB::Row) -> Result<Self::Output, Error> {
-        Ok(self.0.map_row(row))
     }
 }
 
@@ -443,31 +413,4 @@ where
         statement: Either::Left(sql),
         persistent: true,
     }
-}
-
-#[allow(unused_macros)]
-macro_rules! impl_map_row {
-    ($DB:ident, $R:ident) => {
-        impl<O: Unpin, F> crate::query::MapRow<$DB> for F
-        where
-            F: Send + FnMut($R) -> O,
-        {
-            type Output = O;
-
-            fn map_row(&mut self, row: $R) -> O {
-                (self)(row)
-            }
-        }
-
-        impl<O: Unpin, F> crate::query::TryMapRow<$DB> for F
-        where
-            F: Send + FnMut($R) -> Result<O, crate::error::Error>,
-        {
-            type Output = O;
-
-            fn try_map_row(&mut self, row: $R) -> Result<O, crate::error::Error> {
-                (self)(row)
-            }
-        }
-    };
 }
