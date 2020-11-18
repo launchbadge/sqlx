@@ -2425,6 +2425,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-postgres-mockable-todos"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "dotenv",
+ "futures",
+ "paw",
+ "sqlx",
+ "structopt",
+]
+
+[[package]]
 name = "sqlx-example-postgres-todos"
 version = "0.1.0"
 dependencies = [
