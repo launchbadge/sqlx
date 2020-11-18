@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::postgres::PgPool;
 use sqlx::Done;
-use std::{env, sync::Arc};
+use std::{env, io::Write, sync::Arc};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -21,27 +21,36 @@ enum Command {
 async fn main(args: Args) -> anyhow::Result<()> {
     let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
     let todo_repo = PostgresTodoRepo::new(pool);
+    let mut writer = std::io::stdout();
 
-    handle_command(args, todo_repo).await
+    handle_command(args, todo_repo, &mut writer).await
 }
 
-async fn handle_command(args: Args, todo_repo: impl TodoRepo) -> anyhow::Result<()> {
+async fn handle_command(
+    args: Args,
+    todo_repo: impl TodoRepo,
+    writer: &mut impl Write,
+) -> anyhow::Result<()> {
     match args.cmd {
         Some(Command::Add { description }) => {
-            println!("Adding new todo with description '{}'", &description);
+            writeln!(
+                writer,
+                "Adding new todo with description '{}'",
+                &description
+            )?;
             let todo_id = todo_repo.add_todo(description).await?;
-            println!("Added new todo with id {}", todo_id);
+            writeln!(writer, "Added new todo with id {}", todo_id)?;
         }
         Some(Command::Done { id }) => {
-            println!("Marking todo {} as done", id);
+            writeln!(writer, "Marking todo {} as done", id)?;
             if todo_repo.complete_todo(id).await? {
-                println!("Todo {} is marked as done", id);
+                writeln!(writer, "Todo {} is marked as done", id)?;
             } else {
-                println!("Invalid id {}", id);
+                writeln!(writer, "Invalid id {}", id)?;
             }
         }
         None => {
-            println!("Printing list of all todos");
+            writeln!(writer, "Printing list of all todos")?;
             todo_repo.list_todos().await?;
         }
     }
@@ -49,6 +58,7 @@ async fn handle_command(args: Args, todo_repo: impl TodoRepo) -> anyhow::Result<
     Ok(())
 }
 
+#[mockall::automock]
 #[async_trait]
 pub trait TodoRepo {
     async fn add_todo(&self, description: String) -> anyhow::Result<i64>;
@@ -122,5 +132,37 @@ ORDER BY id
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::predicate::*;
+
+    #[async_std::test]
+    async fn test_mocked_add() {
+        let description = String::from("My todo");
+        let args = Args {
+            cmd: Some(Command::Add {
+                description: description.clone(),
+            }),
+        };
+
+        let mut todo_repo = MockTodoRepo::new();
+        todo_repo
+            .expect_add_todo()
+            .times(1)
+            .with(eq(description))
+            .returning(|_| Ok(1));
+
+        let mut writer = Vec::new();
+
+        handle_command(args, todo_repo, &mut writer).await.unwrap();
+
+        assert_eq!(
+            String::from_utf8_lossy(&writer),
+            "Adding new todo with description \'My todo\'\nAdded new todo with id 1\n"
+        );
     }
 }
