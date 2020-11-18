@@ -12,3 +12,4 @@ paw = "1.0"
 sqlx = { path = "../../../", features = ["postgres", "offline", "runtime-async-std-native-tls"] }
 structopt = { version = "0.3", features = ["paw"] }
 dotenv = "0.15.0"
+async-trait = "0.1.41"
