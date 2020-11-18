@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use sqlx::postgres::PgPool;
 use sqlx::Done;
 use std::{env, sync::Arc};
@@ -24,7 +25,7 @@ async fn main(args: Args) -> anyhow::Result<()> {
     handle_command(args, todo_repo).await
 }
 
-async fn handle_command(args: Args, todo_repo: PostgresTodoRepo) -> anyhow::Result<()> {
+async fn handle_command(args: Args, todo_repo: impl TodoRepo) -> anyhow::Result<()> {
     match args.cmd {
         Some(Command::Add { description }) => {
             println!("Adding new todo with description '{}'", &description);
@@ -48,6 +49,13 @@ async fn handle_command(args: Args, todo_repo: PostgresTodoRepo) -> anyhow::Resu
     Ok(())
 }
 
+#[async_trait]
+pub trait TodoRepo {
+    async fn add_todo(&self, description: String) -> anyhow::Result<i64>;
+    async fn complete_todo(&self, id: i64) -> anyhow::Result<bool>;
+    async fn list_todos(&self) -> anyhow::Result<()>;
+}
+
 struct PostgresTodoRepo {
     pg_pool: Arc<PgPool>,
 }
@@ -58,7 +66,10 @@ impl PostgresTodoRepo {
             pg_pool: Arc::new(pg_pool),
         }
     }
+}
 
+#[async_trait]
+impl TodoRepo for PostgresTodoRepo {
     async fn add_todo(&self, description: String) -> anyhow::Result<i64> {
         let rec = sqlx::query!(
             r#"
