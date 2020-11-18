@@ -1,4 +1,8 @@
-# TODOs Example
+# Mockable TODOs Example
+
+## Description
+
+This example is based on the ideas in [this blog post](https://medium.com/better-programming/structuring-rust-project-for-testability-18207b5d0243). The value here is that the business logic can be unit tested independently from the database layer. Otherwise it is identical to the todos example.
 
 ## Setup
 
@@ -22,7 +26,7 @@
 
 ## Usage
 
-Add a todo 
+Add a todo
 
 ```
 cargo run -- add "todo description"
