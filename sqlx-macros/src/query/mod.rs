@@ -273,13 +273,16 @@ where
 
     let ret_tokens = quote! {
         #[allow(clippy::all)]
-        {{
-            use sqlx::Arguments as _;
+        {
+            #[allow(clippy::all)]
+            {
+                use sqlx::Arguments as _;
 
-            #args_tokens
+                #args_tokens
 
-            #output
-        }}
+                #output
+            }
+        }
     };
 
     // Store query metadata only if offline support is enabled but the current build is online.
