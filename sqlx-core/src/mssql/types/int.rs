@@ -13,7 +13,7 @@ impl Type<Mssql> for i8 {
     }
 
     fn compatible(ty: &MssqlTypeInfo) -> bool {
-        matches!(ty.0.ty, DataType::TinyInt | DataType::IntN) && ty.0.size == 1
+        matches!(ty.0.ty, DataType::TinyInt | DataType::IntN | DataType::Bit) && ty.0.size == 1
     }
 }
 

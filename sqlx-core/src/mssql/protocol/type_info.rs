@@ -491,6 +491,7 @@ impl TypeInfo {
             DataType::BigInt => "BIGINT",
             DataType::Real => "REAL",
             DataType::Float => "FLOAT",
+            DataType::Bit=>"TINYINT",
 
             DataType::IntN => match self.size {
                 1 => "TINYINT",
