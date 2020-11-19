@@ -272,7 +272,6 @@ where
     };
 
     let ret_tokens = quote! {
-        #[allow(clippy::all)]
         {
             #[allow(clippy::all)]
             {
