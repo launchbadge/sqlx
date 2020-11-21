@@ -118,3 +118,19 @@ mod bstr {
         "x'0001020304'" == BString::from(b"\x00\x01\x02\x03\x04")
     ));
 }
+
+#[cfg(feature = "git2")]
+mod git2 {
+    use super::*;
+    use sqlx::types::git2::Oid;
+
+    test_type!(Oid(
+        Sqlite,
+        "x'0000000000000000000000000000000000000000'" == Oid::zero()
+    ));
+    test_type!(Oid(
+        Sqlite,
+        "x'000102030405060708090a0b0c0d0e0f10111213'"
+            == Oid::from_str("000102030405060708090a0b0c0d0e0f10111213")
+    ));
+}
