@@ -90,6 +90,7 @@ json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 bit-vec = [ "sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = [ "sqlx-core/bstr" ]
+git2 = [ "sqlx-core/git2" ]
 
 [dependencies]
 sqlx-core = { version = "=0.4.0", path = "sqlx-core", default-features = false }

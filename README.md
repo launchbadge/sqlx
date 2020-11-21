@@ -154,6 +154,8 @@ sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 
 -   `bstr`: Add support for `bstr::BString`.
 
+-   `git2`: Add support for `git2::Oid`.
+
 -   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
 
 -   `decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.

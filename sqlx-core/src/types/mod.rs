@@ -24,6 +24,10 @@ use crate::database::Database;
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 mod bstr;
 
+#[cfg(feature = "git2")]
+#[cfg_attr(docsrs, doc(cfg(feature = "git2")))]
+mod git2;
+
 #[cfg(feature = "json")]
 #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
