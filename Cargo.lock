@@ -2206,6 +2206,7 @@ dependencies = [
  "bigdecimal",
  "bit-vec",
  "bitflags",
+ "bstr",
  "byteorder",
  "bytes",
  "chrono",
