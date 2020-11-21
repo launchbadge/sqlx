@@ -106,3 +106,15 @@ mod chrono {
         "datetime('2016-11-08T03:50:23-05:00')" == FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23)
     ));
 }
+
+#[cfg(feature = "bstr")]
+mod bstr {
+    use super::*;
+    use sqlx::types::bstr::BString;
+
+    test_type!(BString(Sqlite, "'abc123'" == BString::from(b"abc123")));
+    test_type!(BString(
+        Sqlite,
+        "x'0001020304'" == BString::from(b"\x00\x01\x02\x03\x04")
+    ));
+}
