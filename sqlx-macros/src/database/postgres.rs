@@ -80,7 +80,7 @@ impl_database_ext! {
         Vec<sqlx::types::Uuid> | &[sqlx::types::Uuid],
 
         #[cfg(feature = "chrono")]
-        Vec<sqlx::types::chrono::NaiveTime> | &[sqlx::types::sqlx::types::chrono::NaiveTime],
+        Vec<sqlx::types::chrono::NaiveTime> | &[sqlx::types::chrono::NaiveTime],
 
         #[cfg(feature = "chrono")]
         Vec<sqlx::types::chrono::NaiveDate> | &[sqlx::types::chrono::NaiveDate],
