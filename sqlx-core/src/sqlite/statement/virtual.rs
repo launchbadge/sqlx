@@ -1,3 +1,5 @@
+#![allow(clippy::rc_buffer)]
+
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::sqlite::connection::ConnectionHandle;

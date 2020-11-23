@@ -15,6 +15,7 @@ use std::marker::PhantomData;
 // specialization (but this works only if all types are statically known, i.e. we're not in a
 // generic context; this should suit 99% of use cases for the macros).
 
+#[allow(clippy::just_underscores_and_digits)]
 pub fn same_type<T>(_1: &T, _2: &T) {}
 
 pub struct WrapSame<T, U>(PhantomData<T>, PhantomData<U>);
