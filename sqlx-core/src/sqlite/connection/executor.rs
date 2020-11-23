@@ -110,8 +110,8 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                             };
 
                             let done = SqliteDone {
-                                changes: changes,
-                                last_insert_rowid: last_insert_rowid,
+                                changes,
+                                last_insert_rowid,
                             };
 
                             r#yield!(Either::Left(done));

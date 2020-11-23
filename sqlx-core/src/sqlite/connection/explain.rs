@@ -47,6 +47,7 @@ const OP_REMAINDER: &str = "Remainder";
 const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 
+#[allow(clippy::wildcard_in_or_patterns)]
 fn affinity_to_type(affinity: u8) -> DataType {
     match affinity {
         SQLITE_AFF_BLOB => DataType::Blob,
@@ -59,6 +60,7 @@ fn affinity_to_type(affinity: u8) -> DataType {
     }
 }
 
+#[allow(clippy::wildcard_in_or_patterns)]
 fn opcode_to_type(op: &str) -> DataType {
     match op {
         OP_REAL => DataType::Float,
@@ -115,14 +117,10 @@ pub(super) async fn explain(
 
             OP_FUNCTION => {
                 // r[p1] = func( _ )
-                match from_utf8(p4).map_err(Error::protocol)? {
-                    "last_insert_rowid(0)" => {
-                        // last_insert_rowid() -> INTEGER
-                        r.insert(p3, DataType::Int64);
-                        n.insert(p3, false);
-                    }
-
-                    _ => {}
+                if from_utf8(p4).map_err(Error::protocol)? == "last_insert_rowid(0)" {
+                    // last_insert_rowid() -> INTEGER
+                    r.insert(p3, DataType::Int64);
+                    n.insert(p3, false);
                 }
             }
 

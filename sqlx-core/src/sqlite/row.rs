@@ -1,3 +1,5 @@
+#![allow(clippy::rc_buffer)]
+
 use std::ptr::null_mut;
 use std::slice;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -67,6 +69,7 @@ impl SqliteRow {
 
     // inflates this Row into memory as a list of owned, protected SQLite value objects
     // this is called by the
+    #[allow(clippy::needless_range_loop)]
     pub(crate) fn inflate(
         statement: &StatementHandle,
         columns: &[SqliteColumn],

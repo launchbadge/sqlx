@@ -58,12 +58,12 @@ impl SqliteArguments<'_> {
         for param_i in 1..=cnt {
             // figure out the index of this bind parameter into our argument tuple
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
-                if name.starts_with('?') {
+                if let Some(name) = name.strip_prefix('?') {
                     // parameter should have the form ?NNN
-                    atoi(name[1..].as_bytes()).expect("parameter of the form ?NNN")
-                } else if name.starts_with('$') {
+                    atoi(name.as_bytes()).expect("parameter of the form ?NNN")
+                } else if let Some(name) = name.strip_prefix('$') {
                     // parameter should have the form $NNN
-                    atoi(name[1..].as_bytes()).ok_or_else(|| {
+                    atoi(name.as_bytes()).ok_or_else(|| {
                         err_protocol!(
                             "parameters with non-integer names are not currently supported: {}",
                             name
