@@ -62,6 +62,13 @@ impl<'c, DB> Transaction<'c, DB>
 where
     DB: Database,
 {
+    pub(crate) fn open(connection: MaybePoolConnection<'c, DB>) -> Self {
+        Self {
+            connection,
+            open: true,
+        }
+    }
+
     pub(crate) fn begin(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
     ) -> BoxFuture<'c, Result<Self, Error>> {
@@ -69,11 +76,7 @@ where
 
         Box::pin(async move {
             DB::TransactionManager::begin(&mut conn).await?;
-
-            Ok(Self {
-                connection: conn,
-                open: true,
-            })
+            Ok(Self::open(conn))
         })
     }
 

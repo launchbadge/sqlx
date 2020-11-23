@@ -49,6 +49,39 @@ impl SqliteConnection {
     ) -> Result<(), Error> {
         collation::create_collation(&self.handle, name, compare)
     }
+
+    /// Begin a new transaction and start a new write immediately.
+    ///
+    /// A new write is started without waiting for write statement.
+    ///
+    /// Returns an error if there was active transaction.
+    pub async fn begin_immediate(&mut self) -> Result<Transaction<'_, Sqlite>, Error> {
+        self.begin_sql("BEGIN IMMEDIATE").await?;
+        Ok(Transaction::open(self.into()))
+    }
+
+    /// Begin a new transaction and start a new write immediately.
+    ///
+    /// A new write is started without waiting for write statement.
+    /// In non-WAL mode prevents other database connections from reading
+    /// the database while the transaction is underway.
+    ///
+    /// Returns an error if there was active transaction.
+    pub async fn begin_exclusive(&mut self) -> Result<Transaction<'_, Sqlite>, Error> {
+        self.begin_sql("BEGIN EXCLUSIVE").await?;
+        Ok(Transaction::open(self.into()))
+    }
+
+    async fn begin_sql(&mut self, sql: &str) -> Result<(), Error> {
+        use crate::executor::Executor;
+
+        self.execute(sql).await?;
+
+        debug_assert_eq!(self.transaction_depth, 0);
+        self.transaction_depth += 1;
+
+        Ok(())
+    }
 }
 
 impl Debug for SqliteConnection {
@@ -108,5 +141,21 @@ impl Drop for SqliteConnection {
         // we must explicitly drop the statements as the drop-order in a struct is undefined
         self.statements.clear();
         self.statement.take();
+    }
+}
+
+impl crate::sqlite::SqlitePool {
+    pub async fn begin_immediate(&self) -> Result<Transaction<'_, Sqlite>, Error> {
+        self.begin_sql("BEGIN IMMEDIATE").await
+    }
+
+    pub async fn begin_exclusive(&self) -> Result<Transaction<'_, Sqlite>, Error> {
+        self.begin_sql("BEGIN EXCLUSIVE").await
+    }
+
+    async fn begin_sql(&self, sql: &str) -> Result<Transaction<'_, Sqlite>, Error> {
+        let mut conn = self.acquire().await?;
+        conn.begin_sql(sql).await?;
+        Ok(Transaction::open(conn.into()))
     }
 }
