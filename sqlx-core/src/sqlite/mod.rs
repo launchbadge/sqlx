@@ -28,7 +28,7 @@ pub use connection::SqliteConnection;
 pub use database::Sqlite;
 pub use done::SqliteDone;
 pub use error::SqliteError;
-pub use options::{SqliteConnectOptions, SqliteJournalMode};
+pub use options::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous};
 pub use row::SqliteRow;
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;

@@ -19,9 +19,10 @@ impl ConnectOptions for SqliteConnectOptions {
 
             // send an initial sql statement comprised of options
             let init = format!(
-                "PRAGMA journal_mode = {}; PRAGMA foreign_keys = {};",
+                "PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}",
                 self.journal_mode.as_str(),
-                if self.foreign_keys { "ON" } else { "OFF" }
+                if self.foreign_keys { "ON" } else { "OFF" },
+                self.synchronous.as_str(),
             );
 
             conn.execute(&*init).await?;
