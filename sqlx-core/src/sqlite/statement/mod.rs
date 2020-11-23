@@ -17,6 +17,7 @@ pub(crate) use r#virtual::VirtualStatement;
 pub(crate) use worker::StatementWorker;
 
 #[derive(Debug, Clone)]
+#[allow(clippy::rc_buffer)]
 pub struct SqliteStatement<'q> {
     pub(crate) sql: Cow<'q, str>,
     pub(crate) parameters: usize,

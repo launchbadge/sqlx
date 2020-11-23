@@ -128,24 +128,21 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
             .parse_meta()
             .map_err(|e| syn::Error::new_spanned(attr, e))?;
 
-        match meta {
-            Meta::List(list) => {
-                for value in list.nested.iter() {
-                    match value {
-                        NestedMeta::Meta(meta) => match meta {
-                            Meta::NameValue(MetaNameValue {
-                                path,
-                                lit: Lit::Str(val),
-                                ..
-                            }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
-                            Meta::Path(path) if path.is_ident("default") => default = true,
-                            u => fail!(u, "unexpected attribute"),
-                        },
+        if let Meta::List(list) = meta {
+            for value in list.nested.iter() {
+                match value {
+                    NestedMeta::Meta(meta) => match meta {
+                        Meta::NameValue(MetaNameValue {
+                            path,
+                            lit: Lit::Str(val),
+                            ..
+                        }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
+                        Meta::Path(path) if path.is_ident("default") => default = true,
                         u => fail!(u, "unexpected attribute"),
-                    }
+                    },
+                    u => fail!(u, "unexpected attribute"),
                 }
             }
-            _ => {}
         }
     }
 

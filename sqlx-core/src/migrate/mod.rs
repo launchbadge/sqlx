@@ -1,4 +1,5 @@
 mod error;
+#[allow(clippy::module_inception)]
 mod migrate;
 mod migration;
 mod migration_type;
