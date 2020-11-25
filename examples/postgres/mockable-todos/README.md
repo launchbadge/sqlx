@@ -6,19 +6,27 @@ This example is based on the ideas in [this blog post](https://medium.com/better
 
 ## Setup
 
-1. Declare the database URL
+1. Run `docker-compose up -d` to run Postgres in the background.
+
+2. Declare the database URL, either by exporting it:
 
     ```
     export DATABASE_URL="postgres://postgres:password@localhost/todos"
     ```
 
-2. Create the database.
+    or by making a `.env` file:
+
+    ```
+    cp .env.example .env
+    ```
+
+3. Create the database.
 
     ```
     $ sqlx db create
     ```
 
-3. Run sql migrations
+4. Run sql migrations
 
     ```
     $ sqlx migrate run
@@ -42,4 +50,12 @@ List all todos
 
 ```
 cargo run
+```
+
+## Cleanup
+
+To destroy the Postgres database, run:
+
+```
+docker-compose down --volumes
 ```
