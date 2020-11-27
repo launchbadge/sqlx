@@ -5,7 +5,7 @@ use syn::{
     Fields, FieldsNamed, FieldsUnnamed, Lifetime, Stmt,
 };
 
-use super::attributes::parse_child_attributes;
+use super::{attributes::{parse_child_attributes, parse_container_attributes}, rename_all};
 
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     match &input.data {
@@ -69,13 +69,21 @@ fn expand_derive_from_row_struct(
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+    let container_attributes = parse_container_attributes(&input.attrs)?;
+
     let reads = fields.iter().filter_map(|field| -> Option<Stmt> {
+        
+        
         let id = &field.ident.as_ref()?;
         let attributes = parse_child_attributes(&field.attrs).unwrap();
-        let id_s = match attributes.rename {
-            Some(rename) => rename,
-            None => id.to_string().trim_start_matches("r#").to_owned(),
-        };
+        let id_s = attributes.rename
+            .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+            .map(|s| match container_attributes.rename_all {
+                Some(pattern) => rename_all(&s, pattern),
+                None => s
+            })
+            .unwrap();
+        
         let ty = &field.ty;
 
         if attributes.default {
