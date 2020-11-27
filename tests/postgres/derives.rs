@@ -67,9 +67,25 @@ enum ColorScreamingSnake {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color-kebab-case")]
+#[sqlx(rename = "color_kebab_case")]
 #[sqlx(rename_all = "kebab-case")]
 enum ColorKebabCase {
+    RedGreen,
+    BlueBlack,
+}
+
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_mixed_case")]
+#[sqlx(rename_all = "mixedCase")]
+enum ColorMixedCase {
+    RedGreen,
+    BlueBlack,
+}
+
+#[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(rename = "color_camel_case")]
+#[sqlx(rename_all = "CamelCase")]
+enum ColorCamelCase {
     RedGreen,
     BlueBlack,
 }
@@ -141,13 +157,19 @@ DROP TYPE IF EXISTS color_lower CASCADE;
 DROP TYPE IF EXISTS color_snake CASCADE;
 DROP TYPE IF EXISTS color_upper CASCADE;
 DROP TYPE IF EXISTS color_screaming_snake CASCADE;
-DROP TYPE IF EXISTS "color-kebab-case" CASCADE;
+DROP TYPE IF EXISTS color_kebab_case CASCADE;
+DROP TYPE IF EXISTS color_mixed_case CASCADE;
+DROP TYPE IF EXISTS color_camel_case CASCADE;
+
 
 CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
 CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
 CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
 CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
-CREATE TYPE "color-kebab-case" AS ENUM ( 'red-green', 'blue-black' );
+CREATE TYPE color_kebab_case" AS ENUM ( 'red-green', 'blue-black' );
+CREATE TYPE color_mixed_case AS ENUM ( 'redGreen', 'blueBlack' );
+CREATE TYPE color_camel_case AS ENUM ( 'RedGreen', 'BlueBlack' );
+
 
 CREATE TABLE people (
     id      serial PRIMARY KEY,
@@ -276,7 +298,7 @@ SELECT id, mood FROM people WHERE id = $1
 
     let rec: (bool, ColorKebabCase) = sqlx::query_as(
         "
-    SELECT $1 = 'red-green'::\"color-kebab-case\", $1
+    SELECT $1 = 'red-green'::color_kebab_case, $1
             ",
     )
     .bind(&ColorKebabCase::RedGreen)
@@ -285,6 +307,30 @@ SELECT id, mood FROM people WHERE id = $1
 
     assert!(rec.0);
     assert_eq!(rec.1, ColorKebabCase::RedGreen);
+
+    let rec: (bool, ColorMixedCase) = sqlx::query_as(
+        "
+    SELECT $1 = 'redGreen'::color_mixed_case, $1
+            ",
+    )
+    .bind(&ColorMixedCase::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorMixedCase::RedGreen);
+
+    let rec: (bool, ColorCamelCase) = sqlx::query_as(
+        "
+    SELECT $1 = 'RedGreen'::color_camel_case, $1
+            ",
+    )
+    .bind(&ColorCamelCase::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorCamelCase::RedGreen);
 
     Ok(())
 }
@@ -422,6 +468,34 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
     assert_eq!(None, account.def_struct);
     assert_eq!(Some("bar".to_owned()), account.custom_let);
     assert_eq!(None, account.name);
+
+    Ok(())
+}
+
+#[cfg(feature = "macros")]
+#[sqlx_macros::test]
+async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
+    #[derive(Debug, sqlx::FromRow)]
+    #[sqlx(rename_all = "mixedCase")]
+    struct AccountKeyword {
+        user_id: i32,
+        user_name: String,
+        user_surname: String,
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let account: AccountKeyword = sqlx::query_as(
+        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts(userId, userName, userSurname)"#
+    )
+    .fetch_one(&mut conn)
+    .await?;
+    println!("{:?}", account);
+
+    assert_eq!(1, account.user_id);
+    assert_eq!("foo", account.user_name);
+    assert_eq!("bar8", account.user_surname);
+
 
     Ok(())
 }
