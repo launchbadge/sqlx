@@ -1,11 +1,11 @@
+use crate::net::CertificateInput;
 use rustls::{
     Certificate, ClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier, TLSError,
     WebPKIVerifier,
 };
+use std::io::Cursor;
 use std::sync::Arc;
-use std::{io::Cursor};
 use webpki::DNSNameRef;
-use crate::net::CertificateInput;
 
 use crate::error::Error;
 
@@ -28,9 +28,10 @@ pub async fn configure_tls_connector(
         if let Some(ca) = root_cert_path {
             let data = ca.data().await?;
             let mut cursor = Cursor::new(data);
-            config.root_store.add_pem_file(&mut cursor).map_err(|_| {
-                Error::Tls(format!("Invalid certificate {}", ca).into())
-            })?;
+            config
+                .root_store
+                .add_pem_file(&mut cursor)
+                .map_err(|_| Error::Tls(format!("Invalid certificate {}", ca).into()))?;
         }
 
         if accept_invalid_hostnames {
