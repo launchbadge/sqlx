@@ -4,7 +4,7 @@ mod connect;
 mod parse;
 mod ssl_mode;
 
-use crate::connection::LogSettings;
+use crate::{connection::LogSettings, net::CertificateInput};
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
@@ -62,7 +62,7 @@ pub struct MySqlConnectOptions {
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: MySqlSslMode,
-    pub(crate) ssl_ca: Option<PathBuf>,
+    pub(crate) ssl_ca: Option<CertificateInput>,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
@@ -167,7 +167,22 @@ impl MySqlConnectOptions {
     ///     .ssl_ca("path/to/ca.crt");
     /// ```
     pub fn ssl_ca(mut self, file_name: impl AsRef<Path>) -> Self {
-        self.ssl_ca = Some(file_name.as_ref().to_owned());
+        self.ssl_ca = Some(CertificateInput::File(file_name.as_ref().to_owned()));
+        self
+    }
+
+    /// Sets PEM encoded list of trusted SSL Certificate Authorities.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::mysql::{MySqlSslMode, MySqlConnectOptions};
+    /// let options = MySqlConnectOptions::new()
+    ///     .ssl_mode(MySqlSslMode::VerifyCa)
+    ///     .ssl_ca_from_pem(vec![]);
+    /// ```
+    pub fn ssl_ca_from_pem(mut self, pem_certificate: Vec<u8>) -> Self {
+        self.ssl_ca = Some(CertificateInput::Inline(pem_certificate));
         self
     }
 

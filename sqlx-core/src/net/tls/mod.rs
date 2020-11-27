@@ -2,7 +2,7 @@
 
 use std::io;
 use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -10,6 +10,48 @@ use sqlx_rt::{AsyncRead, AsyncWrite, TlsStream};
 
 use crate::error::Error;
 use std::mem::replace;
+
+/// X.509 Certificate input, either a file path or a PEM encoded inline certificate(s).
+#[derive(Clone, Debug)]
+pub enum CertificateInput {
+    /// PEM encoded certificate(s)
+    Inline(Vec<u8>),
+    /// Path to a file containing PEM encoded certificate(s)
+    File(PathBuf),
+}
+
+impl From<String> for CertificateInput {
+    fn from(value: String) -> Self {
+        let trimmed = value.trim();
+        // Some heuristics according to https://tools.ietf.org/html/rfc7468
+        if trimmed.starts_with("-----BEGIN CERTIFICATE-----")
+            && trimmed.contains("-----END CERTIFICATE-----")
+        {
+            CertificateInput::Inline(value.as_bytes().to_vec())
+        } else {
+            CertificateInput::File(PathBuf::from(value))
+        }
+    }
+}
+
+impl CertificateInput {
+    async fn data(&self) -> Result<Vec<u8>, std::io::Error> {
+        use sqlx_rt::fs;
+        match self {
+            CertificateInput::Inline(v) => Ok(v.clone()),
+            CertificateInput::File(path) => fs::read(path).await,
+        }
+    }
+}
+
+impl std::fmt::Display for CertificateInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CertificateInput::Inline(v) => write!(f, "{}", String::from_utf8_lossy(v.as_slice())),
+            CertificateInput::File(path) => write!(f, "file: {}", path.display()),
+        }
+    }
+}
 
 #[cfg(feature = "_tls-rustls")]
 mod rustls;
@@ -37,7 +79,7 @@ where
         host: &str,
         accept_invalid_certs: bool,
         accept_invalid_hostnames: bool,
-        root_cert_path: Option<&Path>,
+        root_cert_path: Option<&CertificateInput>,
     ) -> Result<(), Error> {
         let connector = configure_tls_connector(
             accept_invalid_certs,
@@ -74,12 +116,9 @@ where
 async fn configure_tls_connector(
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
-    root_cert_path: Option<&Path>,
+    root_cert_path: Option<&CertificateInput>,
 ) -> Result<sqlx_rt::TlsConnector, Error> {
-    use sqlx_rt::{
-        fs,
-        native_tls::{Certificate, TlsConnector},
-    };
+    use sqlx_rt::native_tls::{Certificate, TlsConnector};
 
     let mut builder = TlsConnector::builder();
     builder
@@ -88,7 +127,7 @@ async fn configure_tls_connector(
 
     if !accept_invalid_certs {
         if let Some(ca) = root_cert_path {
-            let data = fs::read(ca).await?;
+            let data = ca.data().await?;
             let cert = Certificate::from_pem(&data)?;
 
             builder.add_root_certificate(cert);

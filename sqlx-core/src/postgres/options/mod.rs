@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 mod connect;
 mod parse;
 mod ssl_mode;
-use crate::connection::LogSettings;
+use crate::{connection::LogSettings, net::CertificateInput};
 pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
@@ -82,7 +82,7 @@ pub struct PgConnectOptions {
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
-    pub(crate) ssl_root_cert: Option<PathBuf>,
+    pub(crate) ssl_root_cert: Option<CertificateInput>,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
@@ -130,7 +130,7 @@ impl PgConnectOptions {
             username: var("PGUSER").ok().unwrap_or_else(whoami::username),
             password: var("PGPASSWORD").ok(),
             database: var("PGDATABASE").ok(),
-            ssl_root_cert: var("PGSSLROOTCERT").ok().map(PathBuf::from),
+            ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -267,7 +267,23 @@ impl PgConnectOptions {
     ///     .ssl_root_cert("./ca-certificate.crt");
     /// ```
     pub fn ssl_root_cert(mut self, cert: impl AsRef<Path>) -> Self {
-        self.ssl_root_cert = Some(cert.as_ref().to_path_buf());
+        self.ssl_root_cert = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
+        self
+    }
+
+    /// Sets PEM encoded trusted SSL Certificate Authorities (CA).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// let options = PgConnectOptions::new()
+    ///     // Providing a CA certificate with less than VerifyCa is pointless
+    ///     .ssl_mode(PgSslMode::VerifyCa)
+    ///     .ssl_root_cert_from_pem(vec![]);
+    /// ```
+    pub fn ssl_root_cert_from_pem(mut self, pem_certificate: Vec<u8>) -> Self {
+        self.ssl_root_cert = Some(CertificateInput::Inline(pem_certificate));
         self
     }
 

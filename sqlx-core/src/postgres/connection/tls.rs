@@ -70,7 +70,7 @@ async fn upgrade(stream: &mut PgStream, options: &PgConnectOptions) -> Result<bo
             &options.host,
             accept_invalid_certs,
             accept_invalid_hostnames,
-            options.ssl_root_cert.as_deref(),
+            options.ssl_root_cert.as_ref(),
         )
         .await?;
 
