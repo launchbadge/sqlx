@@ -32,6 +32,9 @@ pub use value::{MssqlValue, MssqlValueRef};
 /// An alias for [`Pool`][crate::pool::Pool], specialized for MSSQL.
 pub type MssqlPool = crate::pool::Pool<Mssql>;
 
+/// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for MSSQL.
+pub type MssqlPoolOptions = crate::pool::PoolOptions<Mssql>;
+
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MssqlArguments);
 impl_executor_for_pool_connection!(Mssql, MssqlConnection, MssqlRow);
