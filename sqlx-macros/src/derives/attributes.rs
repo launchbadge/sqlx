@@ -33,8 +33,8 @@ pub enum RenameAll {
     UpperCase,
     ScreamingSnakeCase,
     KebabCase,
-    MixedCase,
     CamelCase,
+    PascalCase,
 }
 
 pub struct SqlxContainerAttributes {
@@ -79,8 +79,8 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                     "UPPERCASE" => RenameAll::UpperCase,
                                     "SCREAMING_SNAKE_CASE" => RenameAll::ScreamingSnakeCase,
                                     "kebab-case" => RenameAll::KebabCase,
-                                    "mixedCase" => RenameAll::MixedCase,
-                                    "CamelCase" => RenameAll::CamelCase,
+                                    "camelCase" => RenameAll::CamelCase,
+                                    "PascalCase" => RenameAll::PascalCase,
                                     _ => fail!(meta, "unexpected value for rename_all"),
                                 };
 

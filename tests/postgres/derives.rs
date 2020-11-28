@@ -76,16 +76,16 @@ enum ColorKebabCase {
 
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_mixed_case")]
-#[sqlx(rename_all = "mixedCase")]
-enum ColorMixedCase {
+#[sqlx(rename_all = "camelCase")]
+enum ColorCamelCase {
     RedGreen,
     BlueBlack,
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(rename = "color_camel_case")]
-#[sqlx(rename_all = "CamelCase")]
-enum ColorCamelCase {
+#[sqlx(rename_all = "PascalCase")]
+enum ColorPascalCase {
     RedGreen,
     BlueBlack,
 }
@@ -308,21 +308,9 @@ SELECT id, mood FROM people WHERE id = $1
     assert!(rec.0);
     assert_eq!(rec.1, ColorKebabCase::RedGreen);
 
-    let rec: (bool, ColorMixedCase) = sqlx::query_as(
-        "
-    SELECT $1 = 'redGreen'::color_mixed_case, $1
-            ",
-    )
-    .bind(&ColorMixedCase::RedGreen)
-    .fetch_one(&mut conn)
-    .await?;
-
-    assert!(rec.0);
-    assert_eq!(rec.1, ColorMixedCase::RedGreen);
-
     let rec: (bool, ColorCamelCase) = sqlx::query_as(
         "
-    SELECT $1 = 'RedGreen'::color_camel_case, $1
+    SELECT $1 = 'redGreen'::color_mixed_case, $1
             ",
     )
     .bind(&ColorCamelCase::RedGreen)
@@ -331,6 +319,18 @@ SELECT id, mood FROM people WHERE id = $1
 
     assert!(rec.0);
     assert_eq!(rec.1, ColorCamelCase::RedGreen);
+
+    let rec: (bool, ColorPascalCase) = sqlx::query_as(
+        "
+    SELECT $1 = 'RedGreen'::color_camel_case, $1
+            ",
+    )
+    .bind(&ColorPascalCase::RedGreen)
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorPascalCase::RedGreen);
 
     Ok(())
 }
@@ -476,7 +476,7 @@ async fn test_from_row_with_rename() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
     #[derive(Debug, sqlx::FromRow)]
-    #[sqlx(rename_all = "mixedCase")]
+    #[sqlx(rename_all = "camelCase")]
     struct AccountKeyword {
         user_id: i32,
         user_name: String,

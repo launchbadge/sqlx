@@ -53,7 +53,7 @@ use crate::row::Row;
 ///
 /// ```rust,ignore
 /// #[derive(sqlx::FromRow)]
-/// #[sqlx(rename_all = "mixedCase")]
+/// #[sqlx(rename_all = "camelCase")]
 /// struct UserPost {
 ///     id: i32,
 ///     // remapped to "userId"
@@ -63,7 +63,7 @@ use crate::row::Row;
 /// ```
 ///
 /// The supported values are `snake_case` (available if you have non-snake-case field names for some
-/// reason), `lowercase`, `UPPERCASE`, `mixedCase`, `CamelCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
+/// reason), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
 /// The styling of each option is intended to be an example of its behavior.
 ///
 /// #### `default`

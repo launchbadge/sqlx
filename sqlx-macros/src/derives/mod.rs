@@ -35,8 +35,8 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
         RenameAll::UpperCase => s.to_uppercase(),
         RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
         RenameAll::KebabCase => s.to_kebab_case(),
-        RenameAll::MixedCase => s.to_mixed_case(),
-        RenameAll::CamelCase => s.to_camel_case(),
+        RenameAll::CamelCase => s.to_mixed_case(),
+        RenameAll::PascalCase => s.to_camel_case(),
         
     }
 }
