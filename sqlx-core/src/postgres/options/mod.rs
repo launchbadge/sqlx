@@ -307,7 +307,7 @@ impl PgConnectOptions {
     /// ```rust
     /// # use sqlx_core::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
-    ///     .compatible(81);
+    ///     .compatible(8.1);
     /// ```
     pub fn compatible(mut self, version: f32) -> Self {
         self.compatible = Some(version.to_owned());
