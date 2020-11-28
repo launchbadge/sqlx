@@ -486,7 +486,7 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let account: AccountKeyword = sqlx::query_as(
-        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts(\"userId\", \"userName\", \"userSurname\")"#,
+        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts("userId", "userName", "userSurname")"#,
     )
     .fetch_one(&mut conn)
     .await?;
