@@ -166,7 +166,7 @@ CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
 CREATE TYPE color_snake AS ENUM ( 'red_green', 'blue_black' );
 CREATE TYPE color_upper AS ENUM ( 'RED', 'GREEN', 'BLUE' );
 CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
-CREATE TYPE color_kebab_case" AS ENUM ( 'red-green', 'blue-black' );
+CREATE TYPE color_kebab_case AS ENUM ( 'red-green', 'blue-black' );
 CREATE TYPE color_mixed_case AS ENUM ( 'redGreen', 'blueBlack' );
 CREATE TYPE color_camel_case AS ENUM ( 'RedGreen', 'BlueBlack' );
 
