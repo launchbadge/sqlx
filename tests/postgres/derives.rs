@@ -486,7 +486,7 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let account: AccountKeyword = sqlx::query_as(
-        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts(userId, userName, userSurname)"#,
+        r#"SELECT * from (VALUES (1, 'foo', 'bar')) accounts(\"userId\", \"userName\", \"userSurname\")"#,
     )
     .fetch_one(&mut conn)
     .await?;
@@ -494,7 +494,7 @@ async fn test_from_row_with_rename_all() -> anyhow::Result<()> {
 
     assert_eq!(1, account.user_id);
     assert_eq!("foo", account.user_name);
-    assert_eq!("bar8", account.user_surname);
+    assert_eq!("bar", account.user_surname);
 
     Ok(())
 }
