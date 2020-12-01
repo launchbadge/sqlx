@@ -8,6 +8,7 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
+use crate::logger::QueryLogger;
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -25,6 +26,8 @@ impl AuroraConnection {
         query: &'q str,
         arguments: Option<AuroraArguments>,
     ) -> Result<impl Stream<Item = Result<Either<AuroraDone, AuroraRow>, Error>> + 'e, Error> {
+        let mut logger = QueryLogger::new(query, self.log_settings.clone());
+
         // TODO: is this correct?
         let transaction_id = self.transaction_ids.last().cloned();
 
@@ -83,11 +86,15 @@ impl AuroraConnection {
 
                 let row = AuroraRow { fields, metadata };
 
+                logger.increment_rows();
+
                 Ok(Either::Right(row))
             })
             .collect::<Vec<_>>();
 
         rows.push(Ok(Either::Left(AuroraDone { rows_affected })));
+
+        logger.finish();
 
         Ok(stream::iter(rows))
     }

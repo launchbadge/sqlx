@@ -25,7 +25,7 @@ postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel
 mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand", "rsa" ]
 sqlite = [ "libsqlite3-sys" ]
 mssql = [ "uuid", "encoding_rs", "regex" ]
-aurora = [ "rusoto_core", "rusoto_rds_data" ]
+aurora = [ "rusoto_core", "rusoto_rds_data", "regex" ]
 any = []
 
 # types
