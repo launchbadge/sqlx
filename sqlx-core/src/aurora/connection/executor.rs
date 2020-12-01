@@ -1,7 +1,6 @@
 use super::AuroraConnection;
 use crate::aurora::error::AuroraDatabaseError;
 use crate::aurora::statement::AuroraStatementMetadata;
-use crate::aurora::type_info::AuroraType;
 use crate::aurora::{
     Aurora, AuroraArguments, AuroraColumn, AuroraDone, AuroraRow, AuroraStatement, AuroraTypeInfo,
 };

@@ -9,6 +9,7 @@ pub struct AuroraTypeInfo(pub(crate) AuroraType);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AuroraType {
+    Null,
     Blob,
     Boolean,
     BooleanArray,
@@ -31,6 +32,7 @@ pub enum AuroraType {
 impl AuroraType {
     pub(crate) fn display_name(&self) -> &str {
         match self {
+            AuroraType::Null => "NULL",
             AuroraType::Blob => "BLOB",
             AuroraType::Boolean => "BOOL",
             AuroraType::BooleanArray => "BOOL[]",
@@ -58,7 +60,7 @@ impl TypeInfo for AuroraTypeInfo {
     }
 
     fn is_null(&self) -> bool {
-        false
+        matches!(self, AuroraTypeInfo(AuroraType::Null))
     }
 }
 
@@ -70,7 +72,9 @@ impl Display for AuroraTypeInfo {
 
 impl From<&Field> for AuroraTypeInfo {
     fn from(field: &Field) -> Self {
-        if let Some(array_value) = &field.array_value {
+        if field.is_null == Some(true) {
+            AuroraTypeInfo(AuroraType::Null)
+        } else if let Some(array_value) = &field.array_value {
             if array_value.boolean_values.is_some() {
                 AuroraTypeInfo(AuroraType::BooleanArray)
             } else if array_value.double_values.is_some() {

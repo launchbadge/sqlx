@@ -1,4 +1,4 @@
-use crate::aurora::type_info::AuroraTypeInfo;
+use crate::aurora::type_info::{AuroraType, AuroraTypeInfo};
 use crate::aurora::Aurora;
 use crate::value::{Value, ValueRef};
 
@@ -35,7 +35,7 @@ impl Value for AuroraValue {
     }
 
     fn is_null(&self) -> bool {
-        self.field.is_null.unwrap_or_default()
+        matches!(self.type_info, AuroraTypeInfo(AuroraType::Null))
     }
 }
 
@@ -54,6 +54,6 @@ impl<'r> ValueRef<'r> for AuroraValueRef<'r> {
     }
 
     fn is_null(&self) -> bool {
-        self.field.is_null.unwrap_or_default()
+        matches!(self.type_info, AuroraTypeInfo(AuroraType::Null))
     }
 }
