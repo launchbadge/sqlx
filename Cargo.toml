@@ -50,7 +50,7 @@ offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
-all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
+all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any", "aurora" ]
 all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec" ]
 
 # previous runtimes, available as features for error messages better than just
@@ -79,6 +79,7 @@ postgres = [ "sqlx-core/postgres", "sqlx-macros/postgres" ]
 mysql = [ "sqlx-core/mysql", "sqlx-macros/mysql" ]
 sqlite = [ "sqlx-core/sqlite", "sqlx-macros/sqlite" ]
 mssql = [ "sqlx-core/mssql", "sqlx-macros/mssql" ]
+aurora = [ "sqlx-core/aurora" ]
 
 # types
 bigdecimal = [ "sqlx-core/bigdecimal", "sqlx-macros/bigdecimal" ]

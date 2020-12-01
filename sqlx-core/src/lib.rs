@@ -100,6 +100,10 @@ pub mod mysql;
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
 pub mod mssql;
 
+#[cfg(feature = "aurora")]
+#[cfg_attr(docsrs, doc(cfg(feature = "aurora")))]
+pub mod aurora;
+
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
 use ahash::AHashMap as HashMap;
 //type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;

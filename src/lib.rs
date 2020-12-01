@@ -65,6 +65,10 @@ pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
 pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
 
+#[cfg(feature = "aurora")]
+#[cfg_attr(docsrs, doc(cfg(feature = "aurora")))]
+pub use sqlx_core::aurora::{self, Aurora, AuroraConnection, AuroraPool};
+
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub extern crate sqlx_macros;

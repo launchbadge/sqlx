@@ -49,7 +49,7 @@ impl<T> StatementCache<T> {
     }
 
     /// Clear all cached statements from the cache.
-    #[cfg(feature = "sqlite")]
+    #[cfg(any(feature = "sqlite", feature = "aurora"))]
     pub fn clear(&mut self) {
         self.inner.clear();
     }
