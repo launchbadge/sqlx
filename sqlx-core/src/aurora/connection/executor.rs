@@ -94,8 +94,6 @@ impl AuroraConnection {
 
         rows.push(Ok(Either::Left(AuroraDone { rows_affected })));
 
-        logger.finish();
-
         Ok(stream::iter(rows))
     }
 }
