@@ -1,9 +1,8 @@
+use crate::aurora::type_info::AuroraType;
+use crate::aurora::{Aurora, AuroraTypeInfo, AuroraValueRef};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::{BoxDynError, Error};
-//use crate::aurora::types::array_compatible;
-use crate::aurora::type_info::AuroraType;
-use crate::aurora::{Aurora, AuroraTypeInfo, AuroraValueRef};
 use crate::types::Type;
 
 use rusoto_rds_data::{Field, SqlParameter};
@@ -12,19 +11,11 @@ impl Type<Aurora> for str {
     fn type_info() -> AuroraTypeInfo {
         AuroraTypeInfo(AuroraType::String)
     }
-
-    fn compatible(ty: &AuroraTypeInfo) -> bool {
-        [AuroraTypeInfo(AuroraType::String)].contains(ty)
-    }
 }
 
 impl Type<Aurora> for [&'_ str] {
     fn type_info() -> AuroraTypeInfo {
         AuroraTypeInfo(AuroraType::StringArray)
-    }
-
-    fn compatible(ty: &AuroraTypeInfo) -> bool {
-        [AuroraTypeInfo(AuroraType::StringArray)].contains(ty)
     }
 }
 
@@ -49,12 +40,6 @@ impl Encode<'_, Aurora> for &'_ str {
         });
 
         IsNull::No
-    }
-}
-
-impl Encode<'_, Aurora> for String {
-    fn encode_by_ref(&self, buf: &mut Vec<SqlParameter>) -> IsNull {
-        <&str as Encode<Aurora>>::encode(&**self, buf)
     }
 }
 
@@ -95,6 +80,12 @@ impl Type<Aurora> for Vec<String> {
 
     fn compatible(ty: &AuroraTypeInfo) -> bool {
         <[String] as Type<Aurora>>::compatible(ty)
+    }
+}
+
+impl Encode<'_, Aurora> for String {
+    fn encode_by_ref(&self, buf: &mut Vec<SqlParameter>) -> IsNull {
+        <&str as Encode<Aurora>>::encode(&**self, buf)
     }
 }
 
