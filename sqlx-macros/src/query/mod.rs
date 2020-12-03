@@ -37,7 +37,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     // if `dotenv` wasn't initialized by the above we make sure to do it here
     match (
         dotenv::var("SQLX_OFFLINE")
-            .map(|s| s.to_lowercase() == "true")
+            .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
             .unwrap_or(false),
         dotenv::var("DATABASE_URL"),
     ) {
