@@ -68,6 +68,7 @@ impl_database_ext! {
 
         Vec<bool> | &[bool],
         Vec<String> | &[String],
+        Vec<Vec<u8>> | &[Vec<u8>],
         Vec<i8> | &[i8],
         Vec<i16> | &[i16],
         Vec<i32> | &[i32],
