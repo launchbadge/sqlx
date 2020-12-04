@@ -162,5 +162,8 @@ fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
 
         #[cfg(feature = "mssql")]
         AnyKind::Mssql => Ok("MSSQL"),
+
+        #[cfg(feature = "aurora")]
+        AnyKind::Aurora => Ok("Aurora"),
     }
 }

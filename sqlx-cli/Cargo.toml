@@ -51,6 +51,7 @@ default = [ "postgres", "sqlite", "mysql" ]
 mysql = [ "sqlx/mysql" ]
 postgres = [ "sqlx/postgres" ]
 sqlite = [ "sqlx/sqlite" ]
+aurora = [ "sqlx/aurora" ]
 
 # workaround for musl + openssl issues
 openssl-vendored = [ "openssl/vendored" ]
