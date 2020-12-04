@@ -43,7 +43,8 @@ pub use sqlx_core::migrate;
         feature = "mysql",
         feature = "sqlite",
         feature = "postgres",
-        feature = "mssql"
+        feature = "mssql",
+        feature = "aurora"
     ),
     feature = "any"
 ))]
