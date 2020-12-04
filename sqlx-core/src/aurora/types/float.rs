@@ -77,7 +77,7 @@ impl Decode<'_, Aurora> for f32 {
         let f = <f64 as Decode<Aurora>>::decode(value)?;
 
         if f.gt(&(f32::MAX as f64)) {
-            return Err("".into());
+            Err("value is larger than f32::MAX".into())
         } else {
             Ok(f as f32)
         }
