@@ -17,6 +17,9 @@ impl FromStr for AuroraConnectOptions {
                     options =
                         options.statement_cache_capacity(value.parse().map_err(Error::config)?);
                 }
+                "db-type" => {
+                    options = options.db_type(value.parse()?);
+                }
                 "region" => {
                     options = options.region(&*value);
                 }

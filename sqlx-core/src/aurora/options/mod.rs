@@ -1,11 +1,39 @@
+use crate::connection::LogSettings;
+use crate::error::Error;
+
 use std::env::var;
+use std::str::FromStr;
 
 mod connect;
 mod parse;
-use crate::connection::LogSettings;
+
+#[derive(Debug, Clone, Copy)]
+pub enum AuroraDbType {
+    MySQL,
+    Postgres,
+}
+
+impl FromStr for AuroraDbType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let t = match s {
+            "mysql" => AuroraDbType::MySQL,
+            "postgres" => AuroraDbType::Postgres,
+            _ => {
+                return Err(Error::Configuration(
+                    "db type must be `postgres` or `mysql`".into(),
+                ))
+            }
+        };
+
+        Ok(t)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct AuroraConnectOptions {
+    pub(crate) db_type: Option<AuroraDbType>,
     pub(crate) region: String,
     pub(crate) resource_arn: Option<String>,
     pub(crate) secret_arn: Option<String>,
@@ -23,6 +51,15 @@ impl Default for AuroraConnectOptions {
 
 impl AuroraConnectOptions {
     pub fn new() -> Self {
+        let db_type = match var("AURORA_DB_TYPE").map(|s| s.parse()) {
+            Ok(Ok(t)) => Some(t),
+            Ok(Err(e)) => {
+                log::error!("{}", e);
+                None
+            }
+            Err(_) => None,
+        };
+
         let region = var("AURORA_REGION")
             .ok()
             .unwrap_or_else(|| "us-east-1".to_owned());
@@ -31,6 +68,7 @@ impl AuroraConnectOptions {
         let secret_arn = var("AURORA_SECRET_ARN").ok();
 
         AuroraConnectOptions {
+            db_type,
             region,
             resource_arn,
             secret_arn,
@@ -39,6 +77,11 @@ impl AuroraConnectOptions {
             statement_cache_capacity: 100,
             log_settings: Default::default(),
         }
+    }
+
+    pub fn db_type(mut self, db_type: AuroraDbType) -> Self {
+        self.db_type = Some(db_type);
+        self
     }
 
     pub fn region(mut self, region: &str) -> Self {

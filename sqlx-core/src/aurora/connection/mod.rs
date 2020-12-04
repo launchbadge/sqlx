@@ -1,4 +1,4 @@
-use crate::aurora::options::AuroraConnectOptions;
+use crate::aurora::options::{AuroraConnectOptions, AuroraDbType};
 use crate::aurora::statement::AuroraStatementMetadata;
 use crate::aurora::Aurora;
 use crate::common::StatementCache;
@@ -17,6 +17,7 @@ mod executor;
 
 /// A connection to an Aurora database.
 pub struct AuroraConnection {
+    pub(crate) db_type: AuroraDbType,
     pub(crate) resource_arn: String,
     pub(crate) secret_arn: String,
     pub(crate) database: Option<String>,
@@ -35,6 +36,10 @@ pub struct AuroraConnection {
 
 impl AuroraConnection {
     pub(crate) fn new(options: &AuroraConnectOptions) -> Result<Self, Error> {
+        let db_type = options
+            .db_type
+            .ok_or_else(|| Error::Configuration("db type not specified".into()))?;
+
         let region = options.region.parse().map_err(Error::config)?;
 
         let resource_arn = options
@@ -51,6 +56,7 @@ impl AuroraConnection {
         let client = RdsDataClient::new(region);
 
         Ok(Self {
+            db_type,
             resource_arn,
             secret_arn,
             database: options.database.clone(),
