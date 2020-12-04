@@ -22,3 +22,13 @@ impl Extend<AuroraDone> for AuroraDone {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<AuroraDone> for crate::any::AnyDone {
+    fn from(done: AuroraDone) -> Self {
+        crate::any::AnyDone {
+            rows_affected: done.rows_affected,
+            last_insert_id: None,
+        }
+    }
+}

@@ -17,6 +17,9 @@ use crate::mssql;
 use crate::mysql;
 use crate::transaction::Transaction;
 
+#[cfg(feature = "aurora")]
+use crate::aurora;
+
 mod establish;
 mod executor;
 
@@ -45,6 +48,9 @@ pub(crate) enum AnyConnectionKind {
 
     #[cfg(feature = "sqlite")]
     Sqlite(sqlite::SqliteConnection),
+
+    #[cfg(feature = "aurora")]
+    Aurora(aurora::AuroraConnection),
 }
 
 macro_rules! delegate_to {
@@ -61,6 +67,9 @@ macro_rules! delegate_to {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn.$method($($arg),*),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.$method($($arg),*),
         }
     };
 }
@@ -79,6 +88,9 @@ macro_rules! delegate_to_mut {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn.$method($($arg),*),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.$method($($arg),*),
         }
     };
 }
@@ -101,6 +113,9 @@ impl Connection for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn.close(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.close(),
         }
     }
 
@@ -129,6 +144,9 @@ impl Connection for AnyConnection {
             // no cache
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_) => 0,
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.cached_statements_size(),
         }
     }
 
@@ -146,6 +164,9 @@ impl Connection for AnyConnection {
             // no cache
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_) => Box::pin(futures_util::future::ok(())),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.clear_cached_statements(),
         }
     }
 

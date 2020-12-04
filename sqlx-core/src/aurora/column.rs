@@ -27,3 +27,14 @@ impl Column for AuroraColumn {
         &self.type_info
     }
 }
+
+#[cfg(feature = "any")]
+impl From<AuroraColumn> for crate::any::AnyColumn {
+    #[inline]
+    fn from(column: AuroraColumn) -> Self {
+        crate::any::AnyColumn {
+            type_info: column.type_info.into(),
+            kind: crate::any::column::AnyColumnKind::Aurora(column),
+        }
+    }
+}

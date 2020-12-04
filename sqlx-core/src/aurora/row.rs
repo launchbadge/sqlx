@@ -48,3 +48,20 @@ impl ColumnIndex<AuroraRow> for &'_ str {
             .map(|v| *v)
     }
 }
+
+#[cfg(feature = "any")]
+impl From<AuroraRow> for crate::any::AnyRow {
+    #[inline]
+    fn from(row: AuroraRow) -> Self {
+        crate::any::AnyRow {
+            columns: row
+                .metadata
+                .columns
+                .iter()
+                .map(|col| col.clone().into())
+                .collect(),
+
+            kind: crate::any::row::AnyRowKind::Aurora(row),
+        }
+    }
+}

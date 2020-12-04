@@ -11,6 +11,15 @@ pub struct AuroraArguments {
     pub(crate) parameters: Vec<SqlParameter>,
 }
 
+impl AuroraArguments {
+    pub(crate) fn add<'q, T>(&mut self, value: T)
+    where
+        T: Encode<'q, Aurora> + Type<Aurora>,
+    {
+        let _ = value.encode(&mut self.parameters);
+    }
+}
+
 impl<'q> Arguments<'q> for AuroraArguments {
     type Database = Aurora;
 
@@ -22,6 +31,6 @@ impl<'q> Arguments<'q> for AuroraArguments {
     where
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
-        let _ = value.encode(&mut self.parameters);
+        self.add(value);
     }
 }

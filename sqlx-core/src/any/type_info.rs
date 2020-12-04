@@ -14,6 +14,9 @@ use crate::sqlite::SqliteTypeInfo;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlTypeInfo;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::AuroraTypeInfo;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnyTypeInfo(pub(crate) AnyTypeInfoKind);
 
@@ -30,6 +33,9 @@ pub(crate) enum AnyTypeInfoKind {
 
     #[cfg(feature = "mssql")]
     Mssql(MssqlTypeInfo),
+
+    #[cfg(feature = "aurora")]
+    Aurora(AuroraTypeInfo),
 }
 
 impl TypeInfo for AnyTypeInfo {
@@ -46,6 +52,9 @@ impl TypeInfo for AnyTypeInfo {
 
             #[cfg(feature = "mssql")]
             AnyTypeInfoKind::Mssql(ty) => ty.is_null(),
+
+            #[cfg(feature = "aurora")]
+            AnyTypeInfoKind::Aurora(ty) => ty.is_null(),
         }
     }
 
@@ -62,6 +71,9 @@ impl TypeInfo for AnyTypeInfo {
 
             #[cfg(feature = "mssql")]
             AnyTypeInfoKind::Mssql(ty) => ty.name(),
+
+            #[cfg(feature = "aurora")]
+            AnyTypeInfoKind::Aurora(ty) => ty.name(),
         }
     }
 }
@@ -80,6 +92,9 @@ impl Display for AnyTypeInfo {
 
             #[cfg(feature = "mssql")]
             AnyTypeInfoKind::Mssql(ty) => ty.fmt(f),
+
+            #[cfg(feature = "aurora")]
+            AnyTypeInfoKind::Aurora(ty) => ty.fmt(f),
         }
     }
 }

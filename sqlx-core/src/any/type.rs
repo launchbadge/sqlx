@@ -12,6 +12,9 @@ use crate::mssql::Mssql;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::Sqlite;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::Aurora;
+
 // Type is required by the bounds of the [Row] and [Arguments] trait but its been overridden in
 // AnyRow and AnyArguments to not use this implementation; but instead, delegate to the
 // database-specific implementation.
@@ -49,6 +52,11 @@ macro_rules! impl_any_type {
                     #[cfg(feature = "mssql")]
                     crate::any::type_info::AnyTypeInfoKind::Mssql(ty) => {
                         <$ty as crate::types::Type<crate::mssql::Mssql>>::compatible(&ty)
+                    }
+
+                    #[cfg(feature = "aurora")]
+                    crate::any::type_info::AnyTypeInfoKind::Aurora(ty) => {
+                        <$ty as crate::types::Type<crate::aurora::Aurora>>::compatible(&ty)
                     }
                 }
             }
@@ -250,3 +258,15 @@ pub trait AnyType: Type<Sqlite> {}
     feature = "sqlite"
 ))]
 impl<T: ?Sized> AnyType for T where T: Type<Sqlite> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+pub trait AnyType: Type<Aurora> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+impl<T: ?Sized> AnyType for T where T: Type<Aurora> {}

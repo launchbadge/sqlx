@@ -46,6 +46,12 @@ pub(crate) enum AnyArgumentBufferKind<'q> {
         crate::mssql::MssqlArguments,
         std::marker::PhantomData<&'q ()>,
     ),
+
+    #[cfg(feature = "aurora")]
+    Aurora(
+        crate::aurora::AuroraArguments,
+        std::marker::PhantomData<&'q ()>,
+    ),
 }
 
 // control flow inferred type bounds would be fun
@@ -125,6 +131,27 @@ impl<'q> From<AnyArguments<'q>> for crate::postgres::PgArguments {
         }
 
         if let AnyArgumentBufferKind::Postgres(args, _) = buf.0 {
+            args
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+#[cfg(feature = "aurora")]
+#[allow(irrefutable_let_patterns)]
+impl<'q> From<AnyArguments<'q>> for crate::aurora::AuroraArguments {
+    fn from(args: AnyArguments<'q>) -> Self {
+        let mut buf = AnyArgumentBuffer(AnyArgumentBufferKind::Aurora(
+            Default::default(),
+            std::marker::PhantomData,
+        ));
+
+        for value in args.values {
+            let _ = value.encode_by_ref(&mut buf);
+        }
+
+        if let AnyArgumentBufferKind::Aurora(args, _) = buf.0 {
             args
         } else {
             unreachable!()

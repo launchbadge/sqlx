@@ -14,6 +14,9 @@ pub enum AnyKind {
 
     #[cfg(feature = "mssql")]
     Mssql,
+
+    #[cfg(feature = "aurora")]
+    Aurora,
 }
 
 impl FromStr for AnyKind {
@@ -59,6 +62,16 @@ impl FromStr for AnyKind {
             #[cfg(not(feature = "mssql"))]
             _ if uri.starts_with("mssql:") || uri.starts_with("sqlserver:") => {
                 Err(Error::Configuration("database URL has the scheme of a MSSQL database but the `mssql` feature is not enabled".into()))
+            }
+
+            #[cfg(feature = "aurora")]
+            _ if uri.starts_with("aurora+data:")  => {
+                Ok(AnyKind::Aurora)
+            }
+
+            #[cfg(not(feature = "aurora"))]
+            _ if uri.starts_with("aurora+data:")  => {
+                Err(Error::Configuration("database URL has the scheme of an Aurora database but the `aurora` feature is not enabled".into()))
             }
 
             _ => Err(Error::Configuration(format!("unrecognized database url: {:?}", uri).into()))

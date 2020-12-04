@@ -13,6 +13,9 @@ use crate::mssql::Mssql;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::Sqlite;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::Aurora;
+
 // Implements Decode for any T where T supports Decode for any database that has support currently
 // compiled into SQLx
 macro_rules! impl_any_decode {
@@ -43,6 +46,11 @@ macro_rules! impl_any_decode {
                     #[cfg(feature = "postgres")]
                     crate::any::value::AnyValueRefKind::Postgres(value) => {
                         <$ty as crate::decode::Decode<'r, crate::postgres::Postgres>>::decode(value)
+                    }
+
+                    #[cfg(feature = "aurora")]
+                    crate::any::value::AnyValueRefKind::Aurora(value) => {
+                        <$ty as crate::decode::Decode<'r, crate::aurora::Aurora>>::decode(value)
                     }
                 }
             }
@@ -361,3 +369,15 @@ pub trait AnyDecode<'r>: Decode<'r, Sqlite> + Type<Sqlite> {}
     feature = "sqlite"
 ))]
 impl<'r, T> AnyDecode<'r> for T where T: Decode<'r, Sqlite> + Type<Sqlite> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+pub trait AnyDecode<'r>: Decode<'r, Aurora> + Type<Aurora> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+impl<'r, T> AnyDecode<'r> for T where T: Decode<'r, Aurora> + Type<Aurora> {}

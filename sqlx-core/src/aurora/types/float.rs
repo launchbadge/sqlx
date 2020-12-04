@@ -47,3 +47,39 @@ impl Decode<'_, Aurora> for f64 {
             .ok_or_else(|| Error::Decode("Not a double value".into()))?)
     }
 }
+
+impl Type<Aurora> for f32 {
+    fn type_info() -> AuroraTypeInfo {
+        AuroraTypeInfo(AuroraType::Double)
+    }
+}
+
+impl Type<Aurora> for [f32] {
+    fn type_info() -> AuroraTypeInfo {
+        AuroraTypeInfo(AuroraType::DoubleArray)
+    }
+}
+
+impl Type<Aurora> for Vec<f32> {
+    fn type_info() -> AuroraTypeInfo {
+        <[f32] as Type<Aurora>>::type_info()
+    }
+}
+
+impl Encode<'_, Aurora> for f32 {
+    fn encode_by_ref(&self, buf: &mut Vec<SqlParameter>) -> IsNull {
+        <f64 as Encode<Aurora>>::encode_by_ref(&(*self as f64), buf)
+    }
+}
+
+impl Decode<'_, Aurora> for f32 {
+    fn decode(value: AuroraValueRef<'_>) -> Result<Self, BoxDynError> {
+        let f = <f64 as Decode<Aurora>>::decode(value)?;
+
+        if f.gt(&(f32::MAX as f64)) {
+            return Err("".into());
+        } else {
+            Ok(f as f32)
+        }
+    }
+}

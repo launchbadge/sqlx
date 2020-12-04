@@ -13,6 +13,9 @@ use crate::mssql::Mssql;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::Sqlite;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::Aurora;
+
 // Implements Encode for any T where T supports Encode for any database that has support currently
 // compiled into SQLx
 macro_rules! impl_any_encode {
@@ -39,6 +42,9 @@ macro_rules! impl_any_encode {
 
                     #[cfg(feature = "sqlite")]
                     crate::any::arguments::AnyArgumentBufferKind::Sqlite(args) => args.add(self),
+
+                    #[cfg(feature = "aurora")]
+                    crate::any::arguments::AnyArgumentBufferKind::Aurora(args, _) => args.add(self),
                 }
 
                 // unused
@@ -359,3 +365,15 @@ pub trait AnyEncode<'q>: Encode<'q, Sqlite> + Type<Sqlite> {}
     feature = "sqlite"
 ))]
 impl<'q, T> AnyEncode<'q> for T where T: Encode<'q, Sqlite> + Type<Sqlite> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+pub trait AnyEncode<'q>: Encode<'q, Aurora> + Type<Aurora> {}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+impl<'q, T> AnyEncode<'q> for T where T: Encode<'q, Aurora> + Type<Aurora> {}

@@ -34,6 +34,13 @@ impl AnyConnection {
                     .await
                     .map(AnyConnectionKind::Mssql)
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectOptionsKind::Aurora(options) => {
+                crate::aurora::AuroraConnection::connect_with(options)
+                    .await
+                    .map(AnyConnectionKind::Aurora)
+            }
         }
         .map(AnyConnection)
     }

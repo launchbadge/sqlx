@@ -32,6 +32,11 @@ impl TransactionManager for AnyTransactionManager {
             AnyConnectionKind::Mssql(conn) => {
                 <crate::mssql::Mssql as Database>::TransactionManager::begin(conn)
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => {
+                <crate::aurora::Aurora as Database>::TransactionManager::begin(conn)
+            }
         }
     }
 
@@ -55,6 +60,11 @@ impl TransactionManager for AnyTransactionManager {
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
                 <crate::mssql::Mssql as Database>::TransactionManager::commit(conn)
+            }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => {
+                <crate::aurora::Aurora as Database>::TransactionManager::commit(conn)
             }
         }
     }
@@ -80,6 +90,11 @@ impl TransactionManager for AnyTransactionManager {
             AnyConnectionKind::Mssql(conn) => {
                 <crate::mssql::Mssql as Database>::TransactionManager::rollback(conn)
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => {
+                <crate::aurora::Aurora as Database>::TransactionManager::rollback(conn)
+            }
         }
     }
 
@@ -103,6 +118,11 @@ impl TransactionManager for AnyTransactionManager {
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
                 <crate::mssql::Mssql as Database>::TransactionManager::start_rollback(conn)
+            }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => {
+                <crate::aurora::Aurora as Database>::TransactionManager::start_rollback(conn)
             }
         }
     }

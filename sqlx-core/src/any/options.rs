@@ -19,6 +19,9 @@ use crate::any::kind::AnyKind;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlConnectOptions;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::AuroraConnectOptions;
+
 /// Opaque options for connecting to a database. These may only be constructed by parsing from
 /// a connection uri.
 ///
@@ -43,6 +46,9 @@ impl AnyConnectOptions {
 
             #[cfg(feature = "mssql")]
             AnyConnectOptionsKind::Mssql(_) => AnyKind::Mssql,
+
+            #[cfg(feature = "aurora")]
+            AnyConnectOptionsKind::Aurora(_) => AnyKind::Aurora,
         }
     }
 }
@@ -60,6 +66,9 @@ pub(crate) enum AnyConnectOptionsKind {
 
     #[cfg(feature = "mssql")]
     Mssql(MssqlConnectOptions),
+
+    #[cfg(feature = "aurora")]
+    Aurora(AuroraConnectOptions),
 }
 
 #[cfg(feature = "postgres")]
@@ -90,6 +99,13 @@ impl From<MssqlConnectOptions> for AnyConnectOptions {
     }
 }
 
+#[cfg(feature = "aurora")]
+impl From<AuroraConnectOptions> for AnyConnectOptions {
+    fn from(options: AuroraConnectOptions) -> Self {
+        Self(AnyConnectOptionsKind::Aurora(options))
+    }
+}
+
 impl FromStr for AnyConnectOptions {
     type Err = Error;
 
@@ -110,6 +126,11 @@ impl FromStr for AnyConnectOptions {
 
             #[cfg(feature = "mssql")]
             AnyKind::Mssql => MssqlConnectOptions::from_str(url).map(AnyConnectOptionsKind::Mssql),
+
+            #[cfg(feature = "aurora")]
+            AnyKind::Aurora => {
+                AuroraConnectOptions::from_str(url).map(AnyConnectOptionsKind::Aurora)
+            }
         }
         .map(AnyConnectOptions)
     }
@@ -144,6 +165,11 @@ impl ConnectOptions for AnyConnectOptions {
             AnyConnectOptionsKind::Mssql(o) => {
                 o.log_statements(level);
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectOptionsKind::Aurora(o) => {
+                o.log_statements(level);
+            }
         };
         self
     }
@@ -167,6 +193,11 @@ impl ConnectOptions for AnyConnectOptions {
 
             #[cfg(feature = "mssql")]
             AnyConnectOptionsKind::Mssql(o) => {
+                o.log_slow_statements(level, duration);
+            }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectOptionsKind::Aurora(o) => {
                 o.log_slow_statements(level, duration);
             }
         };

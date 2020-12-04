@@ -97,3 +97,11 @@ impl From<&Field> for AuroraTypeInfo {
         }
     }
 }
+
+#[cfg(feature = "any")]
+impl From<AuroraTypeInfo> for crate::any::AnyTypeInfo {
+    #[inline]
+    fn from(ty: AuroraTypeInfo) -> Self {
+        crate::any::AnyTypeInfo(crate::any::type_info::AnyTypeInfoKind::Aurora(ty))
+    }
+}

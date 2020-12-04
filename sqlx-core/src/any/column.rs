@@ -13,6 +13,9 @@ use crate::sqlite::{SqliteColumn, SqliteRow, SqliteStatement};
 #[cfg(feature = "mssql")]
 use crate::mssql::{MssqlColumn, MssqlRow, MssqlStatement};
 
+#[cfg(feature = "aurora")]
+use crate::aurora::{AuroraColumn, AuroraRow, AuroraStatement};
+
 #[derive(Debug, Clone)]
 pub struct AnyColumn {
     pub(crate) kind: AnyColumnKind,
@@ -34,6 +37,9 @@ pub(crate) enum AnyColumnKind {
 
     #[cfg(feature = "mssql")]
     Mssql(MssqlColumn),
+
+    #[cfg(feature = "aurora")]
+    Aurora(AuroraColumn),
 }
 
 impl Column for AnyColumn {
@@ -52,6 +58,9 @@ impl Column for AnyColumn {
 
             #[cfg(feature = "mssql")]
             AnyColumnKind::Mssql(row) => row.ordinal(),
+
+            #[cfg(feature = "aurora")]
+            AnyColumnKind::Aurora(row) => row.ordinal(),
         }
     }
 
@@ -68,6 +77,9 @@ impl Column for AnyColumn {
 
             #[cfg(feature = "mssql")]
             AnyColumnKind::Mssql(row) => row.name(),
+
+            #[cfg(feature = "aurora")]
+            AnyColumnKind::Aurora(row) => row.name(),
         }
     }
 
@@ -439,5 +451,23 @@ pub trait AnyColumnIndex:
 ))]
 impl<I: ?Sized> AnyColumnIndex for I where
     I: ColumnIndex<SqliteRow> + for<'q> ColumnIndex<SqliteStatement<'q>>
+{
+}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+pub trait AnyColumnIndex:
+    ColumnIndex<AuroraRow> + for<'q> ColumnIndex<AuroraStatement<'q>>
+{
+}
+
+#[cfg(all(
+    not(any(feature = "mysql", feature = "mssql", feature = "postgres", feature = "sqlite")),
+    feature = "aurora"
+))]
+impl<I: ?Sized> AnyColumnIndex for I where
+    I: ColumnIndex<AuroraRow> + for<'q> ColumnIndex<AuroraStatement<'q>>
 {
 }

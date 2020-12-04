@@ -57,3 +57,25 @@ impl<'r> ValueRef<'r> for AuroraValueRef<'r> {
         matches!(self.type_info, AuroraTypeInfo(AuroraType::Null))
     }
 }
+
+#[cfg(feature = "any")]
+impl<'r> From<AuroraValueRef<'r>> for crate::any::AnyValueRef<'r> {
+    #[inline]
+    fn from(value: AuroraValueRef<'r>) -> Self {
+        crate::any::AnyValueRef {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueRefKind::Aurora(value),
+        }
+    }
+}
+
+#[cfg(feature = "any")]
+impl From<AuroraValue> for crate::any::AnyValue {
+    #[inline]
+    fn from(value: AuroraValue) -> Self {
+        crate::any::AnyValue {
+            type_info: value.type_info.clone().into(),
+            kind: crate::any::value::AnyValueKind::Aurora(value),
+        }
+    }
+}

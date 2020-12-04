@@ -22,6 +22,9 @@ impl MigrateDatabase for Any {
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),
+
+                #[cfg(feature = "aurora")]
+                AnyKind::Aurora => crate::aurora::Aurora::create_database(uri).await,
             }
         })
     }
@@ -40,6 +43,9 @@ impl MigrateDatabase for Any {
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),
+
+                #[cfg(feature = "aurora")]
+                AnyKind::Aurora => crate::aurora::Aurora::database_exists(uri).await,
             }
         })
     }
@@ -58,6 +64,9 @@ impl MigrateDatabase for Any {
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),
+
+                #[cfg(feature = "aurora")]
+                AnyKind::Aurora => crate::aurora::Aurora::drop_database(uri).await,
             }
         })
     }
@@ -77,6 +86,9 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.ensure_migrations_table(),
         }
     }
 
@@ -93,6 +105,9 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.version(),
         }
     }
 
@@ -109,6 +124,9 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.lock(),
         }
     }
 
@@ -125,6 +143,9 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.unlock(),
         }
     }
 
@@ -147,6 +168,9 @@ impl Migrate for AnyConnection {
                 let _ = migration;
                 unimplemented!()
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.validate(migration),
         }
     }
 
@@ -169,6 +193,9 @@ impl Migrate for AnyConnection {
                 let _ = migration;
                 unimplemented!()
             }
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.apply(migration),
         }
     }
 
@@ -188,6 +215,9 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => unimplemented!(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn.revert(migration),
         }
     }
 }

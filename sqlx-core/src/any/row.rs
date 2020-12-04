@@ -16,6 +16,9 @@ use crate::sqlite::SqliteRow;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlRow;
 
+#[cfg(feature = "aurora")]
+use crate::aurora::AuroraRow;
+
 pub struct AnyRow {
     pub(crate) kind: AnyRowKind,
     pub(crate) columns: Vec<AnyColumn>,
@@ -35,6 +38,9 @@ pub(crate) enum AnyRowKind {
 
     #[cfg(feature = "mssql")]
     Mssql(MssqlRow),
+
+    #[cfg(feature = "aurora")]
+    Aurora(AuroraRow),
 }
 
 impl Row for AnyRow {
@@ -65,6 +71,9 @@ impl Row for AnyRow {
 
             #[cfg(feature = "mssql")]
             AnyRowKind::Mssql(row) => row.try_get_raw(index).map(Into::into),
+
+            #[cfg(feature = "aurora")]
+            AnyRowKind::Aurora(row) => row.try_get_raw(index).map(Into::into),
         }
     }
 }
@@ -86,6 +95,9 @@ where
 
             #[cfg(feature = "mssql")]
             AnyRowKind::Mssql(row) => self.index(row),
+
+            #[cfg(feature = "aurora")]
+            AnyRowKind::Aurora(row) => self.index(row),
         }
     }
 }

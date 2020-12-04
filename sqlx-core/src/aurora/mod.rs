@@ -40,4 +40,5 @@ impl_acquire!(Aurora, AuroraConnection);
 impl_column_index_for_row!(AuroraRow);
 impl_column_index_for_statement!(AuroraStatement);
 impl_into_maybe_pool!(Aurora, AuroraConnection);
+
 impl_encode_for_option!(Aurora);

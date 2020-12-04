@@ -47,6 +47,12 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
                 .fetch_many((query, arguments.map(Into::into)))
                 .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
                 .boxed(),
+
+            #[cfg(feature = "aurora")]
+            AnyConnectionKind::Aurora(conn) => conn
+                .fetch_many((query, arguments.map(Into::into)))
+                .map_ok(|v| v.map_right(Into::into).map_left(Into::into))
+                .boxed(),
         }
     }
 
@@ -86,6 +92,12 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
                     .fetch_optional((query, arguments.map(Into::into)))
                     .await?
                     .map(Into::into),
+
+                #[cfg(feature = "aurora")]
+                AnyConnectionKind::Aurora(conn) => conn
+                    .fetch_optional((query, arguments.map(Into::into)))
+                    .await?
+                    .map(Into::into),
             })
         })
     }
@@ -112,6 +124,9 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
 
                 #[cfg(feature = "mssql")]
                 AnyConnectionKind::Mssql(conn) => conn.prepare(sql).await.map(Into::into)?,
+
+                #[cfg(feature = "aurora")]
+                AnyConnectionKind::Aurora(conn) => conn.prepare(sql).await.map(Into::into)?,
             })
         })
     }
@@ -136,6 +151,9 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
 
                 #[cfg(feature = "mssql")]
                 AnyConnectionKind::Mssql(conn) => conn.describe(sql).await.map(map_describe)?,
+
+                #[cfg(feature = "aurora")]
+                AnyConnectionKind::Aurora(conn) => conn.describe(sql).await.map(map_describe)?,
             })
         })
     }
