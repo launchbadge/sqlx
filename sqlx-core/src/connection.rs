@@ -39,23 +39,27 @@ pub trait Connection: Send {
     /// # Example
     ///
     /// ```rust
-    /// use sqlx_core::postgres::{PgConnection, PgRow};
     /// use sqlx_core::connection::Connection;
     /// use sqlx_core::error::Error;
+    /// use sqlx_core::executor::Executor;
+    /// use sqlx_core::postgres::{PgConnection, PgRow};
+    /// use sqlx_core::query::query;
     ///
     /// # pub async fn _f(conn: &mut PgConnection) -> Result<Vec<PgRow>, Error> {
     /// conn.transaction(|conn|Box::pin(async move {
-    ///     sqlx::query("select * from ..").fetch_all(conn).await
+    ///     query("select * from ..").fetch_all(conn).await
     /// })).await
     /// # }
     /// ```
     fn transaction<F, R, E>(&mut self, callback: F) -> BoxFuture<Result<R, E>>
-        where
-                for<'c> F:
-        FnOnce(&'c mut Transaction<Self::Database>) -> BoxFuture<'c, Result<R, E>> + 'static + Send + Sync,
-                Self: Sized,
-                R: Send,
-                E: From<Error> + Send,
+    where
+        for<'c> F: FnOnce(&'c mut Transaction<Self::Database>) -> BoxFuture<'c, Result<R, E>>
+            + 'static
+            + Send
+            + Sync,
+        Self: Sized,
+        R: Send,
+        E: From<Error> + Send,
     {
         Box::pin(async move {
             let mut transaction = self.begin().await?;
