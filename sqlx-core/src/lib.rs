@@ -78,7 +78,8 @@ pub mod migrate;
         feature = "postgres",
         feature = "mysql",
         feature = "mssql",
-        feature = "sqlite"
+        feature = "sqlite",
+        feature = "aurora"
     ),
     feature = "any"
 ))]
