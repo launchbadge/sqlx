@@ -29,6 +29,9 @@ impl FromStr for AuroraConnectOptions {
                 "secret-arn" => {
                     options = options.secret_arn(&*value);
                 }
+                "database" => {
+                    options = options.database(&*value);
+                }
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }

@@ -67,12 +67,14 @@ impl AuroraConnectOptions {
         let resource_arn = var("AURORA_RESOURCE_ARN").ok();
         let secret_arn = var("AURORA_SECRET_ARN").ok();
 
+        let database = var("AURORA_DATABASE").ok();
+
         AuroraConnectOptions {
             db_type,
             region,
             resource_arn,
             secret_arn,
-            database: None,
+            database,
             schema: None,
             statement_cache_capacity: 100,
             log_settings: Default::default(),
