@@ -35,30 +35,42 @@ pub trait Connection: Send {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    fn transaction<'c: 'f, 'f, T, E, F, Fut>(&'c mut self, f: F) -> BoxFuture<'f, Result<T, E>>
-    where
-        Self: Sized,
-        T: Send,
-        F: FnOnce(&mut <Self::Database as Database>::Connection) -> Fut + Send + 'f,
-        E: From<Error> + Send,
-        Fut: Future<Output = Result<T, E>> + Send,
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use sqlx_core::postgres::{PgConnection, PgRow};
+    /// use sqlx_core::connection::Connection;
+    /// use sqlx_core::error::Error;
+    ///
+    /// # pub async fn _f(conn: &mut PgConnection) -> Result<Vec<PgRow>, Error> {
+    /// conn.transaction(|conn|Box::pin(async move {
+    ///     sqlx::query("select * from ..").fetch_all(conn).await
+    /// })).await
+    /// # }
+    /// ```
+    fn transaction<F, R, E>(&mut self, callback: F) -> BoxFuture<Result<R, E>>
+        where
+                for<'c> F:
+        FnOnce(&'c mut Transaction<Self::Database>) -> BoxFuture<'c, Result<R, E>> + 'static + Send + Sync,
+                Self: Sized,
+                R: Send,
+                E: From<Error> + Send,
     {
         Box::pin(async move {
-            let mut tx = self.begin().await?;
+            let mut transaction = self.begin().await?;
+            let ret = callback(&mut transaction).await;
 
-            match f(&mut tx).await {
-                Ok(r) => {
-                    // no error occurred, commit the transaction
-                    tx.commit().await?;
+            match ret {
+                Ok(ret) => {
+                    transaction.commit().await?;
 
-                    Ok(r)
+                    Ok(ret)
                 }
+                Err(err) => {
+                    transaction.rollback().await?;
 
-                Err(e) => {
-                    // an error occurred, rollback the transaction
-                    tx.rollback().await?;
-
-                    Err(e)
+                    Err(err)
                 }
             }
         })
