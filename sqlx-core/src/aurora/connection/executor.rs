@@ -2,7 +2,8 @@ use super::AuroraConnection;
 use crate::aurora::error::AuroraDatabaseError;
 use crate::aurora::statement::AuroraStatementMetadata;
 use crate::aurora::{
-    Aurora, AuroraArguments, AuroraColumn, AuroraDone, AuroraRow, AuroraStatement, AuroraTypeInfo,
+    Aurora, AuroraArguments, AuroraColumn, AuroraDbType, AuroraDone, AuroraRow, AuroraStatement,
+    AuroraTypeInfo,
 };
 use crate::describe::Describe;
 use crate::error::Error;
@@ -16,6 +17,8 @@ use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::stream;
 use futures_util::{pin_mut, TryStreamExt};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use rusoto_rds_data::{ExecuteStatementRequest, ExecuteStatementResponse, RdsData};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -24,15 +27,47 @@ impl AuroraConnection {
     async fn run<'e, 'c: 'e, 'q: 'e>(
         &'c mut self,
         query: &'q str,
-        arguments: Option<AuroraArguments>,
+        mut arguments: Option<AuroraArguments>,
     ) -> Result<impl Stream<Item = Result<Either<AuroraDone, AuroraRow>, Error>> + 'e, Error> {
         let mut logger = QueryLogger::new(query, self.log_settings.clone());
+
+        static MYSQL_PARAMS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\?").unwrap());
+        static POSTGRES_PARAMS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\$\d+").unwrap());
+
+        let regex = match self.db_type {
+            AuroraDbType::MySQL => &MYSQL_PARAMS_RE,
+            AuroraDbType::Postgres => &POSTGRES_PARAMS_RE,
+        };
+
+        let mut offset = 0;
+        let mut owned_query = query.to_owned();
+
+        if let Some(arguments) = arguments.as_mut() {
+            regex
+                .find_iter(query)
+                .zip(arguments.parameters.iter_mut())
+                .enumerate()
+                .for_each(|(idx, (mat, param))| {
+                    let name = format!("param_{}", idx + 1);
+
+                    owned_query.replace_range(
+                        (mat.start() + offset)..(mat.end() + offset),
+                        &format!(":{}", name),
+                    );
+
+                    offset += name.len() + 1 - mat.as_str().len();
+
+                    param.name = Some(name);
+                });
+        }
+
+        dbg!(&owned_query);
 
         // TODO: is this correct?
         let transaction_id = self.transaction_ids.last().cloned();
 
         let request = ExecuteStatementRequest {
-            sql: query.to_owned(),
+            sql: owned_query,
             parameters: arguments.map(|m| m.parameters),
             resource_arn: self.resource_arn.clone(),
             secret_arn: self.secret_arn.clone(),
