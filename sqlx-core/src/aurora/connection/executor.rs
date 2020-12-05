@@ -61,8 +61,6 @@ impl AuroraConnection {
                 });
         }
 
-        dbg!(&owned_query);
-
         // TODO: is this correct?
         let transaction_id = self.transaction_ids.last().cloned();
 
