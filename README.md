@@ -175,8 +175,8 @@ Add dependencies to `Cargo.toml`
 
 ```toml
 [dependencies]
-async-std = { version = "1.7.0", features = ["attributes"] }
-anyhow = "1.0"
+anyhow = "1.0" # For error handling
+async-std = { version = "1.7.0", features = ["attributes"] } 
 sqlx = { version = "0.4.0", features = ["runtime-async-std-native-tls", "postgres"]}
 ```
 
@@ -207,10 +207,10 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-Run with relevant `DATABASE_URL` in environment, e.g.
+Run with relevant `DATABASE_URL` for you as an environment variable, e.g.
 
 ```bash
->> DATABASE_URL=postgres://username:password@localhost/sqlx_quickstart cargo run
+>> DATABASE_URL=postgres://<your_username>:<your_password>@localhost/<your_database> cargo run
 ```
 
 ### Connecting
