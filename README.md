@@ -166,6 +166,22 @@ sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 
 ### Quickstart
 
+```bash
+>> cargo new --bin sqlx_quickstart
+>> cd sqlx_quickstart
+```
+
+Add dependencies to `Cargo.toml`
+
+```toml
+[dependencies]
+async-std = { version = "1.7.0", features = ["attributes"] }
+anyhow = "1.0"
+sqlx = { version = "0.4.0", features = ["runtime-async-std-native-tls", "postgres"]}
+```
+
+Update `src/main.rs`
+
 ```rust
 use std::env;
 
@@ -174,7 +190,7 @@ use sqlx::postgres::PgPoolOptions;
 // etc.
 
 #[async_std::main] // or #[tokio::main]
-async fn main() -> Result<(), sqlx::Error> {
+async fn main() -> anyhow::Result<()> {
     // Create a connection pool
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -189,6 +205,12 @@ async fn main() -> Result<(), sqlx::Error> {
 
     Ok(())
 }
+```
+
+Run with relevant `DATABASE_URL` in environment, e.g.
+
+```bash
+>> DATABASE_URL=postgres://username:password@localhost/sqlx_quickstart cargo run
 ```
 
 ### Connecting
