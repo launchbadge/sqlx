@@ -115,9 +115,11 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
         let mut digits = Vec::with_capacity(digits_len);
 
         if let Some(first) = base_10.get(..offset) {
-            if offset != 0 {
+            if !first.is_empty() {
                 digits.push(base_10_to_10000(first));
             }
+        } else if offset != 0 {
+            digits.push(base_10_to_10000(&base_10) * 10i16.pow(3 - base_10.len() as u32));
         }
 
         if let Some(rest) = base_10.get(offset..) {
@@ -271,6 +273,34 @@ mod bigdecimal_to_pgnumeric {
                 scale: 1,
                 weight: -1,
                 digits: vec![1000]
+            }
+        );
+    }
+
+    #[test]
+    fn one_hundredth() {
+        let one_hundredth: BigDecimal = "0.01".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&one_hundredth).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 2,
+                weight: -1,
+                digits: vec![100]
+            }
+        );
+    }
+
+    #[test]
+    fn twelve_thousandths() {
+        let twelve_thousandths: BigDecimal = "0.012".parse().unwrap();
+        assert_eq!(
+            PgNumeric::try_from(&twelve_thousandths).unwrap(),
+            PgNumeric::Number {
+                sign: PgNumericSign::Positive,
+                scale: 3,
+                weight: -1,
+                digits: vec![120]
             }
         );
     }
