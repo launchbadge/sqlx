@@ -69,6 +69,8 @@ where
     if r == SQLITE_OK {
         Ok(())
     } else {
+        // The xDestroy callback is not called if the sqlite3_create_collation_v2() function fails.
+        drop(unsafe { Box::from_raw(boxed_f) });
         Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))))
     }
 }
