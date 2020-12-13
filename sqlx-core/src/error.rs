@@ -57,6 +57,10 @@ pub enum Error {
     #[error("no rows returned by a query that expected to return at least one row")]
     RowNotFound,
 
+    /// Type in query doesn't exist. Likely due to typo or missing user type.
+    #[error("type named {type_name} not found")]
+    TypeNotFound { type_name: String },
+
     /// Column index was out of bounds.
     #[error("column index out of bounds: the len is {len}, but the index is {index}")]
     ColumnIndexOutOfBounds { index: usize, len: usize },
