@@ -235,11 +235,13 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                 ",
         )
         .bind(name)
-        .fetch_one(&mut *self)
-        .await?;
+        .fetch_optional(&mut *self)
+        .await?
+        .ok_or_else(|| Error::TypeNotFound {
+            type_name: String::from(name),
+        })?;
 
         self.cache_type_oid.insert(name.to_string().into(), oid);
-
         Ok(oid)
     }
 
