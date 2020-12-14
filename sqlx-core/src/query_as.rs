@@ -119,7 +119,7 @@ where
         self.fetch(executor).try_collect().await
     }
 
-    /// Execute the query and returns exactly one row.
+    /// Execute the query and return exactly one row.
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
@@ -133,7 +133,7 @@ where
             .and_then(|row| row.ok_or(Error::RowNotFound))
     }
 
-    /// Execute the query and returns at most one row.
+    /// Execute the query and return at most one row.
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,

@@ -103,7 +103,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         self.fetch(query).try_collect().boxed()
     }
 
-    /// Execute the query and returns exactly one row.
+    /// Execute the query and return exactly one row.
     fn fetch_one<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
@@ -120,7 +120,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
             .boxed()
     }
 
-    /// Execute the query and returns at most one row.
+    /// Execute the query and return at most one row.
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         query: E,

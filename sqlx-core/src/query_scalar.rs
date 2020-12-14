@@ -113,7 +113,7 @@ where
             .await
     }
 
-    /// Execute the query and returns exactly one row.
+    /// Execute the query and return exactly one row.
     #[inline]
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
@@ -126,7 +126,7 @@ where
         self.inner.fetch_one(executor).map_ok(|it| it.0).await
     }
 
-    /// Execute the query and returns at most one row.
+    /// Execute the query and return at most one row.
     #[inline]
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
