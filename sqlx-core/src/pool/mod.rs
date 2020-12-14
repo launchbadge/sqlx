@@ -232,14 +232,14 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URI; and, will establish a connections as the pool
+    /// the given connection URI; and, will establish connections as the pool
     /// starts to be used.
     pub fn connect_lazy(uri: &str) -> Result<Self, Error> {
         PoolOptions::<DB>::new().connect_lazy(uri)
     }
 
     /// Creates a new connection pool with a default pool configuration and
-    /// the given connection options; and, will establish a connections as the pool
+    /// the given connection options; and, will establish connections as the pool
     /// starts to be used.
     pub fn connect_lazy_with(options: <DB::Connection as Connection>::Options) -> Self {
         PoolOptions::<DB>::new().connect_lazy_with(options)

@@ -207,13 +207,13 @@ impl<DB: Database> PoolOptions<DB> {
         Ok(Pool(shared))
     }
 
-    /// Creates a new pool from this configuration and will establish a connections as the pool
+    /// Creates a new pool from this configuration and will establish connections as the pool
     /// starts to be used.
     pub fn connect_lazy(self, uri: &str) -> Result<Pool<DB>, Error> {
         Ok(self.connect_lazy_with(uri.parse()?))
     }
 
-    /// Creates a new pool from this configuration and will establish a connections as the pool
+    /// Creates a new pool from this configuration and will establish connections as the pool
     /// starts to be used.
     pub fn connect_lazy_with(self, options: <DB::Connection as Connection>::Options) -> Pool<DB> {
         let shared = SharedPool::new_arc(self, options);
