@@ -56,9 +56,13 @@ impl<DB: Database> DerefMut for PoolConnection<DB> {
 }
 
 impl<DB: Database> PoolConnection<DB> {
-    // explicitly release a connection from the pool
+    /// Explicitly release a connection from the pool
     pub fn release(mut self) -> DB::Connection {
-        self.live.take().expect("PoolConnection double-dropped").raw
+        self.live
+            .take()
+            .expect("PoolConnection double-dropped")
+            .float(&self.pool)
+            .detach()
     }
 }
 
@@ -152,6 +156,10 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
             live: Some(inner),
             pool: Arc::clone(pool),
         }
+    }
+
+    pub fn detach(self) -> DB::Connection {
+        self.inner.raw
     }
 
     pub fn into_idle(self) -> Floating<'s, Idle<DB>> {
