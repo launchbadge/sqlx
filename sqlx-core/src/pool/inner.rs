@@ -47,10 +47,11 @@ impl<DB: Database> SharedPool<DB> {
 
         // ensure we wait until the pool is actually closed
         while self.size() > 0 {
-            let _ = self
-                .idle_conns
-                .pop()
-                .map(|idle| Floating::from_idle(idle, self));
+            if let Ok(idle) = self.idle_conns.pop() {
+                if let Err(e) = Floating::from_idle(idle, self).close().await {
+                    log::warn!("error occurred while closing the pool connection: {}", e);
+                }
+            }
 
             // yield to avoid starving the executor
             sqlx_rt::yield_now().await;
