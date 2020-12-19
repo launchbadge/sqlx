@@ -168,7 +168,7 @@ sqlx = { version = "0.4.0", features = [ "runtime-async-std-native-tls" ] }
 
 ```toml
 [dependencies]
-sqlx = { version = "0.4.0-beta.1", features = [ "postgres" ] }
+sqlx = { version = "0.4.1", features = [ "postgres" ] }
 async-std = { version = "1.6", features = [ "attributes" ] }
 ```
 
@@ -177,9 +177,13 @@ use sqlx::postgres::PgPoolOptions;
 // use sqlx::mysql::MySqlPoolOptions;
 // etc.
 
-#[async_std::main] // or #[tokio::main]
+#[async_std::main]
+// or #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
+    //  for MySQL, use MySqlPoolOptions::new()
+    //  for SQLite, use SqlitePoolOptions::new()
+    //  etc.
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect("postgres://postgres:password@localhost/test").await?;
