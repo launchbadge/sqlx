@@ -2479,7 +2479,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2535,7 +2535,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.4.0"
+version = "0.4.2"
 dependencies = [
  "ahash 0.6.2",
  "atoi",
@@ -2658,7 +2658,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.4.0"
+version = "0.4.2"
 dependencies = [
  "cargo_metadata 0.12.1",
  "dotenv",
