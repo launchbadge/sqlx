@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Upcoming
+
+-   [[#854]] Allow chaining `map` and `try_map` [[@jplatte]]
+
+    Additionally enables calling these combinators with the macros:
+
+    ```rust
+    let ones: Vec<i32> = query!("SELECT 1 as foo")
+        .map(|row| row.foo)
+        .fetch_all(&mut conn).await?;
+    ```
+
 ## 0.4.2 - 2020-12-19
 
 -   [[#908]] Fix `whoami` crash on FreeBSD platform [[@fundon]] [[@AldaronLau]]
@@ -24,16 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#747]] [[#867]] Replace `lru-cache` with `hashlink` [[@chertov]]
 
 -   [[#860]] Add `rename_all` to `FromRow` and add `camelCase` and `PascalCase` [[@framp]]
-
--   [[#854]] Allow chaining `map` and `try_map` [[@jplatte]]
-
-    Additionally enables calling these combinators with the macros:
-
-    ```rust
-    let ones: Vec<i32> = query!("SELECT 1 as foo")
-        .map(|row| row.foo)
-        .fetch_all(&mut conn).await?;
-    ```
 
 -   [[#839]] Add (optional) support for `bstr::BStr`, `bstr::BString`, and `git2::Oid` [[@joshtriplett]]
 
