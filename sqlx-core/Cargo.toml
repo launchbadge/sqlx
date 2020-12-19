@@ -13,7 +13,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = ["all-databases", "all-types", "offline"]
+features = ["all-databases", "all-types", "offline", "runtime-async-std-native-tls"]
 
 [features]
 default = [ "migrate" ]
