@@ -57,23 +57,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   [[#880]] Consider `utf8mb4_general_ci` as a string [[@mcronce]]
 
-[[#908]]: https://github.com/launchbadge/sqlx/pull/908
-[[#895]]: https://github.com/launchbadge/sqlx/pull/895
-[[#893]]: https://github.com/launchbadge/sqlx/pull/893
-[[#889]]: https://github.com/launchbadge/sqlx/pull/889
-[[#880]]: https://github.com/launchbadge/sqlx/pull/880
-[[#878]]: https://github.com/launchbadge/sqlx/pull/878
-[[#876]]: https://github.com/launchbadge/sqlx/pull/876
-[[#874]]: https://github.com/launchbadge/sqlx/pull/874
-[[#867]]: https://github.com/launchbadge/sqlx/pull/867
-[[#860]]: https://github.com/launchbadge/sqlx/pull/860
-[[#854]]: https://github.com/launchbadge/sqlx/pull/854
-[[#852]]: https://github.com/launchbadge/sqlx/pull/852
-[[#850]]: https://github.com/launchbadge/sqlx/pull/850
-[[#845]]: https://github.com/launchbadge/sqlx/pull/845
-[[#839]]: https://github.com/launchbadge/sqlx/pull/839
+[#908]: https://github.com/launchbadge/sqlx/pull/908
+[#895]: https://github.com/launchbadge/sqlx/pull/895
+[#893]: https://github.com/launchbadge/sqlx/pull/893
+[#889]: https://github.com/launchbadge/sqlx/pull/889
+[#880]: https://github.com/launchbadge/sqlx/pull/880
+[#878]: https://github.com/launchbadge/sqlx/pull/878
+[#876]: https://github.com/launchbadge/sqlx/pull/876
+[#874]: https://github.com/launchbadge/sqlx/pull/874
+[#867]: https://github.com/launchbadge/sqlx/pull/867
+[#860]: https://github.com/launchbadge/sqlx/pull/860
+[#854]: https://github.com/launchbadge/sqlx/pull/854
+[#852]: https://github.com/launchbadge/sqlx/pull/852
+[#850]: https://github.com/launchbadge/sqlx/pull/850
+[#845]: https://github.com/launchbadge/sqlx/pull/845
+[#839]: https://github.com/launchbadge/sqlx/pull/839
 
-[[#747]]: https://github.com/launchbadge/sqlx/issues/747
+[#747]: https://github.com/launchbadge/sqlx/issues/747
 
 ## 0.4.1 – 2020-11-13
 
@@ -121,22 +121,18 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 
 -   [[#739]] Fix minor protocol detail with `iteration-count` that was blocking Vitess [[@mcronce]]
 
-[[#774]]: https://github.com/launchbadge/sqlx/pull/774
-[[#789]]: https://github.com/launchbadge/sqlx/pull/789
-[[#784]]: https://github.com/launchbadge/sqlx/pull/784
-[[#781]]: https://github.com/launchbadge/sqlx/pull/781
-[[#762]]: https://github.com/launchbadge/sqlx/pull/762
-[[#755]]: https://github.com/launchbadge/sqlx/pull/755
-[[#745]]: https://github.com/launchbadge/sqlx/pull/745
-[[#743]]: https://github.com/launchbadge/sqlx/pull/743
-[[#742]]: https://github.com/launchbadge/sqlx/pull/742
-[[#735]]: https://github.com/launchbadge/sqlx/pull/735
-[[#739]]: https://github.com/launchbadge/sqlx/pull/739
-[[#718]]: https://github.com/launchbadge/sqlx/pull/718
-[[#0]]: https://github.com/launchbadge/sqlx/pull/0
-[[#0]]: https://github.com/launchbadge/sqlx/pull/0
-[[#0]]: https://github.com/launchbadge/sqlx/pull/0
-[[#0]]: https://github.com/launchbadge/sqlx/pull/0
+[#774]: https://github.com/launchbadge/sqlx/pull/774
+[#789]: https://github.com/launchbadge/sqlx/pull/789
+[#784]: https://github.com/launchbadge/sqlx/pull/784
+[#781]: https://github.com/launchbadge/sqlx/pull/781
+[#762]: https://github.com/launchbadge/sqlx/pull/762
+[#755]: https://github.com/launchbadge/sqlx/pull/755
+[#745]: https://github.com/launchbadge/sqlx/pull/745
+[#743]: https://github.com/launchbadge/sqlx/pull/743
+[#742]: https://github.com/launchbadge/sqlx/pull/742
+[#735]: https://github.com/launchbadge/sqlx/pull/735
+[#739]: https://github.com/launchbadge/sqlx/pull/739
+[#718]: https://github.com/launchbadge/sqlx/pull/718
 
 ## 0.4.0-beta.1 - 2020-07-27
 
@@ -769,5 +765,3 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@dstoeckel]: https://github.com/dstoeckel
 [@mrcd]: https://github.com/mrcd
 [@dvermd]: https://github.com/dvermd
-[@_]: https://github.com/_
-[@_]: https://github.com/_
