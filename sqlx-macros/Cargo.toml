@@ -17,7 +17,7 @@ proc-macro = true
 
 [features]
 default = [ "runtime-async-std-native-tls", "migrate" ]
-migrate = [ "sha2" ]
+migrate = [ "sha2", "sqlx-core/migrate" ]
 
 # runtimes
 runtime-actix-native-tls = [ "sqlx-core/runtime-actix-native-tls", "sqlx-rt/runtime-actix-native-tls", "_rt-actix" ]
