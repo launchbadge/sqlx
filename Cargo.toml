@@ -52,7 +52,7 @@ offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
 all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
-all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec" ]
+all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec", "bstr", "git2" ]
 
 # previous runtimes, available as features for error messages better than just
 # "feature doesn't exist"
@@ -90,6 +90,8 @@ uuid = [ "sqlx-core/uuid", "sqlx-macros/uuid" ]
 json = [ "sqlx-core/json", "sqlx-macros/json" ]
 time = [ "sqlx-core/time", "sqlx-macros/time" ]
 bit-vec = [ "sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
+bstr = [ "sqlx-core/bstr" ]
+git2 = [ "sqlx-core/git2" ]
 
 [dependencies]
 sqlx-core = { version = "=0.4.0", path = "sqlx-core", default-features = false }

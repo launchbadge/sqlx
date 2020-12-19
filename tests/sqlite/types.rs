@@ -107,6 +107,30 @@ mod chrono {
     ));
 }
 
+#[cfg(feature = "bstr")]
+mod bstr {
+    use super::*;
+    use sqlx::types::bstr::BString;
+
+    test_type!(bstring<BString>(Sqlite, 
+        "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
+        "x'0001020304'" == BString::from(&b"\x00\x01\x02\x03\x04"[..])
+    ));
+}
+
+#[cfg(feature = "git2")]
+mod git2 {
+    use super::*;
+    use sqlx::types::git2::Oid;
+
+    test_type!(oid<Oid>(
+        Sqlite,
+        "x'0000000000000000000000000000000000000000'" == Oid::zero(),
+        "x'000102030405060708090a0b0c0d0e0f10111213'"
+            == Oid::from_str("000102030405060708090a0b0c0d0e0f10111213").unwrap()
+    ));
+}
+
 #[cfg(feature = "uuid")]
 test_type!(uuid<sqlx::types::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
