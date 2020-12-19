@@ -34,9 +34,9 @@ where
 impl<'q, DB: Database> Encode<'q, DB> for Oid
 where
     DB: Database,
-    [u8]: Encode<'q, DB>,
+    Vec<u8>: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        <[u8] as Encode<DB>>::encode_by_ref(self.as_bytes(), buf)
+        <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
     }
 }

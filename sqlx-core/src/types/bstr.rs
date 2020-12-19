@@ -5,7 +5,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 
-pub use bstr::{BString, ByteSlice};
+pub use bstr::{BString, BStr, ByteSlice};
 
 impl<DB> Type<DB> for BString
 where
@@ -31,12 +31,22 @@ where
     }
 }
 
+impl<'q, DB: Database> Encode<'q, DB> for &'q BStr
+where
+    DB: Database,
+    &'q [u8]: Encode<'q, DB>,
+{
+    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+        <&[u8] as Encode<DB>>::encode(self.as_bytes(), buf)
+    }
+}
+
 impl<'q, DB: Database> Encode<'q, DB> for BString
 where
     DB: Database,
-    [u8]: Encode<'q, DB>,
+    Vec<u8>: Encode<'q, DB>,
 {
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
-        <[u8] as Encode<DB>>::encode_by_ref(self.as_bytes(), buf)
+        <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
     }
 }
