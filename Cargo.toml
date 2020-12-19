@@ -52,7 +52,7 @@ offline = [ "sqlx-macros/offline", "sqlx-core/offline" ]
 # intended mainly for CI and docs
 all = [ "tls", "all-databases", "all-types" ]
 all-databases = [ "mysql", "sqlite", "postgres", "mssql", "any" ]
-all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec" ]
+all-types = [ "bigdecimal", "decimal", "json", "time", "chrono", "ipnetwork", "uuid", "bit-vec", "bstr", "git2" ]
 
 # previous runtimes, available as features for error messages better than just
 # "feature doesn't exist"

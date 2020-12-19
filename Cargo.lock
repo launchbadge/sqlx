@@ -1355,12 +1355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linked-hash-map"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dd5a6d5999d9907cda8ed67bbd137d3af8085216c2ac62de5be860bd41f304a"
-
-[[package]]
 name = "lock_api"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2511,8 +2505,9 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "generic-array",
+ "generic-array 0.14.4",
  "git2",
+ "hashlink",
  "hex",
  "hmac",
  "ipnetwork",
