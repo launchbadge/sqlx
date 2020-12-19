@@ -2590,7 +2590,7 @@ dependencies = [
  "regex",
  "rsa",
  "rust_decimal",
- "rustls 0.19.0",
+ "rustls 0.18.1",
  "serde",
  "serde_json",
  "sha-1 0.9.2",
