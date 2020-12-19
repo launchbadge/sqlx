@@ -41,13 +41,13 @@ impl<DB: Database> SharedPool<DB> {
 
     pub(super) async fn close(&self) {
         self.is_closed.store(true, Ordering::Release);
-        while let Ok(waker) = self.waiters.pop() {
+        while let Some(waker) = self.waiters.pop() {
             waker.wake();
         }
 
         // ensure we wait until the pool is actually closed
         while self.size() > 0 {
-            if let Ok(idle) = self.idle_conns.pop() {
+            if let Some(idle) = self.idle_conns.pop() {
                 if let Err(e) = Floating::from_idle(idle, self).close().await {
                     log::warn!("error occurred while closing the pool connection: {}", e);
                 }
@@ -72,7 +72,7 @@ impl<DB: Database> SharedPool<DB> {
             return None;
         }
 
-        Some(Floating::from_idle(self.idle_conns.pop().ok()?, self))
+        Some(Floating::from_idle(self.idle_conns.pop()?, self))
     }
 
     pub(super) fn release(&self, mut floating: Floating<'_, Live<DB>>) {
@@ -83,11 +83,16 @@ impl<DB: Database> SharedPool<DB> {
             }
         }
 
-        self.idle_conns
+        let is_ok = self
+            .idle_conns
             .push(floating.into_idle().into_leakable())
-            .expect("BUG: connection queue overflow in release()");
+            .is_ok();
 
-        if let Ok(waker) = self.waiters.pop() {
+        if !is_ok {
+            panic!("BUG: connection queue overflow in release()");
+        }
+
+        if let Some(waker) = self.waiters.pop() {
             waker.wake();
         }
     }
@@ -331,9 +336,11 @@ fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
 
             for conn in keep {
                 // return these connections to the pool first
-                pool.idle_conns
-                    .push(conn.into_leakable())
-                    .expect("BUG: connection queue overflow in spawn_reaper");
+                let is_ok = pool.idle_conns.push(conn.into_leakable()).is_ok();
+
+                if !is_ok {
+                    panic!("BUG: connection queue overflow in spawn_reaper");
+                }
             }
 
             for conn in reap {
@@ -379,7 +386,7 @@ impl Drop for DecrementSizeGuard<'_> {
         assert!(!self.dropped, "double-dropped!");
         self.dropped = true;
         self.size.fetch_sub(1, Ordering::SeqCst);
-        if let Ok(waker) = self.waiters.pop() {
+        if let Some(waker) = self.waiters.pop() {
             waker.wake();
         }
     }

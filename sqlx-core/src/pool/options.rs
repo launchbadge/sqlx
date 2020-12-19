@@ -238,9 +238,14 @@ async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(),
             // [connect] will raise an error when past deadline
             // [connect] returns None if its okay to retry
             if let Some(conn) = pool.connection(deadline, guard).await? {
-                pool.idle_conns
+                let is_ok = pool
+                    .idle_conns
                     .push(conn.into_idle().into_leakable())
-                    .expect("BUG: connection queue overflow in init_min_connections");
+                    .is_ok();
+
+                if !is_ok {
+                    panic!("BUG: connection queue overflow in init_min_connections");
+                }
             }
         }
     }

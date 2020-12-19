@@ -1,4 +1,4 @@
-use bytes::buf::ext::Chain;
+use bytes::buf::Chain;
 use bytes::Bytes;
 use digest::{Digest, FixedOutput};
 use generic_array::GenericArray;

@@ -2,7 +2,6 @@ use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
-use futures_core::Future;
 use log::LevelFilter;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -51,9 +50,9 @@ pub trait Connection: Send {
     /// })).await
     /// # }
     /// ```
-    fn transaction<F, R, E>(&mut self, callback: F) -> BoxFuture<Result<R, E>>
+    fn transaction<F, R, E>(&mut self, callback: F) -> BoxFuture<'_, Result<R, E>>
     where
-        for<'c> F: FnOnce(&'c mut Transaction<Self::Database>) -> BoxFuture<'c, Result<R, E>>
+        for<'c> F: FnOnce(&'c mut Transaction<'_, Self::Database>) -> BoxFuture<'c, Result<R, E>>
             + 'static
             + Send
             + Sync,

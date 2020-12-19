@@ -1,5 +1,4 @@
-use bytes::buf::ext::Chain;
-use bytes::buf::BufExt as _;
+use bytes::buf::Chain;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
