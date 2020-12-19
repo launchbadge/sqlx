@@ -17,9 +17,9 @@ impl Type<Sqlite> for Uuid {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for &'q Uuid {
+impl<'q> Encode<'q, Sqlite> for Uuid {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Borrowed(self.as_bytes())));
+        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.as_bytes().to_vec())));
 
         IsNull::No
     }
@@ -38,7 +38,7 @@ impl Type<Sqlite> for Hyphenated {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for &'q Hyphenated {
+impl<'q> Encode<'q, Sqlite> for Hyphenated {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
         args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
 
@@ -50,6 +50,7 @@ impl Decode<'_, Sqlite> for Hyphenated {
     fn decode(value: SqliteValueRef<'_>) -> Result<Self, BoxDynError> {
         let uuid: Result<Uuid, BoxDynError> =
             Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);
+
         Ok(uuid?.to_hyphenated())
     }
 }
