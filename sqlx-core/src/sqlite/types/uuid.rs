@@ -19,7 +19,9 @@ impl Type<Sqlite> for Uuid {
 
 impl<'q> Encode<'q, Sqlite> for Uuid {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.as_bytes().to_vec())));
+        args.push(SqliteArgumentValue::Blob(Cow::Owned(
+            self.as_bytes().to_vec(),
+        )));
 
         IsNull::No
     }

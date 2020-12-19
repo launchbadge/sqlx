@@ -5,7 +5,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 
-pub use bstr::{BString, BStr, ByteSlice};
+pub use bstr::{BStr, BString, ByteSlice};
 
 impl<DB> Type<DB> for BString
 where

@@ -112,7 +112,7 @@ mod bstr {
     use super::*;
     use sqlx::types::bstr::BString;
 
-    test_type!(bstring<BString>(Sqlite, 
+    test_type!(bstring<BString>(Sqlite,
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
         "x'0001020304'" == BString::from(&b"\x00\x01\x02\x03\x04"[..])
     ));
