@@ -5,9 +5,138 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.2 - 2020-12-19
+
+-   [[#908]] Fix `whoami` crash on FreeBSD platform [[@fundon]] [[@AldaronLau]]
+
+-   [[#895]] Decrement pool size when connection is released [[@andrewwhitehead]]
+
+-   [[#878]] Fix `conn.transaction` wrapper [[@hamza1311]]
+
+    ```rust
+    conn.transaction(|transaction: &mut Transaction<Database> | {
+        // ...
+    });
+    ```
+
+-   [[#874]] Recognize `1` as `true` for `SQLX_OFFLINE [[@Pleto]]
+
+-   [[#747]] [[#867]] Replace `lru-cache` with `hashlink` [[@chertov]]
+
+-   [[#860]] Add `rename_all` to `FromRow` and add `camelCase` and `PascalCase` [[@framp]]
+
+-   [[#854]] Allow chaining `map` and `try_map` [[@jplatte]]
+
+    Additionally enables calling these combinators with the macros:
+
+    ```rust
+    let ones: Vec<i32> = query!("SELECT 1 as foo")
+        .map(|row| row.foo)
+        .fetch_all(&mut conn).await?;
+    ```
+
+-   [[#839]] Add (optional) support for `bstr::BStr`, `bstr::BString`, and `git2::Oid` [[@joshtriplett]]
+
+#### SQLite
+
+-   [[#893]] Fix memory leak if `create_collation` fails [[@slumber]]
+
+-   [[#852]] Fix potential 100% CPU usage in `fetch_one` / `fetch_optional` [[@markazmierczak]]
+
+-   [[#850]] Add `synchronous` option to `SqliteConnectOptions` [[@markazmierczak]]
+
+#### PostgreSQL
+
+-   [[#889]] Fix decimals (one more time) [[@slumber]]
+
+-   [[#876]] Add support for `BYTEA[]` to compile-time type-checking [[@augustocdias]]
+
+-   [[#845]] Fix path for `&[NaiveTime]` in `query!` macros [[@msrd0]]
+
+#### MySQL
+
+-   [[#880]] Consider `utf8mb4_general_ci` as a string [[@mcronce]]
+
+[[#908]]: https://github.com/launchbadge/sqlx/pull/908
+[[#895]]: https://github.com/launchbadge/sqlx/pull/895
+[[#893]]: https://github.com/launchbadge/sqlx/pull/893
+[[#889]]: https://github.com/launchbadge/sqlx/pull/889
+[[#880]]: https://github.com/launchbadge/sqlx/pull/880
+[[#878]]: https://github.com/launchbadge/sqlx/pull/878
+[[#876]]: https://github.com/launchbadge/sqlx/pull/876
+[[#874]]: https://github.com/launchbadge/sqlx/pull/874
+[[#867]]: https://github.com/launchbadge/sqlx/pull/867
+[[#860]]: https://github.com/launchbadge/sqlx/pull/860
+[[#854]]: https://github.com/launchbadge/sqlx/pull/854
+[[#852]]: https://github.com/launchbadge/sqlx/pull/852
+[[#850]]: https://github.com/launchbadge/sqlx/pull/850
+[[#845]]: https://github.com/launchbadge/sqlx/pull/845
+[[#839]]: https://github.com/launchbadge/sqlx/pull/839
+
+[[#747]]: https://github.com/launchbadge/sqlx/issues/747
+
+## 0.4.1 – 2020-11-13
+
+Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Cargo.toml`.
+
 ## 0.4.0 - 2020-11-12
 
-_to be written_
+-   [[#774]] Fix usage of SQLx derives with other derive crates [[@NyxCode]]
+
+-   [[#762]] Fix `migrate!()` (with no params) [[@esemeniuc]]
+
+-   [[#755]] Add `kebab-case` to `rename_all` [[@iamsiddhant05]]
+
+-   [[#735]] Support `rustls` [[@jplatte]]
+
+    Adds `-native-tls` or `-rustls` on each runtime feature:
+
+    ```toml
+    # previous
+    features = [ "runtime-async-std" ]
+
+    # now
+    features = [ "runtime-async-std-native-tls" ]
+    ```
+
+-   [[#718]] Support tuple structs with `#[derive(FromRow)]` [[@dvermd]]
+
+#### SQLite
+
+-   [[#789]] Support `$NNN` parameters [[@nitsky]]
+
+-   [[#784]] Use `futures_channel::oneshot` in worker for big perf win [[@markazmierczak]]
+
+#### PostgreSQL
+
+-   [[#781]] Fix decimal conversions handling of `0.01` [[@pimeys]]
+
+-   [[#745]] Always prefer parsing of the non-localized notice severity field [[@dstoeckel]]
+
+-   [[#742]] Enable `Vec<DateTime<Utc>>` with chrono [[@mrcd]]
+
+#### MySQL
+
+-   [[#743]] Consider `utf8mb4_bin` as a string [[@digorithm]]
+
+-   [[#739]] Fix minor protocol detail with `iteration-count` that was blocking Vitess [[@mcronce]]
+
+[[#774]]: https://github.com/launchbadge/sqlx/pull/774
+[[#789]]: https://github.com/launchbadge/sqlx/pull/789
+[[#784]]: https://github.com/launchbadge/sqlx/pull/784
+[[#781]]: https://github.com/launchbadge/sqlx/pull/781
+[[#762]]: https://github.com/launchbadge/sqlx/pull/762
+[[#755]]: https://github.com/launchbadge/sqlx/pull/755
+[[#745]]: https://github.com/launchbadge/sqlx/pull/745
+[[#743]]: https://github.com/launchbadge/sqlx/pull/743
+[[#742]]: https://github.com/launchbadge/sqlx/pull/742
+[[#735]]: https://github.com/launchbadge/sqlx/pull/735
+[[#739]]: https://github.com/launchbadge/sqlx/pull/739
+[[#718]]: https://github.com/launchbadge/sqlx/pull/718
+[[#0]]: https://github.com/launchbadge/sqlx/pull/0
+[[#0]]: https://github.com/launchbadge/sqlx/pull/0
+[[#0]]: https://github.com/launchbadge/sqlx/pull/0
+[[#0]]: https://github.com/launchbadge/sqlx/pull/0
 
 ## 0.4.0-beta.1 - 2020-07-27
 
@@ -620,3 +749,25 @@ _to be written_
 [@meteficha]: https://github.com/meteficha
 [@felipesere]: https://github.com/felipesere
 [@dimtion]: https://github.com/dimtion
+[@fundon]: https://github.com/fundon
+[@aldaronlau]: https://github.com/AldaronLau
+[@andrewwhitehead]: https://github.com/andrewwhitehead
+[@slumber]: https://github.com/slumber
+[@mcronce]: https://github.com/mcronce
+[@hamza1311]: https://github.com/hamza1311
+[@augustocdias]: https://github.com/augustocdias
+[@Pleto]: https://github.com/Pleto
+[@chertov]: https://github.com/chertov
+[@framp]: https://github.com/framp
+[@markazmierczak]: https://github.com/markazmierczak
+[@msrd0]: https://github.com/msrd0
+[@joshtriplett]: https://github.com/joshtriplett
+[@NyxCode]: https://github.com/NyxCode
+[@nitsky]: https://github.com/nitsky
+[@esemeniuc]: https://github.com/esemeniuc
+[@iamsiddhant05]: https://github.com/iamsiddhant05
+[@dstoeckel]: https://github.com/dstoeckel
+[@mrcd]: https://github.com/mrcd
+[@dvermd]: https://github.com/dvermd
+[@_]: https://github.com/_
+[@_]: https://github.com/_
