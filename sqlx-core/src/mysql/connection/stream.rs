@@ -11,6 +11,12 @@ use crate::mysql::protocol::{Capabilities, Packet};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
 use crate::net::{MaybeTlsStream, Socket};
 
+enum RecvPackageState {
+    ReadingHeader { data: [u8; 4], progress: usize },
+    ReadingData { data: Vec<u8>, progress: usize },
+    Done,
+}
+
 pub struct MySqlStream {
     stream: BufStream<MaybeTlsStream<Socket>>,
     pub(crate) server_version: (u16, u16, u16),
@@ -19,6 +25,7 @@ pub struct MySqlStream {
     pub(crate) busy: Busy,
     pub(crate) charset: CharSet,
     pub(crate) collation: Collation,
+    recv_package_state: RecvPackageState,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -72,6 +79,7 @@ impl MySqlStream {
             collation,
             charset,
             stream: BufStream::new(MaybeTlsStream::Raw(socket)),
+            recv_package_state: RecvPackageState::Done,
         })
     }
 
@@ -137,14 +145,38 @@ impl MySqlStream {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
 
-        let mut header: Bytes = self.stream.read(4).await?;
+        if let RecvPackageState::Done = self.recv_package_state {
+            self.recv_package_state = RecvPackageState::ReadingHeader {
+                data: [0; 4],
+                progress: 0,
+            };
+        }
 
-        let packet_size = header.get_uint_le(3) as usize;
-        let sequence_id = header.get_u8();
+        if let RecvPackageState::ReadingHeader { data, progress } = &mut self.recv_package_state {
+            while *progress != 4 {
+                *progress += self.stream.read_some(&mut data[*progress..]).await?;
+            }
+            let mut header = data.as_ref();
+            let packet_size = header.get_uint_le(3) as usize;
+            let sequence_id = header.get_u8();
+            self.sequence_id = sequence_id.wrapping_add(1);
+            let mut data = Vec::new();
+            data.resize(packet_size, 0);
+            self.recv_package_state = RecvPackageState::ReadingData { data, progress: 0 };
+        }
 
-        self.sequence_id = sequence_id.wrapping_add(1);
-
-        let payload: Bytes = self.stream.read(packet_size).await?;
+        let payload: Bytes = if let RecvPackageState::ReadingData { data, progress } =
+            &mut self.recv_package_state
+        {
+            while *progress != data.len() {
+                *progress += self.stream.read_some(&mut data[*progress..]).await?;
+            }
+            let data = std::mem::take(data);
+            self.recv_package_state = RecvPackageState::Done;
+            data.into()
+        } else {
+            panic!("Unexpected RecvPackageState")
+        };
 
         // TODO: packet compression
         // TODO: packet joining
