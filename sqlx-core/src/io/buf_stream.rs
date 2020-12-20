@@ -82,6 +82,17 @@ where
     pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
         read_raw_into(&mut self.stream, buf, cnt).await
     }
+
+    /// Read data from stream into buf
+    /// * On success: The number of bytes read (> 0) is returned
+    /// * On error: The error is returned, no bytes will have been read from the stream
+    /// * When dropped: No bytes will have been read from the stream
+    pub async fn read_some(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        match self.stream.read(buf).await? {
+            0 => Err(io::Error::from(io::ErrorKind::ConnectionAborted).into()),
+            v => Ok(v),
+        }
+    }
 }
 
 impl<S> Deref for BufStream<S>
