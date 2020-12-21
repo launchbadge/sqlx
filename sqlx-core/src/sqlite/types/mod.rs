@@ -5,8 +5,13 @@
 //! | Rust type                             | SQLite type(s)                                       |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bool`                                | BOOLEAN                                              |
+//! | `i8`                                  | INTEGER                                              |
 //! | `i16`                                 | INTEGER                                              |
 //! | `i32`                                 | INTEGER                                              |
+//! | `i64`                                 | BIGINT, INT8                                         |
+//! | `u8`                                  | INTEGER                                              |
+//! | `u16`                                 | INTEGER                                              |
+//! | `u32`                                 | INTEGER                                              |
 //! | `i64`                                 | BIGINT, INT8                                         |
 //! | `f32`                                 | REAL                                                 |
 //! | `f64`                                 | REAL                                                 |
@@ -47,5 +52,6 @@ mod int;
 #[cfg(feature = "json")]
 mod json;
 mod str;
+mod uint;
 #[cfg(feature = "uuid")]
 mod uuid;
