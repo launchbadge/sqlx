@@ -182,6 +182,7 @@ impl<DB: Database> SharedPool<DB> {
         let start = Instant::now();
         let deadline = start + self.options.connect_timeout;
         let mut waited = !self.options.fair;
+        let mut backoff = 0.01;
 
         // Unless the pool has been closed ...
         while !self.is_closed() {
@@ -201,7 +202,14 @@ impl<DB: Database> SharedPool<DB> {
                 match self.connection(deadline, guard).await {
                     Ok(Some(conn)) => return Ok(conn),
                     // [size] is internally decremented on _retry_ and _error_
-                    Ok(None) => continue,
+                    Ok(None) => {
+                        // If the connection is refused wait in exponentially
+                        // increasing steps for the server to come up, capped by
+                        // two seconds.
+                        sqlx_rt::sleep(std::time::Duration::from_secs_f64(backoff)).await;
+                        backoff = f64::min(backoff * 2.0, 2.0);
+                        continue;
+                    }
                     Err(e) => return Err(e),
                 }
             }
