@@ -136,6 +136,8 @@ sqlx = { version = "0.4.2", features = [ "runtime-async-std-native-tls" ] }
 
 -   `postgres`: Add support for the Postgres database server.
 
+-   `mysql`: Add support for the MySQL/MariaDB database server.
+
 -   `mssql`: Add support for the MSSQL database server.
 
 -   `sqlite`: Add support for the self-contained [SQLite](https://sqlite.org/) database engine.
