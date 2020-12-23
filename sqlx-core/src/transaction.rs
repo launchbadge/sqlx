@@ -46,7 +46,7 @@ pub trait TransactionManager {
 /// executed after it was established to be rolled back, restoring the transaction state to
 /// what it was at the time of the savepoint.
 ///
-/// [`Connection::begin`]: struct.Connection.html#method.begin
+/// [`Connection::begin`]: trait.Connection.html#tymethod.begin
 /// [`Pool::begin`]: struct.Pool.html#method.begin
 /// [`commit`]: #method.commit
 /// [`rollback`]: #method.rollback
