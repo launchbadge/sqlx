@@ -1,0 +1,28 @@
+[package]
+name = "sqlx-example-postgres-actix-stream"
+version = "0.1.0"
+edition = "2018"
+workspace = "../../../"
+
+[dependencies]
+actix-http = "2.2.0"
+actix-rt = "1.1.1"
+actix-service = "1.0.6"
+# actix-utils = "2.0.0"
+actix-web = "3.3.2"
+actix-web-codegen = "0.4.0"
+anyhow = "1.0"
+async-std = { version = "1.4.0", features = [ "attributes" ] }
+dotenv = "0.15.0"
+env_logger = "0.8.2"
+futures = "0.3.8"
+futures-core = "0.3.8"
+futures-util = "0.3.8"
+log = "0.4.11"
+ouroboros = "0.5.1"
+serde = { version = "1.0.118", features = ["derive"] }
+serde_derive = "1.0.118"
+serde_json = { version = "1.0.60", features = ["raw_value"] }
+sqlx = { path = "../../../", features = ["postgres", "runtime-actix-rustls"] }
+time = "0.2.23"
+tokio = { version = "0.2", features = ["time", "rt-threaded", "macros"] }
