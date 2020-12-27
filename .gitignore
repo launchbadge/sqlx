@@ -1,0 +1,8 @@
+# cargo built artifacts
+target/
+
+# intellij project files
+.idea/
+
+# local environment
+.env

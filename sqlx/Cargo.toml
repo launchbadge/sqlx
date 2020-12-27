@@ -1,0 +1,13 @@
+[package]
+name = "sqlx"
+version = "0.6.0-pre"
+repository = "https://github.com/launchbadge/sqlx"
+description = "🧰 The Rust SQL Toolkit. An async, pure Rust SQL crate featuring compile-time checked queries without a DSL."
+license = "MIT OR Apache-2.0"
+edition = "2018"
+readme = "README.md"
+keywords = [ "database", "async", "postgres", "mysql", "sqlite" ]
+categories = [ "database", "asynchronous" ]
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]

@@ -1,0 +1,5 @@
+[workspace]
+default-members = ["sqlx"]
+members = [
+    "sqlx",
+]
