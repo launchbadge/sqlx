@@ -1,0 +1,13 @@
+[package]
+name = "sqlx-core"
+version = "0.6.0-pre"
+repository = "https://github.com/launchbadge/sqlx"
+description = "Core of SQLx, the Rust SQL Toolkit."
+license = "MIT OR Apache-2.0"
+edition = "2018"
+readme = "README.md"
+keywords = [ ]
+categories = [ ]
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]

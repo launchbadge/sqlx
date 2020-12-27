@@ -3,3 +3,7 @@
 [[package]]
 name = "sqlx"
 version = "0.6.0-pre"
+
+[[package]]
+name = "sqlx-core"
+version = "0.6.0-pre"
