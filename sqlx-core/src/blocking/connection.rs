@@ -5,7 +5,7 @@ use super::{ConnectOptions, Runtime};
 /// For detailed information, refer to the asynchronous version of
 /// this: [`Connection`][crate::Connection].
 ///
-pub trait Connection<Rt>: 'static + Send
+pub trait Connection<Rt>: crate::Connection<Rt>
 where
     Rt: Runtime,
 {
@@ -20,7 +20,7 @@ where
     where
         Self: Sized,
     {
-        url.parse::<Self::Options>()?.connect()
+        url.parse::<<Self as Connection<Rt>>::Options>()?.connect()
     }
 
     /// Explicitly close this database connection.

@@ -16,11 +16,12 @@
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
 
-#[cfg(feature = "blocking")]
-pub use sqlx_core::{blocking, Blocking};
+pub use sqlx_core::{
+    prelude, ConnectOptions, Connection, Database, DefaultRuntime, Error, Result, Runtime,
+};
 
-#[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
-pub use sqlx_core::Runtime;
+#[cfg(feature = "blocking")]
+pub use sqlx_core::blocking;
 
 #[cfg(feature = "async-std")]
 pub use sqlx_core::AsyncStd;

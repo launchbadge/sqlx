@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use futures_util::future::BoxFuture;
-
 use crate::{Connection, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
@@ -14,7 +12,9 @@ where
     type Connection: Connection<Rt> + ?Sized;
 
     /// Establish a connection to the database.
-    fn connect(&self) -> BoxFuture<'_, crate::Result<Self::Connection>>
+    #[cfg(feature = "async")]
+    fn connect(&self) -> futures_util::future::BoxFuture<'_, crate::Result<Self::Connection>>
     where
-        Self::Connection: Sized;
+        Self::Connection: Sized,
+        Rt: crate::Async;
 }

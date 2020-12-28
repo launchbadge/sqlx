@@ -3,7 +3,7 @@ use std::io;
 use futures_util::{future::BoxFuture, FutureExt};
 use tokio::net::TcpStream;
 
-use crate::runtime::Runtime;
+use crate::{Async, Runtime};
 
 /// Tokio SQLx runtime. Uses [`tokio`] to provide [`Runtime`].
 ///
@@ -12,6 +12,8 @@ use crate::runtime::Runtime;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "tokio")))]
 #[derive(Debug)]
 pub struct Tokio;
+
+impl Async for Tokio {}
 
 impl Runtime for Tokio {
     type TcpStream = TcpStream;

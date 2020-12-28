@@ -27,34 +27,51 @@ extern crate _async_std as async_std;
 #[cfg(feature = "tokio")]
 extern crate _tokio as tokio;
 
+mod connection;
+mod database;
 mod error;
-
-pub use error::{Error, Result};
-
-#[cfg(feature = "async")]
+mod options;
 mod runtime;
 
-#[cfg(feature = "async")]
-mod connection;
-
-#[cfg(feature = "async")]
-mod options;
-
 #[cfg(feature = "blocking")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "blocking")))]
 pub mod blocking;
 
-#[cfg(feature = "blocking")]
-pub use blocking::runtime::Blocking;
+pub use connection::Connection;
+pub use database::Database;
+pub use error::{Error, Result};
+pub use options::ConnectOptions;
+pub use runtime::Runtime;
+
+#[cfg(feature = "async-std")]
+pub use runtime::AsyncStd;
+
+#[cfg(feature = "tokio")]
+pub use runtime::Tokio;
+
+#[cfg(feature = "actix")]
+pub use runtime::Actix;
 
 #[cfg(feature = "async")]
-pub use {connection::Connection, options::ConnectOptions, runtime::Runtime};
+pub(crate) use runtime::Async;
 
-#[cfg(all(feature = "async", feature = "async-std"))]
-pub use runtime::async_std::AsyncStd;
+#[cfg(feature = "async-std")]
+pub type DefaultRuntime = AsyncStd;
 
-#[cfg(all(feature = "async", feature = "tokio"))]
-pub use runtime::tokio::Tokio;
+#[cfg(all(not(feature = "async-std"), feature = "tokio"))]
+pub type DefaultRuntime = Tokio;
 
-#[cfg(all(feature = "async", feature = "actix"))]
-pub use runtime::actix::Actix;
+#[cfg(all(not(all(feature = "async-std", feature = "tokio")), feature = "actix"))]
+pub type DefaultRuntime = Actix;
+
+#[cfg(not(feature = "async"))]
+pub type DefaultRuntime = blocking::Blocking;
+
+pub mod prelude {
+    pub use super::ConnectOptions as _;
+    pub use super::Connection as _;
+    pub use super::Database as _;
+    pub use super::Runtime as _;
+
+    #[cfg(all(not(feature = "async"), feature = "blocking"))]
+    pub use super::blocking::prelude::*;
+}

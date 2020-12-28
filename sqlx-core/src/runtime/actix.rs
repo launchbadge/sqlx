@@ -3,7 +3,7 @@ use std::io;
 use actix_rt::net::TcpStream;
 use futures_util::{future::BoxFuture, FutureExt};
 
-use crate::runtime::Runtime;
+use crate::{Async, Runtime};
 
 /// Actix SQLx runtime. Uses [`actix-rt`][actix_rt] to provide [`Runtime`].
 ///
@@ -14,6 +14,8 @@ use crate::runtime::Runtime;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "actix")))]
 #[derive(Debug)]
 pub struct Actix;
+
+impl Async for Actix {}
 
 impl Runtime for Actix {
     type TcpStream = TcpStream;
