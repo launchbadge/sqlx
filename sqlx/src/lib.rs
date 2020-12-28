@@ -14,7 +14,7 @@
 #![warn(clippy::string_lit_as_bytes)]
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
-#![allow(clippy::clippy::doc_markdown)]
+#![allow(clippy::doc_markdown)]
 
 #[cfg(feature = "blocking")]
 pub use sqlx_core::{blocking, Blocking};

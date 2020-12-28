@@ -16,7 +16,7 @@
 #![warn(clippy::string_lit_as_bytes)]
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
-#![allow(clippy::clippy::doc_markdown)]
+#![allow(clippy::doc_markdown)]
 
 // crate renames to allow the feature name "tokio" and "async-std" (as features
 // can't directly conflict with dependency names)
