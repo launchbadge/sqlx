@@ -27,8 +27,18 @@ extern crate _async_std as async_std;
 #[cfg(feature = "tokio")]
 extern crate _tokio as tokio;
 
+mod error;
+
+pub use error::{Error, Result};
+
 #[cfg(feature = "async")]
 mod runtime;
+
+#[cfg(feature = "async")]
+mod connection;
+
+#[cfg(feature = "async")]
+mod options;
 
 #[cfg(feature = "blocking")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "blocking")))]
@@ -38,7 +48,7 @@ pub mod blocking;
 pub use blocking::runtime::Blocking;
 
 #[cfg(feature = "async")]
-pub use runtime::Runtime;
+pub use {connection::Connection, options::ConnectOptions, runtime::Runtime};
 
 #[cfg(all(feature = "async", feature = "async-std"))]
 pub use runtime::async_std::AsyncStd;
