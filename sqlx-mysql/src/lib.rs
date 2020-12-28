@@ -1,5 +1,8 @@
-//! SQLx is an async, pure Rust SQL crate featuring compile-time checked queries without a DSL.
+//! [MySQL] database driver for [SQLx][sqlx_core], the Rust SQL toolkit.
 //!
+//! [MySQL]: https://www.mysql.com/
+//!
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 #![warn(future_incompatible)]
@@ -16,21 +19,16 @@
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
 
-pub use sqlx_core::{
-    prelude, ConnectOptions, Connection, Database, DefaultRuntime, Error, Result, Runtime,
-};
+mod connection;
+mod database;
+mod options;
 
 #[cfg(feature = "blocking")]
-pub use sqlx_core::blocking;
+mod blocking;
 
-#[cfg(feature = "async-std")]
-pub use sqlx_core::AsyncStd;
+#[cfg(feature = "async")]
+mod r#async;
 
-#[cfg(feature = "tokio")]
-pub use sqlx_core::Tokio;
-
-#[cfg(feature = "actix")]
-pub use sqlx_core::Actix;
-
-#[cfg(feature = "mysql")]
-pub use sqlx_mysql as mysql;
+pub use connection::MySqlConnection;
+pub use database::MySql;
+pub use options::MySqlConnectOptions;

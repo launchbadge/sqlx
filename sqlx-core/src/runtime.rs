@@ -18,8 +18,8 @@ pub use self::actix::Actix;
 
 /// Describes a set of types and functions used to open and manage
 /// resources within SQLx.
-pub trait Runtime {
-    type TcpStream;
+pub trait Runtime: 'static + Send + Sync {
+    type TcpStream: Send;
 
     /// Opens a TCP connection to a remote host at the specified port.
     #[cfg(feature = "async")]

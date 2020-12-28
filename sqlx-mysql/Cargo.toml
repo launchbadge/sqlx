@@ -1,0 +1,31 @@
+[package]
+name = "sqlx-mysql"
+version = "0.6.0-pre"
+repository = "https://github.com/launchbadge/sqlx"
+description = "MySQL database driver for SQLx, the Rust SQL Toolkit."
+license = "MIT OR Apache-2.0"
+edition = "2018"
+keywords = ["mysql", "sqlx", "database"]
+categories = ["database", "asynchronous"]
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]
+
+[package.metadata.docs.rs]
+# > RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features --no-deps --open
+all-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[features]
+default = []
+
+# blocking (std) runtime
+blocking = ["sqlx-core/blocking"]
+
+# async runtime
+# not meant to be used directly
+async = ["futures-util", "sqlx-core/async"]
+
+[dependencies]
+sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
+futures-util = { version = "0.3.8", optional = true }

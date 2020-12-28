@@ -16,12 +16,16 @@ authors = [
 default = []
 
 # blocking (std) runtime
-blocking = ["sqlx-core/blocking"]
+blocking = ["sqlx-core/blocking", "sqlx-mysql/blocking"]
 
 # async runtimes
-async-std = ["sqlx-core/async-std"]
-actix = ["sqlx-core/actix"]
-tokio = ["sqlx-core/tokio"]
+async-std = ["sqlx-core/async-std", "sqlx-mysql/async"]
+actix = ["sqlx-core/actix", "sqlx-mysql/async"]
+tokio = ["sqlx-core/tokio", "sqlx-mysql/async"]
+
+# databases
+mysql = ["sqlx-mysql"]
 
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
+sqlx-mysql = { version = "0.6.0-pre", path = "../sqlx-mysql", optional = true }

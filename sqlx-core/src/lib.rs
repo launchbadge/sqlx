@@ -37,7 +37,7 @@ mod runtime;
 pub mod blocking;
 
 pub use connection::Connection;
-pub use database::Database;
+pub use database::{Database, HasOutput};
 pub use error::{Error, Result};
 pub use options::ConnectOptions;
 pub use runtime::Runtime;
@@ -52,7 +52,7 @@ pub use runtime::Tokio;
 pub use runtime::Actix;
 
 #[cfg(feature = "async")]
-pub(crate) use runtime::Async;
+pub use runtime::Async;
 
 #[cfg(feature = "async-std")]
 pub type DefaultRuntime = AsyncStd;

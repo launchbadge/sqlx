@@ -1,4 +1,4 @@
-use crate::{ConnectOptions, Database, Runtime};
+use crate::{ConnectOptions, Database, DefaultRuntime, Runtime};
 
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
@@ -11,7 +11,7 @@ use futures_util::future::BoxFuture;
 /// SQL statements will be executed and results returned within the context
 /// of this single SQL connection.
 ///
-pub trait Connection<Rt>: 'static + Send
+pub trait Connection<Rt = DefaultRuntime>: 'static + Send
 where
     Rt: Runtime,
 {

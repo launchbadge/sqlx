@@ -1,11 +1,12 @@
 use super::{ConnectOptions, Runtime};
+use crate::DefaultRuntime;
 
 /// A unique connection (session) with a specific database.
 ///
 /// For detailed information, refer to the asynchronous version of
 /// this: [`Connection`][crate::Connection].
 ///
-pub trait Connection<Rt>: crate::Connection<Rt>
+pub trait Connection<Rt = DefaultRuntime>: crate::Connection<Rt>
 where
     Rt: Runtime,
 {

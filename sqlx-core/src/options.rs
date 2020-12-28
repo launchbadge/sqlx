@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use crate::{Connection, Runtime};
+use crate::{Connection, DefaultRuntime, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
-pub trait ConnectOptions<Rt>:
+pub trait ConnectOptions<Rt = DefaultRuntime>:
     'static + Send + Sync + Default + Debug + Clone + FromStr<Err = crate::Error>
 where
     Rt: Runtime,

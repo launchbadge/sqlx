@@ -759,6 +759,7 @@ name = "sqlx"
 version = "0.6.0-pre"
 dependencies = [
  "sqlx-core",
+ "sqlx-mysql",
 ]
 
 [[package]]
@@ -771,6 +772,14 @@ dependencies = [
  "tokio 0.2.24",
  "tokio 1.0.1",
  "url",
+]
+
+[[package]]
+name = "sqlx-mysql"
+version = "0.6.0-pre"
+dependencies = [
+ "futures-util",
+ "sqlx-core",
 ]
 
 [[package]]

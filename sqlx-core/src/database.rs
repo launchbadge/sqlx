@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{Connection, Runtime};
+use crate::{Connection, DefaultRuntime, Runtime};
 
 /// A database driver.
 ///
@@ -8,7 +8,7 @@ use crate::{Connection, Runtime};
 /// specific database (e.g., MySQL, PostgreSQL).
 ///
 // 'x: execution
-pub trait Database<Rt>: 'static + Sized + Debug + for<'x> HasOutput<'x>
+pub trait Database<Rt = DefaultRuntime>: 'static + Sized + Debug + for<'x> HasOutput<'x>
 where
     Rt: Runtime,
 {
