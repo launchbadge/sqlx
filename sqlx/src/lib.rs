@@ -15,3 +15,18 @@
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::clippy::doc_markdown)]
+
+#[cfg(feature = "blocking")]
+pub use sqlx_core::{blocking, Blocking};
+
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
+pub use sqlx_core::Runtime;
+
+#[cfg(feature = "async-std")]
+pub use sqlx_core::AsyncStd;
+
+#[cfg(feature = "tokio")]
+pub use sqlx_core::Tokio;
+
+#[cfg(feature = "actix")]
+pub use sqlx_core::Actix;

@@ -6,8 +6,22 @@ description = "🧰 The Rust SQL Toolkit. An async, pure Rust SQL crate featurin
 license = "MIT OR Apache-2.0"
 edition = "2018"
 readme = "README.md"
-keywords = [ "database", "async", "postgres", "mysql", "sqlite" ]
-categories = [ "database", "asynchronous" ]
+keywords = ["database", "async", "postgres", "mysql", "sqlite"]
+categories = ["database", "asynchronous"]
 authors = [
     "LaunchBadge <contact@launchbadge.com>"
 ]
+
+[features]
+default = []
+
+# blocking (std) runtime
+blocking = ["sqlx-core/blocking"]
+
+# async runtimes
+async-std = ["sqlx-core/async-std"]
+actix = ["sqlx-core/actix"]
+tokio = ["sqlx-core/tokio"]
+
+[dependencies]
+sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
