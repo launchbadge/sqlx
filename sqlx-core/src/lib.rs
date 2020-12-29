@@ -54,6 +54,11 @@ pub use runtime::Actix;
 #[cfg(feature = "async")]
 pub use runtime::Async;
 
+// pick a default runtime
+// this is so existing applications in SQLx pre 0.6 work and to
+// make it more convenient, if your application only uses 1 runtime (99%+)
+// most of the time you won't have to worry about picking the runtime
+
 #[cfg(feature = "async-std")]
 pub type DefaultRuntime = AsyncStd;
 
@@ -63,8 +68,14 @@ pub type DefaultRuntime = Tokio;
 #[cfg(all(not(all(feature = "async-std", feature = "tokio")), feature = "actix"))]
 pub type DefaultRuntime = Actix;
 
-#[cfg(not(feature = "async"))]
+#[cfg(all(not(feature = "async"), feature = "blocking"))]
 pub type DefaultRuntime = blocking::Blocking;
+
+// when there is no async runtime and the blocking runtime is not present
+// the unit type is implemented for Runtime, this is only to allow the
+// lib to compile, the lib is mostly useless in this state
+#[cfg(not(any(feature = "async", feature = "blocking")))]
+pub type DefaultRuntime = ();
 
 pub mod prelude {
     pub use super::ConnectOptions as _;

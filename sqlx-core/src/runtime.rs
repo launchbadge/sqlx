@@ -31,6 +31,10 @@ pub trait Runtime: 'static + Send + Sync {
     where
         Self: Async,
     {
+        // re-implemented for async runtimes
+        // for sync runtimes, this cannot be implemented but the compiler
+        // with guarantee it won't be called
+        // see: https://github.com/rust-lang/rust/issues/48214
         unimplemented!()
     }
 }
@@ -38,3 +42,10 @@ pub trait Runtime: 'static + Send + Sync {
 /// Marker trait that identifies a `Runtime` as supporting asynchronous I/O.
 #[cfg(feature = "async")]
 pub trait Async: Runtime {}
+
+// when the async feature is not specified, this is an empty trait
+// we implement `()` for it to allow the lib to still compile
+#[cfg(not(feature = "async"))]
+impl Runtime for () {
+    type TcpStream = ();
+}
