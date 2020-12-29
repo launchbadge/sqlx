@@ -334,6 +334,107 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn drop_test() -> anyhow::Result<()> {
+    const CNT: usize = 222;
+    const POOL_SIZE: u32 = 2;
+
+    setup_if_needed();
+
+    let pool = MySqlPoolOptions::new()
+        .max_connections(POOL_SIZE)
+        .connect(&std::env::var("DATABASE_URL").unwrap())
+        .await?;
+    // Create a temporery table and insert a lot of stuff
+    {
+        let mut conn = pool.acquire().await.unwrap();
+        sqlx::query("DROP TABLE IF EXISTS drop_test")
+            .execute(&mut conn)
+            .await?;
+        sqlx::query("CREATE TABLE drop_test (id BIGINT PRIMARY KEY AUTO_INCREMENT)")
+            .execute(&mut conn)
+            .await?;
+        let mut q = "INSERT INTO drop_test () VALUES ()".to_string();
+        for _ in 0..CNT {
+            q.push_str(", ()");
+        }
+        sqlx::query(&q).execute(&mut conn).await?;
+    }
+
+    // It is somewhat tricky to get the timing right for failures to occur
+    // so we repeat the test a number of times
+    for _ in 0..50 {
+        // Create a bunch of long running jobs
+        // that hopefully will be dropped in read
+        let s = std::time::Instant::now();
+        let mut futures = vec![];
+        for i in 0..POOL_SIZE {
+            let s = s.clone();
+            let pool = pool.clone();
+            futures.push(async move {
+                let mut conn = pool.acquire().await.unwrap();
+                {
+                    let mut stream = sqlx::query("SELECT 1 FROM drop_test AS a, drop_test AS b")
+                        .fetch(&mut conn);
+                    while let Some(_) = stream.try_next().await? {}
+                }
+                println!("Thread {} finished {}", i, s.elapsed().as_secs_f64());
+                Result::<(), anyhow::Error>::Ok(())
+            });
+        }
+
+        /// Some "feature" in tokio causes the timeout to never occur if the
+        /// sleep time is more than one
+        #[cfg(feature = "_rt-tokio")]
+        fn drop_test_timeout() -> u64 {
+            1
+        }
+
+        #[cfg(not(feature = "_rt-tokio"))]
+        fn drop_test_timeout() -> u64 {
+            23
+        }
+
+        if let Ok(_) = sqlx_rt::timeout(
+            std::time::Duration::from_millis(drop_test_timeout()),
+            futures::future::join_all(futures),
+        )
+        .await
+        {
+            println!(
+                "All queries finished before timeout, this should not happen. We waited {}s",
+                s.elapsed().as_secs_f64()
+            );
+            continue;
+        }
+        println!("Timeout after {}s", s.elapsed().as_secs_f64());
+
+        // Perform some query and check the result
+        let pool = pool.clone();
+        let f = async move {
+            let mut conn = pool.acquire().await.unwrap();
+            let row = sqlx::query("SELECT CAST(SUM(id) AS int) AS s FROM drop_test")
+                .fetch_one(&mut conn)
+                .await?;
+            let s: i64 = row.try_get("s")?;
+            assert_eq!(s, ((CNT + 1) * (CNT + 2) / 2) as i64);
+            Result::<(), anyhow::Error>::Ok(())
+        };
+        // We add a timeout here as bugs in the drop handling can cause us to
+        // wait for gigabytes of data to be pushed from mysql
+        sqlx_rt::timeout(std::time::Duration::from_millis(100), f).await??;
+    }
+
+    {
+        let mut conn = pool.acquire().await.unwrap();
+        sqlx::query("DROP TABLE IF EXISTS drop_test")
+            .execute(&mut conn)
+            .await?;
+    }
+
+    Ok(())
+}
+
 // repro is more reliable with the basic scheduler used by `#[tokio::test]`
 #[cfg(feature = "_rt-tokio")]
 #[tokio::test]
