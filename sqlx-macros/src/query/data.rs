@@ -36,15 +36,15 @@ impl<DB: Database> QueryData<DB> {
 #[cfg(feature = "offline")]
 pub mod offline {
     use super::QueryData;
-    use std::fs::File;
+    use crate::database::DatabaseExt;
 
     use std::fmt::{self, Formatter};
+    use std::fs::File;
+    use std::path::Path;
 
-    use crate::database::DatabaseExt;
     use proc_macro2::Span;
     use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
     use sqlx_core::describe::Describe;
-    use std::path::Path;
 
     #[derive(serde::Deserialize)]
     pub struct DynQueryData {
