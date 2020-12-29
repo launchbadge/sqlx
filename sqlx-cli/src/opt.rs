@@ -98,12 +98,15 @@ pub enum MigrateCommand {
     /// Create a new migration with the given description,
     /// and the current time as the version.
     Add {
-        description: String,
+        // N.B. flags must come before positional arguments or else Clap ignores them!
 
         /// If true, creates a pair of up and down migration files with same version
         /// else creates a single sql file
-        #[clap(short)]
+        #[clap(long, short)]
         reversible: bool,
+
+        /// The name of the migration; spaces will be turned to underscores.
+        description: String,
     },
 
     /// Run all pending migrations.
