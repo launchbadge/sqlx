@@ -62,6 +62,8 @@ pub struct PgConnection {
     pub(crate) transaction_depth: usize,
 
     log_settings: LogSettings,
+
+    override_row_limit: bool,
 }
 
 impl PgConnection {

@@ -232,7 +232,7 @@ impl PgConnection {
             // the protocol-level limit acts nearly identically to the `LIMIT` in SQL
             self.stream.write(message::Execute {
                 portal: None,
-                limit: limit.into(),
+                limit: if self.override_row_limit { 0 } else { limit.into() },
             });
 
             // finally, [Sync] asks postgres to process the messages that we sent and respond with

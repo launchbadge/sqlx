@@ -86,6 +86,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) override_row_limit: bool,
 }
 
 impl Default for PgConnectOptions {
@@ -138,6 +139,7 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
+            override_row_limit: false,
         }
     }
 
@@ -293,6 +295,17 @@ impl PgConnectOptions {
     /// ```
     pub fn application_name(mut self, application_name: &str) -> Self {
         self.application_name = Some(application_name.to_owned());
+        self
+    }
+
+    /// Request all rows from the backend when calling `fetch_one` and
+    /// `fetch_optional`. This is a workaround for a issue in which
+    /// CockroachDB reports that sqlx is using multiple portals.
+    /// See https://github.com/launchbadge/sqlx/issues/933 anad
+    /// https://github.com/cockroachdb/cockroach/issues/40195?version=v20.1 for
+    /// more details.
+    pub fn override_row_limit(&mut self, override_row_limit: bool) -> &mut Self {
+        self.override_row_limit = override_row_limit;
         self
     }
 

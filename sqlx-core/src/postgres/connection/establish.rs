@@ -143,6 +143,7 @@ impl PgConnection {
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
             log_settings: options.log_settings.clone(),
+            override_row_limit: options.override_row_limit,
         })
     }
 }
