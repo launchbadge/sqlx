@@ -10,7 +10,6 @@ use syn::{ExprArray, Type};
 pub struct QueryMacroInput {
     pub(super) sql: String,
 
-    #[cfg_attr(not(feature = "offline"), allow(dead_code))]
     pub(super) src_span: Span,
 
     pub(super) record_type: RecordType,
@@ -20,6 +19,9 @@ pub struct QueryMacroInput {
     pub(super) checked: bool,
 
     pub(super) file_path: Option<String>,
+
+    #[cfg(feature = "offline")]
+    pub(super) hash: String,
 }
 
 enum QuerySrc {
@@ -98,8 +100,12 @@ impl Parse for QueryMacroInput {
 
         let file_path = src.file_path(src_span)?;
 
+        let sql = src.resolve(src_span)?;
+
         Ok(QueryMacroInput {
-            sql: src.resolve(src_span)?,
+            #[cfg(feature = "offline")]
+            hash: super::hash_string(&sql),
+            sql,
             src_span,
             record_type,
             arg_exprs,

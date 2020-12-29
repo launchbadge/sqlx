@@ -2,13 +2,14 @@ use std::path::PathBuf;
 #[cfg(feature = "offline")]
 use std::sync::{Arc, Mutex};
 
+use either::Either;
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 use syn::Type;
 use url::Url;
 
 pub use input::QueryMacroInput;
-use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
@@ -17,14 +18,13 @@ use sqlx_rt::block_on;
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
-use either::Either;
 
 mod args;
 mod data;
 mod input;
 mod output;
 
-struct Metadata {
+pub struct Metadata {
     #[allow(unused)]
     manifest_dir: PathBuf,
     offline: bool,
@@ -125,12 +125,16 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
         #[cfg(feature = "offline")]
         _ => {
-            let data_file_path = METADATA.manifest_dir.join("sqlx-data.json");
+            let workspace_root = METADATA.workspace_root();
+
+            let data_dir = workspace_root.join(".sqlx");
+
+            let data_file_path = data_dir.join(format!("query-{}.json", input.hash));
 
             if data_file_path.exists() {
                 expand_from_file(input, data_file_path)
             } else {
-                let workspace_data_file_path = METADATA.workspace_root().join("sqlx-data.json");
+                let workspace_data_file_path = workspace_root.join("sqlx-data.json");
                 if workspace_data_file_path.exists() {
                     expand_from_file(input, workspace_data_file_path)
                 } else {
@@ -171,7 +175,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
-            expand_with_data(input, data, false)
+            expand_with_data(input, &data, false)
         },
 
         #[cfg(not(feature = "postgres"))]
@@ -184,7 +188,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
-            expand_with_data(input, data, false)
+            expand_with_data(input, &data, false)
         },
 
         #[cfg(not(feature = "mssql"))]
@@ -197,7 +201,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
-            expand_with_data(input, data, false)
+            expand_with_data(input, &data, false)
         },
 
         #[cfg(not(feature = "mysql"))]
@@ -210,7 +214,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
-            expand_with_data(input, data, false)
+            expand_with_data(input, &data, false)
         },
 
         #[cfg(not(feature = "sqlite"))]
@@ -224,31 +228,22 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 pub fn expand_from_file(input: QueryMacroInput, file: PathBuf) -> crate::Result<TokenStream> {
     use data::offline::DynQueryData;
 
-    let query_data = DynQueryData::from_data_file(file, &input.sql)?;
-    assert!(!query_data.db_name.is_empty());
+    let query_data = data::offline::get_data(&input.sql, &file)?;
 
-    match &*query_data.db_name {
+    match &*query_data.db_name() {
         #[cfg(feature = "postgres")]
-        sqlx_core::postgres::Postgres::NAME => expand_with_data(
-            input,
-            QueryData::<sqlx_core::postgres::Postgres>::from_dyn_data(query_data)?,
-            true,
-        ),
+        sqlx_core::postgres::Postgres::NAME => {
+            expand_with_data(input, query_data.to_postgres(), true)
+        }
         #[cfg(feature = "mysql")]
-        sqlx_core::mysql::MySql::NAME => expand_with_data(
-            input,
-            QueryData::<sqlx_core::mysql::MySql>::from_dyn_data(query_data)?,
-            true,
-        ),
+        sqlx_core::mysql::MySql::NAME => expand_with_data(input, query_data.to_mysql(), true),
         #[cfg(feature = "sqlite")]
-        sqlx_core::sqlite::Sqlite::NAME => expand_with_data(
-            input,
-            QueryData::<sqlx_core::sqlite::Sqlite>::from_dyn_data(query_data)?,
-            true,
-        ),
+        sqlx_core::sqlite::Sqlite::NAME => expand_with_data(input, query_data.to_sqlite(), true),
+        #[cfg(feature = "mssql")]
+        sqlx_core::mssql::Mssql::NAME => expand_with_data(input, query_data.to_mssql(), true),
         _ => Err(format!(
             "found query data for {} but the feature for that database was not enabled",
-            query_data.db_name
+            query_data.db_name()
         )
         .into()),
     }
@@ -272,7 +267,7 @@ impl<DB: Database> DescribeExt for Describe<DB> {}
 
 fn expand_with_data<DB: DatabaseExt>(
     input: QueryMacroInput,
-    data: QueryData<DB>,
+    data: &QueryData<DB>,
     #[allow(unused_variables)] offline: bool,
 ) -> crate::Result<TokenStream>
 where
@@ -379,9 +374,27 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        let save_dir = METADATA.target_dir.join("sqlx");
-        std::fs::create_dir_all(&save_dir)?;
-        data.save_in(save_dir, input.src_span)?;
+        use std::{fs, io};
+
+        let save_dir = METADATA.manifest_dir.join(".sqlx");
+        match fs::metadata(&save_dir) {
+            Err(e) => {
+                if e.kind() != io::ErrorKind::NotFound {
+                    // Can't obtain information about .sqlx
+                    return Err(e.into());
+                }
+
+                // .sqlx doesn't exist, do nothing
+            }
+            Ok(meta) => {
+                if !meta.is_dir() {
+                    return Err(".sqlx exists, but is not a directory".into());
+                }
+
+                // .sqlx exists and is a directory, store data
+                data.save(&METADATA, input.src_span)?;
+            }
+        }
     }
 
     Ok(ret_tokens)
@@ -398,4 +411,12 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+#[cfg(feature = "offline")]
+pub fn hash_string(query: &str) -> String {
+    // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
+    use sha2::{Digest, Sha256};
+
+    hex::encode(Sha256::digest(query.as_bytes()))
 }

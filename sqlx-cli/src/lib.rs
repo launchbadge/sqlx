@@ -2,6 +2,12 @@ use anyhow::Result;
 
 use crate::opt::{Command, DatabaseCommand, MigrateCommand};
 
+use anyhow::{anyhow, Context};
+use dotenv::dotenv;
+use prepare::PrepareCtx;
+use std::env;
+
+mod cargo;
 mod database;
 // mod migration;
 // mod migrator;
@@ -74,18 +80,36 @@ pub async fn run(opt: Opt) -> Result<()> {
         },
 
         Command::Prepare {
-            check: false,
-            merged,
-            args,
+            check,
+            workspace,
             database_url,
-        } => prepare::run(&database_url, merged, args)?,
+            args,
+        } => {
+            let cargo_path = cargo::cargo_path()?;
+            println!("cargo path: {:?}", cargo_path);
 
-        Command::Prepare {
-            check: true,
-            merged,
-            args,
-            database_url,
-        } => prepare::check(&database_url, merged, args)?,
+            let manifest_dir = cargo::manifest_dir(&cargo_path)?;
+            let metadata = cargo::metadata(&cargo_path)
+                .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare`")?;
+
+            let ctx = PrepareCtx {
+                workspace,
+                cargo: cargo_path,
+                cargo_args: args,
+                manifest_dir,
+                target_dir: metadata.target_directory,
+                workspace_root: metadata.workspace_root,
+                database_url,
+            };
+
+            println!("{:?}", ctx);
+
+            if check {
+                prepare::check(&ctx)?
+            } else {
+                prepare::run(&ctx)?
+            }
+        }
     };
 
     Ok(())
