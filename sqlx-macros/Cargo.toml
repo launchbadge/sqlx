@@ -58,7 +58,7 @@ _rt-async-std = []
 _rt-tokio = []
 
 # offline building support
-offline = ["sqlx-core/offline", "hex", "serde", "serde_json", "sha2"]
+offline = ["sqlx-core/offline", "hex", "serde", "serde_json", "sha2", "tempfile"]
 
 # database
 mysql = ["sqlx-core/mysql"]
@@ -90,5 +90,6 @@ serde = { version = "1.0.111", features = ["derive"], optional = true }
 serde_json = { version = "1.0.30", features = ["preserve_order"], optional = true }
 sha2 = { version = "0.9.1", optional = true }
 syn = { version = "1.0.30", default-features = false, features = ["full"] }
+tempfile = { version = "3.1.0", optional = true }
 quote = { version = "1.0.6", default-features = false }
 url = { version = "2.1.1", default-features = false }

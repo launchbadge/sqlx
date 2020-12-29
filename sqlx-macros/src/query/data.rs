@@ -28,7 +28,7 @@ impl<DB: Database> QueryData<DB> {
             query: query.into(),
             describe: conn.describe(query).await?,
             #[cfg(feature = "offline")]
-            hash: offline::hash_string(query),
+            hash: super::hash_string(query),
         })
     }
 }
@@ -37,19 +37,17 @@ impl<DB: Database> QueryData<DB> {
 pub mod offline {
     use super::QueryData;
     use crate::database::DatabaseExt;
+    use crate::query::hash_string;
 
-    use std::fmt::{self, Formatter};
-    use std::fs::File;
-    use std::io::{BufReader, BufWriter};
+    use std::fs;
+    use std::io::BufWriter;
     use std::path::Path;
 
-    use proc_macro2::Span;
-    use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
     use sqlx_core::describe::Describe;
+    use tempfile::NamedTempFile;
 
     #[derive(serde::Deserialize)]
     pub struct DynQueryData {
-        #[serde(skip)]
         pub db_name: String,
         pub query: String,
         pub describe: serde_json::Value,
@@ -61,16 +59,15 @@ pub mod offline {
         /// Find and deserialize the data table for this query from a shared `sqlx-data.json`
         /// file. The expected structure is a JSON map keyed by the SHA-256 hash of queries in hex.
         pub fn from_data_file(path: impl AsRef<Path>, query: &str) -> crate::Result<Self> {
-            serde_json::Deserializer::from_reader(BufReader::new(
-                File::open(path.as_ref()).map_err(|e| {
-                    format!("failed to open path {}: {}", path.as_ref().display(), e)
-                })?,
-            ))
-            .deserialize_map(DataFileVisitor {
-                query,
+            // It's faster to read the whole file into memory first instead of deserializing from an
+            // `io::Read` instance using `from_reader`: https://github.com/serde-rs/json/issues/160
+            let json_s = fs::read_to_string(path.as_ref())
+                .map_err(|e| format!("failed to open path {}: {}", path.as_ref().display(), e))?;
+
+            Ok(Self {
                 hash: hash_string(query),
+                ..serde_json::from_str(&json_s)?
             })
-            .map_err(Into::into)
         }
     }
 
@@ -99,92 +96,33 @@ pub mod offline {
             }
         }
 
-        pub fn save_in(&self, dir: impl AsRef<Path>, input_span: Span) -> crate::Result<()> {
-            // we save under the hash of the span representation because that should be unique
-            // per invocation
-            let path = dir.as_ref().join(format!(
-                "query-{}.json",
-                hash_string(&format!("{:?}", input_span))
-            ));
+        pub fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+            let dir = dir.as_ref();
 
-            serde_json::to_writer_pretty(
-                BufWriter::new(
-                    File::create(&path)
-                        .map_err(|e| format!("failed to open path {}: {}", path.display(), e))?,
-                ),
-                self,
-            )
-            .map_err(Into::into)
-        }
-    }
+            // We first write to a temporary file to then move it to the final location.
+            // This ensures no file corruption happens in case this method is called concurrently
+            // for the same query.
+            let file = NamedTempFile::new_in(dir).map_err(|e| {
+                format!(
+                    "failed to create temporary file in {}: {}",
+                    dir.display(),
+                    e,
+                )
+            })?;
 
-    pub fn hash_string(query: &str) -> String {
-        // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
-        use sha2::{Digest, Sha256};
+            serde_json::to_writer_pretty(BufWriter::new(&file), self)?;
 
-        hex::encode(Sha256::digest(query.as_bytes()))
-    }
+            let path = dir.join(format!("query-{}.json", hash_string(&self.query)));
+            file.persist(&path).map_err(|e| {
+                format!(
+                    "failed to move temporary file {} to {}: {}",
+                    e.file.path().display(),
+                    path.display(),
+                    e.error,
+                )
+            })?;
 
-    // lazily deserializes only the `QueryData` for the query we're looking for
-    struct DataFileVisitor<'a> {
-        query: &'a str,
-        hash: String,
-    }
-
-    impl<'de> Visitor<'de> for DataFileVisitor<'_> {
-        type Value = DynQueryData;
-
-        fn expecting(&self, f: &mut Formatter) -> fmt::Result {
-            write!(f, "expected map key {:?} or \"db\"", self.hash)
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'de>>::Error>
-        where
-            A: MapAccess<'de>,
-        {
-            let mut db_name: Option<String> = None;
-
-            let query_data = loop {
-                // unfortunately we can't avoid this copy because deserializing from `io::Read`
-                // doesn't support deserializing borrowed values
-                let key = map.next_key::<String>()?.ok_or_else(|| {
-                    serde::de::Error::custom(format_args!(
-                        "failed to find data for query {}",
-                        self.hash
-                    ))
-                })?;
-
-                // lazily deserialize the query data only
-                if key == "db" {
-                    db_name = Some(map.next_value::<String>()?);
-                } else if key == self.hash {
-                    let db_name = db_name.ok_or_else(|| {
-                        serde::de::Error::custom("expected \"db\" key before query hash keys")
-                    })?;
-
-                    let mut query_data: DynQueryData = map.next_value()?;
-
-                    if query_data.query == self.query {
-                        query_data.db_name = db_name;
-                        query_data.hash = self.hash.clone();
-                        break query_data;
-                    } else {
-                        return Err(serde::de::Error::custom(format_args!(
-                            "hash collision for stored queries:\n{:?}\n{:?}",
-                            self.query, query_data.query
-                        )));
-                    };
-                } else {
-                    // we don't care about entries that don't match our hash
-                    let _ = map.next_value::<IgnoredAny>()?;
-                }
-            };
-
-            // Serde expects us to consume the whole map; fortunately they've got a convenient
-            // type to let us do just that
-            while let Some(_) = map.next_entry::<IgnoredAny, IgnoredAny>()? {}
-
-            Ok(query_data)
+            Ok(())
         }
     }
 }
