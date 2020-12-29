@@ -28,7 +28,7 @@ impl<DB: Database> QueryData<DB> {
             query: query.into(),
             describe: conn.describe(query).await?,
             #[cfg(feature = "offline")]
-            hash: offline::hash_string(query),
+            hash: super::hash_string(query),
         })
     }
 }
@@ -37,15 +37,16 @@ impl<DB: Database> QueryData<DB> {
 pub mod offline {
     use super::QueryData;
     use crate::database::DatabaseExt;
+    use crate::query::hash_string;
 
     use std::fmt::{self, Formatter};
     use std::fs::File;
     use std::io::{BufReader, BufWriter};
     use std::path::Path;
 
-    use proc_macro2::Span;
     use serde::de::{Deserializer, IgnoredAny, MapAccess, Visitor};
     use sqlx_core::describe::Describe;
+    use tempfile::NamedTempFile;
 
     #[derive(serde::Deserialize)]
     pub struct DynQueryData {
@@ -99,30 +100,34 @@ pub mod offline {
             }
         }
 
-        pub fn save_in(&self, dir: impl AsRef<Path>, input_span: Span) -> crate::Result<()> {
-            // we save under the hash of the span representation because that should be unique
-            // per invocation
-            let path = dir.as_ref().join(format!(
-                "query-{}.json",
-                hash_string(&format!("{:?}", input_span))
-            ));
+        pub fn save_in(&self, dir: impl AsRef<Path>) -> crate::Result<()> {
+            let dir = dir.as_ref();
 
-            serde_json::to_writer_pretty(
-                BufWriter::new(
-                    File::create(&path)
-                        .map_err(|e| format!("failed to open path {}: {}", path.display(), e))?,
-                ),
-                self,
-            )
-            .map_err(Into::into)
+            // We first write to a temporary file to then move it to the final location.
+            // This ensures no file corruption happens in case this method is called concurrently
+            // for the same query.
+            let file = NamedTempFile::new_in(dir).map_err(|e| {
+                format!(
+                    "failed to create temporary file in {}: {}",
+                    dir.display(),
+                    e,
+                )
+            })?;
+
+            serde_json::to_writer_pretty(BufWriter::new(&file), self)?;
+
+            let path = dir.join(format!("query-{}.json", hash_string(&self.query)));
+            file.persist(&path).map_err(|e| {
+                format!(
+                    "failed to move temporary file {} to {}: {}",
+                    e.file.path().display(),
+                    path.display(),
+                    e.error,
+                )
+            })?;
+
+            Ok(())
         }
-    }
-
-    pub fn hash_string(query: &str) -> String {
-        // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
-        use sha2::{Digest, Sha256};
-
-        hex::encode(Sha256::digest(query.as_bytes()))
     }
 
     // lazily deserializes only the `QueryData` for the query we're looking for

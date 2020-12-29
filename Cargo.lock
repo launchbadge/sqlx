@@ -1897,18 +1897,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "remove_dir_all"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7b19f5c2df95a07275e7224924cc62f76f04525f4fda801473f85e325e81977"
-dependencies = [
- "log",
- "num_cpus",
- "rayon",
- "winapi",
-]
-
-[[package]]
 name = "ring"
 version = "0.16.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2249,7 +2237,6 @@ dependencies = [
  "futures",
  "glob",
  "openssl",
- "remove_dir_all 0.6.1",
  "serde",
  "serde_json",
  "sqlx",
@@ -2399,6 +2386,7 @@ dependencies = [
  "sqlx-core",
  "sqlx-rt",
  "syn",
+ "tempfile",
  "url",
 ]
 
@@ -2586,7 +2574,7 @@ dependencies = [
  "libc",
  "rand",
  "redox_syscall",
- "remove_dir_all 0.5.3",
+ "remove_dir_all",
  "winapi",
 ]
 

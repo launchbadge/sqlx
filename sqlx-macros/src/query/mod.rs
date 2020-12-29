@@ -26,10 +26,6 @@ struct Metadata {
     manifest_dir: PathBuf,
     offline: bool,
     database_url: Option<String>,
-    #[cfg(feature = "offline")]
-    target_dir: PathBuf,
-    #[cfg(feature = "offline")]
-    workspace_root: PathBuf,
 }
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
@@ -40,10 +36,6 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")
         .expect("`CARGO_MANIFEST_DIR` must be set")
         .into();
-
-    #[cfg(feature = "offline")]
-    let target_dir =
-        env::var_os("CARGO_TARGET_DIR").map_or_else(|| "target".into(), |dir| dir.into());
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
@@ -65,38 +57,10 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     let database_url = env::var("DATABASE_URL").ok();
 
-    #[cfg(feature = "offline")]
-    let workspace_root = {
-        use serde::Deserialize;
-        use std::process::Command;
-
-        let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
-
-        let output = Command::new(&cargo)
-            .args(&["metadata", "--format-version=1"])
-            .current_dir(&manifest_dir)
-            .output()
-            .expect("Could not fetch metadata");
-
-        #[derive(Deserialize)]
-        struct CargoMetadata {
-            workspace_root: PathBuf,
-        }
-
-        let metadata: CargoMetadata =
-            serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-        metadata.workspace_root
-    };
-
     Metadata {
         manifest_dir,
         offline,
         database_url,
-        #[cfg(feature = "offline")]
-        target_dir,
-        #[cfg(feature = "offline")]
-        workspace_root,
     }
 });
 
@@ -110,13 +74,13 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
         #[cfg(feature = "offline")]
         _ => {
-            let data_file_path = METADATA.manifest_dir.join("sqlx-data.json");
-            let workspace_data_file_path = METADATA.workspace_root.join("sqlx-data.json");
+            let data_file_path = METADATA
+                .manifest_dir
+                .join(".sqlx")
+                .join(format!("query-{}.json", hash_string(&input.src)));
 
             if data_file_path.exists() {
                 expand_from_file(input, data_file_path)
-            } else if workspace_data_file_path.exists() {
-                expand_from_file(input, workspace_data_file_path)
             } else {
                 Err(
                     "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
@@ -360,10 +324,35 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        let save_dir = METADATA.target_dir.join("sqlx");
-        std::fs::create_dir_all(&save_dir)?;
-        data.save_in(save_dir, input.src_span)?;
+        use std::{fs, io};
+
+        let save_dir = METADATA.manifest_dir.join(".sqlx");
+        match fs::metadata(&save_dir) {
+            Err(e) => {
+                if e.kind() != io::ErrorKind::NotFound {
+                    // Can't obtain information about .sqlx
+                    return Err(e.into());
+                }
+
+                // .sqlx doesn't exist, do nothing
+            }
+            Ok(meta) => {
+                if !meta.is_dir() {
+                    return Err(".sqlx exists, but is not a direcory".into());
+                }
+
+                // .sqlx exists and is a directory, store data
+                data.save_in(save_dir)?;
+            }
+        }
     }
 
     Ok(ret_tokens)
+}
+
+pub fn hash_string(query: &str) -> String {
+    // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
+    use sha2::{Digest, Sha256};
+
+    hex::encode(Sha256::digest(query.as_bytes()))
 }

@@ -10,7 +10,6 @@ use syn::{ExprArray, Type};
 pub struct QueryMacroInput {
     pub(super) src: String,
 
-    #[cfg_attr(not(feature = "offline"), allow(dead_code))]
     pub(super) src_span: Span,
 
     pub(super) record_type: RecordType,
