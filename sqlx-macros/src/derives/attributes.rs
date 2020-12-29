@@ -55,7 +55,10 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     let mut rename = None;
     let mut rename_all = None;
 
-    for attr in input.iter().filter(|a| a.path.is_ident("sqlx") || a.path.is_ident("repr")) {
+    for attr in input
+        .iter()
+        .filter(|a| a.path.is_ident("sqlx") || a.path.is_ident("repr"))
+    {
         let meta = attr
             .parse_meta()
             .map_err(|e| syn::Error::new_spanned(attr, e))?;
