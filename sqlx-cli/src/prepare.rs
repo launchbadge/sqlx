@@ -5,6 +5,7 @@ use remove_dir_all::remove_dir_all;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::io::BufWriter;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -32,7 +33,9 @@ pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()
     }
 
     serde_json::to_writer_pretty(
-        File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
+        BufWriter::new(
+            File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
+        ),
         &DataFile { db: db_kind, data },
     )
     .context("failed to write to `sqlx-data.json`")?;
