@@ -39,7 +39,7 @@ pub enum RenameAll {
 
 pub struct SqlxContainerAttributes {
     pub transparent: bool,
-    pub rename: Option<String>,
+    pub type_name: Option<String>,
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
 }
@@ -52,7 +52,7 @@ pub struct SqlxChildAttributes {
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
     let mut transparent = None;
     let mut repr = None;
-    let mut rename = None;
+    let mut type_name = None;
     let mut rename_all = None;
 
     for attr in input
@@ -94,7 +94,9 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 path,
                                 lit: Lit::Str(val),
                                 ..
-                            }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
+                            }) if path.is_ident("type_name") => {
+                                try_set!(type_name, val.value(), value)
+                            }
 
                             u => fail!(u, "unexpected attribute"),
                         },
@@ -120,7 +122,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     Ok(SqlxContainerAttributes {
         transparent: transparent.unwrap_or(false),
         repr,
-        rename,
+        type_name,
         rename_all,
     })
 }

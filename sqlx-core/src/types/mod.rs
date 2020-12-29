@@ -128,7 +128,7 @@ pub use json::Json;
 ///
 /// ```rust,ignore
 /// #[derive(sqlx::Type)]
-/// #[sqlx(rename = "color")] // only for PostgreSQL to match a type definition
+/// #[sqlx(type_name = "color")] // only for PostgreSQL to match a type definition
 /// #[sqlx(rename_all = "lowercase")]
 /// enum Color { Red, Green, Blue }
 /// ```
@@ -141,7 +141,7 @@ pub use json::Json;
 ///
 /// ```rust,ignore
 /// #[derive(sqlx::Type)]
-/// #[sqlx(rename = "interface_type")]
+/// #[sqlx(type_name = "interface_type")]
 /// struct InterfaceType {
 ///     name: String,
 ///     supplier_id: i32,

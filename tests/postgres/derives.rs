@@ -21,7 +21,7 @@ enum Weak {
 
 // "Strong" enums can map to TEXT (25)
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "text")]
+#[sqlx(type_name = "text")]
 #[sqlx(rename_all = "lowercase")]
 enum Strong {
     One,
@@ -33,7 +33,7 @@ enum Strong {
 
 // rename_all variants
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_lower")]
+#[sqlx(type_name = "color_lower")]
 #[sqlx(rename_all = "lowercase")]
 enum ColorLower {
     Red,
@@ -42,7 +42,7 @@ enum ColorLower {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_snake")]
+#[sqlx(type_name = "color_snake")]
 #[sqlx(rename_all = "snake_case")]
 enum ColorSnake {
     RedGreen,
@@ -50,7 +50,7 @@ enum ColorSnake {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_upper")]
+#[sqlx(type_name = "color_upper")]
 #[sqlx(rename_all = "UPPERCASE")]
 enum ColorUpper {
     Red,
@@ -59,7 +59,7 @@ enum ColorUpper {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_screaming_snake")]
+#[sqlx(type_name = "color_screaming_snake")]
 #[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]
 enum ColorScreamingSnake {
     RedGreen,
@@ -67,7 +67,7 @@ enum ColorScreamingSnake {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_kebab_case")]
+#[sqlx(type_name = "color_kebab_case")]
 #[sqlx(rename_all = "kebab-case")]
 enum ColorKebabCase {
     RedGreen,
@@ -75,7 +75,7 @@ enum ColorKebabCase {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_mixed_case")]
+#[sqlx(type_name = "color_mixed_case")]
 #[sqlx(rename_all = "camelCase")]
 enum ColorCamelCase {
     RedGreen,
@@ -83,7 +83,7 @@ enum ColorCamelCase {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "color_camel_case")]
+#[sqlx(type_name = "color_camel_case")]
 #[sqlx(rename_all = "PascalCase")]
 enum ColorPascalCase {
     RedGreen,
@@ -92,7 +92,7 @@ enum ColorPascalCase {
 
 // "Strong" enum can map to a custom type
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "mood")]
+#[sqlx(type_name = "mood")]
 #[sqlx(rename_all = "lowercase")]
 enum Mood {
     Ok,
@@ -103,7 +103,7 @@ enum Mood {
 // Records must map to a custom type
 // Note that all types are types in Postgres
 #[derive(PartialEq, Debug, sqlx::Type)]
-#[sqlx(rename = "inventory_item")]
+#[sqlx(type_name = "inventory_item")]
 struct InventoryItem {
     name: String,
     supplier_id: Option<i32>,
@@ -112,12 +112,12 @@ struct InventoryItem {
 
 // Custom range type
 #[derive(sqlx::Type, Debug, PartialEq)]
-#[sqlx(rename = "float_range")]
+#[sqlx(type_name = "float_range")]
 struct FloatRange(PgRange<f64>);
 
 // Custom domain type
 #[derive(sqlx::Type, Debug)]
-#[sqlx(rename = "int4rangeL0pC")]
+#[sqlx(type_name = "int4rangeL0pC")]
 struct RangeInclusive(PgRange<i32>);
 
 test_type!(transparent<Transparent>(Postgres,

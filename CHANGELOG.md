@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         .fetch_all(&mut conn).await?;
     ```
 
+-   [[#940]] Rename the `#[sqlx(rename)]` attribute used to specify the type name on the database
+    side to `#[sqlx(type_name)]` [[@jplatte]].
+
 ## 0.4.2 - 2020-12-19
 
 -   [[#908]] Fix `whoami` crash on FreeBSD platform [[@fundon]] [[@AldaronLau]]

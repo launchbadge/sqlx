@@ -110,7 +110,7 @@
 //!
 //! ```rust,ignore
 //! #[derive(sqlx::Type)]
-//! #[sqlx(rename = "inventory_item")]
+//! #[sqlx(type_name = "inventory_item")]
 //! struct InventoryItem {
 //!     name: String,
 //!     supplier_id: i32,
@@ -135,7 +135,7 @@
 //!
 //! ```rust,ignore
 //! #[derive(sqlx::Type)]
-//! #[sqlx(rename = "mood", rename_all = "lowercase")]
+//! #[sqlx(type_name = "mood", rename_all = "lowercase")]
 //! enum Mood { Sad, Ok, Happy }
 //! ```
 //!
