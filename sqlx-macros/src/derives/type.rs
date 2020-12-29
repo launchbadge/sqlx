@@ -83,7 +83,7 @@ fn expand_derive_has_sql_type_transparent(
     let mut tts = proc_macro2::TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = attr.rename.unwrap_or_else(|| ident.to_string());
+        let ty_name = attr.type_name.unwrap_or_else(|| ident.to_string());
 
         tts.extend(quote!(
             impl sqlx::Type< sqlx::postgres::Postgres > for #ident #ty_generics {
@@ -142,7 +142,7 @@ fn expand_derive_has_sql_type_strong_enum(
     }
 
     if cfg!(feature = "postgres") {
-        let ty_name = attributes.rename.unwrap_or_else(|| ident.to_string());
+        let ty_name = attributes.type_name.unwrap_or_else(|| ident.to_string());
 
         tts.extend(quote!(
             impl sqlx::Type< sqlx::Postgres > for #ident {
@@ -180,7 +180,7 @@ fn expand_derive_has_sql_type_struct(
     let mut tts = proc_macro2::TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = attributes.rename.unwrap_or_else(|| ident.to_string());
+        let ty_name = attributes.type_name.unwrap_or_else(|| ident.to_string());
 
         tts.extend(quote!(
             impl sqlx::Type< sqlx::Postgres > for #ident {
