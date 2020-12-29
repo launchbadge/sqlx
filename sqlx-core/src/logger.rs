@@ -31,38 +31,39 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
-        if let Some(lvl) = lvl.to_level() {
-            if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
-                let mut summary = parse_query_summary(&self.sql);
+        if let Some(lvl) = lvl
+            .to_level()
+            .filter(|lvl| log::log_enabled!(target: "sqlx::query", *lvl))
+        {
+            let mut summary = parse_query_summary(&self.sql);
 
-                let sql = if summary != self.sql {
-                    summary.push_str(" …");
-                    format!(
-                        "\n\n{}\n",
-                        sqlformat::format(
-                            &self.sql,
-                            &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
-                        )
+            let sql = if summary != self.sql {
+                summary.push_str(" …");
+                format!(
+                    "\n\n{}\n",
+                    sqlformat::format(
+                        &self.sql,
+                        &sqlformat::QueryParams::None,
+                        sqlformat::FormatOptions::default()
                     )
-                } else {
-                    String::new()
-                };
+                )
+            } else {
+                String::new()
+            };
 
-                let rows = self.rows;
+            let rows = self.rows;
 
-                log::logger().log(
-                    &log::Record::builder()
-                        .args(format_args!(
-                            "{}; rows: {}, elapsed: {:.3?}{}",
-                            summary, rows, elapsed, sql
-                        ))
-                        .level(lvl)
-                        .module_path_static(Some("sqlx::query"))
-                        .target("sqlx::query")
-                        .build(),
-                );
-            }
+            log::logger().log(
+                &log::Record::builder()
+                    .args(format_args!(
+                        "{}; rows: {}, elapsed: {:.3?}{}",
+                        summary, rows, elapsed, sql
+                    ))
+                    .level(lvl)
+                    .module_path_static(Some("sqlx::query"))
+                    .target("sqlx::query")
+                    .build(),
+            );
         }
     }
 }
