@@ -20,8 +20,8 @@ pub enum Command {
     /// in the current directory, overwriting if needed.
     ///
     /// During project compilation, the absence of the `DATABASE_URL` environment variable or
-    /// the presence of `SQLX_OFFLINE` will constrain the compile-time verification to only
-    /// read from the cached query metadata.
+    /// the presence of `SQLX_OFFLINE` (with a value of `true` or `1`) will constrain the
+    /// compile-time verification to only read from the cached query metadata.
     #[clap(alias = "prep")]
     Prepare {
         /// Run in 'check' mode. Exits with 0 if the query metadata is up-to-date. Exits with
