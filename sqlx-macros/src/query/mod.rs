@@ -1,5 +1,6 @@
+use std::borrow::Cow;
 use std::env;
-use std::{borrow::Cow, path::PathBuf};
+use std::path::{Path, PathBuf};
 
 use proc_macro2::{Span, TokenStream};
 use syn::Type;
@@ -45,7 +46,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
-    let env_path = std::path::Path::new(&manifest_dir).join(".env");
+    let env_path = Path::new(&manifest_dir).join(".env");
     if env_path.exists() {
         dotenv::from_path(&env_path)
             .map_err(|e| format!("failed to load environment from {:?}, {}", env_path, e))?
@@ -62,7 +63,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
         #[cfg(feature = "offline")]
         _ => {
-            let data_file_path = std::path::Path::new(&manifest_dir).join("sqlx-data.json");
+            let data_file_path = Path::new(&manifest_dir).join("sqlx-data.json");
 
             let workspace_data_file_path = CRATE_ROOT.join("sqlx-data.json");
 
@@ -153,10 +154,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 }
 
 #[cfg(feature = "offline")]
-pub fn expand_from_file(
-    input: QueryMacroInput,
-    file: std::path::PathBuf,
-) -> crate::Result<TokenStream> {
+pub fn expand_from_file(input: QueryMacroInput, file: PathBuf) -> crate::Result<TokenStream> {
     use data::offline::DynQueryData;
 
     let query_data = DynQueryData::from_data_file(file, &input.src)?;
@@ -309,9 +307,8 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        let mut save_dir = std::path::PathBuf::from(
-            env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()),
-        );
+        let mut save_dir =
+            PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()));
 
         save_dir.push("sqlx");
 
