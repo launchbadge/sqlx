@@ -13,7 +13,7 @@ use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    self, Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
@@ -74,8 +74,16 @@ impl PgConnection {
         while self.pending_ready_for_query_count > 0 {
             let message = self.stream.recv().await?;
 
-            if let MessageFormat::ReadyForQuery = message.format {
-                self.handle_ready_for_query(message)?;
+            match message.format {
+                MessageFormat::ReadyForQuery => self.handle_ready_for_query(message)?,
+
+                MessageFormat::PortalSuspended => {
+                    self.stream.write(message::Execute {
+                        portal: None,
+                        limit: 0,
+                    });
+                }
+                _ => {}
             }
         }
 
