@@ -5,7 +5,7 @@ use remove_dir_all::remove_dir_all;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufReader, BufWriter};
 use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -52,11 +52,11 @@ pub fn check(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(merge, cargo_args)?;
 
-    let data_file = fs::read("sqlx-data.json").context(
+    let data_file = File::open("sqlx-data.json").context(
         "failed to open `sqlx-data.json`; you may need to run `cargo sqlx prepare` first",
     )?;
 
-    let mut saved_data: QueryData = serde_json::from_slice(&data_file)?;
+    let mut saved_data: QueryData = serde_json::from_reader(BufReader::new(data_file))?;
 
     let expected_db = saved_data
         .remove("db")
