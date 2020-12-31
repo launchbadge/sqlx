@@ -48,4 +48,5 @@ impl PgBufMutExt for Vec<u8> {
 
         self.push(0);
     }
+
 }
