@@ -4,8 +4,9 @@ use std::str::FromStr;
 use crate::{Connection, DefaultRuntime, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
+#[allow(clippy::module_name_repetitions)]
 pub trait ConnectOptions<Rt = DefaultRuntime>:
-    'static + Send + Sync + Default + Debug + Clone + FromStr<Err = crate::Error>
+    'static + Sized + Send + Sync + Default + Debug + Clone + FromStr<Err = crate::Error>
 where
     Rt: Runtime,
 {

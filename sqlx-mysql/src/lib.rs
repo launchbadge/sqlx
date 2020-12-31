@@ -26,9 +26,6 @@ mod options;
 #[cfg(feature = "blocking")]
 mod blocking;
 
-#[cfg(feature = "async")]
-mod r#async;
-
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use options::MySqlConnectOptions;

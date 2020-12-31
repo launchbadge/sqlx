@@ -26,9 +26,8 @@ where
     ///
     /// ```rust,ignore
     /// use sqlx::postgres::PgConnection;
-    /// use sqlx::ConnectOptions;
     ///
-    /// let mut conn = PgConnection::connect(
+    /// let mut conn = <PgConnection>::connect(
     ///     "postgres://postgres:password@localhost/database",
     /// ).await?;
     /// ```
@@ -36,10 +35,10 @@ where
     /// You may alternatively build the connection options imperatively.
     ///
     /// ```rust,ignore
-    /// use sqlx::mysql::{MySqlConnection, MySqlConnectOptions};
+    /// use sqlx::mysql::MySqlConnectOptions;
     /// use sqlx::ConnectOptions;
     ///
-    /// let mut conn: MySqlConnection = MySqlConnectOptions::builder()
+    /// let mut conn = <MySqlConnectOptions>::new()
     ///     .host("localhost")
     ///     .username("root")
     ///     .password("password")

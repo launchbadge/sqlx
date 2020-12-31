@@ -9,9 +9,8 @@ use crate::DefaultRuntime;
 pub trait Connection<Rt = DefaultRuntime>: crate::Connection<Rt>
 where
     Rt: Runtime,
+    Self::Options: ConnectOptions<Rt>,
 {
-    type Options: ConnectOptions<Rt, Connection = Self>;
-
     /// Establish a new database connection.
     ///
     /// For detailed information, refer to the asynchronous version of
@@ -21,7 +20,8 @@ where
     where
         Self: Sized,
     {
-        url.parse::<<Self as Connection<Rt>>::Options>()?.connect()
+        url.parse::<<Self as crate::Connection<Rt>>::Options>()?
+            .connect()
     }
 
     /// Explicitly close this database connection.

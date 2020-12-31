@@ -6,18 +6,18 @@ use crate::DefaultRuntime;
 /// For detailed information, refer to the asynchronous version of
 /// this: [`ConnectOptions`][crate::ConnectOptions].
 ///
+#[allow(clippy::module_name_repetitions)]
 pub trait ConnectOptions<Rt = DefaultRuntime>: crate::ConnectOptions<Rt>
 where
     Rt: Runtime,
+    Self::Connection: crate::Connection<Rt, Options = Self> + Connection<Rt>,
 {
-    type Connection: Connection<Rt> + ?Sized;
-
     /// Establish a connection to the database.
     ///
     /// For detailed information, refer to the asynchronous version of
     /// this: [`connect()`][crate::ConnectOptions::connect].
     ///
-    fn connect(&self) -> crate::Result<<Self as ConnectOptions<Rt>>::Connection>
+    fn connect(&self) -> crate::Result<Self::Connection>
     where
-        <Self as ConnectOptions<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 }

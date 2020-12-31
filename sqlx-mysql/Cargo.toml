@@ -29,3 +29,6 @@ async = ["futures-util", "sqlx-core/async"]
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 futures-util = { version = "0.3.8", optional = true }
+either = "1.6.1"
+url = "2.2.0"
+percent-encoding = "2.1.0"
