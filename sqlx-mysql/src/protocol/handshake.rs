@@ -99,7 +99,7 @@ impl Deserialize<'_> for Handshake {
                 // read to NUL or read to the end if we can't find a NUL
 
                 let auth_plugin_name_end =
-                    memchr(b'\0', &buf).map(|end| end - 1).unwrap_or(buf.len());
+                    memchr(b'\0', &buf).unwrap_or(buf.len());
 
                 // UNSAFE: auth plugin names are known to be ASCII
                 #[allow(unsafe_code)]

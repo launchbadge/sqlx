@@ -6,3 +6,6 @@ target/
 
 # local environment
 .env
+
+# coverage
+.coverage/
