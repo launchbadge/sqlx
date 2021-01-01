@@ -24,7 +24,7 @@ blocking = ["sqlx-core/blocking"]
 
 # async runtime
 # not meant to be used directly
-async = ["futures-util", "sqlx-core/async"]
+async = ["futures-util", "sqlx-core/async", "futures-io"]
 
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
@@ -32,3 +32,8 @@ futures-util = { version = "0.3.8", optional = true }
 either = "1.6.1"
 url = "2.2.0"
 percent-encoding = "2.1.0"
+futures-io = { version = "0.3", optional = true }
+bytes = "1.0"
+memchr = "2.3"
+bitflags = "1.2"
+string = { version = "0.2.1", default-features = false }

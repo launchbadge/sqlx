@@ -1,9 +1,10 @@
 use std::io;
 
 use actix_rt::net::TcpStream;
+use async_compat_02::Compat;
 use futures_util::{future::BoxFuture, FutureExt};
 
-use crate::{Async, Runtime};
+use crate::{AsyncRuntime, Runtime};
 
 /// Actix SQLx runtime. Uses [`actix-rt`][actix_rt] to provide [`Runtime`].
 ///
@@ -15,12 +16,15 @@ use crate::{Async, Runtime};
 #[derive(Debug)]
 pub struct Actix;
 
-impl Async for Actix {}
-
 impl Runtime for Actix {
-    type TcpStream = TcpStream;
+    type TcpStream = Compat<TcpStream>;
+}
 
+impl AsyncRuntime for Actix
+where
+    Self::TcpStream: futures_io::AsyncRead,
+{
     fn connect_tcp(host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>> {
-        TcpStream::connect((host, port)).boxed()
+        TcpStream::connect((host, port)).map_ok(Compat::new).boxed()
     }
 }

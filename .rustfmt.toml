@@ -1,0 +1,2 @@
+use_small_heuristics = "Max"
+group_imports = "StdExternalCrate"

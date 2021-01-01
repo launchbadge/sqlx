@@ -10,9 +10,8 @@ pub use options::ConnectOptions;
 pub use runtime::{Blocking, Runtime};
 
 pub mod prelude {
-    pub use crate::Database as _;
-
     pub use super::ConnectOptions as _;
     pub use super::Connection as _;
     pub use super::Runtime as _;
+    pub use crate::Database as _;
 }

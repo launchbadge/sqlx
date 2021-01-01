@@ -83,20 +83,12 @@ where
 {
     /// Returns the hostname of the database server.
     pub fn get_host(&self) -> &str {
-        self.address
-            .as_ref()
-            .left()
-            .map(|(host, _)| &**host)
-            .unwrap_or(default::HOST)
+        self.address.as_ref().left().map(|(host, _)| &**host).unwrap_or(default::HOST)
     }
 
     /// Returns the TCP port number of the database server.
     pub fn get_port(&self) -> u16 {
-        self.address
-            .as_ref()
-            .left()
-            .map(|(_, port)| *port)
-            .unwrap_or(default::PORT)
+        self.address.as_ref().left().map(|(_, port)| *port).unwrap_or(default::PORT)
     }
 
     /// Returns the path to the Unix domain socket, if one is configured.
@@ -140,12 +132,9 @@ where
     fn connect(&self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self::Connection>>
     where
         Self::Connection: Sized,
-        Rt: sqlx_core::Async,
+        Rt: sqlx_core::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
-        futures_util::FutureExt::boxed(async move {
-            let stream = Rt::connect_tcp(self.get_host(), self.get_port()).await?;
-
-            Ok(MySqlConnection { stream })
-        })
+        futures_util::FutureExt::boxed(MySqlConnection::establish_async(self))
     }
 }

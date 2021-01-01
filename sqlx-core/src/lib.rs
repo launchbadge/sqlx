@@ -33,6 +33,9 @@ mod error;
 mod options;
 mod runtime;
 
+#[doc(hidden)]
+pub mod io;
+
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
@@ -40,19 +43,15 @@ pub use connection::Connection;
 pub use database::{Database, HasOutput};
 pub use error::{Error, Result};
 pub use options::ConnectOptions;
-pub use runtime::Runtime;
-
-#[cfg(feature = "async-std")]
-pub use runtime::AsyncStd;
-
-#[cfg(feature = "tokio")]
-pub use runtime::Tokio;
-
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
-
 #[cfg(feature = "async")]
-pub use runtime::Async;
+pub use runtime::AsyncRuntime;
+#[cfg(feature = "async-std")]
+pub use runtime::AsyncStd;
+pub use runtime::Runtime;
+#[cfg(feature = "tokio")]
+pub use runtime::Tokio;
 
 // pick a default runtime
 // this is so existing applications in SQLx pre 0.6 work and to
@@ -78,11 +77,10 @@ pub type DefaultRuntime = blocking::Blocking;
 pub type DefaultRuntime = ();
 
 pub mod prelude {
+    #[cfg(all(not(feature = "async"), feature = "blocking"))]
+    pub use super::blocking::prelude::*;
     pub use super::ConnectOptions as _;
     pub use super::Connection as _;
     pub use super::Database as _;
     pub use super::Runtime as _;
-
-    #[cfg(all(not(feature = "async"), feature = "blocking"))]
-    pub use super::blocking::prelude::*;
 }

@@ -9,8 +9,9 @@ where
     Self::Connection: sqlx_core::Connection<Rt, Options = Self> + Connection<Rt>,
 {
     fn connect(&self) -> Result<MySqlConnection<Rt>> {
-        let stream = <Rt as Runtime>::connect_tcp(self.get_host(), self.get_port())?;
-
-        Ok(MySqlConnection { stream })
+        // let stream = <Rt as Runtime>::connect_tcp(self.get_host(), self.get_port())?;
+        //
+        // Ok(MySqlConnection { stream })
+        todo!()
     }
 }

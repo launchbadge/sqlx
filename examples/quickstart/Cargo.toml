@@ -1,0 +1,16 @@
+[package]
+name = "sqlx-example-quickstart"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]
+
+[dependencies]
+actix-web = "3.3.2"
+anyhow = "1.0.36"
+async-std = { version = "1.8.0", features = ["attributes"] }
+#sqlx = { path = "../../sqlx", features = ["tokio", "mysql", "blocking", "async-std", "actix"] }
+sqlx = { path = "../../sqlx", features = ["tokio", "mysql"] }
+tokio = { version = "1.0.1", features = ["rt", "rt-multi-thread", "macros"] }

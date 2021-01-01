@@ -21,7 +21,9 @@
 
 mod connection;
 mod database;
+mod io;
 mod options;
+mod protocol;
 
 #[cfg(feature = "blocking")]
 mod blocking;

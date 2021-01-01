@@ -1,7 +1,7 @@
-use crate::{ConnectOptions, Database, DefaultRuntime, Runtime};
-
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
+
+use crate::{ConnectOptions, Database, DefaultRuntime, Runtime};
 
 /// A unique connection (session) with a specific database.
 ///
@@ -49,7 +49,8 @@ where
     fn connect(url: &str) -> BoxFuture<'_, crate::Result<Self>>
     where
         Self: Sized,
-        Rt: crate::Async,
+        Rt: crate::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
         let options = url.parse::<Self::Options>();
         Box::pin(async move { options?.connect().await })
@@ -64,7 +65,8 @@ where
     #[cfg(feature = "async")]
     fn close(self) -> BoxFuture<'static, crate::Result<()>>
     where
-        Rt: crate::Async;
+        Rt: crate::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin;
 
     /// Checks if a connection to the database is still valid.
     ///
@@ -76,5 +78,6 @@ where
     #[cfg(feature = "async")]
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>
     where
-        Rt: crate::Async;
+        Rt: crate::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin;
 }

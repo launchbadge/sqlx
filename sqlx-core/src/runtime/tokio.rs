@@ -1,9 +1,10 @@
 use std::io;
 
-use futures_util::{future::BoxFuture, FutureExt};
+use async_compat::Compat;
+use futures_util::{future::BoxFuture, FutureExt, TryFutureExt};
 use tokio::net::TcpStream;
 
-use crate::{Async, Runtime};
+use crate::{AsyncRuntime, Runtime};
 
 /// Tokio SQLx runtime. Uses [`tokio`] to provide [`Runtime`].
 ///
@@ -13,12 +14,12 @@ use crate::{Async, Runtime};
 #[derive(Debug)]
 pub struct Tokio;
 
-impl Async for Tokio {}
-
 impl Runtime for Tokio {
-    type TcpStream = TcpStream;
+    type TcpStream = Compat<TcpStream>;
+}
 
+impl AsyncRuntime for Tokio {
     fn connect_tcp(host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>> {
-        TcpStream::connect((host, port)).boxed()
+        TcpStream::connect((host, port)).map_ok(Compat::new).boxed()
     }
 }

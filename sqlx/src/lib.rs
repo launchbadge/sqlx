@@ -16,21 +16,16 @@
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
 
+#[cfg(feature = "blocking")]
+pub use sqlx_core::blocking;
+#[cfg(feature = "actix")]
+pub use sqlx_core::Actix;
+#[cfg(feature = "async-std")]
+pub use sqlx_core::AsyncStd;
+#[cfg(feature = "tokio")]
+pub use sqlx_core::Tokio;
 pub use sqlx_core::{
     prelude, ConnectOptions, Connection, Database, DefaultRuntime, Error, Result, Runtime,
 };
-
-#[cfg(feature = "blocking")]
-pub use sqlx_core::blocking;
-
-#[cfg(feature = "async-std")]
-pub use sqlx_core::AsyncStd;
-
-#[cfg(feature = "tokio")]
-pub use sqlx_core::Tokio;
-
-#[cfg(feature = "actix")]
-pub use sqlx_core::Actix;
-
 #[cfg(feature = "mysql")]
 pub use sqlx_mysql as mysql;

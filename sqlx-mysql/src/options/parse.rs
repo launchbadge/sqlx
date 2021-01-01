@@ -13,9 +13,7 @@ where
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url: Url = s
-            .parse()
-            .map_err(|error| Error::configuration("database url", error))?;
+        let url: Url = s.parse().map_err(|error| Error::configuration("database url", error))?;
 
         if !matches!(url.scheme(), "mysql") {
             return Err(Error::configuration_msg(format!(
@@ -36,17 +34,11 @@ where
 
         let username = url.username();
         if !username.is_empty() {
-            options.username(percent_decode_str_utf8(
-                username,
-                "username in database url",
-            )?);
+            options.username(percent_decode_str_utf8(username, "username in database url")?);
         }
 
         if let Some(password) = url.password() {
-            options.password(percent_decode_str_utf8(
-                password,
-                "password in database url",
-            )?);
+            options.password(percent_decode_str_utf8(password, "password in database url")?);
         }
 
         let mut path = url.path();
@@ -113,11 +105,12 @@ fn percent_decode_str_utf8(value: &str, context: &str) -> Result<String, Error> 
 
 #[cfg(test)]
 mod tests {
-    use super::MySqlConnectOptions;
     use std::path::Path;
 
+    use super::MySqlConnectOptions;
+
     #[test]
-    fn it_should_parse() {
+    fn parse() {
         let url = "mysql://user:password@hostname:5432/database?timezone=system&charset=utf8";
         let options: MySqlConnectOptions = url.parse().unwrap();
 
@@ -131,7 +124,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_parse_with_defaults() {
+    fn parse_with_defaults() {
         let url = "mysql://";
         let options: MySqlConnectOptions = url.parse().unwrap();
 
@@ -145,21 +138,18 @@ mod tests {
     }
 
     #[test]
-    fn it_should_parse_socket_from_query() {
+    fn parse_socket_from_query() {
         let url = "mysql://user:password@localhost/database?socket=/var/run/mysqld/mysqld.sock";
         let options: MySqlConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
         assert_eq!(options.get_database(), Some("database"));
-        assert_eq!(
-            options.get_socket(),
-            Some(Path::new("/var/run/mysqld/mysqld.sock"))
-        );
+        assert_eq!(options.get_socket(), Some(Path::new("/var/run/mysqld/mysqld.sock")));
     }
 
     #[test]
-    fn it_should_parse_socket_from_host() {
+    fn parse_socket_from_host() {
         // socket path in host requires URL encoding – but does work
         let url = "mysql://user:password@%2Fvar%2Frun%2Fmysqld%2Fmysqld.sock/database";
         let options: MySqlConnectOptions = url.parse().unwrap();
@@ -167,21 +157,18 @@ mod tests {
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
         assert_eq!(options.get_database(), Some("database"));
-        assert_eq!(
-            options.get_socket(),
-            Some(Path::new("/var/run/mysqld/mysqld.sock"))
-        );
+        assert_eq!(options.get_socket(), Some(Path::new("/var/run/mysqld/mysqld.sock")));
     }
 
     #[test]
     #[should_panic]
-    fn it_should_fail_to_parse_non_mysql() {
+    fn fail_to_parse_non_mysql() {
         let url = "postgres://user:password@hostname:5432/database?timezone=system&charset=utf8";
         let _: MySqlConnectOptions = url.parse().unwrap();
     }
 
     #[test]
-    fn it_should_parse_username_with_at_sign() {
+    fn parse_username_with_at_sign() {
         let url = "mysql://user@hostname:password@hostname:5432/database";
         let options: MySqlConnectOptions = url.parse().unwrap();
 
@@ -189,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn it_should_parse_password_with_non_ascii_chars() {
+    fn parse_password_with_non_ascii_chars() {
         let url = "mysql://username:p@ssw0rd@hostname:5432/database";
         let options: MySqlConnectOptions = url.parse().unwrap();
 

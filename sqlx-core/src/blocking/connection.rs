@@ -20,8 +20,7 @@ where
     where
         Self: Sized,
     {
-        url.parse::<<Self as crate::Connection<Rt>>::Options>()?
-            .connect()
+        url.parse::<<Self as crate::Connection<Rt>>::Options>()?.connect()
     }
 
     /// Explicitly close this database connection.
