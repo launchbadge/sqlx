@@ -1,5 +1,5 @@
-mod write;
 mod buf;
+mod write;
 
-pub(crate) use write::MySqlWriteExt;
 pub(crate) use buf::MySqlBufExt;
+pub(crate) use write::MySqlWriteExt;

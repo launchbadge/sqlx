@@ -2,8 +2,8 @@ use bytes::BufMut;
 use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
 
-use crate::protocol::Capabilities;
 use crate::io::MySqlWriteExt;
+use crate::protocol::Capabilities;
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse
 // https://mariadb.com/kb/en/connection/#client-handshake-response

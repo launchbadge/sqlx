@@ -1,6 +1,6 @@
-use bytes::{Bytes, Buf};
-use string::String;
+use bytes::{Buf, Bytes};
 use sqlx_core::io::BufExt;
+use string::String;
 
 // UNSAFE: _unchecked string methods
 // intended for use when the protocol is *known* to always produce
@@ -30,7 +30,7 @@ impl MySqlBufExt for Bytes {
             // NOTE: 0xFF may be the first byte of an ERR packet
             0xff => unreachable!("unexpected 0xFF (undefined) in `get_uint_lenenc`"),
 
-            value => u64::from(value)
+            value => u64::from(value),
         }
     }
 

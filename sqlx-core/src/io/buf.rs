@@ -1,6 +1,6 @@
 use std::io;
 
-use bytes::{Bytes, Buf};
+use bytes::{Buf, Bytes};
 use memchr::memchr;
 use string::String;
 
@@ -33,7 +33,9 @@ impl BufExt for Bytes {
 #[cfg(test)]
 mod tests {
     use std::io;
-    use bytes::{Bytes, Buf};
+
+    use bytes::{Buf, Bytes};
+
     use super::BufExt;
 
     #[test]
