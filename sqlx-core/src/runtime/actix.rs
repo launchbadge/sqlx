@@ -2,7 +2,7 @@ use std::io;
 
 use actix_rt::net::TcpStream;
 use async_compat_02::Compat;
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::{future::BoxFuture, FutureExt, TryFutureExt};
 
 use crate::{AsyncRuntime, Runtime};
 
