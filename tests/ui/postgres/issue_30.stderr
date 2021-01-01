@@ -1,4 +1,4 @@
-error: "\'1" is not a valid Rust identifier
+error: column name "\'1" is invalid: "\'1" is not a valid Rust identifier
  --> $DIR/issue_30.rs:2:17
   |
 2 |     let query = sqlx::query!("select 1 as \"'1\"");
