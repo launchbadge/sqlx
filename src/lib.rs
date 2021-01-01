@@ -152,5 +152,5 @@ pub mod prelude {
 
 #[doc(hidden)]
 #[inline(always)]
-#[deprecated = "sqlx(rename) is now called sqlx(type_name)"]
+#[deprecated = "`#[sqlx(rename = \"...\")]` is now `#[sqlx(type_name = \"...\")`"]
 pub fn _rename() {}
