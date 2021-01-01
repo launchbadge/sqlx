@@ -149,3 +149,8 @@ pub mod prelude {
     pub use super::Statement;
     pub use super::Type;
 }
+
+#[doc(hidden)]
+#[inline(always)]
+#[deprecated = "sqlx(rename) is now called sqlx(type_name)"]
+pub fn _rename() {}
