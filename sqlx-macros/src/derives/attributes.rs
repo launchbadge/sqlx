@@ -1,5 +1,7 @@
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{Attribute, DeriveInput, Field, Lit, Meta, MetaNameValue, NestedMeta, Variant};
 
@@ -26,6 +28,27 @@ macro_rules! try_set {
     };
 }
 
+pub struct TypeName {
+    pub val: String,
+    pub span: Span,
+    /// Whether the old sqlx(rename) syntax was used instead of sqlx(type_name)
+    pub deprecated_rename: bool,
+}
+
+impl TypeName {
+    pub fn get(&self) -> TokenStream {
+        let val = &self.val;
+        if self.deprecated_rename {
+            quote_spanned!(self.span=> {
+                sqlx::_rename();
+                #val
+            })
+        } else {
+            quote! { #val }
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum RenameAll {
     LowerCase,
@@ -39,7 +62,7 @@ pub enum RenameAll {
 
 pub struct SqlxContainerAttributes {
     pub transparent: bool,
-    pub type_name: Option<String>,
+    pub type_name: Option<TypeName>,
     pub rename_all: Option<RenameAll>,
     pub repr: Option<Ident>,
 }
@@ -95,7 +118,31 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
                                 lit: Lit::Str(val),
                                 ..
                             }) if path.is_ident("type_name") => {
-                                try_set!(type_name, val.value(), value)
+                                try_set!(
+                                    type_name,
+                                    TypeName {
+                                        val: val.value(),
+                                        span: value.span(),
+                                        deprecated_rename: false
+                                    },
+                                    value
+                                )
+                            }
+
+                            Meta::NameValue(MetaNameValue {
+                                path,
+                                lit: Lit::Str(val),
+                                ..
+                            }) if path.is_ident("rename") => {
+                                try_set!(
+                                    type_name,
+                                    TypeName {
+                                        val: val.value(),
+                                        span: value.span(),
+                                        deprecated_rename: true
+                                    },
+                                    value
+                                )
                             }
 
                             u => fail!(u, "unexpected attribute"),
