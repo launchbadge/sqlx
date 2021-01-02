@@ -12,6 +12,9 @@ pub(crate) trait MySqlBufExt: BufExt {
     #[allow(unsafe_code)]
     unsafe fn get_str_lenenc_unchecked(&mut self) -> String<Bytes>;
 
+    #[allow(unsafe_code)]
+    unsafe fn get_str_eof_unchecked(&mut self) -> String<Bytes>;
+
     fn get_bytes_lenenc(&mut self) -> Bytes;
 }
 
@@ -39,6 +42,11 @@ impl MySqlBufExt for Bytes {
         let len = self.get_uint_lenenc() as usize;
 
         self.get_str_unchecked(len)
+    }
+
+    #[allow(unsafe_code)]
+    unsafe fn get_str_eof_unchecked(&mut self) -> String<Bytes> {
+        self.get_str_unchecked(self.len())
     }
 
     fn get_bytes_lenenc(&mut self) -> Bytes {
