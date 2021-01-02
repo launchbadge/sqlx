@@ -171,7 +171,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    pub fn before_acquire<F, Fut>(mut self, callback: F) -> Self
+    pub fn before_acquire<F>(mut self, callback: F) -> Self
     where
         for<'c> F: Fn(&'c mut DB::Connection) -> BoxFuture<'c, Result<bool, Error>>
             + 'static
@@ -182,7 +182,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    pub fn after_release<F, Fut>(mut self, callback: F) -> Self
+    pub fn after_release<F>(mut self, callback: F) -> Self
     where
         F: Fn(&mut DB::Connection) -> bool + 'static + Send + Sync,
     {
