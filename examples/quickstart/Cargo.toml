@@ -14,3 +14,5 @@ async-std = { version = "1.8.0", features = ["attributes"] }
 #sqlx = { path = "../../sqlx", features = ["tokio", "mysql", "blocking", "async-std", "actix"] }
 sqlx = { path = "../../sqlx", features = ["tokio", "mysql"] }
 tokio = { version = "1.0.1", features = ["rt", "rt-multi-thread", "macros"] }
+log = "0.4"
+env_logger = "0.8.2"

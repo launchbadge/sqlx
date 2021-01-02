@@ -49,6 +49,14 @@ impl<S> BufStream<S> {
     pub fn consume(&mut self, n: usize) {
         let _ = self.take(n);
     }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.wbuf.reserve(additional);
+    }
+
+    pub fn write(&mut self, buf: &[u8]) {
+        self.wbuf.extend_from_slice(buf);
+    }
 }
 
 #[cfg(feature = "async")]
@@ -56,12 +64,26 @@ impl<S> BufStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    pub async fn flush_async(&mut self) -> crate::Result<()> {
+        // write as much as we can each time and move the cursor as we write from the buffer
+        // if _this_ future drops, offset will have a record of how much of the wbuf has
+        // been written
+        while self.wbuf_offset < self.wbuf.len() {
+            self.wbuf_offset += self.stream.write(&self.wbuf[self.wbuf_offset..]).await?;
+        }
+
+        // fully written buffer, move cursor back to the beginning
+        self.wbuf_offset = 0;
+        self.wbuf.clear();
+
+        Ok(())
+    }
+
     pub async fn read_async(&mut self, n: usize) -> crate::Result<()> {
-        // // before waiting to receive data
-        // // ensure that the write buffer is flushed
-        // if !self.wbuf.is_empty() {
-        //     self.flush().await?;
-        // }
+        // before waiting to receive data; ensure that the write buffer is flushed
+        if !self.wbuf.is_empty() {
+            self.flush_async().await?;
+        }
 
         // while our read buffer is too small to satisfy the requested amount
         while self.rbuf.len() < n {

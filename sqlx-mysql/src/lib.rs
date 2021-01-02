@@ -24,6 +24,7 @@ mod database;
 mod io;
 mod options;
 mod protocol;
+mod error;
 
 #[cfg(feature = "blocking")]
 mod blocking;
@@ -31,3 +32,4 @@ mod blocking;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use options::MySqlConnectOptions;
+pub use error::MySqlDatabaseError;

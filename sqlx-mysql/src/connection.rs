@@ -16,6 +16,9 @@ where
     stream: BufStream<Rt::TcpStream>,
     connection_id: u32,
     capabilities: Capabilities,
+    // the sequence-id is incremented with each packet and may wrap around. It starts at 0 and is
+    // reset to 0 when a new command begins in the Command Phase.
+    sequence_id: u8,
 }
 
 impl<Rt> MySqlConnection<Rt>
@@ -26,18 +29,19 @@ where
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
             connection_id: 0,
-            capabilities: Capabilities::LONG_PASSWORD
+            sequence_id: 0,
+            capabilities: Capabilities::PROTOCOL_41 | Capabilities::LONG_PASSWORD
                 | Capabilities::LONG_FLAG
                 | Capabilities::IGNORE_SPACE
                 | Capabilities::TRANSACTIONS
                 | Capabilities::SECURE_CONNECTION
-                | Capabilities::MULTI_STATEMENTS
-                | Capabilities::MULTI_RESULTS
-                | Capabilities::PS_MULTI_RESULTS
+                // | Capabilities::MULTI_STATEMENTS
+                // | Capabilities::MULTI_RESULTS
+                // | Capabilities::PS_MULTI_RESULTS
                 | Capabilities::PLUGIN_AUTH
                 | Capabilities::PLUGIN_AUTH_LENENC_DATA
-                | Capabilities::CAN_HANDLE_EXPIRED_PASSWORDS
-                | Capabilities::SESSION_TRACK
+                // | Capabilities::CAN_HANDLE_EXPIRED_PASSWORDS
+                // | Capabilities::SESSION_TRACK
                 | Capabilities::DEPRECATE_EOF,
         }
     }
