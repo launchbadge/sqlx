@@ -41,7 +41,7 @@ pub mod blocking;
 
 pub use connection::Connection;
 pub use database::{Database, HasOutput};
-pub use error::{Error, Result};
+pub use error::{Error, Result, DatabaseError};
 pub use options::ConnectOptions;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
