@@ -22,7 +22,7 @@ impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
     fn serialize_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) -> Result<()> {
         buf.extend_from_slice(&(capabilities.bits() as u32).to_le_bytes());
         buf.extend_from_slice(&self.max_packet_size.to_le_bytes());
-        buf.extend_from_slice(&self.charset.to_le_bytes());
+        buf.push(self.charset);
 
         // reserved (all 0)
         buf.extend_from_slice(&[0_u8; 23]);
