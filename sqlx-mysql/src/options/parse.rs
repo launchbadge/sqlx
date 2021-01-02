@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::borrow::Cow;
 
 use percent_encoding::percent_decode_str;
 use sqlx_core::{Error, Runtime};
@@ -13,7 +14,8 @@ where
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url: Url = s.parse().map_err(|error| Error::configuration("database url", error))?;
+        let url: Url =
+            s.parse().map_err(|error| Error::configuration("for database URL", error))?;
 
         if !matches!(url.scheme(), "mysql") {
             return Err(Error::configuration_msg(format!(
@@ -25,7 +27,7 @@ where
         let mut options = Self::new();
 
         if let Some(host) = url.host_str() {
-            options.host(percent_decode_str_utf8(host, "host in database url")?);
+            options.host(percent_decode_str_utf8(host));
         }
 
         if let Some(port) = url.port() {
@@ -34,11 +36,11 @@ where
 
         let username = url.username();
         if !username.is_empty() {
-            options.username(percent_decode_str_utf8(username, "username in database url")?);
+            options.username(percent_decode_str_utf8(username));
         }
 
         if let Some(password) = url.password() {
-            options.password(percent_decode_str_utf8(password, "password in database url")?);
+            options.password(percent_decode_str_utf8(password));
         }
 
         let mut path = url.path();
@@ -51,13 +53,10 @@ where
             options.database(path);
         }
 
-        for (key, value) in url.query_pairs().into_iter() {
-            let value =
-                percent_decode_str_utf8(&*value, &format!("parameter {:?} in database url", key))?;
-
+        for (key, value) in url.query_pairs() {
             match &*key {
                 "user" | "username" => {
-                    options.password(value);
+                    options.username(value);
                 }
 
                 "password" => {
@@ -81,7 +80,7 @@ where
                 }
 
                 "socket" => {
-                    options.socket(value);
+                    options.socket(&*value);
                 }
 
                 _ => {
@@ -96,11 +95,8 @@ where
 }
 
 // todo: this should probably go somewhere common
-fn percent_decode_str_utf8(value: &str, context: &str) -> Result<String, Error> {
-    percent_decode_str(value)
-        .decode_utf8()
-        .map_err(|err| Error::configuration(context.to_owned(), err))
-        .map(|s| (&*s).to_owned())
+fn percent_decode_str_utf8(value: &str) -> Cow<'_, str> {
+    percent_decode_str(value).decode_utf8_lossy()
 }
 
 #[cfg(test)]
