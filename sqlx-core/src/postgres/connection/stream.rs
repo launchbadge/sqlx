@@ -87,7 +87,10 @@ impl PgStream {
     // May wait for more data from the server
     pub(crate) async fn recv(&mut self) -> Result<Message, Error> {
         loop {
-            let message = self.recv_unchecked().await?;
+            let message = match self.recv_unchecked().await {
+                Ok(m) => m,
+                _ => continue,
+            };
 
             match message.format {
                 MessageFormat::ErrorResponse => {
