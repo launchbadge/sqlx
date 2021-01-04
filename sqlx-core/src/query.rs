@@ -28,7 +28,8 @@ pub struct Query<'q, DB: Database, A> {
 /// [Query::execute] as it doesn't make sense to map the result type and then ignore it.
 ///
 /// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
-/// before `.try_map()`.
+/// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
+/// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
 pub struct Map<'q, DB: Database, F, A> {
     inner: Query<'q, DB, A>,
