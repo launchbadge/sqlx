@@ -4,7 +4,7 @@ use sqlx_core::io::{Deserialize, Serialize};
 use sqlx_core::{AsyncRuntime, Error, Result, Runtime};
 
 use crate::protocol::{Capabilities, ErrPacket, Handshake, HandshakeResponse, OkPacket};
-use crate::{MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
+use crate::{auth, MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
 
 // https://dev.mysql.com/doc/internals/en/connection-phase.html
 
@@ -18,22 +18,51 @@ use crate::{MySqlConnectOptions, MySqlConnection, MySqlDatabaseError};
 
 fn make_auth_response(
     auth_plugin_name: Option<&str>,
-    username: &str,
+    username: Option<&str>,
     password: Option<&str>,
     nonce: &Chain<Bytes, Bytes>,
-) -> Vec<u8> {
-    vec![]
+) -> Result<Option<Vec<u8>>> {
+    match (auth_plugin_name, password) {
+        // NOTE: for no authentication plugin, we assume mysql_native_password
+        //  this means we have no support for mysql_old_password (pre mysql 4)
+        //  if you need this, please open an issue
+        (Some("mysql_native_password"), Some(password)) | (None, Some(password)) => {
+            Ok(Some(auth::native::scramble(nonce, password)))
+        }
+
+        (_, None) => Ok(None),
+
+        // an unsupported plugin error looks like this in the official client:
+        //  ERROR 2059 (HY000): Authentication plugin 'caching_sha2_password' cannot be loaded: /usr/local/mysql/lib/plugin/caching_sha2_password.so: cannot open shared object file: No such file or directory
+
+        // and renders like this in SQLx:
+        //  Error: 2059 (HY000): Authentication plugin 'caching_sha2_password' cannot be loaded
+        (Some(plugin), _) => Err(Error::Connect(Box::new(MySqlDatabaseError(ErrPacket::new(
+            2059,
+            &format!("Authentication plugin '{}' cannot be loaded", plugin),
+        ))))),
+    }
 }
 
-fn make_handshake_response<Rt: Runtime>(options: &MySqlConnectOptions<Rt>) -> HandshakeResponse<'_> {
-    HandshakeResponse {
-        auth_plugin_name: None,
-        auth_response: None,
+fn make_handshake_response<'a, Rt: Runtime>(
+    handshake: &'a Handshake,
+    options: &'a MySqlConnectOptions<Rt>,
+) -> Result<HandshakeResponse<'a>> {
+    let auth_response = make_auth_response(
+        handshake.auth_plugin_name.as_deref(),
+        options.get_username(),
+        options.get_password(),
+        &handshake.auth_plugin_data,
+    )?;
+
+    Ok(HandshakeResponse {
+        auth_plugin_name: handshake.auth_plugin_name.as_deref(),
+        auth_response,
         charset: 45, // [utf8mb4]
         database: options.get_database(),
         max_packet_size: 1024,
         username: options.get_username(),
-    }
+    })
 }
 
 impl<Rt> MySqlConnection<Rt>
@@ -53,7 +82,7 @@ where
         let handshake = self_.read_packet_async().await?;
         self_.recv_handshake(&handshake);
 
-        self_.write_packet(make_handshake_response(options))?;
+        self_.write_packet(make_handshake_response(&handshake, options)?)?;
 
         self_.stream.flush_async().await?;
 
@@ -87,7 +116,7 @@ where
         // https://dev.mysql.com/doc/internals/en/mysql-packet.html
         self.stream.read_async(4).await?;
 
-        let payload_len: usize = self.stream.get(0, 3).get_int_le(3) as usize;
+        let payload_len: usize = self.stream.get(0, 3).get_uint_le(3) as usize;
 
         // FIXME: handle split packets
         assert_ne!(payload_len, 0xFF_FF_FF);

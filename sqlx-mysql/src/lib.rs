@@ -25,6 +25,7 @@ mod io;
 mod options;
 mod protocol;
 mod error;
+mod auth;
 
 #[cfg(feature = "blocking")]
 mod blocking;

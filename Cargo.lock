@@ -1729,6 +1729,7 @@ dependencies = [
  "futures-util",
  "memchr",
  "percent-encoding",
+ "sha-1",
  "sqlx-core",
  "string",
  "url",

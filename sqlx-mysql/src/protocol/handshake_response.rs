@@ -15,7 +15,7 @@ pub(crate) struct HandshakeResponse<'a> {
     pub(crate) charset: u8,
     pub(crate) username: Option<&'a str>,
     pub(crate) auth_plugin_name: Option<&'a str>,
-    pub(crate) auth_response: Option<&'a [u8]>,
+    pub(crate) auth_response: Option<Vec<u8>>,
 }
 
 impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
@@ -29,7 +29,7 @@ impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
 
         buf.write_maybe_str_nul(self.username);
 
-        let auth_response = self.auth_response.unwrap_or_default();
+        let auth_response = self.auth_response.as_deref().unwrap_or_default();
 
         if capabilities.contains(Capabilities::PLUGIN_AUTH_LENENC_DATA) {
             buf.write_bytes_lenenc(auth_response);

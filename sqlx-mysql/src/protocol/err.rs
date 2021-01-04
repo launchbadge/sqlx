@@ -18,6 +18,22 @@ pub(crate) struct ErrPacket {
     pub(crate) error_message: String<Bytes>,
 }
 
+impl ErrPacket {
+    pub(crate) fn new(code: u16, message: &str) -> Self {
+        let message_bytes = Bytes::copy_from_slice(message.as_bytes());
+        let state_bytes = Bytes::from_static(b"HY000");
+
+        // UNSAFE: the UTF-8 string is converted to bytes right above. The string crate has a
+        //         safe method for creation from Rust str but it pulls in an old version of Bytes
+        #[allow(unsafe_code)]
+        let (message, state) = unsafe {
+            (String::from_utf8_unchecked(message_bytes), String::from_utf8_unchecked(state_bytes))
+        };
+
+        Self { error_code: code, sql_state: Some(state), error_message: message }
+    }
+}
+
 impl Deserialize<'_, Capabilities> for ErrPacket {
     fn deserialize_with(mut buf: Bytes, capabilities: Capabilities) -> Result<Self> {
         let tag = buf.get_u8();
@@ -57,7 +73,10 @@ mod tests {
 
         assert_eq!(ok.sql_state, None);
         assert_eq!(ok.error_code, 1251);
-        assert_eq!(&ok.error_message, "Client does not support authentication protocol requested by server; consider upgrading MySQL client");
+        assert_eq!(
+            &ok.error_message,
+            "Client does not support authentication protocol requested by server; consider upgrading MySQL client"
+        );
     }
 
     #[test]

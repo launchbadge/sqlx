@@ -3,7 +3,7 @@ use sqlx::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _conn = <MySqlConnection>::connect("mysql://root:password@localhost:3307/main").await?;
+    let _conn = <MySqlConnection>::connect("mysql://root:password@localhost:3307").await?;
 
     Ok(())
 }

@@ -37,3 +37,4 @@ bytes = "1.0"
 memchr = "2.3"
 bitflags = "1.2"
 string = { version = "0.2.1", default-features = false }
+sha-1 = "0.9.2"
