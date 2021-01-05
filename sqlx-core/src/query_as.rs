@@ -50,7 +50,7 @@ where
 impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments> {
     /// Bind a value for use with this SQL query.
     ///
-    /// See [`Query::bind`](crate::query::Query::bind).
+    /// See [`Query::bind`](Query::bind).
     pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self

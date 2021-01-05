@@ -23,7 +23,7 @@ pub trait Value {
     /// # Panics
     ///
     /// Panics if the value cannot be decoded into the requested type.
-    /// See [`try_decode`](#method.try_decode) for a non-panicking version.
+    /// See [`try_decode`](Self::try_decode) for a non-panicking version.
     ///
     #[inline]
     fn decode<'r, T>(&'r self) -> T
@@ -35,13 +35,13 @@ pub trait Value {
 
     /// Decode this single value into the requested type.
     ///
-    /// Unlike [`decode`](#method.decode), this method does not check that the type of this
+    /// Unlike [`decode`](Self::decode), this method does not check that the type of this
     /// value is compatible with the Rust type and blindly tries to decode the value.
     ///
     /// # Panics
     ///
     /// Panics if the value cannot be decoded into the requested type.
-    /// See [`try_decode_unchecked`](#method.try_decode_unchecked) for a non-panicking version.
+    /// See [`try_decode_unchecked`](Self::try_decode_unchecked) for a non-panicking version.
     ///
     #[inline]
     fn decode_unchecked<'r, T>(&'r self) -> T
@@ -77,7 +77,7 @@ pub trait Value {
 
     /// Decode this single value into the requested type.
     ///
-    /// Unlike [`try_decode`](#method.try_decode), this method does not check that the type of this
+    /// Unlike [`try_decode`](Self::try_decode), this method does not check that the type of this
     /// value is compatible with the Rust type and blindly tries to decode the value.
     ///
     /// # Errors

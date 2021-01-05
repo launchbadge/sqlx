@@ -23,12 +23,13 @@ pub struct Query<'q, DB: Database, A> {
 
 /// SQL query that will map its results to owned Rust types.
 ///
-/// Returned by [Query::try_map], `query!()`, etc. Has most of the same methods as [Query] but
+/// Returned by [`Query::try_map`], `query!()`, etc. Has most of the same methods as [`Query`] but
 /// the return types are changed to reflect the mapping. However, there is no equivalent of
-/// [Query::execute] as it doesn't make sense to map the result type and then ignore it.
+/// [`Query::execute`] as it doesn't make sense to map the result type and then ignore it.
 ///
-/// [Query::bind] is also omitted; stylistically we recommend placing your `.bind()` calls
-/// before `.try_map()`.
+/// [`Query::bind`] is also omitted; stylistically we recommend placing your `.bind()` calls
+/// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
+/// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
 pub struct Map<'q, DB: Database, F, A> {
     inner: Query<'q, DB, A>,

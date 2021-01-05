@@ -146,7 +146,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
 }
 
 /// ### Panics
-/// If this `BigDecimal` cannot be represented by [PgNumeric].
+/// If this `BigDecimal` cannot be represented by `PgNumeric`.
 impl Encode<'_, Postgres> for BigDecimal {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         PgNumeric::try_from(self)

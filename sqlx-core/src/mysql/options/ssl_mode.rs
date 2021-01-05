@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 /// Options for controlling the desired security state of the connection to the MySQL server.
 ///
-/// It is used by the [`ssl_mode`](MySqlConnectOptions::ssl_mode) method.
+/// It is used by the [`ssl_mode`](super::MySqlConnectOptions::ssl_mode) method.
 #[derive(Debug, Clone, Copy)]
 pub enum MySqlSslMode {
     /// Establish an unencrypted connection.

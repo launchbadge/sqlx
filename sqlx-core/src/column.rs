@@ -43,8 +43,8 @@ pub trait ColumnIndex<T: ?Sized>: private_column_index::Sealed + Debug {
     /// Returns a valid positional index into the row or statement, [`ColumnIndexOutOfBounds`], or,
     /// [`ColumnNotFound`].
     ///
-    /// [`ColumnNotFound`]: ../enum.Error.html#variant.ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: ../enum.Error.html#variant.ColumnIndexOutOfBounds
+    /// [`ColumnNotFound`]: Error::ColumnNotFound
+    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     fn index(&self, container: &T) -> Result<usize, Error>;
 }
 

@@ -12,12 +12,12 @@ use crate::mssql::Mssql;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::Sqlite;
 
-// Type is required by the bounds of the [Row] and [Arguments] trait but its been overridden in
+// Type is required by the bounds of the [`Row`] and [`Arguments`] trait but its been overridden in
 // AnyRow and AnyArguments to not use this implementation; but instead, delegate to the
 // database-specific implementation.
 //
 // The other use of this trait is for compile-time verification which is not feasible to support
-// for the [Any] driver.
+// for the [`Any`] driver.
 macro_rules! impl_any_type {
     ($ty:ty) => {
         impl crate::types::Type<crate::any::Any> for $ty

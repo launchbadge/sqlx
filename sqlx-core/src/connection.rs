@@ -104,7 +104,7 @@ pub trait Connection: Send {
 
     /// Establish a new database connection.
     ///
-    /// A value of `Options` is parsed from the provided connection string. This parsing
+    /// A value of [`Options`][Self::Options] is parsed from the provided connection string. This parsing
     /// is database-specific.
     #[inline]
     fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>>

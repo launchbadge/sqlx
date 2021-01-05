@@ -62,10 +62,8 @@ impl PgMoney {
         Self(i64::from_le_bytes(buf))
     }
 
-    /// Convert a [`BigDecimal`] value into money using the correct precision
+    /// Convert a [`BigDecimal`](crate::types::BigDecimal) value into money using the correct precision
     /// defined in the PostgreSQL settings. The default precision is two.
-    ///
-    /// [`BigDecimal`]: ../../types/struct.BigDecimal.html
     #[cfg(feature = "bigdecimal")]
     pub fn from_bigdecimal(
         decimal: bigdecimal::BigDecimal,

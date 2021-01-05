@@ -77,8 +77,8 @@ impl<DB: Database> PoolOptions<DB> {
     /// If any connection is reaped by [`max_lifetime`] or [`idle_timeout`] and it brings
     /// the connection count below this amount, a new connection will be opened to replace it.
     ///
-    /// [`max_lifetime`]: #method.max_lifetime
-    /// [`idle_timeout`]: #method.idle_timeout
+    /// [`max_lifetime`]: Self::max_lifetime
+    /// [`idle_timeout`]: Self::idle_timeout
     pub fn min_connections(mut self, min: u32) -> Self {
         self.min_connections = min;
         self
@@ -97,7 +97,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// (parse trees, query metadata caches, thread-local storage, etc.) that are associated with a
     /// session.
     ///
-    /// [`idle_timeout`]: #method.idle_timeout
+    /// [`idle_timeout`]: Self::idle_timeout
     pub fn max_lifetime(mut self, lifetime: impl Into<Option<Duration>>) -> Self {
         self.max_lifetime = lifetime.into();
         self
@@ -117,8 +117,6 @@ impl<DB: Database> PoolOptions<DB> {
     /// before returning the connection.
     ///
     /// Defaults to `true`.
-    ///
-    /// [`Connection::ping`]: crate::connection::Connection::ping
     pub fn test_before_acquire(mut self, test: bool) -> Self {
         self.test_before_acquire = test;
         self
@@ -171,7 +169,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    pub fn before_acquire<F, Fut>(mut self, callback: F) -> Self
+    pub fn before_acquire<F>(mut self, callback: F) -> Self
     where
         for<'c> F: Fn(&'c mut DB::Connection) -> BoxFuture<'c, Result<bool, Error>>
             + 'static
@@ -182,7 +180,7 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    pub fn after_release<F, Fut>(mut self, callback: F) -> Self
+    pub fn after_release<F>(mut self, callback: F) -> Self
     where
         F: Fn(&mut DB::Connection) -> bool + 'static + Send + Sync,
     {

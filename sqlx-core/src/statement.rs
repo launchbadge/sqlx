@@ -43,7 +43,7 @@ pub trait Statement<'q>: Send + Sync {
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    /// See [`try_column`](#method.try_column) for a non-panicking version.
+    /// See [`try_column`](Self::try_column) for a non-panicking version.
     fn column<I>(&self, index: I) -> &<Self::Database as Database>::Column
     where
         I: ColumnIndex<Self>,
