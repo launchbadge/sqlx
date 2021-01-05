@@ -1,4 +1,4 @@
-//! Provides [`Decode`](trait.Decode.html) for decoding values from the database.
+//! Provides [`Decode`] for decoding values from the database.
 
 use crate::database::{Database, HasValueRef};
 use crate::error::BoxDynError;
@@ -11,9 +11,9 @@ use crate::value::ValueRef;
 /// A manual implementation of `Decode` can be useful when adding support for
 /// types externally to SQLx.
 ///
-/// The following showcases how to implement `Decode` to be generic over `Database`. The
+/// The following showcases how to implement `Decode` to be generic over [`Database`]. The
 /// implementation can be marginally simpler if you remove the `DB` type parameter and explicitly
-/// use the concrete `ValueRef` and `TypeInfo` types.
+/// use the concrete [`ValueRef`](HasValueRef::ValueRef) and [`TypeInfo`](Database::TypeInfo) types.
 ///
 /// ```rust
 /// # use sqlx_core::database::{Database, HasValueRef};

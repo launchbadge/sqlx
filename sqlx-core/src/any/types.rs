@@ -9,7 +9,7 @@
 //! | `i64`                                 | BIGINT                                               |
 //! | `f32`                                 | FLOAT                                                |
 //! | `f64`                                 | DOUBLE                                               |
-//! | `&str`, `String`                      | VARCHAR, CHAR, TEXT                                  |
+//! | `&str`, [`String`]                    | VARCHAR, CHAR, TEXT                                  |
 //!
 //! # Nullable
 //!

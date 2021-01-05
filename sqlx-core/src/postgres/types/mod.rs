@@ -11,15 +11,12 @@
 //! | `i64`                                 | BIGINT, BIGSERIAL, INT8                              |
 //! | `f32`                                 | REAL, FLOAT4                                         |
 //! | `f64`                                 | DOUBLE PRECISION, FLOAT8                             |
-//! | `&str`, `String`                      | VARCHAR, CHAR(N), TEXT, NAME                         |
+//! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //! | [`PgInterval`]                        | INTERVAL                                             |
-//! | [`PgRange<T>`]                        | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
+//! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
 //! | [`PgMoney`]                           | MONEY                                                |
 //!
-//! [`PgInterval`]: struct.PgInterval.html
-//! [`PgRange<T>`]: struct.PgRange.html
-//! [`PgMoney`]: struct.PgMoney.html
 //!
 //! ### [`bigdecimal`](https://crates.io/crates/bigdecimal)
 //! Requires the `bigdecimal` Cargo feature flag.
@@ -60,8 +57,6 @@
 //! | `time::Time`                          | TIME                                                 |
 //! | [`PgTimeTz`]                          | TIMETZ                                               |
 //!
-//! [`PgTimeTz`]: struct.PgTimeTz.html
-//!
 //! ### [`uuid`](https://crates.io/crates/uuid)
 //!
 //! Requires the `uuid` Cargo feature flag.
@@ -99,9 +94,7 @@
 //! `Value` and `RawValue` from `serde_json` can be used for unstructured JSON data with
 //! Postgres.
 //!
-//! [`Json<T>`] can be used for structured JSON data with Postgres.
-//!
-//! [`Json<T>`]: crate::types::Json
+//! [`Json<T>`](crate::types::Json) can be used for structured JSON data with Postgres.
 //!
 //! # [Composite types](https://www.postgresql.org/docs/current/rowtypes.html)
 //!

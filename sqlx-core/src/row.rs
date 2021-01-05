@@ -35,7 +35,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    /// See [`try_column`](#method.try_column) for a non-panicking version.
+    /// See [`try_column`](Self::try_column) for a non-panicking version.
     fn column<I>(&self, index: I) -> &<Self::Database as Database>::Column
     where
         I: ColumnIndex<Self>,
@@ -62,7 +62,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
     /// # Panics
     ///
     /// Panics if the column does not exist or its value cannot be decoded into the requested type.
-    /// See [`try_get`](#method.try_get) for a non-panicking version.
+    /// See [`try_get`](Self::try_get) for a non-panicking version.
     ///
     #[inline]
     fn get<'r, T, I>(&'r self, index: I) -> T
@@ -75,14 +75,14 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
 
     /// Index into the database row and decode a single value.
     ///
-    /// Unlike [`get`](#method.get), this method does not check that the type
+    /// Unlike [`get`](Self::get), this method does not check that the type
     /// being returned from the database is compatible with the Rust type and blindly tries
     /// to decode the value.
     ///
     /// # Panics
     ///
     /// Panics if the column does not exist or its value cannot be decoded into the requested type.
-    /// See [`try_get_unchecked`](#method.try_get_unchecked) for a non-panicking version.
+    /// See [`try_get_unchecked`](Self::try_get_unchecked) for a non-panicking version.
     ///
     #[inline]
     fn get_unchecked<'r, T, I>(&'r self, index: I) -> T
@@ -134,7 +134,7 @@ pub trait Row: private_row::Sealed + Unpin + Send + Sync + 'static {
 
     /// Index into the database row and decode a single value.
     ///
-    /// Unlike [`try_get`](#method.try_get), this method does not check that the type
+    /// Unlike [`try_get`](Self::try_get), this method does not check that the type
     /// being returned from the database is compatible with the Rust type and blindly tries
     /// to decode the value.
     ///

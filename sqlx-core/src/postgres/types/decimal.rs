@@ -155,7 +155,7 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
 }
 
 /// ### Panics
-/// If this `Decimal` cannot be represented by [PgNumeric].
+/// If this `Decimal` cannot be represented by `PgNumeric`.
 impl Encode<'_, Postgres> for Decimal {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         PgNumeric::try_from(self)

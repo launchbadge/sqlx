@@ -217,7 +217,7 @@ impl PgTypeInfo {
     ///
     /// Note that the OID for a type is very dependent on the environment. If you only ever use
     /// one database or if this is an unhandled build-in type, you should be fine. Otherwise,
-    /// you will be better served using [`with_name`](#method.with_name).
+    /// you will be better served using [`with_name`](Self::with_name).
     pub const fn with_oid(oid: u32) -> Self {
         Self(PgType::DeclareWithOid(oid))
     }

@@ -21,10 +21,10 @@
 //! [PostgreSQL]: https://www.postgresql.org/
 //! [SQLite]: https://www.sqlite.org/
 //!
-//! [`mysql`]: ../sqlite/index.html
-//! [`postgres`]: ../postgres/index.html
-//! [`mssql`]: ../mssql/index.html
-//! [`sqlite`]: ../sqlite/index.html
+//! [`mysql`]: crate::mysql
+//! [`postgres`]: crate::postgres
+//! [`mssql`]: crate::mssql
+//! [`sqlite`]: crate::sqlite
 //!
 //! ## Tier 2
 //!
@@ -40,7 +40,7 @@
 //! to take full advantage of the performance and type safety made available by Rust.
 //!
 //! We recognize that you may wish to make a runtime decision to decide the database driver. The
-//! [`Any`] driver is provided for that purpose.
+//! [`Any`](crate::any) driver is provided for that purpose.
 //!
 //! ## Example
 //!
@@ -52,9 +52,6 @@
 //! // required, decided by the scheme of the URI
 //! let conn = AnyConnection::connect("postgres://localhost/sqlx").await?;
 //! ```
-//!
-//! [`Any`]: ../any/index.html
-//!
 
 use std::fmt::Debug;
 
@@ -111,7 +108,6 @@ pub trait Database:
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
-/// [`Database`]: trait.Database.html
 /// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasValueRef<'r> {
     type Database: Database;
@@ -128,7 +124,6 @@ pub trait HasValueRef<'r> {
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
-/// [`Database`]: trait.Database.html
 /// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasArguments<'q> {
     type Database: Database;
@@ -147,7 +142,6 @@ pub trait HasArguments<'q> {
 /// The upcoming Rust feature, [Generic Associated Types], should obviate
 /// the need for this trait.
 ///
-/// [`Database`]: trait.Database.html
 /// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
 pub trait HasStatement<'q> {
     type Database: Database;
@@ -157,6 +151,4 @@ pub trait HasStatement<'q> {
 }
 
 /// A [`Database`] that maintains a client-side cache of prepared statements.
-///
-/// [`Database`]: trait.Database.html
 pub trait HasStatementCache {}

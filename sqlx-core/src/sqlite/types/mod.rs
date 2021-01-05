@@ -10,7 +10,7 @@
 //! | `i64`                                 | BIGINT, INT8                                         |
 //! | `f32`                                 | REAL                                                 |
 //! | `f64`                                 | REAL                                                 |
-//! | `&str`, `String`                      | TEXT                                                 |
+//! | `&str`, [`String`]                    | TEXT                                                 |
 //! | `&[u8]`, `Vec<u8>`                    | BLOB                                                 |
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)

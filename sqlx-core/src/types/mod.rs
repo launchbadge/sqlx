@@ -3,10 +3,10 @@
 //! To see how each SQL type maps to a Rust type, see the corresponding `types` module for each
 //! database:
 //!
-//!  * [PostgreSQL](../postgres/types/index.html)
-//!  * [MySQL](../mysql/types/index.html)
-//!  * [SQLite](../sqlite/types/index.html)
-//!  * [MSSQL](../mssql/types/index.html)
+//!  * [PostgreSQL](crate::postgres::types)
+//!  * [MySQL](crate::mysql::types)
+//!  * [SQLite](crate::sqlite::types)
+//!  * [MSSQL](crate::mssql::types)
 //!
 //! Any external types that have had [`Type`] implemented for, are re-exported in this module
 //! for convenience as downstream users need to use a compatible version of the external crate
@@ -14,7 +14,7 @@
 //!
 //! # Nullable
 //!
-//! To represents nullable SQL types, `Option<T>` is supported where `T` implements `Type`.
+//! To represent nullable SQL types, `Option<T>` is supported where `T` implements `Type`.
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
 //!
 
@@ -89,11 +89,8 @@ pub use json::Json;
 /// ## Derivable
 ///
 /// This trait can be derived by SQLx to support Rust-only wrapper types, enumerations, and (for
-/// postgres) structured records. Additionally, an implementation of [`Encode`] and [`Decode`] is
+/// postgres) structured records. Additionally, an implementation of [`Encode`](crate::encode::Encode) and [`Decode`](crate::decode::Decode) is
 /// generated.
-///
-/// [`Encode`]: trait.Encode.html
-/// [`Decode`]: trait.Decode.html
 ///
 /// ### Transparent
 ///
