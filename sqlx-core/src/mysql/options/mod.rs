@@ -51,8 +51,6 @@ pub use ssl_mode::MySqlSslMode;
 /// # }).unwrap();
 /// # }
 /// ```
-///
-/// [`MySqlSslMode`]: enum.MySqlSslMode.html
 #[derive(Debug, Clone)]
 pub struct MySqlConnectOptions {
     pub(crate) host: String,

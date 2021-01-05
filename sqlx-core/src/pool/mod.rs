@@ -51,9 +51,8 @@
 //! ```
 //!
 //! A connection or transaction may also be manually acquired with
-//! [`Pool::acquire`][Pool::acquire] or
-//! [`Pool::begin`][Pool::begin].
-//!
+//! [`Pool::acquire`] or
+//! [`Pool::begin`].
 
 use self::inner::SharedPool;
 use crate::connection::Connection;

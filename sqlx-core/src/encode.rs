@@ -1,4 +1,4 @@
-//! Provides [`Encode`](trait.Encode.html) for encoding values for the database.
+//! Provides [`Encode`] for encoding values for the database.
 
 use std::mem;
 

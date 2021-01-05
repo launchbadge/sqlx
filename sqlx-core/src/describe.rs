@@ -4,7 +4,7 @@ use std::convert::identity;
 
 /// Provides extended information on a statement.
 ///
-/// Returned from [`Executor::describe`](trait.Executor.html#method.describe).
+/// Returned from [`Executor::describe`].
 ///
 /// The query macros (e.g., `query!`, `query_as!`, etc.) use the information here to validate
 /// output and parameter types; and, generate an anonymous record.
