@@ -66,8 +66,18 @@ fn expand_derive_from_row_struct(
     for field in fields {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: sqlx::decode::Decode<#lifetime, R::Database>));
-        predicates.push(parse_quote!(#ty: sqlx::types::Type<R::Database>));
+        let attributes = parse_child_attributes(&field.attrs).unwrap();
+
+        if attributes.flatten && attributes.default {
+            return Err(syn::Error::new_spanned(field, "sqlx: Field cannot be both 'default' and 'flatten'"));
+        }
+
+        if !attributes.flatten {
+            predicates.push(parse_quote!(#ty: sqlx::decode::Decode<#lifetime, R::Database>));
+            predicates.push(parse_quote!(#ty: sqlx::types::Type<R::Database>));
+        } else {
+            predicates.push(parse_quote!(#ty: sqlx::FromRow<#lifetime, R>));
+        }
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -88,7 +98,11 @@ fn expand_derive_from_row_struct(
 
         let ty = &field.ty;
 
-        if attributes.default {
+        if attributes.flatten {
+            Some(parse_quote!(
+                let #id: #ty = <#ty as ::sqlx::FromRow<R>>::from_row(row)?;
+            ))
+        } else if attributes.default {
             Some(
                 parse_quote!(let #id: #ty = row.try_get(#id_s).or_else(|e| match e {
                 sqlx::Error::ColumnNotFound(_) => {
