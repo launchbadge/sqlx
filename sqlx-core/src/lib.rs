@@ -17,6 +17,7 @@
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::clippy::missing_errors_doc)]
 
 // crate renames to allow the feature name "tokio" and "async-std" (as features
 // can't directly conflict with dependency names)
@@ -41,7 +42,7 @@ pub mod blocking;
 
 pub use connection::Connection;
 pub use database::{Database, HasOutput};
-pub use error::{Error, Result, DatabaseError};
+pub use error::{DatabaseError, Error, Result};
 pub use options::ConnectOptions;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;

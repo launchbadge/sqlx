@@ -20,6 +20,14 @@ pub enum Error {
 
 impl Error {
     #[doc(hidden)]
+    pub fn connect<E>(error: E) -> Self
+    where
+        E: DatabaseError,
+    {
+        Self::Connect(Box::new(error))
+    }
+
+    #[doc(hidden)]
     pub fn configuration(
         message: impl Into<Cow<'static, str>>,
         source: impl Into<Box<dyn StdError + Send + Sync>>,
