@@ -26,14 +26,18 @@ blocking = []
 # abstract async feature
 # not meant to be used directly
 # activates several crates used in all async runtimes
-async = ["futures-util", "futures-io"]
+async = ["futures-util", "futures-io", "futures-core"]
 
 # async runtimes
 async-std = ["async", "_async-std"]
 actix = ["async", "actix-rt", "tokio_02", "async-compat_02"]
 tokio = ["async", "_tokio", "async-compat"]
 
+# mock runtime; intended for testing drivers
+_mock = ["conquer-once", "parking_lot", "crossbeam"]
+
 [dependencies]
+log = "0.4.11"
 actix-rt = { version = "1.1", optional = true }
 _async-std = { version = "1.8", optional = true, package = "async-std" }
 futures-util = { version = "0.3", optional = true, features = ["io"] }
@@ -42,6 +46,10 @@ tokio_02 = { version = "0.2", optional = true, package = "tokio", features = ["n
 async-compat = { version = "*", git = "https://github.com/taiki-e/async-compat", branch = "tokio1", optional = true }
 async-compat_02 = { version = "0.1", optional = true, package = "async-compat" }
 futures-io = { version = "0.3", optional = true }
+futures-core = { version = "0.3", optional = true }
 bytes = "1.0"
-string = { version = "0.2.1", default-features = false }
+bytestring = "1.0.0"
 memchr = "2.3"
+conquer-once = { version = "0.3.2", optional = true }
+parking_lot = { version = "0.11.1", optional = true }
+crossbeam = { version = "0.8.0", optional = true }
