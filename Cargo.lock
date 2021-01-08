@@ -2554,6 +2554,7 @@ dependencies = [
  "digest 0.9.0",
  "either",
  "encoding_rs",
+ "futures",
  "futures-channel",
  "futures-core",
  "futures-util",

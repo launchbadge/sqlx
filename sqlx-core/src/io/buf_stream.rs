@@ -3,6 +3,7 @@
 use std::io;
 use std::ops::{Deref, DerefMut, RangeBounds};
 
+use futures::lock::Mutex;
 use bytes::BytesMut;
 use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWrite};
 
@@ -23,6 +24,7 @@ where
 
     // we read into the read buffer using 100% safe code
     rbuf: BytesMut,
+    rlock: Mutex<i32>,
 }
 
 impl<S> BufStream<S>
@@ -34,6 +36,7 @@ where
             stream,
             wbuf: Vec::with_capacity(512),
             rbuf: BytesMut::with_capacity(4096),
+            rlock: Mutex::new(0),
         }
     }
 
@@ -73,9 +76,11 @@ where
     }
 
     pub async fn read_raw(&mut self, cnt: usize) -> Result<BytesMut, Error> {
-        read_raw_into(&mut self.stream, &mut self.rbuf, cnt).await?;
-        let buf = self.rbuf.split_to(cnt);
-
+        let buf = {
+            let _lock = self.rlock.lock().await;
+            read_raw_into(&mut self.stream, &mut self.rbuf, cnt).await?;
+            self.rbuf.split_to(cnt)
+        };
         Ok(buf)
     }
 
@@ -87,7 +92,7 @@ where
         use core::ops::Bound;
         let len = self.rbuf.len();
         let end = match range.end_bound() {
-            Bound::Included(&n) => n+1,
+            Bound::Included(&n) => n + 1,
             Bound::Excluded(&n) => n,
             Bound::Unbounded => len,
         };
