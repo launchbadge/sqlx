@@ -6,16 +6,24 @@ use sqlx_core::{Connection, DefaultRuntime, Runtime};
 use crate::protocol::Capabilities;
 use crate::{MySql, MySqlConnectOptions};
 
-#[cfg(feature = "async")]
-pub(crate) mod establish;
+#[cfg(any(feature = "async", feature = "blocking"))]
+mod connect;
 
+#[cfg(any(feature = "async", feature = "blocking"))]
+mod stream;
+
+#[allow(clippy::module_name_repetitions)]
 pub struct MySqlConnection<Rt = DefaultRuntime>
 where
     Rt: Runtime,
 {
     stream: BufStream<Rt::TcpStream>,
     connection_id: u32,
+
+    // the capability flags are used by the client and server to indicate which
+    // features they support and want to use.
     capabilities: Capabilities,
+
     // the sequence-id is incremented with each packet and may wrap around. It starts at 0 and is
     // reset to 0 when a new command begins in the Command Phase.
     sequence_id: u8,
@@ -25,6 +33,7 @@ impl<Rt> MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
+    #[cfg(any(feature = "async", feature = "blocking"))]
     pub(crate) fn new(stream: Rt::TcpStream) -> Self {
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
@@ -79,6 +88,21 @@ where
         Rt: sqlx_core::AsyncRuntime,
         <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
+        unimplemented!()
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl<Rt> sqlx_core::blocking::Connection<Rt> for MySqlConnection<Rt>
+where
+    Rt: sqlx_core::blocking::Runtime,
+    <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+{
+    fn close(self) -> sqlx_core::Result<()> {
+        unimplemented!()
+    }
+
+    fn ping(&mut self) -> sqlx_core::Result<()> {
         unimplemented!()
     }
 }

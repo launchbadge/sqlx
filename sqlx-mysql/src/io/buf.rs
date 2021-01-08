@@ -1,6 +1,6 @@
 use bytes::{Buf, Bytes};
+use bytestring::ByteString;
 use sqlx_core::io::BufExt;
-use string::String;
 
 // UNSAFE: _unchecked string methods
 // intended for use when the protocol is *known* to always produce
@@ -10,10 +10,10 @@ pub(crate) trait MySqlBufExt: BufExt {
     fn get_uint_lenenc(&mut self) -> u64;
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_lenenc_unchecked(&mut self) -> String<Bytes>;
+    unsafe fn get_str_lenenc_unchecked(&mut self) -> ByteString;
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_eof_unchecked(&mut self) -> String<Bytes>;
+    unsafe fn get_str_eof_unchecked(&mut self) -> ByteString;
 
     fn get_bytes_lenenc(&mut self) -> Bytes;
 }
@@ -38,14 +38,14 @@ impl MySqlBufExt for Bytes {
     }
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_lenenc_unchecked(&mut self) -> String<Bytes> {
+    unsafe fn get_str_lenenc_unchecked(&mut self) -> ByteString {
         let len = self.get_uint_lenenc() as usize;
 
         self.get_str_unchecked(len)
     }
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_eof_unchecked(&mut self) -> String<Bytes> {
+    unsafe fn get_str_eof_unchecked(&mut self) -> ByteString {
         self.get_str_unchecked(self.len())
     }
 

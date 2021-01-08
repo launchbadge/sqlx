@@ -1,7 +1,7 @@
 use bytes::{Buf, Bytes};
+use bytestring::ByteString;
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
-use string::String;
 
 use crate::io::MySqlBufExt;
 use crate::protocol::Capabilities;
@@ -14,21 +14,14 @@ use crate::protocol::Capabilities;
 #[derive(Debug)]
 pub(crate) struct ErrPacket {
     pub(crate) error_code: u16,
-    pub(crate) sql_state: Option<String<Bytes>>,
-    pub(crate) error_message: String<Bytes>,
+    pub(crate) sql_state: Option<ByteString>,
+    pub(crate) error_message: ByteString,
 }
 
 impl ErrPacket {
     pub(crate) fn new(code: u16, message: &str) -> Self {
-        let message_bytes = Bytes::copy_from_slice(message.as_bytes());
-        let state_bytes = Bytes::from_static(b"HY000");
-
-        // UNSAFE: the UTF-8 string is converted to bytes right above. The string crate has a
-        //         safe method for creation from Rust str but it pulls in an old version of Bytes
-        #[allow(unsafe_code)]
-        let (message, state) = unsafe {
-            (String::from_utf8_unchecked(message_bytes), String::from_utf8_unchecked(state_bytes))
-        };
+        let message = ByteString::from(message);
+        let state = ByteString::from_static("HY000");
 
         Self { error_code: code, sql_state: Some(state), error_message: message }
     }

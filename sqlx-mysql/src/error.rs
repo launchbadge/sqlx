@@ -10,6 +10,12 @@ use crate::protocol::ErrPacket;
 #[derive(Debug)]
 pub struct MySqlDatabaseError(pub(crate) ErrPacket);
 
+impl MySqlDatabaseError {
+    pub(crate) fn new(code: u16, message: &str) -> Self {
+        Self(ErrPacket::new(code, message))
+    }
+}
+
 impl DatabaseError for MySqlDatabaseError {
     fn message(&self) -> &str {
         &self.0.error_message

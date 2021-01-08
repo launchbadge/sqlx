@@ -30,11 +30,21 @@ async = ["futures-util", "sqlx-core/async", "futures-io"]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 futures-util = { version = "0.3.8", optional = true }
 either = "1.6.1"
+log = "0.4.11"
+bytestring = "1.0.0"
 url = "2.2.0"
 percent-encoding = "2.1.0"
 futures-io = { version = "0.3", optional = true }
 bytes = "1.0"
 memchr = "2.3"
 bitflags = "1.2"
-string = { version = "0.2.1", default-features = false }
 sha-1 = "0.9.2"
+sha2 = "0.9.2"
+rsa = "0.3.0"
+base64 = "0.13.0"
+rand = "0.7"
+
+[dev-dependencies]
+sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
+futures-executor = "0.3.8"
+anyhow = "1.0.37"

@@ -1,10 +1,14 @@
+use std::str::FromStr;
+
 use bytes::buf::Chain;
 use bytes::{Buf, Bytes};
+use bytestring::ByteString;
 use memchr::memchr;
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
 
-use crate::protocol::{Capabilities, Status};
+use crate::protocol::auth_plugin::NativeAuthPlugin;
+use crate::protocol::{AuthPlugin, Capabilities, Status};
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10
 // https://mariadb.com/kb/en/connection/#initial-handshake-packet
@@ -15,7 +19,7 @@ pub(crate) struct Handshake {
     pub(crate) protocol_version: u8,
 
     // human-readable server version
-    pub(crate) server_version: string::String<Bytes>,
+    pub(crate) server_version: ByteString,
 
     pub(crate) connection_id: u32,
 
@@ -25,10 +29,8 @@ pub(crate) struct Handshake {
     // default server character set
     pub(crate) charset: Option<u8>,
 
+    pub(crate) auth_plugin: Box<dyn AuthPlugin>,
     pub(crate) auth_plugin_data: Chain<Bytes, Bytes>,
-
-    // name of the auth_method that the auth_plugin_data belongs to
-    pub(crate) auth_plugin_name: Option<string::String<Bytes>>,
 }
 
 impl Deserialize<'_, Capabilities> for Handshake {
@@ -88,6 +90,11 @@ impl Deserialize<'_, Capabilities> for Handshake {
 
             auth_plugin_data_2 = buf.split_to(len as usize);
 
+            if auth_plugin_data_2.ends_with(&[0]) {
+                // if this terminates in a NUL; drop the NUL
+                auth_plugin_data_2.truncate(auth_plugin_data_2.len() - 1);
+            }
+
             if capabilities.contains(Capabilities::PLUGIN_AUTH) {
                 // due to Bug#59453 the auth-plugin-name is missing the terminating NUL-char
                 // in versions prior to 5.5.10 and 5.6.2
@@ -96,8 +103,7 @@ impl Deserialize<'_, Capabilities> for Handshake {
 
                 // read to NUL or read to the end if we can't find a NUL
 
-                let auth_plugin_name_end =
-                    memchr(b'\0', &buf).unwrap_or(buf.len());
+                let auth_plugin_name_end = memchr(b'\0', &buf).unwrap_or(buf.len());
 
                 // UNSAFE: auth plugin names are known to be ASCII
                 #[allow(unsafe_code)]
@@ -116,7 +122,10 @@ impl Deserialize<'_, Capabilities> for Handshake {
             capabilities,
             status,
             auth_plugin_data: auth_plugin_data_1.chain(auth_plugin_data_2),
-            auth_plugin_name,
+            auth_plugin: auth_plugin_name
+                .map(|name| <Box<dyn AuthPlugin>>::from_str(&name))
+                .transpose()?
+                .unwrap_or_else(|| Box::new(NativeAuthPlugin)),
         })
     }
 }
@@ -167,11 +176,11 @@ mod tests {
 
         assert_eq!(h.charset, Some(255));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name.as_deref(), Some("caching_sha2_password"));
+        assert_eq!(h.auth_plugin.name(), "caching_sha2_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
-            &[17, 52, 97, 66, 48, 99, 6, 103, 116, 76, 3, 115, 15, 91, 52, 13, 108, 52, 46, 32, 0]
+            &[17, 52, 97, 66, 48, 99, 6, 103, 116, 76, 3, 115, 15, 91, 52, 13, 108, 52, 46, 32]
         );
     }
 
@@ -211,14 +220,11 @@ mod tests {
 
         assert_eq!(h.charset, Some(8));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name.as_deref(), Some("mysql_native_password"));
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
-            &[
-                116, 54, 76, 92, 106, 34, 100, 83, 85, 49, 52, 79, 112, 104, 57, 34, 60, 72, 53,
-                110, 0
-            ]
+            &[116, 54, 76, 92, 106, 34, 100, 83, 85, 49, 52, 79, 112, 104, 57, 34, 60, 72, 53, 110]
         );
     }
 
@@ -258,14 +264,11 @@ mod tests {
 
         assert_eq!(h.charset, Some(45));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name.as_deref(), Some("mysql_native_password"));
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
-            &[
-                39, 80, 66, 57, 52, 57, 99, 102, 85, 89, 62, 104, 114, 38, 96, 51, 123, 53, 53, 72,
-                0
-            ]
+            &[39, 80, 66, 57, 52, 57, 99, 102, 85, 89, 62, 104, 114, 38, 96, 51, 123, 53, 53, 72,]
         );
     }
 
@@ -305,11 +308,11 @@ mod tests {
 
         assert_eq!(h.charset, Some(8));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name.as_deref(), Some("mysql_native_password"));
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
-            &[45, 86, 76, 89, 90, 58, 80, 100, 39, 50, 102, 43, 66, 76, 56, 110, 71, 86, 91, 71, 0]
+            &[45, 86, 76, 89, 90, 58, 80, 100, 39, 50, 102, 43, 66, 76, 56, 110, 71, 86, 91, 71]
         );
     }
 
@@ -334,13 +337,13 @@ mod tests {
 
         assert_eq!(h.charset, Some(8));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name, None);
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
             &[
                 98, 115, 61, 115, 78, 105, 71, 101, 73, 122, 77, 80, 41, 121, 76, 76, 120, 59, 91,
-                57, 0
+                57
             ]
         );
     }
@@ -373,14 +376,11 @@ mod tests {
 
         assert_eq!(h.charset, Some(8));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name, None);
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
-            &[
-                60, 102, 108, 108, 90, 92, 66, 115, 60, 113, 69, 67, 95, 56, 55, 74, 79, 47, 57,
-                113, 0
-            ]
+            &[60, 102, 108, 108, 90, 92, 66, 115, 60, 113, 69, 67, 95, 56, 55, 74, 79, 47, 57, 113]
         );
     }
 
@@ -416,13 +416,13 @@ mod tests {
 
         assert_eq!(h.charset, Some(8));
         assert_eq!(h.status, Status::AUTOCOMMIT);
-        assert_eq!(h.auth_plugin_name.as_deref(), Some("mysql_native_password"));
+        assert_eq!(h.auth_plugin.name(), "mysql_native_password");
 
         assert_eq!(
             &*h.auth_plugin_data.copy_to_bytes(h.auth_plugin_data.remaining()),
             &[
                 96, 111, 45, 47, 67, 69, 112, 39, 107, 102, 64, 74, 53, 106, 54, 110, 74, 102, 65,
-                80, 0
+                80
             ]
         );
     }

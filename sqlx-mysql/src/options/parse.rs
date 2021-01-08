@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use std::borrow::Cow;
+use std::str::FromStr;
 
 use percent_encoding::percent_decode_str;
 use sqlx_core::{Error, Runtime};

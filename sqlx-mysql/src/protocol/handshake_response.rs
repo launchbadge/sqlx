@@ -1,4 +1,3 @@
-use bytes::BufMut;
 use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
 
@@ -14,8 +13,8 @@ pub(crate) struct HandshakeResponse<'a> {
     pub(crate) max_packet_size: u32,
     pub(crate) charset: u8,
     pub(crate) username: Option<&'a str>,
-    pub(crate) auth_plugin_name: Option<&'a str>,
-    pub(crate) auth_response: Option<Vec<u8>>,
+    pub(crate) auth_plugin_name: &'a str,
+    pub(crate) auth_response: Vec<u8>,
 }
 
 impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
@@ -29,7 +28,7 @@ impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
 
         buf.write_maybe_str_nul(self.username);
 
-        let auth_response = self.auth_response.as_deref().unwrap_or_default();
+        let auth_response = self.auth_response.as_slice();
 
         if capabilities.contains(Capabilities::PLUGIN_AUTH_LENENC_DATA) {
             buf.write_bytes_lenenc(auth_response);
@@ -50,7 +49,7 @@ impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
         }
 
         if capabilities.contains(Capabilities::PLUGIN_AUTH) {
-            buf.write_maybe_str_nul(self.auth_plugin_name);
+            buf.write_str_nul(self.auth_plugin_name);
         }
 
         Ok(())

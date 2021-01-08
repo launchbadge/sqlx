@@ -3,6 +3,7 @@
 //! [MySQL]: https://www.mysql.com/
 //!
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 #![warn(future_incompatible)]
@@ -21,16 +22,15 @@
 
 mod connection;
 mod database;
+mod error;
 mod io;
 mod options;
 mod protocol;
-mod error;
-mod auth;
 
-#[cfg(feature = "blocking")]
-mod blocking;
+#[cfg(test)]
+mod mock;
 
 pub use connection::MySqlConnection;
 pub use database::MySql;
-pub use options::MySqlConnectOptions;
 pub use error::MySqlDatabaseError;
+pub use options::MySqlConnectOptions;

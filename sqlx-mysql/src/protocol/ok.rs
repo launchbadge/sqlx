@@ -42,7 +42,7 @@ impl Deserialize<'_, Capabilities> for OkPacket {
 
 #[cfg(test)]
 mod tests {
-    use super::{OkPacket, Capabilities, Deserialize, Status};
+    use super::{Capabilities, Deserialize, OkPacket, Status};
 
     #[test]
     fn test_empty_ok_packet() {

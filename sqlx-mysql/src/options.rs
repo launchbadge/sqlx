@@ -11,6 +11,8 @@ mod builder;
 mod default;
 mod parse;
 
+// TODO: RSA Public Key (to avoid the key exchange for caching_sha2 and sha256 plugins)
+
 /// Options which can be used to configure how a MySQL connection is opened.
 ///
 /// A value of `MySqlConnectOptions` can be parsed from a connection URL,
@@ -135,6 +137,20 @@ where
         Rt: sqlx_core::AsyncRuntime,
         <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
-        futures_util::FutureExt::boxed(MySqlConnection::establish_async(self))
+        Box::pin(MySqlConnection::connect_async(self))
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl<Rt> sqlx_core::blocking::ConnectOptions<Rt> for MySqlConnectOptions<Rt>
+where
+    Rt: sqlx_core::blocking::Runtime,
+    <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+{
+    fn connect(&self) -> sqlx_core::Result<Self::Connection>
+    where
+        Self::Connection: Sized,
+    {
+        <MySqlConnection<Rt>>::connect(self)
     }
 }
