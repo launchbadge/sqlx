@@ -1,8 +1,8 @@
 use std::io;
 
 use bytes::{Buf, Bytes};
+use bytestring::ByteString;
 use memchr::memchr;
-use string::String;
 
 // UNSAFE: _unchecked string methods
 // intended for use when the protocol is *known* to always produce
@@ -10,23 +10,23 @@ use string::String;
 
 pub trait BufExt: Buf {
     #[allow(unsafe_code)]
-    unsafe fn get_str_unchecked(&mut self, n: usize) -> String<Bytes>;
+    unsafe fn get_str_unchecked(&mut self, n: usize) -> ByteString;
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<String<Bytes>>;
+    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<ByteString>;
 }
 
 impl BufExt for Bytes {
     #[allow(unsafe_code)]
-    unsafe fn get_str_unchecked(&mut self, n: usize) -> String<Bytes> {
-        String::from_utf8_unchecked(self.split_to(n))
+    unsafe fn get_str_unchecked(&mut self, n: usize) -> ByteString {
+        ByteString::from_bytes_unchecked(self.split_to(n))
     }
 
     #[allow(unsafe_code)]
-    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<String<Bytes>> {
+    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<ByteString> {
         let nul = memchr(b'\0', self).ok_or(io::ErrorKind::InvalidData)?;
 
-        Ok(String::from_utf8_unchecked(self.split_to(nul + 1).slice(..nul)))
+        Ok(ByteString::from_bytes_unchecked(self.split_to(nul + 1).slice(..nul)))
     }
 }
 
