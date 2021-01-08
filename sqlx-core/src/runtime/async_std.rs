@@ -1,6 +1,6 @@
 use std::io;
 
-use async_std::{net::TcpStream, task::block_on};
+use async_std::net::TcpStream;
 use futures_util::{future::BoxFuture, FutureExt};
 
 use crate::{AsyncRuntime, Runtime};
@@ -23,6 +23,6 @@ impl AsyncRuntime for AsyncStd {
 #[cfg(feature = "blocking")]
 impl crate::blocking::Runtime for AsyncStd {
     fn connect_tcp(host: &str, port: u16) -> io::Result<Self::TcpStream> {
-        block_on(<AsyncStd as AsyncRuntime>::connect_tcp(host, port))
+        async_std::task::block_on(<AsyncStd as AsyncRuntime>::connect_tcp(host, port))
     }
 }

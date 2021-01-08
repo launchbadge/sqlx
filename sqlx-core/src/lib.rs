@@ -53,6 +53,9 @@ pub use runtime::AsyncStd;
 pub use runtime::Runtime;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
+#[cfg(feature = "_mock")]
+#[doc(hidden)]
+pub use runtime::{mock, Mock};
 
 // pick a default runtime
 // this is so existing applications in SQLx pre 0.6 work and to
@@ -68,20 +71,33 @@ pub type DefaultRuntime = Tokio;
 #[cfg(all(not(all(feature = "async-std", feature = "tokio")), feature = "actix"))]
 pub type DefaultRuntime = Actix;
 
-#[cfg(all(not(feature = "async"), feature = "blocking"))]
+#[cfg(all(
+    not(any(feature = "async-std", feature = "tokio", feature = "actix")),
+    feature = "blocking"
+))]
 pub type DefaultRuntime = blocking::Blocking;
 
-// when there is no async runtime and the blocking runtime is not present
+// when there is no async runtime, and the blocking runtime is not present
 // the unit type is implemented for Runtime, this is only to allow the
 // lib to compile, the lib is mostly useless in this state
-#[cfg(not(any(feature = "async", feature = "blocking")))]
+#[cfg(not(any(
+    feature = "async_std",
+    feature = "actix",
+    feature = "tokio",
+    feature = "blocking"
+)))]
 pub type DefaultRuntime = ();
 
+#[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
 pub mod prelude {
-    #[cfg(all(not(feature = "async"), feature = "blocking"))]
-    pub use super::blocking::prelude::*;
     pub use super::ConnectOptions as _;
     pub use super::Connection as _;
     pub use super::Database as _;
     pub use super::Runtime as _;
 }
+
+#[cfg(all(
+    not(any(feature = "async-std", feature = "tokio", feature = "actix")),
+    feature = "blocking"
+))]
+pub use blocking::prelude;

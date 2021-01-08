@@ -1,3 +1,5 @@
+use std::io;
+
 use super::{Connection, Runtime};
 use crate::DefaultRuntime;
 
@@ -10,6 +12,7 @@ use crate::DefaultRuntime;
 pub trait ConnectOptions<Rt = DefaultRuntime>: crate::ConnectOptions<Rt>
 where
     Rt: Runtime,
+    <Rt as crate::Runtime>::TcpStream: io::Read + io::Write,
     Self::Connection: crate::Connection<Rt, Options = Self> + Connection<Rt>,
 {
     /// Establish a connection to the database.

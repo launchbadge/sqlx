@@ -1,8 +1,7 @@
 #[cfg(feature = "blocking")]
 use std::io::{Read, Write};
-use std::slice::from_raw_parts_mut;
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Bytes, BytesMut};
 #[cfg(feature = "async")]
 use futures_io::{AsyncRead, AsyncWrite};
 #[cfg(feature = "async")]
@@ -16,6 +15,7 @@ use futures_util::{AsyncReadExt, AsyncWriteExt};
 /// to `read` and `write` on the underlying stream.
 ///
 pub struct BufStream<S> {
+    #[cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
     stream: S,
 
     // (r)ead buffer
@@ -25,6 +25,7 @@ pub struct BufStream<S> {
     wbuf: Vec<u8>,
 
     // offset into [wbuf] that a previous write operation has written into
+    #[cfg(feature = "async")]
     wbuf_offset: usize,
 }
 
@@ -34,6 +35,7 @@ impl<S> BufStream<S> {
             stream,
             rbuf: BytesMut::with_capacity(read),
             wbuf: Vec::with_capacity(write),
+            #[cfg(feature = "async")]
             wbuf_offset: 0,
         }
     }
@@ -62,16 +64,13 @@ impl<S> BufStream<S> {
     pub fn buffer(&mut self) -> &mut Vec<u8> {
         &mut self.wbuf
     }
-
-    fn clear_wbuf(&mut self) {
-        // fully written buffer, move cursor back to the beginning
-        self.wbuf_offset = 0;
-        self.wbuf.clear();
-    }
 }
 
+#[cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
 macro_rules! read {
     ($(@$blocking:ident)? $self:ident, $offset:ident, $n:ident) => {{
+        use bytes::BufMut;
+
         // before waiting to receive data; ensure that the write buffer is flushed
         if !$self.wbuf.is_empty() {
             read!($(@$blocking)? @flush $self);
@@ -87,7 +86,7 @@ macro_rules! read {
                 // prepare a chunk of uninitialized memory to write to
                 // this is UB if the Read impl of the stream reads from the write buffer
                 let b = $self.rbuf.chunk_mut();
-                let b = from_raw_parts_mut(b.as_mut_ptr(), b.len());
+                let b = std::slice::from_raw_parts_mut(b.as_mut_ptr(), b.len());
 
                 // read as much as we can and return when the stream or our buffer is exhausted
                 let read = read!($(@$blocking)? @read $self, b);
@@ -121,7 +120,6 @@ macro_rules! read {
     };
 }
 
-
 #[cfg(feature = "async")]
 impl<S> BufStream<S>
 where
@@ -135,7 +133,9 @@ where
             self.wbuf_offset += self.stream.write(&self.wbuf[self.wbuf_offset..]).await?;
         }
 
-        self.clear_wbuf();
+        // fully written buffer, move cursor back to the beginning
+        self.wbuf_offset = 0;
+        self.wbuf.clear();
 
         Ok(())
     }
@@ -151,8 +151,8 @@ where
     S: Read + Write,
 {
     pub fn flush(&mut self) -> crate::Result<()> {
-        self.stream.write_all(&self.wbuf[self.wbuf_offset..])?;
-        self.clear_wbuf();
+        self.stream.write_all(&self.wbuf)?;
+        self.wbuf.clear();
 
         Ok(())
     }
