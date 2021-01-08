@@ -73,12 +73,13 @@ impl PgStream {
     pub(crate) async fn recv_unchecked(&mut self) -> Result<Message, Error> {
         // all packets in postgres start with a 5-byte header
         // this header contains the message type and the total length of the message
-        let mut header: Bytes = self.inner.read(5).await?;
+        let mut header = self.inner.slice(0..5).await?;
 
         let format = MessageFormat::try_from_u8(header.get_u8())?;
-        let size = (header.get_u32() - 4) as usize;
+        let size = (header.get_u32() + 1) as usize;
 
-        let contents = self.inner.read(size).await?;
+        let mut message: Bytes = self.inner.read(size).await?;
+        let contents: Bytes = message.split_off(5);
 
         Ok(Message { format, contents })
     }
@@ -87,10 +88,7 @@ impl PgStream {
     // May wait for more data from the server
     pub(crate) async fn recv(&mut self) -> Result<Message, Error> {
         loop {
-            let message = match self.recv_unchecked().await {
-                Ok(m) => m,
-                _ => continue,
-            };
+            let message = self.recv_unchecked().await?;
 
             match message.format {
                 MessageFormat::ErrorResponse => {

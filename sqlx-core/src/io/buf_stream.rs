@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::io;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, RangeBounds};
 
 use bytes::BytesMut;
 use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWrite};
@@ -80,7 +80,22 @@ where
     }
 
     pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
-        read_raw_into(&mut self.stream, buf, cnt).await
+        read_raw_into(&mut self.stream, buf, cnt - self.rbuf.len()).await
+    }
+
+    pub async fn slice(&mut self, range: std::ops::Range<usize>) -> Result<&[u8], Error> {
+        use core::ops::Bound;
+        let len = self.rbuf.len();
+        let end = match range.end_bound() {
+            Bound::Included(&n) => n+1,
+            Bound::Excluded(&n) => n,
+            Bound::Unbounded => len,
+        };
+        if end > len {
+            read_raw_into(&mut self.stream, &mut self.rbuf, end - len).await?;
+        }
+        let slice: &[u8] = self.rbuf.as_ref();
+        Ok(&slice[range])
     }
 }
 
@@ -112,10 +127,10 @@ async fn read_raw_into<S: AsyncRead + Unpin>(
     let offset = buf.len();
 
     // zero-fills the space in the read buffer
-    buf.resize(offset + cnt, 0);
+    buf.resize(cnt, 0);
 
     let mut read = offset;
-    while (offset + cnt) > read {
+    while cnt > read {
         // read in bytes from the stream into the read buffer starting
         // from the offset we last read from
         let n = stream.read(&mut buf[read..]).await?;
@@ -131,6 +146,5 @@ async fn read_raw_into<S: AsyncRead + Unpin>(
 
         read += n;
     }
-
     Ok(())
 }
