@@ -43,7 +43,6 @@ pub type MySqlPoolOptions = crate::pool::PoolOptions<MySql>;
 impl_into_arguments_for_arguments!(MySqlArguments);
 impl_executor_for_pool_connection!(MySql, MySqlConnection, MySqlRow);
 impl_executor_for_transaction!(MySql, MySqlRow);
-impl_map_row!(MySql, MySqlRow);
 impl_acquire!(MySql, MySqlConnection);
 impl_column_index_for_row!(MySqlRow);
 impl_column_index_for_statement!(MySqlStatement);

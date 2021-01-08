@@ -44,7 +44,6 @@ pub type PgPoolOptions = crate::pool::PoolOptions<Postgres>;
 impl_into_arguments_for_arguments!(PgArguments);
 impl_executor_for_pool_connection!(Postgres, PgConnection, PgRow);
 impl_executor_for_transaction!(Postgres, PgRow);
-impl_map_row!(Postgres, PgRow);
 impl_acquire!(Postgres, PgConnection);
 impl_column_index_for_row!(PgRow);
 impl_column_index_for_statement!(PgStatement);

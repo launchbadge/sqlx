@@ -45,7 +45,6 @@ pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);
 impl_executor_for_pool_connection!(Sqlite, SqliteConnection, SqliteRow);
 impl_executor_for_transaction!(Sqlite, SqliteRow);
-impl_map_row!(Sqlite, SqliteRow);
 impl_column_index_for_row!(SqliteRow);
 impl_column_index_for_statement!(SqliteStatement);
 impl_acquire!(Sqlite, SqliteConnection);

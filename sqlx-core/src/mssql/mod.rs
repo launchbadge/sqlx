@@ -36,7 +36,6 @@ pub type MssqlPool = crate::pool::Pool<Mssql>;
 impl_into_arguments_for_arguments!(MssqlArguments);
 impl_executor_for_pool_connection!(Mssql, MssqlConnection, MssqlRow);
 impl_executor_for_transaction!(Mssql, MssqlRow);
-impl_map_row!(Mssql, MssqlRow);
 impl_acquire!(Mssql, MssqlConnection);
 impl_column_index_for_row!(MssqlRow);
 impl_column_index_for_statement!(MssqlStatement);

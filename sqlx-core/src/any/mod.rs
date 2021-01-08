@@ -54,7 +54,6 @@ impl_acquire!(Any, AnyConnection);
 impl_column_index_for_row!(AnyRow);
 impl_column_index_for_statement!(AnyStatement);
 impl_into_maybe_pool!(Any, AnyConnection);
-impl_map_row!(Any, AnyRow);
 
 // required because some databases have a different handling of NULL
 impl_encode_for_option!(Any);
