@@ -6,7 +6,9 @@ use sqlx_core::{Connection, DefaultRuntime, Runtime};
 use crate::protocol::Capabilities;
 use crate::{MySql, MySqlConnectOptions};
 
+mod close;
 mod connect;
+mod ping;
 mod stream;
 
 #[allow(clippy::module_name_repetitions)]
@@ -75,7 +77,7 @@ where
         Rt: sqlx_core::AsyncRuntime,
         <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
-        unimplemented!()
+        Box::pin(self.close_async())
     }
 
     #[cfg(feature = "async")]
@@ -84,7 +86,7 @@ where
         Rt: sqlx_core::AsyncRuntime,
         <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
     {
-        unimplemented!()
+        Box::pin(self.ping_async())
     }
 }
 
@@ -95,10 +97,10 @@ where
     <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
 {
     fn close(self) -> sqlx_core::Result<()> {
-        unimplemented!()
+        <MySqlConnection<Rt>>::close(self)
     }
 
     fn ping(&mut self) -> sqlx_core::Result<()> {
-        unimplemented!()
+        <MySqlConnection<Rt>>::ping(self)
     }
 }

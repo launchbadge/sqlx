@@ -6,6 +6,8 @@ mod err;
 mod handshake;
 mod handshake_response;
 mod ok;
+mod ping;
+mod quit;
 mod status;
 
 pub(crate) use auth::{Auth, AuthResponse};
@@ -16,4 +18,6 @@ pub(crate) use err::ErrPacket;
 pub(crate) use handshake::Handshake;
 pub(crate) use handshake_response::HandshakeResponse;
 pub(crate) use ok::OkPacket;
+pub(crate) use ping::Ping;
+pub(crate) use quit::Quit;
 pub(crate) use status::Status;
