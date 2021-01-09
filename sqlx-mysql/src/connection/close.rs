@@ -13,6 +13,8 @@ where
         <Rt as Runtime>::TcpStream: futures_io::AsyncWrite + futures_io::AsyncRead + Unpin,
     {
         self.write_packet(&Quit)?;
+        self.stream.flush_async().await?;
+
         Ok(())
     }
 
@@ -22,6 +24,8 @@ where
         <Rt as Runtime>::TcpStream: std::io::Write + std::io::Read,
     {
         self.write_packet(&Quit)?;
+        self.stream.flush()?;
+
         Ok(())
     }
 }
