@@ -31,6 +31,7 @@ where
     Rt: Runtime,
 {
     /// Creates a default set of options ready for configuration.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

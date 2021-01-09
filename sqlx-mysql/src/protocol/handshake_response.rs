@@ -19,6 +19,9 @@ pub(crate) struct HandshakeResponse<'a> {
 
 impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
     fn serialize_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) -> Result<()> {
+        // the truncation is the intent
+        // capability bits over 32 are MariaDB only (and we don't currently support them)
+        #[allow(clippy::cast_possible_truncation)]
         buf.extend_from_slice(&(capabilities.bits() as u32).to_le_bytes());
         buf.extend_from_slice(&self.max_packet_size.to_le_bytes());
         buf.push(self.charset);
@@ -36,7 +39,11 @@ impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
             debug_assert!(auth_response.len() <= u8::max_value().into());
 
             buf.reserve(1 + auth_response.len());
+
+            // in debug mode, we assert that the auth response is not too big
+            #[allow(clippy::cast_possible_truncation)]
             buf.push(auth_response.len() as u8);
+
             buf.extend_from_slice(auth_response);
         } else {
             buf.reserve(1 + auth_response.len());

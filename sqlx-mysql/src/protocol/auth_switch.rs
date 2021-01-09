@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use bytes::{buf::Chain, Buf, Bytes};
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
@@ -32,7 +30,7 @@ impl Deserialize<'_, Capabilities> for AuthSwitch {
 
         let plugin_data = buf.chain(Bytes::new());
 
-        let plugin = <Box<dyn AuthPlugin>>::from_str(&*name)?;
+        let plugin = AuthPlugin::parse(&*name)?;
 
         Ok(Self { plugin, plugin_data })
     }

@@ -19,6 +19,7 @@ pub struct Mock;
 
 #[derive(Debug)]
 #[doc(hidden)]
+#[allow(clippy::module_name_repetitions)]
 pub struct MockStream {
     port: u16,
     rbuf: BytesMut,
@@ -58,6 +59,7 @@ impl crate::blocking::Runtime for Mock {
 }
 
 impl Mock {
+    #[must_use]
     pub fn stream() -> MockStream {
         let port = MOCK_STREAM_PORT.fetch_add(1, Ordering::SeqCst) + 1;
 
@@ -74,7 +76,8 @@ impl Mock {
 }
 
 impl MockStream {
-    pub fn port(&self) -> u16 {
+    #[must_use]
+    pub const fn port(&self) -> u16 {
         self.port
     }
 }
@@ -97,7 +100,8 @@ impl std::io::Read for MockStream {
             }
 
             // no bytes in the buffer, ask the channel for more
-            let message = self.read.recv().map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+            #[allow(clippy::map_err_ignore)]
+            let message = self.read.recv().map_err(|_err| std::io::ErrorKind::ConnectionAborted)?;
 
             self.rbuf.extend_from_slice(&message);
             // loop around and now send out this message

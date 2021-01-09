@@ -4,7 +4,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(future_incompatible)]
 #![warn(clippy::pedantic)]
-#![warn(clippy::cargo_common_metadata)]
 #![warn(clippy::multiple_crate_versions)]
 #![warn(clippy::cognitive_complexity)]
 #![warn(clippy::future_not_send)]

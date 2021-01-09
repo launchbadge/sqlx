@@ -30,6 +30,7 @@ pub trait Runtime: 'static + Send + Sync {
 }
 
 #[cfg(feature = "async")]
+#[allow(clippy::module_name_repetitions)]
 pub trait AsyncRuntime: Runtime {
     /// Opens a TCP connection to a remote host at the specified port.
     fn connect_tcp(

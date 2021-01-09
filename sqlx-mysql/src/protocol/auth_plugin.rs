@@ -1,6 +1,5 @@
 use std::error::Error as StdError;
 use std::fmt::Debug;
-use std::str::FromStr;
 
 use bytes::buf::Chain;
 use bytes::Bytes;
@@ -34,10 +33,8 @@ pub(crate) trait AuthPlugin: 'static + Debug + Send + Sync {
     ) -> Result<Option<Vec<u8>>>;
 }
 
-impl FromStr for Box<dyn AuthPlugin> {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
+impl dyn AuthPlugin {
+    pub(crate) fn parse(s: &str) -> Result<Box<Self>> {
         match s {
             _ if s == CachingSha2AuthPlugin.name() => Ok(Box::new(CachingSha2AuthPlugin)),
             _ if s == Sha256AuthPlugin.name() => Ok(Box::new(Sha256AuthPlugin)),
@@ -68,7 +65,7 @@ fn err_msg(plugin: &'static str, message: &str) -> Error {
     ))
 }
 
-fn err<E>(plugin: &'static str, error: E) -> Error
+fn err<E>(plugin: &'static str, error: &E) -> Error
 where
     E: StdError,
 {

@@ -23,29 +23,29 @@ pub(crate) fn encrypt(
     super::xor_eq(&mut pass, &*nonce);
 
     // client sends an RSA encrypted password
-    let pkey = parse_rsa_pub_key(plugin, key)?;
+    let public = parse_rsa_pub_key(plugin, key)?;
     let padding = PaddingScheme::new_oaep::<sha1::Sha1>();
 
-    pkey.encrypt(&mut rng(), padding, &pass[..]).map_err(|err| super::err(plugin, err))
+    public.encrypt(&mut rng(), padding, &pass[..]).map_err(|err| super::err(plugin, &err))
 }
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
 fn parse_rsa_pub_key(plugin: &'static str, key: &[u8]) -> Result<RSAPublicKey> {
-    let key = from_utf8(key).map_err(|err| super::err(plugin, err))?;
+    let key = from_utf8(key).map_err(|err| super::err(plugin, &err))?;
 
     // Takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL
 
     let encoded =
-        key.lines().filter(|line| !line.starts_with("-")).fold(String::new(), |mut data, line| {
-            data.push_str(&line);
+        key.lines().filter(|line| !line.starts_with('-')).fold(String::new(), |mut data, line| {
+            data.push_str(line);
             data
         });
 
-    let der = base64::decode(&encoded).map_err(|err| super::err(plugin, err))?;
+    let der = base64::decode(&encoded).map_err(|err| super::err(plugin, &err))?;
 
-    RSAPublicKey::from_pkcs8(&der).map_err(|err| super::err(plugin, err))
+    RSAPublicKey::from_pkcs8(&der).map_err(|err| super::err(plugin, &err))
 }
 
 fn to_asciz(s: &str) -> Vec<u8> {

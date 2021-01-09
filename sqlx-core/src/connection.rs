@@ -46,6 +46,7 @@ where
     /// ```
     ///
     #[cfg(feature = "async")]
+    #[must_use]
     fn connect(url: &str) -> BoxFuture<'_, crate::Result<Self>>
     where
         Self: Sized,

@@ -123,7 +123,7 @@ macro_rules! read {
 #[cfg(feature = "async")]
 impl<S> BufStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Send + Unpin,
 {
     pub async fn flush_async(&mut self) -> crate::Result<()> {
         // write as much as we can each time and move the cursor as we write from the buffer

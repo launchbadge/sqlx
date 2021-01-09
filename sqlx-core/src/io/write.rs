@@ -1,3 +1,4 @@
+#[allow(clippy::module_name_repetitions)]
 pub trait WriteExt {
     fn write_str_nul(&mut self, s: &str);
     fn write_maybe_str_nul(&mut self, s: Option<&str>);

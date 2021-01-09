@@ -4,14 +4,15 @@ use bytes::{Buf, Bytes};
 use bytestring::ByteString;
 use memchr::memchr;
 
-// UNSAFE: _unchecked string methods
-// intended for use when the protocol is *known* to always produce
-//  valid UTF-8 data
-
+#[allow(clippy::module_name_repetitions)]
 pub trait BufExt: Buf {
+    /// # Safety
+    /// This function is unsafe because it does not check the bytes that are read are valid UTF-8.
     #[allow(unsafe_code)]
     unsafe fn get_str_unchecked(&mut self, n: usize) -> ByteString;
 
+    /// # Safety
+    /// This function is unsafe because it does not check the bytes that are read are valid UTF-8.
     #[allow(unsafe_code)]
     unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<ByteString>;
 }

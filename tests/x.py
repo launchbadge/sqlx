@@ -69,6 +69,53 @@ def run_check(project_name: str):
     ], cwd=project_dir, comment=f"check {project} +async,+blocking")
 
 
+def run_clippy(project_name: str):
+    project = f"sqlx-{project_name}"
+    tag = f"clippy:{project_name}"
+
+    if argv.target is not None and argv.target not in tag:
+        return
+
+    if argv.list_targets:
+        print(tag)
+        return
+
+    # update timestamp so clippy will run
+    Path(f"{project}/src/lib.rs").touch()
+
+    run([
+        "cargo", "clippy",
+        "--manifest-path", f"{project}/Cargo.toml",
+    ], cwd=project_dir, comment=f"clippy {project}")
+
+    # update timestamp so clippy will run
+    Path(f"{project}/src/lib.rs").touch()
+
+    run([
+        "cargo", "clippy",
+        "--manifest-path", f"{project}/Cargo.toml",
+        "--features", "blocking",
+    ], cwd=project_dir, comment=f"clippy {project} +blocking")
+
+    # update timestamp so clippy will run
+    Path(f"{project}/src/lib.rs").touch()
+
+    run([
+        "cargo", "clippy",
+        "--manifest-path", f"{project}/Cargo.toml",
+        "--features", "async",
+    ], cwd=project_dir, comment=f"clippy {project} +async")
+
+    # update timestamp so clippy will run
+    Path(f"{project}/src/lib.rs").touch()
+
+    run([
+        "cargo", "clippy",
+        "--manifest-path", f"{project}/Cargo.toml",
+        "--features", "blocking,async",
+    ], cwd=project_dir, comment=f"clippy {project} +async,+blocking")
+
+
 def run_unit_test(project_name: str):
     project = f"sqlx-{project_name}"
     tag = f"unit:{project_name}"
@@ -120,6 +167,10 @@ def main():
     # run checks
     run_check("core")
     run_check("mysql")
+
+    # run checks
+    run_clippy("core")
+    run_clippy("mysql")
 
     # run unit tests, collect test binary filenames
     run_unit_test("core")

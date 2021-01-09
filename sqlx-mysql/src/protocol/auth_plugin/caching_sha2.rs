@@ -65,7 +65,7 @@ impl super::AuthPlugin for CachingSha2AuthPlugin {
             AUTH_CONTINUE => {
                 // ruh roh, we need to ask for the RSA public key, so we can
                 // encrypt our password directly and send it
-                return Ok(Some(vec![0x2_u8]));
+                Ok(Some(vec![0x2_u8]))
             }
 
             _ => {

@@ -39,6 +39,7 @@ impl MySqlBufExt for Bytes {
 
     #[allow(unsafe_code)]
     unsafe fn get_str_lenenc_unchecked(&mut self) -> ByteString {
+        #[allow(clippy::cast_possible_truncation)]
         let len = self.get_uint_lenenc() as usize;
 
         self.get_str_unchecked(len)
@@ -50,6 +51,7 @@ impl MySqlBufExt for Bytes {
     }
 
     fn get_bytes_lenenc(&mut self) -> Bytes {
+        #[allow(clippy::cast_possible_truncation)]
         let len = self.get_uint_lenenc() as usize;
 
         self.split_to(len)

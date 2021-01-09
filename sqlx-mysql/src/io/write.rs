@@ -13,16 +13,22 @@ impl MySqlWriteExt for Vec<u8> {
 
         if value < 251 {
             // if the value is < 251, it is stored as a 1-byte integer
+
+            #[allow(clippy::cast_possible_truncation)]
             self.push(value as u8);
         } else if value < 0x1_00_00 {
             // if the value is ≥ 251 and < (2 ** 16), it is stored as fc + 2-byte integer
             self.reserve(3);
             self.push(0xfc);
+
+            #[allow(clippy::cast_possible_truncation)]
             self.extend_from_slice(&(value as u16).to_le_bytes());
         } else if value < 0x1_00_00_00 {
             // if the value is ≥ (2 ** 16) and < (2 ** 24), it is stored as fd + 3-byte integer
             self.reserve(4);
             self.push(0xfd);
+
+            #[allow(clippy::cast_possible_truncation)]
             self.extend_from_slice(&(value as u32).to_le_bytes()[..3]);
         } else {
             // if the value is ≥ (2 ** 24) and < (2 ** 64) it is stored as fe + 8-byte integer

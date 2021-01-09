@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use bytes::buf::Chain;
 use bytes::{Buf, Bytes};
 use bytestring::ByteString;
@@ -103,7 +101,7 @@ impl Deserialize<'_, Capabilities> for Handshake {
 
                 // read to NUL or read to the end if we can't find a NUL
 
-                let auth_plugin_name_end = memchr(b'\0', &buf).unwrap_or(buf.len());
+                let auth_plugin_name_end = memchr(b'\0', &buf).unwrap_or_else(|| buf.len());
 
                 // UNSAFE: auth plugin names are known to be ASCII
                 #[allow(unsafe_code)]
@@ -123,7 +121,7 @@ impl Deserialize<'_, Capabilities> for Handshake {
             status,
             auth_plugin_data: auth_plugin_data_1.chain(auth_plugin_data_2),
             auth_plugin: auth_plugin_name
-                .map(|name| <Box<dyn AuthPlugin>>::from_str(&name))
+                .map(|name| AuthPlugin::parse(&name))
                 .transpose()?
                 .unwrap_or_else(|| Box::new(NativeAuthPlugin)),
         })
