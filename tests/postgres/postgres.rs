@@ -530,7 +530,7 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
     use serde::{Deserialize, Serialize,};
 
     eprintln!("starting pool");
-    let max_conns = 300;        // NB: use value from postgres config
+    let max_conns = 90;        // the default connection limit is 100.
     let pool = PgPoolOptions::new()
         .min_connections(max_conns)
         .max_connections(max_conns)
