@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Buf, Bytes};
+use futures::lock::Mutex;
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
@@ -27,6 +28,7 @@ pub struct PgStream {
     // this is set when creating a PgListener and only written to if that listener is
     // re-used for query execution in-between receiving messages
     pub(crate) notifications: Option<UnboundedSender<Notification>>,
+    readlock: Mutex<()>,
 }
 
 impl PgStream {
@@ -41,6 +43,7 @@ impl PgStream {
         Ok(Self {
             inner,
             notifications: None,
+            readlock: Mutex::new(()),
         })
     }
 
@@ -73,6 +76,7 @@ impl PgStream {
     pub(crate) async fn recv_unchecked(&mut self) -> Result<Message, Error> {
         // all packets in postgres start with a 5-byte header
         // this header contains the message type and the total length of the message
+        let _lock = self.readlock.lock().await;
         let mut header = self.inner.slice(0..5).await?;
 
         let format = MessageFormat::try_from_u8(header.get_u8())?;

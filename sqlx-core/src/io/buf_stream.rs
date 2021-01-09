@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io;
 use std::ops::{Deref, DerefMut, RangeBounds};
 
@@ -24,7 +22,7 @@ where
 
     // we read into the read buffer using 100% safe code
     rbuf: BytesMut,
-    rlock: Mutex<i32>,
+    rlock: Mutex<()>,
 }
 
 impl<S> BufStream<S>
@@ -36,7 +34,7 @@ where
             stream,
             wbuf: Vec::with_capacity(512),
             rbuf: BytesMut::with_capacity(4096),
-            rlock: Mutex::new(0),
+            rlock: Mutex::new(()),
         }
     }
 
@@ -81,10 +79,10 @@ where
         Ok(self.rbuf.split_to(cnt))
     }
 
-    pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
-        let _lock = self.rlock.lock().await;
-        read_raw_into(&mut self.stream, buf, cnt - self.rbuf.len()).await
-    }
+    // pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
+    //     let _lock = self.rlock.lock().await;
+    //     read_raw_into(&mut self.stream, buf, cnt - self.rbuf.len()).await
+    // }
 
     pub async fn slice(&mut self, range: std::ops::Range<usize>) -> Result<&[u8], Error> {
         use core::ops::Bound;

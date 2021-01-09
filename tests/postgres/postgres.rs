@@ -509,6 +509,120 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     Ok(())
 }
+// run with `time cargo test --release --features postgres,runtime-actix-rustls -- --ignored --nocapture pool_contention_test'
+#[ignore]
+#[sqlx_macros::test]
+async fn pool_contention_test() -> anyhow::Result<()> {
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    use tokio::{
+        task::spawn,
+        time::delay_for as sleep,
+        time::timeout
+    };
+
+    #[cfg(feature = "_rt-async-std")]
+    use async_std::{
+        future::timeout,
+        task::sleep,
+        task::spawn
+    };
+    use futures::StreamExt;
+
+    eprintln!("starting pool");
+
+    let pool = PgPoolOptions::new()
+        .connect_timeout(Duration::from_secs(10 * 60))
+        .min_connections(32)
+        .max_connections(32)
+        .max_lifetime(None) // disconn upon idle_timeout or explicitly disconnect
+        .connect(&dotenv::var("DATABASE_URL")?)
+        .await?;
+    #[derive(Debug, Default, sqlx::FromRow,)]
+    struct Junk {
+        pub id:  i64,
+        pub cnt: i64,
+        pub txt: String,
+    }
+
+    if let Err(_e) = sqlx::query("SELECT count(*) FROM junk;").execute(&pool).await
+    {
+        sqlx::query("DROP TABLE IF EXISTS junk;").execute(&pool).await?;
+        sqlx::query("
+CREATE TABLE junk
+(
+    id      BIGSERIAL PRIMARY KEY,
+    cnt     BIGINT  NOT NULL,
+    txt	    TEXT    NOT NULL
+);
+").execute(&pool).await?;
+        
+        let mut conn = pool.acquire().await?;
+        for i in 0..2000 {
+            sqlx::query("INSERT INTO junk (cnt, txt) VALUES ( $1, $2 )")
+                .bind(i)
+                .bind("this is a test")
+                .execute(&mut conn)
+                .await?;
+        }
+    }
+
+    for i in 0..64 {
+        let pool = pool.clone();
+        spawn(async move {
+            loop {
+                let len = 
+                    sqlx::query_as::<Postgres,Junk>("SELECT * FROM junk;")
+                    .fetch(&pool)
+                    .filter_map(|res: Result<Junk, sqlx::Error,>| {
+                        async move {
+                            match res {
+                                Ok(rec,) => Some(rec),
+                                Err(_,) => None,
+                            }
+                        }
+                    },)
+                    .collect::<Vec<Junk>>()
+                    .await
+                    .len();
+                if len < 2000 {
+                    eprintln!("pool task {} len: {}", i, len);
+                }
+            }
+        });
+    }
+    sleep(Duration::from_secs(30)).await;
+
+
+    // let mut handles = vec![];
+    // for i in 0..40000 {
+    //     let pool = pool.clone();
+    //     handles.push(spawn(async move {
+    //         let len = 
+    //             sqlx::query_as::<Postgres,Junk>("SELECT * FROM junk;")
+    //             .fetch(&pool)
+    //             .filter_map(|res: Result<Junk, sqlx::Error,>| {
+    //                 async move {
+    //                     match res {
+    //                         Ok(rec,) => Some(rec),
+    //                         Err(_,) => None,
+    //                     }
+    //                 }
+    //             },)
+    //             .collect::<Vec<Junk>>()
+    //             .await
+    //             .len();
+    //         if len < 2000 {
+    //             eprintln!("pool task {} len: {}", i, len);
+    //         }
+    //     }));
+    // }
+    // futures::future::try_join_all(handles).await?;
+
+    eprintln!("closing pool");
+    timeout(Duration::from_secs(30), pool.close()).await?;
+    eprintln!("pool closed successfully");
+    Ok(())
+}
 
 #[sqlx_macros::test]
 async fn test_invalid_query() -> anyhow::Result<()> {
