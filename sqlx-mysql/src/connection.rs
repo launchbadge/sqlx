@@ -6,10 +6,7 @@ use sqlx_core::{Connection, DefaultRuntime, Runtime};
 use crate::protocol::Capabilities;
 use crate::{MySql, MySqlConnectOptions};
 
-#[cfg(any(feature = "async", feature = "blocking"))]
 mod connect;
-
-#[cfg(any(feature = "async", feature = "blocking"))]
 mod stream;
 
 #[allow(clippy::module_name_repetitions)]
@@ -33,7 +30,6 @@ impl<Rt> MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
-    #[cfg(any(feature = "async", feature = "blocking"))]
     pub(crate) fn new(stream: Rt::TcpStream) -> Self {
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
