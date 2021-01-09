@@ -99,3 +99,11 @@ pub mod prelude {
     feature = "blocking"
 ))]
 pub use blocking::prelude;
+
+#[cfg(not(any(
+    feature = "async_std",
+    feature = "actix",
+    feature = "tokio",
+    feature = "blocking"
+)))]
+pub mod prelude {}
