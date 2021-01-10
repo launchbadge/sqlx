@@ -514,23 +514,15 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn pool_interleave_test() -> anyhow::Result<()> {
     #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    use tokio::{
-        task::spawn,
-        time::delay_for as sleep,
-        time::timeout
-    };
+    use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
 
     #[cfg(feature = "_rt-async-std")]
-    use async_std::{
-        future::timeout,
-        task::sleep,
-        task::spawn
-    };
+    use async_std::{future::timeout, task::sleep, task::spawn};
     use futures::{StreamExt, TryStreamExt};
-    use serde::{Deserialize, Serialize,};
+    use serde::{Deserialize, Serialize};
 
     eprintln!("starting pool");
-    let max_conns = 90;        // the default connection limit is 100.
+    let max_conns = 90; // the default connection limit is 100.
     let pool = PgPoolOptions::new()
         .min_connections(max_conns)
         .max_connections(max_conns)
@@ -539,15 +531,23 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
         .await?;
 
     const NROWS: usize = 100;
-    if let Err(_e) = sqlx::query("SELECT count(*) FROM junk;").execute(&pool).await
+    if let Err(_e) = sqlx::query("SELECT count(*) FROM junk;")
+        .execute(&pool)
+        .await
     {
-        sqlx::query("DROP TABLE IF EXISTS junk;").execute(&pool).await?;
-        sqlx::query("CREATE TABLE junk (
+        sqlx::query("DROP TABLE IF EXISTS junk;")
+            .execute(&pool)
+            .await?;
+        sqlx::query(
+            "CREATE TABLE junk (
     id      BIGSERIAL PRIMARY KEY,
     cnt     BIGINT  NOT NULL,
     txt	    TEXT    NOT NULL
-);").execute(&pool).await?;
-        
+);",
+        )
+        .execute(&pool)
+        .await?;
+
         let mut conn = pool.acquire().await?;
         for i in 0..NROWS {
             sqlx::query("INSERT INTO junk (cnt, txt) VALUES ( $1, $2 )")
@@ -557,9 +557,9 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
                 .await?;
         }
     }
-    #[derive(Debug, Default, sqlx::FromRow, Serialize, Deserialize,)]
+    #[derive(Debug, Default, sqlx::FromRow, Serialize, Deserialize)]
     struct Junk {
-        pub id:  i64,
+        pub id: i64,
         pub cnt: i64,
         pub txt: String,
     }
@@ -568,28 +568,27 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
         let pool = pool.clone();
         spawn(async move {
             loop {
-                match
-                    sqlx::query_as::<Postgres,Junk>("SELECT * FROM junk;")
+                match sqlx::query_as::<Postgres, Junk>("SELECT * FROM junk;")
                     .fetch(&pool)
                     .then(|res| async move {
                         // yield in order to induce interleaved
                         // reading of results from various
                         // connections.
-                        sleep(Duration::from_millis(1)).await;                        
+                        sleep(Duration::from_millis(1)).await;
                         res
                     })
-                    .try_collect::<Vec<Junk,>>()
+                    .try_collect::<Vec<Junk>>()
                     .await
                 {
                     Ok(list) => {
                         if list.len() < NROWS {
                             eprintln!("pool task {} len: {}", i, list.len());
                         }
-                    },
-                    Err(sqlx::Error::PoolClosed) =>  break,
-                    Err(e) =>  {
+                    }
+                    Err(sqlx::Error::PoolClosed) => break,
+                    Err(e) => {
                         eprintln!("pool task {} err: {:?}", i, e);
-                    },
+                    }
                 }
             }
         });
