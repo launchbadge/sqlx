@@ -1,11 +1,6 @@
-#[cfg(feature = "blocking")]
-use std::io::{Read, Write};
+use std::marker::PhantomData;
 
 use bytes::{Bytes, BytesMut};
-#[cfg(feature = "async")]
-use futures_io::{AsyncRead, AsyncWrite};
-#[cfg(feature = "async")]
-use futures_util::{AsyncReadExt, AsyncWriteExt};
 
 /// Wraps a stream and buffers input and output to and from it.
 ///
@@ -14,7 +9,9 @@ use futures_util::{AsyncReadExt, AsyncWriteExt};
 /// a network interaction). `BufStream` keeps a read and write buffer with infrequent calls
 /// to `read` and `write` on the underlying stream.
 ///
-pub struct BufStream<S> {
+pub struct BufStream<Rt, S> {
+    runtime: PhantomData<Rt>,
+
     #[cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
     stream: S,
 
@@ -29,10 +26,11 @@ pub struct BufStream<S> {
     wbuf_offset: usize,
 }
 
-impl<S> BufStream<S> {
+impl<Rt, S> BufStream<Rt, S> {
     pub fn with_capacity(stream: S, read: usize, write: usize) -> Self {
         Self {
             stream,
+            runtime: PhantomData,
             rbuf: BytesMut::with_capacity(read),
             wbuf: Vec::with_capacity(write),
             #[cfg(feature = "async")]
@@ -116,21 +114,18 @@ macro_rules! read {
     };
 
     (@read $self:ident, $b:ident) => {
-        $self.stream.read($b).await?;
+        $self.stream.read_async($b).await?;
     };
 }
 
 #[cfg(feature = "async")]
-impl<S> BufStream<S>
-where
-    S: AsyncRead + AsyncWrite + Send + Unpin,
-{
+impl<Rt: crate::Runtime, S: for<'s> crate::io::Stream<'s, Rt>> BufStream<Rt, S> {
     pub async fn flush_async(&mut self) -> crate::Result<()> {
         // write as much as we can each time and move the cursor as we write from the buffer
         // if _this_ future drops, offset will have a record of how much of the wbuf has
         // been written
         while self.wbuf_offset < self.wbuf.len() {
-            self.wbuf_offset += self.stream.write(&self.wbuf[self.wbuf_offset..]).await?;
+            self.wbuf_offset += self.stream.write_async(&self.wbuf[self.wbuf_offset..]).await?;
         }
 
         // fully written buffer, move cursor back to the beginning
@@ -146,12 +141,9 @@ where
 }
 
 #[cfg(feature = "blocking")]
-impl<S> BufStream<S>
-where
-    S: Read + Write,
-{
+impl<Rt: crate::Runtime, S: for<'s> crate::blocking::io::Stream<'s, Rt>> BufStream<Rt, S> {
     pub fn flush(&mut self) -> crate::Result<()> {
-        self.stream.write_all(&self.wbuf)?;
+        self.stream.write(&self.wbuf)?;
         self.wbuf.clear();
 
         Ok(())

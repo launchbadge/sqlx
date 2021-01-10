@@ -1,11 +1,12 @@
-use std::io;
+use super::{io::Stream, Runtime};
 
-use super::{Blocking, Runtime};
-
-pub trait Close<Rt: Runtime = Blocking>: crate::Close<Rt> {
+pub trait Close<Rt>: crate::Close<Rt>
+where
+    Rt: Runtime,
+{
     fn close(self) -> crate::Result<()>
     where
-        <Rt as crate::Runtime>::TcpStream: io::Read + io::Write;
+        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
 }
 
 // TODO: impl Close for Pool { ... }

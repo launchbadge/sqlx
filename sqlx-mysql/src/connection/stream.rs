@@ -128,12 +128,13 @@ macro_rules! read_packet {
 #[cfg(feature = "async")]
 impl<Rt> MySqlConnection<Rt>
 where
-    Rt: sqlx_core::AsyncRuntime,
-    <Rt as Runtime>::TcpStream: Unpin + futures_io::AsyncWrite + futures_io::AsyncRead,
+    Rt: Runtime,
 {
     pub(super) async fn read_packet_async<'de, T>(&'de mut self) -> Result<T>
     where
         T: Deserialize<'de, Capabilities>,
+        Rt: sqlx_core::Async,
+        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         read_packet!(self)
     }
@@ -143,11 +144,11 @@ where
 impl<Rt> MySqlConnection<Rt>
 where
     Rt: Runtime,
-    <Rt as Runtime>::TcpStream: std::io::Write + std::io::Read,
 {
     pub(super) fn read_packet<'de, T>(&'de mut self) -> Result<T>
     where
         T: Deserialize<'de, Capabilities>,
+        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         read_packet!(@blocking self)
     }

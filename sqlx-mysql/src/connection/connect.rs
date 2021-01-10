@@ -11,7 +11,7 @@
 //!
 //! https://dev.mysql.com/doc/internals/en/connection-phase.html
 //!
-use sqlx_core::{Result, Runtime};
+use sqlx_core::Result;
 
 use crate::protocol::{Auth, AuthResponse, Handshake, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
@@ -22,7 +22,7 @@ macro_rules! connect {
     };
 
     (@tcp $options:ident) => {
-        Rt::connect_tcp($options.get_host(), $options.get_port()).await?;
+        Rt::connect_tcp_async($options.get_host(), $options.get_port()).await?;
     };
 
     (@blocking @packet $self:ident) => {
@@ -116,10 +116,13 @@ macro_rules! connect {
 #[cfg(feature = "async")]
 impl<Rt> MySqlConnection<Rt>
 where
-    Rt: sqlx_core::AsyncRuntime,
-    <Rt as Runtime>::TcpStream: Unpin + futures_io::AsyncWrite + futures_io::AsyncRead,
+    Rt: sqlx_core::Runtime,
 {
-    pub(crate) async fn connect_async(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
+    pub(crate) async fn connect_async(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    where
+        Rt: sqlx_core::Async,
+        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
+    {
         connect!(options)
     }
 }
@@ -128,9 +131,11 @@ where
 impl<Rt> MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
-    <Rt as Runtime>::TcpStream: std::io::Write + std::io::Read,
 {
-    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
+    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    where
+        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
+    {
         connect!(@blocking options)
     }
 }

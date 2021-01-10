@@ -1,7 +1,10 @@
-use super::{Blocking, Runtime};
+use super::Runtime;
 use crate::Database;
 
-pub trait Acquire<Rt: Runtime = Blocking>: crate::Acquire<Rt> {
+pub trait Acquire<Rt>: crate::Acquire<Rt>
+where
+    Rt: Runtime,
+{
     /// Get a connection from the pool, make a new connection, or wait for one to become
     /// available.
     ///

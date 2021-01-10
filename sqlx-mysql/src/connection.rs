@@ -12,8 +12,11 @@ mod ping;
 mod stream;
 
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlConnection<Rt: Runtime = DefaultRuntime> {
-    stream: BufStream<Rt::TcpStream>,
+pub struct MySqlConnection<Rt = DefaultRuntime>
+where
+    Rt: Runtime,
+{
+    stream: BufStream<Rt, Rt::TcpStream>,
     connection_id: u32,
 
     // the capability flags are used by the client and server to indicate which
@@ -25,7 +28,10 @@ pub struct MySqlConnection<Rt: Runtime = DefaultRuntime> {
     sequence_id: u8,
 }
 
-impl<Rt: Runtime> MySqlConnection<Rt> {
+impl<Rt> MySqlConnection<Rt>
+where
+    Rt: Runtime,
+{
     pub(crate) fn new(stream: Rt::TcpStream) -> Self {
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
@@ -48,20 +54,26 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
     }
 }
 
-impl<Rt: Runtime> Debug for MySqlConnection<Rt> {
+impl<Rt> Debug for MySqlConnection<Rt>
+where
+    Rt: Runtime,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MySqlConnection").finish()
     }
 }
 
-impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
+impl<Rt> Connection<Rt> for MySqlConnection<Rt>
+where
+    Rt: Runtime,
+{
     type Database = MySql;
 
     #[cfg(feature = "async")]
     fn ping(&mut self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<()>>
     where
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+        Rt: sqlx_core::Async,
+        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(self.ping_async())
     }
@@ -74,8 +86,8 @@ impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
     fn connect(url: &str) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self>>
     where
         Self: Sized,
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+        Rt: sqlx_core::Async,
+        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         use sqlx_core::ConnectOptions;
 
@@ -88,8 +100,8 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
     #[cfg(feature = "async")]
     fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
     where
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+        Rt: sqlx_core::Async,
+        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(self.close_async())
     }
@@ -99,9 +111,11 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 impl<Rt> sqlx_core::blocking::Connection<Rt> for MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
-    <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
 {
-    fn ping(&mut self) -> sqlx_core::Result<()> {
+    fn ping(&mut self) -> sqlx_core::Result<()>
+    where
+        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
+    {
         <MySqlConnection<Rt>>::ping(self)
     }
 }
@@ -114,7 +128,7 @@ where
     fn connect(url: &str) -> sqlx_core::Result<Self>
     where
         Self: Sized,
-        <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
     }
@@ -127,7 +141,7 @@ where
 {
     fn close(self) -> sqlx_core::Result<()>
     where
-        <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         self.close()
     }

@@ -1,12 +1,13 @@
-use std::io;
+use super::{io::Stream, Runtime};
 
-use super::{Blocking, Runtime};
-
-pub trait Connect<Rt: Runtime = Blocking>: crate::Connect<Rt> {
+pub trait Connect<Rt>: crate::Connect<Rt>
+where
+    Rt: Runtime,
+{
     fn connect(url: &str) -> crate::Result<Self>
     where
         Self: Sized,
-        <Rt as crate::Runtime>::TcpStream: io::Read + io::Write;
+        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
 }
 
 // TODO: impl Connect for Pool { ... }

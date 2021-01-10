@@ -143,8 +143,8 @@ where
     fn connect(&self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self::Connection>>
     where
         Self::Connection: Sized,
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+        Rt: sqlx_core::Async,
+        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(MySqlConnection::connect_async(self))
     }
@@ -154,11 +154,11 @@ where
 impl<Rt> sqlx_core::blocking::ConnectOptions<Rt> for MySqlConnectOptions<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
-    <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
 {
     fn connect(&self) -> sqlx_core::Result<Self::Connection>
     where
         Self::Connection: Sized,
+        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         <MySqlConnection<Rt>>::connect(self)
     }

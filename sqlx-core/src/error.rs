@@ -6,6 +6,7 @@ mod database;
 
 pub use database::DatabaseError;
 
+/// `Result` type returned from methods that can have SQLx errors.
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]

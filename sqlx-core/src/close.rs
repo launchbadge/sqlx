@@ -1,11 +1,15 @@
-use crate::{DefaultRuntime, Runtime};
+use crate::Runtime;
 
-pub trait Close<Rt: Runtime = DefaultRuntime> {
+// for<'a> &'a mut Rt::TcpStream: crate::io::Stream<'a>,
+pub trait Close<Rt>
+where
+    Rt: Runtime,
+{
     #[cfg(feature = "async")]
     fn close(self) -> futures_util::future::BoxFuture<'static, crate::Result<()>>
     where
-        Rt: crate::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin;
+        Rt: crate::Async,
+        for<'s> <Rt as Runtime>::TcpStream: crate::io::Stream<'s, Rt>;
 }
 
 // TODO: impl Close for Pool { ... }

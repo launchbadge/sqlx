@@ -1,9 +1,9 @@
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
 
-use crate::{Database, DefaultRuntime, Runtime};
+use crate::{Database, Runtime};
 
-pub trait Acquire<Rt: Runtime = DefaultRuntime> {
+pub trait Acquire<Rt: Runtime> {
     type Database: Database<Rt>;
 
     /// Get a connection from the pool, make a new connection, or wait for one to become

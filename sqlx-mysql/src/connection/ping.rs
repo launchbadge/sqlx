@@ -13,8 +13,8 @@ where
     #[cfg(feature = "async")]
     pub(crate) async fn ping_async(&mut self) -> Result<()>
     where
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncWrite + futures_io::AsyncRead + Unpin,
+        Rt: sqlx_core::Async,
+        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         self.write_packet(&Ping)?;
 
@@ -26,7 +26,7 @@ where
     #[cfg(feature = "blocking")]
     pub(crate) fn ping(&mut self) -> Result<()>
     where
-        <Rt as Runtime>::TcpStream: std::io::Write + std::io::Read,
+        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         self.write_packet(&Ping)?;
 

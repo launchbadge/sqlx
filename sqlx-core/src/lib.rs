@@ -17,15 +17,6 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::clippy::missing_errors_doc)]
 
-// crate renames to allow the feature name "tokio" and "async-std" (as features
-// can't directly conflict with dependency names)
-
-#[cfg(feature = "async-std")]
-extern crate _async_std as async_std;
-
-#[cfg(feature = "tokio")]
-extern crate _tokio as tokio;
-
 mod acquire;
 mod close;
 mod connect;
@@ -43,6 +34,8 @@ pub mod io;
 pub mod blocking;
 
 pub use acquire::Acquire;
+#[cfg(feature = "blocking")]
+pub use blocking::Blocking;
 pub use close::Close;
 pub use connect::Connect;
 pub use connection::Connection;
@@ -52,57 +45,23 @@ pub use options::ConnectOptions;
 pub use pool::Pool;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
-#[cfg(feature = "async")]
-pub use runtime::AsyncRuntime;
 #[cfg(feature = "async-std")]
 pub use runtime::AsyncStd;
-pub use runtime::Runtime;
+// #[cfg(feature = "_mock")]
+// pub use mock::Mock;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
-#[cfg(feature = "_mock")]
-#[doc(hidden)]
-pub use runtime::{mock, Mock};
-
-// pick a default runtime
-// this is so existing applications in SQLx pre 0.6 work and to
-// make it more convenient, if your application only uses 1 runtime (99%+)
-// most of the time you won't have to worry about picking the runtime
-
-#[cfg(feature = "async-std")]
-pub type DefaultRuntime = AsyncStd;
-
-#[cfg(all(not(feature = "async-std"), feature = "tokio"))]
-pub type DefaultRuntime = Tokio;
-
-#[cfg(all(not(all(feature = "async-std", feature = "tokio")), feature = "actix"))]
-pub type DefaultRuntime = Actix;
-
-#[cfg(all(
-    not(any(feature = "async-std", feature = "tokio", feature = "actix")),
-    feature = "blocking"
-))]
-pub type DefaultRuntime = blocking::Blocking;
-
-// when there is no async runtime, and the blocking runtime is not present
-// the unit type is implemented for Runtime, this is only to allow the
-// lib to compile, the lib is mostly useless in this state
-#[cfg(not(any(
-    feature = "async-std",
-    feature = "actix",
-    feature = "tokio",
-    feature = "blocking"
-)))]
-pub type DefaultRuntime = ();
+pub use runtime::{Async, DefaultRuntime, Runtime};
 
 #[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
 pub mod prelude {
-    pub use super::Acquire as _;
-    pub use super::Close as _;
-    pub use super::Connect as _;
-    pub use super::ConnectOptions as _;
-    pub use super::Connection as _;
-    pub use super::Database as _;
-    pub use super::Runtime as _;
+    pub use super::Acquire;
+    pub use super::Close;
+    pub use super::Connect;
+    pub use super::ConnectOptions;
+    pub use super::Connection;
+    pub use super::Database;
+    pub use super::Runtime;
 }
 
 #[cfg(all(

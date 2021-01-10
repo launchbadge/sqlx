@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
 
-use crate::{Close, Connect, Database, DefaultRuntime, Runtime};
+use crate::{Close, Connect, Database, Runtime};
 
 /// A unique connection (session) with a specific database.
 ///
@@ -11,8 +11,10 @@ use crate::{Close, Connect, Database, DefaultRuntime, Runtime};
 /// SQL statements will be executed and results returned within the context
 /// of this single SQL connection.
 ///
-pub trait Connection<Rt: Runtime = DefaultRuntime>:
-    'static + Send + Connect<Rt> + Close<Rt>
+// for<'a> &'a mut Rt::TcpStream: crate::io::Stream<'a>,
+pub trait Connection<Rt>: 'static + Send + Connect<Rt> + Close<Rt>
+where
+    Rt: Runtime,
 {
     type Database: Database<Rt, Connection = Self>;
 
@@ -26,6 +28,6 @@ pub trait Connection<Rt: Runtime = DefaultRuntime>:
     #[cfg(feature = "async")]
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>
     where
-        Rt: crate::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin;
+        Rt: crate::Async,
+        for<'s> <Rt as Runtime>::TcpStream: crate::io::Stream<'s, Rt>;
 }

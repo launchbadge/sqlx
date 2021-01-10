@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use crate::{Connection, DefaultRuntime, Runtime};
+use crate::{Connection, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
 #[allow(clippy::module_name_repetitions)]
-pub trait ConnectOptions<Rt = DefaultRuntime>:
+pub trait ConnectOptions<Rt>:
     'static + Sized + Send + Sync + Default + Debug + Clone + FromStr<Err = crate::Error>
 where
     Rt: Runtime,
@@ -17,6 +17,6 @@ where
     fn connect(&self) -> futures_util::future::BoxFuture<'_, crate::Result<Self::Connection>>
     where
         Self::Connection: Sized,
-        Rt: crate::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin;
+        Rt: crate::Async,
+        for<'s> Rt::TcpStream: crate::io::Stream<'s, Rt>;
 }
