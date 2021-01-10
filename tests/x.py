@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import subprocess
+import re
 from os import environ
 from pathlib import Path
 from shutil import rmtree
@@ -20,13 +21,25 @@ coverage_dir = project_dir.joinpath(".coverage")
 raw_coverage_dir = project_dir.joinpath("raw")
 
 # global test filenames
-# we capture these all so we can collect coverage later
+# we capture these all, so we can collect coverage later
 test_object_filenames = []
 
 
-def run(cmd, *, cwd, env=None, comment=None):
+def should_run(tag):
+    if argv.list_targets:
+        print(tag)
+        return False
+
+    if argv.target is not None:
+        if not re.match(argv.target.replace("_", ".*?"), tag):
+            return False
+
+    return True
+
+
+def run(cmd, *, cwd, env=None, comment=None, tag=None):
     if comment is not None:
-        print(f"\x1b[2m # {comment}\x1b[0m")
+        print(f"\x1b[2m # {comment} [{tag}]\x1b[0m")
 
     print(f"\x1b[93m $ {' '.join(cmd)}\x1b[0m")
 
@@ -34,97 +47,40 @@ def run(cmd, *, cwd, env=None, comment=None):
                    stdout=None if argv.verbose else PIPE)
 
 
-def run_check(project_name: str):
+def run_checks(project_name: str, *, cmd="check"):
+    run_check(project_name, args=[], cmd=cmd)
+    run_check(project_name, args=["--features", "blocking"], variant="blocking", cmd=cmd)
+    run_check(project_name, args=["--features", "async"], variant="async", cmd=cmd)
+    run_check(project_name, args=["--all-features"], variant="all", cmd=cmd)
+
+
+def run_check(project_name: str, *, args, variant=None, cmd="check"):
     project = f"sqlx-{project_name}"
-    tag = f"check:{project_name}"
+    comment = f"{cmd} {project}"
+    tag = f"{cmd}:{project_name}"
 
-    if argv.target is not None and argv.target not in tag:
+    if variant is not None:
+        tag += f":{variant}"
+        comment += f" +{variant}"
+
+    if not should_run(tag):
         return
 
-    if argv.list_targets:
-        print(tag)
-        return
-
-    run([
-        "cargo", "check",
-        "--manifest-path", f"{project}/Cargo.toml",
-    ], cwd=project_dir, comment=f"check {project}")
-
-    run([
-        "cargo", "check",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "blocking",
-    ], cwd=project_dir, comment=f"check {project} +blocking")
-
-    run([
-        "cargo", "check",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "async",
-    ], cwd=project_dir, comment=f"check {project} +async")
-
-    run([
-        "cargo", "check",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "blocking,async",
-    ], cwd=project_dir, comment=f"check {project} +async,+blocking")
-
-
-def run_clippy(project_name: str):
-    project = f"sqlx-{project_name}"
-    tag = f"clippy:{project_name}"
-
-    if argv.target is not None and argv.target not in tag:
-        return
-
-    if argv.list_targets:
-        print(tag)
-        return
-
-    # update timestamp so clippy will run
+    # update timestamp to ensure check runs
     Path(f"{project}/src/lib.rs").touch()
 
     run([
-        "cargo", "clippy",
+        "cargo", cmd,
         "--manifest-path", f"{project}/Cargo.toml",
-    ], cwd=project_dir, comment=f"clippy {project}")
-
-    # update timestamp so clippy will run
-    Path(f"{project}/src/lib.rs").touch()
-
-    run([
-        "cargo", "clippy",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "blocking",
-    ], cwd=project_dir, comment=f"clippy {project} +blocking")
-
-    # update timestamp so clippy will run
-    Path(f"{project}/src/lib.rs").touch()
-
-    run([
-        "cargo", "clippy",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "async",
-    ], cwd=project_dir, comment=f"clippy {project} +async")
-
-    # update timestamp so clippy will run
-    Path(f"{project}/src/lib.rs").touch()
-
-    run([
-        "cargo", "clippy",
-        "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "blocking,async",
-    ], cwd=project_dir, comment=f"clippy {project} +async,+blocking")
+        *args,
+    ], cwd=project_dir, comment=comment, tag=tag)
 
 
 def run_unit_test(project_name: str):
     project = f"sqlx-{project_name}"
     tag = f"unit:{project_name}"
 
-    if argv.target is not None and argv.target not in tag:
-        return
-
-    if argv.list_targets:
-        print(tag)
+    if not should_run(tag):
         return
 
     env = environ.copy()
@@ -138,7 +94,7 @@ def run_unit_test(project_name: str):
         "cargo", "+nightly", "test",
         "--manifest-path", f"{project}/Cargo.toml",
         "--features", "async",
-    ], env=env, cwd=project_dir, comment=f"unit test {project}")
+    ], env=env, cwd=project_dir, comment=f"unit test {project}", tag=tag)
 
     # build the test binaries and outputs a big pile of JSON that can help
     # us figure out the test binary filename (needed for coverage results)
@@ -165,12 +121,12 @@ def main():
     raw_coverage_dir.mkdir()
 
     # run checks
-    run_check("core")
-    run_check("mysql")
+    run_checks("core")
+    run_checks("mysql")
 
     # run checks
-    run_clippy("core")
-    run_clippy("mysql")
+    run_checks("core", cmd="clippy")
+    run_checks("mysql", cmd="clippy")
 
     # run unit tests, collect test binary filenames
     run_unit_test("core")
