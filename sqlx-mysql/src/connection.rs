@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 use sqlx_core::io::BufStream;
-use sqlx_core::{Connection, DefaultRuntime, Runtime};
+use sqlx_core::{Close, Connect, Connection, DefaultRuntime, Runtime};
 
 use crate::protocol::Capabilities;
 use crate::{MySql, MySqlConnectOptions};
@@ -12,10 +12,7 @@ mod ping;
 mod stream;
 
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlConnection<Rt = DefaultRuntime>
-where
-    Rt: Runtime,
-{
+pub struct MySqlConnection<Rt: Runtime = DefaultRuntime> {
     stream: BufStream<Rt::TcpStream>,
     connection_id: u32,
 
@@ -28,10 +25,7 @@ where
     sequence_id: u8,
 }
 
-impl<Rt> MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> MySqlConnection<Rt> {
     pub(crate) fn new(stream: Rt::TcpStream) -> Self {
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
@@ -54,31 +48,14 @@ where
     }
 }
 
-impl<Rt> Debug for MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> Debug for MySqlConnection<Rt> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MySqlConnection").finish()
     }
 }
 
-impl<Rt> Connection<Rt> for MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     type Database = MySql;
-
-    type Options = MySqlConnectOptions<Rt>;
-
-    #[cfg(feature = "async")]
-    fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
-    where
-        Rt: sqlx_core::AsyncRuntime,
-        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
-    {
-        Box::pin(self.close_async())
-    }
 
     #[cfg(feature = "async")]
     fn ping(&mut self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<()>>
@@ -90,17 +67,68 @@ where
     }
 }
 
+impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
+    type Options = MySqlConnectOptions<Rt>;
+
+    #[cfg(feature = "async")]
+    fn connect(url: &str) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self>>
+    where
+        Self: Sized,
+        Rt: sqlx_core::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+    {
+        use sqlx_core::ConnectOptions;
+
+        let options = url.parse::<Self::Options>();
+        Box::pin(async move { options?.connect().await })
+    }
+}
+
+impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
+    #[cfg(feature = "async")]
+    fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
+    where
+        Rt: sqlx_core::AsyncRuntime,
+        <Rt as Runtime>::TcpStream: futures_io::AsyncRead + futures_io::AsyncWrite + Unpin,
+    {
+        Box::pin(self.close_async())
+    }
+}
+
 #[cfg(feature = "blocking")]
 impl<Rt> sqlx_core::blocking::Connection<Rt> for MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
     <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
 {
-    fn close(self) -> sqlx_core::Result<()> {
-        <MySqlConnection<Rt>>::close(self)
-    }
-
     fn ping(&mut self) -> sqlx_core::Result<()> {
         <MySqlConnection<Rt>>::ping(self)
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl<Rt> sqlx_core::blocking::Connect<Rt> for MySqlConnection<Rt>
+where
+    Rt: sqlx_core::blocking::Runtime,
+{
+    fn connect(url: &str) -> sqlx_core::Result<Self>
+    where
+        Self: Sized,
+        <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+    {
+        Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl<Rt> sqlx_core::blocking::Close<Rt> for MySqlConnection<Rt>
+where
+    Rt: sqlx_core::blocking::Runtime,
+{
+    fn close(self) -> sqlx_core::Result<()>
+    where
+        <Rt as Runtime>::TcpStream: std::io::Read + std::io::Write,
+    {
+        self.close()
     }
 }

@@ -26,10 +26,14 @@ extern crate _async_std as async_std;
 #[cfg(feature = "tokio")]
 extern crate _tokio as tokio;
 
+mod acquire;
+mod close;
+mod connect;
 mod connection;
 mod database;
 mod error;
 mod options;
+mod pool;
 mod runtime;
 
 #[doc(hidden)]
@@ -38,10 +42,14 @@ pub mod io;
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
+pub use acquire::Acquire;
+pub use close::Close;
+pub use connect::Connect;
 pub use connection::Connection;
 pub use database::{Database, HasOutput};
 pub use error::{DatabaseError, Error, Result};
 pub use options::ConnectOptions;
+pub use pool::Pool;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
 #[cfg(feature = "async")]
@@ -79,7 +87,7 @@ pub type DefaultRuntime = blocking::Blocking;
 // the unit type is implemented for Runtime, this is only to allow the
 // lib to compile, the lib is mostly useless in this state
 #[cfg(not(any(
-    feature = "async_std",
+    feature = "async-std",
     feature = "actix",
     feature = "tokio",
     feature = "blocking"
@@ -88,6 +96,9 @@ pub type DefaultRuntime = ();
 
 #[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
 pub mod prelude {
+    pub use super::Acquire as _;
+    pub use super::Close as _;
+    pub use super::Connect as _;
     pub use super::ConnectOptions as _;
     pub use super::Connection as _;
     pub use super::Database as _;
@@ -101,7 +112,7 @@ pub mod prelude {
 pub use blocking::prelude;
 
 #[cfg(not(any(
-    feature = "async_std",
+    feature = "async-std",
     feature = "actix",
     feature = "tokio",
     feature = "blocking"

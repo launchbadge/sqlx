@@ -1,7 +1,6 @@
 use std::io;
 
-use super::{Connection, Runtime};
-use crate::DefaultRuntime;
+use super::{Blocking, Connection, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
 ///
@@ -9,9 +8,8 @@ use crate::DefaultRuntime;
 /// this: [`ConnectOptions`][crate::ConnectOptions].
 ///
 #[allow(clippy::module_name_repetitions)]
-pub trait ConnectOptions<Rt = DefaultRuntime>: crate::ConnectOptions<Rt>
+pub trait ConnectOptions<Rt: Runtime = Blocking>: crate::ConnectOptions<Rt>
 where
-    Rt: Runtime,
     <Rt as crate::Runtime>::TcpStream: io::Read + io::Write,
     Self::Connection: crate::Connection<Rt, Options = Self> + Connection<Rt>,
 {

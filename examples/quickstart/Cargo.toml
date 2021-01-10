@@ -8,11 +8,11 @@ authors = [
 ]
 
 [dependencies]
-actix-web = "3.3.2"
+#actix-web = "3.3.2"
 anyhow = "1.0.36"
-async-std = { version = "1.8.0", features = ["attributes"] }
+#async-std = { version = "1.8.0", features = ["attributes"] }
 tokio = { version = "1.0.1", features = ["rt", "rt-multi-thread", "macros"] }
 log = "0.4"
 env_logger = "0.8.2"
 #sqlx = { path = "../../sqlx", features = ["tokio", "mysql"] }
-sqlx = { path = "../../sqlx", features = ["blocking", "mysql"] }
+sqlx = { path = "../../sqlx", features = ["blocking", "tokio", "mysql"] }

@@ -1,11 +1,19 @@
+// use sqlx::prelude::*;
+use sqlx::blocking::{prelude::*, Blocking};
 use sqlx::mysql::MySqlConnection;
-use sqlx::prelude::*;
 
 // #[tokio::main]
 // async fn main() -> anyhow::Result<()> {
 //     env_logger::try_init()?;
 //
-//     let _conn = <MySqlConnection>::connect("mysql://root:password@localhost").await?;
+//     // connect to the database
+//     let mut conn = <MySqlConnection>::connect("mysql://root:password@localhost").await?;
+//
+//     // ping, say HAI
+//     conn.ping().await?;
+//
+//     // , and now close the connection explicitly
+//     conn.close().await?;
 //
 //     Ok(())
 // }
@@ -13,7 +21,10 @@ use sqlx::prelude::*;
 fn main() -> anyhow::Result<()> {
     env_logger::try_init()?;
 
-    let _conn = <MySqlConnection>::connect("mysql://root:password@localhost")?;
+    let mut conn = <MySqlConnection<Blocking>>::connect("mysql://root:password@localhost")?;
+
+    conn.ping()?;
+    conn.close()?;
 
     Ok(())
 }

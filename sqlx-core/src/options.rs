@@ -12,7 +12,7 @@ where
 {
     type Connection: Connection<Rt> + ?Sized;
 
-    /// Establish a connection to the database.
+    /// Establish a new connection to the database.
     #[cfg(feature = "async")]
     fn connect(&self) -> futures_util::future::BoxFuture<'_, crate::Result<Self::Connection>>
     where
