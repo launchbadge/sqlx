@@ -3,6 +3,7 @@ use futures_util::future::BoxFuture;
 
 use crate::{Database, Runtime};
 
+#[allow(clippy::type_complexity)]
 pub trait Acquire<Rt: Runtime> {
     type Database: Database<Rt>;
 

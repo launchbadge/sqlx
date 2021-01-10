@@ -84,11 +84,11 @@ impl Runtime for () {
     type TcpStream = ();
 }
 
+// pick a default runtime
+// this is so existing applications in SQLx pre 0.6 work and to
+// make it more convenient, if your application only uses 1 runtime (99%+)
+// most of the time you won't have to worry about picking the runtime
 mod default {
-    // pick a default runtime
-    // this is so existing applications in SQLx pre 0.6 work and to
-    // make it more convenient, if your application only uses 1 runtime (99%+)
-    // most of the time you won't have to worry about picking the runtime
     #[cfg(feature = "async-std")]
     pub type Runtime = super::AsyncStd;
 
@@ -146,4 +146,5 @@ mod default {
 ///     .connect().await?; // for Async runtimes
 /// ```
 ///
+#[allow(clippy::module_name_repetitions)]
 pub type DefaultRuntime = default::Runtime;

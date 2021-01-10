@@ -116,7 +116,7 @@ where
     where
         for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
-        <MySqlConnection<Rt>>::ping(self)
+        self.ping()
     }
 }
 
