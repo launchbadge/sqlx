@@ -30,6 +30,10 @@ mod runtime;
 #[doc(hidden)]
 pub mod io;
 
+#[doc(hidden)]
+#[cfg(feature = "_mock")]
+pub mod mock;
+
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
@@ -47,8 +51,6 @@ pub use pool::Pool;
 pub use runtime::Actix;
 #[cfg(feature = "async-std")]
 pub use runtime::AsyncStd;
-// #[cfg(feature = "_mock")]
-// pub use mock::Mock;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
 pub use runtime::{Async, DefaultRuntime, Runtime};

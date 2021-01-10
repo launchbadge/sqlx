@@ -1,9 +1,5 @@
 use crate::io::Stream;
 
-// #[cfg(feature = "_mock")]
-// #[doc(hidden)]
-// pub mod mock;
-
 #[cfg(feature = "async-std")]
 #[path = "runtime/async_std.rs"]
 mod async_std_;
@@ -20,8 +16,6 @@ mod tokio_;
 pub use actix_::Actix;
 #[cfg(feature = "async-std")]
 pub use async_std_::AsyncStd;
-// #[cfg(feature = "_mock")]
-// pub use mock::Mock;
 #[cfg(feature = "tokio")]
 pub use tokio_::Tokio;
 

@@ -1,5 +1,6 @@
 use std::io;
 
+use sqlx_core::io::Stream;
 use sqlx_core::mock::MockStream;
 
 pub(crate) trait MySqlMockStreamExt {
@@ -27,12 +28,12 @@ impl MySqlMockStreamExt for MockStream {
         seq: u8,
         packet: &'x [u8],
     ) -> futures_util::future::BoxFuture<'x, io::Result<()>> {
-        use futures_util::AsyncWriteExt;
-
         Box::pin(async move {
-            self.write_all(&packet.len().to_le_bytes()[..3]).await?;
-            self.write_all(&[seq]).await?;
-            self.write_all(packet).await
+            self.write_async(&packet.len().to_le_bytes()[..3]).await?;
+            self.write_async(&[seq]).await?;
+            self.write_async(packet).await?;
+
+            Ok(())
         })
     }
 
@@ -41,11 +42,9 @@ impl MySqlMockStreamExt for MockStream {
         &mut self,
         n: usize,
     ) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>> {
-        use futures_util::AsyncReadExt;
-
         Box::pin(async move {
             let mut buf = vec![0; n];
-            let read = self.read(&mut buf).await?;
+            let read = self.read_async(&mut buf).await?;
             buf.truncate(read);
 
             Ok(buf)
@@ -54,11 +53,9 @@ impl MySqlMockStreamExt for MockStream {
 
     #[cfg(feature = "async")]
     fn read_all_async(&mut self) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>> {
-        use futures_util::AsyncReadExt;
-
         Box::pin(async move {
             let mut buf = vec![0; 1024];
-            let read = self.read(&mut buf).await?;
+            let read = self.read_async(&mut buf).await?;
             buf.truncate(read);
 
             Ok(buf)

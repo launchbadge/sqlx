@@ -143,7 +143,7 @@ where
 #[cfg(all(test, feature = "async"))]
 mod tests {
     use futures_executor::block_on;
-    use sqlx_core::{ConnectOptions, Mock};
+    use sqlx_core::{mock::Mock, ConnectOptions};
 
     use crate::mock::MySqlMockStreamExt;
     use crate::MySqlConnectOptions;
