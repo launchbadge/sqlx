@@ -1,7 +1,7 @@
 use std::io;
 
 use actix_rt::net::TcpStream;
-use async_compat_02::Compat;
+use async_compat::Compat;
 use futures_util::io::{Read, Write};
 use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt, TryFutureExt};
 
