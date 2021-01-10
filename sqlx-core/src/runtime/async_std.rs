@@ -1,4 +1,6 @@
 use _async_std::net::TcpStream;
+#[cfg(feature = "blocking")]
+use _async_std::task;
 use futures_util::io::{Read, Write};
 use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt};
 
@@ -6,11 +8,11 @@ use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt};
 use crate::blocking;
 use crate::{io::Stream, Async, Runtime};
 
-/// Provides [`Runtime`] for [**async-std**][_async_std]. Supports both blocking
+/// Provides [`Runtime`] for [**async-std**](https://async.rs). Supports both blocking
 /// and non-blocking operation.
 ///
 /// For blocking operation, the equivalent non-blocking methods are called
-/// and trivially wrapped in [`task::block_on`][_async_std::task::block_on].
+/// and trivially wrapped in [`task::block_on`][task::block_on].
 ///
 #[cfg_attr(doc_cfg, doc(cfg(feature = "async-std")))]
 #[derive(Debug)]
@@ -30,8 +32,9 @@ impl Async for AsyncStd {
 
 #[cfg(feature = "blocking")]
 impl blocking::Runtime for AsyncStd {
+    #[doc(hidden)]
     fn connect_tcp(host: &str, port: u16) -> std::io::Result<Self::TcpStream> {
-        _async_std::task::block_on(Self::connect_tcp_async(host, port))
+        task::block_on(Self::connect_tcp_async(host, port))
     }
 }
 

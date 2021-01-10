@@ -7,7 +7,7 @@ use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt, Tr
 
 use crate::{io::Stream, Async, Runtime};
 
-/// Actix SQLx runtime. Uses [`actix-rt`][actix_rt] to provide [`Runtime`].
+/// Provides [`Runtime`] for [**Actix**](https://actix.rs). Supports only non-blocking operation.
 ///
 /// As of 2021 Jan., Actix re-exports Tokio so this should be equivalent to [`Tokio`][crate::Tokio].
 /// This is split-out to allow Actix to shift, or for it to use a different major Tokio version and

@@ -7,7 +7,7 @@ use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt, Tr
 
 use crate::{io::Stream, Async, Runtime};
 
-/// Tokio SQLx runtime. Uses [`tokio`] to provide [`Runtime`].
+/// Provides [`Runtime`] for [**Tokio**](https://tokio.rs). Supports only non-blocking operation.
 ///
 /// SQLx does not require the use of a multi-threaded executor.
 ///

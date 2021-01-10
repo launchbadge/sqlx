@@ -39,7 +39,7 @@ pub mod blocking;
 
 pub use acquire::Acquire;
 #[cfg(feature = "blocking")]
-pub use blocking::Blocking;
+pub use blocking::rt::Blocking;
 pub use close::Close;
 pub use connect::Connect;
 pub use connection::Connection;
@@ -55,15 +55,22 @@ pub use runtime::AsyncStd;
 pub use runtime::Tokio;
 pub use runtime::{Async, DefaultRuntime, Runtime};
 
-#[cfg(any(feature = "async-std", feature = "tokio", feature = "actix"))]
+/// Convenience re-export of common traits for non-blocking operations.
 pub mod prelude {
-    pub use super::Acquire;
-    pub use super::Close;
-    pub use super::Connect;
-    pub use super::ConnectOptions;
-    pub use super::Connection;
-    pub use super::Database;
-    pub use super::Runtime;
+    #[doc(no_inline)]
+    pub use super::Acquire as _;
+    #[doc(no_inline)]
+    pub use super::Close as _;
+    #[doc(no_inline)]
+    pub use super::Connect as _;
+    #[doc(no_inline)]
+    pub use super::ConnectOptions as _;
+    #[doc(no_inline)]
+    pub use super::Connection as _;
+    #[doc(no_inline)]
+    pub use super::Database as _;
+    #[doc(no_inline)]
+    pub use super::Runtime as _;
 }
 
 #[cfg(all(
@@ -71,11 +78,3 @@ pub mod prelude {
     feature = "blocking"
 ))]
 pub use blocking::prelude;
-
-#[cfg(not(any(
-    feature = "async-std",
-    feature = "actix",
-    feature = "tokio",
-    feature = "blocking"
-)))]
-pub mod prelude {}

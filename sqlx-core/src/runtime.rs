@@ -39,7 +39,7 @@ pub use tokio_::Tokio;
 /// Additionally, a `std` blocking runtime is provided. This is intended for use in
 /// environments where asynchronous IO either doesn't make sense or isn't available.
 ///
-/// -   [`Blocking`][crate::blocking::Blocking]
+/// -   [`Blocking`][crate::Blocking]
 ///
 pub trait Runtime: 'static + Send + Sync + Sized {
     #[doc(hidden)]
@@ -119,7 +119,7 @@ mod default {
 /// 1.   [`AsyncStd`]
 /// 2.   [`Tokio`]
 /// 3.   [`Actix`]
-/// 4.   [`Blocking`]
+/// 4.   [`Blocking`][crate::Blocking]
 /// 5.   `()` – No runtime selected (nothing is possible)
 ///
 /// The intent is to allow the following to cleanly work, regardless of the enabled runtime,
