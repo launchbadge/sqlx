@@ -70,7 +70,7 @@ def run_check(project_name: str, *, args, variant=None, cmd="check"):
     Path(f"{project}/src/lib.rs").touch()
 
     run([
-        "cargo", cmd,
+        "cargo", "+nightly", cmd,
         "--manifest-path", f"{project}/Cargo.toml",
         *args,
     ], cwd=project_dir, comment=comment, tag=tag)
