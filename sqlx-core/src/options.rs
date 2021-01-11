@@ -12,6 +12,11 @@ where
 {
     type Connection: Connection<Rt> + ?Sized;
 
+    /// Parse a connection URL into connection options.
+    fn parse(url: &str) -> crate::Result<Self> {
+        url.parse()
+    }
+
     /// Establish a new connection to the database.
     #[cfg(feature = "async")]
     fn connect(&self) -> futures_util::future::BoxFuture<'_, crate::Result<Self::Connection>>

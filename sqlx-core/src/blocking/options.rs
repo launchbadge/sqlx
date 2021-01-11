@@ -11,6 +11,12 @@ where
     Rt: Runtime,
     Self::Connection: crate::Connection<Rt, Options = Self> + Connection<Rt>,
 {
+    /// Parse a connection URL into connection options.
+    #[inline]
+    fn parse(url: &str) -> crate::Result<Self> {
+        <Self as crate::ConnectOptions<Rt>>::parse(url)
+    }
+
     /// Establish a connection to the database.
     ///
     /// For detailed information, refer to the asynchronous version of
