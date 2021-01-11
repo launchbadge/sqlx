@@ -20,11 +20,13 @@
 //!
 //! https://dev.mysql.com/doc/internals/en/mysql-packet.html
 //!
+use std::fmt::Debug;
+
 use bytes::{Buf, BufMut};
 use sqlx_core::io::{Deserialize, Serialize};
 use sqlx_core::{Error, Result, Runtime};
 
-use crate::protocol::{Capabilities, ErrPacket};
+use crate::protocol::{Capabilities, ErrPacket, MaybeCommand};
 use crate::{MySqlConnection, MySqlDatabaseError};
 
 impl<Rt> MySqlConnection<Rt>
@@ -33,13 +35,15 @@ where
 {
     pub(super) fn write_packet<'ser, T>(&'ser mut self, packet: &T) -> Result<()>
     where
-        T: Serialize<'ser, Capabilities>,
+        T: Serialize<'ser, Capabilities> + Debug + MaybeCommand,
     {
+        log::trace!("write > {:?}", packet);
+
         // the sequence-id is incremented with each packet and may
         // wrap around. it starts at 0 and is reset to 0 when a new command
         // begins in the Command Phase
 
-        self.sequence_id = self.sequence_id.wrapping_add(1);
+        self.sequence_id = if T::is_command() { 0 } else { self.sequence_id.wrapping_add(1) };
 
         // optimize for <16M packet sizes, in the case of >= 16M we would
         // swap out the write buffer for a fresh buffer and then split it into
@@ -70,7 +74,7 @@ where
 
     fn recv_packet<'de, T>(&'de mut self, len: usize) -> Result<T>
     where
-        T: Deserialize<'de, Capabilities>,
+        T: Deserialize<'de, Capabilities> + Debug,
     {
         // FIXME: handle split packets
         assert_ne!(len, 0xFF_FF_FF);
@@ -88,10 +92,15 @@ where
         if payload[0] == 0xff {
             // if the first byte of the payload is 0xFF and the payload is an ERR packet
             let err = ErrPacket::deserialize_with(payload, self.capabilities)?;
+            log::trace!("read  > {:?}", err);
+
             return Err(Error::connect(MySqlDatabaseError(err)));
         }
 
-        T::deserialize_with(payload, self.capabilities)
+        let packet = T::deserialize_with(payload, self.capabilities)?;
+        log::trace!("read  > {:?}", packet);
+
+        Ok(packet)
     }
 }
 
@@ -132,7 +141,7 @@ where
 {
     pub(super) async fn read_packet_async<'de, T>(&'de mut self) -> Result<T>
     where
-        T: Deserialize<'de, Capabilities>,
+        T: Deserialize<'de, Capabilities> + Debug,
         Rt: sqlx_core::Async,
     {
         read_packet!(self)
@@ -146,7 +155,7 @@ where
 {
     pub(super) fn read_packet<'de, T>(&'de mut self) -> Result<T>
     where
-        T: Deserialize<'de, Capabilities>,
+        T: Deserialize<'de, Capabilities> + Debug,
         Rt: sqlx_core::blocking::Runtime,
     {
         read_packet!(@blocking self)

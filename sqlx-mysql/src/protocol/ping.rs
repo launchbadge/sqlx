@@ -1,13 +1,14 @@
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
-use crate::protocol::Capabilities;
+use crate::protocol::{Capabilities, Command};
 
 /// Check if the server is alive.
 ///
 /// https://dev.mysql.com/doc/internals/en/com-ping.html
 /// https://mariadb.com/kb/en/com_ping/
 ///
+#[derive(Debug)]
 pub(crate) struct Ping;
 
 impl Serialize<'_, Capabilities> for Ping {
@@ -17,6 +18,8 @@ impl Serialize<'_, Capabilities> for Ping {
         Ok(())
     }
 }
+
+impl Command for Ping {}
 
 #[cfg(test)]
 mod tests {

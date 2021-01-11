@@ -4,7 +4,7 @@ use bytes::Bytes;
 use sqlx_core::io::{Deserialize, Serialize};
 use sqlx_core::{Error, Result};
 
-use crate::protocol::{AuthSwitch, Capabilities, OkPacket};
+use crate::protocol::{AuthSwitch, Capabilities, MaybeCommand, OkPacket};
 use crate::MySqlDatabaseError;
 
 #[derive(Debug)]
@@ -36,6 +36,8 @@ impl Deserialize<'_, Capabilities> for Auth {
 pub(crate) struct AuthResponse {
     pub(crate) data: Vec<u8>,
 }
+
+impl MaybeCommand for AuthResponse {}
 
 impl Serialize<'_, Capabilities> for AuthResponse {
     fn serialize_with(&self, buf: &mut Vec<u8>, _context: Capabilities) -> Result<()> {

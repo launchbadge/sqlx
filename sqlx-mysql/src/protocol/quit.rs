@@ -1,12 +1,13 @@
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
-use crate::protocol::Capabilities;
+use crate::protocol::{Capabilities, Command};
 
 /// Tells the server that the client wants to close the connection.
 ///
 /// https://dev.mysql.com/doc/internals/en/com-quit.html
 ///
+#[derive(Debug)]
 pub(crate) struct Quit;
 
 impl Serialize<'_, Capabilities> for Quit {
@@ -16,6 +17,8 @@ impl Serialize<'_, Capabilities> for Quit {
         Ok(())
     }
 }
+
+impl Command for Quit {}
 
 #[cfg(test)]
 mod tests {

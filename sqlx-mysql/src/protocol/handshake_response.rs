@@ -2,7 +2,7 @@ use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
 
 use crate::io::MySqlWriteExt;
-use crate::protocol::Capabilities;
+use crate::protocol::{Capabilities, MaybeCommand};
 
 // https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse
 // https://mariadb.com/kb/en/connection/#client-handshake-response
@@ -16,6 +16,8 @@ pub(crate) struct HandshakeResponse<'a> {
     pub(crate) auth_plugin_name: &'a str,
     pub(crate) auth_response: Vec<u8>,
 }
+
+impl MaybeCommand for HandshakeResponse<'_> {}
 
 impl Serialize<'_, Capabilities> for HandshakeResponse<'_> {
     fn serialize_with(&self, buf: &mut Vec<u8>, capabilities: Capabilities) -> Result<()> {
