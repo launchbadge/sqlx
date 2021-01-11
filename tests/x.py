@@ -2,6 +2,7 @@
 import argparse
 import subprocess
 import re
+import sys
 from os import environ
 from pathlib import Path
 from shutil import rmtree
@@ -18,7 +19,7 @@ argv, unknown = parser.parse_known_args()
 # get an absolute path to the project directory for SQLx
 project_dir = Path(__file__).parent.parent
 coverage_dir = project_dir.joinpath(".coverage")
-raw_coverage_dir = project_dir.joinpath("raw")
+raw_coverage_dir = coverage_dir.joinpath("raw")
 
 # global test filenames
 # we capture these all, so we can collect coverage later
@@ -43,8 +44,13 @@ def run(cmd, *, cwd, env=None, comment=None, tag=None):
 
     print(f"\x1b[93m $ {' '.join(cmd)}\x1b[0m")
 
-    subprocess.run(cmd, env=env, cwd=project_dir, check=True,
-                   stdout=None if argv.verbose else PIPE)
+    res = subprocess.run(cmd, env=env, cwd=project_dir, check=False, stdout=None if argv.verbose else PIPE)
+
+    if not argv.verbose and res.returncode != 0:
+        print(res.stdout.decode())
+
+    if res.returncode != 0:
+        sys.exit(1)
 
 
 def run_checks(project_name: str, *, cmd="check"):
@@ -116,9 +122,9 @@ def run_unit_test(project_name: str):
 
 def main():
     # remove and re-create directory for raw coverage data
-    raw_coverage_dir = Path(f"{project_dir}/.coverage/raw/")
-    rmtree(raw_coverage_dir)
-    raw_coverage_dir.mkdir()
+    coverage_dir.mkdir(parents=True, exist_ok=True)
+    rmtree(raw_coverage_dir, ignore_errors=True)
+    raw_coverage_dir.mkdir(parents=True)
 
     # run checks
     run_checks("core")
