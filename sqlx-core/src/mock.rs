@@ -98,6 +98,8 @@ impl MockStream {
     }
 }
 
+impl crate::Async for Mock {}
+
 impl<'s> IoStream<'s, Mock> for MockStream {
     #[cfg(feature = "async")]
     type ReadFuture = BoxFuture<'s, io::Result<usize>>;
