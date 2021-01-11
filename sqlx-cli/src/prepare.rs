@@ -1,11 +1,12 @@
 use anyhow::{bail, Context};
-use cargo_metadata::MetadataCommand;
 use console::style;
 use remove_dir_all::remove_dir_all;
+use serde::Deserialize;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
+use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -86,10 +87,18 @@ fn run_prepare_step(merge: bool, cargo_args: Vec<String>) -> anyhow::Result<Quer
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare`")?;
 
-    let metadata = MetadataCommand::new()
-        .cargo_path(&cargo)
-        .exec()
-        .context("failed to execute `cargo metadata`")?;
+    let output = Command::new(&cargo)
+        .args(&["metadata", "--format-version=1"])
+        .output()
+        .context("Could not fetch metadata")?;
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        target_directory: PathBuf,
+    }
+
+    let metadata: Metadata =
+        serde_json::from_slice(&output.stdout).context("Invalid `cargo metadata` output")?;
 
     // try removing the target/sqlx directory before running, as stale files
     // have repeatedly caused issues in the past.
