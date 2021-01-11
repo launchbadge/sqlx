@@ -1,0 +1,15 @@
+[package]
+name = "sqlx_example_quickstart_mysql_tokio"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]
+
+[dependencies]
+anyhow = "1.0.36"
+tokio = { version = "1", features = ["full"] }
+log = "0.4"
+env_logger = "0.8.2"
+sqlx = { path = "../../../sqlx", features = [ "tokio", "mysql"] }

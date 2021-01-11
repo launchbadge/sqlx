@@ -4,5 +4,9 @@ members = [
     "sqlx-core",
     "sqlx-mysql",
     "sqlx",
-    "examples/quickstart"
+
+    # examples
+    "examples/quickstart/mysql+blocking",
+    "examples/quickstart/mysql+async-std",
+    "examples/quickstart/mysql+tokio"
 ]

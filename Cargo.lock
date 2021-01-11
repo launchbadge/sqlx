@@ -1116,17 +1116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-example-quickstart"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-std",
- "env_logger",
- "log",
- "sqlx",
-]
-
-[[package]]
 name = "sqlx-mysql"
 version = "0.6.0-pre"
 dependencies = [
@@ -1148,6 +1137,38 @@ dependencies = [
  "sha2",
  "sqlx-core",
  "url",
+]
+
+[[package]]
+name = "sqlx_example_quickstart_mysql_async-std"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "env_logger",
+ "log",
+ "sqlx",
+]
+
+[[package]]
+name = "sqlx_example_quickstart_mysql_blocking"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "log",
+ "sqlx",
+]
+
+[[package]]
+name = "sqlx_example_quickstart_mysql_tokio"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "log",
+ "sqlx",
+ "tokio",
 ]
 
 [[package]]
@@ -1250,13 +1271,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d258221f566b6c803c7b4714abadc080172b272090cdc5e244a6d4dd13c3a6bd"
 dependencies = [
  "autocfg 1.0.1",
+ "bytes",
  "libc",
+ "memchr",
  "mio",
+ "num_cpus",
  "once_cell",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
+ "tokio-macros",
  "winapi",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42517d2975ca3114b22a16192634e8241dc5cc1f130be194645970cc1c371494"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -1,0 +1,14 @@
+[package]
+name = "sqlx_example_quickstart_mysql_blocking"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]
+
+[dependencies]
+anyhow = "1.0.36"
+log = "0.4"
+env_logger = "0.8.2"
+sqlx = { path = "../../../sqlx", features = [ "blocking", "mysql"] }
