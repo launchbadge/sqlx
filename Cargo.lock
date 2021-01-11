@@ -2666,7 +2666,7 @@ dependencies = [
  "futures",
  "heck",
  "hex",
- "lazy_static",
+ "once_cell",
  "proc-macro2",
  "quote",
  "serde",
