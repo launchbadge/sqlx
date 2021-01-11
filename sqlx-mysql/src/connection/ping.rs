@@ -14,7 +14,6 @@ where
     pub(crate) async fn ping_async(&mut self) -> Result<()>
     where
         Rt: sqlx_core::Async,
-        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         self.write_packet(&Ping)?;
 
@@ -26,7 +25,7 @@ where
     #[cfg(feature = "blocking")]
     pub(crate) fn ping(&mut self) -> Result<()>
     where
-        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
+        Rt: sqlx_core::blocking::Runtime,
     {
         self.write_packet(&Ping)?;
 

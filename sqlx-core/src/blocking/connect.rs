@@ -1,4 +1,4 @@
-use super::{io::Stream, Runtime};
+use super::Runtime;
 
 pub trait Connect<Rt>: crate::Connect<Rt>
 where
@@ -6,8 +6,7 @@ where
 {
     fn connect(url: &str) -> crate::Result<Self>
     where
-        Self: Sized,
-        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
+        Self: Sized;
 }
 
 // TODO: impl Connect for Pool { ... }

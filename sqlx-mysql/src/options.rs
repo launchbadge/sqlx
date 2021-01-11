@@ -32,7 +32,7 @@ where
     Rt: Runtime,
 {
     runtime: PhantomData<Rt>,
-    address: Either<(String, u16), PathBuf>,
+    pub(crate) address: Either<(String, u16), PathBuf>,
     username: Option<String>,
     password: Option<String>,
     database: Option<String>,
@@ -144,7 +144,6 @@ where
     where
         Self::Connection: Sized,
         Rt: sqlx_core::Async,
-        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(MySqlConnection::connect_async(self))
     }
@@ -158,7 +157,6 @@ where
     fn connect(&self) -> sqlx_core::Result<Self::Connection>
     where
         Self::Connection: Sized,
-        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         <MySqlConnection<Rt>>::connect(self)
     }

@@ -28,6 +28,5 @@ where
     #[cfg(feature = "async")]
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>
     where
-        Rt: crate::Async,
-        for<'s> <Rt as Runtime>::TcpStream: crate::io::Stream<'s, Rt>;
+        Rt: crate::Async;
 }

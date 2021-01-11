@@ -8,8 +8,7 @@ where
     #[cfg(feature = "async")]
     fn close(self) -> futures_util::future::BoxFuture<'static, crate::Result<()>>
     where
-        Rt: crate::Async,
-        for<'s> <Rt as Runtime>::TcpStream: crate::io::Stream<'s, Rt>;
+        Rt: crate::Async;
 }
 
 // TODO: impl Close for Pool { ... }

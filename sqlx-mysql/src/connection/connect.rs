@@ -11,6 +11,7 @@
 //!
 //! https://dev.mysql.com/doc/internals/en/connection-phase.html
 //!
+use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Result;
 
 use crate::protocol::{Auth, AuthResponse, Handshake, HandshakeResponse};
@@ -18,11 +19,11 @@ use crate::{MySqlConnectOptions, MySqlConnection};
 
 macro_rules! connect {
     (@blocking @tcp $options:ident) => {
-        Rt::connect_tcp($options.get_host(), $options.get_port())?;
+        NetStream::connect($options.address.as_ref())?;
     };
 
     (@tcp $options:ident) => {
-        Rt::connect_tcp_async($options.get_host(), $options.get_port()).await?;
+        NetStream::connect_async($options.address.as_ref()).await?;
     };
 
     (@blocking @packet $self:ident) => {
@@ -132,10 +133,7 @@ impl<Rt> MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
 {
-    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self>
-    where
-        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
-    {
+    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
         connect!(@blocking options)
     }
 }

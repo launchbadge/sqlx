@@ -1,4 +1,10 @@
+use std::io;
+#[cfg(unix)]
+use std::path::Path;
+
 use _async_std::net::TcpStream;
+#[cfg(unix)]
+use _async_std::os::unix::net::UnixStream;
 #[cfg(feature = "blocking")]
 use _async_std::task;
 use futures_util::io::{Read, Write};
@@ -21,22 +27,41 @@ pub struct AsyncStd;
 impl Runtime for AsyncStd {
     #[doc(hidden)]
     type TcpStream = TcpStream;
-}
 
-impl Async for AsyncStd {
     #[doc(hidden)]
-    fn connect_tcp_async(host: &str, port: u16) -> BoxFuture<'_, std::io::Result<Self::TcpStream>> {
-        TcpStream::connect((host, port)).boxed()
-    }
-}
+    #[cfg(unix)]
+    type UnixStream = UnixStream;
 
-#[cfg(feature = "blocking")]
-impl blocking::Runtime for AsyncStd {
     #[doc(hidden)]
-    fn connect_tcp(host: &str, port: u16) -> std::io::Result<Self::TcpStream> {
+    #[cfg(feature = "blocking")]
+    fn connect_tcp(host: &str, port: u16) -> io::Result<Self::TcpStream> {
         task::block_on(Self::connect_tcp_async(host, port))
     }
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "blocking"))]
+    fn connect_unix(path: &Path) -> io::Result<Self::UnixStream> {
+        task::block_on(Self::connect_unix_async(path))
+    }
+
+    #[doc(hidden)]
+    fn connect_tcp_async(host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>> {
+        TcpStream::connect((host, port)).boxed()
+    }
+
+    #[doc(hidden)]
+    #[cfg(unix)]
+    fn connect_unix_async(path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>> {
+        UnixStream::connect(path).boxed()
+    }
 }
+
+impl Async for AsyncStd {}
+
+// blocking operations provided by trivially wrapping async counterparts
+// with `task::block_on`
+#[cfg(feature = "blocking")]
+impl blocking::Runtime for AsyncStd {}
 
 // 's: stream
 impl<'s> Stream<'s, AsyncStd> for TcpStream {
@@ -49,26 +74,62 @@ impl<'s> Stream<'s, AsyncStd> for TcpStream {
     #[inline]
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
-        self.read(buf)
+        AsyncReadExt::read(self, buf)
     }
 
     #[inline]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
-        self.write(buf)
+        AsyncWriteExt::write(self, buf)
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
+        task::block_on(self.read_async(buf))
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize> {
+        task::block_on(self.write_async(buf))
     }
 }
 
 // 's: stream
-#[cfg(feature = "blocking")]
-impl<'s> blocking::io::Stream<'s, AsyncStd> for TcpStream {
+#[cfg(unix)]
+impl<'s> Stream<'s, AsyncStd> for UnixStream {
     #[doc(hidden)]
-    fn read(&'s mut self, buf: &'s mut [u8]) -> std::io::Result<usize> {
-        _async_std::task::block_on(self.read_async(buf))
-    }
+    type ReadFuture = Read<'s, Self>;
 
     #[doc(hidden)]
-    fn write(&'s mut self, buf: &'s [u8]) -> std::io::Result<usize> {
-        _async_std::task::block_on(self.write_async(buf))
+    type WriteFuture = Write<'s, Self>;
+
+    #[inline]
+    #[doc(hidden)]
+    fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
+        AsyncReadExt::read(self, buf)
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
+        AsyncWriteExt::write(self, buf)
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
+        task::block_on(self.read_async(buf))
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize> {
+        task::block_on(self.write_async(buf))
     }
 }

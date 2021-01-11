@@ -2,6 +2,8 @@ use std::marker::PhantomData;
 
 use bytes::{Bytes, BytesMut};
 
+use super::Stream;
+
 /// Wraps a stream and buffers input and output to and from it.
 ///
 /// It can be excessively inefficient to work directly with a `Read` or `Write`. For example,
@@ -47,7 +49,7 @@ impl<Rt, S> BufStream<Rt, S> {
     }
 
     pub fn consume(&mut self, n: usize) {
-        let _ = self.take(n);
+        let _rem = self.take(n);
     }
 
     pub fn reserve(&mut self, additional: usize) {
@@ -119,7 +121,7 @@ macro_rules! read {
 }
 
 #[cfg(feature = "async")]
-impl<Rt: crate::Runtime, S: for<'s> crate::io::Stream<'s, Rt>> BufStream<Rt, S> {
+impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
     pub async fn flush_async(&mut self) -> crate::Result<()> {
         // write as much as we can each time and move the cursor as we write from the buffer
         // if _this_ future drops, offset will have a record of how much of the wbuf has
@@ -141,7 +143,7 @@ impl<Rt: crate::Runtime, S: for<'s> crate::io::Stream<'s, Rt>> BufStream<Rt, S> 
 }
 
 #[cfg(feature = "blocking")]
-impl<Rt: crate::Runtime, S: for<'s> crate::blocking::io::Stream<'s, Rt>> BufStream<Rt, S> {
+impl<Rt: crate::blocking::Runtime, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
     pub fn flush(&mut self) -> crate::Result<()> {
         self.stream.write(&self.wbuf)?;
         self.wbuf.clear();

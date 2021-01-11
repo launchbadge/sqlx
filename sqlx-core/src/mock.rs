@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 use std::io;
-#[cfg(feature = "async")]
-use std::pin::Pin;
+#[cfg(unix)]
+use std::path::Path;
 use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering;
 
 use bytes::BytesMut;
 use conquer_once::Lazy;
 use crossbeam::channel;
+#[cfg(feature = "async")]
+use futures_util::future::{self, BoxFuture};
 use parking_lot::RwLock;
 
-#[cfg(feature = "blocking")]
-use crate::blocking;
-use crate::{io::Stream, Runtime};
+use crate::{io::Stream as IoStream, Runtime};
 
 #[derive(Debug)]
 pub struct Mock;
@@ -32,22 +32,38 @@ static MOCK_STREAMS: Lazy<RwLock<HashMap<u16, MockStream>>> = Lazy::new(RwLock::
 
 impl Runtime for Mock {
     type TcpStream = MockStream;
-}
 
-#[cfg(feature = "async")]
-impl crate::Async for Mock {
-    fn connect_tcp_async(
-        _host: &str,
-        port: u16,
-    ) -> futures_util::future::BoxFuture<'_, io::Result<Self::TcpStream>> {
-        Box::pin(futures_util::future::ready(Self::get_stream(port)))
-    }
-}
+    #[cfg(unix)]
+    type UnixStream = MockStream;
 
-#[cfg(feature = "blocking")]
-impl crate::blocking::Runtime for Mock {
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
     fn connect_tcp(_host: &str, port: u16) -> io::Result<Self::TcpStream> {
         Self::get_stream(port)
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "blocking"))]
+    fn connect_unix(_path: &Path) -> io::Result<Self::UnixStream> {
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Unix streams are not supported in the Mock runtime",
+        ))
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn connect_tcp_async(_host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>> {
+        Box::pin(future::ready(Self::get_stream(port)))
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "async"))]
+    fn connect_unix_async(_path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>> {
+        Box::pin(future::err(io::Error::new(
+            io::ErrorKind::Other,
+            "Unix streams are not supported in the Mock runtime",
+        )))
     }
 }
 
@@ -82,12 +98,12 @@ impl MockStream {
     }
 }
 
-impl<'s> Stream<'s, Mock> for MockStream {
+impl<'s> IoStream<'s, Mock> for MockStream {
     #[cfg(feature = "async")]
-    type ReadFuture = Pin<Box<dyn std::future::Future<Output = io::Result<usize>> + 's + Send>>;
+    type ReadFuture = BoxFuture<'s, io::Result<usize>>;
 
     #[cfg(feature = "async")]
-    type WriteFuture = Pin<Box<dyn std::future::Future<Output = io::Result<usize>> + 's + Send>>;
+    type WriteFuture = BoxFuture<'s, io::Result<usize>>;
 
     #[cfg(feature = "async")]
     fn read_async(&'s mut self, mut buf: &'s mut [u8]) -> Self::ReadFuture {
@@ -100,7 +116,7 @@ impl<'s> Stream<'s, Mock> for MockStream {
                     let written = buf.write(&self.rbuf)?;
 
                     // remove the bytes that we were able to write
-                    let _ = self.rbuf.split_to(written);
+                    let _rem = self.rbuf.split_to(written);
 
                     // return how many bytes we wrote
                     return Ok(written);
@@ -124,15 +140,13 @@ impl<'s> Stream<'s, Mock> for MockStream {
     #[cfg(feature = "async")]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
         // send it all, right away
-        let _ = self.write.send(buf.to_vec());
+        let _res = self.write.send(buf.to_vec());
 
         // that was easy
-        Box::pin(futures_util::future::ok(buf.len()))
+        Box::pin(future::ok(buf.len()))
     }
-}
 
-#[cfg(feature = "blocking")]
-impl<'s> blocking::io::Stream<'s, Mock> for MockStream {
+    #[cfg(feature = "blocking")]
     fn read(&'s mut self, mut buf: &'s mut [u8]) -> io::Result<usize> {
         use io::Write;
 
@@ -142,7 +156,7 @@ impl<'s> blocking::io::Stream<'s, Mock> for MockStream {
                 let written = buf.write(&self.rbuf)?;
 
                 // remove the bytes that we were able to write
-                let _ = self.rbuf.split_to(written);
+                let _rem = self.rbuf.split_to(written);
 
                 // return how many bytes we wrote
                 return Ok(written);
@@ -157,9 +171,10 @@ impl<'s> blocking::io::Stream<'s, Mock> for MockStream {
         }
     }
 
+    #[cfg(feature = "blocking")]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize> {
         // send it all, right away
-        let _ = self.write.send(buf.to_vec());
+        let _res = self.write.send(buf.to_vec());
 
         // that was easy
         Ok(buf.len())

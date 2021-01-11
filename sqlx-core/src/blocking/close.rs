@@ -1,12 +1,10 @@
-use super::{io::Stream, Runtime};
+use super::Runtime;
 
 pub trait Close<Rt>: crate::Close<Rt>
 where
     Rt: Runtime,
 {
-    fn close(self) -> crate::Result<()>
-    where
-        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
+    fn close(self) -> crate::Result<()>;
 }
 
 // TODO: impl Close for Pool { ... }

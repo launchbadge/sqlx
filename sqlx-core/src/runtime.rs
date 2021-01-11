@@ -1,4 +1,13 @@
-use crate::io::Stream;
+use std::io;
+#[cfg(unix)]
+use std::path::Path;
+
+#[cfg(feature = "async")]
+use futures_util::future::BoxFuture;
+
+#[cfg(feature = "blocking")]
+use crate::blocking;
+use crate::io::Stream as IoStream;
 
 #[cfg(feature = "async-std")]
 #[path = "runtime/async_std.rs"]
@@ -43,28 +52,41 @@ pub use tokio_::Tokio;
 ///
 pub trait Runtime: 'static + Send + Sync + Sized {
     #[doc(hidden)]
-    type TcpStream: 'static + Send + Sync;
+    type TcpStream: for<'s> IoStream<'s, Self>;
+
+    #[doc(hidden)]
+    #[cfg(unix)]
+    type UnixStream: for<'s> IoStream<'s, Self>;
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn connect_tcp(host: &str, port: u16) -> io::Result<Self::TcpStream>
+    where
+        Self: blocking::Runtime;
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "blocking"))]
+    fn connect_unix(path: &Path) -> io::Result<Self::UnixStream>
+    where
+        Self: blocking::Runtime;
+
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn connect_tcp_async(host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>>
+    where
+        Self: Async;
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "async"))]
+    fn connect_unix_async(path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>>
+    where
+        Self: Async;
 }
 
 /// Marks a [`Runtime`] as being capable of handling asynchronous execution.
 // Provided so that attempting to use the asynchronous methods with the
 // Blocking runtime will error at compile-time as opposed to runtime.
-pub trait Async: Runtime
-where
-    // NOTE: This requires a **pervasive** bound for everything that needs
-    //       to bound on <Runtime>. Remove if you can think of something else that
-    //       allows us to both allow polymorphic read/write on streams across
-    //       runtimes _and_ not depend on <BoxFuture>. When GATs are stabilized,
-    //       we should be able to switch to that and remove this HRTB.
-    Self::TcpStream: for<'s> Stream<'s, Self>,
-{
-    #[cfg(feature = "async")]
-    #[doc(hidden)]
-    fn connect_tcp_async(
-        host: &str,
-        port: u16,
-    ) -> futures_util::future::BoxFuture<'_, std::io::Result<Self::TcpStream>>;
-}
+pub trait Async: Runtime {}
 
 // when no runtime is available
 // we implement `()` for it to allow the lib to still compile
@@ -75,7 +97,28 @@ where
     feature = "blocking"
 )))]
 impl Runtime for () {
+    #[doc(hidden)]
     type TcpStream = ();
+
+    #[doc(hidden)]
+    #[cfg(unix)]
+    type UnixStream = ();
+
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    #[allow(unused_variables)]
+    fn connect_tcp_async(host: &str, port: u16) -> BoxFuture<'_, io::Result<Self::TcpStream>> {
+        // UNREACHABLE: where Self: Async
+        unreachable!()
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "async"))]
+    #[allow(unused_variables)]
+    fn connect_unix_async(path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>> {
+        // UNREACHABLE: where Self: blocking::Runtime
+        unreachable!()
+    }
 }
 
 // pick a default runtime

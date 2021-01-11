@@ -2,6 +2,7 @@
 //! database driver (`sqlx-postgres`, `sqlx-mysql`, etc.).
 //!
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
+#![cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 #![warn(future_incompatible)]
@@ -31,6 +32,9 @@ mod runtime;
 pub mod io;
 
 #[doc(hidden)]
+pub mod net;
+
+#[doc(hidden)]
 #[cfg(feature = "_mock")]
 pub mod mock;
 
@@ -39,7 +43,7 @@ pub mod blocking;
 
 pub use acquire::Acquire;
 #[cfg(feature = "blocking")]
-pub use blocking::rt::Blocking;
+pub use blocking::runtime::Blocking;
 pub use close::Close;
 pub use connect::Connect;
 pub use connection::Connection;
@@ -56,6 +60,10 @@ pub use runtime::Tokio;
 pub use runtime::{Async, DefaultRuntime, Runtime};
 
 /// Convenience re-export of common traits for non-blocking operations.
+#[cfg(any(
+    any(feature = "async-std", feature = "tokio", feature = "actix"),
+    not(feature = "blocking")
+))]
 pub mod prelude {
     #[doc(no_inline)]
     pub use super::Acquire as _;

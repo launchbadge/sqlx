@@ -10,8 +10,7 @@ where
     fn connect(url: &str) -> futures_util::future::BoxFuture<'_, crate::Result<Self>>
     where
         Self: Sized,
-        Rt: crate::Async,
-        for<'s> <Rt as Runtime>::TcpStream: crate::io::Stream<'s, Rt>;
+        Rt: crate::Async;
 }
 
 // TODO: impl Connect for Pool { ... }

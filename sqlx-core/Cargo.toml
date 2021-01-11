@@ -38,6 +38,7 @@ _mock = ["conquer-once", "parking_lot", "crossbeam"]
 
 [dependencies]
 log = "0.4.11"
+either = "1.6.1"
 actix-rt = { version = "2.0.0-beta.2", optional = true }
 _async-std = { version = "1.8", optional = true, package = "async-std" }
 futures-util = { version = "0.3", optional = true, features = ["io"] }

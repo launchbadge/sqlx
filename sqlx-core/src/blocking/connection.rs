@@ -1,4 +1,4 @@
-use super::{io::Stream, Close, Connect, ConnectOptions, Runtime};
+use super::{Close, Connect, ConnectOptions, Runtime};
 
 /// A unique connection (session) with a specific database.
 ///
@@ -15,7 +15,5 @@ where
     /// For detailed information, refer to the asynchronous version of
     /// this: [`ping()`][crate::Connection::ping].
     ///
-    fn ping(&mut self) -> crate::Result<()>
-    where
-        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
+    fn ping(&mut self) -> crate::Result<()>;
 }

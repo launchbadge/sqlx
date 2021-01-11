@@ -134,7 +134,6 @@ where
     where
         T: Deserialize<'de, Capabilities>,
         Rt: sqlx_core::Async,
-        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         read_packet!(self)
     }
@@ -148,7 +147,7 @@ where
     pub(super) fn read_packet<'de, T>(&'de mut self) -> Result<T>
     where
         T: Deserialize<'de, Capabilities>,
-        for<'s> Rt::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
+        Rt: sqlx_core::blocking::Runtime,
     {
         read_packet!(@blocking self)
     }

@@ -17,6 +17,5 @@ where
     fn connect(&self) -> futures_util::future::BoxFuture<'_, crate::Result<Self::Connection>>
     where
         Self::Connection: Sized,
-        Rt: crate::Async,
-        for<'s> Rt::TcpStream: crate::io::Stream<'s, Rt>;
+        Rt: crate::Async;
 }

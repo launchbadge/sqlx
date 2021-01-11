@@ -1,6 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 use sqlx_core::io::BufStream;
+use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, DefaultRuntime, Runtime};
 
 use crate::protocol::Capabilities;
@@ -16,7 +17,7 @@ pub struct MySqlConnection<Rt = DefaultRuntime>
 where
     Rt: Runtime,
 {
-    stream: BufStream<Rt, Rt::TcpStream>,
+    stream: BufStream<Rt, NetStream<Rt>>,
     connection_id: u32,
 
     // the capability flags are used by the client and server to indicate which
@@ -32,7 +33,7 @@ impl<Rt> MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
-    pub(crate) fn new(stream: Rt::TcpStream) -> Self {
+    pub(crate) fn new(stream: NetStream<Rt>) -> Self {
         Self {
             stream: BufStream::with_capacity(stream, 4096, 1024),
             connection_id: 0,
@@ -73,7 +74,6 @@ where
     fn ping(&mut self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
-        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(self.ping_async())
     }
@@ -87,7 +87,6 @@ impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
     where
         Self: Sized,
         Rt: sqlx_core::Async,
-        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         use sqlx_core::ConnectOptions;
 
@@ -101,7 +100,6 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
     fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
-        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         Box::pin(self.close_async())
     }
@@ -112,10 +110,7 @@ impl<Rt> sqlx_core::blocking::Connection<Rt> for MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
 {
-    fn ping(&mut self) -> sqlx_core::Result<()>
-    where
-        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
-    {
+    fn ping(&mut self) -> sqlx_core::Result<()> {
         self.ping()
     }
 }
@@ -128,7 +123,6 @@ where
     fn connect(url: &str) -> sqlx_core::Result<Self>
     where
         Self: Sized,
-        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
     {
         Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
     }
@@ -139,10 +133,7 @@ impl<Rt> sqlx_core::blocking::Close<Rt> for MySqlConnection<Rt>
 where
     Rt: sqlx_core::blocking::Runtime,
 {
-    fn close(self) -> sqlx_core::Result<()>
-    where
-        for<'s> <Rt as Runtime>::TcpStream: sqlx_core::blocking::io::Stream<'s, Rt>,
-    {
+    fn close(self) -> sqlx_core::Result<()> {
         self.close()
     }
 }

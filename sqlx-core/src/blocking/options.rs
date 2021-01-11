@@ -1,4 +1,4 @@
-use super::{io::Stream, Connection, Runtime};
+use super::{Connection, Runtime};
 
 /// Options which can be used to configure how a SQL connection is opened.
 ///
@@ -18,6 +18,5 @@ where
     ///
     fn connect(&self) -> crate::Result<Self::Connection>
     where
-        Self::Connection: Sized,
-        for<'s> <Rt as crate::Runtime>::TcpStream: Stream<'s, Rt>;
+        Self::Connection: Sized;
 }
