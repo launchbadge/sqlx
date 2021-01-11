@@ -37,9 +37,8 @@ async-trait = "0.1.30"
 console = "0.11.3"
 dialoguer = "0.7.1"
 serde_json = { version = "1.0.53", features = ["preserve_order"] }
-serde = "1.0.110"
+serde = { version = "1.0.110", features = ["derive"] }
 glob = "0.3.0"
-cargo_metadata = "0.10.0"
 openssl = { version = "0.10.30", optional = true }
 # workaround for https://github.com/rust-lang/rust/issues/29497
 remove_dir_all = "0.6.0"

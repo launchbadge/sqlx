@@ -34,7 +34,7 @@ _rt-async-std = []
 _rt-tokio = []
 
 # offline building support
-offline = ["sqlx-core/offline", "serde", "serde_json", "hex", "sha2"]
+offline = ["sqlx-core/offline", "hex", "sha2"]
 
 # database
 mysql = [ "sqlx-core/mysql" ]
@@ -50,10 +50,9 @@ time = [ "sqlx-core/time" ]
 ipnetwork = [ "sqlx-core/ipnetwork" ]
 uuid = [ "sqlx-core/uuid" ]
 bit-vec = [ "sqlx-core/bit-vec" ]
-json = [ "sqlx-core/json", "serde_json" ]
+json = [ "sqlx-core/json" ]
 
 [dependencies]
-cargo_metadata = "0.12.1"
 dotenv = { version = "0.15.0", default-features = false }
 futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
 hex = { version = "0.4.2", optional = true }
@@ -63,8 +62,8 @@ once_cell = "1.5.2"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.4.2", default-features = false, path = "../sqlx-core" }
 sqlx-rt = { version = "0.2.0", default-features = false, path = "../sqlx-rt" }
-serde = { version = "1.0.111", optional = true }
-serde_json = { version = "1.0.30", features = [ "preserve_order" ], optional = true }
+serde = { version = "1.0.111", features = ["derive"] }
+serde_json = { version = "1.0.30", features = [ "preserve_order" ] }
 sha2 = { version = "0.9.1", optional = true }
 syn = { version = "1.0.30", default-features = false, features = [ "full" ] }
 quote = { version = "1.0.6", default-features = false }
