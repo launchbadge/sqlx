@@ -17,7 +17,7 @@ use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use either::Either;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 mod args;
 mod data;
@@ -26,19 +26,16 @@ mod output;
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-lazy_static! {
-    static ref CRATE_ROOT: PathBuf = {
-        let manifest_dir =
-            env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+static CRATE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
 
-        let metadata = cargo_metadata::MetadataCommand::new()
-            .current_dir(manifest_dir)
-            .exec()
-            .expect("Could not fetch metadata");
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .current_dir(manifest_dir)
+        .exec()
+        .expect("Could not fetch metadata");
 
-        metadata.workspace_root
-    };
-}
+    metadata.workspace_root
+});
 
 pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     let manifest_dir =
