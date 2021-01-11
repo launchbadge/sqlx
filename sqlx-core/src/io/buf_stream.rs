@@ -24,7 +24,6 @@ pub struct BufStream<Rt, S> {
     wbuf: Vec<u8>,
 
     // offset into [wbuf] that a previous write operation has written into
-    #[cfg(feature = "async")]
     wbuf_offset: usize,
 }
 
@@ -35,7 +34,6 @@ impl<Rt, S> BufStream<Rt, S> {
             runtime: PhantomData,
             rbuf: BytesMut::with_capacity(read),
             wbuf: Vec::with_capacity(write),
-            #[cfg(feature = "async")]
             wbuf_offset: 0,
         }
     }
@@ -66,7 +64,6 @@ impl<Rt, S> BufStream<Rt, S> {
     }
 }
 
-#[cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]
 macro_rules! read {
     ($(@$blocking:ident)? $self:ident, $offset:ident, $n:ident) => {{
         use bytes::BufMut;
@@ -100,6 +97,12 @@ macro_rules! read {
             }
         }
 
+        log::trace!(
+            "read  [{:>4}] > {:?}",
+            $n,
+            bytes::Bytes::copy_from_slice(&$self.rbuf[$offset..($offset+$n)]),
+        );
+
         Ok(())
     }};
 
@@ -120,21 +123,41 @@ macro_rules! read {
     };
 }
 
-#[cfg(feature = "async")]
-impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
-    pub async fn flush_async(&mut self) -> crate::Result<()> {
+macro_rules! flush {
+    ($(@$blocking:ident)? $self:ident) => {{
+        log::trace!(
+            "write [{:>4}] > {:?}",
+            $self.wbuf.len(),
+            bytes::Bytes::copy_from_slice(&$self.wbuf)
+        );
+
         // write as much as we can each time and move the cursor as we write from the buffer
         // if _this_ future drops, offset will have a record of how much of the wbuf has
         // been written
-        while self.wbuf_offset < self.wbuf.len() {
-            self.wbuf_offset += self.stream.write_async(&self.wbuf[self.wbuf_offset..]).await?;
+        while $self.wbuf_offset < $self.wbuf.len() {
+            $self.wbuf_offset += flush!($(@$blocking)? @write $self, &$self.wbuf[$self.wbuf_offset..]);
         }
 
         // fully written buffer, move cursor back to the beginning
-        self.wbuf_offset = 0;
-        self.wbuf.clear();
+        $self.wbuf_offset = 0;
+        $self.wbuf.clear();
 
         Ok(())
+    }};
+
+    (@blocking @write $self:ident, $b:expr) => {
+        $self.stream.write($b)?;
+    };
+
+    (@write $self:ident, $b:expr) => {
+        $self.stream.write_async($b).await?;
+    };
+}
+
+#[cfg(feature = "async")]
+impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
+    pub async fn flush_async(&mut self) -> crate::Result<()> {
+        flush!(self)
     }
 
     pub async fn read_async(&mut self, offset: usize, n: usize) -> crate::Result<()> {
@@ -145,10 +168,7 @@ impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
 #[cfg(feature = "blocking")]
 impl<Rt: crate::blocking::Runtime, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
     pub fn flush(&mut self) -> crate::Result<()> {
-        self.stream.write(&self.wbuf)?;
-        self.wbuf.clear();
-
-        Ok(())
+        flush!(@blocking self)
     }
 
     pub fn read(&mut self, offset: usize, n: usize) -> crate::Result<()> {
