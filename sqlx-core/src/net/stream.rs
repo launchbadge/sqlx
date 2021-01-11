@@ -41,6 +41,7 @@ where
             )),
         }
     }
+
     #[cfg(feature = "blocking")]
     pub fn connect(address: Either<&(String, u16), &PathBuf>) -> io::Result<Self>
     where
@@ -80,7 +81,13 @@ where
         <Rt::UnixStream as IoStream<'s, Rt>>::WriteFuture,
     >;
 
-    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    type ShutdownFuture = future::Either<
+        <Rt::TcpStream as IoStream<'s, Rt>>::ShutdownFuture,
+        <Rt::UnixStream as IoStream<'s, Rt>>::ShutdownFuture,
+    >;
+
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture
@@ -93,7 +100,6 @@ where
         }
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture
@@ -106,7 +112,18 @@ where
         }
     }
 
-    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture
+    where
+        Rt: crate::Async,
+    {
+        match self {
+            Self::Tcp(stream) => stream.shutdown_async().left_future(),
+            Self::Unix(stream) => stream.shutdown_async().right_future(),
+        }
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize>
@@ -119,7 +136,6 @@ where
         }
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize>
@@ -129,6 +145,18 @@ where
         match self {
             Self::Tcp(stream) => stream.write(buf),
             Self::Unix(stream) => stream.write(buf),
+        }
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()>
+    where
+        Rt: crate::blocking::Runtime,
+    {
+        match self {
+            Self::Tcp(stream) => stream.shutdown(),
+            Self::Unix(stream) => stream.shutdown(),
         }
     }
 }
@@ -146,7 +174,10 @@ where
     #[cfg(feature = "async")]
     type WriteFuture = <Rt::TcpStream as IoStream<'s, Rt>>::WriteFuture;
 
-    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    type ShutdownFuture = <Rt::TcpStream as IoStream<'s, Rt>>::ShutdownFuture;
+
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture
@@ -158,7 +189,6 @@ where
         }
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture
@@ -170,7 +200,18 @@ where
         }
     }
 
-    #[inline]
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture
+    where
+        Rt: crate::Async,
+    {
+        match self {
+            Self::Tcp(stream) => stream.shutdown_async().left_future(),
+            Self::Unix(stream) => stream.shutdown_async().right_future(),
+        }
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize>
@@ -182,7 +223,6 @@ where
         }
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize>
@@ -191,6 +231,17 @@ where
     {
         match self {
             Self::Tcp(stream) => stream.write(buf),
+        }
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<usize>
+    where
+        Rt: crate::blocking::Runtime,
+    {
+        match self {
+            Self::Tcp(stream) => stream.shutdown(buf),
         }
     }
 }

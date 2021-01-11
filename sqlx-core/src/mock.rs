@@ -108,6 +108,9 @@ impl<'s> IoStream<'s, Mock> for MockStream {
     type WriteFuture = BoxFuture<'s, io::Result<usize>>;
 
     #[cfg(feature = "async")]
+    type ShutdownFuture = future::Ready<io::Result<()>>;
+
+    #[cfg(feature = "async")]
     fn read_async(&'s mut self, mut buf: &'s mut [u8]) -> Self::ReadFuture {
         Box::pin(async move {
             use io::Write;
@@ -148,6 +151,11 @@ impl<'s> IoStream<'s, Mock> for MockStream {
         Box::pin(future::ok(buf.len()))
     }
 
+    #[cfg(feature = "async")]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
+        future::ok(())
+    }
+
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, mut buf: &'s mut [u8]) -> io::Result<usize> {
         use io::Write;
@@ -180,5 +188,10 @@ impl<'s> IoStream<'s, Mock> for MockStream {
 
         // that was easy
         Ok(buf.len())
+    }
+
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()> {
+        Ok(())
     }
 }

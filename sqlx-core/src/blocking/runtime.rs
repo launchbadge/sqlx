@@ -1,5 +1,5 @@
 use std::io::{self, Read, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 #[cfg(unix)]
@@ -65,6 +65,10 @@ impl<'s> IoStream<'s, Blocking> for TcpStream {
     #[cfg(feature = "async")]
     type WriteFuture = BoxFuture<'s, io::Result<usize>>;
 
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    type ShutdownFuture = BoxFuture<'s, io::Result<()>>;
+
     #[inline]
     #[doc(hidden)]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
@@ -80,6 +84,12 @@ impl<'s> IoStream<'s, Blocking> for TcpStream {
         Ok(size)
     }
 
+    #[inline]
+    #[doc(hidden)]
+    fn shutdown(&'s mut self) -> io::Result<()> {
+        TcpStream::shutdown(self, Shutdown::Both)
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn read_async(&'s mut self, _buf: &'s mut [u8]) -> Self::ReadFuture {
@@ -90,6 +100,13 @@ impl<'s> IoStream<'s, Blocking> for TcpStream {
     #[doc(hidden)]
     #[cfg(feature = "async")]
     fn write_async(&'s mut self, _buf: &'s [u8]) -> Self::WriteFuture {
+        // UNREACHABLE: where Self: Async
+        unreachable!()
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
         // UNREACHABLE: where Self: Async
         unreachable!()
     }
@@ -106,6 +123,10 @@ impl<'s> IoStream<'s, Blocking> for UnixStream {
     #[cfg(feature = "async")]
     type WriteFuture = BoxFuture<'s, io::Result<usize>>;
 
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    type ShutdownFuture = BoxFuture<'s, io::Result<()>>;
+
     #[inline]
     #[doc(hidden)]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
@@ -121,6 +142,12 @@ impl<'s> IoStream<'s, Blocking> for UnixStream {
         Ok(size)
     }
 
+    #[inline]
+    #[doc(hidden)]
+    fn shutdown(&'s mut self) -> io::Result<()> {
+        UnixStream::shutdown(self, Shutdown::Both)
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "async")]
     #[allow(unused_variables)]
@@ -133,6 +160,13 @@ impl<'s> IoStream<'s, Blocking> for UnixStream {
     #[cfg(feature = "async")]
     #[allow(unused_variables)]
     fn write_async(&'s mut self, _buf: &'s [u8]) -> Self::WriteFuture {
+        // UNREACHABLE: where Self: Async
+        unreachable!()
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "async")]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
         // UNREACHABLE: where Self: Async
         unreachable!()
     }

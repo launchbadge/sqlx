@@ -7,12 +7,14 @@ use _async_std::net::TcpStream;
 use _async_std::os::unix::net::UnixStream;
 #[cfg(feature = "blocking")]
 use _async_std::task;
+use futures_util::future::{self, BoxFuture};
 use futures_util::io::{Read, Write};
-use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt};
+use futures_util::{AsyncReadExt, AsyncWriteExt, FutureExt};
 
 #[cfg(feature = "blocking")]
 use crate::blocking;
 use crate::{io::Stream, Async, Runtime};
+use std::net::Shutdown;
 
 /// Provides [`Runtime`] for [**async-std**](https://async.rs). Supports both blocking
 /// and non-blocking operation.
@@ -71,30 +73,40 @@ impl<'s> Stream<'s, AsyncStd> for TcpStream {
     #[doc(hidden)]
     type WriteFuture = Write<'s, Self>;
 
-    #[inline]
+    #[doc(hidden)]
+    type ShutdownFuture = future::Ready<io::Result<()>>;
+
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
         AsyncReadExt::read(self, buf)
     }
 
-    #[inline]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
         AsyncWriteExt::write(self, buf)
     }
 
-    #[inline]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
+        future::ready(TcpStream::shutdown(self, Shutdown::Both))
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
         task::block_on(self.read_async(buf))
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize> {
         task::block_on(self.write_async(buf))
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()> {
+        task::block_on(self.shutdown_async())
     }
 }
 
@@ -107,29 +119,39 @@ impl<'s> Stream<'s, AsyncStd> for UnixStream {
     #[doc(hidden)]
     type WriteFuture = Write<'s, Self>;
 
-    #[inline]
+    #[doc(hidden)]
+    type ShutdownFuture = future::Ready<io::Result<()>>;
+
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
         AsyncReadExt::read(self, buf)
     }
 
-    #[inline]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
         AsyncWriteExt::write(self, buf)
     }
 
-    #[inline]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
+        future::ready(UnixStream::shutdown(self, Shutdown::Both))
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, buf: &'s mut [u8]) -> io::Result<usize> {
         task::block_on(self.read_async(buf))
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize> {
         task::block_on(self.write_async(buf))
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()> {
+        task::block_on(self.shutdown_async())
     }
 }

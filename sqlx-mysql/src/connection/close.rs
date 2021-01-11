@@ -1,4 +1,4 @@
-use sqlx_core::{Result, Runtime};
+use sqlx_core::{io::Stream, Result, Runtime};
 
 use crate::protocol::Quit;
 
@@ -13,6 +13,7 @@ where
     {
         self.write_packet(&Quit)?;
         self.stream.flush_async().await?;
+        self.stream.shutdown_async().await?;
 
         Ok(())
     }
@@ -24,6 +25,7 @@ where
     {
         self.write_packet(&Quit)?;
         self.stream.flush()?;
+        self.stream.shutdown()?;
 
         Ok(())
     }

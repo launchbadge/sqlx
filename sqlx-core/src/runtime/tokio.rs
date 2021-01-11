@@ -65,19 +65,24 @@ impl<'s> Stream<'s, Tokio> for Compat<TcpStream> {
     #[doc(hidden)]
     type WriteFuture = Write<'s, Self>;
 
-    #[inline]
+    #[doc(hidden)]
+    type ShutdownFuture = BoxFuture<'s, io::Result<()>>;
+
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
         AsyncReadExt::read(self, buf)
     }
 
-    #[inline]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
         AsyncWriteExt::write(self, buf)
     }
 
-    #[inline]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
+        _tokio::io::AsyncWriteExt::shutdown(self.get_mut()).boxed()
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, _buf: &'s mut [u8]) -> io::Result<usize> {
@@ -85,10 +90,16 @@ impl<'s> Stream<'s, Tokio> for Compat<TcpStream> {
         unreachable!()
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, _buf: &'s [u8]) -> io::Result<usize> {
+        // UNREACHABLE: where Self: blocking::Runtime
+        unreachable!()
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()> {
         // UNREACHABLE: where Self: blocking::Runtime
         unreachable!()
     }
@@ -103,19 +114,24 @@ impl<'s> Stream<'s, Tokio> for Compat<UnixStream> {
     #[doc(hidden)]
     type WriteFuture = Write<'s, Self>;
 
-    #[inline]
+    #[doc(hidden)]
+    type ShutdownFuture = BoxFuture<'s, io::Result<()>>;
+
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
         AsyncReadExt::read(self, buf)
     }
 
-    #[inline]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
         AsyncWriteExt::write(self, buf)
     }
 
-    #[inline]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
+        _tokio::io::AsyncWriteExt::shutdown(self.get_mut()).boxed()
+    }
+
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn read(&'s mut self, _buf: &'s mut [u8]) -> io::Result<usize> {
@@ -123,10 +139,16 @@ impl<'s> Stream<'s, Tokio> for Compat<UnixStream> {
         unreachable!()
     }
 
-    #[inline]
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
     fn write(&'s mut self, _buf: &'s [u8]) -> io::Result<usize> {
+        // UNREACHABLE: where Self: blocking::Runtime
+        unreachable!()
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "blocking")]
+    fn shutdown(&'s mut self) -> io::Result<()> {
         // UNREACHABLE: where Self: blocking::Runtime
         unreachable!()
     }

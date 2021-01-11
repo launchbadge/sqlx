@@ -16,6 +16,9 @@ where
     type WriteFuture: 's + Future<Output = io::Result<usize>> + Send;
 
     #[cfg(feature = "async")]
+    type ShutdownFuture: 's + Future<Output = io::Result<()>> + Send;
+
+    #[cfg(feature = "async")]
     #[doc(hidden)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture
     where
@@ -24,6 +27,12 @@ where
     #[cfg(feature = "async")]
     #[doc(hidden)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture
+    where
+        Rt: crate::Async;
+
+    #[cfg(feature = "async")]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture
     where
         Rt: crate::Async;
 
@@ -36,6 +45,12 @@ where
     #[cfg(feature = "blocking")]
     #[doc(hidden)]
     fn write(&'s mut self, buf: &'s [u8]) -> io::Result<usize>
+    where
+        Rt: crate::blocking::Runtime;
+
+    #[cfg(feature = "blocking")]
+    #[doc(hidden)]
+    fn shutdown(&'s mut self) -> io::Result<()>
     where
         Rt: crate::blocking::Runtime;
 }
@@ -57,6 +72,9 @@ where
     type WriteFuture = futures_util::future::BoxFuture<'s, io::Result<usize>>;
 
     #[cfg(feature = "async")]
+    type ShutdownFuture = futures_util::future::BoxFuture<'s, io::Result<()>>;
+
+    #[cfg(feature = "async")]
     #[doc(hidden)]
     #[allow(unused_variables)]
     fn read_async(&'s mut self, buf: &'s mut [u8]) -> Self::ReadFuture {
@@ -68,6 +86,16 @@ where
     #[doc(hidden)]
     #[allow(unused_variables)]
     fn write_async(&'s mut self, buf: &'s [u8]) -> Self::WriteFuture {
+        // UNREACHABLE: where Self: Async
+        unreachable!()
+    }
+
+    #[cfg(feature = "async")]
+    #[doc(hidden)]
+    fn shutdown_async(&'s mut self) -> Self::ShutdownFuture
+    where
+        Rt: crate::Async,
+    {
         // UNREACHABLE: where Self: Async
         unreachable!()
     }

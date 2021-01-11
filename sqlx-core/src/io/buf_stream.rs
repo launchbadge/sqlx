@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 
 use bytes::{Bytes, BytesMut};
 
@@ -155,7 +156,11 @@ macro_rules! flush {
 }
 
 #[cfg(feature = "async")]
-impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
+impl<Rt, S> BufStream<Rt, S>
+where
+    Rt: crate::Async,
+    S: for<'s> Stream<'s, Rt>,
+{
     pub async fn flush_async(&mut self) -> crate::Result<()> {
         flush!(self)
     }
@@ -166,12 +171,30 @@ impl<Rt: crate::Async, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
 }
 
 #[cfg(feature = "blocking")]
-impl<Rt: crate::blocking::Runtime, S: for<'s> Stream<'s, Rt>> BufStream<Rt, S> {
+impl<Rt, S> BufStream<Rt, S>
+where
+    Rt: crate::blocking::Runtime,
+    S: for<'s> Stream<'s, Rt>,
+{
     pub fn flush(&mut self) -> crate::Result<()> {
         flush!(@blocking self)
     }
 
     pub fn read(&mut self, offset: usize, n: usize) -> crate::Result<()> {
         read!(@blocking self, offset, n)
+    }
+}
+
+impl<Rt, S> Deref for BufStream<Rt, S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        &self.stream
+    }
+}
+
+impl<Rt, S> DerefMut for BufStream<Rt, S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.stream
     }
 }
