@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#940]] Rename the `#[sqlx(rename)]` attribute used to specify the type name on the database
     side to `#[sqlx(type_name)]` [[@jplatte]].
 
+-   [[#976]] Remove the `Done` trait. The `.rows_affected()` method is now available as an inherent
+    method on `PgDone`, `MySqlDone` and so on.
+
 ## 0.4.2 - 2020-12-19
 
 -   [[#908]] Fix `whoami` crash on FreeBSD platform [[@fundon]] [[@AldaronLau]]

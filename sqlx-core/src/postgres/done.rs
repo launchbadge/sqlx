@@ -1,5 +1,3 @@
-use crate::done::Done;
-use crate::postgres::Postgres;
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
@@ -7,10 +5,8 @@ pub struct PgDone {
     pub(super) rows_affected: u64,
 }
 
-impl Done for PgDone {
-    type Database = Postgres;
-
-    fn rows_affected(&self) -> u64 {
+impl PgDone {
+    pub fn rows_affected(&self) -> u64 {
         self.rows_affected
     }
 }

@@ -58,7 +58,6 @@ use std::fmt::Debug;
 use crate::arguments::Arguments;
 use crate::column::Column;
 use crate::connection::Connection;
-use crate::done::Done;
 use crate::row::Row;
 use crate::statement::Statement;
 use crate::transaction::TransactionManager;
@@ -88,7 +87,7 @@ pub trait Database:
     type Row: Row<Database = Self>;
 
     /// The concrete `Done` implementation for this database.
-    type Done: Done<Database = Self>;
+    type Done: 'static + Sized + Send + Sync + Default + Extend<Self::Done>;
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;

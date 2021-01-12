@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{Column, Connection, Done, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 

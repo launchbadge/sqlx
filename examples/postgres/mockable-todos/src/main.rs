@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use dotenv;
 use sqlx::postgres::PgPool;
-use sqlx::Done;
 use std::{env, io::Write, sync::Arc};
 use structopt::StructOpt;
 

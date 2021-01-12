@@ -3,7 +3,7 @@ use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
 use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
-use sqlx::{Column, Connection, Done, Executor, Row, Statement, TypeInfo};
+use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
 use std::thread;

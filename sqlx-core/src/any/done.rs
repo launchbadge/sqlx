@@ -1,5 +1,3 @@
-use crate::any::Any;
-use crate::done::Done;
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
@@ -9,16 +7,12 @@ pub struct AnyDone {
 }
 
 impl AnyDone {
+    pub fn rows_affected(&self) -> u64 {
+        self.rows_affected
+    }
+
     pub fn last_insert_id(&self) -> Option<i64> {
         self.last_insert_id
-    }
-}
-
-impl Done for AnyDone {
-    type Database = Any;
-
-    fn rows_affected(&self) -> u64 {
-        self.rows_affected
     }
 }
 

@@ -1,5 +1,3 @@
-use crate::done::Done;
-use crate::sqlite::Sqlite;
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
@@ -9,16 +7,12 @@ pub struct SqliteDone {
 }
 
 impl SqliteDone {
+    pub fn rows_affected(&self) -> u64 {
+        self.changes
+    }
+
     pub fn last_insert_rowid(&self) -> i64 {
         self.last_insert_rowid
-    }
-}
-
-impl Done for SqliteDone {
-    type Database = Sqlite;
-
-    fn rows_affected(&self) -> u64 {
-        self.changes
     }
 }
 

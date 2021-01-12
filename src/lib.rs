@@ -18,7 +18,6 @@ pub use sqlx_core::column::ColumnIndex;
 pub use sqlx_core::connection::{ConnectOptions, Connection};
 pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
-pub use sqlx_core::done::Done;
 pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
@@ -140,7 +139,6 @@ pub mod prelude {
     pub use super::ConnectOptions;
     pub use super::Connection;
     pub use super::Decode;
-    pub use super::Done;
     pub use super::Encode;
     pub use super::Executor;
     pub use super::FromRow;

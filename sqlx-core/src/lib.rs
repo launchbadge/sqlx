@@ -58,7 +58,6 @@ pub mod statement;
 mod common;
 pub mod database;
 pub mod describe;
-pub mod done;
 pub mod executor;
 pub mod from_row;
 mod io;
