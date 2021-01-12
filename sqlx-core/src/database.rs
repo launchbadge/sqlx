@@ -86,8 +86,8 @@ pub trait Database:
     /// The concrete `Row` implementation for this database.
     type Row: Row<Database = Self>;
 
-    /// The concrete `Done` implementation for this database.
-    type Done: 'static + Sized + Send + Sync + Default + Extend<Self::Done>;
+    /// The concrete `Outcome` implementation for this database.
+    type Outcome: 'static + Sized + Send + Sync + Default + Extend<Self::Outcome>;
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;

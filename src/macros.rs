@@ -32,12 +32,12 @@
 ///
 /// | Number of Rows | Method to Call*             | Returns                                             | Notes |
 /// |----------------| ----------------------------|-----------------------------------------------------|-------|
-/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::Done>`                            | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
+/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::Outcome>                          | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<{adhoc struct}>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<{adhoc struct}>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
 ///
-/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.  
+/// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// † Only callable if the query returns no columns; otherwise it's assumed the query *may* return at least one row.
 /// ## Requirements
 /// * The `DATABASE_URL` environment variable must be set at build-time to point to a database

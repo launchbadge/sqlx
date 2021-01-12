@@ -2,7 +2,7 @@ use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, H
 use crate::postgres::arguments::PgArgumentBuffer;
 use crate::postgres::value::{PgValue, PgValueRef};
 use crate::postgres::{
-    PgArguments, PgColumn, PgConnection, PgDone, PgRow, PgStatement, PgTransactionManager,
+    PgArguments, PgColumn, PgConnection, PgOutcome, PgRow, PgStatement, PgTransactionManager,
     PgTypeInfo,
 };
 
@@ -17,7 +17,7 @@ impl Database for Postgres {
 
     type Row = PgRow;
 
-    type Done = PgDone;
+    type Outcome = PgOutcome;
 
     type Column = PgColumn;
 
