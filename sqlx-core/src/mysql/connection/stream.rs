@@ -149,7 +149,18 @@ impl MySqlStream {
         // TODO: packet compression
         // TODO: packet joining
 
-        if payload[0] == 0xff {
+        // no data returned
+        if payload.is_empty(){
+            return Err(
+                MySqlDatabaseError(ErrPacket{
+                    error_code: -1,
+                    sql_state: None,
+                    error_message: "MySqlDatabase no data returned".to_string()
+                }).into(),
+            );
+        }
+
+        if let Some(0xff) = payload.get(0){
             self.busy = Busy::NotBusy;
 
             // instead of letting this packet be looked at everywhere, we check here
