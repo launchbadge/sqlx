@@ -25,7 +25,16 @@ impl Decode<'_> for AuthSwitchRequest {
         }
 
         let plugin = buf.get_str_nul()?.parse()?;
-        let data = buf.get_bytes(buf.len());
+
+        // See: https://github.com/mysql/mysql-server/blob/ea7d2e2d16ac03afdd9cb72a972a95981107bf51/sql/auth/sha2_password.cc#L942
+        if buf.len() != 21 {
+            return Err(err_protocol!(
+                "expected 21 bytes but found {} bytes",
+                buf.len()
+            ));
+        }
+        let data = buf.get_bytes(20);
+        buf.advance(1); // NUL-terminator
 
         Ok(Self { plugin, data })
     }
