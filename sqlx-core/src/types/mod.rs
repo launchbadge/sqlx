@@ -149,7 +149,7 @@ pub use json::Json;
 /// }
 /// ```
 ///
-pub trait Type<DB: Database>: fmt::Debug {
+pub trait Type<DB: Database>: std::fmt::Debug {
     /// Returns the canonical SQL type for this Rust type.
     ///
     /// When binding arguments, this is used to tell the database what is about to be sent; which,
