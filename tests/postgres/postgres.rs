@@ -521,9 +521,10 @@ async fn drop_query_test() -> anyhow::Result<()> {
     use tokio::time::timeout;
 
     eprintln!("starting pool");
-    let max_conns = 4;
+    let max_conns = 1;
     let pool = PgPoolOptions::new()
         .min_connections(max_conns)
+        .max_connections(max_conns)
         .test_before_acquire(false) // false is required to reproduce protocol errors
         .connect(&dotenv::var("DATABASE_URL")?)
         .await?;
