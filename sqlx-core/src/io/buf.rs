@@ -21,8 +21,8 @@ pub trait BufExt: Buf {
 
 impl BufExt for Bytes {
     fn get_bytes_nul(&mut self) -> Result<Bytes, Error> {
-        let nul = memchr(b'\0', self.bytes())
-            .ok_or_else(|| err_protocol!("expected NUL in byte sequence"))?;
+        let nul =
+            memchr(b'\0', &self).ok_or_else(|| err_protocol!("expected NUL in byte sequence"))?;
 
         let v = self.slice(0..nul);
 

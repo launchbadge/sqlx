@@ -455,7 +455,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
     #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
+    use tokio::{task::spawn, time::sleep, time::timeout};
 
     #[cfg(feature = "_rt-async-std")]
     use async_std::{future::timeout, task::sleep, task::spawn};

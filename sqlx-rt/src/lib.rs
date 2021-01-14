@@ -36,8 +36,8 @@ pub use native_tls;
     not(feature = "_rt-async-std"),
 ))]
 pub use tokio::{
-    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, net::TcpStream,
-    task::spawn, task::yield_now, time::delay_for as sleep, time::timeout,
+    self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
+    net::TcpStream, task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -60,9 +60,7 @@ mod tokio_runtime {
 
     // lazily initialize a global runtime once for multiple invocations of the macros
     static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-        runtime::Builder::new()
-            // `.basic_scheduler()` requires calling `Runtime::block_on()` which needs mutability
-            .threaded_scheduler()
+        runtime::Builder::new_multi_thread()
             .enable_io()
             .enable_time()
             .build()
@@ -70,14 +68,15 @@ mod tokio_runtime {
     });
 
     pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-        RUNTIME.enter(|| RUNTIME.handle().block_on(future))
+        RUNTIME.block_on(future)
     }
 
     pub fn enter_runtime<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
     {
-        RUNTIME.enter(f)
+        RUNTIME.enter();
+        f()
     }
 }
 

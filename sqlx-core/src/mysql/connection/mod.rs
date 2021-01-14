@@ -50,7 +50,7 @@ impl Connection for MySqlConnection {
     fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             self.stream.send_packet(Quit).await?;
-            self.stream.shutdown()?;
+            self.stream.shutdown().await?;
 
             Ok(())
         })

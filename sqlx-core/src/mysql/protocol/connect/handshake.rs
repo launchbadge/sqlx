@@ -1,4 +1,4 @@
-use bytes::buf::ext::{BufExt as _, Chain};
+use bytes::buf::Chain;
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
@@ -134,7 +134,7 @@ fn test_decode_handshake_mysql_8_0_18() {
     ));
 
     assert_eq!(
-        &*p.auth_plugin_data.to_bytes(),
+        &*p.auth_plugin_data.into_iter().collect::<Vec<_>>(),
         &[17, 52, 97, 66, 48, 99, 6, 103, 116, 76, 3, 115, 15, 91, 52, 13, 108, 52, 46, 32,]
     );
 }
@@ -187,7 +187,7 @@ fn test_decode_handshake_mariadb_10_4_7() {
     ));
 
     assert_eq!(
-        &*p.auth_plugin_data.to_bytes(),
+        &*p.auth_plugin_data.into_iter().collect::<Vec<_>>(),
         &[116, 54, 76, 92, 106, 34, 100, 83, 85, 49, 52, 79, 112, 104, 57, 34, 60, 72, 53, 110,]
     );
 }
