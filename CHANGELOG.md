@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#940]] Rename the `#[sqlx(rename)]` attribute used to specify the type name on the database
     side to `#[sqlx(type_name)]` [[@jplatte]].
 
+-   [[#983]] Upgrade async runtime dependencies [[@seryl, @ant32, @jplatte]]
+
+    - tokio 1.0
+    - actix-rt 2.0
+
 ## 0.4.2 - 2020-12-19
 
 -   [[#908]] Fix `whoami` crash on FreeBSD platform [[@fundon]] [[@AldaronLau]]
