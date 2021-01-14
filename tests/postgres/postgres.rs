@@ -574,7 +574,7 @@ async fn drop_query_test() -> anyhow::Result<()> {
                                 )));
                             }
                         }
-                        Err(e) => return Err::<(),sqlx::Error>(e),
+                        Err(e) => return Err::<(), sqlx::Error>(e),
                     }
                 }
             }
