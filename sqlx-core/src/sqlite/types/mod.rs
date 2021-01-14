@@ -12,7 +12,7 @@
 //! | `u8`                                  | INTEGER                                              |
 //! | `u16`                                 | INTEGER                                              |
 //! | `u32`                                 | INTEGER                                              |
-//! | `i64`                                 | BIGINT, INT8                                         |
+//! | `u64`                                 | BIGINT, INT8                                         |
 //! | `f32`                                 | REAL                                                 |
 //! | `f64`                                 | REAL                                                 |
 //! | `&str`, [`String`]                    | TEXT                                                 |
