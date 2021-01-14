@@ -108,8 +108,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             #[test]
             #(#attrs)*
             fn #name() #ret {
-                sqlx_rt::tokio::runtime::Builder::new()
-                    .threaded_scheduler()
+                sqlx_rt::tokio::runtime::Builder::new_multi_thread()
                     .enable_io()
                     .enable_time()
                     .build()
