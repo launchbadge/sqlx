@@ -122,7 +122,7 @@ impl Connection for PgConnection {
 
         Box::pin(async move {
             self.stream.send(Terminate).await?;
-            self.stream.shutdown()?;
+            self.stream.shutdown().await?;
 
             Ok(())
         })

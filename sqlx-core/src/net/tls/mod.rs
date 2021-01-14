@@ -114,29 +114,11 @@ where
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
+        buf: &mut super::PollReadBuf<'_>,
+    ) -> Poll<io::Result<super::PollReadOut>> {
         match &mut *self {
             MaybeTlsStream::Raw(s) => Pin::new(s).poll_read(cx, buf),
             MaybeTlsStream::Tls(s) => Pin::new(s).poll_read(cx, buf),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
-    fn poll_read_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::BufMut,
-    {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_read_buf(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_read_buf(cx, buf),
 
             MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
         }
@@ -184,24 +166,6 @@ where
         match &mut *self {
             MaybeTlsStream::Raw(s) => Pin::new(s).poll_close(cx),
             MaybeTlsStream::Tls(s) => Pin::new(s).poll_close(cx),
-
-            MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
-        }
-    }
-
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
-    fn poll_write_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::Buf,
-    {
-        match &mut *self {
-            MaybeTlsStream::Raw(s) => Pin::new(s).poll_write_buf(cx, buf),
-            MaybeTlsStream::Tls(s) => Pin::new(s).poll_write_buf(cx, buf),
 
             MaybeTlsStream::Upgrading => Poll::Ready(Err(io::ErrorKind::ConnectionAborted.into())),
         }

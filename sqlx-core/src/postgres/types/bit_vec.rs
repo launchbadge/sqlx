@@ -76,7 +76,7 @@ impl Decode<'_, Postgres> for BitVec {
                     ))?;
                 }
 
-                let mut bitvec = BitVec::from_bytes(bytes.bytes());
+                let mut bitvec = BitVec::from_bytes(&bytes);
 
                 // Chop off zeroes from the back. We get bits in bytes, so if
                 // our bitvec is not in full bytes, extra zeroes are added to

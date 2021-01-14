@@ -7,9 +7,8 @@ use crate::mssql::statement::MssqlStatementMetadata;
 use crate::mssql::{Mssql, MssqlConnectOptions};
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
-use futures_util::{future::ready, FutureExt, TryFutureExt};
+use futures_util::{FutureExt, TryFutureExt};
 use std::fmt::{self, Debug, Formatter};
-use std::net::Shutdown;
 use std::sync::Arc;
 
 mod establish;
@@ -34,9 +33,26 @@ impl Connection for MssqlConnection {
 
     type Options = MssqlConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
+    #[allow(unused_mut)]
+    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         // NOTE: there does not seem to be a clean shutdown packet to send to MSSQL
-        ready(self.stream.shutdown(Shutdown::Both).map_err(Into::into)).boxed()
+
+        #[cfg(feature = "_rt-async-std")]
+        {
+            use std::future::ready;
+            use std::net::Shutdown;
+
+            ready(self.stream.shutdown(Shutdown::Both).map_err(Into::into)).boxed()
+        }
+
+        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        {
+            use sqlx_rt::AsyncWriteExt;
+
+            // FIXME: This is equivalent to Shutdown::Write, not Shutdown::Both like above
+            // https://docs.rs/tokio/1.0.1/tokio/io/trait.AsyncWriteExt.html#method.shutdown
+            async move { self.stream.shutdown().await.map_err(Into::into) }.boxed()
+        }
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {

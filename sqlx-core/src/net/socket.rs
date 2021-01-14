@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use std::io;
-use std::net::Shutdown;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -36,12 +35,29 @@ impl Socket {
         ))
     }
 
-    pub fn shutdown(&self) -> io::Result<()> {
-        match self {
-            Socket::Tcp(s) => s.shutdown(Shutdown::Both),
+    pub async fn shutdown(&mut self) -> io::Result<()> {
+        #[cfg(feature = "_rt-async-std")]
+        {
+            use std::net::Shutdown;
 
-            #[cfg(unix)]
-            Socket::Unix(s) => s.shutdown(Shutdown::Both),
+            match self {
+                Socket::Tcp(s) => s.shutdown(Shutdown::Both),
+
+                #[cfg(unix)]
+                Socket::Unix(s) => s.shutdown(Shutdown::Both),
+            }
+        }
+
+        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        {
+            use sqlx_rt::AsyncWriteExt;
+
+            match self {
+                Socket::Tcp(s) => s.shutdown().await,
+
+                #[cfg(unix)]
+                Socket::Unix(s) => s.shutdown().await,
+            }
         }
     }
 }
@@ -50,31 +66,13 @@ impl AsyncRead for Socket {
     fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
+        buf: &mut super::PollReadBuf<'_>,
+    ) -> Poll<io::Result<super::PollReadOut>> {
         match &mut *self {
             Socket::Tcp(s) => Pin::new(s).poll_read(cx, buf),
 
             #[cfg(unix)]
             Socket::Unix(s) => Pin::new(s).poll_read(cx, buf),
-        }
-    }
-
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
-    fn poll_read_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::BufMut,
-    {
-        match &mut *self {
-            Socket::Tcp(s) => Pin::new(s).poll_read_buf(cx, buf),
-
-            #[cfg(unix)]
-            Socket::Unix(s) => Pin::new(s).poll_read_buf(cx, buf),
         }
     }
 }
@@ -119,24 +117,6 @@ impl AsyncWrite for Socket {
 
             #[cfg(unix)]
             Socket::Unix(s) => Pin::new(s).poll_close(cx),
-        }
-    }
-
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
-    fn poll_write_buf<B>(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        Self: Sized,
-        B: bytes::Buf,
-    {
-        match &mut *self {
-            Socket::Tcp(s) => Pin::new(s).poll_write_buf(cx, buf),
-
-            #[cfg(unix)]
-            Socket::Unix(s) => Pin::new(s).poll_write_buf(cx, buf),
         }
     }
 }

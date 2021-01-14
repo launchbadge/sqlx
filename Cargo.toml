@@ -102,8 +102,8 @@ anyhow = "1.0.31"
 time_ = { version = "0.2.16", package = "time" }
 futures = "0.3.5"
 env_logger = "0.7.1"
-async-std = { version = "1.6.0", features = [ "attributes" ] }
-tokio = { version = "0.2.21", features = [ "full" ] }
+async-std = { version = "1.8.0", features = [ "attributes" ] }
+tokio = { version = "1.0.1", features = [ "full" ] }
 dotenv = "0.15.0"
 trybuild = "1.0.24"
 sqlx-rt = { path = "./sqlx-rt" }

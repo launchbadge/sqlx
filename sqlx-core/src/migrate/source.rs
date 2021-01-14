@@ -14,8 +14,12 @@ pub trait MigrationSource<'s>: Debug {
 impl<'s> MigrationSource<'s> for &'s Path {
     fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>> {
         Box::pin(async move {
+            #[allow(unused_mut)]
             let mut s = fs::read_dir(self.canonicalize()?).await?;
             let mut migrations = Vec::new();
+
+            #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+            let mut s = tokio_stream::wrappers::ReadDirStream::new(s);
 
             while let Some(entry) = s.try_next().await? {
                 if !entry.metadata().await?.is_file() {
