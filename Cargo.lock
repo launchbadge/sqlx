@@ -2,9 +2,9 @@
 # It is not intended for manual editing.
 [[package]]
 name = "actix-macros"
-version = "0.1.3"
+version = "0.2.0-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ca8ce00b267af8ccebbd647de0d61e0674b6e61185cc7a592ff88772bed655"
+checksum = "32d550809c1471a3ed937cb2afefd7cba179a6ac4a0cb46361b3541bfcad7084"
 dependencies = [
  "quote",
  "syn",
@@ -12,9 +12,9 @@ dependencies = [
 
 [[package]]
 name = "actix-rt"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dfadca59a1d7755a3828708977a2de80b51af0381bd0002ce8f0df3f6091928"
+checksum = "ac24f3f660d4c394cc6d24272e526083c257d6045d3be76a9d0a76be5cb56515"
 dependencies = [
  "actix-macros",
  "tokio",
