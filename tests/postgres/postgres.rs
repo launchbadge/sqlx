@@ -582,12 +582,7 @@ async fn drop_query_test() -> anyhow::Result<()> {
         }
     };
     for _i in 0..3 {
-        match timeout(
-            Duration::from_millis(100),
-            make_query_fut(&pool),
-        )
-        .await
-        {
+        match timeout(Duration::from_millis(100), make_query_fut(&pool)).await {
             Ok(Ok(_)) => Ok(()),
             Ok(Err(e)) => Err(e),
             Err(_) => Ok(()),
