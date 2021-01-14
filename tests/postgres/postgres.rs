@@ -555,37 +555,34 @@ async fn drop_query_test() -> anyhow::Result<()> {
         pub id: i64,
         pub jsn: serde_json::Value,
     }
-
-    #[allow(unreachable_code)]
-    let make_query_fut = |pool: &sqlx::postgres::PgPool| {
-        let pool = pool.clone();
-        async move {
-            loop {
-                match sqlx::query_as::<Postgres, Junk>("SELECT * FROM junk;")
-                    .fetch(&pool)
-                    .try_collect::<Vec<Junk>>()
-                    .await
-                {
-                    Ok(list) => {
-                        if list.len() != NROWS {
-                            return Err(sqlx::Error::Protocol(format!(
-                                "query returned incorrect result. got {} rows out of {}",
-                                list.len(),
-                                NROWS
-                            )));
+    for _i in 0..3 {
+        let fut = {
+            let pool = pool.clone();
+            async move {
+                loop {
+                    match sqlx::query_as::<Postgres, Junk>("SELECT * FROM junk;")
+                        .fetch(&pool)
+                        .try_collect::<Vec<Junk>>()
+                        .await
+                    {
+                        Ok(list) => {
+                            if list.len() != NROWS {
+                                return Err(sqlx::Error::Protocol(format!(
+                                    "query returned incorrect result. got {} rows out of {}",
+                                    list.len(),
+                                    NROWS
+                                )));
+                            }
                         }
+                        Err(e) => return Err::<(),sqlx::Error>(e),
                     }
-                    Err(e) => return Err(e),
                 }
             }
-            Ok(())
-        }
-    };
-    for _i in 0..3 {
-        match timeout(Duration::from_millis(100), make_query_fut(&pool)).await {
-            Ok(Ok(_)) => Ok(()),
-            Ok(Err(e)) => Err(e),
-            Err(_) => Ok(()),
+        };
+        match timeout(Duration::from_millis(100), fut).await {
+            Ok(Ok(_)) => Ok(()),  // query succeeded
+            Ok(Err(e)) => Err(e), // query failed
+            Err(_) => Ok(()),     // timeout
         }?;
     }
     Ok(())
