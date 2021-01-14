@@ -509,31 +509,26 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     Ok(())
 }
-// run with `time cargo test --release --features postgres,runtime-actix-rustls -- --ignored --nocapture pool_interleave_test'
+// run with `time cargo test --release --features postgres,runtime-actix-rustls -- --ignored --nocapture drop_query_test'
 #[ignore]
 #[sqlx_macros::test]
-async fn pool_interleave_test() -> anyhow::Result<()> {
+async fn drop_query_test() -> anyhow::Result<()> {
     #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    use tokio::{task::spawn, time::delay_for as sleep, time::timeout};
-
+    use tokio::time::timeout;
     #[cfg(feature = "_rt-async-std")]
-    use async_std::{future::timeout, task::sleep, task::spawn};
-    use futures::{StreamExt, TryStreamExt};
+    use async_std::future::timeout;
+    use futures::prelude::*;
     use serde::{Deserialize, Serialize};
 
     eprintln!("starting pool");
-    let max_conns = 90; // the default connection limit is 100.
+    let max_conns = 4;
     let pool = PgPoolOptions::new()
         .min_connections(max_conns)
-        .max_connections(max_conns)
-        .max_lifetime(None) // disconn upon idle_timeout or explicitly disconnect
+        .test_before_acquire(false) // false is required to reproduce protocol errors
         .connect(&dotenv::var("DATABASE_URL")?)
         .await?;
-
+    let jsn = serde_json::json!({"firstName":"John","lastName":"Doe","gender":"man","age":24,"address":{"streetAddress":"126","city":"San Jone","state":"CA","postalCode":"394221"},"phoneNumbers":[{"type":"home","number":"7383627627"}],"colors":[{"color":"red","value":"#f00"},{"color":"green","value":"#0f0"},{"color":"blue","value":"#00f"},{"color":"cyan","value":"#0ff"},{"color":"magenta","value":"#f0f"},{"color":"yellow","value":"#ff0"},{"color":"black","value":"#000"}],"batters":{"batter":[{"id":"1001","type":"Regular"},{"id":"1002","type":"Chocolate"},{"id":"1003","type":"Blueberry"},{"id":"1004","type":"Devil's Food"}]},"topping":[{"id":"5001","type":"None"},{"id":"5002","type":"Glazed"},{"id":"5005","type":"Sugar"},{"id":"5007","type":"Powdered Sugar"},{"id":"5006","type":"Chocolate with Sprinkles"},{"id":"5003","type":"Chocolate"},{"id":"5004","type":"Maple"}]});
     const NROWS: usize = 100;
-    if let Err(_e) = sqlx::query("SELECT count(*) FROM junk;")
-        .execute(&pool)
-        .await
     {
         sqlx::query("DROP TABLE IF EXISTS junk;")
             .execute(&pool)
@@ -541,18 +536,16 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
         sqlx::query(
             "CREATE TABLE junk (
     id      BIGSERIAL PRIMARY KEY,
-    cnt     BIGINT  NOT NULL,
-    txt	    TEXT    NOT NULL
+    jsn     Jsonb NOT NULL
 );",
         )
         .execute(&pool)
         .await?;
 
         let mut conn = pool.acquire().await?;
-        for i in 0..NROWS {
-            sqlx::query("INSERT INTO junk (cnt, txt) VALUES ( $1, $2 )")
-                .bind(i as i64)
-                .bind("this is a test")
+        for _i in 0..NROWS {
+            sqlx::query("INSERT INTO junk (jsn) VALUES ( $1 )")
+                .bind(&jsn)
                 .execute(&mut conn)
                 .await?;
         }
@@ -560,44 +553,49 @@ async fn pool_interleave_test() -> anyhow::Result<()> {
     #[derive(Debug, Default, sqlx::FromRow, Serialize, Deserialize)]
     struct Junk {
         pub id: i64,
-        pub cnt: i64,
-        pub txt: String,
+        pub jsn: serde_json::Value,
     }
 
-    for i in 0..max_conns * 2 {
+    #[allow(unreachable_code)]
+    let make_query_fut = |pool: &sqlx::postgres::PgPool| {
         let pool = pool.clone();
-        spawn(async move {
+        async move {
             loop {
                 match sqlx::query_as::<Postgres, Junk>("SELECT * FROM junk;")
                     .fetch(&pool)
-                    .then(|res| async move {
-                        // yield in order to induce interleaved
-                        // reading of results from various
-                        // connections.
-                        sleep(Duration::from_millis(1)).await;
-                        res
-                    })
                     .try_collect::<Vec<Junk>>()
                     .await
                 {
                     Ok(list) => {
-                        if list.len() < NROWS {
-                            eprintln!("pool task {} len: {}", i, list.len());
+                        if list.len() != NROWS {
+                            return Err(sqlx::Error::Protocol(
+                                format!(
+                                    "query returned incorrect result. got {} rows out of {}",
+                                    list.len(),
+                                    NROWS
+                                )
+                            ));
                         }
-                    }
-                    Err(sqlx::Error::PoolClosed) => break,
-                    Err(e) => {
-                        eprintln!("pool task {} err: {:?}", i, e);
-                    }
+                    },
+                    Err(e) => return Err(e),
                 }
             }
-        });
+            Ok(())
+        }
+    };
+    for _i in 0..3 {
+        match
+            timeout(
+                Duration::from_millis(100), // NB may need to adjust timing slower?
+                make_query_fut(&pool)
+            )
+            .await
+        {
+            Ok(Ok(_)) => Ok(()),
+            Ok(Err(e)) => Err(e),
+            Err(_) => Ok(()),
+        }?;
     }
-    sleep(Duration::from_secs(30)).await;
-
-    eprintln!("closing pool");
-    timeout(Duration::from_secs(10), pool.close()).await?;
-    eprintln!("pool closed successfully");
     Ok(())
 }
 
