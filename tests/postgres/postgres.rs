@@ -513,12 +513,12 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn drop_query_test() -> anyhow::Result<()> {
-    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    use tokio::time::timeout;
     #[cfg(feature = "_rt-async-std")]
     use async_std::future::timeout;
     use futures::prelude::*;
     use serde::{Deserialize, Serialize};
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    use tokio::time::timeout;
 
     eprintln!("starting pool");
     let max_conns = 4;
@@ -568,15 +568,13 @@ async fn drop_query_test() -> anyhow::Result<()> {
                 {
                     Ok(list) => {
                         if list.len() != NROWS {
-                            return Err(sqlx::Error::Protocol(
-                                format!(
-                                    "query returned incorrect result. got {} rows out of {}",
-                                    list.len(),
-                                    NROWS
-                                )
-                            ));
+                            return Err(sqlx::Error::Protocol(format!(
+                                "query returned incorrect result. got {} rows out of {}",
+                                list.len(),
+                                NROWS
+                            )));
                         }
-                    },
+                    }
                     Err(e) => return Err(e),
                 }
             }
@@ -584,12 +582,11 @@ async fn drop_query_test() -> anyhow::Result<()> {
         }
     };
     for _i in 0..3 {
-        match
-            timeout(
-                Duration::from_millis(100), // NB may need to adjust timing slower?
-                make_query_fut(&pool)
-            )
-            .await
+        match timeout(
+            Duration::from_millis(100),
+            make_query_fut(&pool),
+        )
+        .await
         {
             Ok(Ok(_)) => Ok(()),
             Ok(Err(e)) => Err(e),
