@@ -61,7 +61,7 @@ pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<proc_macro2
 
     for entry in fs::read_dir(path)? {
         let entry = entry?;
-        if !entry.metadata()?.is_file() {
+        if !fs::metadata(entry.path())?.is_file() {
             // not a file; ignore
             continue;
         }
