@@ -10,6 +10,7 @@ from subprocess import check_call, check_output, PIPE
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true")
+parser.add_argument("-q", "--quiet", action="store_true")
 parser.add_argument("-t", "--target")
 parser.add_argument("-l", "--list-targets", action="store_true")
 parser.add_argument("--coverage", action="store_true")
@@ -17,7 +18,7 @@ parser.add_argument("--coverage", action="store_true")
 argv, unknown = parser.parse_known_args()
 
 # get an absolute path to the project directory for SQLx
-project_dir = Path(__file__).parent.parent
+project_dir = Path(__file__).parent
 coverage_dir = project_dir.joinpath(".coverage")
 raw_coverage_dir = coverage_dir.joinpath("raw")
 
@@ -42,7 +43,8 @@ def run(cmd, *, cwd, env=None, comment=None, tag=None):
     if comment is not None:
         print(f"\x1b[2m # {comment} [{tag}]\x1b[0m")
 
-    print(f"\x1b[93m $ {' '.join(cmd)}\x1b[0m")
+    if not argv.quiet:
+        print(f"\x1b[93m $ {' '.join(cmd)}\x1b[0m")
 
     res = subprocess.run(cmd, env=env, cwd=project_dir, check=False, stdout=None if argv.verbose else PIPE)
 
@@ -53,17 +55,16 @@ def run(cmd, *, cwd, env=None, comment=None, tag=None):
         sys.exit(1)
 
 
-def run_checks(project_name: str, *, cmd="check"):
-    run_check(project_name, args=[], cmd=cmd)
-    run_check(project_name, args=["--features", "blocking"], variant="blocking", cmd=cmd)
-    run_check(project_name, args=["--features", "async"], variant="async", cmd=cmd)
-    run_check(project_name, args=["--all-features"], variant="all", cmd=cmd)
+def run_checks(project: str, *, cmd="check"):
+    run_check(project, args=[], cmd=cmd)
+    run_check(project, args=["--features", "blocking"], variant="blocking", cmd=cmd)
+    run_check(project, args=["--features", "async"], variant="async", cmd=cmd)
+    run_check(project, args=["--all-features"], variant="all", cmd=cmd)
 
 
-def run_check(project_name: str, *, args, variant=None, cmd="check"):
-    project = f"sqlx-{project_name}"
+def run_check(project: str, *, args, variant=None, cmd="check"):
     comment = f"{cmd} {project}"
-    tag = f"{cmd}:{project_name}"
+    tag = f"{cmd}:{project.rsplit('-', maxsplit=1)[-1]}"
 
     if variant is not None:
         tag += f":{variant}"
@@ -75,16 +76,33 @@ def run_check(project_name: str, *, args, variant=None, cmd="check"):
     # update timestamp to ensure check runs
     Path(f"{project}/src/lib.rs").touch()
 
-    run([
+    run([x for x in [
         "cargo", "+nightly", cmd,
+        "-q" if argv.quiet else None,
+        "--message-format", "human" if argv.verbose else "short",
         "--manifest-path", f"{project}/Cargo.toml",
         *args,
-    ], cwd=project_dir, comment=comment, tag=tag)
+    ] if x], cwd=project_dir, comment=comment, tag=tag)
 
 
-def run_unit_test(project_name: str):
-    project = f"sqlx-{project_name}"
-    tag = f"unit:{project_name}"
+def run_docs(project: str):
+    comment = f"doc {project}"
+    tag = f"doc:{project.rsplit('-', maxsplit=1)[-1]}"
+
+    if should_run(tag):
+        env = environ.copy()
+        env["RUSTDOCFLAGS"] = "--cfg doc_cfg"
+
+        run([x for x in [
+            "cargo", "+nightly", "doc",
+            "-q" if argv.quiet else None,
+            "--manifest-path", f"{project}/Cargo.toml",
+            "--all-features",
+        ] if x], cwd=project_dir, comment=comment, tag=tag, env=env)
+
+
+def run_unit_test(project: str):
+    tag = f"unit:{project.rsplit('-', maxsplit=1)[-1]}"
 
     if not should_run(tag):
         return
@@ -96,11 +114,12 @@ def run_unit_test(project_name: str):
         env["RUSTFLAGS"] = "-Zinstrument-coverage"
 
     # run the tests
-    run([
+    run([x for x in [
         "cargo", "+nightly", "test",
+        "-q" if argv.quiet else None,
         "--manifest-path", f"{project}/Cargo.toml",
         "--features", "async",
-    ], env=env, cwd=project_dir, comment=f"unit test {project}", tag=tag)
+    ] if x], env=env, cwd=project_dir, comment=f"unit test {project}", tag=tag)
 
     # build the test binaries and outputs a big pile of JSON that can help
     # us figure out the test binary filename (needed for coverage results)
@@ -127,16 +146,24 @@ def main():
     raw_coverage_dir.mkdir(parents=True)
 
     # run checks
-    run_checks("core")
-    run_checks("mysql")
+    run_checks("sqlx-core")
+    run_checks("sqlx-mysql")
+    run_checks("sqlx")
 
     # run checks
-    run_checks("core", cmd="clippy")
-    run_checks("mysql", cmd="clippy")
+    run_checks("sqlx-core", cmd="clippy")
+    run_checks("sqlx-mysql", cmd="clippy")
+    run_checks("sqlx", cmd="clippy")
+
+    # run docs (only if asked)
+    run_docs("sqlx-core")
+    run_docs("sqlx-mysql")
+    run_docs("sqlx")
 
     # run unit tests, collect test binary filenames
-    run_unit_test("core")
-    run_unit_test("mysql")
+    run_unit_test("sqlx-core")
+    run_unit_test("sqlx-mysql")
+    run_unit_test("sqlx")
 
     if test_object_filenames and argv.coverage:
         # merge raw profile data into a single profile
