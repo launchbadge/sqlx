@@ -145,7 +145,7 @@ where
         Self::Connection: Sized,
         Rt: sqlx_core::Async,
     {
-        Box::pin(MySqlConnection::connect_async(self))
+        Box::pin(MySqlConnection::<Rt>::connect_async(self))
     }
 }
 

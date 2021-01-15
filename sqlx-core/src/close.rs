@@ -1,6 +1,5 @@
 use crate::Runtime;
 
-// for<'a> &'a mut Rt::TcpStream: crate::io::Stream<'a>,
 pub trait Close<Rt>
 where
     Rt: Runtime,

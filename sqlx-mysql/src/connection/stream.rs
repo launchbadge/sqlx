@@ -134,11 +134,12 @@ macro_rules! read_packet {
     };
 }
 
-#[cfg(feature = "async")]
 impl<Rt> MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
+    #[cfg(feature = "async")]
+
     pub(super) async fn read_packet_async<'de, T>(&'de mut self) -> Result<T>
     where
         T: Deserialize<'de, Capabilities> + Debug,
@@ -146,13 +147,9 @@ where
     {
         read_packet!(self)
     }
-}
 
-#[cfg(feature = "blocking")]
-impl<Rt> MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+    #[cfg(feature = "blocking")]
+
     pub(super) fn read_packet<'de, T>(&'de mut self) -> Result<T>
     where
         T: Deserialize<'de, Capabilities> + Debug,

@@ -114,26 +114,23 @@ macro_rules! connect {
     }};
 }
 
-#[cfg(feature = "async")]
 impl<Rt> MySqlConnection<Rt>
 where
     Rt: sqlx_core::Runtime,
 {
+    #[cfg(feature = "async")]
     pub(crate) async fn connect_async(options: &MySqlConnectOptions<Rt>) -> Result<Self>
     where
         Rt: sqlx_core::Async,
-        for<'s> Rt::TcpStream: sqlx_core::io::Stream<'s, Rt>,
     {
         connect!(options)
     }
-}
 
-#[cfg(feature = "blocking")]
-impl<Rt> MySqlConnection<Rt>
-where
-    Rt: sqlx_core::blocking::Runtime,
-{
-    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
+    #[cfg(feature = "blocking")]
+    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    where
+        Rt: sqlx_core::blocking::Runtime,
+    {
         connect!(@blocking options)
     }
 }
