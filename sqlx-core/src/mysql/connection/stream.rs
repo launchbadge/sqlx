@@ -84,7 +84,7 @@ impl MySqlStream {
             while self.busy == Busy::Row {
                 let packet = self.recv_packet().await?;
 
-                if packet[0] == 0xfe && packet.len() < 9 {
+                if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfe && packet.len() < 9 {
                     let eof = packet.eof(self.capabilities)?;
 
                     self.busy = if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
@@ -98,7 +98,7 @@ impl MySqlStream {
             while self.busy == Busy::Result {
                 let packet = self.recv_packet().await?;
 
-                if packet[0] == 0x00 || packet[0] == 0xff {
+                if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0x00 || packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xff {
                     let ok = packet.ok()?;
 
                     if !ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {

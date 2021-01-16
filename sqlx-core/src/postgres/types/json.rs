@@ -1,6 +1,6 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{BoxDynError, Error};
 use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::{Json, Type};
@@ -51,7 +51,7 @@ where
         // instead of JSONB
         buf.patch(|buf, ty: &PgTypeInfo| {
             if *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSON_ARRAY {
-                buf[0] = b' ';
+                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? = &b' ';
             }
         });
 
@@ -75,9 +75,9 @@ where
 
         if value.format() == PgValueFormat::Binary && value.type_info == PgTypeInfo::JSONB {
             assert_eq!(
-                buf[0], 1,
+                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?, 1,
                 "unsupported JSONB format version {}; please open an issue",
-                buf[0]
+                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?
             );
 
             buf = &buf[1..];

@@ -81,7 +81,7 @@ impl MySqlConnection {
 
         loop {
             let packet = stream.recv_packet().await?;
-            match packet[0] {
+            match packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? {
                 0x00 => {
                     let _ok = packet.ok()?;
 

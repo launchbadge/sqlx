@@ -38,8 +38,8 @@ impl AuthPlugin {
         nonce: &Chain<Bytes, Bytes>,
     ) -> Result<bool, Error> {
         match self {
-            AuthPlugin::CachingSha2Password if packet[0] == 0x01 => {
-                match packet[1] {
+            AuthPlugin::CachingSha2Password if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0x01 => {
+                match packet.get(1).ok_or(Error::Protocol("unexpected packet index:0".to_string()))? {
                     // AUTH_OK
                     0x03 => Ok(true),
 
@@ -61,7 +61,7 @@ impl AuthPlugin {
 
             _ => Err(err_protocol!(
                 "unexpected packet 0x{:02x} for auth plugin '{}' during authentication",
-                packet[0],
+                packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?,
                 self.name()
             )),
         }

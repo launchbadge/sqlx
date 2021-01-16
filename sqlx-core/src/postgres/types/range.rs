@@ -6,7 +6,7 @@ use bytes::Buf;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{BoxDynError, Error};
 use crate::postgres::type_info::PgTypeKind;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
@@ -425,7 +425,7 @@ where
 
                 // remember the bounds
                 let sb = s.as_bytes();
-                let lower = sb[0] as char;
+                let lower = sb.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? as char;
                 let upper = sb[sb.len() - 1] as char;
 
                 // trim the wrapping braces/brackets

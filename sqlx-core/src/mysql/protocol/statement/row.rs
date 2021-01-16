@@ -73,7 +73,7 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for BinaryRow {
                 | ColumnType::Date
                 | ColumnType::Datetime => {
                     // The size of this type is important for decoding
-                    buf[0] as usize + 1
+                    buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? as usize + 1
                 }
 
                 // NOTE: MySQL will never generate NULL types for non-NULL values

@@ -2,7 +2,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
+use crate::error::{BoxDynError, Error};
 use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo, MssqlValueRef};
 use crate::types::Type;
@@ -27,7 +27,7 @@ impl Encode<'_, Mssql> for i8 {
 
 impl Decode<'_, Mssql> for i8 {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(value.as_bytes()?[0] as i8)
+        Ok(value.as_bytes()?.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? as i8)
     }
 }
 

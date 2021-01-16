@@ -31,7 +31,7 @@ pub(crate) async fn prepare(
             params.push_str(",");
         }
 
-        params.push_str(&m[0]);
+        params.push_str(&m.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))??);
 
         // NOTE: this means that a query! of `SELECT @p1` will have the macros believe
         //       it will return nvarchar(1); this is a greater issue with `query!` that we
