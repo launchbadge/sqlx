@@ -84,7 +84,7 @@ impl MySqlStream {
             while self.busy == Busy::Row {
                 let packet = self.recv_packet().await?;
 
-                if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfe && packet.len() < 9 {
+                if *packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfe && packet.len() < 9 {
                     let eof = packet.eof(self.capabilities)?;
 
                     self.busy = if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
@@ -97,8 +97,8 @@ impl MySqlStream {
 
             while self.busy == Busy::Result {
                 let packet = self.recv_packet().await?;
-
-                if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0x00 || packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xff {
+                let packet0=packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+                if *packet0 == 0x00 || *packet0 == 0xff {
                     let ok = packet.ok()?;
 
                     if !ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
@@ -149,18 +149,7 @@ impl MySqlStream {
         // TODO: packet compression
         // TODO: packet joining
 
-        // no data returned
-        if payload.is_empty(){
-            return Err(
-                MySqlDatabaseError(ErrPacket{
-                    error_code: -1,
-                    sql_state: None,
-                    error_message: "MySqlDatabase no data returned".to_string()
-                }).into(),
-            );
-        }
-
-        if let Some(0xff) = payload.get(0){
+        if let Some(0xff) = Some(payload.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?){
             self.busy = Busy::NotBusy;
 
             // instead of letting this packet be looked at everywhere, we check here

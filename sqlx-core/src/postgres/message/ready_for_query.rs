@@ -23,7 +23,7 @@ pub struct ReadyForQuery {
 
 impl Decode<'_> for ReadyForQuery {
     fn decode_with(buf: Bytes, _: ()) -> Result<Self, Error> {
-        let status = match buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? {
+        let status = match *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? {
             b'I' => TransactionStatus::Idle,
             b'T' => TransactionStatus::Transaction,
             b'E' => TransactionStatus::Error,

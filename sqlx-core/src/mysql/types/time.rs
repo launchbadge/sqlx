@@ -196,7 +196,7 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
         match value.format() {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
-                let len = buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+                let len = *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
                 let date = decode_date(&buf[1..])?.ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {

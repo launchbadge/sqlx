@@ -425,7 +425,7 @@ where
 
                 // remember the bounds
                 let sb = s.as_bytes();
-                let lower = sb.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? as char;
+                let lower = *sb.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? as char;
                 let upper = sb[sb.len() - 1] as char;
 
                 // trim the wrapping braces/brackets

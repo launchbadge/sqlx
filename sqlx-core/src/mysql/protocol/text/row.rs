@@ -17,7 +17,7 @@ impl<'de> Decode<'de, &'de [MySqlColumn]> for TextRow {
         let mut values = Vec::with_capacity(columns.len());
 
         for _ in columns {
-            if buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfb {
+            if *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfb {
                 // NULL is sent as 0xfb
                 values.push(None);
                 buf.advance(1);

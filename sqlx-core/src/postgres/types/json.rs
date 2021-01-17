@@ -50,8 +50,11 @@ where
         // we have a tiny amount of dynamic behavior depending if we are resolved to be JSON
         // instead of JSONB
         buf.patch(|buf, ty: &PgTypeInfo| {
+            if buf.is_empty(){
+                return;
+            }
             if *ty == PgTypeInfo::JSON || *ty == PgTypeInfo::JSON_ARRAY {
-                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? = &b' ';
+                buf[0] = b' ';
             }
         });
 
@@ -75,9 +78,9 @@ where
 
         if value.format() == PgValueFormat::Binary && value.type_info == PgTypeInfo::JSONB {
             assert_eq!(
-                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?, 1,
+                *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?, 1,
                 "unsupported JSONB format version {}; please open an issue",
-                buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?
+                *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?
             );
 
             buf = &buf[1..];

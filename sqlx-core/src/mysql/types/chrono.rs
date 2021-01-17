@@ -187,7 +187,7 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
 
-                let len = buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+                let len = *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
                 let date = decode_date(&buf[1..]).ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {
@@ -225,8 +225,8 @@ fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
         let year = buf.get_u16_le();
         Some(NaiveDate::from_ymd(
             year as i32,
-            buf.get(0).ok_or(Error::Protocol("unexpected packet index:0".to_string()))? as u32,
-            buf.get(1).ok_or(Error::Protocol("unexpected packet index:1".to_string()))? as u32,
+            buf[0] as u32,
+            buf[0] as u32,
         ))
     }
 }

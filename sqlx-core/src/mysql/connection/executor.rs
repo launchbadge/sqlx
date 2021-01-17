@@ -127,8 +127,8 @@ impl MySqlConnection {
                 // query response is a meta-packet which may be one of:
                 //  Ok, Err, ResultSet, or (unhandled) LocalInfileRequest
                 let mut packet = self.stream.recv_packet().await?;
-
-                if packet.ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0x00 || packet.ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xff {
+                let packet0=packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+                if *packet0 == 0x00 || *packet0 == 0xff {
                     // first packet in a query response is OK or ERR
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
@@ -168,7 +168,7 @@ impl MySqlConnection {
                 loop {
                     let packet = self.stream.recv_packet().await?;
 
-                    if packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfe && packet.len() < 9 {
+                    if *packet.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
 
                         r#yield!(Either::Left(MySqlDone {
