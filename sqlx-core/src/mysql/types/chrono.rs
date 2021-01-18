@@ -228,7 +228,7 @@ fn decode_date(mut buf: &[u8]) -> Option<NaiveDate> {
         Some(NaiveDate::from_ymd(
             year as i32,
             buf[0] as u32,
-            buf[0] as u32,
+            buf[1] as u32,
         ))
     }
 }
