@@ -5,7 +5,7 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, 
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::{BoxDynError, UnexpectedNullError, Error};
+use crate::error::{BoxDynError, Error, UnexpectedNullError};
 use crate::mysql::protocol::text::ColumnType;
 use crate::mysql::type_info::MySqlTypeInfo;
 use crate::mysql::{MySql, MySqlValueFormat, MySqlValueRef};
@@ -187,7 +187,9 @@ impl<'r> Decode<'r, MySql> for NaiveDateTime {
             MySqlValueFormat::Binary => {
                 let buf = value.as_bytes()?;
 
-                let len = *buf.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+                let len = *buf
+                    .get(0)
+                    .ok_or_else(|| Error::Protocol("unexpected packet index:0".to_string()))?;
                 let date = decode_date(&buf[1..]).ok_or(UnexpectedNullError)?;
 
                 let dt = if len > 4 {

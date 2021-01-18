@@ -30,7 +30,9 @@ pub(crate) async fn prepare(
         if !params.is_empty() {
             params.push_str(",");
         }
-        let m0=m.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))?;
+        let m0 = m
+            .get(0)
+            .ok_or_else(|| Error::Protocol("unexpected packet index:0".to_string()))?;
         params.push_str(m0.as_str());
 
         // NOTE: this means that a query! of `SELECT @p1` will have the macros believe

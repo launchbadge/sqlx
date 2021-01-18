@@ -33,7 +33,13 @@ impl Encode<'_, Postgres> for bool {
 impl Decode<'_, Postgres> for bool {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
-            PgValueFormat::Binary => *value.as_bytes()?.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? != 0,
+            PgValueFormat::Binary => {
+                *value
+                    .as_bytes()?
+                    .get(0)
+                    .ok_or_else(|| Error::Protocol("unexpected packet index:0".to_string()))?
+                    != 0
+            }
 
             PgValueFormat::Text => match value.as_str()? {
                 "t" => true,

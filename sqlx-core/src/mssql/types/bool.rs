@@ -25,6 +25,10 @@ impl Encode<'_, Mssql> for bool {
 
 impl Decode<'_, Mssql> for bool {
     fn decode(value: MssqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(*value.as_bytes()?.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? == 1)
+        Ok(*value
+            .as_bytes()?
+            .get(0)
+            .ok_or_else(|| Error::Protocol("unexpected packet index:0".to_string()))?
+            == 1)
     }
 }

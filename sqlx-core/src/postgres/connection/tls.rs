@@ -41,7 +41,12 @@ async fn upgrade(stream: &mut PgStream, options: &PgConnectOptions) -> Result<bo
     // The server then responds with a single byte containing S or N, indicating that
     // it is willing or unwilling to perform SSL, respectively.
 
-    match stream.read::<Bytes>(1).await?.get(0).ok_or_else(||Error::Protocol("unexpected packet index:0".to_string()))? {
+    match stream
+        .read::<Bytes>(1)
+        .await?
+        .get(0)
+        .ok_or_else(|| Error::Protocol("unexpected packet index:0".to_string()))?
+    {
         b'S' => {
             // The server is ready and willing to accept an SSL connection
         }
