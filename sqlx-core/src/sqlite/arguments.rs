@@ -17,7 +17,7 @@ pub enum SqliteArgumentValue<'q> {
     Int64(i64),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct SqliteArguments<'q> {
     pub(crate) values: Vec<SqliteArgumentValue<'q>>,
 }
