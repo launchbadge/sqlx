@@ -5,6 +5,7 @@ use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::value::PgValueFormat;
 use crate::postgres::{PgColumn, PgValueRef, Postgres};
 use crate::row::Row;
+use std::fmt::{self, Debug};
 use std::sync::Arc;
 
 /// Implementation of [`Row`] for PostgreSQL.
@@ -15,6 +16,36 @@ pub struct PgRow {
 }
 
 impl crate::row::private_row::Sealed for PgRow {}
+
+impl Debug for PgRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map = f.debug_map();
+
+        for (i, col) in self.columns().iter().enumerate() {
+            if let Ok(val) = self.try_get::<bool, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<i8, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<i16, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<i32, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<i64, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<f32, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<f64, _>(i) {
+                map.entry(&col.name, &val);
+            } else if let Ok(val) = self.try_get::<&str, _>(i) {
+                map.entry(&col.name, &val);
+            } else {
+                map.entry(&col.name, &"<unsupported in debug formatting>");
+            }
+        }
+
+        map.finish()
+    }
+}
 
 impl Row for PgRow {
     type Database = Postgres;
