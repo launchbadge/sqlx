@@ -23,3 +23,9 @@ CREATE TYPE float_range AS RANGE
     subtype = float8,
     subtype_diff = float8mi
 );
+
+CREATE TABLE products (
+    product_no INTEGER,
+    name TEXT,
+    price NUMERIC CHECK (price > 0)
+);
