@@ -184,4 +184,8 @@ impl DatabaseError for PgDatabaseError {
     fn into_error(self: Box<Self>) -> Box<dyn Error + Send + Sync + 'static> {
         self
     }
+
+    fn constraint(&self) -> Option<&str> {
+        self.constraint()
+    }
 }
