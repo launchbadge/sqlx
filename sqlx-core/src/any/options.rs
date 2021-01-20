@@ -123,53 +123,55 @@ impl ConnectOptions for AnyConnectOptions {
         Box::pin(AnyConnection::establish(self))
     }
 
-    fn log_statements(&mut self, level: LevelFilter) -> &mut Self {
-        match &mut self.0 {
+    fn log_statements(self, level: LevelFilter) -> Self {
+        let kind = match self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectOptionsKind::Postgres(o) => {
-                o.log_statements(level);
+                AnyConnectOptionsKind::Postgres(o.log_statements(level))
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectOptionsKind::MySql(o) => {
-                o.log_statements(level);
+                AnyConnectOptionsKind::MySql(o.log_statements(level))
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectOptionsKind::Sqlite(o) => {
-                o.log_statements(level);
+                AnyConnectOptionsKind::Sqlite(o.log_statements(level))
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectOptionsKind::Mssql(o) => {
-                o.log_statements(level);
+                AnyConnectOptionsKind::Mssql(o.log_statements(level))
             }
         };
-        self
+
+        Self(kind)
     }
 
-    fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self {
-        match &mut self.0 {
+    fn log_slow_statements(self, level: LevelFilter, duration: Duration) -> Self {
+        let kind = match self.0 {
             #[cfg(feature = "postgres")]
             AnyConnectOptionsKind::Postgres(o) => {
-                o.log_slow_statements(level, duration);
+                AnyConnectOptionsKind::Postgres(o.log_slow_statements(level, duration))
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectOptionsKind::MySql(o) => {
-                o.log_slow_statements(level, duration);
+                AnyConnectOptionsKind::MySql(o.log_slow_statements(level, duration))
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectOptionsKind::Sqlite(o) => {
-                o.log_slow_statements(level, duration);
+                AnyConnectOptionsKind::Sqlite(o.log_slow_statements(level, duration))
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectOptionsKind::Mssql(o) => {
-                o.log_slow_statements(level, duration);
+                AnyConnectOptionsKind::Mssql(o.log_slow_statements(level, duration))
             }
         };
-        self
+
+        Self(kind)
     }
 }
