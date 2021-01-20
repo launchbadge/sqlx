@@ -115,6 +115,47 @@ impl FromStr for AnyConnectOptions {
     }
 }
 
+// Conceptually:
+// fn map<F>(self, f: F)
+// where
+//     F: for<T: ConnectOptions> FnOnce(T) -> T
+macro_rules! map {
+    ($this:ident, $f:expr) => {
+        Self(match $this.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectOptionsKind::Postgres(opt) => {
+                let map_fn = map_fn_type_hint::<PgConnectOptions, _>($f);
+                AnyConnectOptionsKind::Postgres(map_fn(opt))
+            }
+
+            #[cfg(feature = "mysql")]
+            AnyConnectOptionsKind::MySql(opt) => {
+                let map_fn = map_fn_type_hint::<MySqlConnectOptions, _>($f);
+                AnyConnectOptionsKind::MySql(map_fn(opt))
+            }
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectOptionsKind::Sqlite(opt) => {
+                let map_fn = map_fn_type_hint::<SqliteConnectOptions, _>($f);
+                AnyConnectOptionsKind::Sqlite(map_fn(opt))
+            }
+
+            #[cfg(feature = "mssql")]
+            AnyConnectOptionsKind::Mssql(opt) => {
+                let map_fn = map_fn_type_hint::<MssqlConnectOptions, _>($f);
+                AnyConnectOptionsKind::Mssql(map_fn(opt))
+            }
+        })
+    };
+}
+
+fn map_fn_type_hint<T, F>(f: F) -> impl FnOnce(T) -> T
+where
+    F: FnOnce(T) -> T,
+{
+    f
+}
+
 impl ConnectOptions for AnyConnectOptions {
     type Connection = AnyConnection;
 
@@ -124,54 +165,10 @@ impl ConnectOptions for AnyConnectOptions {
     }
 
     fn log_statements(self, level: LevelFilter) -> Self {
-        let kind = match self.0 {
-            #[cfg(feature = "postgres")]
-            AnyConnectOptionsKind::Postgres(o) => {
-                AnyConnectOptionsKind::Postgres(o.log_statements(level))
-            }
-
-            #[cfg(feature = "mysql")]
-            AnyConnectOptionsKind::MySql(o) => {
-                AnyConnectOptionsKind::MySql(o.log_statements(level))
-            }
-
-            #[cfg(feature = "sqlite")]
-            AnyConnectOptionsKind::Sqlite(o) => {
-                AnyConnectOptionsKind::Sqlite(o.log_statements(level))
-            }
-
-            #[cfg(feature = "mssql")]
-            AnyConnectOptionsKind::Mssql(o) => {
-                AnyConnectOptionsKind::Mssql(o.log_statements(level))
-            }
-        };
-
-        Self(kind)
+        map!(self, move |o| o.log_statements(level))
     }
 
     fn log_slow_statements(self, level: LevelFilter, duration: Duration) -> Self {
-        let kind = match self.0 {
-            #[cfg(feature = "postgres")]
-            AnyConnectOptionsKind::Postgres(o) => {
-                AnyConnectOptionsKind::Postgres(o.log_slow_statements(level, duration))
-            }
-
-            #[cfg(feature = "mysql")]
-            AnyConnectOptionsKind::MySql(o) => {
-                AnyConnectOptionsKind::MySql(o.log_slow_statements(level, duration))
-            }
-
-            #[cfg(feature = "sqlite")]
-            AnyConnectOptionsKind::Sqlite(o) => {
-                AnyConnectOptionsKind::Sqlite(o.log_slow_statements(level, duration))
-            }
-
-            #[cfg(feature = "mssql")]
-            AnyConnectOptionsKind::Mssql(o) => {
-                AnyConnectOptionsKind::Mssql(o.log_slow_statements(level, duration))
-            }
-        };
-
-        Self(kind)
+        map!(self, move |o| o.log_slow_statements(level, duration))
     }
 }
