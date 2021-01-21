@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use serde::Deserialize;
 use syn::Type;
 use url::Url;
@@ -18,7 +18,6 @@ use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use either::Either;
-use once_cell::sync::Lazy;
 
 mod args;
 mod data;
@@ -27,7 +26,8 @@ mod output;
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static CRATE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
+#[cfg(feature = "offline")]
+static CRATE_ROOT: once_cell::sync::Lazy<PathBuf> = once_cell::sync::Lazy::new(|| {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
 
     let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
