@@ -98,6 +98,7 @@ impl MockStream {
     }
 }
 
+#[cfg(feature = "async")]
 impl crate::Async for Mock {}
 
 impl<'s> IoStream<'s, Mock> for MockStream {
