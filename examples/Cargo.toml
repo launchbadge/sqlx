@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "quickstart/mysql+blocking",
+    "quickstart/mysql+async-std",
+    "quickstart/mysql+tokio"
+]

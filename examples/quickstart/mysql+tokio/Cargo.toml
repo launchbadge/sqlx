@@ -9,7 +9,7 @@ authors = [
 
 [dependencies]
 anyhow = "1.0.36"
-tokio = { version = "1", features = ["full"] }
-log = "0.4"
 env_logger = "0.8.2"
-sqlx = { path = "../../../sqlx", features = [ "tokio", "mysql"] }
+log = "0.4"
+sqlx = { path = "../../../sqlx", features = [ "tokio", "mysql-async" ] }
+tokio = { version = "1", features = [ "full" ] }

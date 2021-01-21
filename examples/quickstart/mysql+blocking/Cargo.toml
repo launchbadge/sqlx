@@ -9,6 +9,6 @@ authors = [
 
 [dependencies]
 anyhow = "1.0.36"
-log = "0.4"
 env_logger = "0.8.2"
-sqlx = { path = "../../../sqlx", features = [ "blocking", "mysql"] }
+log = "0.4"
+sqlx = { path = "../../../sqlx", features = [ "blocking", "mysql-blocking" ] }
