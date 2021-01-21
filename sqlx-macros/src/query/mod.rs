@@ -1,9 +1,9 @@
 use std::env;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
+#[cfg(feature = "offline")]
+use std::path::PathBuf;
 
 use proc_macro2::TokenStream;
-use serde::Deserialize;
 use syn::Type;
 use url::Url;
 
@@ -28,6 +28,9 @@ mod output;
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
 #[cfg(feature = "offline")]
 static CRATE_ROOT: once_cell::sync::Lazy<PathBuf> = once_cell::sync::Lazy::new(|| {
+    use serde::Deserialize;
+    use std::process::Command;
+
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
 
     let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
