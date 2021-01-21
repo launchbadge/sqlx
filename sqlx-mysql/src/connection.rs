@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 
 use sqlx_core::io::BufStream;
 use sqlx_core::net::Stream as NetStream;
-use sqlx_core::{Close, Connect, Connection, DefaultRuntime, Runtime};
+use sqlx_core::{Close, Connect, Connection, Runtime};
 
 use crate::protocol::Capabilities;
 use crate::{MySql, MySqlConnectOptions};
@@ -12,8 +12,9 @@ mod connect;
 mod ping;
 mod stream;
 
+/// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlConnection<Rt = DefaultRuntime>
+pub struct MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
@@ -106,34 +107,32 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 }
 
 #[cfg(feature = "blocking")]
-impl<Rt> sqlx_core::blocking::Connection<Rt> for MySqlConnection<Rt>
-where
-    Rt: sqlx_core::blocking::Runtime,
-{
-    fn ping(&mut self) -> sqlx_core::Result<()> {
-        self.ping()
-    }
-}
+mod blocking {
+    use super::{MySqlConnectOptions, MySqlConnection};
 
-#[cfg(feature = "blocking")]
-impl<Rt> sqlx_core::blocking::Connect<Rt> for MySqlConnection<Rt>
-where
-    Rt: sqlx_core::blocking::Runtime,
-{
-    fn connect(url: &str) -> sqlx_core::Result<Self>
-    where
-        Self: Sized,
-    {
-        Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
-    }
-}
+    use sqlx_core::blocking::{Close, Connect, Connection, Runtime};
 
-#[cfg(feature = "blocking")]
-impl<Rt> sqlx_core::blocking::Close<Rt> for MySqlConnection<Rt>
-where
-    Rt: sqlx_core::blocking::Runtime,
-{
-    fn close(self) -> sqlx_core::Result<()> {
-        self.close()
+    impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
+        #[inline]
+        fn ping(&mut self) -> sqlx_core::Result<()> {
+            self.ping()
+        }
+    }
+
+    impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
+        #[inline]
+        fn connect(url: &str) -> sqlx_core::Result<Self>
+        where
+            Self: Sized,
+        {
+            Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
+        }
+    }
+
+    impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
+        #[inline]
+        fn close(self) -> sqlx_core::Result<()> {
+            self.close()
+        }
     }
 }

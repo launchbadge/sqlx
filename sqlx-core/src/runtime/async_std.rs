@@ -1,4 +1,5 @@
 use std::io;
+use std::net::Shutdown;
 #[cfg(unix)]
 use std::path::Path;
 
@@ -14,7 +15,6 @@ use futures_util::{AsyncReadExt, AsyncWriteExt, FutureExt};
 #[cfg(feature = "blocking")]
 use crate::blocking;
 use crate::{io::Stream, Async, Runtime};
-use std::net::Shutdown;
 
 /// Provides [`Runtime`] for [**async-std**](https://async.rs). Supports both blocking
 /// and non-blocking operation.

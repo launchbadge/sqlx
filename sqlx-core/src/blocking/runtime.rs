@@ -87,7 +87,7 @@ impl<'s> IoStream<'s, Blocking> for TcpStream {
     #[inline]
     #[doc(hidden)]
     fn shutdown(&'s mut self) -> io::Result<()> {
-        TcpStream::shutdown(self, Shutdown::Both)
+        Self::shutdown(self, Shutdown::Both)
     }
 
     #[doc(hidden)]
@@ -145,7 +145,7 @@ impl<'s> IoStream<'s, Blocking> for UnixStream {
     #[inline]
     #[doc(hidden)]
     fn shutdown(&'s mut self) -> io::Result<()> {
-        UnixStream::shutdown(self, Shutdown::Both)
+        Self::shutdown(self, Shutdown::Both)
     }
 
     #[doc(hidden)]

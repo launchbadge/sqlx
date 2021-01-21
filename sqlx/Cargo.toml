@@ -16,16 +16,24 @@ authors = [
 default = []
 
 # blocking (std) runtime
-blocking = ["sqlx-core/blocking", "sqlx-mysql/blocking"]
+blocking = ["sqlx-core/blocking"]
+
+# abstract async runtime
+# not meant to be used directly
+# activates several crates used in all async runtimes
+async = ["futures-util"]
 
 # async runtimes
-async-std = ["sqlx-core/async-std", "sqlx-mysql/async"]
-actix = ["sqlx-core/actix", "sqlx-mysql/async"]
-tokio = ["sqlx-core/tokio", "sqlx-mysql/async"]
+async-std = ["async", "sqlx-core/async-std"]
+actix = ["async", "sqlx-core/actix"]
+tokio = ["async", "sqlx-core/tokio"]
 
-# databases
+# MySQL
 mysql = ["sqlx-mysql"]
+mysql-async = ["async", "mysql", "sqlx-mysql/async"]
+mysql-blocking = ["blocking", "mysql", "sqlx-mysql/blocking"]
 
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 sqlx-mysql = { version = "0.6.0-pre", path = "../sqlx-mysql", optional = true }
+futures-util = { version = "0.3", optional = true, features = ["io"] }

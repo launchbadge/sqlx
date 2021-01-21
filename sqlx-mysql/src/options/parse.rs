@@ -103,12 +103,14 @@ fn percent_decode_str_utf8(value: &str) -> Cow<'_, str> {
 mod tests {
     use std::path::Path;
 
+    use sqlx_core::mock::Mock;
+
     use super::MySqlConnectOptions;
 
     #[test]
     fn parse() {
         let url = "mysql://user:password@hostname:5432/database?timezone=system&charset=utf8";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
@@ -122,7 +124,7 @@ mod tests {
     #[test]
     fn parse_with_defaults() {
         let url = "mysql://";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_username(), None);
         assert_eq!(options.get_password(), None);
@@ -136,7 +138,7 @@ mod tests {
     #[test]
     fn parse_socket_from_query() {
         let url = "mysql://user:password@localhost/database?socket=/var/run/mysqld/mysqld.sock";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
@@ -146,9 +148,9 @@ mod tests {
 
     #[test]
     fn parse_socket_from_host() {
-        // socket path in host requires URL encoding – but does work
+        // socket path in host requires URL encoding - but does work
         let url = "mysql://user:password@%2Fvar%2Frun%2Fmysqld%2Fmysqld.sock/database";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
@@ -160,13 +162,13 @@ mod tests {
     #[should_panic]
     fn fail_to_parse_non_mysql() {
         let url = "postgres://user:password@hostname:5432/database?timezone=system&charset=utf8";
-        let _: MySqlConnectOptions = url.parse().unwrap();
+        let _: MySqlConnectOptions<Mock> = url.parse().unwrap();
     }
 
     #[test]
     fn parse_username_with_at_sign() {
         let url = "mysql://user@hostname:password@hostname:5432/database";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user@hostname"));
     }
@@ -174,7 +176,7 @@ mod tests {
     #[test]
     fn parse_password_with_non_ascii_chars() {
         let url = "mysql://username:p@ssw0rd@hostname:5432/database";
-        let options: MySqlConnectOptions = url.parse().unwrap();
+        let options: MySqlConnectOptions<Mock> = url.parse().unwrap();
 
         assert_eq!(options.get_password(), Some("p@ssw0rd"));
     }

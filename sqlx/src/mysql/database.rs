@@ -1,0 +1,15 @@
+use sqlx_core::HasOutput;
+
+use super::MySqlConnection;
+use crate::{Database, Runtime};
+
+#[derive(Debug)]
+pub struct MySql;
+
+impl<Rt: Runtime> Database<Rt> for MySql {
+    type Connection = MySqlConnection<Rt>;
+}
+
+impl<'x> HasOutput<'x> for MySql {
+    type Output = &'x mut Vec<u8>;
+}

@@ -10,7 +10,7 @@ where
     ///
     /// Takes exclusive use of the connection until it is released.
     ///
-    /// For detailed information, refer to the asynchronous version of
+    /// For detailed information, refer to the async version of
     /// this: [`acquire()`][crate::Acquire::acquire].
     ///
     fn acquire(self) -> crate::Result<<Self::Database as Database<Rt>>::Connection>

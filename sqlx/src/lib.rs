@@ -8,8 +8,8 @@
 //!
 //! | Database | Supported Versions | Crate feature | Driver module |
 //! | --- | --- | --- | --- |
-//! | [MySQL](https://www.mysql.com/) | 5.0+, 8.0 | `mysql` | [`mysql`][sqlx_mysql]
-//! | [MariaDB](https://mariadb.com/) | 10.2+ | `mysql` | [`mysql`][sqlx_mysql]
+//! | [MySQL](https://www.mysql.com/) | 5.0+, 8.0 | `mysql` | [`mysql`][mysql]
+//! | [MariaDB](https://mariadb.com/) | 10.2+ | `mysql` | [`mysql`][mysql]
 //!
 //! ## Runtime
 //!
@@ -20,12 +20,12 @@
 //! asynchronous IO is either not available or not practical. The blocking runtime _does not wrap
 //! the asynchronous runtime_. Blocking versions of the core traits are available in the [`blocking`] module.
 //!
-//! | Crate feature | Runtime | Prelude |
-//! | --- | --- | --- |
-//! | `async-std` | [`AsyncStd`] | [`sqlx::prelude`][prelude] or [`sqlx::blocking::prelude`][blocking::prelude] |
-//! | `tokio` | [`Tokio`] | [`sqlx::prelude`][prelude]|
-//! | `actix` | [`Actix`] | [`sqlx::prelude`][prelude] |
-//! | `blocking` | [`Blocking`] | [`sqlx::blocking::prelude`][blocking::prelude] |
+//! | Crate feature | Runtime
+//! | --- | --- |
+//! | `async-std` | [`AsyncStd`] |
+//! | `tokio` | [`Tokio`] |
+//! | `actix` | [`Actix`] |
+//! | `blocking` | [`Blocking`] |
 //!
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
@@ -41,19 +41,27 @@
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::missing_errors_doc)]
 
+#[cfg(feature = "blocking")]
+pub mod blocking;
+
+mod runtime;
+
+#[cfg(feature = "mysql")]
+pub mod mysql;
+
+#[cfg(feature = "blocking")]
+pub use blocking::Blocking;
+pub use runtime::DefaultRuntime;
 #[cfg(feature = "actix")]
 pub use sqlx_core::Actix;
+#[cfg(feature = "async")]
+pub use sqlx_core::Async;
 #[cfg(feature = "async-std")]
 pub use sqlx_core::AsyncStd;
 #[cfg(feature = "tokio")]
 pub use sqlx_core::Tokio;
-#[cfg(feature = "blocking")]
-pub use sqlx_core::{blocking, Blocking};
 pub use sqlx_core::{
-    prelude, Acquire, Close, Connect, ConnectOptions, Connection, Database, DefaultRuntime, Error,
-    Result, Runtime,
+    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Result, Runtime,
 };
-#[cfg(feature = "mysql")]
-#[doc(inline)]
-pub use sqlx_mysql as mysql;

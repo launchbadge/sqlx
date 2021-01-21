@@ -53,36 +53,10 @@ pub use options::ConnectOptions;
 pub use pool::Pool;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
+#[cfg(feature = "async")]
+pub use runtime::Async;
 #[cfg(feature = "async-std")]
 pub use runtime::AsyncStd;
+pub use runtime::Runtime;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
-pub use runtime::{Async, DefaultRuntime, Runtime};
-
-/// Convenience re-export of common traits for non-blocking operations.
-#[cfg(any(
-    any(feature = "async-std", feature = "tokio", feature = "actix"),
-    not(feature = "blocking")
-))]
-pub mod prelude {
-    #[doc(no_inline)]
-    pub use super::Acquire as _;
-    #[doc(no_inline)]
-    pub use super::Close as _;
-    #[doc(no_inline)]
-    pub use super::Connect as _;
-    #[doc(no_inline)]
-    pub use super::ConnectOptions as _;
-    #[doc(no_inline)]
-    pub use super::Connection as _;
-    #[doc(no_inline)]
-    pub use super::Database as _;
-    #[doc(no_inline)]
-    pub use super::Runtime as _;
-}
-
-#[cfg(all(
-    not(any(feature = "async-std", feature = "tokio", feature = "actix")),
-    feature = "blocking"
-))]
-pub use blocking::prelude;

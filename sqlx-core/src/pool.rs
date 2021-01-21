@@ -1,9 +1,13 @@
 use std::marker::PhantomData;
 
-use crate::{Database, DefaultRuntime, Runtime};
+use crate::{Database, Runtime};
 
 /// A connection pool to enable the efficient reuse of a managed pool of SQL connections.
-pub struct Pool<Db: Database<Rt>, Rt: Runtime = DefaultRuntime> {
+pub struct Pool<Db, Rt>
+where
+    Rt: Runtime,
+    Db: Database<Rt>,
+{
     runtime: PhantomData<Rt>,
     database: PhantomData<Db>,
 }

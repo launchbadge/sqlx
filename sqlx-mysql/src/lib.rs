@@ -1,6 +1,6 @@
-//! [**MySQL**] database driver.
+//! [MySQL] database driver.
 //!
-//! [**MySQL**]: https://www.mysql.com/
+//! [MySQL]: https://www.mysql.com/
 //!
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 #![cfg_attr(not(any(feature = "async", feature = "blocking")), allow(unused))]

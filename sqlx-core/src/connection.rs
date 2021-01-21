@@ -3,7 +3,7 @@ use futures_util::future::BoxFuture;
 
 use crate::{Close, Connect, Database, Runtime};
 
-/// A unique connection (session) with a specific database.
+/// A single connection (also known as a session) with a specific database.
 ///
 /// With a client/server model, this is equivalent to a network connection
 /// to the server.
