@@ -21,7 +21,7 @@ blocking = ["sqlx-core/blocking"]
 # abstract async runtime
 # not meant to be used directly
 # activates several crates used in all async runtimes
-async = ["futures-util"]
+async = ["futures-util", "sqlx-core/async"]
 
 # async runtimes
 async-std = ["async", "sqlx-core/async-std"]

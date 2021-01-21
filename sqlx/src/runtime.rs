@@ -3,14 +3,12 @@
 // make it more convenient, if your application only uses 1 runtime (99%+)
 // most of the time you won't have to worry about picking the runtime
 mod default {
-    #[cfg(feature = "async-std")]
-    pub use sqlx_core::AsyncStd as Runtime;
-
-    #[cfg(all(not(feature = "async-std"), feature = "tokio"))]
-    pub use sqlx_core::Tokio as Runtime;
-
     #[cfg(all(not(all(feature = "async-std", feature = "tokio")), feature = "actix"))]
     pub use sqlx_core::Actix as Runtime;
+    #[cfg(feature = "async-std")]
+    pub use sqlx_core::AsyncStd as Runtime;
+    #[cfg(all(not(feature = "async-std"), feature = "tokio"))]
+    pub use sqlx_core::Tokio as Runtime;
 
     #[cfg(all(
         not(any(feature = "async-std", feature = "tokio", feature = "actix")),

@@ -88,9 +88,9 @@ where
 
 #[cfg(feature = "blocking")]
 mod blocking {
-    use super::{MySqlConnectOptions, MySqlConnection};
-
     use sqlx_core::blocking::{ConnectOptions, Runtime};
+
+    use super::{MySqlConnectOptions, MySqlConnection};
 
     impl<Rt: Runtime> ConnectOptions<Rt> for MySqlConnectOptions<Rt> {
         fn connect(&self) -> sqlx_core::Result<Self::Connection>

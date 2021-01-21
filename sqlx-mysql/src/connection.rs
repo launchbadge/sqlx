@@ -108,9 +108,9 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 
 #[cfg(feature = "blocking")]
 mod blocking {
-    use super::{MySqlConnectOptions, MySqlConnection};
-
     use sqlx_core::blocking::{Close, Connect, Connection, Runtime};
+
+    use super::{MySqlConnectOptions, MySqlConnection};
 
     impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         #[inline]

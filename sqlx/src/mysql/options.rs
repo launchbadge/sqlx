@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 
 #[cfg(feature = "async")]
-use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
+use futures_util::future::{BoxFuture, FutureExt};
 
 use crate::mysql::MySqlConnection;
 #[cfg(feature = "async")]

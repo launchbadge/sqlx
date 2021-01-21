@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "async")]
-use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
+use futures_util::future::{BoxFuture, FutureExt};
 
 use super::{MySql, MySqlConnectOptions};
 #[cfg(feature = "async")]

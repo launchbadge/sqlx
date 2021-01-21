@@ -1,4 +1,4 @@
-use crate::blocking::{self, Close, Connect, Connection, Runtime};
+use crate::blocking::{Close, Connect, Connection, Runtime};
 use crate::mysql::connection::MySqlConnection;
 use crate::{Blocking, Result};
 
@@ -40,20 +40,20 @@ impl MySqlConnection<Blocking> {
 impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
     #[inline]
     fn close(self) -> Result<()> {
-        self.close()
+        self.0.close()
     }
 }
 
 impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
     #[inline]
     fn connect(url: &str) -> Result<Self> {
-        Self::connect(url)
+        sqlx_mysql::MySqlConnection::<Rt>::connect(url).map(Self)
     }
 }
 
 impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     #[inline]
     fn ping(&mut self) -> Result<()> {
-        self.ping()
+        self.0.ping()
     }
 }
