@@ -1,8 +1,8 @@
 use futures::TryStreamExt;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{
-    query, sqlite::Sqlite, sqlite::SqliteRow, Column, Connection, Done, Executor, Row,
-    SqliteConnection, SqlitePool, Statement, TypeInfo,
+    query, sqlite::Sqlite, sqlite::SqliteRow, Column, Connection, Executor, Row, SqliteConnection,
+    SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
 

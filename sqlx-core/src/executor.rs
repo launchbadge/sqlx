@@ -29,7 +29,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn execute<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Done, Error>>
+    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Outcome, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -41,7 +41,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn execute_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<<Self::Database as Database>::Done, Error>>
+    ) -> BoxStream<'e, Result<<Self::Database as Database>::Outcome, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -83,7 +83,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ) -> BoxStream<
         'e,
         Result<
-            Either<<Self::Database as Database>::Done, <Self::Database as Database>::Row>,
+            Either<<Self::Database as Database>::Outcome, <Self::Database as Database>::Row>,
             Error,
         >,
     >

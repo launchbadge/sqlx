@@ -1,29 +1,23 @@
-use crate::done::Done;
-use crate::mysql::MySql;
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
-pub struct MySqlDone {
+pub struct MySqlOutcome {
     pub(super) rows_affected: u64,
     pub(super) last_insert_id: u64,
 }
 
-impl MySqlDone {
+impl MySqlOutcome {
     pub fn last_insert_id(&self) -> u64 {
         self.last_insert_id
     }
-}
 
-impl Done for MySqlDone {
-    type Database = MySql;
-
-    fn rows_affected(&self) -> u64 {
+    pub fn rows_affected(&self) -> u64 {
         self.rows_affected
     }
 }
 
-impl Extend<MySqlDone> for MySqlDone {
-    fn extend<T: IntoIterator<Item = MySqlDone>>(&mut self, iter: T) {
+impl Extend<MySqlOutcome> for MySqlOutcome {
+    fn extend<T: IntoIterator<Item = MySqlOutcome>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
             self.last_insert_id = elem.last_insert_id;
@@ -32,9 +26,9 @@ impl Extend<MySqlDone> for MySqlDone {
 }
 
 #[cfg(feature = "any")]
-impl From<MySqlDone> for crate::any::AnyDone {
-    fn from(done: MySqlDone) -> Self {
-        crate::any::AnyDone {
+impl From<MySqlOutcome> for crate::any::AnyOutcome {
+    fn from(done: MySqlOutcome) -> Self {
+        crate::any::AnyOutcome {
             rows_affected: done.rows_affected,
             last_insert_id: Some(done.last_insert_id as i64),
         }

@@ -1,6 +1,6 @@
 use crate::database::{Database, HasArguments, HasStatement, HasValueRef};
 use crate::mssql::{
-    MssqlArguments, MssqlColumn, MssqlConnection, MssqlDone, MssqlRow, MssqlStatement,
+    MssqlArguments, MssqlColumn, MssqlConnection, MssqlOutcome, MssqlRow, MssqlStatement,
     MssqlTransactionManager, MssqlTypeInfo, MssqlValue, MssqlValueRef,
 };
 
@@ -15,7 +15,7 @@ impl Database for Mssql {
 
     type Row = MssqlRow;
 
-    type Done = MssqlDone;
+    type Outcome = MssqlOutcome;
 
     type Column = MssqlColumn;
 

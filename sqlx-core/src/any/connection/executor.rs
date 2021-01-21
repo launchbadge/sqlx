@@ -1,5 +1,5 @@
 use crate::any::connection::AnyConnectionKind;
-use crate::any::{Any, AnyColumn, AnyConnection, AnyDone, AnyRow, AnyStatement, AnyTypeInfo};
+use crate::any::{Any, AnyColumn, AnyConnection, AnyOutcome, AnyRow, AnyStatement, AnyTypeInfo};
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
@@ -15,7 +15,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<AnyDone, AnyRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<AnyOutcome, AnyRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

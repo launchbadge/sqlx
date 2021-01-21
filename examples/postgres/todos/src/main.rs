@@ -1,5 +1,4 @@
 use sqlx::postgres::PgPool;
-use sqlx::Done;
 use std::env;
 use structopt::StructOpt;
 

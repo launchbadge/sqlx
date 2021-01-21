@@ -1,7 +1,7 @@
 use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
 use crate::mysql::value::{MySqlValue, MySqlValueRef};
 use crate::mysql::{
-    MySqlArguments, MySqlColumn, MySqlConnection, MySqlDone, MySqlRow, MySqlStatement,
+    MySqlArguments, MySqlColumn, MySqlConnection, MySqlOutcome, MySqlRow, MySqlStatement,
     MySqlTransactionManager, MySqlTypeInfo,
 };
 
@@ -16,7 +16,7 @@ impl Database for MySql {
 
     type Row = MySqlRow;
 
-    type Done = MySqlDone;
+    type Outcome = MySqlOutcome;
 
     type Column = MySqlColumn;
 

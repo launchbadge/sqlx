@@ -4,7 +4,7 @@ use crate::executor::{Execute, Executor};
 use crate::pool::PoolOptions;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::message::{MessageFormat, Notification};
-use crate::postgres::{PgConnection, PgDone, PgRow, PgStatement, PgTypeInfo, Postgres};
+use crate::postgres::{PgConnection, PgOutcome, PgRow, PgStatement, PgTypeInfo, Postgres};
 use either::Either;
 use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
@@ -263,7 +263,7 @@ impl<'c> Executor<'c> for &'c mut PgListener {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<PgDone, PgRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<PgOutcome, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

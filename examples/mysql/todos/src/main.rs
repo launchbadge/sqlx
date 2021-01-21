@@ -1,5 +1,4 @@
 use sqlx::mysql::MySqlPool;
-use sqlx::Done;
 use std::env;
 use structopt::StructOpt;
 
