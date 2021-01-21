@@ -10,7 +10,8 @@ use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
 use crate::mssql::{
-    Mssql, MssqlArguments, MssqlConnection, MssqlQueryResult, MssqlRow, MssqlStatement, MssqlTypeInfo,
+    Mssql, MssqlArguments, MssqlConnection, MssqlQueryResult, MssqlRow, MssqlStatement,
+    MssqlTypeInfo,
 };
 use either::Either;
 use futures_core::future::BoxFuture;

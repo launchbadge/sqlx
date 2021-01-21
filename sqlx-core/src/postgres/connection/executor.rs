@@ -9,8 +9,8 @@ use crate::postgres::message::{
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::PgType;
 use crate::postgres::{
-    statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo, PgValueFormat,
-    Postgres,
+    statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo,
+    PgValueFormat, Postgres,
 };
 use either::Either;
 use futures_core::future::BoxFuture;

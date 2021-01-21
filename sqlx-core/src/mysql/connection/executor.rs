@@ -88,7 +88,8 @@ impl MySqlConnection {
         sql: &'q str,
         arguments: Option<MySqlArguments>,
         persistent: bool,
-    ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error>
+    {
         let mut logger = QueryLogger::new(sql, self.log_settings.clone());
 
         self.stream.wait_until_ready().await?;

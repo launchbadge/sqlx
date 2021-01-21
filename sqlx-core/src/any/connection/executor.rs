@@ -1,5 +1,7 @@
 use crate::any::connection::AnyConnectionKind;
-use crate::any::{Any, AnyColumn, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo};
+use crate::any::{
+    Any, AnyColumn, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo,
+};
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
