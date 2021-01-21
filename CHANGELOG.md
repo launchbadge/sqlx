@@ -20,10 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#940]] Rename the `#[sqlx(rename)]` attribute used to specify the type name on the database
     side to `#[sqlx(type_name)]` [[@jplatte]].
 
--   [[#976]] Rename the `DbDone` types to `DbOutcome`. [[@jplatte]]
+-   [[#976]] Rename the `DbDone` types to `DbQueryResult`. [[@jplatte]]
 
 -   [[#976]] Remove the `Done` trait. The `.rows_affected()` method is now available as an inherent
-    method on `PgOutcome`, `MySqlOutcome` and so on. [[@jplatte]]
+    method on `PgQueryResult`, `MySqlQueryResult` and so on. [[@jplatte]]
 
 -   [[#983]] Upgrade async runtime dependencies [[@seryl, @ant32, @jplatte]]
 

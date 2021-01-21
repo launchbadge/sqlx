@@ -1,12 +1,12 @@
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
-pub struct MySqlOutcome {
+pub struct MySqlQueryResult {
     pub(super) rows_affected: u64,
     pub(super) last_insert_id: u64,
 }
 
-impl MySqlOutcome {
+impl MySqlQueryResult {
     pub fn last_insert_id(&self) -> u64 {
         self.last_insert_id
     }
@@ -16,8 +16,8 @@ impl MySqlOutcome {
     }
 }
 
-impl Extend<MySqlOutcome> for MySqlOutcome {
-    fn extend<T: IntoIterator<Item = MySqlOutcome>>(&mut self, iter: T) {
+impl Extend<MySqlQueryResult> for MySqlQueryResult {
+    fn extend<T: IntoIterator<Item = MySqlQueryResult>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
             self.last_insert_id = elem.last_insert_id;
@@ -26,9 +26,9 @@ impl Extend<MySqlOutcome> for MySqlOutcome {
 }
 
 #[cfg(feature = "any")]
-impl From<MySqlOutcome> for crate::any::AnyOutcome {
-    fn from(done: MySqlOutcome) -> Self {
-        crate::any::AnyOutcome {
+impl From<MySqlQueryResult> for crate::any::AnyQueryResult {
+    fn from(done: MySqlQueryResult) -> Self {
+        crate::any::AnyQueryResult {
             rows_affected: done.rows_affected,
             last_insert_id: Some(done.last_insert_id as i64),
         }

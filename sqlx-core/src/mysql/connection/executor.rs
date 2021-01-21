@@ -13,7 +13,7 @@ use crate::mysql::protocol::statement::{
 use crate::mysql::protocol::text::{ColumnDefinition, ColumnFlags, Query, TextRow};
 use crate::mysql::statement::{MySqlStatement, MySqlStatementMetadata};
 use crate::mysql::{
-    MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlOutcome, MySqlRow, MySqlTypeInfo,
+    MySql, MySqlArguments, MySqlColumn, MySqlConnection, MySqlQueryResult, MySqlRow, MySqlTypeInfo,
     MySqlValueFormat,
 };
 use crate::HashMap;
@@ -88,7 +88,7 @@ impl MySqlConnection {
         sql: &'q str,
         arguments: Option<MySqlArguments>,
         persistent: bool,
-    ) -> Result<impl Stream<Item = Result<Either<MySqlOutcome, MySqlRow>, Error>> + 'e, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<MySqlQueryResult, MySqlRow>, Error>> + 'e, Error> {
         let mut logger = QueryLogger::new(sql, self.log_settings.clone());
 
         self.stream.wait_until_ready().await?;
@@ -133,7 +133,7 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
-                    let done = MySqlOutcome {
+                    let done = MySqlQueryResult {
                         rows_affected: ok.affected_rows,
                         last_insert_id: ok.last_insert_id,
                     };
@@ -171,7 +171,7 @@ impl MySqlConnection {
                     if packet[0] == 0xfe && packet.len() < 9 {
                         let eof = packet.eof(self.stream.capabilities)?;
 
-                        r#yield!(Either::Left(MySqlOutcome {
+                        r#yield!(Either::Left(MySqlQueryResult {
                             rows_affected: 0,
                             last_insert_id: 0,
                         }));
@@ -213,7 +213,7 @@ impl<'c> Executor<'c> for &'c mut MySqlConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<MySqlOutcome, MySqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<MySqlQueryResult, MySqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

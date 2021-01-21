@@ -6,7 +6,7 @@ use crate::logger::QueryLogger;
 use crate::sqlite::connection::describe::describe;
 use crate::sqlite::statement::{StatementHandle, VirtualStatement};
 use crate::sqlite::{
-    Sqlite, SqliteArguments, SqliteConnection, SqliteOutcome, SqliteRow, SqliteStatement,
+    Sqlite, SqliteArguments, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement,
     SqliteTypeInfo,
 };
 use either::Either;
@@ -65,7 +65,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<SqliteOutcome, SqliteRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<SqliteQueryResult, SqliteRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -109,7 +109,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                                 sqlite3_last_insert_rowid(conn.as_ptr())
                             };
 
-                            let done = SqliteOutcome {
+                            let done = SqliteQueryResult {
                                 changes,
                                 last_insert_rowid,
                             };

@@ -9,7 +9,7 @@ use crate::postgres::message::{
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::PgType;
 use crate::postgres::{
-    statement::PgStatement, PgArguments, PgConnection, PgOutcome, PgRow, PgTypeInfo, PgValueFormat,
+    statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo, PgValueFormat,
     Postgres,
 };
 use either::Either;
@@ -198,7 +198,7 @@ impl PgConnection {
         limit: u8,
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
-    ) -> Result<impl Stream<Item = Result<Either<PgOutcome, PgRow>, Error>> + 'e, Error> {
+    ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
         let mut logger = QueryLogger::new(query, self.log_settings.clone());
 
         // before we continue, wait until we are "ready" to accept more queries
@@ -274,7 +274,7 @@ impl PgConnection {
                         // a SQL command completed normally
                         let cc: CommandComplete = message.decode()?;
 
-                        r#yield!(Either::Left(PgOutcome {
+                        r#yield!(Either::Left(PgQueryResult {
                             rows_affected: cc.rows_affected(),
                         }));
                     }
@@ -336,7 +336,7 @@ impl<'c> Executor<'c> for &'c mut PgConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<PgOutcome, PgRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<PgQueryResult, PgRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

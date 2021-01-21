@@ -1,12 +1,12 @@
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
-pub struct AnyOutcome {
+pub struct AnyQueryResult {
     pub(crate) rows_affected: u64,
     pub(crate) last_insert_id: Option<i64>,
 }
 
-impl AnyOutcome {
+impl AnyQueryResult {
     pub fn rows_affected(&self) -> u64 {
         self.rows_affected
     }
@@ -16,8 +16,8 @@ impl AnyOutcome {
     }
 }
 
-impl Extend<AnyOutcome> for AnyOutcome {
-    fn extend<T: IntoIterator<Item = AnyOutcome>>(&mut self, iter: T) {
+impl Extend<AnyQueryResult> for AnyQueryResult {
+    fn extend<T: IntoIterator<Item = AnyQueryResult>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
             self.last_insert_id = elem.last_insert_id;

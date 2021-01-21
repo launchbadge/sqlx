@@ -18,7 +18,7 @@ where
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<DB::Outcome, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {
@@ -83,7 +83,7 @@ macro_rules! impl_executor_for_pool_connection {
             ) -> futures_core::stream::BoxStream<
                 'e,
                 Result<
-                    either::Either<<$DB as crate::database::Database>::Outcome, $R>,
+                    either::Either<<$DB as crate::database::Database>::QueryResult, $R>,
                     crate::error::Error,
                 >,
             >

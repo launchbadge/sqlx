@@ -109,7 +109,7 @@ macro_rules! impl_executor_for_transaction {
             ) -> futures_core::stream::BoxStream<
                 'e,
                 Result<
-                    either::Either<<$DB as crate::database::Database>::Outcome, $Row>,
+                    either::Either<<$DB as crate::database::Database>::QueryResult, $Row>,
                     crate::error::Error,
                 >,
             >

@@ -1,5 +1,5 @@
 use crate::any::{
-    AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyOutcome, AnyRow, AnyStatement,
+    AnyArgumentBuffer, AnyArguments, AnyColumn, AnyConnection, AnyQueryResult, AnyRow, AnyStatement,
     AnyTransactionManager, AnyTypeInfo, AnyValue, AnyValueRef,
 };
 use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
@@ -16,7 +16,7 @@ impl Database for Any {
 
     type Row = AnyRow;
 
-    type Outcome = AnyOutcome;
+    type QueryResult = AnyQueryResult;
 
     type Column = AnyColumn;
 

@@ -1,18 +1,18 @@
 use std::iter::{Extend, IntoIterator};
 
 #[derive(Debug, Default)]
-pub struct PgOutcome {
+pub struct MssqlQueryResult {
     pub(super) rows_affected: u64,
 }
 
-impl PgOutcome {
+impl MssqlQueryResult {
     pub fn rows_affected(&self) -> u64 {
         self.rows_affected
     }
 }
 
-impl Extend<PgOutcome> for PgOutcome {
-    fn extend<T: IntoIterator<Item = PgOutcome>>(&mut self, iter: T) {
+impl Extend<MssqlQueryResult> for MssqlQueryResult {
+    fn extend<T: IntoIterator<Item = MssqlQueryResult>>(&mut self, iter: T) {
         for elem in iter {
             self.rows_affected += elem.rows_affected;
         }
@@ -20,9 +20,9 @@ impl Extend<PgOutcome> for PgOutcome {
 }
 
 #[cfg(feature = "any")]
-impl From<PgOutcome> for crate::any::AnyOutcome {
-    fn from(done: PgOutcome) -> Self {
-        crate::any::AnyOutcome {
+impl From<MssqlQueryResult> for crate::any::AnyQueryResult {
+    fn from(done: MssqlQueryResult) -> Self {
+        crate::any::AnyQueryResult {
             rows_affected: done.rows_affected,
             last_insert_id: None,
         }

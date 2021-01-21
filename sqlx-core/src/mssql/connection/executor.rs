@@ -10,7 +10,7 @@ use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::rpc::{OptionFlags, Procedure, RpcRequest};
 use crate::mssql::protocol::sql_batch::SqlBatch;
 use crate::mssql::{
-    Mssql, MssqlArguments, MssqlConnection, MssqlOutcome, MssqlRow, MssqlStatement, MssqlTypeInfo,
+    Mssql, MssqlArguments, MssqlConnection, MssqlQueryResult, MssqlRow, MssqlStatement, MssqlTypeInfo,
 };
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -71,7 +71,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<MssqlOutcome, MssqlRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<MssqlQueryResult, MssqlRow>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -102,7 +102,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                         }
 
                         if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(MssqlOutcome {
+                            r#yield!(Either::Left(MssqlQueryResult {
                                 rows_affected: done.affected_rows,
                             }));
                         }
@@ -114,7 +114,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
                     Message::DoneInProc(done) => {
                         if done.status.contains(Status::DONE_COUNT) {
-                            r#yield!(Either::Left(MssqlOutcome {
+                            r#yield!(Either::Left(MssqlQueryResult {
                                 rows_affected: done.affected_rows,
                             }));
                         }
