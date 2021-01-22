@@ -4,5 +4,6 @@ default-members = ["sqlx"]
 members = [
     "sqlx-core",
     "sqlx-mysql",
+    "sqlx-postgres",
     "sqlx",
 ]

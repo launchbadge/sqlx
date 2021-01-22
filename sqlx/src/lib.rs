@@ -51,6 +51,9 @@ mod runtime;
 #[cfg(feature = "mysql")]
 pub mod mysql;
 
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
 #[cfg(feature = "blocking")]
 pub use blocking::Blocking;
 pub use runtime::DefaultRuntime;

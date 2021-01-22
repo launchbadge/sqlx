@@ -39,8 +39,8 @@ dependencies = [
 
 [[package]]
 name = "async-compat"
-version = "0.1.5"
-source = "git+https://github.com/taiki-e/async-compat?branch=tokio1#8d87a0917ebe27e4e3caa944d2991d26b1050fb0"
+version = "0.2.0"
+source = "git+https://github.com/smol-rs/async-compat?branch=master#e1c197b19788fb8f449c72095bf7a9e72e3b95b0"
 dependencies = [
  "futures-core",
  "futures-io",
@@ -563,6 +563,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "itoa"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
+
+[[package]]
 name = "js-sys"
 version = "0.3.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1051,6 +1057,7 @@ dependencies = [
  "futures-util",
  "sqlx-core",
  "sqlx-mysql",
+ "sqlx-postgres",
 ]
 
 [[package]]
@@ -1087,6 +1094,31 @@ dependencies = [
  "futures-executor",
  "futures-io",
  "futures-util",
+ "log",
+ "memchr",
+ "percent-encoding",
+ "rand",
+ "rsa",
+ "sha-1",
+ "sha2",
+ "sqlx-core",
+ "url",
+]
+
+[[package]]
+name = "sqlx-postgres"
+version = "0.6.0-pre"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bitflags",
+ "bytes",
+ "bytestring",
+ "either",
+ "futures-executor",
+ "futures-io",
+ "futures-util",
+ "itoa",
  "log",
  "memchr",
  "percent-encoding",

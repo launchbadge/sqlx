@@ -148,16 +148,19 @@ def main():
     # run checks
     run_checks("sqlx-core")
     run_checks("sqlx-mysql")
+    run_checks("sqlx-postgres")
     run_checks("sqlx")
 
     # run checks
     run_checks("sqlx-core", cmd="clippy")
     run_checks("sqlx-mysql", cmd="clippy")
+    run_checks("sqlx-postgres", cmd="clippy")
     run_checks("sqlx", cmd="clippy")
 
     # run docs (only if asked)
     run_docs("sqlx-core")
     run_docs("sqlx-mysql")
+    run_docs("sqlx-postgres")
     run_docs("sqlx")
 
     # run unit tests, collect test binary filenames
