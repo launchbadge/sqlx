@@ -152,6 +152,21 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_nest_map() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let res = sqlx::query("SELECT 5")
+        .map(|row: PgRow| row.get(0))
+        .map(|int: i32| int.to_string())
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(res, "5");
+
+    Ok(())
+}
+
 #[cfg(feature = "json")]
 #[sqlx_macros::test]
 async fn it_describes_and_inserts_json_and_jsonb() -> anyhow::Result<()> {
