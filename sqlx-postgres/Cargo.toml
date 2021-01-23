@@ -44,6 +44,9 @@ rsa = "0.3.0"
 base64 = "0.13.0"
 rand = "0.7"
 itoa = "0.4.7"
+atoi = "0.4.0"
+byteorder = "1.4.2"
+md5 = "0.7.0"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }

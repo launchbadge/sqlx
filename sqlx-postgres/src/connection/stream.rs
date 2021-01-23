@@ -46,26 +46,23 @@ where
 
         Ok(())
     }
+}
 
-    pub(crate) fn recv_message(&mut self) -> Result<Message> {
-        // all packets in postgres start with a 5-byte header
-        // this header contains the message type and the total length of the message
-        let mut header: Bytes = self.stream.take(5);
-
-        let r#type = MessageType::try_from(header.get_u8())?;
-        let size = (header.get_u32() - 4) as usize;
-
-        let contents = self.stream.take(size);
-
-        Ok(Message { r#type, contents })
-    }
-
-    fn recv_packet<'de, T>(&'de mut self, len: usize) -> Result<T>
-    where
-        T: Deserialize<'de, ()> + Debug,
-    {
+macro_rules! read_packet {
+    ($(@$blocking:ident)? $self:ident) => {{
         loop {
-            let message = self.recv_message()?;
+            read_packet!($(@$blocking)? @stream $self, 0, 5);
+
+            let mut header: Bytes = $self.stream.take(5);
+
+            let r#type = MessageType::try_from(header.get_u8())?;
+            let size = (header.get_u32() - 4) as usize;
+
+            read_packet!($(@$blocking)? @stream $self, 4, size);
+
+            let contents = $self.stream.take(size);
+
+            let message = Message { r#type, contents };
 
             match message.r#type {
                 MessageType::ErrorResponse => {
@@ -127,28 +124,6 @@ where
 
             return T::deserialize_with(message.contents, ());
         }
-    }
-}
-
-macro_rules! read_packet {
-    ($(@$blocking:ident)? $self:ident) => {{
-        // reads at least 4 bytes from the IO stream into the read buffer
-        read_packet!($(@$blocking)? @stream $self, 0, 4);
-
-        // the first 3 bytes will be the payload length of the packet (in LE)
-        // ALLOW: the max this len will be is 16M
-        #[allow(clippy::cast_possible_truncation)]
-        let payload_len: usize = $self.stream.get(0, 3).get_uint_le(3) as usize;
-
-        // read <payload_len> bytes _after_ the 4 byte packet header
-        // note that we have not yet told the stream we are done with any of
-        // these bytes yet. if this next read invocation were to never return (eg., the
-        // outer future was dropped), then the next time read_packet_async was called
-        // it will re-read the parsed-above packet header. Note that we have NOT
-        // mutated `self` _yet_. This is important.
-        read_packet!($(@$blocking)? @stream $self, 4, payload_len);
-
-        $self.recv_packet(payload_len)
     }};
 
     (@blocking @stream $self:ident, $offset:expr, $n:expr) => {

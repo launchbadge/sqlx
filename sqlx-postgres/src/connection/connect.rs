@@ -15,7 +15,9 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Error;
 use sqlx_core::Result;
 
-use crate::protocol::{Message, MessageType, Startup};
+use crate::protocol::{
+    Authentication, BackendKeyData, Message, MessageType, Password, ReadyForQuery, Startup,
+};
 use crate::{PostgresConnectOptions, PostgresConnection};
 
 macro_rules! connect {
@@ -28,11 +30,11 @@ macro_rules! connect {
     };
 
     (@blocking @packet $self:ident) => {
-        $self.read_message()?;
+        $self.read_packet()?;
     };
 
     (@packet $self:ident) => {
-        $self.read_message_async().await?;
+        $self.read_packet_async().await?;
     };
 
     ($(@$blocking:ident)? $options:ident) => {{
@@ -83,39 +85,37 @@ macro_rules! connect {
             let message: Message = connect!($(@$blocking)? @packet self_);
             match message.r#type {
                 MessageType::Authentication => match message.decode()? {
-                    // Authentication::Ok => {
+                    Authentication::Ok => {
                         // the authentication exchange is successfully completed
                         // do nothing; no more information is required to continue
-                    // }
+                    }
 
-                    // Authentication::CleartextPassword => {
-                    //     // The frontend must now send a [PasswordMessage] containing the
-                    //     // password in clear-text form.
+                    Authentication::CleartextPassword => {
+                        // The frontend must now send a [PasswordMessage] containing the
+                        // password in clear-text form.
 
-                    //     stream
-                    //         .send(Password::Cleartext(
-                    //             options.password.as_deref().unwrap_or_default(),
-                    //         ))
-                    //         .await?;
-                    // }
+                        self_
+                            .write_packet(&Password::Cleartext(
+                                $options.get_password().unwrap_or_default(),
+                            ))?;
+                    }
 
-                    // Authentication::Md5Password(body) => {
-                    //     // The frontend must now send a [PasswordMessage] containing the
-                    //     // password (with user name) encrypted via MD5, then encrypted again
-                    //     // using the 4-byte random salt specified in the
-                    //     // [AuthenticationMD5Password] message.
+                    Authentication::Md5Password(body) => {
+                        // The frontend must now send a [PasswordMessage] containing the
+                        // password (with user name) encrypted via MD5, then encrypted again
+                        // using the 4-byte random salt specified in the
+                        // [AuthenticationMD5Password] message.
 
-                    //     stream
-                    //         .send(Password::Md5 {
-                    //             username: &options.username,
-                    //             password: options.password.as_deref().unwrap_or_default(),
-                    //             salt: body.salt,
-                    //         })
-                    //         .await?;
-                    // }
+                        self_
+                            .write_packet(&Password::Md5 {
+                                username: $options.get_username().unwrap_or_default(),
+                                password: $options.get_password().unwrap_or_default(),
+                                salt: body.salt,
+                            })?;
+                    }
 
                     // Authentication::Sasl(body) => {
-                    //     sasl::authenticate(&mut stream, options, body).await?;
+                    //     sasl::authenticate(&mut stream, $options, body).await?;
                     // }
 
                     method => {
@@ -126,28 +126,29 @@ macro_rules! connect {
                     }
                 },
 
-                // MessageFormat::BackendKeyData => {
-                //     // provides secret-key data that the frontend must save if it wants to be
-                //     // able to issue cancel requests later
+                MessageType::BackendKeyData => {
+                    // provides secret-key data that the frontend must save if it wants to be
+                    // able to issue cancel requests later
 
-                //     let data: BackendKeyData = message.decode()?;
+                    let data: BackendKeyData = message.decode()?;
 
-                //     process_id = data.process_id;
-                //     secret_key = data.secret_key;
-                // }
+                    process_id = data.process_id;
+                    secret_key = data.secret_key;
+                }
 
-                // MessageFormat::ReadyForQuery => {
-                //     // start-up is completed. The frontend can now issue commands
-                //     transaction_status =
-                //         ReadyForQuery::decode(message.contents)?.transaction_status;
+                MessageType::ReadyForQuery => {
+                    let ready: ReadyForQuery = message.decode()?;
 
-                //     break;
-                // }
+                    // start-up is completed. The frontend can now issue commands
+                    transaction_status = ready.transaction_status;
+
+                    break;
+                }
 
                 _ => {
                     return Err(Error::configuration_msg(format!(
                         "establish: unexpected message: {:?}",
-                        message.format
+                        message.r#type
                     )))
                 }
             }

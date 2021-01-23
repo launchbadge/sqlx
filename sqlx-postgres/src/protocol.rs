@@ -1,18 +1,26 @@
 use std::convert::TryFrom;
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use sqlx_core::io::Deserialize;
 use sqlx_core::Error;
 use sqlx_core::Result;
 
+mod authentication;
+mod backend_key_data;
 mod close;
 mod notification;
+mod password;
+mod ready_for_query;
 mod response;
 mod startup;
 mod terminate;
 
+pub(crate) use authentication::{Authentication, AuthenticationSasl};
+pub(crate) use backend_key_data::BackendKeyData;
 pub(crate) use close::Close;
 pub(crate) use notification::Notification;
+pub(crate) use password::Password;
+pub(crate) use ready_for_query::ReadyForQuery;
 pub(crate) use response::{Notice, PgSeverity};
 pub(crate) use startup::Startup;
 pub(crate) use terminate::Terminate;
@@ -28,7 +36,7 @@ pub enum MessageType {
     ErrorResponse = b'E',
     EmptyQueryResponse = b'I',
     NotificationResponse = b'A',
-    KeyData = b'K',
+    BackendKeyData = b'K',
     NoticeResponse = b'N',
     Authentication = b'R',
     ParameterStatus = b'S',
@@ -70,7 +78,7 @@ impl TryFrom<u8> for MessageType {
             b'E' => MessageType::ErrorResponse,
             b'I' => MessageType::EmptyQueryResponse,
             b'A' => MessageType::NotificationResponse,
-            b'K' => MessageType::KeyData,
+            b'K' => MessageType::BackendKeyData,
             b'N' => MessageType::NoticeResponse,
             b'R' => MessageType::Authentication,
             b'S' => MessageType::ParameterStatus,
@@ -87,5 +95,15 @@ impl TryFrom<u8> for MessageType {
                 )));
             }
         })
+    }
+}
+
+impl Deserialize<'_, ()> for Message {
+    fn deserialize_with(mut buf: Bytes, _: ()) -> Result<Self> {
+        let r#type = MessageType::try_from(buf.get_u8())?;
+        let size = buf.get_u32() - 4;
+        let contents = buf.split_to(size as usize);
+
+        Ok(Message { r#type, contents })
     }
 }
