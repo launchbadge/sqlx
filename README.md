@@ -247,7 +247,7 @@ sqlx::query("DELETE FROM table").execute(&pool).await?;
 ```
 
 The `execute` query finalizer returns the number of affected rows, if any, and drops all received results.
-In addition, there are `fetch`, `fetch_one`, `fetch_optional`, `fetch_all`, and `fetch_scalar` to receive results.
+In addition, there are `fetch`, `fetch_one`, `fetch_optional`, and `fetch_all` to receive results.
 
 The `Query` type returned from `sqlx::query` will return `Row<'conn>` from the database. Column values can be accessed
 by ordinal or by name with `row.get()`. As the `Row` retains an immutable borrow on the connection, only one
