@@ -5,12 +5,12 @@ use sqlx_core::Result;
 use crate::io::PgBufMutExt;
 
 #[derive(Debug)]
-pub struct SaslInitialResponse<'a> {
-    pub response: &'a str,
+pub struct SaslInitialResponse {
+    pub response: String,
     pub plus: bool,
 }
 
-impl Serialize<'_, ()> for SaslInitialResponse<'_> {
+impl Serialize<'_, ()> for SaslInitialResponse {
     fn serialize_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<()> {
         buf.push(b'p');
         buf.write_length_prefixed(|buf| {
