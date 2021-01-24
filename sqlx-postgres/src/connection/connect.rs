@@ -11,14 +11,17 @@
 //!
 //! https://dev.postgres.com/doc/internals/en/connection-phase.html
 //!
+use hmac::{Hmac, Mac, NewMac};
+use sha2::{Digest, Sha256};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Error;
 use sqlx_core::Result;
 
 use crate::protocol::{
-    Authentication, BackendKeyData, Message, MessageType, Password, ReadyForQuery, Startup,
+    Authentication, BackendKeyData, Message, MessageType, Password, ReadyForQuery,
+    SaslInitialResponse, SaslResponse, Startup,
 };
-use crate::{PostgresConnectOptions, PostgresConnection};
+use crate::{PostgresConnectOptions, PostgresConnection, PostgresDatabaseError};
 
 macro_rules! connect {
     (@blocking @tcp $options:ident) => {
@@ -48,10 +51,7 @@ macro_rules! connect {
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.
 
-        let mut params = vec![
-            // Sets the display format for date and time values,
-            // as well as the rules for interpreting ambiguous date input values.
-            ("DateStyle", "ISO, MDY"),
+        let mut params = vec![ // Sets the display format for date and time values, as well as the rules for interpreting ambiguous date input values.  ("DateStyle", "ISO, MDY"),
             // Sets the client-side encoding (character set).
             // <https://www.postgresql.org/docs/devel/multibyte.html#MULTIBYTE-CHARSET-SUPPORTED>
             ("client_encoding", "UTF8"),
@@ -114,9 +114,9 @@ macro_rules! connect {
                             })?;
                     }
 
-                    // Authentication::Sasl(body) => {
-                    //     sasl::authenticate(&mut stream, $options, body).await?;
-                    // }
+                    Authentication::Sasl(body) => {
+                        sasl_authenticate!($(@$blocking)? self_, $options, body)
+                    }
 
                     method => {
                         return Err(Error::configuration_msg(format!(

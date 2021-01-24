@@ -12,6 +12,7 @@ mod notification;
 mod password;
 mod ready_for_query;
 mod response;
+mod sasl;
 mod startup;
 mod terminate;
 
@@ -22,6 +23,7 @@ pub(crate) use notification::Notification;
 pub(crate) use password::Password;
 pub(crate) use ready_for_query::ReadyForQuery;
 pub(crate) use response::{Notice, PgSeverity};
+pub(crate) use sasl::{SaslInitialResponse, SaslResponse};
 pub(crate) use startup::Startup;
 pub(crate) use terminate::Terminate;
 

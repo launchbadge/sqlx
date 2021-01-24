@@ -45,8 +45,11 @@ base64 = "0.13.0"
 rand = "0.7"
 itoa = "0.4.7"
 atoi = "0.4.0"
-byteorder = "1.4.2"
-md5 = "0.7.0"
+byteorder = { version = "1.4.2", default-features = false, features = [ "std" ] }
+md-5 = { version = "0.9.1", default-features = false }
+hmac = { version = "0.10.1", default-features = false }
+stringprep = "0.1.2"
+crypto-mac = "0.10.0"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }

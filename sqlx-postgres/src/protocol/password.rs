@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use md5::{Digest, Md5};
 use sqlx_core::io::Serialize;
 use sqlx_core::io::WriteExt;
 use sqlx_core::Result;
@@ -40,21 +41,23 @@ impl Serialize<'_, ()> for Password<'_> {
 
                     // Keep in mind the md5() function returns its result as a hex string.
 
-                    let digest = md5::compute(password);
-                    let digest = md5::compute(username);
+                    let mut hasher = Md5::new();
 
-                    let mut outwrite = String::with_capacity(35);
+                    hasher.update(password);
+                    hasher.update(username);
 
-                    let _ = write!(outwrite, "{:x}", digest);
+                    let mut output = String::with_capacity(35);
 
-                    let digest = md5::compute(&outwrite);
-                    let digest = md5::compute(salt);
+                    let _ = write!(output, "{:x}", hasher.finalize_reset());
 
-                    outwrite.clear();
+                    hasher.update(&output);
+                    hasher.update(salt);
 
-                    let _ = write!(outwrite, "md5{:x}", digest);
+                    output.clear();
 
-                    buf.write_str_nul(&outwrite);
+                    let _ = write!(output, "md5{:x}", hasher.finalize());
+
+                    buf.write_str_nul(&output);
                 }
             }
         });

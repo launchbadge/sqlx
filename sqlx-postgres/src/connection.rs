@@ -6,6 +6,9 @@ use sqlx_core::{Close, Connect, Connection, Runtime};
 
 use crate::{Postgres, PostgresConnectOptions};
 
+#[macro_use]
+mod sasl;
+
 mod close;
 mod connect;
 mod ping;
