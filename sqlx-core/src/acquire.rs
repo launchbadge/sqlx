@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut};
 pub trait Acquire<'c> {
     type Database: Database;
 
-    type Connection: Deref<Target = <Self::Database as Database>::Connection> + DerefMut;
+    type Connection: Deref<Target = <Self::Database as Database>::Connection> + DerefMut + Send;
 
     fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>>;
 
