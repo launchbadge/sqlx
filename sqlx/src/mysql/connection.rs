@@ -7,6 +7,7 @@ use super::{MySql, MySqlConnectOptions};
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 use crate::{Close, Connect, Connection, DefaultRuntime, Runtime};
+use sqlx_core::Executor;
 
 /// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
@@ -35,6 +36,10 @@ impl<Rt: Async> MySqlConnection<Rt> {
     /// Implemented with [`Connection::ping`][crate::Connection::ping].
     pub async fn ping(&mut self) -> Result<()> {
         self.0.ping().await
+    }
+
+    pub async fn execute(&mut self, sql: &str) -> Result<()> {
+        self.0.execute(sql).await
     }
 
     /// Explicitly close this database connection.
@@ -89,5 +94,17 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         Rt: Async,
     {
         self.ping().boxed()
+    }
+}
+
+impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
+    #[cfg(feature = "async")]
+    fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<()>>
+    where
+        Rt: Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        self.0.execute(sql)
     }
 }
