@@ -18,6 +18,9 @@
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
 
+#[macro_use]
+mod stream;
+
 mod connection;
 mod database;
 mod error;

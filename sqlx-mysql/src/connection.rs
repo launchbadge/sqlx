@@ -1,16 +1,18 @@
+use std::collections::VecDeque;
 use std::fmt::{self, Debug, Formatter};
 
-use sqlx_core::io::BufStream;
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
 use crate::protocol::Capabilities;
+use crate::stream::MySqlStream;
 use crate::{MySql, MySqlConnectOptions};
 
 mod close;
+mod command;
 mod connect;
+mod executor;
 mod ping;
-mod stream;
 
 /// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
@@ -18,16 +20,17 @@ pub struct MySqlConnection<Rt>
 where
     Rt: Runtime,
 {
-    stream: BufStream<Rt, NetStream<Rt>>,
+    stream: MySqlStream<Rt>,
     connection_id: u32,
 
     // the capability flags are used by the client and server to indicate which
     // features they support and want to use.
     capabilities: Capabilities,
 
-    // the sequence-id is incremented with each packet and may wrap around. It starts at 0 and is
-    // reset to 0 when a new command begins in the Command Phase.
-    sequence_id: u8,
+    // queue of commands that are being processed
+    // this is what we expect to receive from the server
+    // in the case of a future or stream being dropped
+    commands: VecDeque<command::Command>,
 }
 
 impl<Rt> MySqlConnection<Rt>
@@ -36,21 +39,22 @@ where
 {
     pub(crate) fn new(stream: NetStream<Rt>) -> Self {
         Self {
-            stream: BufStream::with_capacity(stream, 4096, 1024),
+            stream: MySqlStream::new(stream),
             connection_id: 0,
-            sequence_id: 0,
-            capabilities: Capabilities::PROTOCOL_41 | Capabilities::LONG_PASSWORD
+            commands: VecDeque::with_capacity(2),
+            capabilities: Capabilities::PROTOCOL_41
+                | Capabilities::LONG_PASSWORD
                 | Capabilities::LONG_FLAG
                 | Capabilities::IGNORE_SPACE
                 | Capabilities::TRANSACTIONS
                 | Capabilities::SECURE_CONNECTION
-                // | Capabilities::MULTI_STATEMENTS
-                // | Capabilities::MULTI_RESULTS
-                // | Capabilities::PS_MULTI_RESULTS
+                | Capabilities::MULTI_STATEMENTS
+                | Capabilities::MULTI_RESULTS
+                | Capabilities::PS_MULTI_RESULTS
                 | Capabilities::PLUGIN_AUTH
                 | Capabilities::PLUGIN_AUTH_LENENC_DATA
-                // | Capabilities::CAN_HANDLE_EXPIRED_PASSWORDS
-                // | Capabilities::SESSION_TRACK
+                | Capabilities::CAN_HANDLE_EXPIRED_PASSWORDS
+                | Capabilities::SESSION_TRACK
                 | Capabilities::DEPRECATE_EOF,
         }
     }
@@ -115,7 +119,7 @@ mod blocking {
     impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         #[inline]
         fn ping(&mut self) -> sqlx_core::Result<()> {
-            self.ping()
+            self.ping_blocking()
         }
     }
 
@@ -125,14 +129,14 @@ mod blocking {
         where
             Self: Sized,
         {
-            Self::connect(&url.parse::<MySqlConnectOptions<Rt>>()?)
+            Self::connect_blocking(&url.parse::<MySqlConnectOptions<Rt>>()?)
         }
     }
 
     impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
         #[inline]
         fn close(self) -> sqlx_core::Result<()> {
-            self.close()
+            self.close_blocking()
         }
     }
 }

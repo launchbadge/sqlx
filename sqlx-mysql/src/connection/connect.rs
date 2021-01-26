@@ -13,100 +13,115 @@
 //!
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Result;
+use sqlx_core::Runtime;
 
-use crate::protocol::{Auth, AuthResponse, Handshake, HandshakeResponse};
+use crate::protocol::{AuthResponse, Handshake, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
 
-macro_rules! connect {
-    (@blocking @tcp $options:ident) => {
+impl<Rt: Runtime> MySqlConnection<Rt> {
+    fn recv_handshake(
+        &mut self,
+        options: &MySqlConnectOptions<Rt>,
+        handshake: &Handshake,
+    ) -> Result<()> {
+        // & the declared server capabilities with our capabilities to find
+        // what rules the client should operate under
+        self.capabilities &= handshake.capabilities;
+
+        // store the connection ID, mainly for debugging
+        self.connection_id = handshake.connection_id;
+
+        // create the initial auth response
+        // this may just be a request for an RSA public key
+        let initial_auth_response = handshake
+            .auth_plugin
+            .invoke(&handshake.auth_plugin_data, options.get_password().unwrap_or_default());
+
+        // the <HandshakeResponse> contains an initial guess at the correct encoding of
+        // the password and some other metadata like "which database", "which user", etc.
+        self.stream.write_packet(&HandshakeResponse {
+            capabilities: self.capabilities,
+            auth_plugin_name: handshake.auth_plugin.name(),
+            auth_response: initial_auth_response,
+            charset: 45, // [utf8mb4]
+            database: options.get_database(),
+            max_packet_size: 1024,
+            username: options.get_username(),
+        })?;
+
+        Ok(())
+    }
+
+    fn recv_auth_response(
+        &mut self,
+        options: &MySqlConnectOptions<Rt>,
+        handshake: &mut Handshake,
+        response: AuthResponse,
+    ) -> Result<bool> {
+        match response {
+            AuthResponse::Ok(_) => {
+                // successful, simple authentication; good to go
+                return Ok(true);
+            }
+
+            AuthResponse::MoreData(data) => {
+                if let Some(data) = handshake.auth_plugin.handle(
+                    data,
+                    &handshake.auth_plugin_data,
+                    options.get_password().unwrap_or_default(),
+                )? {
+                    // write the response from the plugin
+                    self.stream.write_packet(&&*data)?;
+                }
+            }
+
+            AuthResponse::Switch(sw) => {
+                // switch to the new plugin
+                handshake.auth_plugin = sw.plugin;
+                handshake.auth_plugin_data = sw.plugin_data;
+
+                // generate an initial response from this plugin
+                let data = handshake.auth_plugin.invoke(
+                    &handshake.auth_plugin_data,
+                    options.get_password().unwrap_or_default(),
+                );
+
+                // write the response from the plugin
+                self.stream.write_packet(&&*data)?;
+            }
+        }
+
+        Ok(false)
+    }
+}
+
+macro_rules! impl_connect {
+    (@blocking @new $options:ident) => {
         NetStream::connect($options.address.as_ref())?;
     };
 
-    (@tcp $options:ident) => {
+    (@new $options:ident) => {
         NetStream::connect_async($options.address.as_ref()).await?;
-    };
-
-    (@blocking @packet $self:ident) => {
-        $self.read_packet()?;
-    };
-
-    (@packet $self:ident) => {
-        $self.read_packet_async().await?;
     };
 
     ($(@$blocking:ident)? $options:ident) => {{
         // open a network stream to the database server
-        let stream = connect!($(@$blocking)? @tcp $options);
+        let stream = impl_connect!($(@$blocking)? @new $options);
 
         // construct a <MySqlConnection> around the network stream
         // wraps the stream in a <BufStream> to buffer read and write
         let mut self_ = Self::new(stream);
 
         // immediately the server should emit a <Handshake> packet
-        let handshake: Handshake = connect!($(@$blocking)? @packet self_);
-
-        // & the declared server capabilities with our capabilities to find
-        // what rules the client should operate under
-        self_.capabilities &= handshake.capabilities;
-
-        // store the connection ID, mainly for debugging
-        self_.connection_id = handshake.connection_id;
-
-        // extract the auth plugin and data from the handshake
-        // this can get overwritten by an auth switch
-        let mut auth_plugin = handshake.auth_plugin;
-        let mut auth_plugin_data = handshake.auth_plugin_data;
-        let password = $options.get_password().unwrap_or_default();
-
-        // create the initial auth response
-        // this may just be a request for an RSA public key
-        let initial_auth_response = auth_plugin.invoke(&auth_plugin_data, password);
-
-        // the <HandshakeResponse> contains an initial guess at the correct encoding of
-        // the password and some other metadata like "which database", "which user", etc.
-        self_.write_packet(&HandshakeResponse {
-            auth_plugin_name: auth_plugin.name(),
-            auth_response: initial_auth_response,
-            charset: 45, // [utf8mb4]
-            database: $options.get_database(),
-            max_packet_size: 1024,
-            username: $options.get_username(),
-        })?;
+        // we need to handle that and reply with a <HandshakeResponse>
+        let mut handshake = read_packet!($(@$blocking)? self_.stream).deserialize()?;
+        self_.recv_handshake($options, &handshake)?;
 
         loop {
-            match connect!($(@$blocking)? @packet self_) {
-                Auth::Ok(_) => {
-                    // successful, simple authentication; good to go
-                    break;
-                }
-
-                Auth::MoreData(data) => {
-                    if let Some(data) = auth_plugin.handle(data, &auth_plugin_data, password)? {
-                        // write the response from the plugin
-                        self_.write_packet(&AuthResponse { data })?;
-
-                        // let's try again
-                        continue;
-                    }
-
-                    // all done, the plugin says we check out
-                    break;
-                }
-
-                Auth::Switch(sw) => {
-                    // switch to the new plugin
-                    auth_plugin = sw.plugin;
-                    auth_plugin_data = sw.plugin_data;
-
-                    // generate an initial response from this plugin
-                    let data = auth_plugin.invoke(&auth_plugin_data, password);
-
-                    // write the response from the plugin
-                    self_.write_packet(&AuthResponse { data })?;
-
-                    // let's try again
-                    continue;
-                }
+            let response = read_packet!($(@$blocking)? self_.stream).deserialize_with(self_.capabilities)?;
+            if self_.recv_auth_response($options, &mut handshake, response)? {
+                // complete, successful authentication
+                break;
             }
         }
 
@@ -114,24 +129,21 @@ macro_rules! connect {
     }};
 }
 
-impl<Rt> MySqlConnection<Rt>
-where
-    Rt: sqlx_core::Runtime,
-{
+impl<Rt: Runtime> MySqlConnection<Rt> {
     #[cfg(feature = "async")]
     pub(crate) async fn connect_async(options: &MySqlConnectOptions<Rt>) -> Result<Self>
     where
         Rt: sqlx_core::Async,
     {
-        connect!(options)
+        impl_connect!(options)
     }
 
     #[cfg(feature = "blocking")]
-    pub(crate) fn connect(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    pub(crate) fn connect_blocking(options: &MySqlConnectOptions<Rt>) -> Result<Self>
     where
         Rt: sqlx_core::blocking::Runtime,
     {
-        connect!(@blocking options)
+        impl_connect!(@blocking options)
     }
 }
 

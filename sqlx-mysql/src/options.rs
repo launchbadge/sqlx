@@ -97,7 +97,7 @@ mod blocking {
         where
             Self::Connection: Sized,
         {
-            <MySqlConnection<Rt>>::connect(self)
+            <MySqlConnection<Rt>>::connect_blocking(self)
         }
     }
 }
