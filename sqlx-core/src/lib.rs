@@ -24,6 +24,7 @@ mod connect;
 mod connection;
 mod database;
 mod error;
+mod executor;
 mod options;
 mod pool;
 mod runtime;
@@ -49,6 +50,7 @@ pub use connect::Connect;
 pub use connection::Connection;
 pub use database::{Database, HasOutput};
 pub use error::{DatabaseError, Error, Result};
+pub use executor::Executor;
 pub use options::ConnectOptions;
 pub use pool::Pool;
 #[cfg(feature = "actix")]
