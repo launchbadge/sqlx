@@ -2,7 +2,7 @@ use crate::any::connection::AnyConnectionKind;
 use crate::any::kind::AnyKind;
 use crate::any::{Any, AnyConnection};
 use crate::error::Error;
-use crate::migrate::{Migrate, MigrateDatabase, MigrateError, Migration};
+use crate::migrate::{AppliedMigration, Migrate, MigrateDatabase, MigrateError, Migration};
 use futures_core::future::BoxFuture;
 use std::str::FromStr;
 use std::time::Duration;
@@ -80,16 +80,34 @@ impl Migrate for AnyConnection {
         }
     }
 
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
-            AnyConnectionKind::Postgres(conn) => conn.version(),
+            AnyConnectionKind::Postgres(conn) => conn.dirty_version(),
 
             #[cfg(feature = "sqlite")]
-            AnyConnectionKind::Sqlite(conn) => conn.version(),
+            AnyConnectionKind::Sqlite(conn) => conn.dirty_version(),
 
             #[cfg(feature = "mysql")]
-            AnyConnectionKind::MySql(conn) => conn.version(),
+            AnyConnectionKind::MySql(conn) => conn.dirty_version(),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+        }
+    }
+
+    fn list_applied_migrations(
+        &mut self,
+    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+        match &mut self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.list_applied_migrations(),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.list_applied_migrations(),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.list_applied_migrations(),
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
@@ -125,28 +143,6 @@ impl Migrate for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(_conn) => unimplemented!(),
-        }
-    }
-
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>> {
-        match &mut self.0 {
-            #[cfg(feature = "postgres")]
-            AnyConnectionKind::Postgres(conn) => conn.validate(migration),
-
-            #[cfg(feature = "sqlite")]
-            AnyConnectionKind::Sqlite(conn) => conn.validate(migration),
-
-            #[cfg(feature = "mysql")]
-            AnyConnectionKind::MySql(conn) => conn.validate(migration),
-
-            #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(_conn) => {
-                let _ = migration;
-                unimplemented!()
-            }
         }
     }
 

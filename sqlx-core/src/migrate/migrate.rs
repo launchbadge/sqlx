@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::migrate::{MigrateError, Migration};
+use crate::migrate::{AppliedMigration, MigrateError, Migration};
 use futures_core::future::BoxFuture;
 use std::time::Duration;
 
@@ -23,9 +23,14 @@ pub trait Migrate {
     // will create or migrate it if needed
     fn ensure_migrations_table(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
 
-    // Return the current version and if the database is "dirty".
+    // Return the version on which the database is dirty or None otherwise.
     // "dirty" means there is a partially applied migration that failed.
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>>;
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>>;
+
+    // Return the ordered list of applied migrations
+    fn list_applied_migrations(
+        &mut self,
+    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>>;
 
     // Should acquire a database lock so that only one migration process
     // can run at a time. [`Migrate`] will call this function before applying
@@ -35,13 +40,6 @@ pub trait Migrate {
     // Should release the lock. [`Migrate`] will call this function after all
     // migrations have been run.
     fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>>;
-
-    // validate the migration
-    // checks that it does exist on the database and that the checksum matches
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>>;
 
     // run SQL from migration in a DDL transaction
     // insert new row to [_migrations] table on completion (success or failure)
