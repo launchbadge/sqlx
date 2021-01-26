@@ -98,6 +98,8 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
 }
 
 impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
+    type Database = MySql;
+
     #[cfg(feature = "async")]
     fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<()>>
     where
