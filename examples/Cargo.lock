@@ -38,8 +38,9 @@ dependencies = [
 
 [[package]]
 name = "async-compat"
-version = "0.1.5"
-source = "git+https://github.com/taiki-e/async-compat?branch=tokio1#8d87a0917ebe27e4e3caa944d2991d26b1050fb0"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061f9496add0ee6539db53f2f88b073c6ee564232aaafed2681731fcee8d28c2"
 dependencies = [
  "futures-core",
  "futures-io",
