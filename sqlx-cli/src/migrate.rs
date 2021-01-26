@@ -1,8 +1,9 @@
 use anyhow::{bail, Context};
 use chrono::Utc;
 use console::style;
-use sqlx::migrate::{Migrate, MigrateError, MigrationType, Migrator};
+use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
 use sqlx::{AnyConnection, Connection};
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -82,13 +83,18 @@ pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
 
     conn.ensure_migrations_table().await?;
 
-    let (version, _) = conn.version().await?.unwrap_or((0, false));
+    let applied_migrations: HashMap<_, _> = conn
+        .list_applied_migrations()
+        .await?
+        .into_iter()
+        .map(|m| (m.version, m))
+        .collect();
 
     for migration in migrator.iter() {
         println!(
             "{}/{} {}",
             style(migration.version).cyan(),
-            if version >= migration.version {
+            if applied_migrations.contains_key(&migration.version) {
                 style("installed").green()
             } else {
                 style("pending").yellow()
@@ -100,41 +106,69 @@ pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn validate_applied_migrations(
+    applied_migrations: &[AppliedMigration],
+    migrator: &Migrator,
+) -> Result<(), MigrateError> {
+    let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
+
+    for applied_migration in applied_migrations {
+        if !migrations.contains(&applied_migration.version) {
+            return Err(MigrateError::VersionMissing(applied_migration.version));
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn run(migration_source: &str, uri: &str, dry_run: bool) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
     conn.ensure_migrations_table().await?;
 
-    let (version, dirty) = conn.version().await?.unwrap_or((0, false));
-
-    if dirty {
+    let version = conn.dirty_version().await?;
+    if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
+
+    let applied_migrations = conn.list_applied_migrations().await?;
+    validate_applied_migrations(&applied_migrations, &migrator)?;
+
+    let applied_migrations: HashMap<_, _> = applied_migrations
+        .into_iter()
+        .map(|m| (m.version, m))
+        .collect();
 
     for migration in migrator.iter() {
         if migration.migration_type.is_down_migration() {
             // Skipping down migrations
             continue;
         }
-        if migration.version > version {
-            let elapsed = if dry_run {
-                Duration::new(0, 0)
-            } else {
-                conn.apply(migration).await?
-            };
-            let text = if dry_run { "Can apply" } else { "Applied" };
 
-            println!(
-                "{} {}/{} {} {}",
-                text,
-                style(migration.version).cyan(),
-                style(migration.migration_type.label()).green(),
-                migration.description,
-                style(format!("({:?})", elapsed)).dim()
-            );
-        } else {
-            conn.validate(migration).await?;
+        match applied_migrations.get(&migration.version) {
+            Some(applied_migration) => {
+                if migration.checksum != applied_migration.checksum {
+                    bail!(MigrateError::VersionMismatch(migration.version));
+                }
+            }
+            None => {
+                let elapsed = if dry_run {
+                    Duration::new(0, 0)
+                } else {
+                    conn.apply(migration).await?
+                };
+                let text = if dry_run { "Can apply" } else { "Applied" };
+
+                println!(
+                    "{} {}/{} {} {}",
+                    text,
+                    style(migration.version).cyan(),
+                    style(migration.migration_type.label()).green(),
+                    migration.description,
+                    style(format!("({:?})", elapsed)).dim()
+                );
+            }
         }
     }
 
@@ -147,11 +181,18 @@ pub async fn revert(migration_source: &str, uri: &str, dry_run: bool) -> anyhow:
 
     conn.ensure_migrations_table().await?;
 
-    let (version, dirty) = conn.version().await?.unwrap_or((0, false));
-
-    if dirty {
+    let version = conn.dirty_version().await?;
+    if let Some(version) = version {
         bail!(MigrateError::Dirty(version));
     }
+
+    let applied_migrations = conn.list_applied_migrations().await?;
+    validate_applied_migrations(&applied_migrations, &migrator)?;
+
+    let applied_migrations: HashMap<_, _> = applied_migrations
+        .into_iter()
+        .map(|m| (m.version, m))
+        .collect();
 
     let mut is_applied = false;
     for migration in migrator.iter().rev() {
@@ -160,30 +201,28 @@ pub async fn revert(migration_source: &str, uri: &str, dry_run: bool) -> anyhow:
             // This will skip any simple or up migration file
             continue;
         }
-        if migration.version > version {
-            // Skipping unapplied migrations
-            continue;
+
+        if applied_migrations.contains_key(&migration.version) {
+            let elapsed = if dry_run {
+                Duration::new(0, 0)
+            } else {
+                conn.revert(migration).await?
+            };
+            let text = if dry_run { "Can apply" } else { "Applied" };
+
+            println!(
+                "{} {}/{} {} {}",
+                text,
+                style(migration.version).cyan(),
+                style(migration.migration_type.label()).green(),
+                migration.description,
+                style(format!("({:?})", elapsed)).dim()
+            );
+
+            is_applied = true;
+            // Only a single migration will be reverted at a time, so we break
+            break;
         }
-
-        let elapsed = if dry_run {
-            Duration::new(0, 0)
-        } else {
-            conn.revert(migration).await?
-        };
-        let text = if dry_run { "Can apply" } else { "Applied" };
-
-        println!(
-            "{} {}/{} {} {}",
-            text,
-            style(migration.version).cyan(),
-            style(migration.migration_type.label()).green(),
-            migration.description,
-            style(format!("({:?})", elapsed)).dim()
-        );
-
-        is_applied = true;
-        // Only a single migration will be reverted at a time, so we break
-        break;
     }
     if !is_applied {
         println!("No migrations available to revert");

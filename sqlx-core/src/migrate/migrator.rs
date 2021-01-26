@@ -1,12 +1,28 @@
 use crate::acquire::Acquire;
-use crate::migrate::{Migrate, MigrateError, Migration, MigrationSource};
+use crate::migrate::{AppliedMigration, Migrate, MigrateError, Migration, MigrationSource};
 use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::slice;
 
 #[derive(Debug)]
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
+}
+
+fn validate_applied_migrations(
+    applied_migrations: &[AppliedMigration],
+    migrator: &Migrator,
+) -> Result<(), MigrateError> {
+    let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
+
+    for applied_migration in applied_migrations {
+        if !migrations.contains(&applied_migration.version) {
+            return Err(MigrateError::VersionMissing(applied_migration.version));
+        }
+    }
+
+    Ok(())
 }
 
 impl Migrator {
@@ -73,17 +89,29 @@ impl Migrator {
         // eventually this will likely migrate previous versions of the table
         conn.ensure_migrations_table().await?;
 
-        let (version, dirty) = conn.version().await?.unwrap_or((0, false));
-
-        if dirty {
+        let version = conn.dirty_version().await?;
+        if let Some(version) = version {
             return Err(MigrateError::Dirty(version));
         }
 
+        let applied_migrations = conn.list_applied_migrations().await?;
+        validate_applied_migrations(&applied_migrations, self)?;
+
+        let applied_migrations: HashMap<_, _> = applied_migrations
+            .into_iter()
+            .map(|m| (m.version, m))
+            .collect();
+
         for migration in self.iter() {
-            if migration.version > version {
-                conn.apply(migration).await?;
-            } else {
-                conn.validate(migration).await?;
+            match applied_migrations.get(&migration.version) {
+                Some(applied_migration) => {
+                    if migration.checksum != applied_migration.checksum {
+                        return Err(MigrateError::VersionMismatch(migration.version));
+                    }
+                }
+                None => {
+                    conn.apply(migration).await?;
+                }
             }
         }
 
