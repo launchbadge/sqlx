@@ -2,7 +2,6 @@ use bytes::{buf::Chain, Buf, Bytes};
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
 
-use super::Capabilities;
 use crate::protocol::AuthPlugin;
 
 // https://dev.mysql.com/doc/internals/en/authentication-method-change.html
@@ -14,8 +13,8 @@ pub(crate) struct AuthSwitch {
     pub(crate) plugin_data: Chain<Bytes, Bytes>,
 }
 
-impl Deserialize<'_, Capabilities> for AuthSwitch {
-    fn deserialize_with(mut buf: Bytes, _capabilities: Capabilities) -> Result<Self> {
+impl Deserialize<'_> for AuthSwitch {
+    fn deserialize_with(mut buf: Bytes, _: ()) -> Result<Self> {
         let tag = buf.get_u8();
         debug_assert_eq!(tag, 0xfe);
 

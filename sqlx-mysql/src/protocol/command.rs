@@ -13,6 +13,9 @@ pub(crate) trait MaybeCommand {
     }
 }
 
+// raw bytes are not a command
+impl MaybeCommand for &'_ [u8] {}
+
 /// Marker trait to signal that this protocol type is a Command.
 pub(crate) trait Command: MaybeCommand {}
 

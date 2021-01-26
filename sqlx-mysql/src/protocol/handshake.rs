@@ -31,8 +31,8 @@ pub(crate) struct Handshake {
     pub(crate) auth_plugin_data: Chain<Bytes, Bytes>,
 }
 
-impl Deserialize<'_, Capabilities> for Handshake {
-    fn deserialize_with(mut buf: Bytes, _: Capabilities) -> Result<Self> {
+impl Deserialize<'_> for Handshake {
+    fn deserialize_with(mut buf: Bytes, _: ()) -> Result<Self> {
         let protocol_version = buf.get_u8();
 
         // UNSAFE: server version is known to be ASCII
@@ -135,13 +135,11 @@ mod tests {
 
     use super::{Capabilities, Handshake, Status};
 
-    const EMPTY: Capabilities = Capabilities::empty();
-
     #[test]
     fn handshake_mysql_8_0_18() {
         const HANDSHAKE_MYSQL_8_0_18: &[u8] = b"\n8.0.18\x00\x19\x00\x00\x00\x114aB0c\x06g\x00\xff\xff\xff\x02\x00\xff\xc7\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00tL\x03s\x0f[4\rl4. \x00caching_sha2_password\x00";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MYSQL_8_0_18.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MYSQL_8_0_18.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
 
@@ -186,7 +184,7 @@ mod tests {
     fn handshake_mariadb_10_4_7() {
         const HANDSHAKE_MARIA_DB_10_4_7: &[u8] = b"\n5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic\x00\x0b\x00\x00\x00t6L\\j\"dS\x00\xfe\xf7\x08\x02\x00\xff\x81\x15\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00U14Oph9\"<H5n\x00mysql_native_password\x00";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MARIA_DB_10_4_7.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MARIA_DB_10_4_7.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
         assert_eq!(&*h.server_version, "5.5.5-10.4.7-MariaDB-1:10.4.7+maria~bionic");
@@ -230,7 +228,7 @@ mod tests {
     fn handshake_mariadb_10_5_8() {
         const HANDSHAKE_MARIA_DB_10_5_8: &[u8] = b"\n5.5.5-10.5.8-MariaDB-1:10.5.8+maria~focal\0\x07\0\0\0'PB949cf\0\xfe\xf7-\x02\0\xff\x81\x15\0\0\0\0\0\0\x0f\0\0\0UY>hr&`3{55H\0mysql_native_password\0";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MARIA_DB_10_5_8.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MARIA_DB_10_5_8.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
         assert_eq!(&*h.server_version, "5.5.5-10.5.8-MariaDB-1:10.5.8+maria~focal");
@@ -274,7 +272,7 @@ mod tests {
     fn handshake_mysql_5_6_50() {
         const HANDSHAKE_MYSQL_5_6_50: &[u8] = b"\n5.6.50\0\x01\0\0\0-VLYZ:Pd\0\xff\xf7\x08\x02\0\x7f\x80\x15\0\0\0\0\0\0\0\0\0\0'2f+BL8nGV[G\0mysql_native_password\0";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MYSQL_5_6_50.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MYSQL_5_6_50.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
 
@@ -318,7 +316,7 @@ mod tests {
     fn handshake_mysql_5_0_96() {
         const HANDSHAKE_MYSQL_5_0_96: &[u8] = b"\n5.0.96\0\x03\0\0\0bs=sNiGe\0,\xa2\x08\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0IzMP)yLLx;[9\0";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MYSQL_5_0_96.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MYSQL_5_0_96.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
         assert_eq!(&*h.server_version, "5.0.96");
@@ -350,7 +348,7 @@ mod tests {
     fn handshake_mysql_5_1_73() {
         const HANDSHAKE_MYSQL_5_1_73: &[u8] = b"\n5.1.73\0\x01\0\0\0<fllZ\\Bs\0\xff\xf7\x08\x02\0\0\0\0\0\0\0\0\0\0\0\0\0\0<qEC_87JO/9q\0";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MYSQL_5_1_73.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MYSQL_5_1_73.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
         assert_eq!(&*h.server_version, "5.1.73");
@@ -386,7 +384,7 @@ mod tests {
     fn handshake_mysql_5_5_14() {
         const HANDSHAKE_MYSQL_5_5_14: &[u8] = b"\n5.5.14\0\x01\0\0\0`o-/CEp'\0\xff\xf7\x08\x02\0\x0f\x80\x15\0\0\0\0\0\0\0\0\0\0kf@J5j6nJfAP\0mysql_native_password\0";
 
-        let mut h = Handshake::deserialize_with(HANDSHAKE_MYSQL_5_5_14.into(), EMPTY).unwrap();
+        let mut h = Handshake::deserialize(HANDSHAKE_MYSQL_5_5_14.into()).unwrap();
 
         assert_eq!(h.protocol_version, 10);
         assert_eq!(&*h.server_version, "5.5.14");

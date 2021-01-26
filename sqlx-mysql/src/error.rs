@@ -14,6 +14,10 @@ impl MySqlDatabaseError {
     pub(crate) fn new(code: u16, message: &str) -> Self {
         Self(ErrPacket::new(code, message))
     }
+
+    pub(crate) fn malformed_packet(message: &str) -> Self {
+        Self::new(2027, &format!("Malformed packet: {}", message))
+    }
 }
 
 impl DatabaseError for MySqlDatabaseError {
