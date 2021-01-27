@@ -35,12 +35,14 @@ hint: This command only works in the manifest directory of a Cargo package."#
                 description,
                 reversible,
             } => migrate::add(&migrate.source, &description, reversible).await?,
-            MigrateCommand::Run { dry_run } => {
-                migrate::run(&migrate.source, &database_url, dry_run).await?
-            }
-            MigrateCommand::Revert { dry_run } => {
-                migrate::revert(&migrate.source, &database_url, dry_run).await?
-            }
+            MigrateCommand::Run {
+                dry_run,
+                ignore_missing,
+            } => migrate::run(&migrate.source, &database_url, dry_run, ignore_missing).await?,
+            MigrateCommand::Revert {
+                dry_run,
+                ignore_missing,
+            } => migrate::revert(&migrate.source, &database_url, dry_run, ignore_missing).await?,
             MigrateCommand::Info => migrate::info(&migrate.source, &database_url).await?,
         },
 
