@@ -109,7 +109,12 @@ pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
 fn validate_applied_migrations(
     applied_migrations: &[AppliedMigration],
     migrator: &Migrator,
+    ignore_missing: bool,
 ) -> Result<(), MigrateError> {
+    if ignore_missing {
+        return Ok(());
+    }
+
     let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
 
     for applied_migration in applied_migrations {
@@ -121,7 +126,12 @@ fn validate_applied_migrations(
     Ok(())
 }
 
-pub async fn run(migration_source: &str, uri: &str, dry_run: bool) -> anyhow::Result<()> {
+pub async fn run(
+    migration_source: &str,
+    uri: &str,
+    dry_run: bool,
+    ignore_missing: bool,
+) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
@@ -133,7 +143,7 @@ pub async fn run(migration_source: &str, uri: &str, dry_run: bool) -> anyhow::Re
     }
 
     let applied_migrations = conn.list_applied_migrations().await?;
-    validate_applied_migrations(&applied_migrations, &migrator)?;
+    validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()
@@ -175,7 +185,12 @@ pub async fn run(migration_source: &str, uri: &str, dry_run: bool) -> anyhow::Re
     Ok(())
 }
 
-pub async fn revert(migration_source: &str, uri: &str, dry_run: bool) -> anyhow::Result<()> {
+pub async fn revert(
+    migration_source: &str,
+    uri: &str,
+    dry_run: bool,
+    ignore_missing: bool,
+) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
 
@@ -187,7 +202,7 @@ pub async fn revert(migration_source: &str, uri: &str, dry_run: bool) -> anyhow:
     }
 
     let applied_migrations = conn.list_applied_migrations().await?;
-    validate_applied_migrations(&applied_migrations, &migrator)?;
+    validate_applied_migrations(&applied_migrations, &migrator, ignore_missing)?;
 
     let applied_migrations: HashMap<_, _> = applied_migrations
         .into_iter()

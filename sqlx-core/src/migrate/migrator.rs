@@ -8,12 +8,17 @@ use std::slice;
 #[derive(Debug)]
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
+    pub ignore_missing: bool,
 }
 
 fn validate_applied_migrations(
     applied_migrations: &[AppliedMigration],
     migrator: &Migrator,
 ) -> Result<(), MigrateError> {
+    if migrator.ignore_missing {
+        return Ok(());
+    }
+
     let migrations: HashSet<_> = migrator.iter().map(|m| m.version).collect();
 
     for applied_migration in applied_migrations {
@@ -50,7 +55,13 @@ impl Migrator {
     {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
+            ignore_missing: false,
         })
+    }
+
+    /// Specify should ignore applied migrations that missing in the resolved migrations.
+    pub fn set_ignore_missing(&mut self, ignore_missing: bool) {
+        self.ignore_missing = ignore_missing;
     }
 
     /// Get an iterator over all known migrations.
