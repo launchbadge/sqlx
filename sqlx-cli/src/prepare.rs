@@ -23,12 +23,6 @@ pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()
         data: QueryData,
     }
 
-    anyhow::ensure!(
-        Path::new("Cargo.toml").exists(),
-        r#"Failed to read `Cargo.toml`.
-hint: This command only works in the manifest directory of a Cargo package."#
-    );
-
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(merge, cargo_args)?;
 
@@ -89,6 +83,12 @@ pub fn check(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<
 }
 
 fn run_prepare_step(merge: bool, cargo_args: Vec<String>) -> anyhow::Result<QueryData> {
+    anyhow::ensure!(
+        Path::new("Cargo.toml").exists(),
+        r#"Failed to read `Cargo.toml`.
+hint: This command only works in the manifest directory of a Cargo package."#
+    );
+
     // path to the Cargo executable
     let cargo = env::var("CARGO")
         .context("`prepare` subcommand may only be invoked as `cargo sqlx prepare`")?;
