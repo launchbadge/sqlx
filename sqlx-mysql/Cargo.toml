@@ -48,3 +48,4 @@ rand = "0.7"
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
 futures-executor = "0.3.8"
 anyhow = "1.0.37"
+conquer-once = "0.3.2"

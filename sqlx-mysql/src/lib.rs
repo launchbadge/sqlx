@@ -26,11 +26,13 @@ mod database;
 mod error;
 mod io;
 mod options;
+mod query_result;
 mod protocol;
 
 #[cfg(test)]
 mod mock;
 
+pub use query_result::MySqlQueryResult;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use error::MySqlDatabaseError;

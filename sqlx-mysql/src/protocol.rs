@@ -12,12 +12,14 @@ mod ok;
 mod ping;
 mod query;
 mod query_response;
+mod info;
 mod query_step;
 mod packet;
 mod quit;
 mod row;
 mod status;
 
+pub(crate) use info::Info;
 pub(crate) use packet::Packet;
 pub(crate) use auth_plugin::AuthPlugin;
 pub(crate) use auth_response::AuthResponse;

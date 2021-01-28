@@ -1131,6 +1131,7 @@ dependencies = [
  "bitflags",
  "bytes",
  "bytestring",
+ "conquer-once",
  "either",
  "futures-executor",
  "futures-io",

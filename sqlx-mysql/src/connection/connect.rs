@@ -15,7 +15,7 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Result;
 use sqlx_core::Runtime;
 
-use crate::protocol::{AuthResponse, Handshake, HandshakeResponse};
+use crate::protocol::{AuthResponse, Handshake, Capabilities, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
 
 impl<Rt: Runtime> MySqlConnection<Rt> {
@@ -24,6 +24,10 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
         options: &MySqlConnectOptions<Rt>,
         handshake: &Handshake,
     ) -> Result<()> {
+        // IF the options specify a database, try to use the CONNECT_WITH_DB capability
+        // this lets us skip a round-trip after connect
+        self.capabilities |= Capabilities::CONNECT_WITH_DB;
+
         // & the declared server capabilities with our capabilities to find
         // what rules the client should operate under
         self.capabilities &= handshake.capabilities;
