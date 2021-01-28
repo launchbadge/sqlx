@@ -15,7 +15,7 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::Result;
 use sqlx_core::Runtime;
 
-use crate::protocol::{AuthResponse, Handshake, Capabilities, HandshakeResponse};
+use crate::protocol::{AuthResponse, Capabilities, Handshake, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
 
 impl<Rt: Runtime> MySqlConnection<Rt> {
@@ -173,10 +173,10 @@ mod tests {
     const SRV_SWITCH_NATIVE_AUTH: &[u8] =
         b"\xfemysql_native_password\0\r.89j]CpA3Ov~\x1de\\/\x15,\r\0";
 
-    const RES_HANDSHAKE_NATIVE_AUTH: &[u8] = b"P\0\0\x01\x04\xa3(\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\x14P\xaf\xf1\x12,\xe9\xad\xea\x7f\xa0\n\xcd\xa2\xb5<\x17\xa5\xc9J\xd0mysql_native_password\0";
-    const RES_HANDSHAKE_EMPTY_AUTH: &[u8] = b"<\0\0\x01\x04\xa3(\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\0mysql_native_password\0";
-    const RES_HANDSHAKE_CACHING_SHA2_AUTH: &[u8] = b"\\\0\0\x01\x05\xa3(\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0 \x9d\x85T\x15\xfe\xa9u\x13\x02&\x9dlG\x17\x98\x1b`\x8a\x96\xfcI\x19\x17\xe0(I8\xba\xd7\xfax\xa9caching_sha2_password\0";
-    const RES_HANDSHAKE_SHA256_AUTH: &[u8] = b"7\0\0\x01\x05\xa3(\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\x01\x01sha256_password\0";
+    const RES_HANDSHAKE_NATIVE_AUTH: &[u8] = b"Q\0\0\x01\x0c\xa3\xef\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\x14P\xaf\xf1\x12,\xe9\xad\xea\x7f\xa0\n\xcd\xa2\xb5<\x17\xa5\xc9J\xd0\0mysql_native_password\0";
+    const RES_HANDSHAKE_EMPTY_AUTH: &[u8] = b"=\0\0\x01\x0c\xa3\xef\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\0\0mysql_native_password\0";
+    const RES_HANDSHAKE_CACHING_SHA2_AUTH: &[u8] = b"]\0\0\x01\r\xa3\xef\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0 \x9d\x85T\x15\xfe\xa9u\x13\x02&\x9dlG\x17\x98\x1b`\x8a\x96\xfcI\x19\x17\xe0(I8\xba\xd7\xfax\xa9\0caching_sha2_password\0";
+    const RES_HANDSHAKE_SHA256_AUTH: &[u8] = b"8\0\0\x01\r\xa3\xef\x01\0\x04\0\0-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0root\0\x01\x01\0sha256_password\0";
 
     const RES_ASK_RSA_KEY: &[u8] = b"\x01\0\0\x03\x02";
     const RES_ASK_RSA_KEY_2: &[u8] = b"\x01\0\0\x05\x02";
@@ -229,7 +229,7 @@ mod tests {
             let buf = mock.read_exact_async(RES_HANDSHAKE_SHA256_AUTH.len()).await?;
             assert_eq!(&buf, RES_HANDSHAKE_SHA256_AUTH);
 
-            let buf = mock.read_all_async().await?;
+            let buf = mock.read_exact_async(RES_RSA_PASSWORD_SHA256.len()).await?;
             assert_eq!(&buf, RES_RSA_PASSWORD_SHA256);
 
             Ok(())
@@ -273,6 +273,7 @@ mod tests {
 
             mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_CACHING_SHA2_AUTH).await?;
             mock.write_packet_async(2, SRV_AUTH_MORE_OK).await?;
+            mock.write_packet_async(4, SRV_AUTH_OK).await?;
 
             let _conn = MySqlConnectOptions::<Mock>::new()
                 .port(mock.port())
@@ -356,6 +357,7 @@ mod tests {
             mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_NATIVE_AUTH).await?;
             mock.write_packet_async(2, SRV_SWITCH_CACHING_SHA2_AUTH).await?;
             mock.write_packet_async(4, SRV_AUTH_MORE_OK).await?;
+            mock.write_packet_async(6, SRV_AUTH_OK).await?;
 
             let _conn = MySqlConnectOptions::<Mock>::new()
                 .port(mock.port())
