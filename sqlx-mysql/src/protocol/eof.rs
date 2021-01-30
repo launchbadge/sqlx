@@ -2,6 +2,7 @@ use bytes::{Buf, Bytes};
 use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
+use super::{Info, OkPacket};
 use crate::protocol::{Capabilities, Status};
 
 #[allow(clippy::module_name_repetitions)]
@@ -27,5 +28,17 @@ impl Deserialize<'_, Capabilities> for EofPacket {
             if capabilities.contains(Capabilities::PROTOCOL_41) { buf.get_u16_le() } else { 0 };
 
         Ok(Self { status, warnings })
+    }
+}
+
+impl From<EofPacket> for OkPacket {
+    fn from(eof: EofPacket) -> Self {
+        Self {
+            affected_rows: 0,
+            info: Info::default(),
+            last_insert_id: 0,
+            status: eof.status,
+            warnings: eof.warnings,
+        }
     }
 }
