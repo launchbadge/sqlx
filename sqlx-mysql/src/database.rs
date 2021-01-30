@@ -1,13 +1,18 @@
 use sqlx_core::{Database, HasOutput, Runtime};
 
+use super::{MySqlConnection, MySqlRow, MySqlColumn, MySqlQueryResult};
+
 #[derive(Debug)]
 pub struct MySql;
 
-impl<Rt> Database<Rt> for MySql
-where
-    Rt: Runtime,
-{
-    type Connection = super::MySqlConnection<Rt>;
+impl<Rt: Runtime> Database<Rt> for MySql {
+    type Connection = MySqlConnection<Rt>;
+
+    type Row = MySqlRow;
+
+    type Column = MySqlColumn;
+
+    type QueryResult = MySqlQueryResult;
 }
 
 impl<'x> HasOutput<'x> for MySql {

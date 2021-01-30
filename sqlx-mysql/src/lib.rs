@@ -24,6 +24,8 @@ mod stream;
 mod connection;
 mod database;
 mod error;
+mod column;
+mod row;
 mod io;
 mod options;
 mod query_result;
@@ -33,6 +35,8 @@ mod protocol;
 mod mock;
 
 pub use query_result::MySqlQueryResult;
+pub use column::MySqlColumn;
+pub use row::MySqlRow;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use error::MySqlDatabaseError;

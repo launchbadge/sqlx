@@ -1,13 +1,15 @@
 use std::fmt::{self, Debug, Formatter};
 
-use crate::protocol::OkPacket;
+use sqlx_core::QueryResult;
+
+use crate::protocol::{Info, OkPacket, Status};
 
 /// Represents the execution result of an operation on the database server.
 ///
 /// Returned from [`execute()`][sqlx_core::Executor::execute].
 ///
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlQueryResult(OkPacket);
+pub struct MySqlQueryResult(pub(crate) OkPacket);
 
 impl MySqlQueryResult {
     /// Returns the number of rows changed, deleted, or inserted by the statement
@@ -25,8 +27,8 @@ impl MySqlQueryResult {
 
     /// Return the number of rows matched by the `UPDATE` statement.
     ///
-    /// This is in contrast to [`rows_affected()`] which will return the number
-    /// of rows actually changed by the `UPDATE statement.
+    /// This is in contrast to [`rows_affected()`](#method.rows_affected) which will return the number
+    /// of rows actually changed by the `UPDATE` statement.
     ///
     /// Returns `0` for all other statements.
     ///
@@ -39,7 +41,7 @@ impl MySqlQueryResult {
     /// or `ALTER TABLE` statement.
     ///
     /// For multi-row `INSERT`, this is not necessarily the number of rows actually
-    /// inserted because [`duplicates()`] can be non-zero.
+    /// inserted because [`duplicates()`](#method.duplicates) can be non-zero.
     ///
     /// For `ALTER TABLE`, this is the number of rows that were copied while
     /// making alterations.
@@ -107,6 +109,45 @@ impl Debug for MySqlQueryResult {
     }
 }
 
+impl Default for MySqlQueryResult {
+    fn default() -> Self {
+        Self(OkPacket {
+            affected_rows: 0,
+            last_insert_id: 0,
+            status: Status::empty(),
+            warnings: 0,
+            info: Info::default(),
+        })
+    }
+}
+
+impl From<OkPacket> for MySqlQueryResult {
+    fn from(ok: OkPacket) -> Self {
+        Self(ok)
+    }
+}
+
+impl Extend<MySqlQueryResult> for MySqlQueryResult {
+    fn extend<T: IntoIterator<Item = MySqlQueryResult>>(&mut self, iter: T) {
+        for res in iter {
+            self.0.affected_rows += res.0.affected_rows;
+            self.0.warnings += res.0.warnings;
+            self.0.info.records += res.0.info.records;
+            self.0.info.duplicates += res.0.info.duplicates;
+            self.0.info.matched += res.0.info.matched;
+            self.0.last_insert_id = res.0.last_insert_id;
+            self.0.status = res.0.status;
+        }
+    }
+}
+
+impl QueryResult for MySqlQueryResult {
+    #[inline]
+    fn rows_affected(&self) -> u64 {
+        self.rows_affected()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
@@ -134,7 +175,8 @@ mod tests {
 
     #[test]
     fn insert_5() -> anyhow::Result<()> {
-        let packet = Bytes::from(&b"\0\x05\x02\x02\0\0\0&Records: 5  Duplicates: 0  Warnings: 0"[..]);
+        let packet =
+            Bytes::from(&b"\0\x05\x02\x02\0\0\0&Records: 5  Duplicates: 0  Warnings: 0"[..]);
         let ok = OkPacket::deserialize_with(packet, *CAPABILITIES)?;
         let res = MySqlQueryResult(ok);
 
@@ -148,7 +190,8 @@ mod tests {
 
     #[test]
     fn insert_5_or_update_3() -> anyhow::Result<()> {
-        let packet = Bytes::from(&b"\0\x08\x07\x02\0\0\0&Records: 5  Duplicates: 3  Warnings: 0"[..]);
+        let packet =
+            Bytes::from(&b"\0\x08\x07\x02\0\0\0&Records: 5  Duplicates: 3  Warnings: 0"[..]);
         let ok = OkPacket::deserialize_with(packet, *CAPABILITIES)?;
         let res = MySqlQueryResult(ok);
 
