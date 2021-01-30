@@ -1,7 +1,7 @@
 // https://dev.mysql.com/doc/c-api/8.0/en/mysql-info.html
 // https://mariadb.com/kb/en/mysql_info/
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Info {
     pub(crate) records: u64,
     pub(crate) duplicates: u64,
@@ -32,6 +32,14 @@ impl Info {
                     "Records" => records = value,
                     "Duplicates" => duplicates = value,
                     "Rows matched" => matched = value,
+
+                    // ignore records changed
+                    // this is "rows affected" for UPDATE
+                    "Changed" => {},
+
+                    // ignore warnings in info
+                    // these are passed back differently
+                    "Warnings" => {},
 
                     // unknown key
                     _ => failed = true,
