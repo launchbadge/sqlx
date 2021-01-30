@@ -2,12 +2,13 @@ use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "async")]
 use futures_util::future::{BoxFuture, FutureExt};
+use sqlx_core::Executor;
+use sqlx_mysql::{MySqlQueryResult, MySqlRow};
 
 use super::{MySql, MySqlConnectOptions};
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 use crate::{Close, Connect, Connection, DefaultRuntime, Runtime};
-use sqlx_core::Executor;
 
 /// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
@@ -38,7 +39,7 @@ impl<Rt: Async> MySqlConnection<Rt> {
         self.0.ping().await
     }
 
-    pub async fn execute(&mut self, sql: &str) -> Result<()> {
+    pub async fn execute(&mut self, sql: &str) -> Result<MySqlQueryResult> {
         self.0.execute(sql).await
     }
 
@@ -101,12 +102,42 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
     type Database = MySql;
 
     #[cfg(feature = "async")]
-    fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<()>>
+    fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<MySqlQueryResult>>
     where
         Rt: Async,
         'e: 'x,
         'q: 'x,
     {
         self.0.execute(sql)
+    }
+
+    fn fetch_all<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<Vec<MySqlRow>>>
+    where
+        Rt: Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        todo!()
+    }
+
+    fn fetch_optional<'x, 'e, 'q>(
+        &'e mut self,
+        sql: &'q str,
+    ) -> BoxFuture<'x, Result<Option<MySqlRow>>>
+    where
+        Rt: Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        todo!()
+    }
+
+    fn fetch_one<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<MySqlRow>>
+    where
+        Rt: Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        todo!()
     }
 }
