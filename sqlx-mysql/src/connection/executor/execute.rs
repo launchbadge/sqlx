@@ -26,9 +26,8 @@ macro_rules! impl_execute {
                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                     QueryResponse::Ok(ok) => break 'result ok,
                     QueryResponse::ResultSet { columns } => {
-                        // acknowledge but discard any columns
-                        // execute returns no rows
-                        recv_and_drop_columns!($(@$blocking)? columns, stream, cmd);
+                        // acknowledge but discard any columns as execute returns no rows
+                        recv_columns!($(@$blocking)? /* store = */ false, columns, stream, cmd);
 
                         'rows: loop {
                             match read_packet!($(@$blocking)? stream).deserialize_with((capabilities, &[][..]))? {
