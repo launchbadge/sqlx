@@ -28,6 +28,10 @@ mod executor;
 mod options;
 mod pool;
 mod runtime;
+mod decode;
+mod row;
+mod query_result;
+mod column;
 
 #[doc(hidden)]
 pub mod io;
@@ -47,10 +51,13 @@ pub use acquire::Acquire;
 pub use blocking::runtime::Blocking;
 pub use close::Close;
 pub use connect::Connect;
+pub use column::Column;
 pub use connection::Connection;
 pub use database::{Database, HasOutput};
 pub use error::{DatabaseError, Error, Result};
 pub use executor::Executor;
+pub use query_result::QueryResult;
+pub use row::Row;
 pub use options::ConnectOptions;
 pub use pool::Pool;
 #[cfg(feature = "actix")]

@@ -88,7 +88,7 @@ impl<'s> Stream<'s, AsyncStd> for TcpStream {
 
     #[doc(hidden)]
     fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
-        future::ready(TcpStream::shutdown(self, Shutdown::Both))
+        future::ready(Self::shutdown(self, Shutdown::Both))
     }
 
     #[doc(hidden)]
@@ -134,7 +134,7 @@ impl<'s> Stream<'s, AsyncStd> for UnixStream {
 
     #[doc(hidden)]
     fn shutdown_async(&'s mut self) -> Self::ShutdownFuture {
-        future::ready(UnixStream::shutdown(self, Shutdown::Both))
+        future::ready(Self::shutdown(self, Shutdown::Both))
     }
 
     #[doc(hidden)]

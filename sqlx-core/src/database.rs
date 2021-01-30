@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{Connection, Runtime};
+use crate::{Column, Connection, QueryResult, Row, Runtime};
 
 /// A database driver.
 ///
@@ -13,6 +13,15 @@ where
 {
     /// The concrete [`Connection`] implementation for this database.
     type Connection: Connection<Rt, Database = Self> + ?Sized;
+
+    /// The concrete [`Column`] implementation for this database.
+    type Column: Column;
+
+    /// The concrete [`Row`] implementation for this database.
+    type Row: Row<Column = Self::Column>;
+
+    /// The concrete [`QueryResult`] implementation for this database.
+    type QueryResult: QueryResult;
 }
 
 /// Associates [`Database`] with a `Output` of a generic lifetime.
