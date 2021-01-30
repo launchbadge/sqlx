@@ -12,6 +12,10 @@ pub(crate) struct Row {
 
 impl<'de> Deserialize<'de, &'de [ColumnDefinition]> for Row {
     fn deserialize_with(mut buf: Bytes, columns: &'de [ColumnDefinition]) -> Result<Self> {
+        if columns.is_empty() {
+            return Ok(Self { values: vec![] });
+        }
+
         let mut values = Vec::with_capacity(columns.len());
 
         for _ in columns {
