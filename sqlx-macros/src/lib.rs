@@ -129,7 +129,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             #[test]
             #(#attrs)*
             fn #name() #ret {
-                ::sqlx_rt::actix_rt::System::new("sqlx-test")
+                ::sqlx_rt::actix_rt::System::new()
                     .block_on(async { #body })
             }
         }

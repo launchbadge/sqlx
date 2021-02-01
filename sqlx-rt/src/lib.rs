@@ -114,7 +114,7 @@ macro_rules! blocking {
 //
 
 #[cfg(feature = "_rt-actix")]
-pub use {actix_rt, actix_threadpool};
+pub use actix_rt;
 
 #[cfg(all(
     feature = "_rt-actix",
@@ -123,10 +123,10 @@ pub use {actix_rt, actix_threadpool};
 #[macro_export]
 macro_rules! blocking {
     ($($expr:tt)*) => {
-        $crate::actix_threadpool::run(move || { $($expr)* }).await.map_err(|err| match err {
-            $crate::actix_threadpool::BlockingError::Error(e) => e,
-            $crate::actix_threadpool::BlockingError::Canceled => panic!("{}", err)
-        })
+         // spawn_blocking is a re-export from tokio
+         $crate::actix_rt::task::spawn_blocking(move || { $($expr)* })
+            .await
+            .expect("Blocking task failed to complete.")
     };
 }
 
