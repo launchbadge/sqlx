@@ -25,12 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#976]] Remove the `Done` trait. The `.rows_affected()` method is now available as an inherent
     method on `PgQueryResult`, `MySqlQueryResult` and so on. [[@jplatte]]
 
--   [[#983]] Upgrade async runtime dependencies [[@seryl], [@ant32], [@jplatte]]
+-   [[#983]] [[#1022]] Upgrade async runtime dependencies [[@seryl], [@ant32], [@jplatte], [@robjtede]]
 
     - tokio 1.0
     - actix-rt 2.0
 
 -   [[#1007]] Remove `any::AnyType` [[@jplatte]]
+
+[#983]: https://github.com/launchbadge/sqlx/pull/983
+[#1022]: https://github.com/launchbadge/sqlx/pull/1022
 
 ## 0.4.2 - 2020-12-19
 
@@ -782,3 +785,6 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@dstoeckel]: https://github.com/dstoeckel
 [@mrcd]: https://github.com/mrcd
 [@dvermd]: https://github.com/dvermd
+[@seryl]: https://github.com/seryl
+[@ant32]: https://github.com/ant32
+[@robjtede]: https://github.com/robjtede
