@@ -34,7 +34,7 @@ impl ToTokens for ColumnType {
         tokens.append_all(match &self {
             ColumnType::Exact(type_) => type_.clone().into_iter(),
             ColumnType::Wildcard => quote! { _ }.into_iter(),
-            ColumnType::OptWildcard => quote! { Option<_> }.into_iter(),
+            ColumnType::OptWildcard => quote! { ::std::option::Option<_> }.into_iter(),
         })
     }
 }
@@ -96,7 +96,7 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
     };
     let type_ = match (type_, nullable) {
         (ColumnTypeOverride::Exact(type_), false) => ColumnType::Exact(type_.to_token_stream()),
-        (ColumnTypeOverride::Exact(type_), true) => ColumnType::Exact(quote! { Option<#type_> }),
+        (ColumnTypeOverride::Exact(type_), true) => ColumnType::Exact(quote! { ::std::option::Option<#type_> }),
 
         (ColumnTypeOverride::Wildcard, false) => ColumnType::Wildcard,
         (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,
@@ -106,7 +106,7 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
             if !nullable {
                 ColumnType::Exact(type_)
             } else {
-                ColumnType::Exact(quote! { Option<#type_> })
+                ColumnType::Exact(quote! { ::std::option::Option<#type_> })
             }
         }
     };
@@ -143,7 +143,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
                 // type was overridden to be a wildcard so we fallback to the runtime check
                 (true, ColumnType::Wildcard) => quote! ( let #ident = row.try_get(#i)?; ),
                 (true, ColumnType::OptWildcard) => {
-                    quote! ( let #ident = row.try_get::<Option<_>, _>(#i)?; )
+                    quote! ( let #ident = row.try_get::<::std::option::Option<_>, _>(#i)?; )
                 }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
                 (false, _) => quote!( let #ident = row.try_get_unchecked(#i)?; ),
@@ -158,8 +158,8 @@ pub fn quote_query_as<DB: DatabaseExt>(
     let sql = &input.src;
 
     quote! {
-        sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
-            use sqlx::Row as _;
+        ::sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
+            use ::sqlx::Row as _;
 
             #(#instantiations)*
 
@@ -189,7 +189,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     } else if input.checked {
         let ty = get_column_type::<DB>(0, &columns[0]);
         if describe.nullable(0).unwrap_or(true) {
-            quote! { Option<#ty> }
+            quote! { ::std::option::Option<#ty> }
         } else {
             ty
         }
@@ -201,7 +201,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     let query = &input.src;
 
     Ok(quote! {
-        sqlx::query_scalar_with::<#db, #ty, _>(#query, #bind_args)
+        ::sqlx::query_scalar_with::<#db, #ty, _>(#query, #bind_args)
     })
 }
 

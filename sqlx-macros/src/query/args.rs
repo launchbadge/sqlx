@@ -17,7 +17,7 @@ pub fn quote_args<DB: DatabaseExt>(
 
     if input.arg_exprs.is_empty() {
         return Ok(quote! {
-            let query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
+            let query_args = <#db_path as ::sqlx::database::HasArguments>::Arguments::default();
         });
     }
 
@@ -76,21 +76,21 @@ pub fn quote_args<DB: DatabaseExt>(
                     Ok(quote_spanned!(expr.span() =>
                         // this shouldn't actually run
                         if false {
-                            use sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
+                            use ::sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
                             // evaluate the expression only once in case it contains moves
-                            let _expr = sqlx::ty_match::dupe_value(#name);
+                            let _expr = ::sqlx::ty_match::dupe_value(#name);
 
                             // if `_expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
-                            let ty_check = sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
+                            let ty_check = ::sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
 
                             // if `_expr` is `&str`, convert `String` to `&str`
-                            let (mut _ty_check, match_borrow) = sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
+                            let (mut _ty_check, match_borrow) = ::sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
 
                             _ty_check = match_borrow.match_borrow();
 
                             // this causes move-analysis to effectively ignore this block
-                            panic!();
+                            ::std::panic!();
                         }
                     ))
                 })
@@ -105,10 +105,10 @@ pub fn quote_args<DB: DatabaseExt>(
 
         #args_check
 
-        let mut query_args = <#db_path as sqlx::database::HasArguments>::Arguments::default();
+        let mut query_args = <#db_path as ::sqlx::database::HasArguments>::Arguments::default();
         query_args.reserve(
             #args_count,
-            0 #(+ sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
+            0 #(+ ::sqlx::encode::Encode::<#db_path>::size_hint(#arg_name))*
         );
         #(query_args.add(#arg_name);)*
     })

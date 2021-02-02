@@ -40,7 +40,7 @@ impl TypeName {
         let val = &self.val;
         if self.deprecated_rename {
             quote_spanned!(self.span=> {
-                sqlx::_rename();
+                ::sqlx::_rename();
                 #val
             })
         } else {
