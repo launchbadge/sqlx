@@ -500,100 +500,103 @@ fn find_next_field<'a>(line: &mut &'a str) -> Option<Cow<'a, str>> {
     return None;
 }
 
-#[test]
-fn test_find_next_field() {
-    fn test_case<'a>(mut input: &'a str, result: Option<Cow<'a, str>>, rest: &str) {
-        assert_eq!(find_next_field(&mut input), result);
-        assert_eq!(input, rest);
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_find_next_field() {
+        fn test_case<'a>(mut input: &'a str, result: Option<Cow<'a, str>>, rest: &str) {
+            assert_eq!(find_next_field(&mut input), result);
+            assert_eq!(input, rest);
+        }
+
+        // normal field
+        test_case("foo:bar:baz", Some(Cow::Borrowed("foo")), "bar:baz");
+        // \ escaped
+        test_case(
+            "foo\\\\:bar:baz",
+            Some(Cow::Owned("foo\\".to_owned())),
+            "bar:baz",
+        );
+        // : escaped
+        test_case(
+            "foo\\::bar:baz",
+            Some(Cow::Owned("foo:".to_owned())),
+            "bar:baz",
+        );
+        // unnecessary escape
+        test_case(
+            "foo\\a:bar:baz",
+            Some(Cow::Owned("fooa".to_owned())),
+            "bar:baz",
+        );
+        // other text after escape
+        test_case(
+            "foo\\\\a:bar:baz",
+            Some(Cow::Owned("foo\\a".to_owned())),
+            "bar:baz",
+        );
+        // double escape
+        test_case(
+            "foo\\\\\\\\a:bar:baz",
+            Some(Cow::Owned("foo\\\\a".to_owned())),
+            "bar:baz",
+        );
+        // utf8 support
+        test_case("🦀:bar:baz", Some(Cow::Borrowed("🦀")), "bar:baz");
+
+        // missing delimiter (eof)
+        test_case("foo", None, "foo");
+        // missing delimiter after escape
+        test_case("foo\\:", None, "foo\\:");
+        // missing delimiter after unused trailing escape
+        test_case("foo\\", None, "foo\\");
     }
 
-    // normal field
-    test_case("foo:bar:baz", Some(Cow::Borrowed("foo")), "bar:baz");
-    // \ escaped
-    test_case(
-        "foo\\\\:bar:baz",
-        Some(Cow::Owned("foo\\".to_owned())),
-        "bar:baz",
-    );
-    // : escaped
-    test_case(
-        "foo\\::bar:baz",
-        Some(Cow::Owned("foo:".to_owned())),
-        "bar:baz",
-    );
-    // unnecessary escape
-    test_case(
-        "foo\\a:bar:baz",
-        Some(Cow::Owned("fooa".to_owned())),
-        "bar:baz",
-    );
-    // other text after escape
-    test_case(
-        "foo\\\\a:bar:baz",
-        Some(Cow::Owned("foo\\a".to_owned())),
-        "bar:baz",
-    );
-    // double escape
-    test_case(
-        "foo\\\\\\\\a:bar:baz",
-        Some(Cow::Owned("foo\\\\a".to_owned())),
-        "bar:baz",
-    );
-    // utf8 support
-    test_case("🦀:bar:baz", Some(Cow::Borrowed("🦀")), "bar:baz");
+    #[test]
+    fn test_load_password_from_line() {
+        // normal
+        assert_eq!(
+            load_password_from_line(
+                "localhost:5432:foo:bar:baz",
+                "localhost",
+                5432,
+                "foo",
+                Some("bar")
+            ),
+            Some("baz".to_owned())
+        );
+        // wildcard
+        assert_eq!(
+            load_password_from_line("*:5432:foo:bar:baz", "localhost", 5432, "foo", Some("bar")),
+            Some("baz".to_owned())
+        );
+        // accept wildcard with missing db
+        assert_eq!(
+            load_password_from_line("localhost:5432:foo:*:baz", "localhost", 5432, "foo", None),
+            Some("baz".to_owned())
+        );
 
-    // missing delimiter (eof)
-    test_case("foo", None, "foo");
-    // missing delimiter after escape
-    test_case("foo\\:", None, "foo\\:");
-    // missing delimiter after unused trailing escape
-    test_case("foo\\", None, "foo\\");
-}
-
-#[test]
-fn test_load_password_from_line() {
-    // normal
-    assert_eq!(
-        load_password_from_line(
-            "localhost:5432:foo:bar:baz",
-            "localhost",
-            5432,
-            "foo",
-            Some("bar")
-        ),
-        Some("baz".to_owned())
-    );
-    // wildcard
-    assert_eq!(
-        load_password_from_line("*:5432:foo:bar:baz", "localhost", 5432, "foo", Some("bar")),
-        Some("baz".to_owned())
-    );
-    // accept wildcard with missing db
-    assert_eq!(
-        load_password_from_line("localhost:5432:foo:*:baz", "localhost", 5432, "foo", None),
-        Some("baz".to_owned())
-    );
-
-    // doesn't match
-    assert_eq!(
-        load_password_from_line(
-            "thishost:5432:foo:bar:baz",
-            "thathost",
-            5432,
-            "foo",
-            Some("bar")
-        ),
-        None
-    );
-    // malformed entry
-    assert_eq!(
-        load_password_from_line(
-            "localhost:5432:foo:bar",
-            "localhost",
-            5432,
-            "foo",
-            Some("bar")
-        ),
-        None
-    );
+        // doesn't match
+        assert_eq!(
+            load_password_from_line(
+                "thishost:5432:foo:bar:baz",
+                "thathost",
+                5432,
+                "foo",
+                Some("bar")
+            ),
+            None
+        );
+        // malformed entry
+        assert_eq!(
+            load_password_from_line(
+                "localhost:5432:foo:bar",
+                "localhost",
+                5432,
+                "foo",
+                Some("bar")
+            ),
+            None
+        );
+    }
 }
