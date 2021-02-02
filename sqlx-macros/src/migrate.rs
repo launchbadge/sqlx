@@ -43,8 +43,8 @@ impl ToTokens for QuotedMigration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
-                sql: :std::borrow::Cow::Borrowed(#sql),
-                checksum: :std::borrow::Cow::Borrowed(&[
+                sql: ::std::borrow::Cow::Borrowed(#sql),
+                checksum: ::std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
                 ]),
             }
