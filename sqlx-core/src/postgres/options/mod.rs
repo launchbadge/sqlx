@@ -387,7 +387,7 @@ fn load_password_from_file(
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::fs::PermissionsExt;
-        
+
         // check file permissions on linux
 
         let metadata = file.metadata().ok()?;
@@ -462,7 +462,7 @@ fn matches_next_field(whole_line: &str, line: &mut &str, value: &str) -> Option<
 }
 
 /// extract the next value from a line in a pgpass file
-/// 
+///
 /// `line` will get updated to point behind the field and delimiter
 fn find_next_field<'a>(line: &mut &'a str) -> Option<Cow<'a, str>> {
     let mut escaping = false;
