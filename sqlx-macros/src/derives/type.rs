@@ -75,7 +75,7 @@ fn expand_derive_has_sql_type_transparent(
                     <#ty as ::sqlx::Type<DB>>::type_info()
                 }
 
-                fn compatible(ty: &DB::TypeInfo) -> ::std::bool {
+                fn compatible(ty: &DB::TypeInfo) -> ::std::primitive::bool {
                     <#ty as ::sqlx::Type<DB>>::compatible(ty)
                 }
             }
@@ -139,7 +139,7 @@ fn expand_derive_has_sql_type_strong_enum(
                     ::sqlx::mysql::MySqlTypeInfo::__enum()
                 }
 
-                fn compatible(ty: &::sqlx::mysql::MySqlTypeInfo) -> ::std::bool {
+                fn compatible(ty: &::sqlx::mysql::MySqlTypeInfo) -> ::std::primitive::bool {
                     *ty == ::sqlx::mysql::MySqlTypeInfo::__enum()
                 }
             }
@@ -168,8 +168,8 @@ fn expand_derive_has_sql_type_strong_enum(
                     <::std::primitive::str as ::sqlx::Type<sqlx::Sqlite>>::type_info()
                 }
 
-                fn compatible(ty: &::sqlx::sqlite::SqliteTypeInfo) -> ::std::bool {
-                    <&::str::str as ::sqlx::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
+                fn compatible(ty: &::sqlx::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
+                    <&::std::primitive::str as ::sqlx::types::Type<sqlx::sqlite::Sqlite>>::compatible(ty)
                 }
             }
         ));
