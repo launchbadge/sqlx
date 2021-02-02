@@ -154,7 +154,7 @@ fn find_next_field<'a>(line: &mut &'a str) -> Option<Cow<'a, str>> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{find_next_field, load_password_from_line};
     use std::borrow::Cow;
 
