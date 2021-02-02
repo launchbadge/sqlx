@@ -1,8 +1,6 @@
-use std::env;
-use std::path::Path;
-#[cfg(feature = "offline")]
 use std::path::PathBuf;
 
+use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
 use url::Url;
@@ -24,60 +22,96 @@ mod data;
 mod input;
 mod output;
 
+struct Metadata {
+    manifest_dir: PathBuf,
+    offline: bool,
+    database_url: Option<String>,
+    #[cfg(feature = "offline")]
+    target_dir: PathBuf,
+    #[cfg(feature = "offline")]
+    workspace_root: PathBuf,
+}
+
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-#[cfg(feature = "offline")]
-static CRATE_ROOT: once_cell::sync::Lazy<PathBuf> = once_cell::sync::Lazy::new(|| {
-    use serde::Deserialize;
-    use std::process::Command;
+static METADATA: Lazy<Metadata> = Lazy::new(|| {
+    use std::env;
 
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
+        .expect("`CARGO_MANIFEST_DIR` must be set")
+        .into();
 
-    let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
-
-    let output = Command::new(&cargo)
-        .args(&["metadata", "--format-version=1"])
-        .current_dir(manifest_dir)
-        .output()
-        .expect("Could not fetch metadata");
-
-    #[derive(Deserialize)]
-    struct Metadata {
-        workspace_root: PathBuf,
-    }
-
-    let metadata: Metadata =
-        serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-    metadata.workspace_root
-});
-
-pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
-    let manifest_dir =
-        env::var("CARGO_MANIFEST_DIR").map_err(|_| "`CARGO_MANIFEST_DIR` must be set")?;
+    #[cfg(feature = "offline")]
+    let target_dir =
+        env::var_os("CARGO_TARGET_DIR").map_or_else(|| "target".into(), |dir| dir.into());
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
-    let env_path = Path::new(&manifest_dir).join(".env");
+    let env_path = METADATA.manifest_dir.join(".env");
     if env_path.exists() {
-        dotenv::from_path(&env_path)
-            .map_err(|e| format!("failed to load environment from {:?}, {}", env_path, e))?
+        let res = dotenv::from_path(&env_path);
+        if let Err(e) = res {
+            panic!("failed to load environment from {:?}, {}", env_path, e);
+        }
+    } else {
+        let _ = dotenv::dotenv();
     }
 
-    // if `dotenv` wasn't initialized by the above we make sure to do it here
-    match (
-        dotenv::var("SQLX_OFFLINE")
-            .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
-            .unwrap_or(false),
-        dotenv::var("DATABASE_URL"),
-    ) {
-        (false, Ok(db_url)) => expand_from_db(input, &db_url),
+    // TODO: Switch to `var_os` after feature(osstring_ascii) is stable.
+    // Stabilization PR: https://github.com/rust-lang/rust/pull/80193
+    let offline = env::var("SQLX_OFFLINE")
+        .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
+        .unwrap_or(false);
+
+    let database_url = env::var("DATABASE_URL").ok();
+
+    #[cfg(feature = "offline")]
+    let workspace_root = {
+        use serde::Deserialize;
+        use std::process::Command;
+
+        let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
+
+        let output = Command::new(&cargo)
+            .args(&["metadata", "--format-version=1"])
+            .current_dir(&manifest_dir)
+            .output()
+            .expect("Could not fetch metadata");
+
+        #[derive(Deserialize)]
+        struct CargoMetadata {
+            workspace_root: PathBuf,
+        }
+
+        let metadata: CargoMetadata =
+            serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
+
+        metadata.workspace_root
+    };
+
+    Metadata {
+        manifest_dir,
+        offline,
+        database_url,
+        #[cfg(feature = "offline")]
+        target_dir,
+        #[cfg(feature = "offline")]
+        workspace_root,
+    }
+});
+
+pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
+    match &*METADATA {
+        Metadata {
+            offline: false,
+            database_url: Some(db_url),
+            ..
+        } => expand_from_db(input, &db_url),
 
         #[cfg(feature = "offline")]
         _ => {
-            let data_file_path = Path::new(&manifest_dir).join("sqlx-data.json");
-
-            let workspace_data_file_path = CRATE_ROOT.join("sqlx-data.json");
+            let data_file_path = METADATA.manifest_dir.join("sqlx-data.json");
+            let workspace_data_file_path = METADATA.workspace_root.join("sqlx-data.json");
 
             if data_file_path.exists() {
                 expand_from_file(input, data_file_path)
@@ -93,12 +127,16 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
         }
 
         #[cfg(not(feature = "offline"))]
-        (true, _) => {
+        Metadata { offline: true, .. } => {
             Err("The cargo feature `offline` has to be enabled to use `SQLX_OFFLINE`".into())
         }
 
         #[cfg(not(feature = "offline"))]
-        (false, Err(_)) => Err("`DATABASE_URL` must be set to use query macros".into()),
+        Metadata {
+            offline: false,
+            database_url: None,
+            ..
+        } => Err("`DATABASE_URL` must be set to use query macros".into()),
     }
 }
 
@@ -322,11 +360,7 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        let mut save_dir =
-            PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()));
-
-        save_dir.push("sqlx");
-
+        let save_dir = METADATA.target_dir.join("sqlx");
         std::fs::create_dir_all(&save_dir)?;
         data.save_in(save_dir, input.src_span)?;
     }
