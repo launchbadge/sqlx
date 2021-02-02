@@ -96,7 +96,9 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
     };
     let type_ = match (type_, nullable) {
         (ColumnTypeOverride::Exact(type_), false) => ColumnType::Exact(type_.to_token_stream()),
-        (ColumnTypeOverride::Exact(type_), true) => ColumnType::Exact(quote! { ::std::option::Option<#type_> }),
+        (ColumnTypeOverride::Exact(type_), true) => {
+            ColumnType::Exact(quote! { ::std::option::Option<#type_> })
+        }
 
         (ColumnTypeOverride::Wildcard, false) => ColumnType::Wildcard,
         (ColumnTypeOverride::Wildcard, true) => ColumnType::OptWildcard,

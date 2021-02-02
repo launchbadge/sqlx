@@ -68,7 +68,9 @@ fn expand_derive_encode_transparent(
         .params
         .insert(0, LifetimeDef::new(lifetime.clone()).into());
 
-    generics.params.insert(0, parse_quote!(DB: ::sqlx::Database));
+    generics
+        .params
+        .insert(0, parse_quote!(DB: ::sqlx::Database));
     generics
         .make_where_clause()
         .predicates
@@ -195,7 +197,8 @@ fn expand_derive_encode_struct(
         for field in fields {
             let ty = &field.ty;
 
-            predicates.push(parse_quote!(#ty: for<'q> ::sqlx::encode::Encode<'q, ::sqlx::Postgres>));
+            predicates
+                .push(parse_quote!(#ty: for<'q> ::sqlx::encode::Encode<'q, ::sqlx::Postgres>));
             predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
         }
 

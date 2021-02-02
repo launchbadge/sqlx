@@ -59,7 +59,9 @@ fn expand_derive_has_sql_type_transparent(
 
     if attr.transparent {
         let mut generics = generics.clone();
-        generics.params.insert(0, parse_quote!(DB: ::sqlx::Database));
+        generics
+            .params
+            .insert(0, parse_quote!(DB: ::sqlx::Database));
         generics
             .make_where_clause()
             .predicates
