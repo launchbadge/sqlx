@@ -144,7 +144,9 @@ fn expand_derive_from_row_struct_unnamed(
 
     let predicates = &mut generics.make_where_clause().predicates;
 
-    predicates.push(parse_quote!(::std::primitive::usize: ::sqlx::ColumnIndex<R>));
+    predicates.push(parse_quote!(
+        ::std::primitive::usize: ::sqlx::ColumnIndex<R>
+    ));
 
     for field in fields {
         let ty = &field.ty;
