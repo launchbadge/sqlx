@@ -359,19 +359,18 @@ fn default_host(port: u16) -> String {
 
 /// try to load a password from the various pgpass file locations
 fn load_password(host: &str, port: u16, username: &str, database: Option<&str>) -> Option<String> {
-    #[cfg(not(target_os = "windows"))]
-    let default_file = dirs::home_dir().map(|path| path.join(".pgpass"));
-    #[cfg(target_os = "windows")]
-    let default_file = dirs::data_dir().map(|path| path.join("postgres").join("pgpass.conf"));
-
-    if let Some(file) = default_file {
+    let custom_file = var_os("PGPASSFILE")?;
+    if let Some(file) = custom_file {
         if let Some(password) = load_password_from_file(file, host, port, username, database) {
             return Some(password);
         }
     }
 
-    let custom_file = var_os("PGPASSFILE")?;
-    load_password_from_file(PathBuf::from(custom_file), host, port, username, database)
+    #[cfg(not(target_os = "windows"))]
+    let default_file = dirs::home_dir().map(|path| path.join(".pgpass"));
+    #[cfg(target_os = "windows")]
+    let default_file = dirs::data_dir().map(|path| path.join("postgres").join("pgpass.conf"));
+    load_password_from_file(default_file, host, port, username, database)
 }
 
 /// try to extract a password from a pgpass file
