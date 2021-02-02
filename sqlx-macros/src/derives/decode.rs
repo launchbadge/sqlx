@@ -61,18 +61,18 @@ fn expand_derive_decode_transparent(
 
     // add db type for impl generics & where clause
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(DB: sqlx::Database));
+    generics.params.insert(0, parse_quote!(DB: ::sqlx::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: sqlx::decode::Decode<'r, DB>));
+        .push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
-        impl #impl_generics sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
-            fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                <#ty as sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
+        impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
+            fn decode(value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                <#ty as ::sqlx::decode::Decode<'r, DB>>::decode(value).map(Self)
             }
         }
     );
@@ -94,19 +94,19 @@ fn expand_derive_decode_weak_enum(
         .iter()
         .map(|v| {
             let id = &v.ident;
-            parse_quote!(_ if (#ident :: #id as #repr) == value => Ok(#ident :: #id),)
+            parse_quote!(_ if (#ident :: #id as #repr) == value => ::std::result::Result::Ok(#ident :: #id),)
         })
         .collect::<Vec<Arm>>();
 
     Ok(quote!(
-        impl<'r, DB: sqlx::Database> sqlx::decode::Decode<'r, DB> for #ident where #repr: sqlx::decode::Decode<'r, DB> {
-            fn decode(value: <DB as sqlx::database::HasValueRef<'r>>::ValueRef) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                let value = <#repr as sqlx::decode::Decode<'r, DB>>::decode(value)?;
+        impl<'r, DB: ::sqlx::Database> ::sqlx::decode::Decode<'r, DB> for #ident where #repr: ::sqlx::decode::Decode<'r, DB> {
+            fn decode(value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                let value = <#repr as ::sqlx::decode::Decode<'r, DB>>::decode(value)?;
 
                 match value {
                     #(#arms)*
 
-                    _ => Err(Box::new(sqlx::Error::Decode(format!("invalid value {:?} for enum {}", value, #ident_s).into())))
+                    _ => ::std::result::Result::Err(::std::boxed::Box::new(::sqlx::Error::Decode(::std::format!("invalid value {:?} for enum {}", value, #ident_s).into())))
                 }
             }
         }
@@ -127,14 +127,14 @@ fn expand_derive_decode_strong_enum(
         let attributes = parse_child_attributes(&v.attrs).unwrap();
 
         if let Some(rename) = attributes.rename {
-            parse_quote!(#rename => Ok(#ident :: #id),)
+            parse_quote!(#rename => ::std::result::Result::Ok(#ident :: #id),)
         } else if let Some(pattern) = cattr.rename_all {
             let name = rename_all(&*id.to_string(), pattern);
 
-            parse_quote!(#name => Ok(#ident :: #id),)
+            parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         } else {
             let name = id.to_string();
-            parse_quote!(#name => Ok(#ident :: #id),)
+            parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         }
     });
 
@@ -150,9 +150,9 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
-            impl<'r> sqlx::decode::Decode<'r, sqlx::mysql::MySql> for #ident {
-                fn decode(value: sqlx::mysql::MySqlValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                    let value = <&'r str as sqlx::decode::Decode<'r, sqlx::mysql::MySql>>::decode(value)?;
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::mysql::MySql> for #ident {
+                fn decode(value: ::sqlx::mysql::MySqlValueRef<'r>) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<'r, ::sqlx::mysql::MySql>>::decode(value)?;
 
                     #values
                 }
@@ -162,9 +162,9 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "postgres") {
         tts.extend(quote!(
-            impl<'r> sqlx::decode::Decode<'r, sqlx::postgres::Postgres> for #ident {
-                fn decode(value: sqlx::postgres::PgValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                    let value = <&'r str as sqlx::decode::Decode<'r, sqlx::postgres::Postgres>>::decode(value)?;
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::postgres::Postgres> for #ident {
+                fn decode(value: ::sqlx::postgres::PgValueRef<'r>) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<'r, ::sqlx::postgres::Postgres>>::decode(value)?;
 
                     #values
                 }
@@ -174,9 +174,9 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "sqlite") {
         tts.extend(quote!(
-            impl<'r> sqlx::decode::Decode<'r, sqlx::sqlite::Sqlite> for #ident {
-                fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                    let value = <&'r str as sqlx::decode::Decode<'r, sqlx::sqlite::Sqlite>>::decode(value)?;
+            impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite> for #ident {
+                fn decode(value: ::sqlx::sqlite::SqliteValueRef<'r>) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                    let value = <&'r ::std::primitive::str as ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite>>::decode(value)?;
 
                     #values
                 }
@@ -211,8 +211,8 @@ fn expand_derive_decode_struct(
         for field in fields {
             let ty = &field.ty;
 
-            predicates.push(parse_quote!(#ty: sqlx::decode::Decode<'r, sqlx::Postgres>));
-            predicates.push(parse_quote!(#ty: sqlx::types::Type<sqlx::Postgres>));
+            predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<'r, ::sqlx::Postgres>));
+            predicates.push(parse_quote!(#ty: ::sqlx::types::Type<::sqlx::Postgres>));
         }
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -229,13 +229,13 @@ fn expand_derive_decode_struct(
         let names = fields.iter().map(|field| &field.ident);
 
         tts.extend(quote!(
-            impl #impl_generics sqlx::decode::Decode<'r, sqlx::Postgres> for #ident #ty_generics #where_clause {
-                fn decode(value: sqlx::postgres::PgValueRef<'r>) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-                    let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+            impl #impl_generics ::sqlx::decode::Decode<'r, ::sqlx::Postgres> for #ident #ty_generics #where_clause {
+                fn decode(value: ::sqlx::postgres::PgValueRef<'r>) -> ::std::result::Result<Self, ::std::boxed::Box<dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync>> {
+                    let mut decoder = ::sqlx::postgres::types::PgRecordDecoder::new(value)?;
 
                     #(#reads)*
 
-                    Ok(#ident {
+                    ::std::result::Result::Ok(#ident {
                         #(#names),*
                     })
                 }
