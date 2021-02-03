@@ -60,8 +60,9 @@ impl Migrator {
     }
 
     /// Specify should ignore applied migrations that missing in the resolved migrations.
-    pub fn set_ignore_missing(&mut self, ignore_missing: bool) {
+    pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
     }
 
     /// Get an iterator over all known migrations.
