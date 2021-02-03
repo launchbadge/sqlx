@@ -35,7 +35,6 @@ pub use encode::AnyEncode;
 pub use kind::AnyKind;
 pub use options::AnyConnectOptions;
 pub use query_result::AnyQueryResult;
-pub use r#type::AnyType;
 pub use row::AnyRow;
 pub use statement::AnyStatement;
 pub use transaction::AnyTransactionManager;

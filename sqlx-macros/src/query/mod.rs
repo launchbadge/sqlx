@@ -1,9 +1,9 @@
 use std::env;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
+#[cfg(feature = "offline")]
+use std::path::PathBuf;
 
-use proc_macro2::{Span, TokenStream};
-use serde::Deserialize;
+use proc_macro2::TokenStream;
 use syn::Type;
 use url::Url;
 
@@ -18,7 +18,6 @@ use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use either::Either;
-use once_cell::sync::Lazy;
 
 mod args;
 mod data;
@@ -27,7 +26,11 @@ mod output;
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-static CRATE_ROOT: Lazy<PathBuf> = Lazy::new(|| {
+#[cfg(feature = "offline")]
+static CRATE_ROOT: once_cell::sync::Lazy<PathBuf> = once_cell::sync::Lazy::new(|| {
+    use serde::Deserialize;
+    use std::process::Command;
+
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
 
     let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
@@ -250,7 +253,7 @@ where
         let sql = &input.src;
 
         quote! {
-            sqlx::query_with::<#db_path, _>(#sql, #query_args)
+            ::sqlx::query_with::<#db_path, _>(#sql, #query_args)
         }
     } else {
         match input.record_type {
@@ -306,7 +309,7 @@ where
         {
             #[allow(clippy::all)]
             {
-                use sqlx::Arguments as _;
+                use ::sqlx::Arguments as _;
 
                 #args_tokens
 

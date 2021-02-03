@@ -31,7 +31,7 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
                 parse_err.to_compile_error().into()
             } else {
                 let msg = e.to_string();
-                quote!(compile_error!(#msg)).into()
+                quote!(::std::compile_error!(#msg)).into()
             }
         }
     }
@@ -87,7 +87,7 @@ pub fn migrate(input: TokenStream) -> TokenStream {
                 parse_err.to_compile_error().into()
             } else {
                 let msg = e.to_string();
-                quote!(compile_error!(#msg)).into()
+                quote!(::std::compile_error!(#msg)).into()
             }
         }
     }
@@ -108,7 +108,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             #[test]
             #(#attrs)*
             fn #name() #ret {
-                sqlx_rt::tokio::runtime::Builder::new_multi_thread()
+                ::sqlx_rt::tokio::runtime::Builder::new_multi_thread()
                     .enable_io()
                     .enable_time()
                     .build()
@@ -121,7 +121,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             #[test]
             #(#attrs)*
             fn #name() #ret {
-                sqlx_rt::async_std::task::block_on(async { #body })
+                ::sqlx_rt::async_std::task::block_on(async { #body })
             }
         }
     } else if cfg!(feature = "_rt-actix") {
@@ -129,7 +129,7 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
             #[test]
             #(#attrs)*
             fn #name() #ret {
-                sqlx_rt::actix_rt::System::new("sqlx-test")
+                ::sqlx_rt::actix_rt::System::new("sqlx-test")
                     .block_on(async { #body })
             }
         }

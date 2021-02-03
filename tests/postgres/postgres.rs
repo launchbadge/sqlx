@@ -152,6 +152,21 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_nest_map() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let res = sqlx::query("SELECT 5")
+        .map(|row: PgRow| row.get(0))
+        .map(|int: i32| int.to_string())
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(res, "5");
+
+    Ok(())
+}
+
 #[cfg(feature = "json")]
 #[sqlx_macros::test]
 async fn it_describes_and_inserts_json_and_jsonb() -> anyhow::Result<()> {
@@ -216,8 +231,8 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     let tuple = sqlx::query("SELECT NULL, 10::INT, NULL, 20::INT, NULL, 40::INT, NULL, 80::INT")
-        .try_map(|row: PgRow| {
-            Ok((
+        .map(|row: PgRow| {
+            (
                 row.get::<Option<i32>, _>(0),
                 row.get::<Option<i32>, _>(1),
                 row.get::<Option<i32>, _>(2),
@@ -226,7 +241,7 @@ async fn it_can_return_interleaved_nulls_issue_104() -> anyhow::Result<()> {
                 row.get::<Option<i32>, _>(5),
                 row.get::<Option<i32>, _>(6),
                 row.get::<Option<i32>, _>(7),
-            ))
+            )
         })
         .fetch_one(&mut conn)
         .await?;

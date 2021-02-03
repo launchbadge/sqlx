@@ -8,14 +8,14 @@ use std::ops::{Deref, DerefMut};
 pub trait Acquire<'c> {
     type Database: Database;
 
-    type Connection: Deref<Target = <Self::Database as Database>::Connection> + DerefMut;
+    type Connection: Deref<Target = <Self::Database as Database>::Connection> + DerefMut + Send;
 
     fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>>;
 
     fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
 }
 
-impl<DB: Database> Acquire<'static> for &'_ Pool<DB> {
+impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
     type Database = DB;
 
     type Connection = PoolConnection<DB>;
@@ -24,7 +24,7 @@ impl<DB: Database> Acquire<'static> for &'_ Pool<DB> {
         Box::pin(self.acquire())
     }
 
-    fn begin(self) -> BoxFuture<'static, Result<Transaction<'static, DB>, Error>> {
+    fn begin(self) -> BoxFuture<'static, Result<Transaction<'a, DB>, Error>> {
         let conn = self.acquire();
 
         Box::pin(async move {
