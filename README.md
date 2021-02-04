@@ -113,9 +113,9 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 # Cargo.toml
 [dependencies]
 # tokio + rustls
-sqlx = { version = "0.4.2", features = [ "runtime-tokio-rustls" ] }
+sqlx = { version = "0.5", features = [ "runtime-tokio-rustls" ] }
 # async-std + native-tls
-sqlx = { version = "0.4.2", features = [ "runtime-async-std-native-tls" ] }
+sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 ```
 
 <sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
