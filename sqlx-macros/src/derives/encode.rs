@@ -78,8 +78,13 @@ fn expand_derive_encode_transparent(
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
-        impl #impl_generics ::sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics #where_clause {
-            fn encode_by_ref(&self, buf: &mut <DB as ::sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer) -> ::sqlx::encode::IsNull {
+        impl #impl_generics ::sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics
+        #where_clause
+        {
+            fn encode_by_ref(
+                &self,
+                buf: &mut <DB as ::sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer,
+            ) -> ::sqlx::encode::IsNull {
                 <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
             }
 
@@ -110,8 +115,14 @@ fn expand_derive_encode_weak_enum(
     }
 
     Ok(quote!(
-        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident where #repr: ::sqlx::encode::Encode<'q, DB> {
-            fn encode_by_ref(&self, buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> ::sqlx::encode::IsNull {
+        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
+        where
+            #repr: ::sqlx::encode::Encode<'q, DB>,
+        {
+            fn encode_by_ref(
+                &self,
+                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> ::sqlx::encode::IsNull {
                 let value = match self {
                     #(#values)*
                 };
@@ -153,8 +164,14 @@ fn expand_derive_encode_strong_enum(
     }
 
     Ok(quote!(
-        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident where &'q ::std::primitive::str: ::sqlx::encode::Encode<'q, DB> {
-            fn encode_by_ref(&self, buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer) -> ::sqlx::encode::IsNull {
+        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
+        where
+            &'q ::std::primitive::str: ::sqlx::encode::Encode<'q, DB>,
+        {
+            fn encode_by_ref(
+                &self,
+                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> ::sqlx::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
                 };
@@ -222,8 +239,13 @@ fn expand_derive_encode_struct(
         });
 
         tts.extend(quote!(
-            impl #impl_generics ::sqlx::encode::Encode<'_, ::sqlx::Postgres> for #ident #ty_generics #where_clause {
-                fn encode_by_ref(&self, buf: &mut ::sqlx::postgres::PgArgumentBuffer) -> ::sqlx::encode::IsNull {
+            impl #impl_generics ::sqlx::encode::Encode<'_, ::sqlx::Postgres> for #ident #ty_generics
+            #where_clause
+            {
+                fn encode_by_ref(
+                    &self,
+                    buf: &mut ::sqlx::postgres::PgArgumentBuffer,
+                ) -> ::sqlx::encode::IsNull {
                     let mut encoder = ::sqlx::postgres::types::PgRecordEncoder::new(buf);
 
                     #(#writes)*
