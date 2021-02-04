@@ -55,7 +55,7 @@ impl ToTokens for QuotedMigration {
 }
 
 // mostly copied from sqlx-core/src/migrate/source.rs
-pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<proc_macro2::TokenStream> {
+pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<TokenStream> {
     let path = crate::common::resolve_path(&dir.value(), dir.span())?;
     let mut migrations = Vec::new();
 

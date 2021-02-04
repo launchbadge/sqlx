@@ -2,6 +2,7 @@ use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
     check_weak_enum_attributes, parse_container_attributes,
 };
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -10,7 +11,7 @@ use syn::{
     FieldsUnnamed, Variant,
 };
 
-pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
     let attrs = parse_container_attributes(&input.attrs)?;
     match &input.data {
         Data::Struct(DataStruct {
@@ -48,7 +49,7 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 fn expand_derive_has_sql_type_transparent(
     input: &DeriveInput,
     field: &Field,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let attr = check_transparent_attributes(input, field)?;
 
     let ident = &input.ident;
@@ -82,7 +83,7 @@ fn expand_derive_has_sql_type_transparent(
         ));
     }
 
-    let mut tts = proc_macro2::TokenStream::new();
+    let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
         let ty_name = attr
@@ -105,7 +106,7 @@ fn expand_derive_has_sql_type_transparent(
 fn expand_derive_has_sql_type_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let attr = check_weak_enum_attributes(input, variants)?;
     let repr = attr.repr.unwrap();
     let ident = &input.ident;
@@ -126,11 +127,11 @@ fn expand_derive_has_sql_type_weak_enum(
 fn expand_derive_has_sql_type_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let attributes = check_strong_enum_attributes(input, variants)?;
 
     let ident = &input.ident;
-    let mut tts = proc_macro2::TokenStream::new();
+    let mut tts = TokenStream::new();
 
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
@@ -181,11 +182,11 @@ fn expand_derive_has_sql_type_strong_enum(
 fn expand_derive_has_sql_type_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let attributes = check_struct_attributes(input, fields)?;
 
     let ident = &input.ident;
-    let mut tts = proc_macro2::TokenStream::new();
+    let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
         let ty_name = attributes

@@ -67,7 +67,7 @@ pub fn quote_args<DB: DatabaseExt>(
                                         format!("unsupported type {} for param #{}", param_ty, i + 1)
                                     }
                                 })?
-                                .parse::<proc_macro2::TokenStream>()
+                                .parse::<TokenStream>()
                                 .map_err(|_| format!("Rust type mapping for {} not parsable", param_ty))?
 
                         }
