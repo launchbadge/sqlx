@@ -55,7 +55,7 @@ offline = [ "serde", "either/serde" ]
 [dependencies]
 ahash = "0.6.2"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.2.0" }
+sqlx-rt = { path = "../sqlx-rt", version = "0.3.0" }
 base64 = { version = "0.13.0", default-features = false, optional = true, features = [ "std" ] }
 bigdecimal_ = { version = "0.2.0", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.8.1", optional = true }
