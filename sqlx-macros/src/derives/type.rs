@@ -1,9 +1,9 @@
 use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
-    check_weak_enum_attributes, parse_container_attributes,
+    check_weak_enum_attributes, parse_container_attributes, TypeName,
 };
-use proc_macro2::TokenStream;
-use quote::quote;
+use proc_macro2::{Ident, TokenStream};
+use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
@@ -86,10 +86,7 @@ fn expand_derive_has_sql_type_transparent(
     let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = attr
-            .type_name
-            .map(|tn| tn.get())
-            .unwrap_or_else(|| quote! { #ident });
+        let ty_name = type_name(ident, attr.type_name.as_ref());
 
         tts.extend(quote!(
             impl ::sqlx::Type<::sqlx::postgres::Postgres> for #ident #ty_generics {
@@ -148,10 +145,7 @@ fn expand_derive_has_sql_type_strong_enum(
     }
 
     if cfg!(feature = "postgres") {
-        let ty_name = attributes
-            .type_name
-            .map(|tn| tn.get())
-            .unwrap_or_else(|| quote! { #ident });
+        let ty_name = type_name(ident, attributes.type_name.as_ref());
 
         tts.extend(quote!(
             impl ::sqlx::Type<::sqlx::Postgres> for #ident {
@@ -189,10 +183,7 @@ fn expand_derive_has_sql_type_struct(
     let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = attributes
-            .type_name
-            .map(|tn| tn.get())
-            .unwrap_or_else(|| quote! { #ident });
+        let ty_name = type_name(ident, attributes.type_name.as_ref());
 
         tts.extend(quote!(
             impl ::sqlx::Type<::sqlx::Postgres> for #ident {
@@ -204,4 +195,11 @@ fn expand_derive_has_sql_type_struct(
     }
 
     Ok(tts)
+}
+
+fn type_name(ident: &Ident, explicit_name: Option<&TypeName>) -> TokenStream {
+    explicit_name.map(|tn| tn.get()).unwrap_or_else(|| {
+        let s = ident.to_string();
+        quote_spanned!(ident.span()=> { #s })
+    })
 }
