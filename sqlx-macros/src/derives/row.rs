@@ -1,4 +1,4 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
     parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Field,
@@ -10,7 +10,7 @@ use super::{
     rename_all,
 };
 
-pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
     match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(FieldsNamed { named, .. }),
@@ -39,7 +39,7 @@ pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<proc_macro2::T
 fn expand_derive_from_row_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let ident = &input.ident;
 
     let generics = &input.generics;
@@ -122,7 +122,7 @@ fn expand_derive_from_row_struct(
 fn expand_derive_from_row_struct_unnamed(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let ident = &input.ident;
 
     let generics = &input.generics;

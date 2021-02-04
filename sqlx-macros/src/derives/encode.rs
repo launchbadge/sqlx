@@ -3,7 +3,7 @@ use super::attributes::{
     check_weak_enum_attributes, parse_child_attributes, parse_container_attributes,
 };
 use super::rename_all;
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -12,7 +12,7 @@ use syn::{
     FieldsUnnamed, Lifetime, LifetimeDef, Stmt, Variant,
 };
 
-pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
     let args = parse_container_attributes(&input.attrs)?;
 
     match &input.data {
@@ -51,7 +51,7 @@ pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<proc_macro2::Tok
 fn expand_derive_encode_transparent(
     input: &DeriveInput,
     field: &Field,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     check_transparent_attributes(input, field)?;
 
     let ident = &input.ident;
@@ -97,7 +97,7 @@ fn expand_derive_encode_transparent(
 fn expand_derive_encode_weak_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let attr = check_weak_enum_attributes(input, &variants)?;
     let repr = attr.repr.unwrap();
     let ident = &input.ident;
@@ -129,7 +129,7 @@ fn expand_derive_encode_weak_enum(
 fn expand_derive_encode_strong_enum(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     let cattr = check_strong_enum_attributes(input, &variants)?;
 
     let ident = &input.ident;
@@ -176,10 +176,10 @@ fn expand_derive_encode_strong_enum(
 fn expand_derive_encode_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<TokenStream> {
     check_struct_attributes(input, &fields)?;
 
-    let mut tts = proc_macro2::TokenStream::new();
+    let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
         let ident = &input.ident;

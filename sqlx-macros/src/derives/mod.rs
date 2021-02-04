@@ -11,19 +11,16 @@ pub(crate) use row::expand_derive_from_row;
 
 use self::attributes::RenameAll;
 use heck::{CamelCase, KebabCase, MixedCase, ShoutySnakeCase, SnakeCase};
+use proc_macro2::TokenStream;
 use std::iter::FromIterator;
 use syn::DeriveInput;
 
-pub(crate) fn expand_derive_type_encode_decode(
-    input: &DeriveInput,
-) -> syn::Result<proc_macro2::TokenStream> {
+pub(crate) fn expand_derive_type_encode_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
     let encode_tts = expand_derive_encode(input)?;
     let decode_tts = expand_derive_decode(input)?;
     let type_tts = expand_derive_type(input)?;
 
-    let combined = proc_macro2::TokenStream::from_iter(
-        encode_tts.into_iter().chain(decode_tts).chain(type_tts),
-    );
+    let combined = TokenStream::from_iter(encode_tts.into_iter().chain(decode_tts).chain(type_tts));
 
     Ok(combined)
 }
