@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Upcoming
+## 0.5.0 - 2020-02-04
+
+### Changes
+
+-   [[#983]] [[#1022]] Upgrade async runtime dependencies [[@seryl], [@ant32], [@jplatte], [@robjtede]]
+
+    - tokio 1.0
+    - actix-rt 2.0
 
 -   [[#854]] Allow chaining `map` and `try_map` [[@jplatte]]
 
@@ -25,14 +32,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#976]] Remove the `Done` trait. The `.rows_affected()` method is now available as an inherent
     method on `PgQueryResult`, `MySqlQueryResult` and so on. [[@jplatte]]
 
--   [[#983]] [[#1022]] Upgrade async runtime dependencies [[@seryl], [@ant32], [@jplatte], [@robjtede]]
+-   [[#1007]] Remove `any::AnyType` (and replace with directly implementing `Type<Any>`) [[@jplatte]]
 
-    - tokio 1.0
-    - actix-rt 2.0
+### Added
 
--   [[#1007]] Remove `any::AnyType` [[@jplatte]]
+-   [[#998]] [[#821]] Add `.constraint()` to `DatabaseError` [[@fl9]]
 
+-   [[#919]] For SQLite, add support for unsigned integers [[@dignifiedquire]]
+
+### Fixes
+
+-   [[#1002]] For SQLite, `GROUP BY` in `query!` caused an infinite loop at compile time. [[@pymongo]]
+
+-   [[#979]] For MySQL, fix support for non-default authentication. [[@sile]]
+
+-   [[#918]] Recover from dropping `wait_for_conn` inside Pool. [[@antialize]]
+
+[#821]: https://github.com/launchbadge/sqlx/issues/821
+
+[#918]: https://github.com/launchbadge/sqlx/pull/918
+[#919]: https://github.com/launchbadge/sqlx/pull/919
 [#983]: https://github.com/launchbadge/sqlx/pull/983
+[#940]: https://github.com/launchbadge/sqlx/pull/940
+[#976]: https://github.com/launchbadge/sqlx/pull/976
+[#979]: https://github.com/launchbadge/sqlx/pull/979
+[#998]: https://github.com/launchbadge/sqlx/pull/998
+[#983]: https://github.com/launchbadge/sqlx/pull/983
+[#1002]: https://github.com/launchbadge/sqlx/pull/1002
+[#1007]: https://github.com/launchbadge/sqlx/pull/1007
 [#1022]: https://github.com/launchbadge/sqlx/pull/1022
 
 ## 0.4.2 - 2020-12-19
@@ -788,3 +815,8 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@seryl]: https://github.com/seryl
 [@ant32]: https://github.com/ant32
 [@robjtede]: https://github.com/robjtede
+[@pymongo]: https://github.com/pymongo
+[@sile]: https://github.com/sile
+[@fl9]: https://github.com/fl9
+[@antialize]: https://github.com/antialize
+[@dignifiedquire]: https://github.com/dignifiedquire
