@@ -9,10 +9,10 @@ mode with `sqlx::query!()` and friends.
 
 ```bash
 # supports all databases supported by SQLx
-$ cargo install --version=0.2.0 sqlx-cli
+$ cargo install sqlx-cli
 
 # only for postgres
-$ cargo install --version=0.2.0 sqlx-cli --no-default-features --features postgres
+$ cargo install sqlx-cli --no-default-features --features postgres
 ```
 
 ### Usage
