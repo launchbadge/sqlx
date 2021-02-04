@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.5.0"
+version = "0.5.1"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
