@@ -3,6 +3,8 @@
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
+// See `clippy.toml` at the workspace root
+#![deny(clippy::disallowed_method)]
 //
 // Allows an API be documented as only available in some specific platforms.
 // <https://doc.rust-lang.org/unstable-book/language-features/doc-cfg.html>
