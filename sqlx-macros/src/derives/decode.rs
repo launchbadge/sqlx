@@ -73,6 +73,7 @@ fn expand_derive_decode_transparent(
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
+        #[automatically_derived]
         impl #impl_generics ::sqlx::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
             fn decode(
                 value: <DB as ::sqlx::database::HasValueRef<'r>>::ValueRef,
@@ -111,6 +112,7 @@ fn expand_derive_decode_weak_enum(
         .collect::<Vec<Arm>>();
 
     Ok(quote!(
+        #[automatically_derived]
         impl<'r, DB: ::sqlx::Database> ::sqlx::decode::Decode<'r, DB> for #ident
         where
             #repr: ::sqlx::decode::Decode<'r, DB>,
@@ -173,6 +175,7 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "mysql") {
         tts.extend(quote!(
+            #[automatically_derived]
             impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::mysql::MySql> for #ident {
                 fn decode(
                     value: ::sqlx::mysql::MySqlValueRef<'r>,
@@ -198,6 +201,7 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "postgres") {
         tts.extend(quote!(
+            #[automatically_derived]
             impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::postgres::Postgres> for #ident {
                 fn decode(
                     value: ::sqlx::postgres::PgValueRef<'r>,
@@ -223,6 +227,7 @@ fn expand_derive_decode_strong_enum(
 
     if cfg!(feature = "sqlite") {
         tts.extend(quote!(
+            #[automatically_derived]
             impl<'r> ::sqlx::decode::Decode<'r, ::sqlx::sqlite::Sqlite> for #ident {
                 fn decode(
                     value: ::sqlx::sqlite::SqliteValueRef<'r>,
@@ -291,6 +296,7 @@ fn expand_derive_decode_struct(
         let names = fields.iter().map(|field| &field.ident);
 
         tts.extend(quote!(
+            #[automatically_derived]
             impl #impl_generics ::sqlx::decode::Decode<'r, ::sqlx::Postgres> for #ident #ty_generics
             #where_clause
             {
