@@ -78,6 +78,7 @@ fn expand_derive_encode_transparent(
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
+        #[automatically_derived]
         impl #impl_generics ::sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics
         #where_clause
         {
@@ -115,6 +116,7 @@ fn expand_derive_encode_weak_enum(
     }
 
     Ok(quote!(
+        #[automatically_derived]
         impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
         where
             #repr: ::sqlx::encode::Encode<'q, DB>,
@@ -164,6 +166,7 @@ fn expand_derive_encode_strong_enum(
     }
 
     Ok(quote!(
+        #[automatically_derived]
         impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
         where
             &'q ::std::primitive::str: ::sqlx::encode::Encode<'q, DB>,
@@ -239,6 +242,7 @@ fn expand_derive_encode_struct(
         });
 
         tts.extend(quote!(
+            #[automatically_derived]
             impl #impl_generics ::sqlx::encode::Encode<'_, ::sqlx::Postgres> for #ident #ty_generics
             #where_clause
             {

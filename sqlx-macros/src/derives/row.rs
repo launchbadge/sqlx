@@ -107,6 +107,7 @@ fn expand_derive_from_row_struct(
     let names = fields.iter().map(|field| &field.ident);
 
     Ok(quote!(
+        #[automatically_derived]
         impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
             fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
                 #(#reads)*
@@ -163,6 +164,7 @@ fn expand_derive_from_row_struct_unnamed(
         .map(|(idx, _)| quote!(row.try_get(#idx)?));
 
     Ok(quote!(
+        #[automatically_derived]
         impl #impl_generics ::sqlx::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
             fn from_row(row: &#lifetime R) -> ::sqlx::Result<Self> {
                 ::std::result::Result::Ok(#ident (
