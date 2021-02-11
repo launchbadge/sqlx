@@ -2,7 +2,7 @@ use bytes::Bytes;
 use sqlx_core::io::Deserialize;
 use sqlx_core::{Error, Result};
 
-use super::{Capabilities, OkPacket};
+use super::{Capabilities, ResultPacket};
 use crate::io::MySqlBufExt;
 use crate::MySqlDatabaseError;
 
@@ -22,7 +22,7 @@ use crate::MySqlDatabaseError;
 ///
 #[derive(Debug)]
 pub(crate) enum QueryResponse {
-    Ok(OkPacket),
+    End(ResultPacket),
     ResultSet { columns: u64 },
 }
 
@@ -30,7 +30,7 @@ impl Deserialize<'_, Capabilities> for QueryResponse {
     fn deserialize_with(mut buf: Bytes, capabilities: Capabilities) -> Result<Self> {
         // .get does not consume the byte
         match buf.get(0) {
-            Some(0x00) => OkPacket::deserialize_with(buf, capabilities).map(Self::Ok),
+            Some(0x00) => ResultPacket::deserialize_with(buf, capabilities).map(Self::End),
 
             // ERR packets are handled on a higher-level (in `recv_packet`), we will
             // never receive them here

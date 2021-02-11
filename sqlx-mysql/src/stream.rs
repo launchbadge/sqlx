@@ -108,11 +108,6 @@ impl<Rt: Runtime> MySqlStream<Rt> {
             ))));
         }
 
-        if packet.bytes[0] == 0xff {
-            // if the first byte of the payload is 0xFF and the payload is an ERR packet
-            return Err(Error::connect(MySqlDatabaseError(packet.deserialize()?)));
-        }
-
         Ok(packet)
     }
 }

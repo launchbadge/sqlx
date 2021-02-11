@@ -4,12 +4,12 @@ use bytes::Bytes;
 use sqlx_core::io::Deserialize;
 use sqlx_core::{Error, Result};
 
-use crate::protocol::{AuthSwitch, Capabilities, OkPacket};
+use crate::protocol::{AuthSwitch, Capabilities, ResultPacket};
 use crate::MySqlDatabaseError;
 
 #[derive(Debug)]
 pub(crate) enum AuthResponse {
-    Ok(OkPacket),
+    End(ResultPacket),
     MoreData(Bytes),
     Switch(AuthSwitch),
 }
@@ -17,7 +17,7 @@ pub(crate) enum AuthResponse {
 impl Deserialize<'_, Capabilities> for AuthResponse {
     fn deserialize_with(buf: Bytes, capabilities: Capabilities) -> Result<Self> {
         match buf.get(0) {
-            Some(0x00) => OkPacket::deserialize_with(buf, capabilities).map(Self::Ok),
+            Some(0x00) => ResultPacket::deserialize_with(buf, capabilities).map(Self::End),
             Some(0x01) => Ok(Self::MoreData(buf.slice(1..))),
             Some(0xfe) => AuthSwitch::deserialize(buf).map(Self::Switch),
 
