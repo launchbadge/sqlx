@@ -1,6 +1,6 @@
 use sqlx_core::{Result, Runtime};
 
-use crate::protocol::{OkPacket, Ping};
+use crate::protocol::{Ping, ResultPacket};
 
 // PING is very simple
 // send the COM_PING packet
@@ -11,13 +11,14 @@ macro_rules! impl_ping {
         $self.stream.write_packet(&Ping)?;
 
         // STATE: remember that we are expecting an OK packet
-        $self.begin_simple_command();
+        $self.commands.begin();
 
-        let _ok: OkPacket = read_packet!($(@$blocking)? $self.stream)
-            .deserialize_with($self.capabilities)?;
+        let _ok = read_packet!($(@$blocking)? $self.stream)
+            .deserialize_with::<ResultPacket, _>($self.capabilities)?
+            .into_result()?;
 
         // STATE: received OK packet
-        $self.end_command();
+        $self.commands.end();
 
         Ok(())
     }};
@@ -29,6 +30,7 @@ impl<Rt: Runtime> super::MySqlConnection<Rt> {
     where
         Rt: sqlx_core::Async,
     {
+        flush!(self);
         impl_ping!(self)
     }
 
@@ -37,6 +39,7 @@ impl<Rt: Runtime> super::MySqlConnection<Rt> {
     where
         Rt: sqlx_core::blocking::Runtime,
     {
+        flush!(@blocking self);
         impl_ping!(@blocking self)
     }
 }

@@ -39,8 +39,22 @@ impl<Rt: Async> MySqlConnection<Rt> {
         self.0.ping().await
     }
 
+    // TODO: document from Executor
+
     pub async fn execute(&mut self, sql: &str) -> Result<MySqlQueryResult> {
         self.0.execute(sql).await
+    }
+
+    pub async fn fetch_all(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
+        self.0.fetch_all(sql).await
+    }
+
+    pub async fn fetch_one(&mut self, sql: &str) -> Result<MySqlRow> {
+        self.0.fetch_one(sql).await
+    }
+
+    pub async fn fetch_optional(&mut self, sql: &str) -> Result<Option<MySqlRow>> {
+        self.0.fetch_optional(sql).await
     }
 
     /// Explicitly close this database connection.
@@ -117,7 +131,7 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
         'e: 'x,
         'q: 'x,
     {
-        todo!()
+        self.0.fetch_all(sql)
     }
 
     fn fetch_optional<'x, 'e, 'q>(
@@ -129,15 +143,6 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
         'e: 'x,
         'q: 'x,
     {
-        todo!()
-    }
-
-    fn fetch_one<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<MySqlRow>>
-    where
-        Rt: Async,
-        'e: 'x,
-        'q: 'x,
-    {
-        todo!()
+        self.0.fetch_optional(sql)
     }
 }

@@ -63,7 +63,9 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
         response: AuthResponse,
     ) -> Result<bool> {
         match response {
-            AuthResponse::Ok(_) => {
+            AuthResponse::End(res) => {
+                let _ok = res.into_result()?;
+
                 // successful, simple authentication; good to go
                 return Ok(true);
             }

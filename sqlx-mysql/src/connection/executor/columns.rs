@@ -1,6 +1,6 @@
 use sqlx_core::{Result, Runtime};
 
-use crate::connection::command::{QueryCommand, QueryState};
+use crate::connection::flush::QueryCommand;
 use crate::protocol::ColumnDefinition;
 use crate::stream::MySqlStream;
 
@@ -14,12 +14,9 @@ macro_rules! impl_recv_columns {
             Vec::new()
         };
 
-        // STATE: remember how many columns are in this result set
-        $cmd.columns = $num_columns;
-
-        for index in 0..$num_columns {
-            // STATE: remember that we are expecting the #index column definition
-            $cmd.state = QueryState::ColumnDefinition { index };
+        for index in (1..=$num_columns).rev() {
+            // STATE: remember that we are expecting #rem more columns
+            *$cmd = QueryCommand::ColumnDefinition { rem: index };
 
             // read in definition and only deserialize if we are saving
             // the column definitions
@@ -32,7 +29,7 @@ macro_rules! impl_recv_columns {
         }
 
         // STATE: remember that we are now expecting a row or the end
-        $cmd.state = QueryState::QueryStep;
+        *$cmd = QueryCommand::QueryStep;
 
         Ok(columns)
     }};

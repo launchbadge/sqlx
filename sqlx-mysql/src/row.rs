@@ -6,8 +6,14 @@ use crate::{protocol, MySqlColumn};
 pub struct MySqlRow(pub(crate) protocol::Row);
 
 impl MySqlRow {
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.values.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

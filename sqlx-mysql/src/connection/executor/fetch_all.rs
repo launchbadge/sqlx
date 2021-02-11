@@ -2,9 +2,9 @@ use sqlx_core::Result;
 
 use crate::connection::flush::QueryCommand;
 use crate::protocol::{Query, QueryResponse, QueryStep, Status};
-use crate::{MySqlConnection, MySqlQueryResult};
+use crate::{MySqlConnection, MySqlRow};
 
-macro_rules! impl_execute {
+macro_rules! impl_fetch_all {
     ($(@$blocking:ident)? $self:ident, $sql:ident) => {{
         let Self { ref mut stream, ref mut commands, capabilities, .. } = *$self;
 
@@ -15,10 +15,8 @@ macro_rules! impl_execute {
         // STATE: remember that we are now expecting a query response
         let cmd = QueryCommand::begin(commands);
 
-        // default an empty query result
-        // execute collects all discovered query results and SUMs
-        // their values together
-        let mut result = MySqlQueryResult::default();
+        // default an empty row set
+        let mut rows = Vec::with_capacity(10);
 
         #[allow(clippy::while_let_loop, unused_labels)]
         'results: loop {
@@ -26,25 +24,21 @@ macro_rules! impl_execute {
                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                     QueryResponse::End(res) => break 'result res.into_result()?,
                     QueryResponse::ResultSet { columns } => {
-                        // acknowledge but discard any columns as execute returns no rows
-                        recv_columns!($(@$blocking)? /* store = */ false, columns, stream, cmd);
+                        let columns = recv_columns!($(@$blocking)? /* store = */ true, columns, stream, cmd);
 
                         'rows: loop {
                             match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                                 // execute ignores any rows returned
                                 // but we do increment affected rows
-                                QueryStep::Row(_row) => result.0.affected_rows += 1,
                                 QueryStep::End(res) => break 'result res.into_result()?,
+                                QueryStep::Row(row) => rows.push(MySqlRow(row.deserialize_with(&columns[..])?)),
                             }
                         }
                     }
                 }
             };
 
-            // fold this into the total result for the SQL
-            result.extend(Some(ok.into()));
-
-            if !result.0.status.contains(Status::MORE_RESULTS_EXISTS) {
+            if !ok.status.contains(Status::MORE_RESULTS_EXISTS) {
                 // no more results, time to finally call it quits
                 break;
             }
@@ -56,22 +50,22 @@ macro_rules! impl_execute {
         // STATE: the current command is complete
         commands.end();
 
-        Ok(result)
+        Ok(rows)
     }};
 }
 
 #[cfg(feature = "async")]
 impl<Rt: sqlx_core::Async> MySqlConnection<Rt> {
-    pub(super) async fn execute_async(&mut self, sql: &str) -> Result<MySqlQueryResult> {
+    pub(super) async fn fetch_all_async(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
         flush!(self);
-        impl_execute!(self, sql)
+        impl_fetch_all!(self, sql)
     }
 }
 
 #[cfg(feature = "blocking")]
 impl<Rt: sqlx_core::blocking::Runtime> MySqlConnection<Rt> {
-    pub(super) fn execute_blocking(&mut self, sql: &str) -> Result<MySqlQueryResult> {
+    pub(super) fn fetch_all_blocking(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
         flush!(@blocking self);
-        impl_execute!(@blocking self, sql)
+        impl_fetch_all!(@blocking self, sql)
     }
 }

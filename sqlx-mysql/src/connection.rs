@@ -1,15 +1,17 @@
-use std::collections::VecDeque;
 use std::fmt::{self, Debug, Formatter};
 
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
+use crate::connection::flush::CommandQueue;
 use crate::protocol::Capabilities;
 use crate::stream::MySqlStream;
 use crate::{MySql, MySqlConnectOptions};
 
+#[macro_use]
+mod flush;
+
 mod close;
-mod command;
 mod connect;
 mod executor;
 mod ping;
@@ -30,7 +32,7 @@ where
     // queue of commands that are being processed
     // this is what we expect to receive from the server
     // in the case of a future or stream being dropped
-    commands: VecDeque<command::Command>,
+    commands: CommandQueue,
 }
 
 impl<Rt> MySqlConnection<Rt>
@@ -41,7 +43,7 @@ where
         Self {
             stream: MySqlStream::new(stream),
             connection_id: 0,
-            commands: VecDeque::with_capacity(2),
+            commands: CommandQueue::new(),
             capabilities: Capabilities::PROTOCOL_41
                 | Capabilities::LONG_PASSWORD
                 | Capabilities::LONG_FLAG
