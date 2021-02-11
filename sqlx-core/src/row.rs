@@ -1,6 +1,6 @@
 use crate::{Column, Database, Runtime};
 
-pub trait Row {
+pub trait Row: 'static + Send + Sync {
     type Column: Column;
 
     /// Returns `true` if the row contains only `NULL` values.

@@ -12,4 +12,20 @@ where
     where
         'e: 'x,
         'q: 'x;
+
+    fn fetch_all<'x, 'e, 'q>(
+        &'e mut self,
+        sql: &'q str,
+    ) -> crate::Result<Vec<<Self::Database as Database<Rt>>::Row>>
+    where
+        'e: 'x,
+        'q: 'x;
+
+    fn fetch_optional<'x, 'e, 'q>(
+        &'e mut self,
+        sql: &'q str,
+    ) -> crate::Result<Option<<Self::Database as Database<Rt>>::Row>>
+    where
+        'e: 'x,
+        'q: 'x;
 }

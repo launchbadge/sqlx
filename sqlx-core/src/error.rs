@@ -12,11 +12,20 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    Configuration { message: Cow<'static, str>, source: Option<Box<dyn StdError + Send + Sync>> },
+    Configuration {
+        message: Cow<'static, str>,
+        source: Option<Box<dyn StdError + Send + Sync>>,
+    },
 
     Connect(Box<dyn DatabaseError>),
 
     Network(std::io::Error),
+
+    /// Returned by `fetch_one` when no row was returned from the query.
+    ///
+    /// Use `fetch_optional` to return `None` instead of signaling an error.
+    ///
+    RowNotFound,
 }
 
 impl Error {
@@ -55,6 +64,10 @@ impl Display for Error {
 
             Self::Configuration { message, source: Some(source) } => {
                 write!(f, "{}: {}", message, source)
+            }
+
+            Self::RowNotFound => {
+                f.write_str("no row returned by a query required to return at least one row")
             }
         }
     }

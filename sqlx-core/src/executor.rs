@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
-use futures_core::future::BoxFuture;
+use futures_util::future::{self, BoxFuture, FutureExt, TryFutureExt};
 
-use crate::{Database, Result, Runtime};
+use crate::{Database, Error, Result, Runtime};
 
 /// Describes a type that can execute SQL queries on a self-provided database connection.
 ///
@@ -55,5 +55,13 @@ pub trait Executor<Rt: Runtime> {
     where
         Rt: crate::Async,
         'e: 'x,
-        'q: 'x;
+        'q: 'x,
+    {
+        self.fetch_optional(sql)
+            .and_then(|maybe_row| match maybe_row {
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
+            })
+            .boxed()
+    }
 }
