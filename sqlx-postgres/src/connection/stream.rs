@@ -54,8 +54,8 @@ macro_rules! read_packet {
             read_packet!($(@$blocking)? @stream $self, 0, 5);
 
             // peek at the messaage type and payload size
-            let r#type = MessageType::try_from((*$self.stream.get(0,1)s@))?;
-            let size = (u32::from_be_bytes($self.stream.get(1,4)) - 4) as usize;
+            let r#type = MessageType::try_from(*$self.stream.get(0, 1)s@)?;
+            let size = (u32::from_be_bytes($self.stream.get(1, 4)) - 4) as usize;
 
             read_packet!($(@$blocking)? @stream $self, 5, size);
 
