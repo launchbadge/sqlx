@@ -1,25 +1,21 @@
 use std::fmt::Debug;
 
-use crate::{Column, Connection, QueryResult, Row, Runtime};
+use crate::{Column, QueryResult, Row};
 
 /// A database driver.
 ///
-/// This trait encapsulates a complete set of traits that implement a driver for a
-/// specific database (e.g., MySQL, PostgreSQL).
+/// Represents a family of traits for interacting with a database. This is
+/// separate from [`Connection`][crate::Connection]. One database driver may
+/// have multiple concrete `Connection` implementations.
 ///
-pub trait Database<Rt>:
+pub trait Database:
     'static + Sized + Debug + for<'x> HasOutput<'x> + for<'r> HasRawValue<'r>
-where
-    Rt: Runtime,
 {
-    /// The concrete [`Connection`] implementation for this database.
-    type Connection: Connection<Rt, Database = Self> + ?Sized;
-
     /// The concrete [`Column`] implementation for this database.
     type Column: Column;
 
     /// The concrete [`Row`] implementation for this database.
-    type Row: Row<Column = Self::Column>;
+    type Row: Row<Database = Self>;
 
     /// The concrete [`QueryResult`] implementation for this database.
     type QueryResult: QueryResult;

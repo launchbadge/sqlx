@@ -13,17 +13,17 @@ where
     /// For detailed information, refer to the async version of
     /// this: [`acquire()`][crate::Acquire::acquire].
     ///
-    fn acquire(self) -> crate::Result<<Self::Database as Database<Rt>>::Connection>
+    fn acquire(self) -> crate::Result<Self::Connection>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 
-    fn begin(self) -> crate::Result<<Self::Database as Database<Rt>>::Connection>
+    fn begin(self) -> crate::Result<Self::Connection>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 
-    fn try_begin(self) -> crate::Result<Option<<Self::Database as Database<Rt>>::Connection>>
+    fn try_begin(self) -> crate::Result<Option<Self::Connection>>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 }
 
 // TODO: impl Acquire for &Pool { ... }

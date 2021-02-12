@@ -66,5 +66,5 @@ pub use sqlx_core::AsyncStd;
 #[cfg(feature = "tokio")]
 pub use sqlx_core::Tokio;
 pub use sqlx_core::{
-    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Result, Runtime,
+    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Result, Row, Runtime,
 };

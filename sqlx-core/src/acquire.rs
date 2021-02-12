@@ -1,11 +1,11 @@
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
 
-use crate::{Database, Runtime};
+use crate::{Connection, Database, Runtime};
 
 #[allow(clippy::type_complexity)]
 pub trait Acquire<Rt: Runtime> {
-    type Database: Database<Rt>;
+    type Connection: Connection<Rt>;
 
     /// Get a connection from the pool, make a new connection, or wait for one to become
     /// available.
@@ -13,33 +13,27 @@ pub trait Acquire<Rt: Runtime> {
     /// Takes exclusive use of the connection until it is released.
     ///
     #[cfg(feature = "async")]
-    fn acquire(
-        self,
-    ) -> BoxFuture<'static, crate::Result<<Self::Database as Database<Rt>>::Connection>>
+    fn acquire(self) -> BoxFuture<'static, crate::Result<Self::Connection>>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 
     /// Get a connection from the pool, if available.
     ///
     /// Returns `None` immediately if there are no connections available.
-    ///  
-    fn try_acquire(self) -> Option<<Self::Database as Database<Rt>>::Connection>
+    ///
+    fn try_acquire(self) -> Option<Self::Connection>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 
     #[cfg(feature = "async")]
-    fn begin(
-        self,
-    ) -> BoxFuture<'static, crate::Result<<Self::Database as Database<Rt>>::Connection>>
+    fn begin(self) -> BoxFuture<'static, crate::Result<Self::Connection>>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 
     #[cfg(feature = "async")]
-    fn try_begin(
-        self,
-    ) -> BoxFuture<'static, crate::Result<Option<<Self::Database as Database<Rt>>::Connection>>>
+    fn try_begin(self) -> BoxFuture<'static, crate::Result<Option<Self::Connection>>>
     where
-        <Self::Database as Database<Rt>>::Connection: Sized;
+        Self::Connection: Sized;
 }
 
 // TODO: impl Acquire for &Pool { ... }

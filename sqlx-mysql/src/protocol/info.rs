@@ -35,11 +35,11 @@ impl Info {
 
                     // ignore records changed
                     // this is "rows affected" for UPDATE
-                    "Changed" => {},
+                    "Changed" => {}
 
                     // ignore warnings in info
                     // these are passed back differently
-                    "Warnings" => {},
+                    "Warnings" => {}
 
                     // unknown key
                     _ => failed = true,

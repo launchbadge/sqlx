@@ -31,7 +31,7 @@ macro_rules! impl_fetch_all {
                                 // execute ignores any rows returned
                                 // but we do increment affected rows
                                 QueryStep::End(res) => break 'result res.into_result()?,
-                                QueryStep::Row(row) => rows.push(MySqlRow(row.deserialize_with(&columns[..])?)),
+                                QueryStep::Row(row) => rows.push(MySqlRow::new(row.deserialize_with(&columns[..])?)),
                             }
                         }
                     }

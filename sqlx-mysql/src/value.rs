@@ -26,6 +26,10 @@ pub struct MySqlRawValue<'r> {
 
 // 'r: row
 impl<'r> MySqlRawValue<'r> {
+    pub(crate) fn new(value: &'r Option<Bytes>, format: MySqlRawValueFormat) -> Self {
+        Self { value: value.as_ref(), format }
+    }
+
     /// Returns the format of this value.
     pub const fn format(&self) -> MySqlRawValueFormat {
         self.format
@@ -43,7 +47,7 @@ impl<'r> MySqlRawValue<'r> {
     }
 
     /// Decode this value into the target type.
-    pub fn decode<T: Decode<'r, MySql, Rt>, Rt: Runtime>(self) -> DecodeResult<T> {
-        <T as Decode<'r, MySql, Rt>>::decode(self)
+    pub fn decode<T: Decode<'r, MySql>>(self) -> DecodeResult<T> {
+        <T as Decode<'r, MySql>>::decode(self)
     }
 }

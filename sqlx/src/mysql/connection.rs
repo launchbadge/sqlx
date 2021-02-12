@@ -3,9 +3,8 @@ use std::fmt::{self, Debug, Formatter};
 #[cfg(feature = "async")]
 use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::Executor;
-use sqlx_mysql::{MySqlQueryResult, MySqlRow};
 
-use super::{MySql, MySqlConnectOptions};
+use super::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 use crate::{Close, Connect, Connection, DefaultRuntime, Runtime};

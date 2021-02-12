@@ -1,6 +1,6 @@
 use bytes::BufMut;
 use sqlx_core::{decode, encode};
-use sqlx_core::{Decode, Encode, Runtime};
+use sqlx_core::{Decode, Encode};
 
 use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId, MySqlTypeInfo};
 
@@ -10,14 +10,14 @@ use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId, MySqlTypeInfo};
 // TODO: accepts(ty) -> ty.is_integer()
 // TODO: compatible(ty) -> ty.is_integer()
 
-impl<Rt: Runtime> Encode<MySql, Rt> for bool {
+impl Encode<MySql> for bool {
     fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
-        <u8 as Encode<MySql, Rt>>::encode(&(*self as u8), ty, out)
+        <u8 as Encode<MySql>>::encode(&(*self as u8), ty, out)
     }
 }
 
-impl<'r, Rt: Runtime> Decode<'r, MySql, Rt> for bool {
+impl<'r> Decode<'r, MySql> for bool {
     fn decode(raw: MySqlRawValue<'r>) -> decode::Result<Self> {
-        Ok(raw.decode::<u8, Rt>()? != 0)
+        Ok(raw.decode::<u8>()? != 0)
     }
 }

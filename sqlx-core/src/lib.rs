@@ -29,9 +29,8 @@ pub mod encode;
 mod error;
 mod executor;
 mod options;
-mod pool;
 mod query_result;
-mod row;
+pub mod row;
 mod runtime;
 
 #[doc(hidden)]
@@ -60,7 +59,6 @@ pub use encode::Encode;
 pub use error::{DatabaseError, Error, Result};
 pub use executor::Executor;
 pub use options::ConnectOptions;
-pub use pool::Pool;
 pub use query_result::QueryResult;
 pub use row::Row;
 #[cfg(feature = "actix")]

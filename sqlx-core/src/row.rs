@@ -1,7 +1,8 @@
-use crate::{Column, Database, Runtime};
+use crate::database::HasRawValue;
+use crate::{Column, Database, Decode, Runtime};
 
 pub trait Row: 'static + Send + Sync {
-    type Column: Column;
+    type Database: Database;
 
     /// Returns `true` if the row contains only `NULL` values.
     fn is_null(&self) -> bool;
@@ -15,7 +16,7 @@ pub trait Row: 'static + Send + Sync {
     }
 
     /// Returns a reference to the columns in the row.
-    fn columns(&self) -> &[Self::Column];
+    fn columns(&self) -> &[<Self::Database as Database>::Column];
 
     /// Returns the column name, given the ordinal (also known as index) of the column.
     fn column_name_of(&self, ordinal: usize) -> &str;
@@ -29,7 +30,17 @@ pub trait Row: 'static + Send + Sync {
     /// Returns the column ordinal, given the name of the column.
     fn try_ordinal_of(&self, name: &str) -> crate::Result<usize>;
 
-    fn try_get_raw(&self) -> crate::Result<&[u8]>;
+    /// Returns the decoded value at the index.
+    fn try_get<'r, T>(&'r self, index: usize) -> crate::Result<T>
+    where
+        T: Decode<'r, Self::Database>;
+
+    /// Returns the raw representation of the value at the index.
+    // noinspection RsNeedlessLifetimes
+    fn try_get_raw<'r>(
+        &'r self,
+        index: usize,
+    ) -> crate::Result<<Self::Database as HasRawValue<'r>>::RawValue>;
 }
 
 // TODO: fn type_info_of(index)

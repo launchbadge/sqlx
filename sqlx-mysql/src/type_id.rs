@@ -16,13 +16,13 @@ impl MySqlTypeId {
     /// directly used in an expression by itself, such as `SELECT NULL`.
     ///
     pub const fn is_null(&self) -> bool {
-        matches!(self, MySqlTypeId::NULL)
+        matches!(*self, MySqlTypeId::NULL)
     }
 
     /// Returns `true` if this is an integer data type.
     pub const fn is_integer(&self) -> bool {
         matches!(
-            self,
+            *self,
             MySqlTypeId::TINYINT
                 | MySqlTypeId::TINYINT_UNSIGNED
                 | MySqlTypeId::SMALLINT

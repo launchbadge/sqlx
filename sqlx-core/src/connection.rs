@@ -16,7 +16,7 @@ pub trait Connection<Rt>: 'static + Send + Connect<Rt> + Close<Rt>
 where
     Rt: Runtime,
 {
-    type Database: Database<Rt, Connection = Self>;
+    type Database: Database;
 
     /// Checks if a connection to the database is still valid.
     ///

@@ -6,18 +6,15 @@ use crate::database::HasRawValue;
 use crate::{Database, Runtime};
 
 /// A type that can be decoded from a SQL value.
-pub trait Decode<'r, Db: Database<Rt>, Rt: Runtime>: Sized + Send + Sync {
+pub trait Decode<'r, Db: Database>: Sized + Send + Sync {
     fn decode(value: <Db as HasRawValue<'r>>::RawValue) -> Result<Self>;
 }
 
 /// A type that can be decoded from a SQL value, without borrowing any data
 /// from the row.
-pub trait DecodeOwned<Db: Database<Rt>, Rt: Runtime>: for<'de> Decode<'de, Db, Rt> {}
+pub trait DecodeOwned<Db: Database>: for<'r> Decode<'r, Db> {}
 
-impl<T, Db: Database<Rt>, Rt: Runtime> DecodeOwned<Db, Rt> for T where
-    T: for<'de> Decode<'de, Db, Rt>
-{
-}
+impl<T, Db: Database> DecodeOwned<Db> for T where T: for<'r> Decode<'r, Db> {}
 
 /// Errors which can occur while decoding a SQL value.
 #[derive(Debug)]

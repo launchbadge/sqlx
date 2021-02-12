@@ -1,26 +1,23 @@
 use sqlx_core::database::{HasOutput, HasRawValue};
-use sqlx_core::{Database, Runtime};
+use sqlx_core::Database;
 
 use super::{
-    MySqlColumn, MySqlConnection, MySqlOutput, MySqlQueryResult, MySqlRawValue, MySqlRow,
-    MySqlTypeId, MySqlTypeInfo,
+    MySqlColumn, MySqlOutput, MySqlQueryResult, MySqlRawValue, MySqlRow, MySqlTypeId, MySqlTypeInfo,
 };
 
 #[derive(Debug)]
 pub struct MySql;
 
-impl<Rt: Runtime> Database<Rt> for MySql {
-    type Connection = MySqlConnection<Rt>;
-
+impl Database for MySql {
     type Column = MySqlColumn;
 
     type Row = MySqlRow;
 
     type QueryResult = MySqlQueryResult;
 
-    type TypeId = MySqlTypeId;
-
     type TypeInfo = MySqlTypeInfo;
+
+    type TypeId = MySqlTypeId;
 }
 
 impl<'x> HasOutput<'x> for MySql {

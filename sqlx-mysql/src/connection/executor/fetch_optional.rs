@@ -33,7 +33,7 @@ macro_rules! impl_fetch_optional {
                                 // but we do increment affected rows
                                 QueryStep::End(res) => break 'result res.into_result()?,
                                 QueryStep::Row(row) => {
-                                    first_row = Some(MySqlRow(row.deserialize_with(&columns[..])?));
+                                    first_row = Some(MySqlRow::new(row.deserialize_with(&columns[..])?));
 
                                     // get out as soon as possible after finding our one row
                                     break 'results;

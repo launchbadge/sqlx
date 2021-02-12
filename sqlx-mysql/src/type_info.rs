@@ -35,4 +35,3 @@ impl MySqlTypeInfo {
         self.id().name()
     }
 }
-o

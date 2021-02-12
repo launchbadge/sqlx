@@ -1,14 +1,23 @@
-use sqlx_core::Row;
+use std::marker::PhantomData;
 
-use crate::{protocol, MySqlColumn};
+use bytes::Bytes;
+use sqlx_core::{Decode, Error, Row, Runtime};
+
+use crate::{protocol, MySql, MySqlColumn, MySqlRawValue, MySqlRawValueFormat};
 
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlRow(pub(crate) protocol::Row);
+pub struct MySqlRow {
+    values: Vec<Option<Bytes>>,
+}
 
 impl MySqlRow {
+    pub(crate) fn new(row: protocol::Row) -> Self {
+        Self { values: row.values }
+    }
+
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.values.len()
+        self.values.len()
     }
 
     #[must_use]
@@ -18,7 +27,7 @@ impl MySqlRow {
 }
 
 impl Row for MySqlRow {
-    type Column = MySqlColumn;
+    type Database = MySql;
 
     fn is_null(&self) -> bool {
         todo!()
@@ -48,7 +57,22 @@ impl Row for MySqlRow {
         todo!()
     }
 
-    fn try_get_raw(&self) -> sqlx_core::Result<&[u8]> {
-        todo!()
+    fn try_get<'r, T>(&'r self, index: usize) -> sqlx_core::Result<T>
+    where
+        T: Decode<'r, Self::Database>,
+    {
+        Ok(self.try_get_raw(index)?.decode()?)
+    }
+
+    // noinspection RsNeedlessLifetimes
+    fn try_get_raw<'r>(&'r self, index: usize) -> sqlx_core::Result<MySqlRawValue<'r>> {
+        let format = MySqlRawValueFormat::Text;
+
+        let value = self
+            .values
+            .get(index)
+            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
+
+        Ok(MySqlRawValue::new(value, format))
     }
 }

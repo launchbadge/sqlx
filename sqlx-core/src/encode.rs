@@ -5,7 +5,7 @@ use crate::database::{HasOutput, HasRawValue};
 use crate::{Database, Runtime};
 
 /// A type that can be encoded into a SQL value.
-pub trait Encode<Db: Database<Rt>, Rt: Runtime>: Send + Sync {
+pub trait Encode<Db: Database>: Send + Sync {
     /// Encode this value into a SQL value.
     fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result<()>;
 
@@ -16,7 +16,7 @@ pub trait Encode<Db: Database<Rt>, Rt: Runtime>: Send + Sync {
     }
 }
 
-impl<T: Encode<Db, Rt>, Db: Database<Rt>, Rt: Runtime> Encode<Db, Rt> for &T {
+impl<T: Encode<Db>, Db: Database> Encode<Db> for &T {
     #[inline]
     fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result<()> {
         (*self).encode(ty, out)

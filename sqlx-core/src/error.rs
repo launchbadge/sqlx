@@ -33,6 +33,11 @@ pub enum Error {
     Decode(DecodeError),
 
     Encode(EncodeError),
+
+    ColumnIndexOutOfBounds {
+        index: usize,
+        len: usize,
+    },
 }
 
 impl Error {
@@ -84,6 +89,14 @@ impl Display for Error {
             Self::Encode(error) => {
                 write!(f, "{}", error)
             }
+
+            Self::ColumnIndexOutOfBounds { index, len } => {
+                write!(
+                    f,
+                    "column index out of bounds: the len is {}, but the index is {}",
+                    len, index
+                )
+            }
         }
     }
 }
@@ -92,7 +105,6 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Configuration { source: Some(source), .. } => Some(&**source),
-
             Self::Network(source) => Some(source),
 
             _ => None,
