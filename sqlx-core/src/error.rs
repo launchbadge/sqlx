@@ -2,6 +2,9 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
+use crate::decode::Error as DecodeError;
+use crate::encode::Error as EncodeError;
+
 mod database;
 
 pub use database::DatabaseError;
@@ -26,6 +29,10 @@ pub enum Error {
     /// Use `fetch_optional` to return `None` instead of signaling an error.
     ///
     RowNotFound,
+
+    Decode(DecodeError),
+
+    Encode(EncodeError),
 }
 
 impl Error {
@@ -69,6 +76,14 @@ impl Display for Error {
             Self::RowNotFound => {
                 f.write_str("no row returned by a query required to return at least one row")
             }
+
+            Self::Decode(error) => {
+                write!(f, "{}", error)
+            }
+
+            Self::Encode(error) => {
+                write!(f, "{}", error)
+            }
         }
     }
 }
@@ -94,5 +109,17 @@ impl From<std::io::Error> for Error {
 impl From<std::io::ErrorKind> for Error {
     fn from(error: std::io::ErrorKind) -> Self {
         Self::Network(error.into())
+    }
+}
+
+impl From<DecodeError> for Error {
+    fn from(error: DecodeError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl From<EncodeError> for Error {
+    fn from(error: EncodeError) -> Self {
+        Self::Encode(error)
     }
 }

@@ -7,7 +7,8 @@ use crate::{Column, Connection, QueryResult, Row, Runtime};
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database (e.g., MySQL, PostgreSQL).
 ///
-pub trait Database<Rt>: 'static + Sized + Debug + for<'x> HasOutput<'x>
+pub trait Database<Rt>:
+    'static + Sized + Debug + for<'x> HasOutput<'x> + for<'r> HasRawValue<'r>
 where
     Rt: Runtime,
 {
@@ -22,12 +23,24 @@ where
 
     /// The concrete [`QueryResult`] implementation for this database.
     type QueryResult: QueryResult;
+
+    /// The concrete [`TypeInfo`] implementation for this database.
+    type TypeInfo;
+
+    /// The concrete [`TypeId`] implementation for this database.
+    type TypeId;
 }
 
-/// Associates [`Database`] with a `Output` of a generic lifetime.
-/// 'x: single execution
+/// Associates [`Database`] with an `Output` of a generic lifetime.
+// 'x: single execution
 pub trait HasOutput<'x> {
-    /// The concrete type to hold the output for `Encode` for this database. This may be
-    /// a simple alias to `&'x mut Vec<u8>`.
+    /// The concrete type to hold the output for [`Encode`] for this database.
     type Output;
+}
+
+/// Associates [`Database`] with a `RawValue` of a generic lifetime.
+// 'r: row
+pub trait HasRawValue<'r> {
+    /// The concrete type to hold the input for [`Decode`] for this database.
+    type RawValue;
 }

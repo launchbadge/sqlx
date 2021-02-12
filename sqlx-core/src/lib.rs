@@ -20,18 +20,19 @@
 
 mod acquire;
 mod close;
+mod column;
 mod connect;
 mod connection;
-mod database;
+pub mod database;
+pub mod decode;
+pub mod encode;
 mod error;
 mod executor;
 mod options;
 mod pool;
-mod runtime;
-mod decode;
-mod row;
 mod query_result;
-mod column;
+mod row;
+mod runtime;
 
 #[doc(hidden)]
 pub mod io;
@@ -50,16 +51,18 @@ pub use acquire::Acquire;
 #[cfg(feature = "blocking")]
 pub use blocking::runtime::Blocking;
 pub use close::Close;
-pub use connect::Connect;
 pub use column::Column;
+pub use connect::Connect;
 pub use connection::Connection;
-pub use database::{Database, HasOutput};
+pub use database::Database;
+pub use decode::Decode;
+pub use encode::Encode;
 pub use error::{DatabaseError, Error, Result};
 pub use executor::Executor;
-pub use query_result::QueryResult;
-pub use row::Row;
 pub use options::ConnectOptions;
 pub use pool::Pool;
+pub use query_result::QueryResult;
+pub use row::Row;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
 #[cfg(feature = "async")]
