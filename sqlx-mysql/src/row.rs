@@ -24,6 +24,25 @@ impl MySqlRow {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    pub fn try_get<'r, T>(&'r self, index: usize) -> sqlx_core::Result<T>
+    where
+        T: Decode<'r, MySql>,
+    {
+        Ok(self.try_get_raw(index)?.decode()?)
+    }
+
+    // noinspection RsNeedlessLifetimes
+    pub fn try_get_raw<'r>(&'r self, index: usize) -> sqlx_core::Result<MySqlRawValue<'r>> {
+        let format = MySqlRawValueFormat::Text;
+
+        let value = self
+            .values
+            .get(index)
+            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
+
+        Ok(MySqlRawValue::new(value, format))
+    }
 }
 
 impl Row for MySqlRow {
@@ -59,20 +78,13 @@ impl Row for MySqlRow {
 
     fn try_get<'r, T>(&'r self, index: usize) -> sqlx_core::Result<T>
     where
-        T: Decode<'r, Self::Database>,
+        T: Decode<'r, MySql>,
     {
-        Ok(self.try_get_raw(index)?.decode()?)
+        self.try_get(index)
     }
 
     // noinspection RsNeedlessLifetimes
     fn try_get_raw<'r>(&'r self, index: usize) -> sqlx_core::Result<MySqlRawValue<'r>> {
-        let format = MySqlRawValueFormat::Text;
-
-        let value = self
-            .values
-            .get(index)
-            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
-
-        Ok(MySqlRawValue::new(value, format))
+        self.try_get_raw(index)
     }
 }
