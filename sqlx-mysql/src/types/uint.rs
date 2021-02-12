@@ -1,11 +1,10 @@
 use bytes::Buf;
-use sqlx_core::database::HasOutput;
 use sqlx_core::{decode, encode};
-use sqlx_core::{Database, Decode, Encode};
+use sqlx_core::{Decode, Encode};
 
 use crate::type_info::MySqlTypeInfo;
 use crate::MySqlRawValueFormat::*;
-use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId};
+use crate::{MySql, MySqlOutput, MySqlRawValue};
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html#packet-ProtocolBinary
 

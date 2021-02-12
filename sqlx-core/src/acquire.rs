@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
 
-use crate::{Connection, Database, Runtime};
+use crate::{Connection, Runtime};
 
 #[allow(clippy::type_complexity)]
 pub trait Acquire<Rt: Runtime> {

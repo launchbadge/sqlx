@@ -1,7 +1,5 @@
-use std::marker::PhantomData;
-
 use bytes::Bytes;
-use sqlx_core::{Decode, Error, Row, Runtime};
+use sqlx_core::{Decode, Error, Row};
 
 use crate::{protocol, MySql, MySqlColumn, MySqlRawValue, MySqlRawValueFormat};
 

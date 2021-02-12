@@ -1,11 +1,8 @@
 use std::fmt::{self, Debug, Formatter};
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use either::Either;
-use sqlx_core::{ConnectOptions, Result, Runtime};
-
-use crate::MySqlConnection;
+use sqlx_core::ConnectOptions;
 
 mod builder;
 mod default;

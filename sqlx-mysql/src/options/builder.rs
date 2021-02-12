@@ -2,7 +2,6 @@ use std::mem;
 use std::path::{Path, PathBuf};
 
 use either::Either;
-use sqlx_core::Runtime;
 
 impl super::MySqlConnectOptions {
     /// Sets the hostname of the database server.

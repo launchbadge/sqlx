@@ -1,5 +1,5 @@
 use crate::database::HasRawValue;
-use crate::{Column, Database, Decode, Runtime};
+use crate::{Database, Decode};
 
 pub trait Row: 'static + Send + Sync {
     type Database: Database;

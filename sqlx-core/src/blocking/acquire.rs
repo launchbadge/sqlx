@@ -1,5 +1,4 @@
 use super::Runtime;
-use crate::Database;
 
 pub trait Acquire<Rt>: crate::Acquire<Rt>
 where
@@ -25,7 +24,3 @@ where
     where
         Self::Connection: Sized;
 }
-
-// TODO: impl Acquire for &Pool { ... }
-// TODO: impl<C: Connection> Acquire for &mut C { ... }
-// TODO: impl<A: Acquire> Acquire for &mut &A { ... }

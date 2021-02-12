@@ -1,8 +1,7 @@
-use bytes::BufMut;
 use sqlx_core::{decode, encode};
 use sqlx_core::{Decode, Encode};
 
-use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId, MySqlTypeInfo};
+use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeInfo};
 
 // In MySQL, a boolean is an alias for `TINYINT(1) UNSIGNED`
 // the functions below delegate functionality to the `u8` impls

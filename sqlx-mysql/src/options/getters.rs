@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use sqlx_core::Runtime;
-
 use super::{default, MySqlConnectOptions};
 
 impl MySqlConnectOptions {

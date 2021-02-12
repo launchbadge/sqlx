@@ -1,7 +1,3 @@
-use bytes::BufMut;
-
-use crate::MySqlTypeId;
-
 // https://dev.mysql.com/doc/internals/en/com-stmt-execute.html
 
 // 'x: single execution
