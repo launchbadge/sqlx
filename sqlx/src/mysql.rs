@@ -19,4 +19,7 @@ pub use database::MySql;
 pub use options::MySqlConnectOptions;
 //
 // re-export the remaining types from the driver
-pub use sqlx_mysql::{MySqlColumn, MySqlDatabaseError, MySqlQueryResult, MySqlRow};
+pub use sqlx_mysql::{
+    MySqlColumn, MySqlDatabaseError, MySqlQueryResult, MySqlRawValue, MySqlRawValueFormat,
+    MySqlRow, MySqlTypeId,
+};

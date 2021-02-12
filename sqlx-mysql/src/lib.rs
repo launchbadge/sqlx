@@ -21,23 +21,32 @@
 #[macro_use]
 mod stream;
 
+mod column;
 mod connection;
 mod database;
 mod error;
-mod column;
-mod row;
 mod io;
 mod options;
-mod query_result;
+mod output;
 mod protocol;
+mod query_result;
+mod row;
+mod type_id;
+mod type_info;
+pub mod types;
+mod value;
 
 #[cfg(test)]
 mod mock;
 
-pub use query_result::MySqlQueryResult;
 pub use column::MySqlColumn;
-pub use row::MySqlRow;
 pub use connection::MySqlConnection;
 pub use database::MySql;
 pub use error::MySqlDatabaseError;
 pub use options::MySqlConnectOptions;
+pub use output::MySqlOutput;
+pub use query_result::MySqlQueryResult;
+pub use row::MySqlRow;
+pub use type_id::MySqlTypeId;
+pub use type_info::MySqlTypeInfo;
+pub use value::{MySqlRawValue, MySqlRawValueFormat};
