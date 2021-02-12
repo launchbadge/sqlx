@@ -27,6 +27,7 @@
 //!
 
 mod bool;
+mod str;
 mod uint;
 
 // TODO: mod decimal;
