@@ -51,8 +51,8 @@ mod runtime;
 #[cfg(feature = "mysql")]
 pub mod mysql;
 
-#[cfg(feature = "postgres")]
-pub mod postgres;
+// #[cfg(feature = "postgres")]
+// pub mod postgres;
 
 #[cfg(feature = "blocking")]
 pub use blocking::Blocking;
@@ -66,5 +66,6 @@ pub use sqlx_core::AsyncStd;
 #[cfg(feature = "tokio")]
 pub use sqlx_core::Tokio;
 pub use sqlx_core::{
-    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Result, Row, Runtime,
+    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Executor, Result, Row,
+    Runtime,
 };

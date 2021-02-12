@@ -4,10 +4,7 @@ use std::path::{Path, PathBuf};
 use either::Either;
 use sqlx_core::Runtime;
 
-impl<Rt> super::MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl super::MySqlConnectOptions {
     /// Sets the hostname of the database server.
     ///
     /// If the hostname begins with a slash (`/`), it is interpreted as the absolute path

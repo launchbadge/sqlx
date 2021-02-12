@@ -1,5 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
+#[cfg(feature = "async")]
+use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
@@ -78,7 +80,7 @@ where
     type Database = MySql;
 
     #[cfg(feature = "async")]
-    fn ping(&mut self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<()>>
+    fn ping(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
     {
@@ -87,24 +89,21 @@ where
 }
 
 impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
-    type Options = MySqlConnectOptions<Rt>;
+    type Options = MySqlConnectOptions;
 
     #[cfg(feature = "async")]
-    fn connect(url: &str) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self>>
+    fn connect_with(options: &MySqlConnectOptions) -> BoxFuture<'_, sqlx_core::Result<Self>>
     where
         Self: Sized,
         Rt: sqlx_core::Async,
     {
-        use sqlx_core::ConnectOptions;
-
-        let options = url.parse::<Self::Options>();
-        Box::pin(async move { options?.connect().await })
+        MySqlConnection::connect_async(options).boxed()
     }
 }
 
 impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
     #[cfg(feature = "async")]
-    fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
+    fn close(self) -> BoxFuture<'static, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
     {
@@ -127,11 +126,11 @@ mod blocking {
 
     impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
         #[inline]
-        fn connect(url: &str) -> sqlx_core::Result<Self>
+        fn connect_with(options: &MySqlConnectOptions) -> sqlx_core::Result<Self>
         where
             Self: Sized,
         {
-            Self::connect_blocking(&url.parse::<MySqlConnectOptions<Rt>>()?)
+            Self::connect_blocking(options)
         }
     }
 

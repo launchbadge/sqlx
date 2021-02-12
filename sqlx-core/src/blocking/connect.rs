@@ -6,8 +6,12 @@ where
 {
     fn connect(url: &str) -> crate::Result<Self>
     where
+        Self: Sized,
+    {
+        <Self as Connect<Rt>>::connect_with(&url.parse::<Self::Options>()?)
+    }
+
+    fn connect_with(options: &Self::Options) -> crate::Result<Self>
+    where
         Self: Sized;
 }
-
-// TODO: impl Connect for Pool { ... }
-// TODO: impl Connect for PgConnection { ... }

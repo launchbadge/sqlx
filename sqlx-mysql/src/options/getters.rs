@@ -4,7 +4,7 @@ use sqlx_core::Runtime;
 
 use super::{default, MySqlConnectOptions};
 
-impl<Rt: Runtime> MySqlConnectOptions<Rt> {
+impl MySqlConnectOptions {
     /// Returns the hostname of the database server.
     #[must_use]
     pub fn get_host(&self) -> &str {

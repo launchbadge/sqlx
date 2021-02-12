@@ -1,5 +1,6 @@
 use crate::blocking::{Close, Connect, Connection, Runtime};
 use crate::mysql::connection::MySqlConnection;
+use crate::mysql::MySqlConnectOptions;
 use crate::{Blocking, Result};
 
 impl MySqlConnection<Blocking> {
@@ -11,7 +12,18 @@ impl MySqlConnection<Blocking> {
     /// Implemented with [`Connect::connect`].
     #[inline]
     pub fn connect(url: &str) -> Result<Self> {
-        sqlx_mysql::MySqlConnection::<Blocking>::connect(url).map(Self)
+        sqlx_mysql::MySqlConnection::<Blocking>::connect(url).map(Into::into)
+    }
+
+    /// Open a new database connection with the configured options.
+    ///
+    /// For detailed information, refer to the async version of
+    /// this: [`connect_with`](#method.connect_with).
+    ///
+    /// Implemented with [`Connect::connect_with`].
+    #[inline]
+    pub fn connect_with(options: &MySqlConnectOptions) -> Result<Self> {
+        sqlx_mysql::MySqlConnection::<Blocking>::connect_with(options).map(Into::into)
     }
 
     /// Checks if a connection to the database is still valid.
@@ -46,8 +58,8 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 
 impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
     #[inline]
-    fn connect(url: &str) -> Result<Self> {
-        sqlx_mysql::MySqlConnection::<Rt>::connect(url).map(Self)
+    fn connect_with(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
+        sqlx_mysql::MySqlConnection::<Rt>::connect_with(options).map(Into::into)
     }
 }
 

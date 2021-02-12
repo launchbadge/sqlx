@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use either::Either;
-use sqlx_core::{ConnectOptions, Runtime};
+use sqlx_core::{ConnectOptions, Result, Runtime};
 
 use crate::MySqlConnection;
 
@@ -17,11 +17,7 @@ mod parse;
 /// Options which can be used to configure how a MySQL connection is opened.
 ///
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
-    runtime: PhantomData<Rt>,
+pub struct MySqlConnectOptions {
     pub(crate) address: Either<(String, u16), PathBuf>,
     username: Option<String>,
     password: Option<String>,
@@ -30,13 +26,9 @@ where
     charset: String,
 }
 
-impl<Rt> Clone for MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl Clone for MySqlConnectOptions {
     fn clone(&self) -> Self {
         Self {
-            runtime: PhantomData,
             address: self.address.clone(),
             username: self.username.clone(),
             password: self.password.clone(),
@@ -47,10 +39,7 @@ where
     }
 }
 
-impl<Rt> Debug for MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl Debug for MySqlConnectOptions {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MySqlConnectOptions")
             .field(
@@ -70,34 +59,13 @@ where
     }
 }
 
-impl<Rt> ConnectOptions<Rt> for MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
-    type Connection = MySqlConnection<Rt>;
-
-    #[cfg(feature = "async")]
-    fn connect(&self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self::Connection>>
-    where
-        Self::Connection: Sized,
-        Rt: sqlx_core::Async,
-    {
-        Box::pin(MySqlConnection::<Rt>::connect_async(self))
-    }
-}
+impl ConnectOptions for MySqlConnectOptions {}
 
 #[cfg(feature = "blocking")]
 mod blocking {
-    use sqlx_core::blocking::{ConnectOptions, Runtime};
+    use sqlx_core::blocking::ConnectOptions;
 
-    use super::{MySqlConnectOptions, MySqlConnection};
+    use super::MySqlConnectOptions;
 
-    impl<Rt: Runtime> ConnectOptions<Rt> for MySqlConnectOptions<Rt> {
-        fn connect(&self) -> sqlx_core::Result<Self::Connection>
-        where
-            Self::Connection: Sized,
-        {
-            <MySqlConnection<Rt>>::connect_blocking(self)
-        }
-    }
+    impl ConnectOptions for MySqlConnectOptions {}
 }

@@ -11,18 +11,8 @@ impl MySqlConnectOptions<Blocking> {
     /// Implemented with [`ConnectOptions::connect`].
     #[inline]
     pub fn connect(&self) -> Result<MySqlConnection<Blocking>> {
-        <sqlx_mysql::MySqlConnectOptions<Blocking> as ConnectOptions<Blocking>>::connect(&self.0)
-            .map(MySqlConnection::<Blocking>)
+        <Self as ConnectOptions>::connect::<MySqlConnection<Blocking>, Blocking>(self)
     }
 }
 
-impl<Rt: Runtime> ConnectOptions<Rt> for MySqlConnectOptions<Rt> {
-    #[inline]
-    fn connect(&self) -> Result<Self::Connection>
-    where
-        Self::Connection: Sized,
-    {
-        <sqlx_mysql::MySqlConnectOptions<Rt> as ConnectOptions<Rt>>::connect(&self.0)
-            .map(MySqlConnection::<Rt>)
-    }
-}
+impl<Rt: Runtime> ConnectOptions for MySqlConnectOptions<Rt> {}

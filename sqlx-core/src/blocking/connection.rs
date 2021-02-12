@@ -8,7 +8,7 @@ use super::{Close, Connect, ConnectOptions, Runtime};
 pub trait Connection<Rt>: crate::Connection<Rt> + Close<Rt> + Connect<Rt>
 where
     Rt: Runtime,
-    Self::Options: ConnectOptions<Rt>,
+    Self::Options: ConnectOptions,
 {
     /// Checks if a connection to the database is still valid.
     ///

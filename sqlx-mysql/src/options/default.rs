@@ -1,20 +1,13 @@
-use std::marker::PhantomData;
-
 use either::Either;
-use sqlx_core::Runtime;
 
 use crate::MySqlConnectOptions;
 
 pub(crate) const HOST: &str = "localhost";
 pub(crate) const PORT: u16 = 3306;
 
-impl<Rt> Default for MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl Default for MySqlConnectOptions {
     fn default() -> Self {
         Self {
-            runtime: PhantomData,
             address: Either::Left((HOST.to_owned(), PORT)),
             username: None,
             password: None,
@@ -26,10 +19,7 @@ where
     }
 }
 
-impl<Rt> super::MySqlConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl super::MySqlConnectOptions {
     /// Creates a default set of options ready for configuration.
     #[must_use]
     pub fn new() -> Self {

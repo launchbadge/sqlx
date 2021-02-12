@@ -21,7 +21,7 @@ use crate::{MySqlConnectOptions, MySqlConnection};
 impl<Rt: Runtime> MySqlConnection<Rt> {
     fn recv_handshake(
         &mut self,
-        options: &MySqlConnectOptions<Rt>,
+        options: &MySqlConnectOptions,
         handshake: &Handshake,
     ) -> Result<()> {
         // IF the options specify a database, try to use the CONNECT_WITH_DB capability
@@ -58,7 +58,7 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
 
     fn recv_auth_response(
         &mut self,
-        options: &MySqlConnectOptions<Rt>,
+        options: &MySqlConnectOptions,
         handshake: &mut Handshake,
         response: AuthResponse,
     ) -> Result<bool> {
@@ -137,7 +137,7 @@ macro_rules! impl_connect {
 
 impl<Rt: Runtime> MySqlConnection<Rt> {
     #[cfg(feature = "async")]
-    pub(crate) async fn connect_async(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    pub(crate) async fn connect_async(options: &MySqlConnectOptions) -> Result<Self>
     where
         Rt: sqlx_core::Async,
     {
@@ -145,7 +145,7 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
     }
 
     #[cfg(feature = "blocking")]
-    pub(crate) fn connect_blocking(options: &MySqlConnectOptions<Rt>) -> Result<Self>
+    pub(crate) fn connect_blocking(options: &MySqlConnectOptions) -> Result<Self>
     where
         Rt: sqlx_core::blocking::Runtime,
     {

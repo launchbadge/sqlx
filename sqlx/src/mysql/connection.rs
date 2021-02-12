@@ -1,10 +1,13 @@
 use std::fmt::{self, Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "async")]
 use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::Executor;
 
 use super::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
+#[cfg(feature = "blocking")]
+use crate::blocking;
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 use crate::{Close, Connect, Connection, DefaultRuntime, Runtime};
@@ -29,6 +32,13 @@ impl<Rt: Async> MySqlConnection<Rt> {
     /// Implemented with [`Connect::connect`][crate::Connect::connect].
     pub async fn connect(url: &str) -> Result<Self> {
         sqlx_mysql::MySqlConnection::<Rt>::connect(url).await.map(Self)
+    }
+
+    /// Open a new database connection with the configured options.
+    ///
+    /// Implemented with [`Connect::connect_with`][crate::Connect::connect_with].
+    pub async fn connect_with(options: &MySqlConnectOptions<Rt>) -> Result<Self> {
+        sqlx_mysql::MySqlConnection::<Rt>::connect_with(&**options).await.map(Self)
     }
 
     /// Checks if a connection to the database is still valid.
@@ -90,11 +100,11 @@ impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
 
     #[cfg(feature = "async")]
     #[inline]
-    fn connect(url: &str) -> BoxFuture<'_, Result<Self>>
+    fn connect_with(options: &Self::Options) -> BoxFuture<'_, Result<Self>>
     where
         Rt: Async,
     {
-        Self::connect(url).boxed()
+        Self::connect_with(options).boxed()
     }
 }
 
@@ -107,7 +117,7 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     where
         Rt: Async,
     {
-        self.ping().boxed()
+        self.0.ping()
     }
 }
 
@@ -143,5 +153,25 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
         'q: 'x,
     {
         self.0.fetch_optional(sql)
+    }
+}
+
+impl<Rt: Runtime> From<sqlx_mysql::MySqlConnection<Rt>> for MySqlConnection<Rt> {
+    fn from(connection: sqlx_mysql::MySqlConnection<Rt>) -> Self {
+        Self(connection)
+    }
+}
+
+impl<Rt: Runtime> Deref for MySqlConnection<Rt> {
+    type Target = sqlx_mysql::MySqlConnection<Rt>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<Rt: Runtime> DerefMut for MySqlConnection<Rt> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
