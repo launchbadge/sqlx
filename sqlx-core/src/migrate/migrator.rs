@@ -27,6 +27,7 @@ impl Migrator {
     /// # })
     /// # }
     /// ```
+    /// See [MigrationSource] for details on structure of the `./migrations` directory.
     pub async fn new<'s, S>(source: S) -> Result<Self, MigrateError>
     where
         S: MigrationSource<'s>,
