@@ -33,10 +33,18 @@ pub trait Type<Db: Database> {
 
 #[allow(clippy::module_name_repetitions)]
 pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {
-    /// Returns the SQL type identifier that best hints to the database
-    /// at the incoming value for a bind parameter.
+    /// Returns the canonical SQL type identifier for this Rust type.
     #[allow(unused_variables)]
     fn type_id(&self, ty: &Db::TypeInfo) -> Db::TypeId;
+
+    /// Determines if this Rust type is compatible with the specified SQL type.
+    ///
+    /// To be compatible, the Rust type must support encoding _and_ decoding
+    /// from the specified SQL type.
+    ///
+    fn compatible(&self, ty: &Db::TypeInfo) -> bool {
+        ty.id() == self.type_id(ty)
+    }
 
     /// Returns the Rust type name of this.
     #[doc(hidden)]
