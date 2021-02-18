@@ -108,6 +108,11 @@ impl<'a, Db: Database> Arguments<'a, Db> {
         self.positional.len()
     }
 
+    /// Returns an iterator of the positional parameters.
+    pub fn positional(&self) -> impl Iterator<Item = &Argument<'a, Db>> {
+        self.positional.iter()
+    }
+
     /// Returns a reference to the argument at the location, if present.
     pub fn get<'x, I: ArgumentIndex<'a, Db>>(&'x self, index: &I) -> Option<&'x Argument<'a, Db>> {
         index.get(self)
