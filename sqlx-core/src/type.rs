@@ -36,7 +36,7 @@ pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {
     /// Returns the SQL type identifier that best hints to the database
     /// at the incoming value for a bind parameter.
     #[allow(unused_variables)]
-    fn type_id_of(&self, ty: &Db::TypeInfo) -> Db::TypeId;
+    fn type_id(&self, ty: &Db::TypeInfo) -> Db::TypeId;
 
     /// Returns the Rust type name of this.
     #[doc(hidden)]
