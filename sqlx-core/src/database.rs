@@ -1,6 +1,7 @@
 use std::fmt::Debug;
+use std::hash::Hash;
 
-use crate::{Column, QueryResult, Row};
+use crate::{Column, QueryResult, Row, TypeInfo};
 
 /// A database driver.
 ///
@@ -12,7 +13,7 @@ pub trait Database:
     'static + Sized + Debug + for<'x> HasOutput<'x> + for<'r> HasRawValue<'r>
 {
     /// The concrete [`Column`] implementation for this database.
-    type Column: Column;
+    type Column: Column<Database = Self>;
 
     /// The concrete [`Row`] implementation for this database.
     type Row: Row<Database = Self>;
@@ -21,10 +22,10 @@ pub trait Database:
     type QueryResult: QueryResult;
 
     /// The concrete [`TypeInfo`] implementation for this database.
-    type TypeInfo;
+    type TypeInfo: TypeInfo<Database = Self>;
 
     /// The concrete [`TypeId`] implementation for this database.
-    type TypeId;
+    type TypeId: PartialEq + Hash + Clone + Copy;
 }
 
 /// Associates [`Database`] with an `Output` of a generic lifetime.

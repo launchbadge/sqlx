@@ -1,7 +1,15 @@
+use crate::Database;
+
+/// Represents a column from a query.
 pub trait Column {
-    /// Returns the name or alias of the column.
+    type Database: Database;
+
+    /// Returns the name of the column.
     fn name(&self) -> &str;
 
-    /// Returns the ordinal (also known as the index) of the column.
+    /// Returns the (zero-based) position of the column.
     fn ordinal(&self) -> usize;
+
+    /// Returns type information of the column.
+    fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 }
