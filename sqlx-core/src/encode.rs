@@ -6,14 +6,8 @@ use crate::Database;
 
 /// A type that can be encoded into a SQL value.
 pub trait Encode<Db: Database>: Send + Sync {
-    /// Encode this value into a SQL value.
+    /// Encode this value into the specified SQL type.
     fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result<()>;
-
-    #[doc(hidden)]
-    #[inline]
-    fn __type_name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
 }
 
 impl<T: Encode<Db>, Db: Database> Encode<Db> for &T {
@@ -29,6 +23,13 @@ impl<T: Encode<Db>, Db: Database> Encode<Db> for &T {
 pub enum Error {
     /// A general error raised while encoding a value.
     Custom(Box<dyn StdError + Send + Sync>),
+}
+
+impl Error {
+    #[doc(hidden)]
+    pub fn msg<D: Display>(msg: D) -> Self {
+        Self::Custom(msg.to_string().into())
+    }
 }
 
 impl Display for Error {

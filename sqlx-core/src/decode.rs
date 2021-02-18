@@ -6,12 +6,15 @@ use crate::database::HasRawValue;
 use crate::Database;
 
 /// A type that can be decoded from a SQL value.
-pub trait Decode<'r, Db: Database>: Sized + Send + Sync {
-    fn decode(value: <Db as HasRawValue<'r>>::RawValue) -> Result<Self>;
+pub trait Decode<'r, Db: Database>: Send + Sync {
+    fn decode(value: <Db as HasRawValue<'r>>::RawValue) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 /// A type that can be decoded from a SQL value, without borrowing any data
 /// from the row.
+#[allow(clippy::module_name_repetitions)]
 pub trait DecodeOwned<Db: Database>: for<'r> Decode<'r, Db> {}
 
 impl<T, Db: Database> DecodeOwned<Db> for T where T: for<'r> Decode<'r, Db> {}
@@ -31,6 +34,13 @@ pub enum Error {
 
     /// A general error raised while decoding a value.
     Custom(Box<dyn StdError + Send + Sync>),
+}
+
+impl Error {
+    #[doc(hidden)]
+    pub fn msg<D: Display>(msg: D) -> Self {
+        Self::Custom(msg.to_string().into())
+    }
 }
 
 impl Display for Error {

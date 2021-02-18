@@ -19,6 +19,7 @@
 #![allow(clippy::clippy::missing_errors_doc)]
 
 mod acquire;
+mod arguments;
 mod close;
 mod column;
 mod connect;
@@ -32,6 +33,8 @@ mod options;
 mod query_result;
 pub mod row;
 mod runtime;
+mod r#type;
+mod type_info;
 
 #[doc(hidden)]
 pub mod io;
@@ -47,6 +50,7 @@ pub mod mock;
 pub mod blocking;
 
 pub use acquire::Acquire;
+pub use arguments::{Argument, Arguments};
 #[cfg(feature = "blocking")]
 pub use blocking::runtime::Blocking;
 pub use close::Close;
@@ -60,6 +64,7 @@ pub use error::{DatabaseError, Error, Result};
 pub use executor::Executor;
 pub use options::ConnectOptions;
 pub use query_result::QueryResult;
+pub use r#type::{Type, TypeEncode, TypeDecode};
 pub use row::Row;
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
@@ -70,3 +75,4 @@ pub use runtime::AsyncStd;
 pub use runtime::Runtime;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
+pub use type_info::TypeInfo;
