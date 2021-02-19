@@ -5,12 +5,15 @@ use crate::{protocol, MySql, MySqlColumn, MySqlRawValue, MySqlRawValueFormat};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct MySqlRow {
+    format: MySqlRawValueFormat,
+    columns: Vec<MySqlColumn>,
     values: Vec<Option<Bytes>>,
 }
 
 impl MySqlRow {
-    pub(crate) fn new(row: protocol::Row) -> Self {
-        Self { values: row.values }
+    // FIXME: Use Arc or some other way of sharing columns between rows
+    pub(crate) fn new(row: protocol::Row, columns: &Vec<MySqlColumn>) -> Self {
+        Self { values: row.values, columns: columns.clone(), format: row.format }
     }
 
     #[must_use]
@@ -32,14 +35,14 @@ impl MySqlRow {
 
     // noinspection RsNeedlessLifetimes
     pub fn try_get_raw<'r>(&'r self, index: usize) -> sqlx_core::Result<MySqlRawValue<'r>> {
-        let format = MySqlRawValueFormat::Text;
-
         let value = self
             .values
             .get(index)
             .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
 
-        Ok(MySqlRawValue::new(value, format))
+        let column = &self.columns[index];
+
+        Ok(MySqlRawValue::new(value, self.format, column.type_info()))
     }
 }
 
