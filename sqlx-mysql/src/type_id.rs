@@ -1,5 +1,7 @@
+use crate::protocol::{ColumnDefinition, ColumnFlags};
+
 /// A unique identifier for a MySQL data type.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     any(feature = "offline", feature = "serde"),
     derive(serde::Serialize, serde::Deserialize)
@@ -10,17 +12,31 @@ pub struct MySqlTypeId(u8, u8);
 const UNSIGNED: u8 = 0x80;
 
 impl MySqlTypeId {
+    pub(crate) const fn new(def: &ColumnDefinition) -> Self {
+        Self(def.ty, if def.flags.contains(ColumnFlags::UNSIGNED) { UNSIGNED } else { 0 })
+    }
+
+    pub(crate) const fn ty(self) -> u8 {
+        self.0
+    }
+
+    pub(crate) const fn flags(self) -> u8 {
+        self.1
+    }
+}
+
+impl MySqlTypeId {
     /// Returns `true` if this is the `NULL` type.
     ///
     /// For MySQL, this occurs in types from parameters or when `NULL` is
     /// directly used in an expression by itself, such as `SELECT NULL`.
     ///
-    pub const fn is_null(&self) -> bool {
+    pub(crate) const fn is_null(&self) -> bool {
         matches!(*self, MySqlTypeId::NULL)
     }
 
     /// Returns `true` if this is an integer data type.
-    pub const fn is_integer(&self) -> bool {
+    pub(crate) const fn is_integer(&self) -> bool {
         matches!(
             *self,
             MySqlTypeId::TINYINT
@@ -36,8 +52,13 @@ impl MySqlTypeId {
         )
     }
 
+    /// Returns `true` if this is an unsigned data type.
+    pub(crate) const fn is_unsigned(&self) -> bool {
+        self.1 == UNSIGNED
+    }
+
     /// Returns the name for this MySQL data type.
-    pub const fn name(&self) -> &'static str {
+    pub(crate) const fn name(&self) -> &'static str {
         match *self {
             Self::NULL => "NULL",
 

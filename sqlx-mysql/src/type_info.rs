@@ -1,4 +1,7 @@
-use crate::MySqlTypeId;
+use sqlx_core::TypeInfo;
+
+use crate::protocol::ColumnDefinition;
+use crate::{MySql, MySqlTypeId};
 
 /// Provides information about a MySQL type.
 #[derive(Debug, Clone)]
@@ -8,11 +11,16 @@ use crate::MySqlTypeId;
 )]
 pub struct MySqlTypeInfo {
     id: MySqlTypeId,
-    flags: u16,
-    charset: u8,
+    charset: u16,
 
     // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
-    max_size: u8,
+    max_size: u32,
+}
+
+impl MySqlTypeInfo {
+    pub(crate) const fn new(def: &ColumnDefinition) -> Self {
+        Self { id: MySqlTypeId::new(def), charset: def.charset, max_size: def.max_size }
+    }
 }
 
 impl MySqlTypeInfo {
@@ -20,18 +28,20 @@ impl MySqlTypeInfo {
     pub const fn id(&self) -> MySqlTypeId {
         self.id
     }
+}
 
-    /// Returns `true` if this is the `NULL` type.
-    ///
-    /// For MySQL, this occurs in types from parameters or when `NULL` is
-    /// directly used in an expression by itself, such as `SELECT NULL`.
-    ///
-    pub const fn is_null(&self) -> bool {
-        self.id().is_null()
+impl TypeInfo for MySqlTypeInfo {
+    type Database = MySql;
+
+    fn id(&self) -> MySqlTypeId {
+        self.id()
     }
 
-    /// Returns the name for this MySQL data type.
-    pub const fn name(&self) -> &'static str {
-        self.id().name()
+    fn is_unknown(&self) -> bool {
+        self.id.is_null()
+    }
+
+    fn name(&self) -> &str {
+        self.id.name()
     }
 }
