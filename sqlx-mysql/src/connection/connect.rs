@@ -103,11 +103,11 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
 
 macro_rules! impl_connect {
     (@blocking @new $options:ident) => {
-        NetStream::connect($options.address.as_ref())?;
+        NetStream::connect($options.address.as_ref())?
     };
 
     (@new $options:ident) => {
-        NetStream::connect_async($options.address.as_ref()).await?;
+        NetStream::connect_async($options.address.as_ref()).await?
     };
 
     ($(@$blocking:ident)? $options:ident) => {{

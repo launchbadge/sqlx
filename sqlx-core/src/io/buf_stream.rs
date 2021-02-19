@@ -108,19 +108,19 @@ macro_rules! read {
     }};
 
     (@blocking @flush $self:ident) => {
-        $self.flush()?;
+        $self.flush()?
     };
 
     (@flush $self:ident) => {
-        $self.flush_async().await?;
+        $self.flush_async().await?
     };
 
     (@blocking @read $self:ident, $b:ident) => {
-        $self.stream.read($b)?;
+        $self.stream.read($b)?
     };
 
     (@read $self:ident, $b:ident) => {
-        $self.stream.read_async($b).await?;
+        $self.stream.read_async($b).await?
     };
 }
 
@@ -147,11 +147,11 @@ macro_rules! flush {
     }};
 
     (@blocking @write $self:ident, $b:expr) => {
-        $self.stream.write($b)?;
+        $self.stream.write($b)?
     };
 
     (@write $self:ident, $b:expr) => {
-        $self.stream.write_async($b).await?;
+        $self.stream.write_async($b).await?
     };
 }
 
