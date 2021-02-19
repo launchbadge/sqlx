@@ -4,7 +4,7 @@ use bytes::Bytes;
 use sqlx_core::decode::{Error as DecodeError, Result as DecodeResult};
 use sqlx_core::{Decode, Runtime};
 
-use crate::MySql;
+use crate::{MySql, MySqlTypeInfo};
 
 /// The format of a raw SQL value for MySQL.
 ///
@@ -22,12 +22,22 @@ pub enum MySqlRawValueFormat {
 pub struct MySqlRawValue<'r> {
     value: Option<&'r Bytes>,
     format: MySqlRawValueFormat,
+    type_info: &'r MySqlTypeInfo,
 }
 
 // 'r: row
 impl<'r> MySqlRawValue<'r> {
-    pub(crate) fn new(value: &'r Option<Bytes>, format: MySqlRawValueFormat) -> Self {
-        Self { value: value.as_ref(), format }
+    pub(crate) fn new(
+        value: &'r Option<Bytes>,
+        format: MySqlRawValueFormat,
+        type_info: &'r MySqlTypeInfo,
+    ) -> Self {
+        Self { value: value.as_ref(), format, type_info }
+    }
+
+    /// Returns the type information for this value.
+    pub fn type_info(&self) -> &'r MySqlTypeInfo {
+        self.type_info
     }
 
     /// Returns the format of this value.
