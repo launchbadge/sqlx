@@ -15,7 +15,7 @@ use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlRawValueFormat, MySqlTypeId}
 const NUMBER_TOO_LARGE: &str = "number too large to fit in target type";
 
 // shared among all Decode impls for unsigned and signed integers
-fn decode_int_or_uint<T>(value: MySqlRawValue<'_>) -> decode::Result<T>
+fn decode_int_or_uint<T>(value: &MySqlRawValue<'_>) -> decode::Result<T>
 where
     T: TryFrom<i64> + TryFrom<u64> + FromStr,
     <T as TryFrom<i64>>::Error: 'static + StdError + Send + Sync,
@@ -72,6 +72,6 @@ impl Encode<MySql> for u8 {
 
 impl<'r> Decode<'r, MySql> for u8 {
     fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
-        decode_int_or_uint(value)
+        decode_int_or_uint(&value)
     }
 }

@@ -43,18 +43,14 @@ impl Serialize<'_> for Execute<'_, '_> {
         let mut args = self.arguments.positional();
 
         for param in self.parameters {
-            match args.next() {
-                Some(argument) => {
-                    argument.encode(param, &mut out)?;
-                    out.declare(argument.type_id(param));
-                }
-
-                None => {
-                    // if we run out of values, start sending NULL for
-                    // each subsequent parameter
-                    out.null();
-                    out.declare(MySqlTypeId::NULL);
-                }
+            if let Some(argument) = args.next() {
+                argument.encode(param, &mut out)?;
+                out.declare(argument.type_id(param));
+            } else {
+                // if we run out of values, start sending NULL for
+                // each subsequent parameter
+                out.null();
+                out.declare(MySqlTypeId::NULL);
             }
         }
 

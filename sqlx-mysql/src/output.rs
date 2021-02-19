@@ -3,6 +3,7 @@
 use crate::MySqlTypeId;
 
 // 'x: single execution
+#[allow(clippy::module_name_repetitions)]
 pub struct MySqlOutput<'x> {
     buffer: &'x mut Vec<u8>,
     null_offset: usize,

@@ -6,6 +6,7 @@ use crate::protocol::{ColumnDefinition, ColumnFlags};
     any(feature = "offline", feature = "serde"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[allow(clippy::module_name_repetitions)]
 pub struct MySqlTypeId(u8, u8);
 
 // a flag byte which has the highest bit set to indicate the type is unsigned
@@ -39,16 +40,16 @@ impl MySqlTypeId {
     pub(crate) const fn is_integer(&self) -> bool {
         matches!(
             *self,
-            MySqlTypeId::TINYINT
-                | MySqlTypeId::TINYINT_UNSIGNED
-                | MySqlTypeId::SMALLINT
-                | MySqlTypeId::SMALLINT_UNSIGNED
-                | MySqlTypeId::MEDIUMINT
-                | MySqlTypeId::MEDIUMINT_UNSIGNED
-                | MySqlTypeId::INT
-                | MySqlTypeId::INT_UNSIGNED
-                | MySqlTypeId::BIGINT
-                | MySqlTypeId::BIGINT_UNSIGNED
+            Self::TINYINT
+                | Self::TINYINT_UNSIGNED
+                | Self::SMALLINT
+                | Self::SMALLINT_UNSIGNED
+                | Self::MEDIUMINT
+                | Self::MEDIUMINT_UNSIGNED
+                | Self::INT
+                | Self::INT_UNSIGNED
+                | Self::BIGINT
+                | Self::BIGINT_UNSIGNED
         )
     }
 
@@ -93,7 +94,7 @@ impl MySqlTypeId {
     /// If the display width is 1 ( `TINYINT(1)` ), maps to `bool`. Otherwise,
     /// maps to `i8`.
     ///
-    pub const TINYINT: MySqlTypeId = MySqlTypeId(1, 0);
+    pub const TINYINT: Self = Self(1, 0);
 
     /// An unsigned 8-bit integer.
     ///
@@ -102,7 +103,7 @@ impl MySqlTypeId {
     /// If the display width is 1 ( `TINYINT(1) UNSIGNED` ), maps to `bool`. Otherwise,
     /// maps to `u8`.
     ///
-    pub const TINYINT_UNSIGNED: MySqlTypeId = MySqlTypeId(1, UNSIGNED);
+    pub const TINYINT_UNSIGNED: Self = Self(1, UNSIGNED);
 
     /// A 16-bit integer.
     ///
@@ -110,7 +111,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `i16`.
     ///
-    pub const SMALLINT: MySqlTypeId = MySqlTypeId(2, 0);
+    pub const SMALLINT: Self = Self(2, 0);
 
     /// An unsigned 16-bit integer.
     ///
@@ -118,7 +119,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `u16`.
     ///
-    pub const SMALLINT_UNSIGNED: MySqlTypeId = MySqlTypeId(2, UNSIGNED);
+    pub const SMALLINT_UNSIGNED: Self = Self(2, UNSIGNED);
 
     /// A 24-bit integer.
     ///
@@ -126,7 +127,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `i32`.
     ///
-    pub const MEDIUMINT: MySqlTypeId = MySqlTypeId(9, 0);
+    pub const MEDIUMINT: Self = Self(9, 0);
 
     /// An unsigned 24-bit integer.
     ///
@@ -134,7 +135,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `u32`.
     ///
-    pub const MEDIUMINT_UNSIGNED: MySqlTypeId = MySqlTypeId(9, UNSIGNED);
+    pub const MEDIUMINT_UNSIGNED: Self = Self(9, UNSIGNED);
 
     /// A 32-bit integer.
     ///
@@ -142,7 +143,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `i32`.
     ///
-    pub const INT: MySqlTypeId = MySqlTypeId(3, 0);
+    pub const INT: Self = Self(3, 0);
 
     /// An unsigned 32-bit integer.
     ///
@@ -150,7 +151,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `u32`.
     ///
-    pub const INT_UNSIGNED: MySqlTypeId = MySqlTypeId(3, UNSIGNED);
+    pub const INT_UNSIGNED: Self = Self(3, UNSIGNED);
 
     /// A 64-bit integer.
     ///
@@ -158,7 +159,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `i64`.
     ///
-    pub const BIGINT: MySqlTypeId = MySqlTypeId(8, 0);
+    pub const BIGINT: Self = Self(8, 0);
 
     /// An unsigned 64-bit integer.
     ///
@@ -166,7 +167,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `u64`.
     ///
-    pub const BIGINT_UNSIGNED: MySqlTypeId = MySqlTypeId(8, UNSIGNED);
+    pub const BIGINT_UNSIGNED: Self = Self(8, UNSIGNED);
 
     /// A 4-byte approximate numeric data value.
     ///
@@ -174,7 +175,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `f32`.
     ///
-    pub const FLOAT: MySqlTypeId = MySqlTypeId(4, 0);
+    pub const FLOAT: Self = Self(4, 0);
 
     /// An 8-byte approximate numeric data value.
     ///
@@ -182,7 +183,7 @@ impl MySqlTypeId {
     ///
     /// Maps to `f64`.
     ///
-    pub const DOUBLE: MySqlTypeId = MySqlTypeId(5, 0);
+    pub const DOUBLE: Self = Self(5, 0);
 
     /// Always `NULL`.
     ///
@@ -197,5 +198,5 @@ impl MySqlTypeId {
     /// is a dynamic or type-erased `NULL`. Unlike `Option<_>::None`, [`Null`] can be
     /// used to send a SQL `NULL` without knowing the SQL type.
     ///
-    pub const NULL: MySqlTypeId = MySqlTypeId(6, 0);
+    pub const NULL: Self = Self(6, 0);
 }

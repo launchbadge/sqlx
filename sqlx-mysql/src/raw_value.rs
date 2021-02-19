@@ -19,6 +19,7 @@ pub enum MySqlRawValueFormat {
 
 /// The raw representation of a SQL value for MySQL.
 #[derive(Debug, Clone)]
+#[allow(clippy::module_name_repetitions)]
 pub struct MySqlRawValue<'r> {
     value: Option<&'r Bytes>,
     format: MySqlRawValueFormat,
@@ -27,7 +28,7 @@ pub struct MySqlRawValue<'r> {
 
 // 'r: row
 impl<'r> MySqlRawValue<'r> {
-    pub(crate) fn new(
+    pub(crate) const fn new(
         value: &'r Option<Bytes>,
         format: MySqlRawValueFormat,
         type_info: &'r MySqlTypeInfo,

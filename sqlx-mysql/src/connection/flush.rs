@@ -74,7 +74,7 @@ macro_rules! impl_flush {
                                     continue;
                                 }
 
-                                let _ = read_packet!($(@$blocking)? stream);
+                                let _packet = read_packet!($(@$blocking)? stream);
 
                                 // STATE: now expecting the next parameter
                                 *cmd = PrepareCommand::ParameterDefinition { rem: *rem - 1, columns: *columns };
@@ -86,7 +86,7 @@ macro_rules! impl_flush {
                                     break commands.end();
                                 }
 
-                                let _ = read_packet!($(@$blocking)? stream);
+                                let _packet = read_packet!($(@$blocking)? stream);
 
                                 // STATE: now expecting the next parameter
                                 *cmd = PrepareCommand::ColumnDefinition { rem: *rem - 1 };

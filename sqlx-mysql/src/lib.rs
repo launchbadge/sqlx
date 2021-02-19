@@ -17,6 +17,8 @@
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
 
 #[macro_use]
 mod stream;
@@ -31,11 +33,11 @@ mod output;
 mod protocol;
 mod query_result;
 mod raw_statement;
+mod raw_value;
 mod row;
 mod type_id;
 mod type_info;
 pub mod types;
-mod raw_value;
 
 #[cfg(test)]
 mod mock;
@@ -47,7 +49,7 @@ pub use error::MySqlDatabaseError;
 pub use options::MySqlConnectOptions;
 pub use output::MySqlOutput;
 pub use query_result::MySqlQueryResult;
+pub use raw_value::{MySqlRawValue, MySqlRawValueFormat};
 pub use row::MySqlRow;
 pub use type_id::MySqlTypeId;
 pub use type_info::MySqlTypeInfo;
-pub use raw_value::{MySqlRawValue, MySqlRawValueFormat};

@@ -9,6 +9,7 @@ use crate::{MySql, MySqlTypeId};
     any(feature = "offline", feature = "serde"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[allow(clippy::module_name_repetitions)]
 pub struct MySqlTypeInfo {
     id: MySqlTypeId,
     charset: u16,
