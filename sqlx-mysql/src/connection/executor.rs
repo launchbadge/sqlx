@@ -66,29 +66,35 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
 #[cfg(feature = "blocking")]
 impl<Rt: sqlx_core::blocking::Runtime> sqlx_core::blocking::Executor<Rt> for MySqlConnection<Rt> {
     #[inline]
-    fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> Result<MySqlQueryResult>
+    fn execute<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<MySqlQueryResult>
     where
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.execute_blocking(sql)
+        self.execute_blocking(query)
     }
 
     #[inline]
-    fn fetch_all<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> Result<Vec<MySqlRow>>
+    fn fetch_all<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Vec<MySqlRow>>
     where
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.fetch_all_blocking(sql)
+        self.fetch_all_blocking(query)
     }
 
     #[inline]
-    fn fetch_optional<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> Result<Option<MySqlRow>>
+    fn fetch_optional<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Option<MySqlRow>>
     where
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.fetch_optional_blocking(sql)
+        self.fetch_optional_blocking(query)
     }
 }
