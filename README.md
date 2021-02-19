@@ -152,7 +152,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `chrono`: Add support for date and time types from `chrono`.
 
--   `time`: Add support for date and time types from `time` crate (alternative to `chrono`, which is prefered by `query!` macro, if both enabled)
+-   `time`: Add support for date and time types from `time` crate (alternative to `chrono`, which is preferred by `query!` macro, if both enabled)
 
 -   `bstr`: Add support for `bstr::BString`.
 
