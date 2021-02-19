@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::{self, BoxFuture, FutureExt, TryFutureExt};
 
-use crate::{Database, Runtime};
+use crate::{Arguments, Database, Execute, Runtime};
 
 /// Describes a type that can execute SQL queries on a self-provided database connection.
 ///
@@ -18,50 +18,107 @@ pub trait Executor<Rt: Runtime> {
     /// Execute the SQL query and return information about the result, including
     /// the number of rows affected, if any.
     #[cfg(feature = "async")]
-    fn execute<'x, 'e, 'q>(
+    fn execute<'x, 'e, 'q, 'a, E>(
         &'e mut self,
-        sql: &'q str,
+        query: E,
     ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::QueryResult>>
     where
         Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
         'e: 'x,
-        'q: 'x;
+        'q: 'x,
+        'a: 'x;
 
     #[cfg(feature = "async")]
-    fn fetch_all<'x, 'e, 'q>(
+    fn fetch_all<'x, 'e, 'q, 'a, E>(
         &'e mut self,
-        sql: &'q str,
+        query: E,
     ) -> BoxFuture<'x, crate::Result<Vec<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
         'e: 'x,
-        'q: 'x;
+        'q: 'x,
+        'a: 'x;
 
     #[cfg(feature = "async")]
-    fn fetch_optional<'x, 'e, 'q>(
+    fn fetch_optional<'x, 'e, 'q, 'a, E>(
         &'e mut self,
-        sql: &'q str,
+        query: E,
     ) -> BoxFuture<'x, crate::Result<Option<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
         'e: 'x,
-        'q: 'x;
+        'q: 'x,
+        'a: 'x;
 
     #[cfg(feature = "async")]
-    fn fetch_one<'x, 'e, 'q>(
+    fn fetch_one<'x, 'e, 'q, 'a, E>(
         &'e mut self,
-        sql: &'q str,
+        query: E,
     ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::Row>>
     where
         Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.fetch_optional(sql)
+        self.fetch_optional(query)
             .and_then(|maybe_row| match maybe_row {
                 Some(row) => future::ok(row),
                 None => future::err(crate::Error::RowNotFound),
             })
             .boxed()
+    }
+}
+
+impl<Rt: Runtime, X: Executor<Rt>> Executor<Rt> for &'_ mut X {
+    type Database = X::Database;
+
+    #[cfg(feature = "async")]
+    fn execute<'x, 'e, 'q, 'a, E>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::QueryResult>>
+    where
+        Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        (**self).execute(query)
+    }
+
+    #[cfg(feature = "async")]
+    fn fetch_all<'x, 'e, 'q, 'a, E>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'x, crate::Result<Vec<<Self::Database as Database>::Row>>>
+    where
+        Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        (**self).fetch_all(query)
+    }
+
+    #[cfg(feature = "async")]
+    fn fetch_optional<'x, 'e, 'q, 'a, E>(
+        &'e mut self,
+        query: E,
+    ) -> BoxFuture<'x, crate::Result<Option<<Self::Database as Database>::Row>>>
+    where
+        Rt: crate::Async,
+        E: 'x + Execute<'q, 'a, Self::Database>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        (**self).fetch_optional(query)
     }
 }
