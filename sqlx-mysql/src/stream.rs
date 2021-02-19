@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Buf, BufMut};
-use sqlx_core::io::{BufStream, Serialize};
+use sqlx_core::io::{BufStream, Serialize, Stream};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Error, Result, Runtime};
 
-use crate::protocol::{MaybeCommand, Packet};
+use crate::protocol::{MaybeCommand, Packet, Quit};
 use crate::MySqlDatabaseError;
 
 /// Reads and writes packets to and from the MySQL database server.
@@ -184,5 +184,41 @@ macro_rules! read_packet {
 
     ($stream:expr) => {
         $stream.read_packet_async().await?
+    };
+}
+
+impl<Rt: Runtime> MySqlStream<Rt> {
+    #[cfg(feature = "async")]
+    pub(crate) async fn close_async(&mut self) -> Result<()>
+    where
+        Rt: sqlx_core::Async,
+    {
+        self.write_packet(&Quit)?;
+        self.flush_async().await?;
+        self.shutdown_async().await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "blocking")]
+    pub(crate) fn close_blocking(&mut self) -> Result<()>
+    where
+        Rt: sqlx_core::blocking::Runtime,
+    {
+        self.write_packet(&Quit)?;
+        self.flush()?;
+        self.shutdown()?;
+
+        Ok(())
+    }
+}
+
+macro_rules! close {
+    (@blocking $self:ident) => {
+        $self.close_blocking()?
+    };
+
+    ($self:ident) => {
+        $self.close_async().await?
     };
 }

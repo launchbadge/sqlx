@@ -9,11 +9,11 @@ pub(crate) struct RawStatement {
 }
 
 impl RawStatement {
-    pub(crate) fn new(ok: PrepareOk) -> Self {
+    pub(crate) fn new(ok: &PrepareOk) -> Self {
         Self {
             id: ok.statement_id,
             columns: Vec::with_capacity(ok.columns.into()),
-            parameters: Vec::with_capacity(ok.parameters.into()),
+            parameters: Vec::with_capacity(ok.params.into()),
         }
     }
 

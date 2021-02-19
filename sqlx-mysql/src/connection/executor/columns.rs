@@ -1,22 +1,23 @@
 use sqlx_core::{Result, Runtime};
 
-use crate::connection::flush::QueryCommand;
+use crate::connection::command::QueryCommand;
 use crate::protocol::ColumnDefinition;
 use crate::stream::MySqlStream;
+use crate::MySqlColumn;
 
 macro_rules! impl_recv_columns {
     ($(@$blocking:ident)? $store:expr, $num_columns:ident, $stream:ident, $cmd:ident) => {{
         #[allow(clippy::cast_possible_truncation)]
         let mut columns = if $store {
-            Vec::<ColumnDefinition>::with_capacity($num_columns as usize)
+            Vec::<MySqlColumn>::with_capacity($num_columns as usize)
         } else {
             // we are going to drop column definitions, do not allocate
             Vec::new()
         };
 
-        for index in (1..=$num_columns).rev() {
+        for (ordinal, rem) in (1..=$num_columns).rev().enumerate() {
             // STATE: remember that we are expecting #rem more columns
-            *$cmd = QueryCommand::ColumnDefinition { rem: index };
+            *$cmd = QueryCommand::ColumnDefinition { rem };
 
             // read in definition and only deserialize if we are saving
             // the column definitions
@@ -24,7 +25,7 @@ macro_rules! impl_recv_columns {
             let packet = read_packet!($(@$blocking)? $stream);
 
             if $store {
-                columns.push(packet.deserialize()?);
+                columns.push(MySqlColumn::new(ordinal, packet.deserialize()?));
             }
         }
 
@@ -40,9 +41,9 @@ impl<Rt: Runtime> MySqlStream<Rt> {
     pub(super) async fn recv_columns_async(
         &mut self,
         store: bool,
-        columns: u64,
+        columns: u16,
         cmd: &mut QueryCommand,
-    ) -> Result<Vec<ColumnDefinition>>
+    ) -> Result<Vec<MySqlColumn>>
     where
         Rt: sqlx_core::Async,
     {
@@ -53,9 +54,9 @@ impl<Rt: Runtime> MySqlStream<Rt> {
     pub(crate) fn recv_columns_blocking(
         &mut self,
         store: bool,
-        columns: u64,
+        columns: u16,
         cmd: &mut QueryCommand,
-    ) -> Result<Vec<ColumnDefinition>>
+    ) -> Result<Vec<MySqlColumn>>
     where
         Rt: sqlx_core::blocking::Runtime,
     {
@@ -65,10 +66,10 @@ impl<Rt: Runtime> MySqlStream<Rt> {
 
 macro_rules! recv_columns {
     (@blocking $store:expr, $columns:ident, $stream:ident, $cmd:ident) => {
-        $stream.recv_columns_blocking($store, $columns, $cmd)?
+        $stream.recv_columns_blocking($store, $columns, &mut *$cmd)?
     };
 
     ($store:expr, $columns:ident, $stream:ident, $cmd:ident) => {
-        $stream.recv_columns_async($store, $columns, $cmd).await?
+        $stream.recv_columns_async($store, $columns, &mut *$cmd).await?
     };
 }

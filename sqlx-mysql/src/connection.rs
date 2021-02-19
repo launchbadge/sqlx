@@ -5,7 +5,7 @@ use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
-use crate::connection::flush::CommandQueue;
+use crate::connection::command::CommandQueue;
 use crate::protocol::Capabilities;
 use crate::stream::MySqlStream;
 use crate::{MySql, MySqlConnectOptions};
@@ -13,10 +13,7 @@ use crate::{MySql, MySqlConnectOptions};
 #[macro_use]
 mod flush;
 
-#[macro_use]
-mod prepare;
-
-mod close;
+mod command;
 mod connect;
 mod executor;
 mod ping;
@@ -29,6 +26,7 @@ where
 {
     stream: MySqlStream<Rt>,
     connection_id: u32,
+    closed: bool,
 
     // the capability flags are used by the client and server to indicate which
     // features they support and want to use.
@@ -48,6 +46,7 @@ where
         Self {
             stream: MySqlStream::new(stream),
             connection_id: 0,
+            closed: false,
             commands: CommandQueue::new(),
             capabilities: Capabilities::PROTOCOL_41
                 | Capabilities::LONG_PASSWORD
@@ -106,11 +105,15 @@ impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
 
 impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
     #[cfg(feature = "async")]
-    fn close(self) -> BoxFuture<'static, sqlx_core::Result<()>>
+    fn close(mut self) -> BoxFuture<'static, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
     {
-        Box::pin(self.close_async())
+        Box::pin(async move {
+            self.stream.close_async().await?;
+
+            Ok(())
+        })
     }
 }
 
@@ -139,8 +142,8 @@ mod blocking {
 
     impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
         #[inline]
-        fn close(self) -> sqlx_core::Result<()> {
-            self.close_blocking()
+        fn close(mut self) -> sqlx_core::Result<()> {
+            self.stream.close_blocking()
         }
     }
 }

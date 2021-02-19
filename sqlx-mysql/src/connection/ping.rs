@@ -13,14 +13,13 @@ macro_rules! impl_ping {
         // STATE: remember that we are expecting an OK packet
         $self.commands.begin();
 
-        let _ok = read_packet!($(@$blocking)? $self.stream)
-            .deserialize_with::<ResultPacket, _>($self.capabilities)?
-            .into_result()?;
+        let res = read_packet!($(@$blocking)? $self.stream)
+            .deserialize_with::<ResultPacket, _>($self.capabilities)?;
 
-        // STATE: received OK packet
+        // STATE: received result packet
         $self.commands.end();
 
-        Ok(())
+        res.into_result().map(|_| ())
     }};
 }
 

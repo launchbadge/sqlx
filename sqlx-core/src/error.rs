@@ -30,6 +30,8 @@ pub enum Error {
     ///
     RowNotFound,
 
+    Closed,
+
     Decode(DecodeError),
 
     Encode(EncodeError),
@@ -81,6 +83,8 @@ impl Display for Error {
             Self::RowNotFound => {
                 f.write_str("no row returned by a query required to return at least one row")
             }
+
+            Self::Closed => f.write_str("connection or pool was closed"),
 
             Self::Decode(error) => {
                 write!(f, "{}", error)

@@ -1,133 +1,52 @@
 use std::collections::VecDeque;
 use std::hint::unreachable_unchecked;
 
-use sqlx_core::Result;
+use sqlx_core::{Error, Result};
 
+use crate::connection::command::{Command, CommandQueue, PrepareCommand, QueryCommand};
 use crate::protocol::{PrepareResponse, QueryResponse, QueryStep, ResultPacket, Status};
 use crate::{MySqlConnection, MySqlDatabaseError};
 
-pub(crate) struct CommandQueue(VecDeque<Command>);
-
-impl CommandQueue {
-    pub(crate) fn new() -> Self {
-        Self(VecDeque::with_capacity(2))
-    }
-
-    // begin a simple command
-    // in which we are expecting OK or ERR (a result)
-    pub(crate) fn begin(&mut self) {
-        self.0.push_back(Command::Simple);
-    }
-}
-
-impl CommandQueue {
-    pub(crate) fn end(&mut self) {
-        self.0.pop_front();
-    }
-
-    fn maybe_end(&mut self, res: ResultPacket) {
-        match res {
-            ResultPacket::Ok(ok) => {
-                if ok.status.contains(Status::MORE_RESULTS_EXISTS) {
-                    // an attached query response is next
-                    // we are still expecting one
-                    return;
-                }
-            }
-
-            ResultPacket::Err(error) => {
-                // without context, we should not bubble this err
-                // log and continue forward
-                log::error!("{}", MySqlDatabaseError(error));
+fn maybe_end_with(queue: &mut CommandQueue, res: ResultPacket) {
+    match res {
+        ResultPacket::Ok(ok) => {
+            if ok.status.contains(Status::MORE_RESULTS_EXISTS) {
+                // an attached query response is next
+                // we are still expecting one
+                return;
             }
         }
 
-        // STATE: end of query
-        self.0.pop_front();
-    }
-}
-
-#[derive(Debug)]
-#[repr(u8)]
-pub(crate) enum Command {
-    // expecting [ResultPacket]
-    Simple,
-    Query(QueryCommand),
-    Prepare(PrepareCommand),
-}
-
-#[derive(Debug)]
-#[repr(u8)]
-pub(crate) enum QueryCommand {
-    // expecting [QueryResponse]
-    QueryResponse,
-
-    // expecting [QueryStep]
-    QueryStep,
-
-    // expecting {rem} more [ColumnDefinition] packets
-    ColumnDefinition { rem: u16 },
-}
-
-impl QueryCommand {
-    pub(crate) fn begin(queue: &mut CommandQueue) -> &mut Self {
-        queue.0.push_back(Command::Query(Self::QueryResponse));
-
-        if let Some(Command::Query(cmd)) = queue.0.back_mut() {
-            cmd
-        } else {
-            // UNREACHABLE: just pushed a query command to the back of the vector, and we
-            //              have &mut access, nobody else is pushing to it
-            #[allow(unsafe_code)]
-            unsafe {
-                unreachable_unchecked()
-            }
+        ResultPacket::Err(error) => {
+            // without context, we should not bubble this err
+            // log and continue forward
+            log::error!("{}", MySqlDatabaseError(error));
         }
     }
-}
 
-#[derive(Debug)]
-pub(crate) enum PrepareCommand {
-    // expecting [ERR] or [COM_STMT_PREPARE_OK]
-    PrepareResponse,
-
-    // expecting {rem} more [ColumnDefinition] packets for each parameter
-    // stores {columns} as this state is before the [ColumnDefinition] state
-    ParameterDefinition { rem: u16, columns: u16 },
-
-    // expecting {rem} more [ColumnDefinition] packets for each parameter
-    ColumnDefinition { rem: u16 },
-}
-
-impl PrepareCommand {
-    pub(crate) fn begin(queue: &mut CommandQueue) -> &mut Self {
-        queue.0.push_back(Command::Prepare(Self::PrepareResponse));
-
-        if let Some(Command::Prepare(cmd)) = queue.0.back_mut() {
-            cmd
-        } else {
-            // UNREACHABLE: just pushed a prepare command to the back of the vector, and we
-            //              have &mut access, nobody else is pushing to it
-            #[allow(unsafe_code)]
-            unsafe {
-                unreachable_unchecked()
-            }
-        }
-    }
+    // STATE: end of query
+    queue.0.pop_front();
 }
 
 macro_rules! impl_flush {
     ($(@$blocking:ident)? $self:ident) => {{
-        let Self { ref mut commands, ref mut stream, capabilities, .. } = *$self;
-
-        log::debug!("flush!");
+        let Self { ref mut commands, ref mut stream, ref mut closed, capabilities, .. } = *$self;
 
         while let Some(command) = commands.0.get_mut(0) {
             match command {
+                Command::Close => {
+                    if !*closed {
+                        close!($(@$blocking)? stream);
+                        *closed = true;
+                    }
+
+                    return Err(Error::Closed);
+                }
+
                 Command::Simple => {
                     // simple commands where we expect an OK or ERR
                     // ex. COM_PING, COM_QUERY, COM_STMT_RESET, COM_SET_OPTION
-                    commands.maybe_end(read_packet!($(@$blocking)? stream).deserialize_with(capabilities)?);
+                    maybe_end_with(commands, read_packet!($(@$blocking)? stream).deserialize_with(capabilities)?);
                 }
 
                 Command::Prepare(ref mut cmd) => {
@@ -185,7 +104,7 @@ macro_rules! impl_flush {
                             // expecting OK, ERR, or a result set
                             QueryCommand::QueryResponse => {
                                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
-                                    QueryResponse::End(end) => break commands.maybe_end(end),
+                                    QueryResponse::End(end) => break maybe_end_with(commands, end),
                                     QueryResponse::ResultSet { columns } => {
                                         // STATE: expect the column definitions for each column
                                         *cmd = QueryCommand::ColumnDefinition { rem: columns };
@@ -214,7 +133,7 @@ macro_rules! impl_flush {
                                 // either the query result set has ended or we receive
                                 // and immediately drop a row
                                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
-                                    QueryStep::End(end) => break commands.maybe_end(end),
+                                    QueryStep::End(end) => break maybe_end_with(commands, end),
                                     QueryStep::Row(_) => {}
                                 }
                             }

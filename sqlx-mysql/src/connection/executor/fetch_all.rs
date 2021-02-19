@@ -1,28 +1,26 @@
-use sqlx_core::Result;
+use sqlx_core::{Arguments, Execute, Result, Runtime};
 
-use crate::connection::flush::QueryCommand;
-use crate::protocol::{Query, QueryResponse, QueryStep, Status};
-use crate::{MySqlConnection, MySqlRow};
+use crate::connection::command::QueryCommand;
+use crate::protocol::{self, Query, QueryResponse, QueryStep, Status};
+use crate::{MySql, MySqlConnection, MySqlRawValueFormat, MySqlRow};
 
 macro_rules! impl_fetch_all {
-    ($(@$blocking:ident)? $self:ident, $sql:ident) => {{
+    ($(@$blocking:ident)? $self:ident, $query:ident) => {{
+        let format = raw_query!($(@$blocking)? $self, $query);
+
         let Self { ref mut stream, ref mut commands, capabilities, .. } = *$self;
 
-        // send the server a text-based query that will be executed immediately
-        // replies with ERR, OK, or a result set
-        stream.write_packet(&Query { sql: $sql })?;
-
         // STATE: remember that we are now expecting a query response
-        let cmd = QueryCommand::begin(commands);
+        let mut cmd = QueryCommand::begin(commands);
 
         // default an empty row set
         let mut rows = Vec::with_capacity(10);
 
         #[allow(clippy::while_let_loop, unused_labels)]
         'results: loop {
-            let ok = 'result: loop {
+            let res = 'result: loop {
                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
-                    QueryResponse::End(res) => break 'result res.into_result()?,
+                    QueryResponse::End(res) => break 'result res.into_result(),
                     QueryResponse::ResultSet { columns } => {
                         let columns = recv_columns!($(@$blocking)? /* store = */ true, columns, stream, cmd);
 
@@ -30,13 +28,16 @@ macro_rules! impl_fetch_all {
                             match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                                 // execute ignores any rows returned
                                 // but we do increment affected rows
-                                QueryStep::End(res) => break 'result res.into_result()?,
-                                QueryStep::Row(row) => rows.push(MySqlRow::new(row.deserialize_with(&columns[..])?)),
+                                QueryStep::End(res) => break 'result res.into_result(),
+                                QueryStep::Row(row) => rows.push(MySqlRow::new(row.deserialize_with((format, &columns[..]))?, &columns)),
                             }
                         }
                     }
                 }
             };
+
+            // STATE: command is complete on error
+            let ok = cmd.end_if_error(res)?;
 
             if !ok.status.contains(Status::MORE_RESULTS_EXISTS) {
                 // no more results, time to finally call it quits
@@ -48,24 +49,30 @@ macro_rules! impl_fetch_all {
         }
 
         // STATE: the current command is complete
-        commands.end();
+        cmd.end();
 
         Ok(rows)
     }};
 }
 
-#[cfg(feature = "async")]
-impl<Rt: sqlx_core::Async> MySqlConnection<Rt> {
-    pub(super) async fn fetch_all_async(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
+impl<Rt: Runtime> MySqlConnection<Rt> {
+    #[cfg(feature = "async")]
+    pub(super) async fn fetch_all_async<'q, 'a, E>(&mut self, query: E) -> Result<Vec<MySqlRow>>
+    where
+        Rt: sqlx_core::Async,
+        E: Execute<'q, 'a, MySql>,
+    {
         flush!(self);
-        impl_fetch_all!(self, sql)
+        impl_fetch_all!(self, query)
     }
-}
 
-#[cfg(feature = "blocking")]
-impl<Rt: sqlx_core::blocking::Runtime> MySqlConnection<Rt> {
-    pub(super) fn fetch_all_blocking(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
+    #[cfg(feature = "blocking")]
+    pub(super) fn fetch_all_blocking<'q, 'a, E>(&mut self, query: E) -> Result<Vec<MySqlRow>>
+    where
+        Rt: sqlx_core::blocking::Runtime,
+        E: Execute<'q, 'a, MySql>,
+    {
         flush!(@blocking self);
-        impl_fetch_all!(@blocking self, sql)
+        impl_fetch_all!(@blocking self, query)
     }
 }
