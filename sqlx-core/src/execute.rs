@@ -79,7 +79,7 @@ impl<'q, 'a, Db: Database> Execute<'q, 'a, Db> for (&'q str, &'a Arguments<'a, D
     }
 
     fn arguments(&self) -> Option<&'_ Arguments<'a, Db>> {
-        Some(&self.1)
+        Some(self.1)
     }
 }
 
@@ -89,7 +89,7 @@ impl<'q, 'a, Db: Database> Execute<'q, 'a, Db> for (&'q String, &'a Arguments<'a
     }
 
     fn arguments(&self) -> Option<&'_ Arguments<'a, Db>> {
-        Some(&self.1)
+        Some(self.1)
     }
 }
 impl<'a, Db: Database> Execute<'_, 'a, Db> for (String, &'a Arguments<'a, Db>) {
@@ -98,6 +98,6 @@ impl<'a, Db: Database> Execute<'_, 'a, Db> for (String, &'a Arguments<'a, Db>) {
     }
 
     fn arguments(&self) -> Option<&'_ Arguments<'a, Db>> {
-        Some(&self.1)
+        Some(self.1)
     }
 }

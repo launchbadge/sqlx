@@ -7,6 +7,7 @@ where
     type Options: ConnectOptions;
 
     #[cfg(feature = "async")]
+    #[must_use]
     fn connect(url: &str) -> futures_util::future::BoxFuture<'_, crate::Result<Self>>
     where
         Self: Sized,
@@ -17,6 +18,7 @@ where
     }
 
     #[cfg(feature = "async")]
+    #[must_use]
     fn connect_with(
         options: &Self::Options,
     ) -> futures_util::future::BoxFuture<'_, crate::Result<Self>>

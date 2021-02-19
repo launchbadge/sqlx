@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::{self, BoxFuture, FutureExt, TryFutureExt};
 
-use crate::{Database, Execute, Runtime};
+use crate::{Database, Runtime};
 
 /// Describes a type that can execute SQL queries on a self-provided database connection.
 ///
@@ -24,7 +24,7 @@ pub trait Executor<Rt: Runtime> {
     ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::QueryResult>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x;
@@ -36,7 +36,7 @@ pub trait Executor<Rt: Runtime> {
     ) -> BoxFuture<'x, crate::Result<Vec<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x;
@@ -48,7 +48,7 @@ pub trait Executor<Rt: Runtime> {
     ) -> BoxFuture<'x, crate::Result<Option<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x;
@@ -60,7 +60,7 @@ pub trait Executor<Rt: Runtime> {
     ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::Row>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x,
@@ -84,7 +84,7 @@ impl<Rt: Runtime, X: Executor<Rt>> Executor<Rt> for &'_ mut X {
     ) -> BoxFuture<'x, crate::Result<<Self::Database as Database>::QueryResult>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x,
@@ -99,7 +99,7 @@ impl<Rt: Runtime, X: Executor<Rt>> Executor<Rt> for &'_ mut X {
     ) -> BoxFuture<'x, crate::Result<Vec<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x,
@@ -114,7 +114,7 @@ impl<Rt: Runtime, X: Executor<Rt>> Executor<Rt> for &'_ mut X {
     ) -> BoxFuture<'x, crate::Result<Option<<Self::Database as Database>::Row>>>
     where
         Rt: crate::Async,
-        E: 'x + Execute<'q, 'a, Self::Database>,
+        E: 'x + crate::Execute<'q, 'a, Self::Database>,
         'e: 'x,
         'q: 'x,
         'a: 'x,

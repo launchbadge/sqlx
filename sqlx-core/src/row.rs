@@ -36,7 +36,7 @@ pub trait Row: 'static + Send + Sync {
         T: Decode<'r, Self::Database>;
 
     /// Returns the raw representation of the value at the index.
-    // noinspection RsNeedlessLifetimes
+    #[allow(clippy::needless_lifetimes)]
     fn try_get_raw<'r>(
         &'r self,
         index: usize,

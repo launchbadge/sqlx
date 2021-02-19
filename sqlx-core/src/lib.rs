@@ -16,7 +16,8 @@
 #![warn(clippy::use_self)]
 #![warn(clippy::useless_let_if_seq)]
 #![allow(clippy::doc_markdown)]
-#![allow(clippy::clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
 
 mod acquire;
 pub mod arguments;
