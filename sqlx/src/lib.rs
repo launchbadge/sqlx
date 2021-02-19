@@ -46,6 +46,7 @@
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
+mod query;
 mod runtime;
 
 #[cfg(feature = "mysql")]
@@ -56,6 +57,7 @@ pub mod mysql;
 
 #[cfg(feature = "blocking")]
 pub use blocking::Blocking;
+pub use query::{query, Query};
 pub use runtime::DefaultRuntime;
 #[cfg(feature = "actix")]
 pub use sqlx_core::Actix;
@@ -66,6 +68,6 @@ pub use sqlx_core::AsyncStd;
 #[cfg(feature = "tokio")]
 pub use sqlx_core::Tokio;
 pub use sqlx_core::{
-    Acquire, Close, Connect, ConnectOptions, Connection, Database, Error, Executor, Result, Row,
-    Runtime,
+    Acquire, Arguments, Close, Connect, ConnectOptions, Connection, Database, Error, Executor,
+    Result, Row, Runtime,
 };

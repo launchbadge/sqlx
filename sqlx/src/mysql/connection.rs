@@ -3,14 +3,14 @@ use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "async")]
 use futures_util::future::{BoxFuture, FutureExt};
-use sqlx_core::Executor;
+use sqlx_core::{Execute, Executor};
 
 use super::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
 #[cfg(feature = "blocking")]
 use crate::blocking;
+use crate::{Arguments, Close, Connect, Connection, DefaultRuntime, Runtime};
 #[cfg(feature = "async")]
 use crate::{Async, Result};
-use crate::{Close, Connect, Connection, DefaultRuntime, Runtime};
 
 /// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
@@ -50,20 +50,32 @@ impl<Rt: Async> MySqlConnection<Rt> {
 
     // TODO: document from Executor
 
-    pub async fn execute(&mut self, sql: &str) -> Result<MySqlQueryResult> {
-        self.0.execute(sql).await
+    pub async fn execute<'q, 'a, E>(&mut self, query: E) -> Result<MySqlQueryResult>
+    where
+        E: Execute<'q, 'a, MySql>,
+    {
+        self.0.execute(query).await
     }
 
-    pub async fn fetch_all(&mut self, sql: &str) -> Result<Vec<MySqlRow>> {
-        self.0.fetch_all(sql).await
+    pub async fn fetch_all<'q, 'a, E>(&mut self, query: E) -> Result<Vec<MySqlRow>>
+    where
+        E: Execute<'q, 'a, MySql>,
+    {
+        self.0.fetch_all(query).await
     }
 
-    pub async fn fetch_one(&mut self, sql: &str) -> Result<MySqlRow> {
-        self.0.fetch_one(sql).await
+    pub async fn fetch_one<'q, 'a, E>(&mut self, query: E) -> Result<MySqlRow>
+    where
+        E: Execute<'q, 'a, MySql>,
+    {
+        self.0.fetch_one(query).await
     }
 
-    pub async fn fetch_optional(&mut self, sql: &str) -> Result<Option<MySqlRow>> {
-        self.0.fetch_optional(sql).await
+    pub async fn fetch_optional<'q, 'a, E>(&mut self, query: E) -> Result<Option<MySqlRow>>
+    where
+        E: Execute<'q, 'a, MySql>,
+    {
+        self.0.fetch_optional(query).await
     }
 
     /// Explicitly close this database connection.
@@ -125,34 +137,42 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
     type Database = MySql;
 
     #[cfg(feature = "async")]
-    fn execute<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<MySqlQueryResult>>
+    fn execute<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> BoxFuture<'x, Result<MySqlQueryResult>>
     where
         Rt: Async,
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.0.execute(sql)
+        self.0.execute(query)
     }
 
-    fn fetch_all<'x, 'e, 'q>(&'e mut self, sql: &'q str) -> BoxFuture<'x, Result<Vec<MySqlRow>>>
+    #[cfg(feature = "async")]
+    fn fetch_all<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> BoxFuture<'x, Result<Vec<MySqlRow>>>
     where
         Rt: Async,
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.0.fetch_all(sql)
+        self.0.fetch_all(query)
     }
 
-    fn fetch_optional<'x, 'e, 'q>(
+    #[cfg(feature = "async")]
+    fn fetch_optional<'x, 'e, 'q, 'a, E>(
         &'e mut self,
-        sql: &'q str,
+        query: E,
     ) -> BoxFuture<'x, Result<Option<MySqlRow>>>
     where
         Rt: Async,
+        E: 'x + Execute<'q, 'a, MySql>,
         'e: 'x,
         'q: 'x,
+        'a: 'x,
     {
-        self.0.fetch_optional(sql)
+        self.0.fetch_optional(query)
     }
 }
 
