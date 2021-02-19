@@ -159,7 +159,7 @@ mod tests {
     use sqlx_core::{mock::Mock, ConnectOptions};
 
     use crate::mock::MySqlMockStreamExt;
-    use crate::MySqlConnectOptions;
+    use crate::{MySqlConnectOptions, MySqlConnection};
 
     const SRV_HANDSHAKE_DEFAULT_OLD_AUTH: &[u8] = b"\n5.5.5-10.5.8-MariaDB-1:10.5.8+maria~focal\0)\0\0\04bo+$r4H\0\xfe\xf7-\x02\0\xff\x81\x15\0\0\0\0\0\0\x0f\0\0\0O5X>j}Ur]Y)^\0mysql_old_password\0";
     const SRV_HANDSHAKE_DEFAULT_NATIVE_AUTH: &[u8] = b"\n5.5.5-10.5.8-MariaDB-1:10.5.8+maria~focal\0)\0\0\04bo+$r4H\0\xfe\xf7-\x02\0\xff\x81\x15\0\0\0\0\0\0\x0f\0\0\0O5X>j}Ur]Y)^\0mysql_native_password\0";
@@ -197,7 +197,7 @@ mod tests {
             mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_NATIVE_AUTH).await?;
             mock.write_packet_async(2, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -221,7 +221,7 @@ mod tests {
             mock.write_packet_async(2, SRV_PUBLIC_KEY).await?;
             mock.write_packet_async(4, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -248,7 +248,7 @@ mod tests {
             mock.write_packet_async(4, SRV_PUBLIC_KEY).await?;
             mock.write_packet_async(6, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -277,7 +277,7 @@ mod tests {
             mock.write_packet_async(2, SRV_AUTH_MORE_OK).await?;
             mock.write_packet_async(4, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -300,7 +300,7 @@ mod tests {
             mock.write_packet_async(2, SRV_SWITCH_NATIVE_AUTH).await?;
             mock.write_packet_async(4, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -328,7 +328,7 @@ mod tests {
             mock.write_packet_async(6, SRV_PUBLIC_KEY).await?;
             mock.write_packet_async(8, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -361,7 +361,7 @@ mod tests {
             mock.write_packet_async(4, SRV_AUTH_MORE_OK).await?;
             mock.write_packet_async(6, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
+            let _conn: MySqlConnection<Mock> = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
@@ -386,11 +386,8 @@ mod tests {
             mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_NATIVE_AUTH).await?;
             mock.write_packet_async(2, SRV_AUTH_OK).await?;
 
-            let _conn = MySqlConnectOptions::<Mock>::new()
-                .port(mock.port())
-                .username("root")
-                .connect()
-                .await?;
+            let _conn: MySqlConnection<Mock> =
+                MySqlConnectOptions::new().port(mock.port()).username("root").connect().await?;
 
             let buf = mock.read_all_async().await?;
 
@@ -407,11 +404,11 @@ mod tests {
 
             mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_OLD_AUTH).await?;
 
-            let err = MySqlConnectOptions::<Mock>::new()
+            let err = MySqlConnectOptions::new()
                 .port(mock.port())
                 .username("root")
                 .password("password")
-                .connect()
+                .connect::<MySqlConnection<Mock>, _>()
                 .await
                 .unwrap_err();
 
