@@ -1,13 +1,8 @@
 use std::collections::VecDeque;
-use std::hint::unreachable_unchecked;
 use std::marker::PhantomData;
-use std::mem;
 use std::ops::{Deref, DerefMut};
 
 use sqlx_core::Result;
-
-use crate::protocol::{PrepareResponse, QueryResponse, QueryStep, ResultPacket, Status};
-use crate::{MySqlConnection, MySqlDatabaseError};
 
 pub(crate) struct CommandQueue(pub(super) VecDeque<Command>);
 

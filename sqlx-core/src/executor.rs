@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::{self, BoxFuture, FutureExt, TryFutureExt};
 
-use crate::{Arguments, Database, Execute, Runtime};
+use crate::{Database, Execute, Runtime};
 
 /// Describes a type that can execute SQL queries on a self-provided database connection.
 ///

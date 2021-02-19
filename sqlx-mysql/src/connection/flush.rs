@@ -1,6 +1,3 @@
-use std::collections::VecDeque;
-use std::hint::unreachable_unchecked;
-
 use sqlx_core::{Error, Result};
 
 use crate::connection::command::{Command, CommandQueue, PrepareCommand, QueryCommand};

@@ -1,8 +1,8 @@
-use sqlx_core::{Arguments, Execute, Result, Runtime};
+use sqlx_core::{Execute, Result, Runtime};
 
 use crate::connection::command::QueryCommand;
-use crate::protocol::{self, Query, QueryResponse, QueryStep, Status};
-use crate::{MySql, MySqlConnection, MySqlRawValueFormat, MySqlRow};
+use crate::protocol::{QueryResponse, QueryStep, Status};
+use crate::{MySql, MySqlConnection, MySqlRow};
 
 macro_rules! impl_fetch_all {
     ($(@$blocking:ident)? $self:ident, $query:ident) => {{

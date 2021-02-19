@@ -2,7 +2,7 @@ use std::str::from_utf8;
 
 use bytes::Bytes;
 use sqlx_core::decode::{Error as DecodeError, Result as DecodeResult};
-use sqlx_core::{Decode, Runtime};
+use sqlx_core::Decode;
 
 use crate::{MySql, MySqlTypeInfo};
 

@@ -2,9 +2,7 @@ use std::fmt::Debug;
 
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
-
-use crate::MySqlDatabaseError;
+use sqlx_core::Result;
 
 #[derive(Debug)]
 pub(crate) struct Packet {

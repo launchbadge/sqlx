@@ -1,7 +1,7 @@
 use sqlx_core::{Result, Runtime};
 
 use crate::connection::command::PrepareCommand;
-use crate::protocol::{ColumnDefinition, Prepare, PrepareResponse};
+use crate::protocol::{Prepare, PrepareResponse};
 use crate::raw_statement::RawStatement;
 use crate::{MySqlColumn, MySqlTypeInfo};
 

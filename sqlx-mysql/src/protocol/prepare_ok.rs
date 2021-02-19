@@ -1,8 +1,8 @@
 use bytes::{Buf, Bytes};
-use sqlx_core::io::{Deserialize, Serialize};
+use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
-use super::{Capabilities, Command};
+use super::Capabilities;
 
 /// Response from a successful `COM_STMT_PREPARE`.
 ///

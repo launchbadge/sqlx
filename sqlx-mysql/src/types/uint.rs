@@ -1,15 +1,13 @@
 use std::cmp;
 use std::convert::{TryFrom, TryInto};
 use std::error::Error as StdError;
-use std::num::TryFromIntError;
 use std::str::FromStr;
 
 use bytes::Buf;
-use sqlx_core::{decode, encode, Database, TypeEncode};
+use sqlx_core::{decode, encode};
 use sqlx_core::{Decode, Encode, Type};
 
 use crate::type_info::MySqlTypeInfo;
-use crate::MySqlRawValueFormat::*;
 use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlRawValueFormat, MySqlTypeId};
 
 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html#packet-ProtocolBinary

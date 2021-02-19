@@ -1,6 +1,6 @@
 #[cfg(feature = "async")]
 use futures_util::{future::BoxFuture, FutureExt};
-use sqlx_core::{Arguments, Execute, Executor, Result, Runtime};
+use sqlx_core::{Execute, Executor, Result, Runtime};
 
 use crate::{MySql, MySqlConnection, MySqlQueryResult, MySqlRow};
 

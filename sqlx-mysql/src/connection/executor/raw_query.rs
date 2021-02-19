@@ -1,13 +1,13 @@
-use sqlx_core::{Arguments, Execute, Result, Runtime};
+use sqlx_core::{Execute, Result, Runtime};
 
-use crate::protocol::{self, Query, QueryResponse, QueryStep, Status};
-use crate::{MySql, MySqlConnection, MySqlRawValueFormat, MySqlRow};
+use crate::protocol::{self, Query};
+use crate::{MySql, MySqlConnection, MySqlRawValueFormat};
 
 macro_rules! impl_raw_query {
     ($(@$blocking:ident)? $self:ident, $query:ident) => {{
         let format = if let Some(arguments) = $query.arguments() {
             // prepare the statement for execution
-            let statement = raw_prepare!($(@$blocking:ident)? $self, $query.sql());
+            let statement = raw_prepare!($(@$blocking)? $self, $query.sql());
 
             // execute the prepared statement
             $self.stream.write_packet(&protocol::Execute {

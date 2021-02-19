@@ -1,7 +1,7 @@
 use sqlx_core::{Execute, Result, Runtime};
 
 use crate::connection::command::QueryCommand;
-use crate::protocol::{Query, QueryResponse, QueryStep, Status};
+use crate::protocol::{QueryResponse, QueryStep, Status};
 use crate::{MySql, MySqlConnection, MySqlQueryResult};
 
 macro_rules! impl_execute {

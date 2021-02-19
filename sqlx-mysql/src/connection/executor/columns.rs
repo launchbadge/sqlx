@@ -1,7 +1,6 @@
 use sqlx_core::{Result, Runtime};
 
 use crate::connection::command::QueryCommand;
-use crate::protocol::ColumnDefinition;
 use crate::stream::MySqlStream;
 use crate::MySqlColumn;
 
