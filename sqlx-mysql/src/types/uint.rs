@@ -54,12 +54,6 @@ impl Type<MySql> for u8 {
     }
 }
 
-impl TypeEncode<MySql> for u8 {
-    fn type_id(&self, _: &MySqlTypeInfo) -> MySqlTypeId {
-        <u8 as Type<MySql>>::type_id()
-    }
-}
-
 impl Encode<MySql> for u8 {
     fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
         match ty.id() {

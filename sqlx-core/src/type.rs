@@ -54,6 +54,12 @@ pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {
     }
 }
 
+impl<Db: Database, T: Type<Db> + Encode<Db>> TypeEncode<Db> for T {
+    fn type_id(&self, _ty: &Db::TypeInfo) -> Db::TypeId {
+        Self::type_id()
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub trait TypeDecode<'r, Db: Database>: Type<Db> + Decode<'r, Db> {}
 
