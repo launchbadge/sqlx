@@ -12,11 +12,6 @@ pub(crate) struct Packet {
 }
 
 impl Packet {
-    pub(crate) fn is_error(&self) -> bool {
-        // if the first byte of the payload is 0xFF and the payload is an ERR packet
-        !self.bytes.is_empty() && self.bytes[0] == 0xff
-    }
-
     #[inline]
     pub(crate) fn deserialize<'de, T>(self) -> Result<T>
     where
@@ -30,11 +25,6 @@ impl Packet {
     where
         T: Deserialize<'de, Cx> + Debug,
     {
-        if self.is_error() {
-            // if the first byte of the payload is 0xFF and the payload is an ERR packet
-            return Err(Error::connect(MySqlDatabaseError(self.deserialize()?)));
-        }
-
         let packet = T::deserialize_with(self.bytes, context)?;
 
         log::trace!("read  > {:?}", packet);

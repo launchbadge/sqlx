@@ -7,13 +7,19 @@ use crate::MySqlDatabaseError;
 
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
-pub(crate) enum ResultPacket {
-    Ok(OkPacket),
+pub(crate) enum ResultPacket<T = OkPacket>
+where
+    T: for<'de> Deserialize<'de, Capabilities>,
+{
+    Ok(T),
     Err(ErrPacket),
 }
 
-impl ResultPacket {
-    pub(crate) fn into_result(self) -> Result<OkPacket> {
+impl<T> ResultPacket<T>
+where
+    T: for<'de> Deserialize<'de, Capabilities>,
+{
+    pub(crate) fn into_result(self) -> Result<T> {
         match self {
             Self::Ok(ok) => Ok(ok),
             Self::Err(err) => Err(Error::connect(MySqlDatabaseError(err))),
@@ -21,12 +27,15 @@ impl ResultPacket {
     }
 }
 
-impl Deserialize<'_, Capabilities> for ResultPacket {
+impl<T> Deserialize<'_, Capabilities> for ResultPacket<T>
+where
+    T: for<'de> Deserialize<'de, Capabilities>,
+{
     fn deserialize_with(buf: Bytes, capabilities: Capabilities) -> Result<Self> {
         Ok(if buf[0] == 0xff {
             Self::Err(ErrPacket::deserialize(buf)?)
         } else {
-            Self::Ok(OkPacket::deserialize_with(buf, capabilities)?)
+            Self::Ok(T::deserialize_with(buf, capabilities)?)
         })
     }
 }

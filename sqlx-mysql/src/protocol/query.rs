@@ -5,8 +5,8 @@ use super::Command;
 
 /// Send the server a text-based query that is executed immediately.
 ///
-/// https://dev.mysql.com/doc/internals/en/com-query.html
-/// https://mariadb.com/kb/en/com_query/
+/// <https://dev.mysql.com/doc/internals/en/com-query.html>
+/// <https://mariadb.com/kb/en/com_query/>
 ///
 #[derive(Debug)]
 pub(crate) struct Query<'q> {
