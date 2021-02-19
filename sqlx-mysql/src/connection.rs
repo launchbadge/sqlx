@@ -13,6 +13,9 @@ use crate::{MySql, MySqlConnectOptions};
 #[macro_use]
 mod flush;
 
+#[macro_use]
+mod prepare;
+
 mod close;
 mod connect;
 mod executor;

@@ -30,11 +30,12 @@ mod options;
 mod output;
 mod protocol;
 mod query_result;
+mod raw_statement;
 mod row;
 mod type_id;
 mod type_info;
 pub mod types;
-mod value;
+mod raw_value;
 
 #[cfg(test)]
 mod mock;
@@ -49,4 +50,4 @@ pub use query_result::MySqlQueryResult;
 pub use row::MySqlRow;
 pub use type_id::MySqlTypeId;
 pub use type_info::MySqlTypeInfo;
-pub use value::{MySqlRawValue, MySqlRawValueFormat};
+pub use raw_value::{MySqlRawValue, MySqlRawValueFormat};
