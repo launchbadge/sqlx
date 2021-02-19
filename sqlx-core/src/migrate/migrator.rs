@@ -1,5 +1,5 @@
 use crate::acquire::Acquire;
-use crate::migrate::{Migrate, MigrateError, Migration, MigrationSource};
+use crate::migrate::{Migrate, MigrateError, Migration, MigrationSource, MigrationType};
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::slice;
@@ -79,6 +79,9 @@ impl Migrator {
         }
 
         for migration in self.iter() {
+            if migration.migration_type == MigrationType::ReversibleDown {
+                continue;
+            }
             if migration.version > version {
                 conn.apply(migration).await?;
             } else {
