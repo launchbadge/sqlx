@@ -4,6 +4,7 @@ use bytes::Bytes;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::mysql::connection::{tls, MySqlStream, MAX_PACKET_SIZE};
+use crate::mysql::protocol::auth::AuthPlugin;
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
@@ -108,18 +109,25 @@ impl MySqlConnection {
                 }
 
                 id => {
-                    if let (Some(plugin), Some(password)) = (plugin, &options.password) {
-                        if plugin.handle(&mut stream, packet, password, &nonce).await? {
-                            // plugin signaled authentication is ok
-                            break;
+                    match (plugin, &options.password) {
+                        (Some(plugin), Some(password)) => {
+                            if plugin.handle(&mut stream, packet, password, &nonce).await? {
+                                // plugin signaled authentication is ok
+                                break;
+                            }
+                            // plugin signaled to continue authentication
                         }
-
-                    // plugin signaled to continue authentication
-                    } else {
-                        return Err(err_protocol!(
-                            "unexpected packet 0x{:02x} during authentication",
-                            id
-                        ));
+                        (Some(AuthPlugin::Dialog), None) => {
+                            return Err(err_protocol!(
+                                "interactive dialog authentication is currently not supported"
+                            ))
+                        }
+                        _ => {
+                            return Err(err_protocol!(
+                                "unexpected packet 0x{:02x} during authentication",
+                                id
+                            ))
+                        }
                     }
                 }
             }

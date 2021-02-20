@@ -27,6 +27,9 @@ impl AuthPlugin {
 
             // https://mariadb.com/kb/en/sha256_password-plugin/
             AuthPlugin::Sha256Password => encrypt_rsa(stream, 0x01, password, nonce).await,
+
+            // https://mariadb.com/kb/en/authentication-plugin-pam/#dialog
+            AuthPlugin::Dialog => Ok(password.as_bytes().to_vec()),
         }
     }
 
