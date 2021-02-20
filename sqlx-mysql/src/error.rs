@@ -5,7 +5,7 @@ use sqlx_core::DatabaseError;
 
 use crate::protocol::ErrPacket;
 
-/// An error returned from the MySQL database server.
+/// An error returned from the MySQL database.
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug)]
 pub struct MySqlDatabaseError(pub(crate) ErrPacket);

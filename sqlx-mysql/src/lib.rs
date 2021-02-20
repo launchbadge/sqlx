@@ -20,6 +20,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
+use sqlx_core::Arguments;
+
 #[macro_use]
 mod stream;
 
@@ -35,6 +37,7 @@ mod query_result;
 mod raw_statement;
 mod raw_value;
 mod row;
+mod transaction;
 mod type_id;
 mod type_info;
 pub mod types;
@@ -53,3 +56,5 @@ pub use raw_value::{MySqlRawValue, MySqlRawValueFormat};
 pub use row::MySqlRow;
 pub use type_id::MySqlTypeId;
 pub use type_info::MySqlTypeInfo;
+
+pub type MySqlArguments<'a> = Arguments<'a, MySql>;
