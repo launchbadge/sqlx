@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.5.1 - 2020-02-04
 
  - Update sqlx-rt to 0.3.
+ - Update ahash to 0.7.
+ - Update rand to 0.8.
 
 ## 0.5.0 - 2020-02-04
 

@@ -2349,7 +2349,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "percent-encoding",
- "rand 0.7.3",
+ "rand 0.8.3",
  "regex",
  "rsa",
  "rust_decimal",
