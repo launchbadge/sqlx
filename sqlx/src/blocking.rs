@@ -2,6 +2,8 @@
 //! for **blocking** operations.
 //!
 
+mod query;
+mod query_as;
 mod runtime;
 mod stream;
 
@@ -10,4 +12,6 @@ mod stream;
 // for [DbConnection<Blocking>] **and** [DbConnection<Rt> where Rt: Async]
 
 pub use runtime::Blocking;
-pub use sqlx_core::blocking::{Acquire, Close, Connect, ConnectOptions, Connection, Runtime};
+pub use sqlx_core::blocking::{
+    Acquire, Close, Connect, ConnectOptions, Connection, Executor, Runtime,
+};

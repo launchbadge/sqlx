@@ -6,7 +6,7 @@ use sqlx_core::{Execute, Executor, FromRow, TypeEncode};
 use crate::{query, Arguments, Database, DefaultRuntime, Query, Runtime};
 
 pub struct QueryAs<'q, 'a, O, Db: Database, Rt: Runtime = DefaultRuntime> {
-    inner: Query<'q, 'a, Db, Rt>,
+    pub(crate) inner: Query<'q, 'a, Db, Rt>,
     output: PhantomData<O>,
 }
 

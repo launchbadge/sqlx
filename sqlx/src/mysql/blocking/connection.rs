@@ -1,7 +1,7 @@
-use crate::blocking::{Close, Connect, Connection, Runtime};
+use crate::blocking::{Close, Connect, Connection, Executor, Runtime};
 use crate::mysql::connection::MySqlConnection;
-use crate::mysql::MySqlConnectOptions;
-use crate::{Blocking, Result};
+use crate::mysql::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
+use crate::{Blocking, Execute, Result};
 
 impl MySqlConnection<Blocking> {
     /// Open a new database connection.
@@ -67,5 +67,40 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     #[inline]
     fn ping(&mut self) -> Result<()> {
         self.0.ping()
+    }
+}
+
+impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
+    #[inline]
+    fn execute<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<MySqlQueryResult>
+    where
+        E: 'x + Execute<'q, 'a, MySql>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        self.0.execute(query)
+    }
+
+    #[inline]
+    fn fetch_all<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Vec<MySqlRow>>
+    where
+        E: 'x + Execute<'q, 'a, MySql>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        self.0.fetch_all(query)
+    }
+
+    #[inline]
+    fn fetch_optional<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Option<MySqlRow>>
+    where
+        E: 'x + Execute<'q, 'a, MySql>,
+        'e: 'x,
+        'q: 'x,
+        'a: 'x,
+    {
+        self.0.fetch_optional(query)
     }
 }
