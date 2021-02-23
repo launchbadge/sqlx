@@ -70,7 +70,7 @@ pub use isolation_level::IsolationLevel;
 pub use options::ConnectOptions;
 pub use query_result::QueryResult;
 pub use r#type::{Type, TypeDecode, TypeEncode};
-pub use row::Row;
+pub use row::{ColumnIndex, Row};
 #[cfg(feature = "actix")]
 pub use runtime::Actix;
 #[cfg(feature = "async")]
