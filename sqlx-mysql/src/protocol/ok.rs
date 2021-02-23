@@ -46,13 +46,12 @@ impl Deserialize<'_, Capabilities> for OkPacket {
             ByteString::default()
         } else {
             // human readable status information
-            #[allow(unsafe_code)]
             if capabilities.contains(Capabilities::SESSION_TRACK) {
                 // if [CLIENT_SESSION_TRACK] the info comes down as string<lenenc>
-                unsafe { buf.get_str_lenenc_unchecked() }
+                buf.get_str_lenenc()?
             } else {
                 // otherwise the ASCII info is sent as string<EOF>
-                unsafe { buf.get_str_eof_unchecked() }
+                buf.get_str_eof()?
             }
         };
 

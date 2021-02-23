@@ -1,3 +1,5 @@
+use std::io;
+
 use bytes::{Buf, Bytes};
 use bytestring::ByteString;
 use sqlx_core::io::BufExt;
@@ -9,11 +11,9 @@ use sqlx_core::io::BufExt;
 pub(crate) trait MySqlBufExt: BufExt {
     fn get_uint_lenenc(&mut self) -> u64;
 
-    #[allow(unsafe_code)]
-    unsafe fn get_str_lenenc_unchecked(&mut self) -> ByteString;
+    fn get_str_lenenc(&mut self) -> io::Result<ByteString>;
 
-    #[allow(unsafe_code)]
-    unsafe fn get_str_eof_unchecked(&mut self) -> ByteString;
+    fn get_str_eof(&mut self) -> io::Result<ByteString>;
 
     fn get_bytes_lenenc(&mut self) -> Bytes;
 }
@@ -37,17 +37,14 @@ impl MySqlBufExt for Bytes {
         }
     }
 
-    #[allow(unsafe_code)]
-    unsafe fn get_str_lenenc_unchecked(&mut self) -> ByteString {
-        #[allow(clippy::cast_possible_truncation)]
+    fn get_str_lenenc(&mut self) -> io::Result<ByteString> {
         let len = self.get_uint_lenenc() as usize;
 
-        self.get_str_unchecked(len)
+        self.get_str(len)
     }
 
-    #[allow(unsafe_code)]
-    unsafe fn get_str_eof_unchecked(&mut self) -> ByteString {
-        self.get_str_unchecked(self.len())
+    fn get_str_eof(&mut self) -> io::Result<ByteString> {
+        self.get_str(self.len())
     }
 
     fn get_bytes_lenenc(&mut self) -> Bytes {

@@ -18,9 +18,7 @@ impl Deserialize<'_> for AuthSwitch {
         let tag = buf.get_u8();
         debug_assert_eq!(tag, 0xfe);
 
-        // SAFE: auth plugins are ASCII only
-        #[allow(unsafe_code)]
-        let name = unsafe { buf.get_str_nul_unchecked()? };
+        let name = buf.get_str_nul()?;
 
         if buf.ends_with(&[0]) {
             // if this terminates in a NUL; drop the NUL

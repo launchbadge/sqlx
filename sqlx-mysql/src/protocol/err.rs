@@ -37,16 +37,12 @@ impl Deserialize<'_> for ErrPacket {
             // if the next byte is '#' then we have the SQL STATE
             buf.advance(1);
 
-            // UNSAFE: the SQL STATE is an ASCII error code
-            #[allow(unsafe_code)]
-            Some(unsafe { buf.get_str_unchecked(5) })
+            Some(buf.get_str(5)?)
         } else {
             None
         };
 
-        // UNSAFE: the human-readable error message is UTF-8
-        #[allow(unsafe_code)]
-        let error_message = unsafe { buf.get_str_eof_unchecked() };
+        let error_message = buf.get_str_eof()?;
 
         Ok(Self { sql_state, error_code, error_message })
     }

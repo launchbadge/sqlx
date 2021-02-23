@@ -34,11 +34,7 @@ pub(crate) struct Handshake {
 impl Deserialize<'_> for Handshake {
     fn deserialize_with(mut buf: Bytes, _: ()) -> Result<Self> {
         let protocol_version = buf.get_u8();
-
-        // UNSAFE: server version is known to be ASCII
-        #[allow(unsafe_code)]
-        let server_version = unsafe { buf.get_str_nul_unchecked()? };
-
+        let server_version = buf.get_str_nul()?;
         let connection_id = buf.get_u32_le();
 
         // first 8 bytes of the auth-plugin data
@@ -103,12 +99,7 @@ impl Deserialize<'_> for Handshake {
 
                 let auth_plugin_name_end = memchr(b'\0', &buf).unwrap_or_else(|| buf.len());
 
-                // UNSAFE: auth plugin names are known to be ASCII
-                #[allow(unsafe_code)]
-                let auth_plugin_name_ =
-                    unsafe { Some(buf.get_str_unchecked(auth_plugin_name_end)) };
-
-                auth_plugin_name = auth_plugin_name_;
+                auth_plugin_name = Some(buf.get_str(auth_plugin_name_end)?);
             }
         }
 

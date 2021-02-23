@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::io;
 
 use bytes::{Buf, Bytes};
@@ -6,28 +7,22 @@ use memchr::memchr;
 
 #[allow(clippy::module_name_repetitions)]
 pub trait BufExt: Buf {
-    /// # Safety
-    /// This function is unsafe because it does not check the bytes that are read are valid UTF-8.
-    #[allow(unsafe_code)]
-    unsafe fn get_str_unchecked(&mut self, n: usize) -> ByteString;
+    fn get_str(&mut self, n: usize) -> io::Result<ByteString>;
 
-    /// # Safety
-    /// This function is unsafe because it does not check the bytes that are read are valid UTF-8.
-    #[allow(unsafe_code)]
-    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<ByteString>;
+    fn get_str_nul(&mut self) -> io::Result<ByteString>;
 }
 
 impl BufExt for Bytes {
-    #[allow(unsafe_code)]
-    unsafe fn get_str_unchecked(&mut self, n: usize) -> ByteString {
-        ByteString::from_bytes_unchecked(self.split_to(n))
+    fn get_str(&mut self, n: usize) -> io::Result<ByteString> {
+        ByteString::try_from(self.split_to(n))
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 
-    #[allow(unsafe_code)]
-    unsafe fn get_str_nul_unchecked(&mut self) -> io::Result<ByteString> {
+    fn get_str_nul(&mut self) -> io::Result<ByteString> {
         let nul = memchr(b'\0', self).ok_or(io::ErrorKind::InvalidData)?;
 
-        Ok(ByteString::from_bytes_unchecked(self.split_to(nul + 1).slice(..nul)))
+        ByteString::try_from(self.split_to(nul + 1).slice(..nul))
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 }
 
@@ -40,32 +35,30 @@ mod tests {
     use super::BufExt;
 
     #[test]
-    fn test_get_str() {
+    fn test_get_str() -> io::Result<()> {
         let mut buf = Bytes::from_static(b"Hello World\0");
 
-        #[allow(unsafe_code)]
-        let s = unsafe { buf.get_str_unchecked(5) };
+        let s = buf.get_str(5)?;
 
         buf.advance(1);
 
-        #[allow(unsafe_code)]
-        let s2 = unsafe { buf.get_str_unchecked(5) };
+        let s2 = buf.get_str(5)?;
 
         assert_eq!(&s, "Hello");
         assert_eq!(&s2, "World");
+
+        Ok(())
     }
 
     #[test]
     fn test_get_str_nul() -> io::Result<()> {
         let mut buf = Bytes::from_static(b"Hello\0 World\0");
 
-        #[allow(unsafe_code)]
-        let s = unsafe { buf.get_str_nul_unchecked()? };
+        let s = buf.get_str_nul()?;
 
         buf.advance(1);
 
-        #[allow(unsafe_code)]
-        let s2 = unsafe { buf.get_str_nul_unchecked()? };
+        let s2 = buf.get_str_nul()?;
 
         assert_eq!(&s, "Hello");
         assert_eq!(&s2, "World");

@@ -26,21 +26,17 @@ pub(crate) struct ColumnDefinition {
 }
 
 impl Deserialize<'_> for ColumnDefinition {
-    #[allow(unsafe_code)]
     fn deserialize_with(mut buf: Bytes, _: ()) -> Result<Self> {
-        // UNSAFE: fields are known to be UTF-8 as we have connected with the
-        //         UTF-8 connection charset
-
-        let catalog = unsafe { buf.get_str_lenenc_unchecked() };
+        let catalog = buf.get_str_lenenc()?;
 
         // we are told that this always "def"
         debug_assert_eq!(catalog, "def");
 
-        let schema = unsafe { buf.get_str_lenenc_unchecked() };
-        let table_alias = unsafe { buf.get_str_lenenc_unchecked() };
-        let table = unsafe { buf.get_str_lenenc_unchecked() };
-        let alias = unsafe { buf.get_str_lenenc_unchecked() };
-        let name = unsafe { buf.get_str_lenenc_unchecked() };
+        let schema = buf.get_str_lenenc()?;
+        let table_alias = buf.get_str_lenenc()?;
+        let table = buf.get_str_lenenc()?;
+        let alias = buf.get_str_lenenc()?;
+        let name = buf.get_str_lenenc()?;
 
         let fixed_len_fields_len = buf.get_uint_lenenc();
 
