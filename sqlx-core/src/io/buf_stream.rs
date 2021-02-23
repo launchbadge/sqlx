@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::cmp;
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Bytes, BytesMut};
@@ -77,7 +78,7 @@ macro_rules! read {
         // while our read buffer is too small to satisfy the requested amount
         while $self.rbuf.len() < ($offset + $n) {
             // ensure that there is room in the read buffer
-            $self.rbuf.reserve($n.max(128));
+            $self.rbuf.reserve(cmp::max($n, 128));
 
             #[allow(unsafe_code)]
             unsafe {
