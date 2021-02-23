@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 use super::{Capabilities, ErrPacket, OkPacket};
 use crate::MySqlDatabaseError;
@@ -22,7 +22,7 @@ where
     pub(crate) fn into_result(self) -> Result<T> {
         match self {
             Self::Ok(ok) => Ok(ok),
-            Self::Err(err) => Err(Error::connect(MySqlDatabaseError(err))),
+            Self::Err(err) => Err(MySqlDatabaseError(err).into()),
         }
     }
 }

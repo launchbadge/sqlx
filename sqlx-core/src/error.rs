@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
+use either::Either;
+
 use crate::decode::Error as DecodeError;
 use crate::encode::Error as EncodeError;
 
@@ -9,59 +11,83 @@ mod database;
 
 pub use database::DatabaseError;
 
-/// `Result` type returned from methods that can have SQLx errors.
+/// Specialized `Result` type returned from fallible methods within SQLx.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Error type returned for all methods in SQLX.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    Configuration {
-        message: Cow<'static, str>,
-        source: Option<Box<dyn StdError + Send + Sync>>,
-    },
+    /// The database URL is malformed or contains invalid or unsupported
+    /// values for one or more options; a value of [`ConnectOptions`] failed
+    /// to be parsed.
+    ConnectOptions { message: Cow<'static, str>, source: Option<Box<dyn StdError + Send + Sync>> },
 
-    Connect(Box<dyn DatabaseError>),
+    /// The database returned an error.
+    Database(Box<dyn DatabaseError>),
 
+    /// An IO error returned while reading or writing a socket attached
+    /// to the database server.
+    ///
+    /// Only applicable if the database driver connects to a remote database
+    /// server.
+    ///
     Network(std::io::Error),
 
-    /// Returned by `fetch_one` when no row was returned from the query.
+    /// No rows returned by a query required to return at least one row.
     ///
-    /// Use `fetch_optional` to return `None` instead of signaling an error.
+    /// Returned by `fetch_one` when no rows were returned from
+    /// the query. Use `fetch_optional` to return `None` instead
+    /// of signaling an error.
     ///
     RowNotFound,
 
+    /// An attempt to act on a closed connection or pool.
+    ///
+    /// A connection will close itself on an unrecoverable error in the
+    /// connection (implementation bugs, faulty network, etc.). If the error
+    /// was ignored and the connection is used again, it will
+    /// return `Error::Closed`.
+    ///
+    /// A pool will return `Error::Closed` from `Pool::acquire` if `Pool::close`
+    /// was called before `acquire` received a connection.
+    ///
     Closed,
 
+    /// An error occurred decoding a SQL value from the database.
     Decode(DecodeError),
 
+    /// An error occurred encoding a value to be sent to the database.
     Encode(EncodeError),
 
-    ColumnIndexOutOfBounds {
-        index: usize,
-        len: usize,
-    },
+    /// An attempt to access a column by index past the end of the row.
+    ColumnIndexOutOfBounds { index: usize, len: usize },
+
+    /// An attempt to access a column by name where no such column is
+    /// present in the row.
+    ColumnNotFound { name: Box<str> },
+
+    /// An error occurred decoding a SQL value of a specific column
+    /// from the database.
+    ColumnDecode { column_index: usize, column_name: Box<str>, source: DecodeError },
+
+    /// An error occurred encoding a value for a specific parameter to
+    /// be sent to the database.
+    ParameterEncode { parameter: Either<usize, Box<str>>, source: EncodeError },
 }
 
 impl Error {
     #[doc(hidden)]
-    pub fn connect<E>(error: E) -> Self
-    where
-        E: DatabaseError,
-    {
-        Self::Connect(Box::new(error))
-    }
-
-    #[doc(hidden)]
-    pub fn configuration(
+    pub fn opt(
         message: impl Into<Cow<'static, str>>,
         source: impl Into<Box<dyn StdError + Send + Sync>>,
     ) -> Self {
-        Self::Configuration { message: message.into(), source: Some(source.into()) }
+        Self::ConnectOptions { message: message.into(), source: Some(source.into()) }
     }
 
     #[doc(hidden)]
-    pub fn configuration_msg(message: impl Into<Cow<'static, str>>) -> Self {
-        Self::Configuration { message: message.into(), source: None }
+    pub fn opt_msg(message: impl Into<Cow<'static, str>>) -> Self {
+        Self::ConnectOptions { message: message.into(), source: None }
     }
 }
 
@@ -70,13 +96,13 @@ impl Display for Error {
         match self {
             Self::Network(source) => write!(f, "{}", source),
 
-            Self::Connect(source) => write!(f, "{}", source),
+            Self::Database(source) => write!(f, "{}", source),
 
-            Self::Configuration { message, source: None } => {
+            Self::ConnectOptions { message, source: None } => {
                 write!(f, "{}", message)
             }
 
-            Self::Configuration { message, source: Some(source) } => {
+            Self::ConnectOptions { message, source: Some(source) } => {
                 write!(f, "{}: {}", message, source)
             }
 
@@ -84,14 +110,14 @@ impl Display for Error {
                 f.write_str("no row returned by a query required to return at least one row")
             }
 
-            Self::Closed => f.write_str("connection or pool was closed"),
+            Self::Closed => f.write_str("connection or pool is closed"),
 
             Self::Decode(error) => {
-                write!(f, "{}", error)
+                write!(f, "decode: {}", error)
             }
 
             Self::Encode(error) => {
-                write!(f, "{}", error)
+                write!(f, "encode: {}", error)
             }
 
             Self::ColumnIndexOutOfBounds { index, len } => {
@@ -101,6 +127,22 @@ impl Display for Error {
                     len, index
                 )
             }
+
+            Self::ColumnNotFound { name } => {
+                write!(f, "no column found for name `{}`", name)
+            }
+
+            Self::ColumnDecode { column_index, column_name, source } => {
+                write!(f, "decode column {} `{}`: {}", column_index, column_name, source)
+            }
+
+            Self::ParameterEncode { parameter: Either::Left(index), source } => {
+                write!(f, "encode parameter {}: {}", index, source)
+            }
+
+            Self::ParameterEncode { parameter: Either::Right(name), source } => {
+                write!(f, "encode parameter `{}`: {}", name, source)
+            }
         }
     }
 }
@@ -108,11 +150,17 @@ impl Display for Error {
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::Configuration { source: Some(source), .. } => Some(&**source),
+            Self::ConnectOptions { source: Some(source), .. } => Some(&**source),
             Self::Network(source) => Some(source),
 
             _ => None,
         }
+    }
+}
+
+impl<E: DatabaseError> From<E> for Error {
+    fn from(error: E) -> Self {
+        Self::Database(Box::new(error))
     }
 }
 

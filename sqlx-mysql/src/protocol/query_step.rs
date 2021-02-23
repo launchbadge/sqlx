@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 use super::{Capabilities, ResultPacket};
 use crate::protocol::Packet;
@@ -30,9 +30,10 @@ impl Deserialize<'_, Capabilities> for QueryStep {
             // If its non-0, then its a Row
             Some(_) => Ok(Self::Row(Packet { bytes: buf })),
 
-            None => Err(Error::connect(MySqlDatabaseError::malformed_packet(
+            None => Err(MySqlDatabaseError::malformed_packet(
                 "Received no bytes for the next step in a result set",
-            ))),
+            )
+            .into()),
         }
     }
 }

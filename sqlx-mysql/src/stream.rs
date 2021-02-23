@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use bytes::{Buf, BufMut};
 use sqlx_core::io::{BufStream, Serialize, Stream};
 use sqlx_core::net::Stream as NetStream;
-use sqlx_core::{Error, Result, Runtime};
+use sqlx_core::{Result, Runtime};
 
 use crate::protocol::{MaybeCommand, Packet, Quit};
 use crate::MySqlDatabaseError;
@@ -101,11 +101,12 @@ impl<Rt: Runtime> MySqlStream<Rt> {
         if packet.bytes.len() != len {
             // BUG: something is very wrong somewhere if this branch is executed
             //      either in the SQLx MySQL driver or in the MySQL server
-            return Err(Error::connect(MySqlDatabaseError::malformed_packet(&format!(
+            return Err(MySqlDatabaseError::malformed_packet(&format!(
                 "Received {} bytes for packet but expecting {} bytes",
                 packet.bytes.len(),
                 len
-            ))));
+            ))
+            .into());
         }
 
         Ok(packet)

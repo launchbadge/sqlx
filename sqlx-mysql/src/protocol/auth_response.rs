@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 use crate::protocol::{AuthSwitch, Capabilities, ResultPacket};
 use crate::MySqlDatabaseError;
@@ -21,14 +21,14 @@ impl Deserialize<'_, Capabilities> for AuthResponse {
             Some(0x01) => Ok(Self::MoreData(buf.slice(1..))),
             Some(0xfe) => AuthSwitch::deserialize(buf).map(Self::Switch),
 
-            Some(tag) => Err(Error::connect(MySqlDatabaseError::malformed_packet(&format!(
+            Some(tag) => Err(MySqlDatabaseError::malformed_packet(&format!(
                 "Received 0x{:x} but expected one of: 0x0 (OK), 0x1 (MORE DATA), or 0xfe (SWITCH) for auth response",
                 tag
-            )))),
+            )).into()),
 
-            None => Err(Error::connect(MySqlDatabaseError::malformed_packet(
+            None => Err(MySqlDatabaseError::malformed_packet(
                 "Received no bytes for auth response",
-            ))),
+            ).into()),
         }
     }
 }

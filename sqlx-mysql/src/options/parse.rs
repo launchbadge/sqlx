@@ -11,11 +11,10 @@ impl FromStr for MySqlConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url: Url =
-            s.parse().map_err(|error| Error::configuration("for database URL", error))?;
+        let url: Url = s.parse().map_err(|error| Error::opt("for database URL", error))?;
 
         if !matches!(url.scheme(), "mysql") {
-            return Err(Error::configuration_msg(format!(
+            return Err(Error::opt_msg(format!(
                 "unsupported URL scheme {:?} for MySQL",
                 url.scheme()
             )));

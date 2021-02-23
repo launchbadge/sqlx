@@ -3,6 +3,7 @@
 ///
 /// See <https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels>.
 ///
+#[derive(Debug)]
 pub enum IsolationLevel {
     /// The lowest isolation level. Dirty reads are allowed, so one transaction
     /// may see **not yet committed** changes made by other transactions.

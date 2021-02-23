@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 use super::{Capabilities, ResultPacket};
 use crate::io::MySqlBufExt;
@@ -46,9 +46,10 @@ impl Deserialize<'_, Capabilities> for QueryResponse {
                 Ok(Self::ResultSet { columns: columns as u16 })
             }
 
-            None => Err(Error::connect(MySqlDatabaseError::malformed_packet(
+            None => Err(MySqlDatabaseError::malformed_packet(
                 "Received no bytes for COM_QUERY response",
-            ))),
+            )
+            .into()),
         }
     }
 }

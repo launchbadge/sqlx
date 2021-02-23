@@ -40,10 +40,11 @@ impl dyn AuthPlugin {
             _ if s == Sha256AuthPlugin.name() => Ok(Box::new(Sha256AuthPlugin)),
             _ if s == NativeAuthPlugin.name() => Ok(Box::new(NativeAuthPlugin)),
 
-            _ => Err(Error::connect(MySqlDatabaseError::new(
+            _ => Err(MySqlDatabaseError::new(
                 2059,
                 &format!("Authentication plugin '{}' cannot be loaded", s),
-            ))),
+            )
+            .into()),
         }
     }
 }
@@ -59,10 +60,10 @@ fn xor_eq(x: &mut [u8], y: &[u8]) {
 }
 
 fn err_msg(plugin: &'static str, message: &str) -> Error {
-    Error::connect(MySqlDatabaseError::new(
+    MySqlDatabaseError::new(
         2061,
         &format!("Authentication plugin '{}' reported error: {}", plugin, message),
-    ))
+    ).into()
 }
 
 fn err<E>(plugin: &'static str, error: &E) -> Error
