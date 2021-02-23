@@ -8,7 +8,7 @@ pub trait Column {
     fn name(&self) -> &str;
 
     /// Returns the (zero-based) position of the column.
-    fn ordinal(&self) -> usize;
+    fn index(&self) -> usize;
 
     /// Returns type information of the column.
     fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;

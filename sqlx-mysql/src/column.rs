@@ -8,15 +8,15 @@ use crate::{MySql, MySqlTypeInfo};
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
 pub struct MySqlColumn {
-    ordinal: usize,
+    index: usize,
     name: ByteString,
     type_info: MySqlTypeInfo,
     flags: ColumnFlags,
 }
 
 impl MySqlColumn {
-    pub(crate) fn new(ordinal: usize, def: ColumnDefinition) -> Self {
-        Self { type_info: MySqlTypeInfo::new(&def), ordinal, name: def.name, flags: def.flags }
+    pub(crate) fn new(index: usize, def: ColumnDefinition) -> Self {
+        Self { type_info: MySqlTypeInfo::new(&def), index, name: def.name, flags: def.flags }
     }
 }
 
@@ -36,8 +36,8 @@ impl MySqlColumn {
     }
 
     /// Returns the (zero-based) position of the column.
-    pub const fn ordinal(&self) -> usize {
-        self.ordinal
+    pub const fn index(&self) -> usize {
+        self.index
     }
 
     /// Returns `true` if the column is (or is part of) a `PRIMARY KEY`.
@@ -69,8 +69,8 @@ impl Column for MySqlColumn {
     }
 
     #[inline]
-    fn ordinal(&self) -> usize {
-        self.ordinal()
+    fn index(&self) -> usize {
+        self.index()
     }
 
     #[inline]

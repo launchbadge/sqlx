@@ -16,7 +16,7 @@ macro_rules! impl_recv_columns {
             Vec::new()
         };
 
-        for (ordinal, rem) in (1..=$num_columns).rev().enumerate() {
+        for (index, rem) in (1..=$num_columns).rev().enumerate() {
             // STATE: remember that we are expecting #rem more columns
             *$cmd = QueryCommand::ColumnDefinition { rem };
 
@@ -26,7 +26,7 @@ macro_rules! impl_recv_columns {
             let packet = read_packet!($(@$blocking)? $stream);
 
             if $store {
-                columns.push(MySqlColumn::new(ordinal, packet.deserialize()?));
+                columns.push(MySqlColumn::new(index, packet.deserialize()?));
             }
         }
 

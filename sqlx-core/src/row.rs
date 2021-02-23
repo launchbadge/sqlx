@@ -19,17 +19,17 @@ pub trait Row: 'static + Send + Sync {
     /// Returns a reference to the columns in the row.
     fn columns(&self) -> &[<Self::Database as Database>::Column];
 
-    /// Returns the column name, given the ordinal (also known as index) of the column.
-    fn column_name_of(&self, ordinal: usize) -> &str;
+    /// Returns the column name, given the index of the column.
+    fn column_name_of(&self, index: usize) -> &str;
 
-    /// Returns the column name, given the ordinal (also known as index) of the column.
-    fn try_column_name_of(&self, ordinal: usize) -> crate::Result<&str>;
+    /// Returns the column name, given the index of the column.
+    fn try_column_name_of(&self, index: usize) -> crate::Result<&str>;
 
-    /// Returns the column ordinal, given the name of the column.
-    fn ordinal_of(&self, name: &str) -> usize;
+    /// Returns the column index, given the name of the column.
+    fn index_of(&self, name: &str) -> usize;
 
-    /// Returns the column ordinal, given the name of the column.
-    fn try_ordinal_of(&self, name: &str) -> crate::Result<usize>;
+    /// Returns the column index, given the name of the column.
+    fn try_index_of(&self, name: &str) -> crate::Result<usize>;
 
     /// Returns the decoded value at the index.
     fn try_get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
@@ -47,12 +47,12 @@ pub trait Row: 'static + Send + Sync {
 
 /// A helper trait used for indexing into a [`Row`].
 pub trait ColumnIndex<R: Row + ?Sized> {
-    /// Returns the ordinal of the column at this index, if present.
+    /// Returns the index of the column at this index, if present.
     #[allow(clippy::needless_lifetimes)]
     fn get<'r>(&self, row: &'r R) -> crate::Result<usize>;
 }
 
-// access an ordinal by index
+// access by index
 impl<R: Row> ColumnIndex<R> for usize {
     #[allow(clippy::needless_lifetimes)]
     fn get<'r>(&self, _row: &'r R) -> crate::Result<usize> {
@@ -62,11 +62,11 @@ impl<R: Row> ColumnIndex<R> for usize {
     }
 }
 
-// access an ordinal by name
+// access by name
 impl<R: Row> ColumnIndex<R> for &'_ str {
     #[allow(clippy::needless_lifetimes)]
     fn get<'r>(&self, row: &'r R) -> crate::Result<usize> {
-        row.try_ordinal_of(self)
+        row.try_index_of(self)
     }
 }
 

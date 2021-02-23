@@ -41,28 +41,28 @@ impl MySqlRow {
         &self.columns
     }
 
-    /// Returns the column name, given the ordinal (also known as index) of the column.
+    /// Returns the column name, given the index of the column.
     #[must_use]
-    pub fn column_name_of(&self, ordinal: usize) -> &str {
-        self.try_column_name_of(ordinal).unwrap()
+    pub fn column_name_of(&self, index: usize) -> &str {
+        self.try_column_name_of(index).unwrap()
     }
 
-    /// Returns the column name, given the ordinal (also known as index) of the column.
-    pub fn try_column_name_of(&self, ordinal: usize) -> Result<&str> {
+    /// Returns the column name, given the index of the column.
+    pub fn try_column_name_of(&self, index: usize) -> Result<&str> {
         self.columns
-            .get(ordinal)
+            .get(index)
             .map(MySqlColumn::name)
-            .ok_or_else(|| Error::ColumnIndexOutOfBounds { index: ordinal, len: self.len() })
+            .ok_or_else(|| Error::ColumnIndexOutOfBounds { index, len: self.len() })
     }
 
-    /// Returns the column ordinal, given the name of the column.
+    /// Returns the column index, given the name of the column.
     #[must_use]
-    pub fn ordinal_of(&self, name: &str) -> usize {
-        self.try_ordinal_of(name).unwrap()
+    pub fn index_of(&self, name: &str) -> usize {
+        self.try_index_of(name).unwrap()
     }
 
-    /// Returns the column ordinal, given the name of the column.
-    pub fn try_ordinal_of(&self, name: &str) -> Result<usize> {
+    /// Returns the column index, given the name of the column.
+    pub fn try_index_of(&self, name: &str) -> Result<usize> {
         self.columns
             .iter()
             .position(|col| col.name() == name)
@@ -84,14 +84,14 @@ impl MySqlRow {
     where
         I: ColumnIndex<Self>,
     {
-        let ordinal = index.get(self)?;
+        let index = index.get(self)?;
 
         let value = self
             .values
-            .get(ordinal)
-            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index: ordinal })?;
+            .get(index)
+            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
 
-        let column = &self.columns[ordinal];
+        let column = &self.columns[index];
 
         Ok(MySqlRawValue::new(value, self.format, column.type_info()))
     }
@@ -112,20 +112,20 @@ impl Row for MySqlRow {
         self.columns()
     }
 
-    fn column_name_of(&self, ordinal: usize) -> &str {
-        self.column_name_of(ordinal)
+    fn column_name_of(&self, index: usize) -> &str {
+        self.column_name_of(index)
     }
 
-    fn try_column_name_of(&self, ordinal: usize) -> Result<&str> {
-        self.try_column_name_of(ordinal)
+    fn try_column_name_of(&self, index: usize) -> Result<&str> {
+        self.try_column_name_of(index)
     }
 
-    fn ordinal_of(&self, name: &str) -> usize {
-        self.ordinal_of(name)
+    fn index_of(&self, name: &str) -> usize {
+        self.index_of(name)
     }
 
-    fn try_ordinal_of(&self, name: &str) -> Result<usize> {
-        self.try_ordinal_of(name)
+    fn try_index_of(&self, name: &str) -> Result<usize> {
+        self.try_index_of(name)
     }
 
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T>

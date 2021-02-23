@@ -36,13 +36,13 @@ macro_rules! impl_raw_prepare {
 
         // TODO: handle EOF for old MySQL
 
-        for (ordinal, rem) in (1..=ok.columns).rev().enumerate() {
+        for (index, rem) in (1..=ok.columns).rev().enumerate() {
             // STATE: remember that we are expecting #rem more columns
             *cmd = PrepareCommand::ColumnDefinition { rem };
 
             let def = read_packet!($(@$blocking)? stream).deserialize()?;
 
-            stmt.columns_mut().push(MySqlColumn::new(ordinal, def));
+            stmt.columns_mut().push(MySqlColumn::new(index, def));
         }
 
         // TODO: handle EOF for old MySQL
