@@ -67,9 +67,9 @@ impl MySqlTypeInfo {
             // note: VARBINARY, BINARY, and BLOB have the same type IDs as
             //       VARCHAR, CHAR, and TEXT; the only difference is the
             //       presence of a binary collation
-            MySqlTypeId::VARBINARY if self.has_binary_collation() => "VARBINARY",
-            MySqlTypeId::BINARY if self.has_binary_collation() => "BINARY",
-            MySqlTypeId::BLOB if self.has_binary_collation() => "BLOB",
+            MySqlTypeId::VARCHAR if self.has_binary_collation() => "VARBINARY",
+            MySqlTypeId::CHAR if self.has_binary_collation() => "BINARY",
+            MySqlTypeId::TEXT if self.has_binary_collation() => "BLOB",
 
             MySqlTypeId::VARCHAR => "VARCHAR",
             MySqlTypeId::CHAR => "CHAR",

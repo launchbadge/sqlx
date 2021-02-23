@@ -7,11 +7,11 @@ use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId};
 
 impl Type<MySql> for &'_ [u8] {
     fn type_id() -> MySqlTypeId {
-        MySqlTypeId::BLOB
+        MySqlTypeId::TEXT
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.id(), MySqlTypeId::BLOB | MySqlTypeId::BINARY | MySqlTypeId::VARBINARY)
+        matches!(ty.id(), MySqlTypeId::TEXT | MySqlTypeId::CHAR | MySqlTypeId::VARCHAR)
     }
 }
 

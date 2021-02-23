@@ -176,33 +176,24 @@ impl MySqlTypeId {
     ///
     pub const NULL: Self = Self(6, 0);
 
-    /// A fixed-length string that is always right-padded with spaces
-    /// to the specified length when stored.
-    ///
-    pub const CHAR: Self = Self(254, 0);
-
-    /// A fixed-length binary string that is always right-padded with zeroes
-    /// to the specified length when stored.
+    /// A fixed-length string that is always right-padded with spaces or
+    /// zeroes (for binary collations) to the specified length when stored.
     ///
     /// The type identifier for `BINARY` is the same as `CHAR`. At the type
     /// level, they are identical. At the column, the presence of a binary (`_bin`)
     /// collation determines if the type stores binary data.
     ///
-    pub const BINARY: Self = Self(254, 0);
+    #[doc(alias = "BINARY")]
+    pub const CHAR: Self = Self(254, 0);
 
     /// A variable-length string.
-    pub const VARCHAR: Self = Self(253, 0);
-
-    /// A variable-length binary string.
     ///
     /// The type identifier for `VARBINARY` is the same as `VARCHAR`. At the type
     /// level, they are identical. At the column, the presence of a binary (`_bin`)
     /// collation determines if the type stores binary data.
     ///
-    pub const VARBINARY: Self = Self(253, 0);
-
-    /// A variable-length string that is assumed to be stored by reference.
-    pub const TEXT: Self = Self(252, 0);
+    #[doc(alias = "VARBINARY")]
+    pub const VARCHAR: Self = Self(253, 0);
 
     /// A variable-length string that is assumed to be stored by reference.
     ///
@@ -210,5 +201,6 @@ impl MySqlTypeId {
     /// level, they are identical. At the column, the presence of a binary (`_bin`)
     /// collation determines if the type stores binary data.
     ///
-    pub const BLOB: Self = Self(252, 0);
+    #[doc(alias = "BLOB")]
+    pub const TEXT: Self = Self(252, 0);
 }
