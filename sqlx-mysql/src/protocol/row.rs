@@ -69,13 +69,17 @@ impl<'de> Deserialize<'de, (MySqlRawValueFormat, &'de [MySqlColumn])> for Row {
                     | MySqlTypeId::INT
                     | MySqlTypeId::INT_UNSIGNED => 4,
 
+                    MySqlTypeId::TEXT | MySqlTypeId::CHAR | MySqlTypeId::VARCHAR => {
+                        buf.get_uint_lenenc()
+                    }
+
                     id => {
                         // TODO: return a protocol error instead
                         unimplemented!("unsupported column type: {}", id.ty());
                     }
                 };
 
-                values.push(Some(buf.split_to(size)));
+                values.push(Some(buf.split_to(size as usize)));
             }
         }
 
