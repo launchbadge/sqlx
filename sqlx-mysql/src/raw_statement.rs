@@ -1,11 +1,11 @@
 use crate::protocol::PrepareOk;
 use crate::{MySqlColumn, MySqlTypeInfo};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct RawStatement {
     id: u32,
-    pub(crate) columns: Vec<MySqlColumn>,
-    pub(crate) parameters: Vec<MySqlTypeInfo>,
+    columns: Vec<MySqlColumn>,
+    parameters: Vec<MySqlTypeInfo>,
 }
 
 impl RawStatement {
@@ -17,7 +17,23 @@ impl RawStatement {
         }
     }
 
-    pub(crate) fn id(&self) -> u32 {
+    pub(crate) const fn id(&self) -> u32 {
         self.id
+    }
+
+    pub(crate) fn columns(&self) -> &[MySqlColumn] {
+        &self.columns
+    }
+
+    pub(crate) fn columns_mut(&mut self) -> &mut Vec<MySqlColumn> {
+        &mut self.columns
+    }
+
+    pub(crate) fn parameters(&self) -> &[MySqlTypeInfo] {
+        &self.parameters
+    }
+
+    pub(crate) fn parameters_mut(&mut self) -> &mut Vec<MySqlTypeInfo> {
+        &mut self.parameters
     }
 }

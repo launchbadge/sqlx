@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sqlx_core::{Result, Runtime};
 
 use crate::connection::command::QueryCommand;
@@ -31,7 +33,7 @@ macro_rules! impl_recv_columns {
         // STATE: remember that we are now expecting a row or the end
         *$cmd = QueryCommand::QueryStep;
 
-        Ok(columns)
+        Ok(columns.into())
     }};
 }
 
@@ -42,7 +44,7 @@ impl<Rt: Runtime> MySqlStream<Rt> {
         store: bool,
         columns: u16,
         cmd: &mut QueryCommand,
-    ) -> Result<Vec<MySqlColumn>>
+    ) -> Result<Arc<[MySqlColumn]>>
     where
         Rt: sqlx_core::Async,
     {
@@ -55,7 +57,7 @@ impl<Rt: Runtime> MySqlStream<Rt> {
         store: bool,
         columns: u16,
         cmd: &mut QueryCommand,
-    ) -> Result<Vec<MySqlColumn>>
+    ) -> Result<Arc<[MySqlColumn]>>
     where
         Rt: sqlx_core::blocking::Runtime,
     {

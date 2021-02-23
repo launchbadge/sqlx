@@ -12,7 +12,7 @@ macro_rules! impl_raw_query {
             // execute the prepared statement
             $self.stream.write_packet(&protocol::Execute {
                 statement: statement.id(),
-                parameters: &statement.parameters,
+                parameters: statement.parameters(),
                 arguments: &arguments,
             })?;
 

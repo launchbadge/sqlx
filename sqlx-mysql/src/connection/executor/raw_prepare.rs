@@ -31,7 +31,7 @@ macro_rules! impl_raw_prepare {
 
             // extract the type only from the column definition
             // most other fields are useless
-            stmt.parameters.push(MySqlTypeInfo::new(&def));
+            stmt.parameters_mut().push(MySqlTypeInfo::new(&def));
         }
 
         // TODO: handle EOF for old MySQL
@@ -42,7 +42,7 @@ macro_rules! impl_raw_prepare {
 
             let def = read_packet!($(@$blocking)? stream).deserialize()?;
 
-            stmt.columns.push(MySqlColumn::new(ordinal, def));
+            stmt.columns_mut().push(MySqlColumn::new(ordinal, def));
         }
 
         // TODO: handle EOF for old MySQL
