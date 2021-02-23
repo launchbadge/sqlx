@@ -19,6 +19,15 @@ pub trait Row: 'static + Send + Sync {
     /// Returns a reference to the columns in the row.
     fn columns(&self) -> &[<Self::Database as Database>::Column];
 
+    /// Returns the column at the index, if available.
+    fn column<I: ColumnIndex<Self>>(&self, index: I) -> &<Self::Database as Database>::Column;
+
+    /// Returns the column at the index, if available.
+    fn try_column<I: ColumnIndex<Self>>(
+        &self,
+        index: I,
+    ) -> crate::Result<&<Self::Database as Database>::Column>;
+
     /// Returns the column name, given the index of the column.
     fn column_name_of(&self, index: usize) -> &str;
 

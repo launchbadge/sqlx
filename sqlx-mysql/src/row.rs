@@ -41,6 +41,16 @@ impl MySqlRow {
         &self.columns
     }
 
+    /// Returns the column at the index, if available.
+    fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
+        self.try_column(index).unwrap()
+    }
+
+    /// Returns the column at the index, if available.
+    fn try_column<I: ColumnIndex<Self>>(&self, index: I) -> Result<&MySqlColumn> {
+        Ok(&self.columns[index.get(self)?])
+    }
+
     /// Returns the column name, given the index of the column.
     #[must_use]
     pub fn column_name_of(&self, index: usize) -> &str {
@@ -110,6 +120,14 @@ impl Row for MySqlRow {
 
     fn columns(&self) -> &[MySqlColumn] {
         self.columns()
+    }
+
+    fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
+        self.column(index)
+    }
+
+    fn try_column<I: ColumnIndex<Self>>(&self, index: I) -> Result<&MySqlColumn> {
+        self.try_column(index)
     }
 
     fn column_name_of(&self, index: usize) -> &str {
