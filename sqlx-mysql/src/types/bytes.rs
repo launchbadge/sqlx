@@ -5,48 +5,48 @@ use crate::io::MySqlWriteExt;
 use crate::type_info::MySqlTypeInfo;
 use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId};
 
-impl Type<MySql> for &'_ str {
+impl Type<MySql> for &'_ [u8] {
     fn type_id() -> MySqlTypeId {
-        MySqlTypeId::TEXT
+        MySqlTypeId::BLOB
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        matches!(ty.id(), MySqlTypeId::TEXT | MySqlTypeId::CHAR | MySqlTypeId::VARCHAR)
+        matches!(ty.id(), MySqlTypeId::BLOB | MySqlTypeId::BINARY | MySqlTypeId::VARBINARY)
     }
 }
 
-impl Encode<MySql> for &'_ str {
+impl Encode<MySql> for &'_ [u8] {
     fn encode(&self, _: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
-        out.buffer().write_bytes_lenenc(self.as_bytes());
+        out.buffer().write_bytes_lenenc(self);
 
         Ok(())
     }
 }
 
-impl<'r> Decode<'r, MySql> for &'r str {
+impl<'r> Decode<'r, MySql> for &'r [u8] {
     fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
-        value.as_str()
+        value.as_bytes()
     }
 }
 
-impl Type<MySql> for String {
+impl Type<MySql> for Vec<u8> {
     fn type_id() -> MySqlTypeId {
-        <&str as Type<MySql>>::type_id()
+        <&[u8] as Type<MySql>>::type_id()
     }
 
     fn compatible(ty: &MySqlTypeInfo) -> bool {
-        <&str as Type<MySql>>::compatible(ty)
+        <&[u8] as Type<MySql>>::compatible(ty)
     }
 }
 
-impl Encode<MySql> for String {
+impl Encode<MySql> for Vec<u8> {
     fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
-        <&str as Encode<MySql>>::encode(&self.as_str(), ty, out)
+        <&[u8] as Encode<MySql>>::encode(&self.as_slice(), ty, out)
     }
 }
 
-impl<'r> Decode<'r, MySql> for String {
+impl<'r> Decode<'r, MySql> for Vec<u8> {
     fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
-        value.as_str().map(str::to_owned)
+        value.as_bytes().map(ToOwned::to_owned)
     }
 }

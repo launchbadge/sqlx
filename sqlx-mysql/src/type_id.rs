@@ -57,30 +57,6 @@ impl MySqlTypeId {
     pub(crate) const fn is_unsigned(&self) -> bool {
         self.1 == UNSIGNED
     }
-
-    /// Returns the name for this MySQL data type.
-    pub(crate) const fn name(&self) -> &'static str {
-        match *self {
-            Self::NULL => "NULL",
-
-            Self::TINYINT => "TINYINT",
-            Self::SMALLINT => "SMALLINT",
-            Self::MEDIUMINT => "MEDIUMINT",
-            Self::INT => "INT",
-            Self::BIGINT => "BIGINT",
-
-            Self::TINYINT_UNSIGNED => "TINYINT UNSIGNED",
-            Self::SMALLINT_UNSIGNED => "SMALLINT UNSIGNED",
-            Self::MEDIUMINT_UNSIGNED => "MEDIUMINT UNSIGNED",
-            Self::INT_UNSIGNED => "INT UNSIGNED",
-            Self::BIGINT_UNSIGNED => "BIGINT UNSIGNED",
-
-            Self::FLOAT => "FLOAT",
-            Self::DOUBLE => "DOUBLE",
-
-            _ => "",
-        }
-    }
 }
 
 // https://dev.mysql.com/doc/refman/8.0/en/data-types.html
@@ -199,4 +175,40 @@ impl MySqlTypeId {
     /// used to send a SQL `NULL` without knowing the SQL type.
     ///
     pub const NULL: Self = Self(6, 0);
+
+    /// A fixed-length string that is always right-padded with spaces
+    /// to the specified length when stored.
+    ///
+    pub const CHAR: Self = Self(254, 0);
+
+    /// A fixed-length binary string that is always right-padded with zeroes
+    /// to the specified length when stored.
+    ///
+    /// The type identifier for `BINARY` is the same as `CHAR`. At the type
+    /// level, they are identical. At the column, the presence of a binary (`_bin`)
+    /// collation determines if the type stores binary data.
+    ///
+    pub const BINARY: Self = Self(254, 0);
+
+    /// A variable-length string.
+    pub const VARCHAR: Self = Self(253, 0);
+
+    /// A variable-length binary string.
+    ///
+    /// The type identifier for `VARBINARY` is the same as `VARCHAR`. At the type
+    /// level, they are identical. At the column, the presence of a binary (`_bin`)
+    /// collation determines if the type stores binary data.
+    ///
+    pub const VARBINARY: Self = Self(253, 0);
+
+    /// A variable-length string that is assumed to be stored by reference.
+    pub const TEXT: Self = Self(252, 0);
+
+    /// A variable-length string that is assumed to be stored by reference.
+    ///
+    /// The type identifier for `BLOB` is the same as `TEXT`. At the type
+    /// level, they are identical. At the column, the presence of a binary (`_bin`)
+    /// collation determines if the type stores binary data.
+    ///
+    pub const BLOB: Self = Self(252, 0);
 }

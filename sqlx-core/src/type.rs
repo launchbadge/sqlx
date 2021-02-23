@@ -31,6 +31,16 @@ pub trait Type<Db: Database> {
     }
 }
 
+impl<Db: Database, T: Type<Db>> Type<Db> for &'_ T {
+    fn type_id() -> Db::TypeId {
+        T::type_id()
+    }
+
+    fn compatible(ty: &Db::TypeInfo) -> bool {
+        T::compatible(ty)
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {
     /// Returns the canonical SQL type identifier for this Rust type.
