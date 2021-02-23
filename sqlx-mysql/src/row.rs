@@ -80,12 +80,30 @@ impl MySqlRow {
     }
 
     /// Returns the decoded value at the index.
+    pub fn get<'r, T, I>(&'r self, index: I) -> T
+    where
+        I: ColumnIndex<Self>,
+        T: Decode<'r, MySql>,
+    {
+        self.try_get(index).unwrap()
+    }
+
+    /// Returns the decoded value at the index.
     pub fn try_get<'r, T, I>(&'r self, index: I) -> Result<T>
     where
         I: ColumnIndex<Self>,
         T: Decode<'r, MySql>,
     {
         Ok(self.try_get_raw(index)?.decode()?)
+    }
+
+    /// Returns the raw representation of the value at the index.
+    #[allow(clippy::needless_lifetimes)]
+    pub fn get_raw<'r, I>(&'r self, index: I) -> MySqlRawValue<'r>
+    where
+        I: ColumnIndex<Self>,
+    {
+        self.try_get_raw(index).unwrap()
     }
 
     /// Returns the raw representation of the value at the index.
@@ -146,12 +164,25 @@ impl Row for MySqlRow {
         self.try_index_of(name)
     }
 
+    fn get<'r, T, I>(&'r self, index: I) -> T
+    where
+        I: ColumnIndex<Self>,
+        T: Decode<'r, MySql>,
+    {
+        self.get(index)
+    }
+
     fn try_get<'r, T, I>(&'r self, index: I) -> Result<T>
     where
         I: ColumnIndex<Self>,
         T: Decode<'r, MySql>,
     {
         self.try_get(index)
+    }
+
+    #[allow(clippy::needless_lifetimes)]
+    fn get_raw<'r, I: ColumnIndex<Self>>(&'r self, index: I) -> MySqlRawValue<'r> {
+        self.get_raw(index)
     }
 
     #[allow(clippy::needless_lifetimes)]

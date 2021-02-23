@@ -41,10 +41,23 @@ pub trait Row: 'static + Send + Sync {
     fn try_index_of(&self, name: &str) -> crate::Result<usize>;
 
     /// Returns the decoded value at the index.
+    fn get<'r, T, I>(&'r self, index: I) -> T
+    where
+        I: ColumnIndex<Self>,
+        T: Decode<'r, Self::Database>;
+
+    /// Returns the decoded value at the index.
     fn try_get<'r, T, I>(&'r self, index: I) -> crate::Result<T>
     where
         I: ColumnIndex<Self>,
         T: Decode<'r, Self::Database>;
+
+    /// Returns the raw representation of the value at the index.
+    #[allow(clippy::needless_lifetimes)]
+    fn get_raw<'r, I: ColumnIndex<Self>>(
+        &'r self,
+        index: I,
+    ) -> <Self::Database as HasRawValue<'r>>::RawValue;
 
     /// Returns the raw representation of the value at the index.
     #[allow(clippy::needless_lifetimes)]
