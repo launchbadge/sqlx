@@ -33,7 +33,7 @@ impl MySqlTypeId {
     /// directly used in an expression by itself, such as `SELECT NULL`.
     ///
     pub(crate) const fn is_null(&self) -> bool {
-        matches!(*self, MySqlTypeId::NULL)
+        matches!(*self, Self::NULL)
     }
 
     /// Returns `true` if this is an integer data type.
@@ -70,6 +70,7 @@ impl MySqlTypeId {
     /// If the display width is 1 ( `TINYINT(1)` ), maps to `bool`. Otherwise,
     /// maps to `i8`.
     ///
+    #[doc(alias = "BOOLEAN")]
     pub const TINYINT: Self = Self(1, 0);
 
     /// An unsigned 8-bit integer.
@@ -183,7 +184,12 @@ impl MySqlTypeId {
     /// level, they are identical. At the column, the presence of a binary (`_bin`)
     /// collation determines if the type stores binary data.
     ///
+    /// Additionally, the type identifier for `ENUM` and `SET` is also the
+    /// same as `CHAR`.
+    ///
     #[doc(alias = "BINARY")]
+    #[doc(alias = "ENUM")]
+    #[doc(alias = "SET")]
     pub const CHAR: Self = Self(254, 0);
 
     /// A variable-length string.

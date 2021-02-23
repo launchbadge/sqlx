@@ -13,7 +13,7 @@ use crate::{MySql, MySqlTypeId};
 pub struct MySqlTypeInfo {
     id: MySqlTypeId,
     charset: u16,
-    has_binary_collation: bool,
+    flags: ColumnFlags,
 
     // [max_size] for integer types, this is (M) in BIT(M) or TINYINT(M)
     max_size: u32,
@@ -25,7 +25,7 @@ impl MySqlTypeInfo {
             id: MySqlTypeId::new(def),
             charset: def.charset,
             max_size: def.max_size,
-            has_binary_collation: def.flags.contains(ColumnFlags::BINARY_COLLATION),
+            flags: def.flags,
         }
     }
 }
@@ -40,7 +40,26 @@ impl MySqlTypeInfo {
     /// Returns `true` if this type has a binary collation.
     #[must_use]
     pub const fn has_binary_collation(&self) -> bool {
-        self.has_binary_collation
+        self.flags.contains(ColumnFlags::BINARY_COLLATION)
+    }
+
+    /// Returns `true` if this type is `BOOLEAN`.
+    #[must_use]
+    pub const fn is_boolean(&self) -> bool {
+        matches!(self.id(), MySqlTypeId::TINYINT | MySqlTypeId::TINYINT_UNSIGNED)
+            && self.max_size == 1
+    }
+
+    /// Returns `true` if this type is an `ENUM`.
+    #[must_use]
+    pub const fn is_enum(&self) -> bool {
+        self.flags.contains(ColumnFlags::ENUM)
+    }
+
+    /// Returns `true` if this type is a `SET`.
+    #[must_use]
+    pub const fn is_set(&self) -> bool {
+        self.flags.contains(ColumnFlags::SET)
     }
 
     /// Returns the name for this MySQL type.
@@ -48,6 +67,9 @@ impl MySqlTypeInfo {
     pub const fn name(&self) -> &'static str {
         match self.id {
             MySqlTypeId::NULL => "NULL",
+
+            // BOOLEAN has the same type ID as TINYINT
+            _ if self.is_boolean() => "BOOLEAN",
 
             MySqlTypeId::TINYINT => "TINYINT",
             MySqlTypeId::SMALLINT => "SMALLINT",
@@ -64,9 +86,13 @@ impl MySqlTypeInfo {
             MySqlTypeId::FLOAT => "FLOAT",
             MySqlTypeId::DOUBLE => "DOUBLE",
 
-            // note: VARBINARY, BINARY, and BLOB have the same type IDs as
-            //       VARCHAR, CHAR, and TEXT; the only difference is the
-            //       presence of a binary collation
+            // ENUM, and SET have the same type ID as CHAR
+            _ if self.is_enum() => "ENUM",
+            _ if self.is_set() => "SET",
+
+            // VARBINARY, BINARY, and BLOB have the same type IDs as
+            // VARCHAR, CHAR, and TEXT; the only difference is the
+            // presence of a binary collation
             MySqlTypeId::VARCHAR if self.has_binary_collation() => "VARBINARY",
             MySqlTypeId::CHAR if self.has_binary_collation() => "BINARY",
             MySqlTypeId::TEXT if self.has_binary_collation() => "BLOB",
