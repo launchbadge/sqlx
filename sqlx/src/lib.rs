@@ -47,6 +47,7 @@
 pub mod blocking;
 
 mod query;
+mod query_as;
 mod runtime;
 
 #[cfg(feature = "mysql")]
@@ -58,6 +59,7 @@ pub mod mysql;
 #[cfg(feature = "blocking")]
 pub use blocking::Blocking;
 pub use query::{query, Query};
+pub use query_as::{query_as, QueryAs};
 pub use runtime::DefaultRuntime;
 #[cfg(feature = "actix")]
 pub use sqlx_core::Actix;

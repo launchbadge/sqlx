@@ -74,3 +74,8 @@ impl<Db: Database, T: Type<Db> + Encode<Db>> TypeEncode<Db> for T {
 pub trait TypeDecode<'r, Db: Database>: Type<Db> + Decode<'r, Db> {}
 
 impl<'r, T: Type<Db> + Decode<'r, Db>, Db: Database> TypeDecode<'r, Db> for T {}
+
+#[allow(clippy::module_name_repetitions)]
+pub trait TypeDecodeOwned<Db: Database>: for<'r> TypeDecode<'r, Db> {}
+
+impl<T, Db: Database> TypeDecodeOwned<Db> for T where T: for<'r> TypeDecode<'r, Db> {}
