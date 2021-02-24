@@ -2,11 +2,13 @@ use std::path::Path;
 
 mod connect;
 mod journal_mode;
+mod locking_mode;
 mod parse;
 mod synchronous;
 
 use crate::connection::LogSettings;
 pub use journal_mode::SqliteJournalMode;
+pub use locking_mode::SqliteLockingMode;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
 
@@ -50,6 +52,7 @@ pub struct SqliteConnectOptions {
     pub(crate) read_only: bool,
     pub(crate) create_if_missing: bool,
     pub(crate) journal_mode: SqliteJournalMode,
+    pub(crate) locking_mode: SqliteLockingMode,
     pub(crate) foreign_keys: bool,
     pub(crate) shared_cache: bool,
     pub(crate) statement_cache_capacity: usize,
@@ -75,6 +78,7 @@ impl SqliteConnectOptions {
             shared_cache: false,
             statement_cache_capacity: 100,
             journal_mode: SqliteJournalMode::Wal,
+            locking_mode: Default::default(),
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             synchronous: SqliteSynchronous::Full,
@@ -101,6 +105,14 @@ impl SqliteConnectOptions {
     /// there are [disadvantages](https://www.sqlite.org/wal.html).
     pub fn journal_mode(mut self, mode: SqliteJournalMode) -> Self {
         self.journal_mode = mode;
+        self
+    }
+
+    /// Sets the [locking mode](https://www.sqlite.org/pragma.html#pragma_locking_mode) for the database connection.
+    ///
+    /// The default locking mode is NORMAL.
+    pub fn locking_mode(mut self, mode: SqliteLockingMode) -> Self {
+        self.locking_mode = mode;
         self
     }
 

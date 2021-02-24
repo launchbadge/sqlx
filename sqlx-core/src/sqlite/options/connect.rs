@@ -18,8 +18,12 @@ impl ConnectOptions for SqliteConnectOptions {
             let mut conn = establish(self).await?;
 
             // send an initial sql statement comprised of options
+            //
+            // Note that locking_mode should be set before journal_mode; see
+            // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
             let init = format!(
-                "PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}",
+                "PRAGMA locking_mode = {}; PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}",
+                self.locking_mode.as_str(),
                 self.journal_mode.as_str(),
                 if self.foreign_keys { "ON" } else { "OFF" },
                 self.synchronous.as_str(),
