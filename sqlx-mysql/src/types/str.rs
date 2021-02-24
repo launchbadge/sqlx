@@ -1,3 +1,7 @@
+use std::str::from_utf8_unchecked;
+
+use bytes::Bytes;
+use bytestring::ByteString;
 use sqlx_core::{decode, encode, Type};
 use sqlx_core::{Decode, Encode};
 
@@ -48,5 +52,27 @@ impl Encode<MySql> for String {
 impl<'r> Decode<'r, MySql> for String {
     fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
         value.as_str().map(str::to_owned)
+    }
+}
+
+impl Type<MySql> for ByteString {
+    fn type_id() -> MySqlTypeId {
+        <&str as Type<MySql>>::type_id()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&str as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<MySql> for ByteString {
+    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+        <&str as Encode<MySql>>::encode(&&**self, ty, out)
+    }
+}
+
+impl<'r> Decode<'r, MySql> for ByteString {
+    fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
+        value.as_shared_str()
     }
 }

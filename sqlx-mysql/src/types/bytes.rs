@@ -1,3 +1,13 @@
+//! Implements [`Type`] for binary strings in MySQL.
+//!
+//! -   [`&[u8]`][slice]
+//! -   [`Vec<u8>`]
+//! -   [`bytes::Bytes`] - `Bytes` can return binary data from the column,
+//!     without re-allocation. Most useful when reading large blobs from
+//!     the connection.
+//!
+
+use bytes::Bytes;
 use sqlx_core::{decode, encode, Type};
 use sqlx_core::{Decode, Encode};
 
@@ -48,5 +58,27 @@ impl Encode<MySql> for Vec<u8> {
 impl<'r> Decode<'r, MySql> for Vec<u8> {
     fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
         value.as_bytes().map(ToOwned::to_owned)
+    }
+}
+
+impl Type<MySql> for Bytes {
+    fn type_id() -> MySqlTypeId {
+        <&[u8] as Type<MySql>>::type_id()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <&[u8] as Type<MySql>>::compatible(ty)
+    }
+}
+
+impl Encode<MySql> for Bytes {
+    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+        <&[u8] as Encode<MySql>>::encode(&&**self, ty, out)
+    }
+}
+
+impl<'r> Decode<'r, MySql> for Bytes {
+    fn decode(value: MySqlRawValue<'r>) -> decode::Result<Self> {
+        value.as_shared_bytes()
     }
 }
