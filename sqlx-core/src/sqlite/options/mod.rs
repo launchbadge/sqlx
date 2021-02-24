@@ -1,5 +1,6 @@
 use std::path::Path;
 
+mod auto_vacuum;
 mod connect;
 mod journal_mode;
 mod locking_mode;
@@ -7,6 +8,7 @@ mod parse;
 mod synchronous;
 
 use crate::connection::LogSettings;
+pub use auto_vacuum::SqliteAutoVacuum;
 pub use journal_mode::SqliteJournalMode;
 pub use locking_mode::SqliteLockingMode;
 use std::{borrow::Cow, time::Duration};
@@ -59,6 +61,7 @@ pub struct SqliteConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) synchronous: SqliteSynchronous,
+    pub(crate) auto_vacuum: SqliteAutoVacuum,
 }
 
 impl Default for SqliteConnectOptions {
@@ -82,6 +85,7 @@ impl SqliteConnectOptions {
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             synchronous: SqliteSynchronous::Full,
+            auto_vacuum: Default::default(),
         }
     }
 
@@ -158,6 +162,14 @@ impl SqliteConnectOptions {
     /// then NORMAL is normally all one needs in WAL mode.
     pub fn synchronous(mut self, synchronous: SqliteSynchronous) -> Self {
         self.synchronous = synchronous;
+        self
+    }
+
+    /// Sets the [auto_vacuum](https://www.sqlite.org/pragma.html#pragma_auto_vacuum) setting for the database connection.
+    ///
+    /// The default auto_vacuum setting is NONE.
+    pub fn auto_vacuum(mut self, auto_vacuum: SqliteAutoVacuum) -> Self {
+        self.auto_vacuum = auto_vacuum;
         self
     }
 }

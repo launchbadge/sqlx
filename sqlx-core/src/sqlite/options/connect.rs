@@ -22,11 +22,12 @@ impl ConnectOptions for SqliteConnectOptions {
             // Note that locking_mode should be set before journal_mode; see
             // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
             let init = format!(
-                "PRAGMA locking_mode = {}; PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}",
+                "PRAGMA locking_mode = {}; PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}; PRAGMA auto_vacuum = {}",
                 self.locking_mode.as_str(),
                 self.journal_mode.as_str(),
                 if self.foreign_keys { "ON" } else { "OFF" },
                 self.synchronous.as_str(),
+                self.auto_vacuum.as_str(),
             );
 
             conn.execute(&*init).await?;
