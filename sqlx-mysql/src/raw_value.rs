@@ -1,6 +1,8 @@
+use std::convert::TryFrom;
 use std::str::from_utf8;
 
 use bytes::Bytes;
+use bytestring::ByteString;
 use sqlx_core::decode::{Error as DecodeError, Result as DecodeResult};
 use sqlx_core::Decode;
 
@@ -37,11 +39,13 @@ impl<'r> MySqlRawValue<'r> {
     }
 
     /// Returns the type information for this value.
-    pub fn type_info(&self) -> &'r MySqlTypeInfo {
+    #[must_use]
+    pub const fn type_info(&self) -> &'r MySqlTypeInfo {
         self.type_info
     }
 
     /// Returns the format of this value.
+    #[must_use]
     pub const fn format(&self) -> MySqlRawValueFormat {
         self.format
     }
@@ -51,10 +55,18 @@ impl<'r> MySqlRawValue<'r> {
         self.value.map(|bytes| &**bytes).ok_or(DecodeError::UnexpectedNull)
     }
 
+    pub(crate) fn as_shared_bytes(&self) -> DecodeResult<Bytes> {
+        self.value.cloned().ok_or(DecodeError::UnexpectedNull)
+    }
+
     /// Returns a `&str` slice from the underlying byte view of this value,
     /// if it contains valid UTF-8.
     pub fn as_str(&self) -> DecodeResult<&'r str> {
         self.as_bytes().and_then(|bytes| from_utf8(bytes).map_err(DecodeError::NotUtf8))
+    }
+
+    pub(crate) fn as_shared_str(&self) -> DecodeResult<ByteString> {
+        ByteString::try_from(self.as_shared_bytes()?).map_err(DecodeError::NotUtf8)
     }
 
     /// Decode this value into the target type.

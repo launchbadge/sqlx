@@ -8,8 +8,6 @@ use crate::{MySqlColumn, MySqlRawValueFormat, MySqlTypeId};
 #[derive(Debug)]
 pub(crate) struct Row {
     pub(crate) format: MySqlRawValueFormat,
-
-    // TODO: profile storage + byte ranges
     pub(crate) values: Vec<Option<Bytes>>,
 }
 

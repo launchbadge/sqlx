@@ -1,13 +1,20 @@
-use sqlx_core::{decode, encode};
+use sqlx_core::{decode, encode, Type};
 use sqlx_core::{Decode, Encode};
 
-use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeInfo};
+use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId, MySqlTypeInfo};
 
 // In MySQL, a boolean is an alias for `TINYINT(1) UNSIGNED`
 // the functions below delegate functionality to the `u8` impls
 
-// TODO: accepts(ty) -> ty.is_integer()
-// TODO: compatible(ty) -> ty.is_integer()
+impl Type<MySql> for bool {
+    fn type_id() -> MySqlTypeId {
+        <u8 as Type<MySql>>::type_id()
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        <u8 as Type<MySql>>::compatible(ty)
+    }
+}
 
 impl Encode<MySql> for bool {
     fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
