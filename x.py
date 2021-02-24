@@ -13,6 +13,7 @@ parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-q", "--quiet", action="store_true")
 parser.add_argument("-t", "--target")
 parser.add_argument("-l", "--list-targets", action="store_true")
+parser.add_argument("--open", action="store_true")
 parser.add_argument("--coverage", action="store_true")
 
 argv, unknown = parser.parse_known_args()
@@ -96,7 +97,10 @@ def run_docs(project: str):
         run([x for x in [
             "cargo", "+nightly", "doc",
             "-q" if argv.quiet else None,
+            "--open" if argv.open else None,
             "--manifest-path", f"{project}/Cargo.toml",
+            "--document-private-items",
+            "--no-deps",
             "--all-features",
         ] if x], cwd=project_dir, comment=comment, tag=tag, env=env)
 
