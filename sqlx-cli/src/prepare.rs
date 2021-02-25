@@ -15,14 +15,14 @@ use std::{env, fs};
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
 
-pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
-    #[derive(serde::Serialize)]
-    struct DataFile {
-        db: &'static str,
-        #[serde(flatten)]
-        data: QueryData,
-    }
+#[derive(serde::Serialize, serde::Deserialize)]
+struct DataFile {
+    db: String,
+    #[serde(flatten)]
+    data: QueryData,
+}
 
+pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(merge, cargo_args)?;
 
@@ -37,7 +37,10 @@ pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()
         BufWriter::new(
             File::create("sqlx-data.json").context("failed to create/open `sqlx-data.json`")?,
         ),
-        &DataFile { db: db_kind, data },
+        &DataFile {
+            db: db_kind.to_owned(),
+            data,
+        },
     )
     .context("failed to write to `sqlx-data.json`")?;
 
@@ -57,15 +60,10 @@ pub fn check(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<
         "failed to open `sqlx-data.json`; you may need to run `cargo sqlx prepare` first",
     )?;
 
-    let mut saved_data: QueryData = serde_json::from_reader(BufReader::new(data_file))?;
-
-    let expected_db = saved_data
-        .remove("db")
-        .context("expected key `db` in data file")?;
-
-    let expected_db = expected_db
-        .as_str()
-        .context("expected key `db` to be a string")?;
+    let DataFile {
+        db: expected_db,
+        data: saved_data,
+    } = serde_json::from_reader(BufReader::new(data_file))?;
 
     if db_kind != expected_db {
         bail!(
@@ -201,5 +199,60 @@ fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
 
         #[cfg(feature = "mssql")]
         AnyKind::Mssql => Ok("MSSQL"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::assert_eq;
+
+    #[test]
+    fn data_file_serialization_works() {
+        let data_file = DataFile {
+            db: "mysql".to_owned(),
+            data: {
+                let mut data = BTreeMap::new();
+                data.insert("a".to_owned(), json!({"key1": "value1"}));
+                data.insert("z".to_owned(), json!({"key2": "value2"}));
+                data
+            },
+        };
+
+        let data_file = serde_json::to_string(&data_file).expect("Data file serialized.");
+
+        assert_eq!(
+            data_file,
+            "{\"db\":\"mysql\",\"a\":{\"key1\":\"value1\"},\"z\":{\"key2\":\"value2\"}}"
+        );
+    }
+
+    #[test]
+    fn data_file_deserialization_works() {
+        let data_file =
+            "{\"db\":\"mysql\",\"a\":{\"key1\":\"value1\"},\"z\":{\"key2\":\"value2\"}}";
+
+        let data_file: DataFile = serde_json::from_str(data_file).expect("Data file deserialized.");
+        let DataFile { db, data } = data_file;
+
+        assert_eq!(db, "mysql");
+        assert_eq!(data.len(), 2);
+        assert_eq!(data.get("a"), Some(&json!({"key1": "value1"})));
+        assert_eq!(data.get("z"), Some(&json!({"key2": "value2"})));
+    }
+
+    #[test]
+    fn data_file_deserialization_works_for_ordered_keys() {
+        let data_file =
+            "{\"a\":{\"key1\":\"value1\"},\"db\":\"mysql\",\"z\":{\"key2\":\"value2\"}}";
+
+        let data_file: DataFile = serde_json::from_str(data_file).expect("Data file deserialized.");
+        let DataFile { db, data } = data_file;
+
+        assert_eq!(db, "mysql");
+        assert_eq!(data.len(), 2);
+        assert_eq!(data.get("a"), Some(&json!({"key1": "value1"})));
+        assert_eq!(data.get("z"), Some(&json!({"key2": "value2"})));
     }
 }
