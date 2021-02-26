@@ -4,7 +4,7 @@ use std::str::from_utf8;
 use bytes::Bytes;
 use bytestring::ByteString;
 use sqlx_core::decode::{Error as DecodeError, Result as DecodeResult};
-use sqlx_core::Decode;
+use sqlx_core::{Decode, RawValue};
 
 use crate::{MySql, MySqlTypeInfo};
 
@@ -36,6 +36,11 @@ impl<'r> MySqlRawValue<'r> {
         type_info: &'r MySqlTypeInfo,
     ) -> Self {
         Self { value: value.as_ref(), format, type_info }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn binary(value: &'r Bytes, type_info: &'r MySqlTypeInfo) -> Self {
+        Self { value: Some(value), type_info, format: MySqlRawValueFormat::Binary }
     }
 
     /// Returns the type information for this value.
@@ -72,5 +77,17 @@ impl<'r> MySqlRawValue<'r> {
     /// Decode this value into the target type.
     pub fn decode<T: Decode<'r, MySql>>(self) -> DecodeResult<T> {
         <T as Decode<'r, MySql>>::decode(self)
+    }
+}
+
+impl<'r> RawValue<'r> for MySqlRawValue<'r> {
+    type Database = MySql;
+
+    fn is_null(&self) -> bool {
+        self.value.is_none()
+    }
+
+    fn type_info(&self) -> &'r MySqlTypeInfo {
+        self.type_info
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use sqlx_core::{ColumnIndex, Decode, Error, Result, Row};
+use sqlx_core::{ColumnIndex, Decode, Error, Result, Row, TypeDecode};
 
 use crate::{protocol, MySql, MySqlColumn, MySqlRawValue, MySqlRawValueFormat};
 
@@ -43,7 +43,7 @@ impl MySqlRow {
 
     /// Returns the column at the index, if available.
     fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
-        self.try_column(index).unwrap()
+        Row::column(self, index)
     }
 
     /// Returns the column at the index, if available.
@@ -51,50 +51,22 @@ impl MySqlRow {
         Ok(&self.columns[index.get(self)?])
     }
 
-    /// Returns the column name, given the index of the column.
-    #[must_use]
-    pub fn column_name_of(&self, index: usize) -> &str {
-        self.try_column_name_of(index).unwrap()
-    }
-
-    /// Returns the column name, given the index of the column.
-    pub fn try_column_name_of(&self, index: usize) -> Result<&str> {
-        self.columns
-            .get(index)
-            .map(MySqlColumn::name)
-            .ok_or_else(|| Error::ColumnIndexOutOfBounds { index, len: self.len() })
-    }
-
-    /// Returns the column index, given the name of the column.
-    #[must_use]
-    pub fn index_of(&self, name: &str) -> usize {
-        self.try_index_of(name).unwrap()
-    }
-
-    /// Returns the column index, given the name of the column.
-    pub fn try_index_of(&self, name: &str) -> Result<usize> {
-        self.columns
-            .iter()
-            .position(|col| col.name() == name)
-            .ok_or_else(|| Error::ColumnNotFound { name: name.to_owned().into_boxed_str() })
-    }
-
     /// Returns the decoded value at the index.
     pub fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, MySql>,
+        T: TypeDecode<'r, MySql>,
     {
-        self.try_get(index).unwrap()
+        Row::get(self, index)
     }
 
     /// Returns the decoded value at the index.
     pub fn try_get<'r, T, I>(&'r self, index: I) -> Result<T>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, MySql>,
+        T: TypeDecode<'r, MySql>,
     {
-        Ok(self.try_get_raw(index)?.decode()?)
+        Row::try_get(self, index)
     }
 
     /// Returns the raw representation of the value at the index.
@@ -103,7 +75,7 @@ impl MySqlRow {
     where
         I: ColumnIndex<Self>,
     {
-        self.try_get_raw(index).unwrap()
+        Row::get_raw(self, index)
     }
 
     /// Returns the raw representation of the value at the index.
@@ -114,11 +86,7 @@ impl MySqlRow {
     {
         let index = index.get(self)?;
 
-        let value = self
-            .values
-            .get(index)
-            .ok_or_else(|| Error::ColumnIndexOutOfBounds { len: self.len(), index })?;
-
+        let value = &self.values[index];
         let column = &self.columns[index];
 
         Ok(MySqlRawValue::new(value, self.format, column.type_info()))
@@ -140,49 +108,16 @@ impl Row for MySqlRow {
         self.columns()
     }
 
-    fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
-        self.column(index)
-    }
-
     fn try_column<I: ColumnIndex<Self>>(&self, index: I) -> Result<&MySqlColumn> {
         self.try_column(index)
     }
 
-    fn column_name_of(&self, index: usize) -> &str {
-        self.column_name_of(index)
+    fn column_name(&self, index: usize) -> Option<&str> {
+        self.columns.get(index).map(MySqlColumn::name)
     }
 
-    fn try_column_name_of(&self, index: usize) -> Result<&str> {
-        self.try_column_name_of(index)
-    }
-
-    fn index_of(&self, name: &str) -> usize {
-        self.index_of(name)
-    }
-
-    fn try_index_of(&self, name: &str) -> Result<usize> {
-        self.try_index_of(name)
-    }
-
-    fn get<'r, T, I>(&'r self, index: I) -> T
-    where
-        I: ColumnIndex<Self>,
-        T: Decode<'r, MySql>,
-    {
-        self.get(index)
-    }
-
-    fn try_get<'r, T, I>(&'r self, index: I) -> Result<T>
-    where
-        I: ColumnIndex<Self>,
-        T: Decode<'r, MySql>,
-    {
-        self.try_get(index)
-    }
-
-    #[allow(clippy::needless_lifetimes)]
-    fn get_raw<'r, I: ColumnIndex<Self>>(&'r self, index: I) -> MySqlRawValue<'r> {
-        self.get_raw(index)
+    fn column_index(&self, name: &str) -> Option<usize> {
+        self.columns.iter().position(|col| col.name() == name)
     }
 
     #[allow(clippy::needless_lifetimes)]
