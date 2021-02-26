@@ -27,6 +27,11 @@ impl<'q, 'a, Db: Database, Rt: Runtime, O> QueryAs<'q, 'a, O, Db, Rt> {
         self.inner.bind(value);
         self
     }
+
+    pub fn bind_unchecked<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) -> &mut Self {
+        self.inner.bind_unchecked(value);
+        self
+    }
 }
 
 #[cfg(feature = "async")]
