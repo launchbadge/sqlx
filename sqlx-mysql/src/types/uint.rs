@@ -35,7 +35,7 @@ where
 
 // check that the incoming value is not too large
 // to fit into the target SQL type
-fn ensure_not_too_large(value: u64, ty: &MySqlTypeInfo) -> encode::Result<()> {
+fn ensure_not_too_large(value: u128, ty: &MySqlTypeInfo) -> encode::Result<()> {
     let max = match ty.id() {
         MySqlTypeId::TINYINT => i8::MAX as _,
         MySqlTypeId::SMALLINT => i16::MAX as _,
@@ -47,7 +47,7 @@ fn ensure_not_too_large(value: u64, ty: &MySqlTypeInfo) -> encode::Result<()> {
         MySqlTypeId::SMALLINT_UNSIGNED => u16::MAX as _,
         MySqlTypeId::MEDIUMINT_UNSIGNED => 0xFF_FF_FF as _,
         MySqlTypeId::INT_UNSIGNED => u32::MAX as _,
-        MySqlTypeId::BIGINT_UNSIGNED => u64::MAX,
+        MySqlTypeId::BIGINT_UNSIGNED => u64::MAX as _,
 
         // not an integer type
         _ => unreachable!(),
@@ -65,7 +65,7 @@ fn ensure_not_too_large(value: u64, ty: &MySqlTypeInfo) -> encode::Result<()> {
 }
 
 macro_rules! impl_type_uint {
-    ($ty:ty => $sql:ident) => {
+    ($ty:ty $(: $real:ty)? => $sql:ident) => {
         impl Type<MySql> for $ty {
             fn type_id() -> MySqlTypeId {
                 MySqlTypeId::$sql
@@ -78,7 +78,7 @@ macro_rules! impl_type_uint {
 
         impl Encode<MySql> for $ty {
             fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
-                ensure_not_too_large((*self).into(), ty)?;
+                ensure_not_too_large((*self $(as $real)?).into(), ty)?;
 
                 out.buffer().extend_from_slice(&self.to_le_bytes());
 
@@ -98,3 +98,10 @@ impl_type_uint! { u8 => TINYINT_UNSIGNED }
 impl_type_uint! { u16 => SMALLINT_UNSIGNED }
 impl_type_uint! { u32 => INT_UNSIGNED }
 impl_type_uint! { u64 => BIGINT_UNSIGNED }
+impl_type_uint! { u128 => BIGINT_UNSIGNED }
+
+#[cfg(target_pointer_width = "64")]
+impl_type_uint! { usize: u64 => BIGINT_UNSIGNED }
+
+#[cfg(target_pointer_width = "32")]
+impl_type_uint! { usize: u32 => INT_UNSIGNED }
