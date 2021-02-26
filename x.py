@@ -13,7 +13,6 @@ parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-q", "--quiet", action="store_true")
 parser.add_argument("-t", "--target")
 parser.add_argument("-l", "--list-targets", action="store_true")
-parser.add_argument("--open", action="store_true")
 parser.add_argument("--coverage", action="store_true")
 
 argv, unknown = parser.parse_known_args()
@@ -97,11 +96,11 @@ def run_docs(project: str):
         run([x for x in [
             "cargo", "+nightly", "doc",
             "-q" if argv.quiet else None,
-            "--open" if argv.open else None,
             "--manifest-path", f"{project}/Cargo.toml",
             "--document-private-items",
             "--no-deps",
             "--all-features",
+            *unknown,
         ] if x], cwd=project_dir, comment=comment, tag=tag, env=env)
 
 
@@ -113,6 +112,7 @@ def run_unit_test(project: str):
 
     env = environ.copy()
     env["LLVM_PROFILE_FILE"] = f"{project_dir}/.coverage/raw/{project}_%m.profraw"
+    env["RUST_BACKTRACE"] = "1"
 
     if argv.coverage:
         env["RUSTFLAGS"] = "-Zinstrument-coverage"
@@ -123,6 +123,7 @@ def run_unit_test(project: str):
         "-q" if argv.quiet else None,
         "--manifest-path", f"{project}/Cargo.toml",
         "--features", "async",
+        *unknown,
     ] if x], env=env, cwd=project_dir, comment=f"unit test {project}", tag=tag)
 
     # build the test binaries and outputs a big pile of JSON that can help
@@ -131,7 +132,8 @@ def run_unit_test(project: str):
         "cargo", "+nightly", "test",
         "--manifest-path", f"{project}/Cargo.toml",
         "--features", "async",
-        "--no-run", "--message-format=json"
+        "--no-run", "--message-format=json",
+        *unknown,
     ], env=env, cwd=project_dir, check=True, capture_output=True).stdout
 
     # use jq to extract the test filenames from the json blob
