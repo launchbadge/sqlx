@@ -45,7 +45,7 @@ impl Serialize<'_> for Execute<'_, '_> {
         for param in self.parameters {
             if let Some(argument) = args.next() {
                 argument.encode(param, &mut out)?;
-                out.declare(argument.type_id(param));
+                out.declare(argument.type_id());
             } else {
                 // if we run out of values, start sending NULL for
                 // each subsequent parameter
