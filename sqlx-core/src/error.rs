@@ -190,15 +190,3 @@ impl From<std::io::ErrorKind> for Error {
         Self::Network(error.into())
     }
 }
-
-impl From<DecodeError> for Error {
-    fn from(error: DecodeError) -> Self {
-        Self::Decode(error)
-    }
-}
-
-impl From<EncodeError> for Error {
-    fn from(error: EncodeError) -> Self {
-        Self::Encode(error)
-    }
-}
