@@ -66,28 +66,23 @@ impl_any_decode!(String);
 impl_any_type!(chrono::NaiveDate);
 #[cfg(all(
     feature = "chrono",
+    any(feature = "mysql", feature = "postgres"),
+    not(any(feature = "mssql", feature = "sqlite"))
+))]
+impl_any_type!(chrono::NaiveTime);
+
+#[cfg(all(
+    feature = "chrono",
     any(feature = "mysql", feature = "sqlite", feature = "postgres"),
     not(feature = "mssql")
 ))]
 impl_any_type!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any( feature = "sqlite", feature = "postgres"),
+    any(feature = "sqlite", feature = "postgres"),
     not(any(feature = "mysql", feature = "mssql"))
 ))]
 impl_any_type!(chrono::DateTime<chrono::offset::Local>);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_type!(chrono::NaiveDate);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_type!(chrono::NaiveTime);
 
 // Encode
 #[cfg(all(
@@ -98,28 +93,22 @@ impl_any_type!(chrono::NaiveTime);
 impl_any_encode!(chrono::NaiveDate);
 #[cfg(all(
     feature = "chrono",
+    any(feature = "mysql", feature = "postgres"),
+    not(any(feature = "mssql", feature = "sqlite"))
+))]
+impl_any_encode!(chrono::NaiveTime);
+#[cfg(all(
+    feature = "chrono",
     any(feature = "mysql", feature = "sqlite", feature = "postgres"),
     not(feature = "mssql")
 ))]
 impl_any_encode!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any( feature = "sqlite", feature = "postgres"),
+    any(feature = "sqlite", feature = "postgres"),
     not(any(feature = "mysql", feature = "mssql"))
 ))]
 impl_any_encode!(chrono::DateTime<chrono::offset::Local>);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_encode!(chrono::NaiveDate);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_encode!(chrono::NaiveTime);
 
 // Decode
 #[cfg(all(
@@ -130,25 +119,19 @@ impl_any_encode!(chrono::NaiveTime);
 impl_any_decode!(chrono::NaiveDate);
 #[cfg(all(
     feature = "chrono",
+    any(feature = "mysql", feature = "postgres"),
+    not(any(feature = "mssql", feature = "sqlite"))
+))]
+impl_any_decode!(chrono::NaiveTime);
+#[cfg(all(
+    feature = "chrono",
     any(feature = "mysql", feature = "sqlite", feature = "postgres"),
     not(feature = "mssql")
 ))]
 impl_any_decode!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any( feature = "sqlite", feature = "postgres"),
+    any(feature = "sqlite", feature = "postgres"),
     not(any(feature = "mysql", feature = "mssql"))
 ))]
 impl_any_decode!(chrono::DateTime<chrono::offset::Local>);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_decode!(chrono::NaiveDate);
-#[cfg(all(
-    feature = "chrono",
-    any(feature = "mysql", feature = "postgres"),
-    not(any(feature = "mssql", feature = "sqlite"))
-))]
-impl_any_decode!(chrono::NaiveTime);
