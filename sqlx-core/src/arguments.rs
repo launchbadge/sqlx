@@ -1,7 +1,9 @@
 use std::any;
 
+use either::Either;
+
 use crate::database::HasOutput;
-use crate::{encode, Database, TypeEncode, TypeInfo};
+use crate::{encode, Database, Error, Result, TypeEncode, TypeInfo};
 
 /// A collection of arguments to be applied to a prepared statement.
 ///
@@ -11,13 +13,14 @@ use crate::{encode, Database, TypeEncode, TypeInfo};
 /// The [`Query`] object uses an internal `Arguments` collection.
 ///
 pub struct Arguments<'a, Db: Database> {
-    named: Vec<(&'a str, Argument<'a, Db>)>,
+    named: Vec<Argument<'a, Db>>,
     positional: Vec<Argument<'a, Db>>,
 }
 
 /// A single argument to be applied to a prepared statement.
 pub struct Argument<'a, Db: Database> {
     unchecked: bool,
+    parameter: Either<usize, &'a str>,
 
     // preserved from `T::type_id()`
     type_id: Db::TypeId,
@@ -35,10 +38,15 @@ pub struct Argument<'a, Db: Database> {
 }
 
 impl<'a, Db: Database> Argument<'a, Db> {
-    fn new<T: 'a + TypeEncode<Db>>(value: &'a T, unchecked: bool) -> Self {
+    fn new<T: 'a + TypeEncode<Db>>(
+        parameter: Either<usize, &'a str>,
+        value: &'a T,
+        unchecked: bool,
+    ) -> Self {
         Self {
             value,
             unchecked,
+            parameter,
             type_id: T::type_id(),
             type_compatible: T::compatible,
             rust_type_name: any::type_name::<T>(),
@@ -67,7 +75,9 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// and you attempt to bind a `&str` in Rust, an incompatible type error will be raised.
     ///
     pub fn add<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        self.positional.push(Argument::new(value, false));
+        let index = self.positional.len() + 1;
+
+        self.positional.push(Argument::new(Either::Left(index), value, false));
     }
 
     /// Add an unchecked value to the end of the arguments collection.
@@ -77,17 +87,19 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// will not be hinted when preparing the statement.
     ///
     pub fn add_unchecked<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        self.positional.push(Argument::new(value, true));
+        let index = self.positional.len() + 1;
+
+        self.positional.push(Argument::new(Either::Left(index), value, true));
     }
 
     /// Add a named value to the argument collection.
     pub fn add_as<T: 'a + TypeEncode<Db>>(&mut self, name: &'a str, value: &'a T) {
-        self.named.push((name, Argument::new(value, false)));
+        self.named.push(Argument::new(Either::Right(name), value, false));
     }
 
     /// Add an unchecked, named value to the arguments collection.
     pub fn add_unchecked_as<T: 'a + TypeEncode<Db>>(&mut self, name: &'a str, value: &'a T) {
-        self.named.push((name, Argument::new(value, true)));
+        self.named.push(Argument::new(Either::Right(name), value, true));
     }
 }
 
@@ -161,15 +173,20 @@ impl<'a, Db: Database> Argument<'a, Db> {
         &self,
         ty: &Db::TypeInfo,
         out: &mut <Db as HasOutput<'x>>::Output,
-    ) -> encode::Result<()> {
-        if !self.unchecked && !(self.type_compatible)(ty) {
-            return Err(encode::Error::TypeNotCompatible {
+    ) -> Result<()> {
+        let res = if !self.unchecked && !(self.type_compatible)(ty) {
+            Err(encode::Error::TypeNotCompatible {
                 rust_type_name: self.rust_type_name,
                 sql_type_name: ty.name(),
-            });
-        }
+            })
+        } else {
+            self.value.encode(ty, out)
+        };
 
-        self.value.encode(ty, out)
+        res.map_err(|source| Error::ParameterEncode {
+            parameter: self.parameter.map_right(|name| name.to_string().into_boxed_str()),
+            source,
+        })
     }
 }
 
@@ -182,7 +199,7 @@ pub trait ArgumentIndex<'a, Db: Database> {
 // access a named argument by name
 impl<'a, Db: Database> ArgumentIndex<'a, Db> for str {
     fn get<'x>(&self, arguments: &'x Arguments<'a, Db>) -> Option<&'x Argument<'a, Db>> {
-        arguments.named.iter().find_map(|(name, arg)| (*name == self).then(|| arg))
+        arguments.named.iter().find_map(|arg| (arg.parameter.right() == Some(self)).then(|| arg))
     }
 }
 
