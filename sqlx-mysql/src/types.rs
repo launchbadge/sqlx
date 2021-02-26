@@ -122,15 +122,13 @@
 
 mod bool;
 mod bytes;
+mod int;
 mod str;
 mod uint;
 
 // TODO: mod decimal;
-// TODO: mod int;
 // TODO: mod float;
 // TODO: mod time;
-// TODO: mod str;
-// TODO: mod bytes;
 // TODO: mod bit;
 // TODO: mod uuid;
 // TODO: mod json;
