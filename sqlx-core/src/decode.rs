@@ -3,13 +3,12 @@ use std::fmt::{self, Display, Formatter};
 use std::str::Utf8Error;
 
 use crate::database::HasRawValue;
-use crate::Database;
+use crate::{Database, Type, TypeInfo};
 
 /// A type that can be decoded from a SQL value.
-pub trait Decode<'r, Db: Database>: Send + Sync {
-    fn decode(value: <Db as HasRawValue<'r>>::RawValue) -> Result<Self>
-    where
-        Self: Sized;
+pub trait Decode<'r, Db: Database>: Sized + Send + Sync {
+    /// Decode the SQL value into the target type.
+    fn decode(value: <Db as HasRawValue<'r>>::RawValue) -> Result<Self>;
 }
 
 /// A type that can be decoded from a SQL value, without borrowing any data
@@ -23,6 +22,11 @@ impl<T, Db: Database> DecodeOwned<Db> for T where T: for<'r> Decode<'r, Db> {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
+    TypeNotCompatible {
+        rust_type_name: &'static str,
+        sql_type_name: &'static str,
+    },
+
     /// An unexpected SQL `NULL` was encountered during decoding.
     ///
     /// To decode potentially `NULL` values, wrap the target type in `Option`.
@@ -47,6 +51,14 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnexpectedNull => f.write_str("unexpected null; try decoding as an `Option`"),
+
+            Self::TypeNotCompatible { rust_type_name, sql_type_name } => {
+                write!(
+                    f,
+                    "Rust type `{}` is not compatible with SQL type `{}`",
+                    rust_type_name, sql_type_name
+                )
+            }
 
             Self::NotUtf8(error) => {
                 write!(f, "{}", error)

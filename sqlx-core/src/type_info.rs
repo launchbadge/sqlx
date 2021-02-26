@@ -34,5 +34,5 @@ pub trait TypeInfo {
     ///
     /// Common type names include `VARCHAR`, `INTEGER`, and `BIGINT`.
     ///
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
 }

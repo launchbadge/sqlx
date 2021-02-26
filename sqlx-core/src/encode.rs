@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
 use crate::database::HasOutput;
-use crate::Database;
+use crate::{Database, Type, TypeInfo};
 
 /// A type that can be encoded into a SQL value.
 pub trait Encode<Db: Database>: Send + Sync {
@@ -21,6 +21,11 @@ impl<T: Encode<Db>, Db: Database> Encode<Db> for &T {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
+    TypeNotCompatible {
+        rust_type_name: &'static str,
+        sql_type_name: &'static str,
+    },
+
     /// A general error raised while encoding a value.
     Custom(Box<dyn StdError + Send + Sync>),
 }
@@ -35,6 +40,14 @@ impl Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TypeNotCompatible { rust_type_name, sql_type_name } => {
+                write!(
+                    f,
+                    "Rust type `{}` is not compatible with SQL type `{}`",
+                    rust_type_name, sql_type_name
+                )
+            }
+
             Self::Custom(error) => {
                 write!(f, "{}", error)
             }

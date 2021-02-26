@@ -11,6 +11,8 @@ mod database;
 
 pub use database::DatabaseError;
 
+use crate::Column;
+
 /// Specialized `Result` type returned from fallible methods within SQLx.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -89,6 +91,15 @@ impl Error {
     pub fn opt_msg(message: impl Into<Cow<'static, str>>) -> Self {
         Self::ConnectOptions { message: message.into(), source: None }
     }
+
+    #[doc(hidden)]
+    pub fn column_decode(column: &impl Column, source: DecodeError) -> Self {
+        crate::Error::ColumnDecode {
+            source,
+            column_index: column.index(),
+            column_name: column.name().to_owned().into_boxed_str(),
+        }
+    }
 }
 
 impl Display for Error {
@@ -107,41 +118,45 @@ impl Display for Error {
             }
 
             Self::RowNotFound => {
-                f.write_str("no row returned by a query required to return at least one row")
+                f.write_str("No row returned by a query required to return at least one row")
             }
 
-            Self::Closed => f.write_str("connection or pool is closed"),
+            Self::Closed => f.write_str("Connection or pool is closed"),
 
             Self::Decode(error) => {
-                write!(f, "decode: {}", error)
+                write!(f, "Decode: {}", error)
             }
 
             Self::Encode(error) => {
-                write!(f, "encode: {}", error)
+                write!(f, "Encode: {}", error)
             }
 
             Self::ColumnIndexOutOfBounds { index, len } => {
                 write!(
                     f,
-                    "column index out of bounds: the len is {}, but the index is {}",
+                    "Column index out of bounds: the len is {}, but the index is {}",
                     len, index
                 )
             }
 
             Self::ColumnNotFound { name } => {
-                write!(f, "no column found for name `{}`", name)
+                write!(f, "No column found for name `{}`", name)
             }
 
             Self::ColumnDecode { column_index, column_name, source } => {
-                write!(f, "decode column {} `{}`: {}", column_index, column_name, source)
+                if column_name.is_empty() {
+                    write!(f, "Decode column {}: {}", column_index, source)
+                } else {
+                    write!(f, "Decode column {} `{}`: {}", column_index, column_name, source)
+                }
             }
 
             Self::ParameterEncode { parameter: Either::Left(index), source } => {
-                write!(f, "encode parameter {}: {}", index, source)
+                write!(f, "Encode parameter {}: {}", index, source)
             }
 
             Self::ParameterEncode { parameter: Either::Right(name), source } => {
-                write!(f, "encode parameter `{}`: {}", name, source)
+                write!(f, "Encode parameter `{}`: {}", name, source)
             }
         }
     }
