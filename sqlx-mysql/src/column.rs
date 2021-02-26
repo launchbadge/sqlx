@@ -16,7 +16,13 @@ pub struct MySqlColumn {
 
 impl MySqlColumn {
     pub(crate) fn new(index: usize, def: ColumnDefinition) -> Self {
-        Self { type_info: MySqlTypeInfo::new(&def), index, name: def.name, flags: def.flags }
+        let type_info = MySqlTypeInfo::new(&def);
+
+        // use either the column alias or name
+        // prefer alias if its non-empty
+        let name = if def.alias.is_empty() { def.name } else { def.alias };
+
+        Self { type_info, index, name, flags: def.flags }
     }
 }
 
