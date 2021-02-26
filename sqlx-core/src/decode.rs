@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use std::str::Utf8Error;
 
 use crate::database::HasRawValue;
-use crate::{Database, Type, TypeInfo};
+use crate::Database;
 
 /// A type that can be decoded from a SQL value.
 pub trait Decode<'r, Db: Database>: Sized + Send + Sync {

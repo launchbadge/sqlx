@@ -1,5 +1,4 @@
-use crate::database::{HasOutput, HasRawValue};
-use crate::{decode, encode, Database, Decode, Encode, RawValue, TypeInfo};
+use crate::{Database, Decode, Encode, TypeInfo};
 
 /// Indicates that a SQL type is supported for a database.
 pub trait Type<Db: Database> {

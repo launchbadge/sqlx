@@ -77,7 +77,9 @@ macro_rules! impl_type_uint {
         }
 
         impl Encode<MySql> for $ty {
-            fn encode(&self, _ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+            fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+                ensure_not_too_large((*self).into(), ty)?;
+
                 out.buffer().extend_from_slice(&self.to_le_bytes());
 
                 Ok(())

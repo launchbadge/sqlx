@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
-use sqlx_core::{ColumnIndex, Decode, Error, Result, Row, TypeDecode};
+use sqlx_core::{ColumnIndex, Result, Row, TypeDecode};
 
 use crate::{protocol, MySql, MySqlColumn, MySqlRawValue, MySqlRawValueFormat};
 
@@ -42,12 +42,12 @@ impl MySqlRow {
     }
 
     /// Returns the column at the index, if available.
-    fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
+    pub fn column<I: ColumnIndex<Self>>(&self, index: I) -> &MySqlColumn {
         Row::column(self, index)
     }
 
     /// Returns the column at the index, if available.
-    fn try_column<I: ColumnIndex<Self>>(&self, index: I) -> Result<&MySqlColumn> {
+    pub fn try_column<I: ColumnIndex<Self>>(&self, index: I) -> Result<&MySqlColumn> {
         Ok(&self.columns[index.get(self)?])
     }
 

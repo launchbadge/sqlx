@@ -1,6 +1,3 @@
-use std::str::from_utf8_unchecked;
-
-use bytes::Bytes;
 use bytestring::ByteString;
 use sqlx_core::{decode, encode, Decode, Encode, Type};
 

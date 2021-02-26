@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
 use crate::database::HasOutput;
-use crate::{Database, Type, TypeInfo};
+use crate::Database;
 
 /// A type that can be encoded into a SQL value.
 pub trait Encode<Db: Database>: Send + Sync {

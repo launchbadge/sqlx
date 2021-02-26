@@ -1,7 +1,4 @@
-use std::any;
-
-use crate::database::HasRawValue;
-use crate::{decode, Database, Decode, TypeDecode, TypeInfo};
+use crate::Database;
 
 // NOTE: Add decode() and decode_unchecked() to RawValue as provided methods
 //       once Rust has lazy normalization and/or GATs.
