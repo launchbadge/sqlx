@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::{Column, QueryResult, Row, TypeInfo};
+use crate::{Column, QueryResult, RawValue, Row, TypeInfo};
 
 /// A database driver.
 ///
@@ -10,7 +10,7 @@ use crate::{Column, QueryResult, Row, TypeInfo};
 /// have multiple concrete `Connection` implementations.
 ///
 pub trait Database:
-    'static + Sized + Debug + for<'x> HasOutput<'x> + for<'r> HasRawValue<'r>
+    'static + Sized + Debug + for<'x> HasOutput<'x> + for<'r> HasRawValue<'r, Database = Self>
 {
     /// The concrete [`Column`] implementation for this database.
     type Column: Column<Database = Self>;
@@ -25,7 +25,7 @@ pub trait Database:
     type TypeInfo: TypeInfo<Database = Self>;
 
     /// The concrete [`TypeId`] implementation for this database.
-    type TypeId: PartialEq + Hash + Clone + Copy;
+    type TypeId: 'static + PartialEq + Hash + Clone + Copy + Send + Sync;
 }
 
 /// Associates [`Database`] with an `Output` of a generic lifetime.
@@ -38,6 +38,8 @@ pub trait HasOutput<'x> {
 /// Associates [`Database`] with a `RawValue` of a generic lifetime.
 // 'r: row
 pub trait HasRawValue<'r> {
+    type Database: Database;
+
     /// The concrete type to hold the input for [`Decode`] for this database.
-    type RawValue;
+    type RawValue: RawValue<'r, Database = Self::Database>;
 }
