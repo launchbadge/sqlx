@@ -117,7 +117,38 @@ impl TypeInfo for MySqlTypeInfo {
         self.id.is_null()
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         self.name()
+    }
+}
+
+#[cfg(test)]
+impl MySqlTypeInfo {
+    pub(crate) const TINYINT_1: Self =
+        Self { id: MySqlTypeId::TINYINT, max_size: 1, flags: ColumnFlags::empty(), charset: 0 };
+
+    pub(crate) const BIGINT: Self =
+        Self { id: MySqlTypeId::BIGINT, max_size: 0, flags: ColumnFlags::empty(), charset: 0 };
+
+    pub(crate) const BINARY: Self = Self {
+        id: MySqlTypeId::CHAR,
+        max_size: 0,
+        flags: ColumnFlags::BINARY_COLLATION,
+        charset: 0,
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MySqlTypeInfo;
+
+    #[test]
+    fn should_identify_boolean() {
+        assert_eq!(MySqlTypeInfo::TINYINT_1.name(), "BOOLEAN");
+    }
+
+    #[test]
+    fn should_identify_binary() {
+        assert_eq!(MySqlTypeInfo::BINARY.name(), "BINARY");
     }
 }
