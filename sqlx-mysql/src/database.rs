@@ -25,5 +25,6 @@ impl<'x> HasOutput<'x> for MySql {
 }
 
 impl<'r> HasRawValue<'r> for MySql {
+    type Database = Self;
     type RawValue = MySqlRawValue<'r>;
 }
