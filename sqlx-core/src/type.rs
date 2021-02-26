@@ -1,8 +1,5 @@
-use crate::{Database, Decode, Encode, TypeInfo};
-
-// NOTE: The interface here is not final. There are some special considerations
-//       for MSSQL and Postgres (Arrays and Ranges) that need careful handling
-//       to ensure we correctly cover them.
+use crate::database::{HasOutput, HasRawValue};
+use crate::{decode, encode, Database, Decode, Encode, RawValue, TypeInfo};
 
 /// Indicates that a SQL type is supported for a database.
 pub trait Type<Db: Database> {
@@ -42,36 +39,12 @@ impl<Db: Database, T: Type<Db>> Type<Db> for &'_ T {
 }
 
 #[allow(clippy::module_name_repetitions)]
-pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {
-    /// Returns the canonical SQL type identifier for this Rust type.
-    #[allow(unused_variables)]
-    fn type_id(&self, ty: &Db::TypeInfo) -> Db::TypeId;
+pub trait TypeEncode<Db: Database>: Type<Db> + Encode<Db> {}
 
-    /// Determines if this Rust type is compatible with the specified SQL type.
-    ///
-    /// To be compatible, the Rust type must support encoding _and_ decoding
-    /// from the specified SQL type.
-    ///
-    fn compatible(&self, ty: &Db::TypeInfo) -> bool {
-        ty.id() == self.type_id(ty)
-    }
-
-    /// Returns the Rust type name of this.
-    #[doc(hidden)]
-    #[inline]
-    fn __rust_type_name_of(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-}
-
-impl<Db: Database, T: Type<Db> + Encode<Db>> TypeEncode<Db> for T {
-    fn type_id(&self, _ty: &Db::TypeInfo) -> Db::TypeId {
-        Self::type_id()
-    }
-}
+impl<T: Type<Db> + Encode<Db>, Db: Database> TypeEncode<Db> for T {}
 
 #[allow(clippy::module_name_repetitions)]
-pub trait TypeDecode<'r, Db: Database>: Type<Db> + Decode<'r, Db> {}
+pub trait TypeDecode<'r, Db: Database>: Sized + Type<Db> + Decode<'r, Db> {}
 
 impl<'r, T: Type<Db> + Decode<'r, Db>, Db: Database> TypeDecode<'r, Db> for T {}
 

@@ -1,5 +1,7 @@
+use std::any;
+
 use crate::database::HasOutput;
-use crate::{encode, Database, TypeEncode};
+use crate::{encode, Database, TypeEncode, TypeInfo};
 
 /// A collection of arguments to be applied to a prepared statement.
 ///
@@ -17,9 +19,31 @@ pub struct Arguments<'a, Db: Database> {
 pub struct Argument<'a, Db: Database> {
     unchecked: bool,
 
+    // preserved from `T::type_id()`
+    type_id: Db::TypeId,
+
+    // preserved from `T::compatible`
+    type_compatible: fn(&Db::TypeInfo) -> bool,
+
+    // preserved from `any::type_name::<T>`
+    // used in error messages
+    rust_type_name: &'static str,
+
     // TODO: we might want to allow binding to Box<dyn TypeEncode<Db>>
     //       this would allow an Owned storage of values
     value: &'a dyn TypeEncode<Db>,
+}
+
+impl<'a, Db: Database> Argument<'a, Db> {
+    fn new<T: 'a + TypeEncode<Db>>(value: &'a T, unchecked: bool) -> Self {
+        Self {
+            value,
+            unchecked,
+            type_id: T::type_id(),
+            type_compatible: T::compatible,
+            rust_type_name: any::type_name::<T>(),
+        }
+    }
 }
 
 impl<Db: Database> Default for Arguments<'_, Db> {
@@ -43,7 +67,7 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// and you attempt to bind a `&str` in Rust, an incompatible type error will be raised.
     ///
     pub fn add<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        self.positional.push(Argument { value, unchecked: false });
+        self.positional.push(Argument::new(value, false));
     }
 
     /// Add an unchecked value to the end of the arguments collection.
@@ -53,17 +77,17 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// will not be hinted when preparing the statement.
     ///
     pub fn add_unchecked<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        self.positional.push(Argument { value, unchecked: true });
+        self.positional.push(Argument::new(value, true));
     }
 
     /// Add a named value to the argument collection.
     pub fn add_as<T: 'a + TypeEncode<Db>>(&mut self, name: &'a str, value: &'a T) {
-        self.named.push((name, Argument { value, unchecked: false }));
+        self.named.push((name, Argument::new(value, false)));
     }
 
     /// Add an unchecked, named value to the arguments collection.
     pub fn add_unchecked_as<T: 'a + TypeEncode<Db>>(&mut self, name: &'a str, value: &'a T) {
-        self.named.push((name, Argument { value, unchecked: true }));
+        self.named.push((name, Argument::new(value, true)));
     }
 }
 
@@ -120,25 +144,14 @@ impl<'a, Db: Database> Arguments<'a, Db> {
 }
 
 impl<'a, Db: Database> Argument<'a, Db> {
-    /// Returns `true` if the argument is unchecked.
-    #[must_use]
-    pub fn unchecked(&self) -> bool {
-        self.unchecked
-    }
-
     /// Returns the SQL type identifier of the argument.
-    ///
-    /// When the statement is prepared, the database will often infer the type
-    /// of the incoming argument. This method takes that (`ty`) along with the value of
-    /// the argument to determine the actual type identifier that will be sent when
-    /// the statement is executed.
-    ///
     #[must_use]
-    pub fn type_id(&self, ty: &Db::TypeInfo) -> Db::TypeId {
-        self.value.type_id(ty)
+    pub fn type_id(&self) -> Db::TypeId {
+        self.type_id
     }
 
-    /// Encode this argument into the output buffer, for use in executing the prepared statement.
+    /// Encode this argument into the output buffer, for use in executing
+    /// the prepared statement.
     ///
     /// When the statement is prepared, the database will often infer the type
     /// of the incoming argument. This method takes  that (`ty`) along with the value of
@@ -149,6 +162,13 @@ impl<'a, Db: Database> Argument<'a, Db> {
         ty: &Db::TypeInfo,
         out: &mut <Db as HasOutput<'x>>::Output,
     ) -> encode::Result<()> {
+        if !self.unchecked && !(self.type_compatible)(ty) {
+            return Err(encode::Error::TypeNotCompatible {
+                rust_type_name: self.rust_type_name,
+                sql_type_name: ty.name(),
+            });
+        }
+
         self.value.encode(ty, out)
     }
 }
