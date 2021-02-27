@@ -279,7 +279,9 @@ where
                 );
 
                 let mut record_tokens = quote! {
-                    #[derive(Debug)]
+                    #[derive(Debug,Serialize)]
+                    // I cannot get this to work:
+                    // #[cfg_attr(feature = "json", derive(Serialize))]
                     struct #record_name {
                         #(#record_fields)*
                     }
