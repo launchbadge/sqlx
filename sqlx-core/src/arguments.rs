@@ -75,7 +75,7 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// and you attempt to bind a `&str` in Rust, an incompatible type error will be raised.
     ///
     pub fn add<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        let index = self.positional.len() + 1;
+        let index = self.positional.len();
 
         self.positional.push(Argument::new(Either::Left(index), value, false));
     }
@@ -87,7 +87,7 @@ impl<'a, Db: Database> Arguments<'a, Db> {
     /// will not be hinted when preparing the statement.
     ///
     pub fn add_unchecked<T: 'a + TypeEncode<Db>>(&mut self, value: &'a T) {
-        let index = self.positional.len() + 1;
+        let index = self.positional.len();
 
         self.positional.push(Argument::new(Either::Left(index), value, true));
     }
