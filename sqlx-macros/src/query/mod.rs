@@ -278,14 +278,19 @@ where
                      }| quote!(#ident: #type_,),
                 );
 
-                let mut record_tokens = quote! {
-                    #[derive(Debug,Serialize)]
-                    // I cannot get this to work:
-                    // #[cfg_attr(feature = "json", derive(Serialize))]
+                let mut record_tokens = TokenStream::new();
+
+                #[cfg(feature = "json")]
+                record_tokens.extend(quote! {
+                    #[derive(serde::Serialize)]
+                });
+
+                record_tokens.extend(quote! {
+                    #[derive(Debug)]
                     struct #record_name {
                         #(#record_fields)*
                     }
-                };
+                });
 
                 record_tokens.extend(output::quote_query_as::<DB>(
                     &input,
