@@ -18,13 +18,13 @@ impl Type<MySql> for bool {
 
 impl Encode<MySql> for bool {
     fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
-        <u8 as Encode<MySql>>::encode(&(*self as u8), ty, out)
+        <i128 as Encode<MySql>>::encode(&(*self as i128), ty, out)
     }
 }
 
 impl<'r> Decode<'r, MySql> for bool {
     fn decode(raw: MySqlRawValue<'r>) -> decode::Result<Self> {
-        Ok(raw.decode::<u8>()? != 0)
+        Ok(raw.decode::<i128>()? != 0)
     }
 }
 
