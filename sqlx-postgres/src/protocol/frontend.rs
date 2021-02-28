@@ -23,7 +23,7 @@ pub(crate) use password::{Password, PasswordMd5};
 pub(crate) use portal::PortalRef;
 pub(crate) use query::Query;
 pub(crate) use startup::Startup;
-pub(crate) use statement::StatementRef;
+pub(crate) use statement::StatementId;
 pub(crate) use sync::Sync;
 pub(crate) use target::Target;
 pub(crate) use terminate::Terminate;

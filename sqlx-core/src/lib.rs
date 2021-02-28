@@ -50,6 +50,9 @@ pub mod io;
 pub mod net;
 
 #[doc(hidden)]
+pub mod placeholders;
+
+#[doc(hidden)]
 #[cfg(feature = "_mock")]
 pub mod mock;
 

@@ -26,6 +26,15 @@ pub trait Database:
 
     /// The concrete [`TypeId`] implementation for this database.
     type TypeId: 'static + PartialEq + Hash + Clone + Copy + Send + Sync;
+
+    /// The character used to prefix bind parameter placeholders, e.g. `$` for Postgres, `?` for MySQL, etc.
+    const PLACEHOLDER_CHAR: char;
+
+    /// The indexing type for bind parameters.
+    ///
+    /// E.g. `Implicit` for MySQL which just does `SELECT 1 FROM foo WHERE bar = ? AND baz = ?`
+    /// or `OneIndexed` for Postgres which does `SELECT 1 FROM foo WHERE bar = $1 AND baz = $2`
+    const PARAM_INDEXING: crate::placeholders::ParamIndexing;
 }
 
 /// Associates [`Database`] with an `Output` of a generic lifetime.

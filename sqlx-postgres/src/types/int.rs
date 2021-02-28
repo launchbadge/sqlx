@@ -86,7 +86,7 @@ where
 }
 
 macro_rules! impl_type_int {
-    ($ty:ty $(: $real:ty)? => $sql:ident) => {
+    ($ty:ty $(: $real:ty)? => $sql:ident $(, [] => $array_sql:ident)?) => {
         impl Type<Postgres> for $ty {
             fn type_id() -> PgTypeId {
                 PgTypeId::$sql
@@ -96,6 +96,12 @@ macro_rules! impl_type_int {
                 ty.id().is_integer()
             }
         }
+
+        $(
+            impl super::array::PgHasArray for $ty {
+                const ARRAY_TYPE_ID: PgTypeId = PgTypeId::$array_sql;
+            }
+        )?
 
         impl Encode<Postgres> for $ty {
             fn encode(&self, ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result {
@@ -115,9 +121,9 @@ macro_rules! impl_type_int {
     };
 }
 
-impl_type_int! { i8 => SMALLINT }
-impl_type_int! { i16 => SMALLINT }
-impl_type_int! { i32 => INTEGER }
+impl_type_int! { i8 => SMALLINT, [] => SMALLINT_ARRAY }
+impl_type_int! { i16 => SMALLINT, [] => SMALLINT_ARRAY }
+impl_type_int! { i32 => INTEGER, [] => INTEGER_ARRAY }
 impl_type_int! { i64 => BIGINT }
 impl_type_int! { i128 => BIGINT }
 

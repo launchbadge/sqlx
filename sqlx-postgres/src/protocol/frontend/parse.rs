@@ -4,11 +4,11 @@ use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
 
 use crate::io::PgWriteExt;
-use crate::protocol::frontend::StatementRef;
+use crate::protocol::frontend::StatementId;
 use crate::{PgArguments, PgTypeId};
 
 pub(crate) struct Parse<'a> {
-    pub(crate) statement: StatementRef,
+    pub(crate) statement: StatementId,
     pub(crate) sql: &'a str,
     pub(crate) arguments: &'a PgArguments<'a>,
 }

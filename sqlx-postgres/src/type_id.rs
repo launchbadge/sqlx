@@ -10,10 +10,72 @@ pub enum PgTypeId {
     Name(&'static str),
 }
 
+/// Macro to reduce boilerplate for defining constants for `PgTypeId`. See usage below for examples.
+macro_rules! type_id {
+    ($(
+        $(#[$meta:meta])*
+        $name:ident = $kind:ident ($val:literal) $(, [] = $array_kind:ident ($array_val:literal))?
+    );* $(;)?) => {
+        impl PgTypeId {
+            $(
+                $(#[$meta])*
+                pub const $name: Self = Self::$kind($val);
+
+                $(
+                    paste::paste! {
+                        #[doc = "An array of [`" $name "`][Self::" $name "]."]
+                        ///
+                        /// Maps to either a slice or a vector of the equivalent Rust type.
+                        pub const [<$name _ARRAY>]: Self = Self::$array_kind($array_val);
+                    }
+                )?
+            )*
+        }
+
+        impl PgTypeId {
+            /// Get the name of this type as a string.
+            #[must_use]
+            pub (crate) const fn name(self) -> &'static str {
+                match self {
+                    $(
+                        Self::$name => stringify!($name),
+                        $(
+                            // just appends `[]` to the type name
+                            Self::$array_kind($array_val) => concat!(stringify!($name), "[]"),
+                        )?
+                    )*
+                    Self::Name(name) => name,
+                    _ => "UNKNOWN"
+                }
+            }
+
+            /// Get the ID of the inner type if the current type is an array.
+            #[allow(dead_code)]
+            pub (crate) const fn elem_type(self) -> Option<Self> {
+                match self {
+                    // only generates an arm if `$array_kind` and `$array_val` are provided
+                    $($(Self::$array_kind($array_val) => Some(Self::$kind($val)),)?)*
+                    _ => None,
+                }
+            }
+
+            /// Get the type ID for an array of this type, if we know it.
+            #[allow(dead_code)]
+            pub (crate) const fn array_type(self) -> Option<Self> {
+                match self {
+                    // only generates an arm if `$array_kind` and `$array_val` are provided
+                    $($(Self::$name => Some(Self::$array_kind($array_val)),)?)*
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
 // Data Types
 // https://www.postgresql.org/docs/current/datatype.html
-
-impl PgTypeId {
+// for OIDs see: https://github.com/postgres/postgres/blob/master/src/include/catalog/pg_type.dat
+type_id! {
     // Boolean
     // https://www.postgresql.org/docs/current/datatype-boolean.html
 
@@ -21,7 +83,7 @@ impl PgTypeId {
     ///
     /// Maps to `bool`.
     ///
-    pub const BOOLEAN: Self = Self::Oid(16);
+    BOOLEAN = Oid(16), [] = Oid(1000); // also defines `BOOLEAN_ARRAY` for the `BOOLEAN[]` type
 
     // Integers
     // https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-INT
@@ -34,7 +96,7 @@ impl PgTypeId {
     ///
     #[doc(alias = "INT2")]
     #[doc(alias = "SMALLSERIAL")]
-    pub const SMALLINT: Self = Self::Oid(21);
+    SMALLINT = Oid(21), [] = Oid(1005);
 
     /// A 4-byte integer.
     ///
@@ -44,17 +106,17 @@ impl PgTypeId {
     ///
     #[doc(alias = "INT4")]
     #[doc(alias = "SERIAL")]
-    pub const INTEGER: Self = Self::Oid(23);
+    INTEGER = Oid(23), [] = Oid(1007);
 
     /// An 8-byte integer.
     ///
     /// Compatible with any primitive integer type.
     ///
-    /// Maps to `i64`.
+    /// Maps to `i64`
     ///
     #[doc(alias = "INT8")]
     #[doc(alias = "BIGSERIAL")]
-    pub const BIGINT: Self = Self::Oid(20);
+    BIGINT = Oid(20), [] = Oid(1016);
 
     // Arbitrary Precision Numbers
     // https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
@@ -70,7 +132,7 @@ impl PgTypeId {
     /// enabled crate features).
     ///
     #[doc(alias = "DECIMAL")]
-    pub const NUMERIC: Self = Self::Oid(1700);
+    NUMERIC = Oid(1700), [] = Oid(1231);
 
     // Floating-Point
     // https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-FLOAT
@@ -82,7 +144,7 @@ impl PgTypeId {
     /// Maps to `f32`.
     ///
     #[doc(alias = "FLOAT4")]
-    pub const REAL: Self = Self::Oid(700);
+    REAL = Oid(700), [] = Oid(1021);
 
     /// An 8-byte floating-point numeric type.
     ///
@@ -91,34 +153,24 @@ impl PgTypeId {
     /// Maps to `f64`.
     ///
     #[doc(alias = "FLOAT8")]
-    pub const DOUBLE: Self = Self::Oid(701);
+    DOUBLE = Oid(701), [] = Oid(1022);
 
     /// The `UNKNOWN` Postgres type. Returned for expressions that do not
     /// have a type (e.g., `SELECT $1` with no parameter type hint
     /// or `SELECT NULL`).
-    pub const UNKNOWN: Self = Self::Oid(705);
+    UNKNOWN = Oid(705);
 }
 
 impl PgTypeId {
-    #[must_use]
-    pub(crate) const fn name(self) -> &'static str {
-        match self {
-            Self::BOOLEAN => "BOOLEAN",
-
-            Self::SMALLINT => "SMALLINT",
-            Self::INTEGER => "INTEGER",
-            Self::BIGINT => "BIGINT",
-
-            Self::NUMERIC => "NUMERIC",
-
-            Self::REAL => "REAL",
-            Self::DOUBLE => "DOUBLE",
-
-            _ => "UNKNOWN",
+    pub(crate) const fn oid(self) -> Option<u32> {
+        if let Self::Oid(oid) = self {
+            Some(oid)
+        } else {
+            None
         }
     }
 
-    pub(crate) const fn is_integer(&self) -> bool {
-        matches!(*self, Self::SMALLINT | Self::INTEGER | Self::BIGINT)
+    pub(crate) const fn is_integer(self) -> bool {
+        matches!(self, Self::SMALLINT | Self::INTEGER | Self::BIGINT)
     }
 }
