@@ -8,11 +8,13 @@ use sqlx_core::{Error, Result};
 use crate::MySqlDatabaseError;
 
 mod caching_sha2;
+mod dialog;
 mod native;
 mod rsa;
 mod sha256;
 
 pub(crate) use self::caching_sha2::CachingSha2AuthPlugin;
+pub(crate) use self::dialog::DialogAuthPlugin;
 pub(crate) use self::native::NativeAuthPlugin;
 pub(crate) use self::sha256::Sha256AuthPlugin;
 
@@ -39,6 +41,7 @@ impl dyn AuthPlugin {
             _ if s == CachingSha2AuthPlugin.name() => Ok(Box::new(CachingSha2AuthPlugin)),
             _ if s == Sha256AuthPlugin.name() => Ok(Box::new(Sha256AuthPlugin)),
             _ if s == NativeAuthPlugin.name() => Ok(Box::new(NativeAuthPlugin)),
+            _ if s == DialogAuthPlugin.name() => Ok(Box::new(DialogAuthPlugin)),
 
             _ => Err(MySqlDatabaseError::new(
                 2059,
@@ -63,7 +66,8 @@ fn err_msg(plugin: &'static str, message: &str) -> Error {
     MySqlDatabaseError::new(
         2061,
         &format!("Authentication plugin '{}' reported error: {}", plugin, message),
-    ).into()
+    )
+    .into()
 }
 
 fn err<E>(plugin: &'static str, error: &E) -> Error
