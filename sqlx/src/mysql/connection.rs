@@ -8,7 +8,7 @@ use sqlx_core::{Execute, Executor};
 use super::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
 #[cfg(feature = "blocking")]
 use crate::blocking;
-use crate::{Arguments, Close, Connect, Connection, DefaultRuntime, Runtime};
+use crate::{Arguments, Describe, Close, Connect, Connection, DefaultRuntime, Runtime};
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 
@@ -130,6 +130,20 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         Rt: Async,
     {
         self.0.ping()
+    }
+
+    #[cfg(feature = "async")]
+    #[inline]
+    fn describe<'x, 'e, 'q>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'x, Result<Describe<MySql>>>
+    where
+        Rt: Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        self.0.describe(query)
     }
 }
 

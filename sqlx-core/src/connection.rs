@@ -1,7 +1,7 @@
 #[cfg(feature = "async")]
 use futures_util::future::BoxFuture;
 
-use crate::{Close, Connect, Database, Runtime};
+use crate::{Close, Connect, Database, Describe, Runtime};
 
 /// A single connection (also known as a session) with a specific database.
 ///
@@ -29,4 +29,14 @@ where
     fn ping(&mut self) -> BoxFuture<'_, crate::Result<()>>
     where
         Rt: crate::Async;
+
+    #[cfg(feature = "async")]
+    fn describe<'x, 'e, 'q>(
+        &'e mut self,
+        query: &'q str
+    ) -> BoxFuture<'x, crate::Result<Describe<Self::Database>>>
+    where
+        Rt: crate::Async,
+        'e: 'x,
+        'q: 'x;
 }

@@ -22,6 +22,7 @@
 mod acquire;
 pub mod arguments;
 mod close;
+mod describe;
 mod column;
 mod connect;
 mod connection;
@@ -85,3 +86,4 @@ pub use runtime::Runtime;
 #[cfg(feature = "tokio")]
 pub use runtime::Tokio;
 pub use type_info::TypeInfo;
+pub use describe::Describe;

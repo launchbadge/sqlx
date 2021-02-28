@@ -56,7 +56,7 @@ macro_rules! impl_raw_prepare {
 
 impl<Rt: Runtime> super::MySqlConnection<Rt> {
     #[cfg(feature = "async")]
-    pub(super) async fn raw_prepare_async(&mut self, sql: &str) -> Result<RawStatement>
+    pub(crate) async fn raw_prepare_async(&mut self, sql: &str) -> Result<RawStatement>
     where
         Rt: sqlx_core::Async,
     {
@@ -65,7 +65,7 @@ impl<Rt: Runtime> super::MySqlConnection<Rt> {
     }
 
     #[cfg(feature = "blocking")]
-    pub(super) fn raw_prepare_blocking(&mut self, sql: &str) -> Result<RawStatement>
+    pub(crate) fn raw_prepare_blocking(&mut self, sql: &str) -> Result<RawStatement>
     where
         Rt: sqlx_core::blocking::Runtime,
     {

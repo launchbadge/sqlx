@@ -1,7 +1,7 @@
 use crate::blocking::{Close, Connect, Connection, Executor, Runtime};
 use crate::mysql::connection::MySqlConnection;
 use crate::mysql::{MySql, MySqlConnectOptions, MySqlQueryResult, MySqlRow};
-use crate::{Blocking, Execute, Result};
+use crate::{Blocking, Execute, Result, Describe};
 
 impl MySqlConnection<Blocking> {
     /// Open a new database connection.
@@ -67,6 +67,18 @@ impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     #[inline]
     fn ping(&mut self) -> Result<()> {
         self.0.ping()
+    }
+
+    #[inline]
+    fn describe<'x, 'e, 'q>(
+        &'e mut self,
+        query: &'q str,
+    ) -> Result<Describe<MySql>>
+    where
+        'e: 'x,
+        'q: 'x,
+    {
+        self.0.describe(query)
     }
 }
 

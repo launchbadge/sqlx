@@ -1,5 +1,7 @@
+use sqlx_core::Describe;
+
 use crate::protocol::PrepareOk;
-use crate::{MySqlColumn, MySqlTypeInfo};
+use crate::{MySql, MySqlColumn, MySqlTypeInfo};
 
 #[derive(Debug, Clone)]
 pub(crate) struct RawStatement {
@@ -35,5 +37,15 @@ impl RawStatement {
 
     pub(crate) fn parameters_mut(&mut self) -> &mut Vec<MySqlTypeInfo> {
         &mut self.parameters
+    }
+}
+
+impl From<RawStatement> for Describe<MySql> {
+    fn from(stmt: RawStatement) -> Self {
+        Self {
+            nullable: stmt.columns.iter().map(|col| Some(col.is_nullable())).collect(),
+            columns: stmt.columns,
+            parameters: stmt.parameters,
+        }
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "async")]
-use futures_util::future::{BoxFuture, FutureExt};
+use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
@@ -13,9 +13,11 @@ use crate::{MySql, MySqlConnectOptions};
 #[macro_use]
 mod flush;
 
+#[macro_use]
+mod executor;
+
 mod command;
 mod connect;
-mod executor;
 mod ping;
 
 /// A single connection (also known as a session) to a MySQL database server.
@@ -88,6 +90,19 @@ where
     {
         Box::pin(self.ping_async())
     }
+
+    #[cfg(feature = "async")]
+    fn describe<'x, 'e, 'q>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'x, sqlx_core::Result<sqlx_core::Describe<MySql>>>
+    where
+        Rt: sqlx_core::Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        self.raw_prepare_async(query).map_ok(Into::into).boxed()
+    }
 }
 
 impl<Rt: Runtime> Connect<Rt> for MySqlConnection<Rt> {
@@ -121,12 +136,23 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 mod blocking {
     use sqlx_core::blocking::{Close, Connect, Connection, Runtime};
 
-    use super::{MySqlConnectOptions, MySqlConnection};
+    use super::{MySqlConnectOptions, MySqlConnection, MySql};
 
     impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         #[inline]
         fn ping(&mut self) -> sqlx_core::Result<()> {
             self.ping_blocking()
+        }
+
+        fn describe<'x, 'e, 'q>(
+            &'e mut self,
+            query: &'q str,
+        ) -> sqlx_core::Result<sqlx_core::Describe<MySql>>
+        where
+            'e: 'x,
+            'q: 'x,
+        {
+            self.raw_prepare_blocking(query).map(Into::into)
         }
     }
 
