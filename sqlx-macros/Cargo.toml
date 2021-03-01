@@ -51,6 +51,7 @@ ipnetwork = [ "sqlx-core/ipnetwork" ]
 uuid = [ "sqlx-core/uuid" ]
 bit-vec = [ "sqlx-core/bit-vec" ]
 json = [ "sqlx-core/json", "serde_json" ]
+serialize = [ "serde", "serde_json" ]
 
 [dependencies]
 dotenv = { version = "0.15.0", default-features = false }

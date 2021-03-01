@@ -92,6 +92,7 @@ time = [ "sqlx-core/time", "sqlx-macros/time" ]
 bit-vec = [ "sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = [ "sqlx-core/bstr" ]
 git2 = [ "sqlx-core/git2" ]
+serialize = [ "sqlx-core/serialize", "sqlx-macros/serialize" ]
 
 [dependencies]
 sqlx-core = { version = "0.5.1", path = "sqlx-core", default-features = false }

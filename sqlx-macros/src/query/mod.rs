@@ -280,7 +280,7 @@ where
 
                 let mut record_tokens = TokenStream::new();
 
-                #[cfg(feature = "json")]
+                #[cfg(feature = "serialize")]
                 record_tokens.extend(quote! {
                     #[derive(serde::Serialize)]
                 });

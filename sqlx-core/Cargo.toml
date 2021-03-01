@@ -32,6 +32,7 @@ all-types = [ "chrono", "time", "bigdecimal", "decimal", "ipnetwork", "json", "u
 bigdecimal = [ "bigdecimal_", "num-bigint" ]
 decimal = [ "rust_decimal", "num-bigint" ]
 json = [ "serde", "serde_json" ]
+serialize = [ "serde", "serde_json" ]
 
 # runtimes
 runtime-actix-native-tls = [ "sqlx-rt/runtime-actix-native-tls", "_tls-native-tls", "_rt-actix" ]
