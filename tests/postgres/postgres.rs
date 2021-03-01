@@ -893,11 +893,7 @@ from (values (null)) vals(val)
 async fn it_row_serializes_to_json() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    let json = 
-        serde_json::to_string(
-            &sqlx::query!(" select (1) as id ")
-                .fetch_all(&pool)
-                .await?)?;
+    let json = serde_json::to_string(&sqlx::query!(" select (1) as id ").fetch_all(&pool).await?)?;
     assert_eq!(&json, r#"[{"id":1}]"#);
 
     Ok(())
