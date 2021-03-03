@@ -89,12 +89,3 @@ ORDER BY id
     buf.push_str("]\n");
     Ok(buf)
 }
-/*
-
-echo 'DATABASE_URL=postgresql:///test?host=/var/run/postgresql' >.env
-sqlx db create
-sqlx migrate run
-echo '{ "name": "Jane Doe", "age": 25, "array": ["string", true, 0] }' | cargo run -- add
-cargo run
-
-*/
