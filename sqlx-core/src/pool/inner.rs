@@ -113,14 +113,12 @@ impl<DB: Database> SharedPool<DB> {
         let mut size = self.size();
 
         while size < self.options.max_connections {
-            if let Ok(new_size) =
-                self.size
-                    .compare_exchange(size, size + 1, Ordering::AcqRel, Ordering::Acquire)
+            match self
+                .size
+                .compare_exchange(size, size + 1, Ordering::AcqRel, Ordering::Acquire)
             {
-                if new_size == size {
-                    return Some(DecrementSizeGuard::new(self));
-                }
-                size = new_size;
+                Ok(_) => return Some(DecrementSizeGuard::new(self)),
+                Err(new_size) => size = new_size,
             }
         }
 
