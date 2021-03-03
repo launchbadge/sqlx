@@ -115,6 +115,10 @@ impl Migrator {
             .collect();
 
         for migration in self.iter() {
+            if migration.migration_type.is_down_migration() {
+                continue;
+            }
+
             match applied_migrations.get(&migration.version) {
                 Some(applied_migration) => {
                     if migration.checksum != applied_migration.checksum {
