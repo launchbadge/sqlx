@@ -5,7 +5,6 @@ use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::{Json, Type};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 // <https://www.postgresql.org/docs/12/datatype-json.html>
 
