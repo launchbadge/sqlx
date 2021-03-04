@@ -67,6 +67,9 @@ impl Runtime for Mock {
     }
 }
 
+#[cfg(feature = "blocking")]
+impl crate::blocking::Runtime for Mock {}
+
 impl Mock {
     #[must_use]
     pub fn stream() -> MockStream {
@@ -95,6 +98,11 @@ impl MockStream {
     #[must_use]
     pub const fn port(&self) -> u16 {
         self.port
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.rbuf.is_empty() && self.read.is_empty() && self.write.is_empty()
     }
 }
 

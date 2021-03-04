@@ -27,9 +27,9 @@ impl super::AuthPlugin for DialogAuthPlugin {
         _nonce: &Chain<Bytes, Bytes>,
         _password: &str,
     ) -> Result<Option<Vec<u8>>> {
-        Err(Error::ConnectOptions {
-            message: Cow::Borrowed("interactive dialog authentication is currently not supported"),
-            source: None,
-        })
+        Err(super::err_msg(
+            self.name(),
+            "interactive dialog authentication is currently not supported",
+        ))
     }
 }
