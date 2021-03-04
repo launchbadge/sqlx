@@ -122,7 +122,7 @@ def run_unit_test(project: str):
         "cargo", "+nightly", "test",
         "-q" if argv.quiet else None,
         "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "async",
+        "--features", "blocking",
         *unknown,
     ] if x], env=env, cwd=project_dir, comment=f"unit test {project}", tag=tag)
 
@@ -131,7 +131,7 @@ def run_unit_test(project: str):
     messages = subprocess.run([
         "cargo", "+nightly", "test",
         "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "async",
+        "--features", "blocking",
         "--no-run", "--message-format=json",
         *unknown,
     ], env=env, cwd=project_dir, check=True, capture_output=True).stdout
