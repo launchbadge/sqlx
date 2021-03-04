@@ -29,6 +29,7 @@ pub(crate) trait AuthPlugin: 'static + Debug + Send + Sync {
     //  if the plugin returns Some(_) that is sent back to MySQL
     fn handle(
         &self,
+        command: u8,
         data: Bytes,
         nonce: &Chain<Bytes, Bytes>,
         password: &str,

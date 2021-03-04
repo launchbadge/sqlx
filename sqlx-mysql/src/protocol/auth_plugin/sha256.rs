@@ -30,10 +30,18 @@ impl super::AuthPlugin for Sha256AuthPlugin {
 
     fn handle(
         &self,
+        command: u8,
         data: Bytes,
         nonce: &Chain<Bytes, Bytes>,
         password: &str,
     ) -> Result<Option<Vec<u8>>> {
+        if command != 0x01 {
+            return Err(super::err_msg(
+                self.name(),
+                &format!("Received 0x{:x} but expected 0x1 (MORE DATA)", command),
+            ));
+        }
+
         let rsa_pub_key = data;
         let encrypted = super::rsa::encrypt(self.name(), &rsa_pub_key, password, nonce)?;
 

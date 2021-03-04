@@ -1,7 +1,8 @@
+use std::borrow::Cow;
+
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sqlx_core::{Error, Result};
-use std::borrow::Cow;
 
 /// Dialog authentication implementation
 ///
@@ -21,6 +22,7 @@ impl super::AuthPlugin for DialogAuthPlugin {
 
     fn handle(
         &self,
+        _command: u8,
         _data: Bytes,
         _nonce: &Chain<Bytes, Bytes>,
         _password: &str,

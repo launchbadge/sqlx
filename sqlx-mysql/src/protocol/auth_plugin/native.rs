@@ -49,6 +49,7 @@ impl super::AuthPlugin for NativeAuthPlugin {
 
     fn handle(
         &self,
+        _command: u8,
         _data: Bytes,
         _nonce: &Chain<Bytes, Bytes>,
         _password: &str,

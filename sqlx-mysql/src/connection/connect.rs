@@ -70,8 +70,9 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
                 return Ok(true);
             }
 
-            AuthResponse::MoreData(data) => {
+            AuthResponse::Command(command, data) => {
                 if let Some(data) = handshake.auth_plugin.handle(
+                    command,
                     data,
                     &handshake.auth_plugin_data,
                     options.get_password().unwrap_or_default(),
@@ -168,6 +169,8 @@ mod tests {
 
     const SRV_PUBLIC_KEY: &[u8] = b"\x01-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwnXi3nr9TmN+NF49A3Y7\nUBnAVhApNJy2cmuf/y6vFM9eHFu5T80Ij1qYc6c79oAGA8nNNCFQL+0j5De88cln\nKrlzq/Ab3U+j5SqgNwk//F6Y3iyjV4L7feSDqjpcheFzkjEslbm/yoRwQ78AAU6s\nqA0hcFuh66mcvnotDrvZAGQ8U2EbbZa6oiR3wrgbzifSKq767g65zIrCpoyxzKMH\nAETSDIaMKpFio4dRATKT5ASQtPoIyxSBmjRtc22sqlhEeiejEMsJzd6Bliuait+A\nkTXL6G1Tbam26Dok/L88CnTAWAkLwTA3bjPcS8Zl9gTsJvoiMuwW1UPEVV/aJ11Z\n/wIDAQAB\n-----END PUBLIC KEY-----\n";
     const SRV_AUTH_OK: &[u8] = b"\0\0\0\x02\0\0\0";
+    const SRV_AUTH_ERR: &[u8] =
+        b"\xff\x15\x04#28000Access denied for user 'root'@'172.17.0.1' (using password: YES)";
     const SRV_AUTH_MORE_CONTINUE: &[u8] = b"\x01\x04";
     const SRV_AUTH_MORE_OK: &[u8] = b"\x01\x03";
     const SRV_SWITCH_CACHING_SHA2_AUTH: &[u8] =
@@ -392,6 +395,30 @@ mod tests {
             let buf = mock.read_all_async().await?;
 
             assert_eq!(&buf, RES_HANDSHAKE_EMPTY_AUTH);
+
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn should_fail_connect_err() -> anyhow::Result<()> {
+        block_on(async {
+            let mut mock = Mock::stream();
+
+            mock.write_packet_async(0, SRV_HANDSHAKE_DEFAULT_NATIVE_AUTH).await?;
+            mock.write_packet_async(2, SRV_AUTH_ERR).await?;
+
+            let err = MySqlConnectOptions::new()
+                .port(mock.port())
+                .username("root")
+                .connect::<MySqlConnection<Mock>, _>()
+                .await
+                .unwrap_err();
+
+            assert_eq!(
+                err.to_string(),
+                "1045 (28000): Access denied for user \'root\'@\'172.17.0.1\' (using password: YES)"
+            );
 
             Ok(())
         })

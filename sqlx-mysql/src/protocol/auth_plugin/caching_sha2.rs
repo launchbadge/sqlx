@@ -51,12 +51,20 @@ impl super::AuthPlugin for CachingSha2AuthPlugin {
 
     fn handle(
         &self,
+        command: u8,
         data: Bytes,
         nonce: &Chain<Bytes, Bytes>,
         password: &str,
     ) -> Result<Option<Vec<u8>>> {
         const AUTH_SUCCESS: u8 = 0x3;
         const AUTH_CONTINUE: u8 = 0x4;
+
+        if command != 0x01 {
+            return Err(super::err_msg(
+                self.name(),
+                &format!("Received 0x{:x} but expected 0x1 (MORE DATA)", command),
+            ));
+        }
 
         match data[0] {
             // good to go, return nothing
