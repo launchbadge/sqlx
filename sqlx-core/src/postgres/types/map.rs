@@ -3,7 +3,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
-use crate::types::{Json, Type};
+use crate::types::Type;
 use serde_json::{Map, Value};
 
 impl Type<Postgres> for Map<String, Value> {
