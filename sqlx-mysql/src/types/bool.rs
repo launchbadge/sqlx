@@ -31,12 +31,12 @@ impl<'r> Decode<'r, MySql> for bool {
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
-    use sqlx_core::Result;
+    use sqlx_core::decode;
 
-    use crate::{MySqlRawValue, MySqlRawValueFormat, MySqlTypeInfo};
+    use crate::{MySqlRawValue, MySqlTypeInfo};
 
     #[test]
-    fn decode_bool_from_tinyint() -> Result<()> {
+    fn decode_bool_from_tinyint() -> decode::Result<()> {
         let bytes = Bytes::from_static(b"\x01");
         let val: bool = MySqlRawValue::binary(&bytes, &MySqlTypeInfo::TINYINT_1).decode()?;
 
@@ -46,7 +46,7 @@ mod tests {
     }
 
     #[test]
-    fn decode_bool_from_bigint() -> Result<()> {
+    fn decode_bool_from_bigint() -> decode::Result<()> {
         let bytes = Bytes::from_static(b"\x01\x00\x00\x00\x00\x00\x00\x00");
         let val: bool = MySqlRawValue::binary(&bytes, &MySqlTypeInfo::BIGINT).decode()?;
 

@@ -12,8 +12,7 @@ use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlRawValueFormat, MySqlTypeId}
 
 pub(super) fn decode_int_or_uint<T>(value: &MySqlRawValue<'_>) -> decode::Result<T>
 where
-    T: TryFrom<u64> + FromStr,
-    T: TryFrom<i64> + FromStr,
+    T: TryFrom<i64> + TryFrom<u64> + FromStr,
     <T as TryFrom<u64>>::Error: 'static + StdError + Send + Sync,
     <T as TryFrom<i64>>::Error: 'static + StdError + Send + Sync,
     <T as FromStr>::Err: 'static + StdError + Send + Sync,
@@ -24,7 +23,7 @@ where
 
     let mut bytes = value.as_bytes()?;
     let is_unsigned = value.type_info().id().is_unsigned();
-    let size = cmp::max(bytes.len(), 8);
+    let size = cmp::min(bytes.len(), 8);
 
     Ok(if is_unsigned {
         bytes.get_uint_le(size).try_into()?
