@@ -8,4 +8,4 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: mysecretpassword
     volumes:
-      - ./scripts/Chinook.sql:/docker-entrypoint-initdb.d/Chinook.sql
+      - ../../data/chinook/mysql.sql:/docker-entrypoint-initdb.d/Chinook.sql
