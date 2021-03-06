@@ -1,0 +1,13 @@
+[package]
+name = "sqlx_example_quickstart_mysql"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+authors = ["LaunchBadge <contact@launchbadge.com>",
+"Zachary Fanelle <zachary.fanelle@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio =  { version = "1.2.0", features = ["full"]}
+sqlx = { version = "0.5.1", features = [ "runtime-tokio-rustls", "mysql" ] }

@@ -1,0 +1,11 @@
+version: "3.7"
+services:
+  db:
+    image: "mysql:8.0.23"
+    ports:
+      - 3306:3306
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: mysecretpassword
+    volumes:
+      - ./scripts/Chinook.sql:/docker-entrypoint-initdb.d/Chinook.sql
