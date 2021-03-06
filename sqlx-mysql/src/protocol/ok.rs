@@ -12,7 +12,7 @@ use crate::protocol::{Capabilities, Info, Status};
 /// An OK packet is sent from the server to the client to signal successful completion of a command.
 /// As of MySQL 5.7.5, OK packes are also used to indicate EOF, and EOF packets are deprecated.
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct OkPacket {
     pub(crate) affected_rows: u64,
     pub(crate) last_insert_id: u64,

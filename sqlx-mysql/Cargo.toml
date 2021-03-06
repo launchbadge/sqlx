@@ -23,7 +23,6 @@ default = []
 blocking = ["sqlx-core/blocking"]
 
 # async runtime
-# not meant to be used directly
 async = ["futures-util", "sqlx-core/async", "futures-io"]
 
 [dependencies]

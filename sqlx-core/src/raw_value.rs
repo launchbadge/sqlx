@@ -9,5 +9,5 @@ pub trait RawValue<'r>: Sized {
     fn is_null(&self) -> bool;
 
     /// Returns the type information for this value.
-    fn type_info(&self) -> &'r <Self::Database as Database>::TypeInfo;
+    fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 }
