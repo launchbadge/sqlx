@@ -10,4 +10,4 @@ edition = "2018"
 
 [dependencies]
 tokio =  { version = "1.2.0", features = ["full"]}
-sqlx = { version = "0.5.1", features = [ "runtime-tokio-rustls", "mysql" ] }
+sqlx = { path = "../../../sqlx", features = [ "runtime-tokio-rustls", "mysql" ] }
