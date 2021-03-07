@@ -30,6 +30,7 @@ atoi = "0.4.0"
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 futures-util = { version = "0.3.8", optional = true }
 log = "0.4.11"
+either = "1.6.1"
 bytestring = "1.0.0"
 url = "2.2.0"
 percent-encoding = "2.1.0"

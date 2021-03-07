@@ -172,6 +172,7 @@ def main():
     # run unit tests, collect test binary filenames
     run_unit_test("sqlx-core")
     run_unit_test("sqlx-mysql")
+    run_unit_test("sqlx-postgres")
     run_unit_test("sqlx")
 
     if test_object_filenames and argv.coverage:

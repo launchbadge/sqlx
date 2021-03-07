@@ -9,31 +9,28 @@ mod default;
 mod getters;
 mod parse;
 
-// TODO: RSA Public Key (to avoid the key exchange for caching_sha2 and sha256 plugins)
-
-/// Options which can be used to configure how a MySQL connection is opened.
+/// Options which can be used to configure how a Postgres connection is opened.
 ///
-/// A value of `MySqlConnectOptions` can be parsed from a connection URI, as
-/// described by [dev.mysql.com](https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri).
+/// A value of `PgConnectOptions` can be parsed from a connection URI, as
+/// described by [libpq](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING).
 ///
 /// ```text
-/// mysql://[user[:password]@][host][:port][/database][?param1=value1&...]
+/// postgresql://[user[:password]@][host][:port][/database][?param1=value1&...]
 /// ```
 ///
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone)]
-pub struct MySqlConnectOptions {
+pub struct PgConnectOptions {
     pub(crate) address: Either<(String, u16), PathBuf>,
     username: Option<String>,
     password: Option<String>,
     database: Option<String>,
-    timezone: String,
-    charset: String,
+    application_name: Option<String>,
 }
 
-impl Debug for MySqlConnectOptions {
+impl Debug for PgConnectOptions {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MySqlConnectOptions")
+        f.debug_struct("PgConnectOptions")
             .field(
                 "address",
                 &self
@@ -45,19 +42,12 @@ impl Debug for MySqlConnectOptions {
             .field("username", &self.username)
             .field("password", &self.password)
             .field("database", &self.database)
-            .field("timezone", &self.timezone)
-            .field("charset", &self.charset)
+            .field("application_name", &self.application_name)
             .finish()
     }
 }
 
-impl ConnectOptions for MySqlConnectOptions {}
+impl ConnectOptions for PgConnectOptions {}
 
 #[cfg(feature = "blocking")]
-mod blocking {
-    use sqlx_core::blocking::ConnectOptions;
-
-    use super::MySqlConnectOptions;
-
-    impl ConnectOptions for MySqlConnectOptions {}
-}
+impl sqlx_core::blocking::ConnectOptions for PgConnectOptions {}

@@ -14,7 +14,6 @@ impl Default for MySqlConnectOptions {
             database: None,
             charset: "utf8mb4".to_owned(),
             timezone: "utc".to_owned(),
-            // todo: connect_timeout
         }
     }
 }
