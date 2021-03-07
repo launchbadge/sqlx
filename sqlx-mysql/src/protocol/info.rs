@@ -1,7 +1,7 @@
 // https://dev.mysql.com/doc/c-api/8.0/en/mysql-info.html
 // https://mariadb.com/kb/en/mysql_info/
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct Info {
     pub(crate) records: u64,
     pub(crate) duplicates: u64,

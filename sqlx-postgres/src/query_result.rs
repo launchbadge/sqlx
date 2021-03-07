@@ -14,7 +14,7 @@ use sqlx_core::QueryResult;
 /// Returned from [`execute()`][sqlx_core::Executor::execute].
 ///
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PgQueryResult {
     command: ByteString,
     rows_affected: u64,
@@ -38,6 +38,7 @@ impl PgQueryResult {
     ///
     /// This is usually a single word that identifies which SQL command
     /// was completed (e.g.,`INSERT`, `UPDATE`, or `MOVE`).
+    ///
     #[must_use]
     pub fn command(&self) -> &str {
         &self.command

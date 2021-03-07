@@ -4,7 +4,7 @@ use sqlx_core::QueryResult;
 
 use crate::protocol::{Info, OkPacket, Status};
 
-/// Represents the execution result of an operation in MySQL.
+/// Represents the execution result of an operation on the database server.
 ///
 /// Returned from [`execute()`][sqlx_core::Executor::execute].
 ///
@@ -107,6 +107,18 @@ impl Debug for MySqlQueryResult {
             .field("duplicates", &self.duplicates())
             .field("warnings", &self.warnings())
             .finish()
+    }
+}
+
+impl Default for MySqlQueryResult {
+    fn default() -> Self {
+        Self(OkPacket {
+            affected_rows: 0,
+            last_insert_id: 0,
+            status: Status::empty(),
+            warnings: 0,
+            info: Info::default(),
+        })
     }
 }
 
