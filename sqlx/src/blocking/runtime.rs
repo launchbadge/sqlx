@@ -6,7 +6,9 @@ use std::path::Path;
 use futures_util::future::BoxFuture;
 use sqlx_core::Runtime;
 
-use super::stream::{TcpStream, UnixStream};
+use super::stream::TcpStream;
+#[cfg(unix)]
+use super::stream::UnixStream;
 
 /// Uses the `std::net` primitives to implement a blocking runtime for SQLx.
 #[derive(Debug)]
@@ -45,7 +47,7 @@ impl Runtime for Blocking {
     }
 
     #[doc(hidden)]
-    #[cfg(feature = "async")]
+    #[cfg(all(unix, feature = "async"))]
     fn connect_unix_async(_path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>> {
         // UNREACHABLE: where Self: Async
         unreachable!()
