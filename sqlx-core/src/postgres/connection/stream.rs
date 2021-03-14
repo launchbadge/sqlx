@@ -75,14 +75,13 @@ impl PgStream {
         // this header contains the message type and the total length of the message
 
         // peek at the messaage type and payload size
-        let format = MessageFormat::try_from_u8(self.inner.get(0, 1).await?[0])
+        let header = self.inner.get(0, 5).await?;
+        let format = MessageFormat::try_from_u8(header[0])
             .map_err(|err| err_protocol!("{}", err))?;
         let size = (u32::from_be_bytes(
-            self.inner
-                .get(1, 4)
-                .await?
+            header[1..5]
                 .try_into()
-                .map_err(|err| err_protocol!("{}", err))?,
+                .map_err(|err| err_protocol!("{}", err))?
         ) - 4) as usize;
 
         // remove the whole messaage from the inner stream
