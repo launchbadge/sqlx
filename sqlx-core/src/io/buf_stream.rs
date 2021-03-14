@@ -97,7 +97,8 @@ where
 
     pub async fn get(&mut self, offset: usize, len: usize) -> Result<&[u8], Error> {
         if self.rbuf.len() < (offset + len) {
-            self.read_into_rbuf((offset + len) - self.rbuf.len()).await?;
+            self.read_into_rbuf((offset + len) - self.rbuf.len())
+                .await?;
         }
         Ok(&(self.rbuf.as_ref())[offset..(offset + len)])
     }
