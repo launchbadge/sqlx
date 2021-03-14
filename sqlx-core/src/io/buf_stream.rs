@@ -102,9 +102,9 @@ where
         Ok(self.rbuf.split_to(len).freeze())
     }
 
-    pub async fn consume(&mut self, len: usize) -> Result<(), Error> {
+    pub fn consume(&mut self, len: usize) -> Result<(), Error> {
         if self.rbuf.len() < len {
-            self.get_raw(len - self.rbuf.len()).await?;
+            return Err(Error::Protocol("buffer length shorter than requested size".into()));
         }
         let _rem = self.take(len);
         Ok(())

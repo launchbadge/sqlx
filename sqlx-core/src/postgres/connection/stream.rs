@@ -85,7 +85,7 @@ impl PgStream {
         ) - 4) as usize;
 
         // remove the whole messaage from the inner stream
-        self.inner.consume(5).await?;
+        self.inner.consume(5)?;
         let contents = self.inner.read(size).await?;
 
         Ok(Message { format, contents })
