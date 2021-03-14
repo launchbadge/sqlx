@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use bytes::Bytes;
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
@@ -82,11 +83,10 @@ impl PgStream {
             header[1..5]
                 .try_into()
                 .map_err(|err| err_protocol!("{}", err))?
-        ) - 4) as usize;
+        ) + 1) as usize;
 
-        // remove the whole messaage from the inner stream
-        self.inner.consume(5)?;
-        let contents = self.inner.read(size).await?;
+        let mut contents: Bytes = self.inner.read_from_beginning(size).await?;
+        let _  = contents.split_to(5);
 
         Ok(Message { format, contents })
     }

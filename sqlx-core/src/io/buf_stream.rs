@@ -84,30 +84,22 @@ where
         read_raw_into(&mut self.stream, buf, cnt).await
     }
 
-    pub async fn get_raw(&mut self, cnt: usize) -> Result<(), Error> {
+    pub async fn read_into_rbuf(&mut self, cnt: usize) -> Result<(), Error> {
         read_raw_into(&mut self.stream, &mut self.rbuf, cnt).await
+    }
+
+    // read from the beginning of rbuf (rather than from rbuf.len())
+    pub async fn read_from_beginning(&mut self, cnt: usize) -> Result<Bytes, Error> {
+        self.read_into_rbuf(cnt - self.rbuf.len()).await?;
+        let buf = self.rbuf.split_to(cnt).freeze();
+        Ok(buf)
     }
 
     pub async fn get(&mut self, offset: usize, len: usize) -> Result<&[u8], Error> {
         if self.rbuf.len() < (offset + len) {
-            self.get_raw((offset + len) - self.rbuf.len()).await?;
+            self.read_into_rbuf((offset + len) - self.rbuf.len()).await?;
         }
         Ok(&(self.rbuf.as_ref())[offset..(offset + len)])
-    }
-
-    pub async fn take(&mut self, len: usize) -> Result<Bytes, Error> {
-        if self.rbuf.len() < len {
-            self.get_raw(len - self.rbuf.len()).await?;
-        }
-        Ok(self.rbuf.split_to(len).freeze())
-    }
-
-    pub fn consume(&mut self, len: usize) -> Result<(), Error> {
-        if self.rbuf.len() < len {
-            return Err(Error::Protocol("buffer length shorter than requested size".into()));
-        }
-        let _rem = self.take(len);
-        Ok(())
     }
 }
 
