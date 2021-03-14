@@ -3,7 +3,8 @@
 use std::io;
 use std::ops::{Deref, DerefMut};
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
+
 use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 use crate::error::Error;
@@ -81,6 +82,32 @@ where
 
     pub async fn read_raw_into(&mut self, buf: &mut BytesMut, cnt: usize) -> Result<(), Error> {
         read_raw_into(&mut self.stream, buf, cnt).await
+    }
+
+    pub async fn get_raw(&mut self, cnt: usize) -> Result<(), Error> {
+        read_raw_into(&mut self.stream, &mut self.rbuf, cnt).await
+    }
+
+    pub async fn get(&mut self, offset: usize, len: usize) -> Result<&[u8], Error> {
+        if self.rbuf.len() < (offset + len) {
+            self.get_raw((offset + len) - self.rbuf.len()).await?;
+        }
+        Ok(&(self.rbuf.as_ref())[offset..(offset + len)])
+    }
+
+    pub async fn take(&mut self, len: usize) -> Result<Bytes, Error> {
+        if self.rbuf.len() < len {
+            self.get_raw(len - self.rbuf.len()).await?;
+        }
+        Ok(self.rbuf.split_to(len).freeze())
+    }
+
+    pub async fn consume(&mut self, len: usize) -> Result<(), Error> {
+        if self.rbuf.len() < len {
+            self.get_raw(len - self.rbuf.len()).await?;
+        }
+        let _rem = self.take(len);
+        Ok(())
     }
 }
 

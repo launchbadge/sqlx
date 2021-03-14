@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use bytes::{Buf, Bytes};
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::SinkExt;
 use log::Level;
@@ -71,13 +70,23 @@ impl PgStream {
     }
 
     pub(crate) async fn recv_unchecked(&mut self) -> Result<Message, Error> {
+        use std::convert::TryInto;
         // all packets in postgres start with a 5-byte header
         // this header contains the message type and the total length of the message
-        let mut header: Bytes = self.inner.read(5).await?;
 
-        let format = MessageFormat::try_from_u8(header.get_u8())?;
-        let size = (header.get_u32() - 4) as usize;
+        // peek at the messaage type and payload size
+        let format = MessageFormat::try_from_u8(self.inner.get(0, 1).await?[0])
+            .map_err(|err| err_protocol!("{}", err))?;
+        let size = (u32::from_be_bytes(
+            self.inner
+                .get(1, 4)
+                .await?
+                .try_into()
+                .map_err(|err| err_protocol!("{}", err))?,
+        ) - 4) as usize;
 
+        // remove the whole messaage from the inner stream
+        self.inner.consume(5).await?;
         let contents = self.inner.read(size).await?;
 
         Ok(Message { format, contents })
