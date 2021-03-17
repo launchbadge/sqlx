@@ -22,10 +22,7 @@ mod ping;
 
 /// A single connection (also known as a session) to a MySQL database server.
 #[allow(clippy::module_name_repetitions)]
-pub struct MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+pub struct MySqlConnection<Rt: Runtime> {
     stream: MySqlStream<Rt>,
     connection_id: u32,
     closed: bool,
@@ -40,10 +37,7 @@ where
     commands: CommandQueue,
 }
 
-impl<Rt> MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> MySqlConnection<Rt> {
     pub(crate) fn new(stream: NetStream<Rt>) -> Self {
         Self {
             stream: MySqlStream::new(stream),
@@ -68,19 +62,13 @@ where
     }
 }
 
-impl<Rt> Debug for MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> Debug for MySqlConnection<Rt> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("MySqlConnection").finish()
     }
 }
 
-impl<Rt> Connection<Rt> for MySqlConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
     type Database = MySql;
 
     #[cfg(feature = "async")]
@@ -136,7 +124,7 @@ impl<Rt: Runtime> Close<Rt> for MySqlConnection<Rt> {
 mod blocking {
     use sqlx_core::blocking::{Close, Connect, Connection, Runtime};
 
-    use super::{MySqlConnectOptions, MySqlConnection, MySql};
+    use super::{MySql, MySqlConnectOptions, MySqlConnection};
 
     impl<Rt: Runtime> Connection<Rt> for MySqlConnection<Rt> {
         #[inline]
