@@ -26,7 +26,7 @@ use sqlx_core::Arguments;
 mod stream;
 
 mod column;
-// mod connection;
+mod connection;
 mod database;
 // mod error;
 // mod io;
