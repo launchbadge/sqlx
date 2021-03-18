@@ -2455,6 +2455,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-query-builder"
+version = "0.1.0"
+dependencies = [
+ "sqlx-core",
+ "thiserror",
+]
+
+[[package]]
 name = "sqlx-rt"
 version = "0.3.0"
 dependencies = [
