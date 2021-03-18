@@ -1,0 +1,47 @@
+[package]
+name = "sqlx-query-builder"
+version = "0.1.0"
+authors = ["Anit Nilay <anit.nilay20@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sqlx-core = { version = "0.5.1", default-features = false, path = "../sqlx-core" }
+thiserror = "1.0"
+
+[features]
+default = [ "runtime-async-std-native-tls" ]
+
+# runtimes
+runtime-actix-native-tls = [ "sqlx-core/runtime-actix-native-tls", "_rt-actix" ]
+runtime-async-std-native-tls = [ "sqlx-core/runtime-async-std-native-tls", "_rt-async-std" ]
+runtime-tokio-native-tls = [ "sqlx-core/runtime-tokio-native-tls", "_rt-tokio" ]
+
+runtime-actix-rustls = [ "sqlx-core/runtime-actix-rustls", "_rt-actix" ]
+runtime-async-std-rustls = [ "sqlx-core/runtime-async-std-rustls", "_rt-async-std" ]
+runtime-tokio-rustls = [ "sqlx-core/runtime-tokio-rustls", "_rt-tokio" ]
+
+# for conditional compilation
+_rt-actix = []
+_rt-async-std = []
+_rt-tokio = []
+
+# offline building support
+# offline = ["sqlx-core/offline", "hex", "once_cell", "serde", "serde_json", "sha2"]
+
+# database
+mysql = [ "sqlx-core/mysql" ]
+postgres = [ "sqlx-core/postgres" ]
+sqlite = [ "sqlx-core/sqlite" ]
+mssql = [ "sqlx-core/mssql" ]
+
+# type
+# bigdecimal = [ "sqlx-core/bigdecimal" ]
+# decimal = [ "sqlx-core/decimal" ]
+# chrono = [ "sqlx-core/chrono" ]
+# time = [ "sqlx-core/time" ]
+# ipnetwork = [ "sqlx-core/ipnetwork" ]
+# uuid = [ "sqlx-core/uuid" ]
+# bit-vec = [ "sqlx-core/bit-vec" ]
+# json = [ "sqlx-core/json" ]
