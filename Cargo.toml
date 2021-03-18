@@ -160,6 +160,11 @@ name = "sqlite-macros"
 path = "tests/sqlite/macros.rs"
 required-features = [ "sqlite", "macros" ]
 
+[[test]]
+name = "sqlite-derives"
+path = "tests/sqlite/derives.rs"
+required-features = [ "sqlite", "macros" ]
+
 #
 # MySQL
 #

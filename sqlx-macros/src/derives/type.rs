@@ -118,6 +118,10 @@ fn expand_derive_has_sql_type_weak_enum(
             fn type_info() -> DB::TypeInfo {
                 <#repr as ::sqlx::Type<DB>>::type_info()
             }
+
+            fn compatible(ty: &DB::TypeInfo) -> bool {
+                <#repr as ::sqlx::Type<DB>>::compatible(ty)
+            }
         }
     );
 
