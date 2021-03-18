@@ -1,3 +1,1 @@
-pub fn hello() {
-    println!("hello");
-}
+pub mod error;
