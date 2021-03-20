@@ -41,6 +41,7 @@ memchr = "2.3"
 bitflags = "1.2"
 base64 = "0.13.0"
 md-5 = "0.9.1"
+itoa = "0.4.7"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
