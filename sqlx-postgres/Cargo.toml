@@ -33,12 +33,14 @@ log = "0.4.11"
 either = "1.6.1"
 bytestring = "1.0.0"
 url = "2.2.0"
+hex = "0.4.3"
 percent-encoding = "2.1.0"
 futures-io = { version = "0.3", optional = true }
 bytes = "1.0"
 memchr = "2.3"
 bitflags = "1.2"
 base64 = "0.13.0"
+md-5 = "0.9.1"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }

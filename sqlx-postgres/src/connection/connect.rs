@@ -16,7 +16,7 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Error, Result, Runtime};
 
 use crate::protocol::backend::{Authentication, BackendMessage, BackendMessageType};
-use crate::protocol::frontend::Startup;
+use crate::protocol::frontend::{Password, PasswordMd5, Startup};
 use crate::{PgClientError, PgConnectOptions, PgConnection};
 
 impl<Rt: Runtime> PgConnection<Rt> {
@@ -50,12 +50,17 @@ impl<Rt: Runtime> PgConnection<Rt> {
                     return Ok(true);
                 }
 
-                Authentication::Md5Password(_) => {
-                    todo!("md5")
+                Authentication::Md5Password(data) => {
+                    self.stream.write_message(&PasswordMd5 {
+                        password: options.get_password().unwrap_or_default(),
+                        username: options.get_username().unwrap_or_default(),
+                        salt: data.salt,
+                    })?;
                 }
 
                 Authentication::CleartextPassword => {
-                    todo!("cleartext")
+                    self.stream
+                        .write_message(&Password(options.get_password().unwrap_or_default()))?;
                 }
 
                 Authentication::Sasl(_) => todo!("sasl"),
@@ -70,6 +75,8 @@ impl<Rt: Runtime> PgConnection<Rt> {
                 }));
             }
         }
+
+        Ok(false)
     }
 }
 
