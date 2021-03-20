@@ -154,6 +154,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e91831deabf0d6d7ec49552e489aed63b7456a7a3c46cff62adad428110b0af0"
 
 [[package]]
+name = "atoi"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "616896e05fc0e2649463a93a15183c6a16bf03413a7af88ef1285ddedfa9cda5"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -987,6 +996,7 @@ dependencies = [
  "futures-util",
  "sqlx-core",
  "sqlx-mysql",
+ "sqlx-postgres",
 ]
 
 [[package]]
@@ -1029,6 +1039,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-postgres"
+version = "0.6.0-pre"
+dependencies = [
+ "atoi",
+ "base64",
+ "bitflags",
+ "bytes",
+ "bytestring",
+ "either",
+ "futures-io",
+ "futures-util",
+ "log",
+ "memchr",
+ "percent-encoding",
+ "sqlx-core",
+ "url",
+]
+
+[[package]]
 name = "sqlx_example_quickstart_mysql_async-std"
 version = "0.0.0"
 dependencies = [
@@ -1058,6 +1087,17 @@ dependencies = [
  "log",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "sqlx_example_quickstart_postgres_async-std"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "env_logger",
+ "log",
+ "sqlx",
 ]
 
 [[package]]

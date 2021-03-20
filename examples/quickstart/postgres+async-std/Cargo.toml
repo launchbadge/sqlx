@@ -1,0 +1,15 @@
+[package]
+name = "sqlx_example_quickstart_postgres_async-std"
+version = "0.0.0"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+authors = [
+    "LaunchBadge <contact@launchbadge.com>"
+]
+
+[dependencies]
+anyhow = "1.0.36"
+async-std = { version = "1.8.0", features = ["attributes"] }
+log = "0.4"
+env_logger = "0.8.2"
+sqlx = { path = "../../../sqlx", features = [ "async-std", "postgres-async" ] }
