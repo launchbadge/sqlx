@@ -19,7 +19,7 @@ use crate::protocol::{AuthResponse, Capabilities, Handshake, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
 
 impl<Rt: Runtime> MySqlConnection<Rt> {
-    fn recv_handshake(
+    fn handle_handshake(
         &mut self,
         options: &MySqlConnectOptions,
         handshake: &Handshake,
@@ -56,7 +56,7 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
         Ok(())
     }
 
-    fn recv_auth_response(
+    fn handle_auth_response(
         &mut self,
         options: &MySqlConnectOptions,
         handshake: &mut Handshake,
@@ -122,11 +122,11 @@ macro_rules! impl_connect {
         // immediately the server should emit a <Handshake> packet
         // we need to handle that and reply with a <HandshakeResponse>
         let mut handshake = read_packet!($(@$blocking)? self_.stream).deserialize()?;
-        self_.recv_handshake($options, &handshake)?;
+        self_.handle_handshake($options, &handshake)?;
 
         loop {
             let response = read_packet!($(@$blocking)? self_.stream).deserialize_with(self_.capabilities)?;
-            if self_.recv_auth_response($options, &mut handshake, response)? {
+            if self_.handle_auth_response($options, &mut handshake, response)? {
                 // complete, successful authentication
                 break;
             }
