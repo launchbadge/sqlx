@@ -1,8 +1,9 @@
+use sqlx_core::io::{Serialize, WriteExt};
+use sqlx_core::Result;
+
 use crate::io::PgWriteExt;
 use crate::protocol::frontend::{PortalRef, StatementRef};
 use crate::PgArguments;
-use sqlx_core::io::{Serialize, WriteExt};
-use sqlx_core::Result;
 
 pub(crate) struct Bind<'a> {
     pub(crate) portal: PortalRef,

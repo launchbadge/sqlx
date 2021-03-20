@@ -1,7 +1,8 @@
-use crate::io::PgWriteExt;
-use crate::protocol::frontend::Target;
 use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
+
+use crate::io::PgWriteExt;
+use crate::protocol::frontend::Target;
 
 #[derive(Debug)]
 pub(crate) struct Close {

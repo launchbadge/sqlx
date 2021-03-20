@@ -1,8 +1,10 @@
-use crate::protocol::backend::BackendMessageType;
-use sqlx_core::ClientError;
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::str::Utf8Error;
+
+use sqlx_core::ClientError;
+
+use crate::protocol::backend::BackendMessageType;
 
 #[derive(Debug)]
 #[non_exhaustive]

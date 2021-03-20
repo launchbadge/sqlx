@@ -1,7 +1,8 @@
-use crate::PgClientError;
 use bytes::{Buf, Bytes};
 use sqlx_core::io::Deserialize;
 use sqlx_core::{Error, Result};
+
+use crate::PgClientError;
 
 #[derive(Debug)]
 #[repr(u8)]

@@ -1,6 +1,7 @@
-use crate::io::PgWriteExt;
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
+
+use crate::io::PgWriteExt;
 
 #[derive(Debug)]
 pub(crate) struct Query<'a>(pub(crate) &'a str);

@@ -1,7 +1,8 @@
-use crate::io::PgWriteExt;
-use crate::protocol::frontend::PortalRef;
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
+
+use crate::io::PgWriteExt;
+use crate::protocol::frontend::PortalRef;
 
 #[derive(Debug)]
 pub(crate) struct Execute {

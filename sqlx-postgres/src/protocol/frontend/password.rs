@@ -1,7 +1,8 @@
-use crate::io::PgWriteExt;
 use md5::{Digest, Md5};
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
+
+use crate::io::PgWriteExt;
 
 #[derive(Debug)]
 pub(crate) struct Password<'a>(pub(crate) &'a str);

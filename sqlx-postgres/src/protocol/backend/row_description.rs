@@ -1,8 +1,9 @@
+use std::num::{NonZeroI16, NonZeroI32};
+
 use bytes::{Buf, Bytes};
 use bytestring::ByteString;
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
-use std::num::{NonZeroI16, NonZeroI32};
 
 #[derive(Debug)]
 pub(crate) struct RowDescription {

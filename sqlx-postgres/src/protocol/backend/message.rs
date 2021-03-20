@@ -1,10 +1,11 @@
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
-use crate::PgClientError;
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
 use sqlx_core::{Error, Result};
+
+use crate::PgClientError;
 
 /// Type of the *incoming* message.
 ///

@@ -22,9 +22,10 @@ impl Deserialize<'_> for KeyData {
 
 #[cfg(test)]
 mod tests {
-    use super::KeyData;
     use bytes::Bytes;
     use sqlx_core::io::Deserialize;
+
+    use super::KeyData;
 
     #[test]
     fn should_deserialize() {

@@ -1,7 +1,8 @@
-use crate::io::PgWriteExt;
-use crate::protocol::frontend::{PortalRef, StatementRef};
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
+
+use crate::io::PgWriteExt;
+use crate::protocol::frontend::{PortalRef, StatementRef};
 
 /// Target a command at a portal *or* statement.
 /// Used by [`Describe`] and [`Close`].
