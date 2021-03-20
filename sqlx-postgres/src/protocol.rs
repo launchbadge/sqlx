@@ -1,3 +1,2 @@
-mod message;
-
-pub(crate) use message::{BackendMessage, BackendMessageType};
+pub(crate) mod backend;
+pub(crate) mod frontend;

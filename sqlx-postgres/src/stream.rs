@@ -3,11 +3,12 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use bytes::Buf;
-use sqlx_core::io::{BufStream, Serialize};
+use sqlx_core::io::{BufStream, Serialize, Stream};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Result, Runtime};
 
-use crate::protocol::{BackendMessage, BackendMessageType};
+use crate::protocol::backend::{BackendMessage, BackendMessageType};
+use crate::protocol::frontend::Terminate;
 
 /// Reads and writes messages to and from the PostgreSQL database server.
 ///
@@ -38,6 +39,10 @@ impl<Rt: Runtime> PgStream<Rt> {
     where
         T: Serialize<'ser> + Debug,
     {
+        log::trace!("write > {:?}", message);
+
+        message.serialize(self.stream.buffer())?;
+
         Ok(())
     }
 
@@ -86,7 +91,7 @@ impl<Rt: Runtime> PgStream<Rt> {
                 Ok(None)
             }
 
-            _ => Ok(Some(BackendMessage { contents, r#type: ty })),
+            _ => Ok(Some(BackendMessage { contents, ty })),
         }
     }
 }
@@ -158,4 +163,30 @@ macro_rules! read_message {
     ($stream:expr) => {
         $stream.read_message_async().await?
     };
+}
+
+impl<Rt: Runtime> PgStream<Rt> {
+    #[cfg(feature = "async")]
+    pub(crate) async fn close_async(&mut self) -> Result<()>
+    where
+        Rt: sqlx_core::Async,
+    {
+        self.write_message(&Terminate)?;
+        self.flush_async().await?;
+        self.shutdown_async().await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "blocking")]
+    pub(crate) fn close_blocking(&mut self) -> Result<()>
+    where
+        Rt: sqlx_core::blocking::Runtime,
+    {
+        self.write_message(&Terminate)?;
+        self.flush()?;
+        self.shutdown()?;
+
+        Ok(())
+    }
 }

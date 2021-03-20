@@ -38,6 +38,7 @@ futures-io = { version = "0.3", optional = true }
 bytes = "1.0"
 memchr = "2.3"
 bitflags = "1.2"
+base64 = "0.13.0"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }

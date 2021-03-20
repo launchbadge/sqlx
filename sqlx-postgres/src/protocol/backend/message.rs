@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
+use crate::PgClientError;
 use bytes::Bytes;
 use sqlx_core::io::Deserialize;
 use sqlx_core::{Error, Result};
@@ -66,7 +67,7 @@ impl TryFrom<u8> for BackendMessageType {
             b'c' => Self::CopyDone,
 
             _ => {
-                todo!("protocol unexpected data error")
+                return Err(Error::client(PgClientError::UnknownMessageType(ty)));
             }
         })
     }
@@ -74,7 +75,7 @@ impl TryFrom<u8> for BackendMessageType {
 
 #[derive(Debug)]
 pub(crate) struct BackendMessage {
-    pub(crate) r#type: BackendMessageType,
+    pub(crate) ty: BackendMessageType,
     pub(crate) contents: Bytes,
 }
 
