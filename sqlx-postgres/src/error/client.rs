@@ -12,6 +12,7 @@ pub enum PgClientError {
     NotUtf8(Utf8Error),
     UnknownAuthenticationMethod(u32),
     UnknownMessageType(u8),
+    UnknownTransactionStatus(u8),
     UnexpectedMessageType { ty: u8, context: &'static str },
 }
 
@@ -22,6 +23,10 @@ impl Display for PgClientError {
 
             Self::UnknownAuthenticationMethod(method) => {
                 write!(f, "unknown authentication method: {}", method)
+            }
+
+            Self::UnknownTransactionStatus(status) => {
+                write!(f, "in ReadyForQuery, unknown transaction status: {}", status)
             }
 
             Self::UnknownMessageType(ty) => {
