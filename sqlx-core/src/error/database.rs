@@ -1,7 +1,6 @@
 use std::error::Error as StdError;
 
-/// `DatabaseError` is a trait representing an error that was returned from
-/// the database.
+/// Representing an error that was returned from the database.
 ///
 /// Provides abstract access to information returned from the database about
 /// the error.
