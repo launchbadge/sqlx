@@ -42,7 +42,7 @@ pub async fn run(opt: Opt) -> anyhow::Result<()> {
             DatabaseCommand::Create => database::create(&database_url).await?,
             DatabaseCommand::Drop { yes } => database::drop(&database_url, !yes).await?,
             DatabaseCommand::Reset { yes, source } => {
-                database::reset(&source, &database_url, yes).await?
+                database::reset(&source, &database_url, !yes).await?
             }
             DatabaseCommand::Setup { source } => database::setup(&source, &database_url).await?,
         },
