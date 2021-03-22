@@ -1,4 +1,5 @@
-use bytes::{buf::Chain, Buf, Bytes};
+use bytes::buf::Chain;
+use bytes::{Buf, Bytes};
 use sqlx_core::io::{BufExt, Deserialize};
 use sqlx_core::Result;
 

@@ -14,7 +14,8 @@ use futures_util::{AsyncReadExt, AsyncWriteExt, FutureExt};
 
 #[cfg(feature = "blocking")]
 use crate::blocking;
-use crate::{io::Stream, Async, Runtime};
+use crate::io::Stream;
+use crate::{Async, Runtime};
 
 /// Provides [`Runtime`] for [**async-std**](https://async.rs). Supports both blocking
 /// and non-blocking operation.

@@ -8,8 +8,7 @@
 //!
 
 use bytes::Bytes;
-use sqlx_core::{decode, encode, Type};
-use sqlx_core::{Decode, Encode};
+use sqlx_core::{decode, encode, Decode, Encode, Type};
 
 use crate::io::MySqlWriteExt;
 use crate::type_info::MySqlTypeInfo;

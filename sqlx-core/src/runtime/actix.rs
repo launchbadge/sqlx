@@ -6,10 +6,12 @@ use actix_rt::net::TcpStream;
 #[cfg(unix)]
 use actix_rt::net::UnixStream;
 use async_compat::Compat;
+use futures_util::future::BoxFuture;
 use futures_util::io::{Read, Write};
-use futures_util::{future::BoxFuture, AsyncReadExt, AsyncWriteExt, FutureExt, TryFutureExt};
+use futures_util::{AsyncReadExt, AsyncWriteExt, FutureExt, TryFutureExt};
 
-use crate::{io::Stream, Async, Runtime};
+use crate::io::Stream;
+use crate::{Async, Runtime};
 
 /// Provides [`Runtime`] for [**Actix**](https://actix.rs). Supports only non-blocking operation.
 ///

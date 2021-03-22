@@ -1,5 +1,4 @@
-use sqlx_core::{decode, encode};
-use sqlx_core::{Decode, Encode, Type};
+use sqlx_core::{decode, encode, Decode, Encode, Type};
 
 use super::uint::decode_int_or_uint;
 use crate::type_info::MySqlTypeInfo;

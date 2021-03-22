@@ -12,8 +12,7 @@
 //! https://dev.mysql.com/doc/internals/en/connection-phase.html
 //!
 use sqlx_core::net::Stream as NetStream;
-use sqlx_core::Result;
-use sqlx_core::Runtime;
+use sqlx_core::{Result, Runtime};
 
 use crate::protocol::{AuthResponse, Capabilities, Handshake, HandshakeResponse};
 use crate::{MySqlConnectOptions, MySqlConnection};
@@ -158,7 +157,8 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
 mod tests {
     use std::str::FromStr;
 
-    use sqlx_core::{blocking::ConnectOptions, mock::Mock};
+    use sqlx_core::blocking::ConnectOptions;
+    use sqlx_core::mock::Mock;
 
     use crate::mock::MySqlMockStreamExt;
     use crate::{MySqlConnectOptions, MySqlConnection};
