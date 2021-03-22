@@ -13,7 +13,7 @@ use super::PgConnection;
 use crate::Async;
 use crate::{ConnectOptions, DefaultRuntime, Error, Result, Runtime};
 
-/// Options which can be used to configure how a MySQL connection is opened.
+/// Options which can be used to configure how a PostgreSQL connection is opened.
 #[allow(clippy::module_name_repetitions)]
 pub struct PgConnectOptions<Rt: Runtime = DefaultRuntime> {
     runtime: PhantomData<Rt>,
