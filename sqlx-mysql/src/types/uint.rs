@@ -4,8 +4,7 @@ use std::error::Error as StdError;
 use std::str::FromStr;
 
 use bytes::Buf;
-use sqlx_core::{decode, encode};
-use sqlx_core::{Decode, Encode, Type};
+use sqlx_core::{decode, encode, Decode, Encode, Type};
 
 use crate::type_info::MySqlTypeInfo;
 use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlRawValueFormat, MySqlTypeId};

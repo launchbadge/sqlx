@@ -1,5 +1,6 @@
 use_small_heuristics = "Max"
 group_imports = "StdExternalCrate"
+imports_granularity = "Module"
 edition = "2018"
 unstable_features = true
 version = "Two"
