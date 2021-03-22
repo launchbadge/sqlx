@@ -29,9 +29,7 @@ async fn pool_should_invoke_after_connect() -> anyhow::Result<()> {
     let _ = pool.acquire().await?;
     let _ = pool.acquire().await?;
 
-    // since connections are released asynchronously,
-    // `.after_connect()` may be called more than once
-    assert!(counter.load(Ordering::SeqCst) >= 1);
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
 
     Ok(())
 }
