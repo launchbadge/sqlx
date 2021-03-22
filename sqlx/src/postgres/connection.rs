@@ -12,7 +12,7 @@ use crate::{Arguments, Close, Connect, Connection, DefaultRuntime, Describe, Run
 #[cfg(feature = "async")]
 use crate::{Async, Result};
 
-/// A single connection (also known as a session) to a MySQL database server.
+/// A single connection (also known as a session) to a PostgreSQL database server.
 #[allow(clippy::module_name_repetitions)]
 pub struct PgConnection<Rt: Runtime = DefaultRuntime>(pub(super) sqlx_postgres::PgConnection<Rt>);
 
