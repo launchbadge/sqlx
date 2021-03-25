@@ -22,42 +22,42 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
 
     #[cfg(feature = "async")]
     #[inline]
-    fn execute<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> BoxFuture<'x, Result<MySqlQueryResult>>
+    fn execute<'x, 'e, 'q, 'v, X>(&'e mut self, query: X) -> BoxFuture<'x, Result<MySqlQueryResult>>
     where
         Rt: sqlx_core::Async,
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.execute_async(query).boxed()
     }
 
     #[cfg(feature = "async")]
     #[inline]
-    fn fetch_all<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> BoxFuture<'x, Result<Vec<MySqlRow>>>
+    fn fetch_all<'x, 'e, 'q, 'v, X>(&'e mut self, query: X) -> BoxFuture<'x, Result<Vec<MySqlRow>>>
     where
         Rt: sqlx_core::Async,
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.fetch_all_async(query).boxed()
     }
 
     #[cfg(feature = "async")]
     #[inline]
-    fn fetch_optional<'x, 'e, 'q, 'a, E>(
+    fn fetch_optional<'x, 'e, 'q, 'v, X>(
         &'e mut self,
-        query: E,
+        query: X,
     ) -> BoxFuture<'x, Result<Option<MySqlRow>>>
     where
         Rt: sqlx_core::Async,
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.fetch_optional_async(query).boxed()
     }
@@ -66,34 +66,34 @@ impl<Rt: Runtime> Executor<Rt> for MySqlConnection<Rt> {
 #[cfg(feature = "blocking")]
 impl<Rt: sqlx_core::blocking::Runtime> sqlx_core::blocking::Executor<Rt> for MySqlConnection<Rt> {
     #[inline]
-    fn execute<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<MySqlQueryResult>
+    fn execute<'x, 'e, 'q, 'v, X>(&'e mut self, query: X) -> Result<MySqlQueryResult>
     where
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.execute_blocking(query)
     }
 
     #[inline]
-    fn fetch_all<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Vec<MySqlRow>>
+    fn fetch_all<'x, 'e, 'q, 'v, X>(&'e mut self, query: X) -> Result<Vec<MySqlRow>>
     where
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.fetch_all_blocking(query)
     }
 
     #[inline]
-    fn fetch_optional<'x, 'e, 'q, 'a, E>(&'e mut self, query: E) -> Result<Option<MySqlRow>>
+    fn fetch_optional<'x, 'e, 'q, 'v, X>(&'e mut self, query: X) -> Result<Option<MySqlRow>>
     where
-        E: 'x + Execute<'q, 'a, MySql>,
+        X: 'x + Execute<'q, 'v, MySql>,
         'e: 'x,
         'q: 'x,
-        'a: 'x,
+        'v: 'x,
     {
         self.fetch_optional_blocking(query)
     }
