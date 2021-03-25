@@ -1,64 +1,50 @@
 use std::io;
+use std::io::Cursor;
 
+use bytes::Buf;
 use sqlx_core::io::Stream;
 use sqlx_core::mock::MockStream;
 
 pub(crate) trait MySqlMockStreamExt {
-    #[cfg(feature = "async")]
-    fn write_packet_async<'x>(
-        &'x mut self,
-        seq: u8,
-        packet: &'x [u8],
-    ) -> futures_util::future::BoxFuture<'x, io::Result<()>>;
+    fn write_packet<'x>(&'x mut self, seq: u8, packet: &'x [u8]) -> io::Result<()>;
 
-    #[cfg(feature = "async")]
-    fn read_exact_async(
-        &mut self,
-        n: usize,
-    ) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>>;
+    fn read_packet(&mut self) -> io::Result<Vec<u8>>;
 
-    #[cfg(feature = "async")]
-    fn read_all_async(&mut self) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>>;
+    fn expect_packet(&mut self, expected: &'static [u8]) -> io::Result<()>;
 }
 
 impl MySqlMockStreamExt for MockStream {
-    #[cfg(feature = "async")]
-    fn write_packet_async<'x>(
-        &'x mut self,
-        seq: u8,
-        packet: &'x [u8],
-    ) -> futures_util::future::BoxFuture<'x, io::Result<()>> {
-        Box::pin(async move {
-            self.write_async(&packet.len().to_le_bytes()[..3]).await?;
-            self.write_async(&[seq]).await?;
-            self.write_async(packet).await?;
+    fn write_packet<'x>(&'x mut self, seq: u8, packet: &'x [u8]) -> io::Result<()> {
+        self.write(&packet.len().to_le_bytes()[..3])?;
+        self.write(&[seq])?;
+        self.write(packet)?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
-    #[cfg(feature = "async")]
-    fn read_exact_async(
-        &mut self,
-        n: usize,
-    ) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>> {
-        Box::pin(async move {
-            let mut buf = vec![0; n];
-            let read = self.read_async(&mut buf).await?;
-            buf.truncate(read);
+    fn read_packet(&mut self) -> io::Result<Vec<u8>> {
+        let mut packet = Vec::new();
 
-            Ok(buf)
-        })
+        let mut header = [0_u8; 4];
+        self.read(&mut header)?;
+
+        packet.extend_from_slice(&header);
+
+        let mut header_r = Cursor::new(header);
+        let len = header_r.get_int_le(3) as usize;
+
+        packet.resize(len + 4, 0);
+
+        self.read(&mut packet[4..])?;
+
+        Ok(packet)
     }
 
-    #[cfg(feature = "async")]
-    fn read_all_async(&mut self) -> futures_util::future::BoxFuture<'_, io::Result<Vec<u8>>> {
-        Box::pin(async move {
-            let mut buf = vec![0; 1024];
-            let read = self.read_async(&mut buf).await?;
-            buf.truncate(read);
+    fn expect_packet(&mut self, expected: &'static [u8]) -> io::Result<()> {
+        let packet = self.read_packet()?;
 
-            Ok(buf)
-        })
+        assert_eq!(expected, packet);
+
+        Ok(())
     }
 }

@@ -213,13 +213,3 @@ impl<Rt: Runtime> MySqlStream<Rt> {
         Ok(())
     }
 }
-
-macro_rules! close {
-    (@blocking $self:ident) => {
-        $self.close_blocking()?
-    };
-
-    ($self:ident) => {
-        $self.close_async().await?
-    };
-}

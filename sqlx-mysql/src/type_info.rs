@@ -101,7 +101,7 @@ impl MySqlTypeInfo {
             MySqlTypeId::CHAR => "CHAR",
             MySqlTypeId::TEXT => "TEXT",
 
-            _ => "",
+            _ => "UNKNOWN",
         }
     }
 }

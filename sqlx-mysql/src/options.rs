@@ -13,7 +13,15 @@ mod parse;
 
 /// Options which can be used to configure how a MySQL connection is opened.
 ///
+/// A value of `MySqlConnectOptions` can be parsed from a connection URI, as
+/// described by [dev.mysql.com](https://dev.mysql.com/doc/refman/8.0/en/connecting-using-uri-or-key-value-pairs.html#connecting-using-uri).
+///
+/// ```text
+/// mysql://[user[:password]@][host][:port][/database][?param1=value1&...]
+/// ```
+///
 #[allow(clippy::module_name_repetitions)]
+#[derive(Clone)]
 pub struct MySqlConnectOptions {
     pub(crate) address: Either<(String, u16), PathBuf>,
     username: Option<String>,
@@ -21,19 +29,6 @@ pub struct MySqlConnectOptions {
     database: Option<String>,
     timezone: String,
     charset: String,
-}
-
-impl Clone for MySqlConnectOptions {
-    fn clone(&self) -> Self {
-        Self {
-            address: self.address.clone(),
-            username: self.username.clone(),
-            password: self.password.clone(),
-            database: self.database.clone(),
-            timezone: self.timezone.clone(),
-            charset: self.charset.clone(),
-        }
-    }
 }
 
 impl Debug for MySqlConnectOptions {

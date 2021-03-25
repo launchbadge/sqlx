@@ -25,7 +25,7 @@ impl super::MySqlConnectOptions {
 
     /// Sets the path of the Unix domain socket to connect to.
     ///
-    /// Overrides [`host()`](#method.host) and [`port()`](#method.port).
+    /// Overrides [`host`](#method.host) and [`port`](#method.port).
     ///
     pub fn socket(&mut self, socket: impl AsRef<Path>) -> &mut Self {
         self.address = Either::Right(socket.as_ref().to_owned());
@@ -46,7 +46,6 @@ impl super::MySqlConnectOptions {
     }
 
     /// Sets the username to be used for authentication.
-    // FIXME: Specify what happens when you do NOT set this
     pub fn username(&mut self, username: impl AsRef<str>) -> &mut Self {
         self.username = Some(username.as_ref().to_owned());
         self

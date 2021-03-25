@@ -1,156 +1,115 @@
-//! Implements the connection phase.
+//! Implements start-up flow.
 //!
-//! The connection phase (establish) performs these tasks:
+//! To begin a session, a frontend opens a connection to the server
+//! and sends a startup message.
 //!
-//! -   exchange the capabilities of client and server
-//! -   setup SSL communication channel if requested
-//! -   authenticate the client against the server
+//! The server then sends an appropriate authentication request message, to
+//! which the frontend must reply with an appropriate authentication
+//! response message.
 //!
-//! The server may immediately send an ERR packet and finish the handshake
-//! or send a `Handshake`.
+//! The authentication cycle ends with the server either rejecting
+//! the connection attempt (ErrorResponse), or sending AuthenticationOk.
 //!
-//! https://dev.postgres.com/doc/internals/en/connection-phase.html
-//!
-use hmac::{Hmac, Mac, NewMac};
-use sha2::{Digest, Sha256};
+//! <https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3>
+
 use sqlx_core::net::Stream as NetStream;
-use sqlx_core::Error;
-use sqlx_core::Result;
+use sqlx_core::{Error, Result, Runtime};
 
-use crate::protocol::{
-    Authentication, BackendKeyData, Message, MessageType, Password, ReadyForQuery,
-    SaslInitialResponse, SaslResponse, Startup,
-};
-use crate::{PostgresConnectOptions, PostgresConnection, PostgresDatabaseError};
+use crate::protocol::backend::{Authentication, BackendMessage, BackendMessageType};
+use crate::protocol::frontend::{Password, PasswordMd5, Startup};
+use crate::{PgClientError, PgConnectOptions, PgConnection};
 
-macro_rules! connect {
-    (@blocking @tcp $options:ident) => {
-        NetStream::connect($options.address.as_ref())?;
+impl<Rt: Runtime> PgConnection<Rt> {
+    fn write_startup_message(&mut self, options: &PgConnectOptions) -> Result<()> {
+        let params = vec![
+            ("user", options.get_username()),
+            ("database", options.get_database()),
+            ("application_name", options.get_application_name()),
+            // sets the text display format for date and time values
+            // as well as the rules for interpreting ambiguous date input values
+            ("DateStyle", Some("ISO, MDY")),
+            // sets the client-side encoding (charset)
+            // NOTE: this must not be changed, too much in the driver depends on this being set to UTF-8
+            ("client_encoding", Some("UTF8")),
+            // sets the timezone for displaying and interpreting time stamps
+            // NOTE: this is only used to assume timestamptz values are in UTC
+            ("TimeZone", Some("UTC")),
+        ];
+
+        self.stream.write_message(&Startup(&params))
+    }
+
+    fn handle_startup_response(
+        &mut self,
+        options: &PgConnectOptions,
+        message: BackendMessage,
+    ) -> Result<bool> {
+        match message.ty {
+            BackendMessageType::Authentication => match message.deserialize()? {
+                Authentication::Ok => {
+                    return Ok(true);
+                }
+
+                Authentication::Md5Password(data) => {
+                    self.stream.write_message(&PasswordMd5 {
+                        password: options.get_password().unwrap_or_default(),
+                        username: options.get_username().unwrap_or_default(),
+                        salt: data.salt,
+                    })?;
+                }
+
+                Authentication::CleartextPassword => {
+                    self.stream
+                        .write_message(&Password(options.get_password().unwrap_or_default()))?;
+                }
+
+                Authentication::Sasl(_) => todo!("sasl"),
+                Authentication::SaslContinue(_) => todo!("sasl continue"),
+                Authentication::SaslFinal(_) => todo!("sasl final"),
+            },
+
+            ty => {
+                return Err(Error::client(PgClientError::UnexpectedMessageType {
+                    ty: ty as u8,
+                    context: "starting up",
+                }));
+            }
+        }
+
+        Ok(false)
+    }
+}
+
+macro_rules! impl_connect {
+    (@blocking @new $options:ident) => {
+        NetStream::connect($options.address.as_ref())?
     };
 
-    (@tcp $options:ident) => {
-        NetStream::connect_async($options.address.as_ref()).await?;
-    };
-
-    (@blocking @packet $self:ident) => {
-        $self.read_packet()?;
-    };
-
-    (@packet $self:ident) => {
-        $self.read_packet_async().await?;
+    (@new $options:ident) => {
+        NetStream::connect_async($options.address.as_ref()).await?
     };
 
     ($(@$blocking:ident)? $options:ident) => {{
         // open a network stream to the database server
-        let stream = connect!($(@$blocking)? @tcp $options);
+        let stream = impl_connect!($(@$blocking)? @new $options);
 
-        // construct a <PostgresConnection> around the network stream
+        // construct a <PgConnection> around the network stream
         // wraps the stream in a <BufStream> to buffer read and write
         let mut self_ = Self::new(stream);
 
-        // To begin a session, a frontend opens a connection to the server
-        // and sends a startup message.
+        // to begin a session, a frontend should send a startup message
+        // this is built up of various startup parameters that control the connection
+        self_.write_startup_message($options)?;
 
-        let mut params = vec![ // Sets the display format for date and time values, as well as the rules for interpreting ambiguous date input values.  ("DateStyle", "ISO, MDY"),
-            // Sets the client-side encoding (character set).
-            // <https://www.postgresql.org/docs/devel/multibyte.html#MULTIBYTE-CHARSET-SUPPORTED>
-            ("client_encoding", "UTF8"),
-            // Sets the time zone for displaying and interpreting time stamps.
-            ("TimeZone", "UTC"),
-            // Adjust postgres to return precise values for floats
-            // NOTE: This is default in postgres 12+
-            ("extra_float_digits", "3"),
-        ];
-
-        // if let Some(ref application_name) = $options.get_application_name() {
-        //     params.push(("application_name", application_name));
-        // }
-
-        self_.write_packet(&Startup {
-            username: $options.get_username(),
-            database: $options.get_database(),
-            params: &params,
-        })?;
-
-        // The server then uses this information and the contents of
+        // the server then uses this information and the contents of
         // its configuration files (such as pg_hba.conf) to determine whether the connection is
         // provisionally acceptable, and what additional
         // authentication is required (if any).
-
-        let mut process_id = 0;
-        let mut secret_key = 0;
-        let transaction_status;
-
         loop {
-            let message: Message = connect!($(@$blocking)? @packet self_);
-            match message.r#type {
-                MessageType::Authentication => match message.decode()? {
-                    Authentication::Ok => {
-                        // the authentication exchange is successfully completed
-                        // do nothing; no more information is required to continue
-                    }
-
-                    Authentication::CleartextPassword => {
-                        // The frontend must now send a [PasswordMessage] containing the
-                        // password in clear-text form.
-
-                        self_
-                            .write_packet(&Password::Cleartext(
-                                $options.get_password().unwrap_or_default(),
-                            ))?;
-                    }
-
-                    Authentication::Md5Password(body) => {
-                        // The frontend must now send a [PasswordMessage] containing the
-                        // password (with user name) encrypted via MD5, then encrypted again
-                        // using the 4-byte random salt specified in the
-                        // [AuthenticationMD5Password] message.
-
-                        self_
-                            .write_packet(&Password::Md5 {
-                                username: $options.get_username().unwrap_or_default(),
-                                password: $options.get_password().unwrap_or_default(),
-                                salt: body.salt,
-                            })?;
-                    }
-
-                    Authentication::Sasl(body) => {
-                        sasl_authenticate!($(@$blocking)? self_, $options, body)
-                    }
-
-                    method => {
-                        return Err(Error::configuration_msg(format!(
-                            "unsupported authentication method: {:?}",
-                            method
-                        )));
-                    }
-                },
-
-                MessageType::BackendKeyData => {
-                    // provides secret-key data that the frontend must save if it wants to be
-                    // able to issue cancel requests later
-
-                    let data: BackendKeyData = message.decode()?;
-
-                    process_id = data.process_id;
-                    secret_key = data.secret_key;
-                }
-
-                MessageType::ReadyForQuery => {
-                    let ready: ReadyForQuery = message.decode()?;
-
-                    // start-up is completed. The frontend can now issue commands
-                    transaction_status = ready.transaction_status;
-
-                    break;
-                }
-
-                _ => {
-                    return Err(Error::configuration_msg(format!(
-                        "establish: unexpected message: {:?}",
-                        message.r#type
-                    )))
-                }
+            let message = read_message!($(@$blocking)? self_.stream);
+            if self_.handle_startup_response($options, message)? {
+                // complete, successful authentication
+                break;
             }
         }
 
@@ -158,23 +117,20 @@ macro_rules! connect {
     }};
 }
 
-impl<Rt> PostgresConnection<Rt>
-where
-    Rt: sqlx_core::Runtime,
-{
+impl<Rt: Runtime> PgConnection<Rt> {
     #[cfg(feature = "async")]
-    pub(crate) async fn connect_async(options: &PostgresConnectOptions<Rt>) -> Result<Self>
+    pub(crate) async fn connect_async(options: &PgConnectOptions) -> Result<Self>
     where
         Rt: sqlx_core::Async,
     {
-        connect!(options)
+        impl_connect!(options)
     }
 
     #[cfg(feature = "blocking")]
-    pub(crate) fn connect(options: &PostgresConnectOptions<Rt>) -> Result<Self>
+    pub(crate) fn connect_blocking(options: &PgConnectOptions) -> Result<Self>
     where
         Rt: sqlx_core::blocking::Runtime,
     {
-        connect!(@blocking options)
+        impl_connect!(@blocking options)
     }
 }

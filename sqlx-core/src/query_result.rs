@@ -4,7 +4,7 @@ use std::fmt::Debug;
 ///
 /// Returned from [`execute()`][crate::Executor::execute].
 ///
-pub trait QueryResult: 'static + Sized + Debug + Extend<Self> {
+pub trait QueryResult: 'static + Sized + Debug + Clone + Default + Extend<Self> {
     /// Returns the number of rows changed, deleted, or inserted by the statement
     /// if it was an `UPDATE`, `DELETE` or `INSERT`. For `SELECT` statements, returns
     /// the number of rows returned.

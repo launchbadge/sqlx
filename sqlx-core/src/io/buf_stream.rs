@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use std::cmp;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Bytes, BytesMut};

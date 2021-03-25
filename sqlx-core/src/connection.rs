@@ -33,7 +33,7 @@ where
     #[cfg(feature = "async")]
     fn describe<'x, 'e, 'q>(
         &'e mut self,
-        query: &'q str
+        query: &'q str,
     ) -> BoxFuture<'x, crate::Result<Describe<Self::Database>>>
     where
         Rt: crate::Async,

@@ -59,10 +59,6 @@ impl FromStr for MySqlConnectOptions {
                     options.password(value);
                 }
 
-                // ssl-mode     compatibly with SQLx <= 0.5
-                // sslmode      compatibly with PostgreSQL
-                // sslMode      compatibly with JDBC MySQL
-                // tls          compatibly with Go MySQL [preferred]
                 "ssl-mode" | "sslmode" | "sslMode" | "tls" => {
                     todo!()
                 }
@@ -90,7 +86,6 @@ impl FromStr for MySqlConnectOptions {
     }
 }
 
-// todo: this should probably go somewhere common
 fn percent_decode_str_utf8(value: &str) -> Cow<'_, str> {
     percent_decode_str(value).decode_utf8_lossy()
 }

@@ -9,6 +9,7 @@ use crate::protocol::{Info, OkPacket, Status};
 /// Returned from [`execute()`][sqlx_core::Executor::execute].
 ///
 #[allow(clippy::module_name_repetitions)]
+#[derive(Clone)]
 pub struct MySqlQueryResult(pub(crate) OkPacket);
 
 impl MySqlQueryResult {

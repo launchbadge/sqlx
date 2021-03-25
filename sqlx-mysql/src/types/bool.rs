@@ -1,5 +1,4 @@
-use sqlx_core::{decode, encode, Type};
-use sqlx_core::{Decode, Encode};
+use sqlx_core::{decode, encode, Decode, Encode, Type};
 
 use crate::{MySql, MySqlOutput, MySqlRawValue, MySqlTypeId, MySqlTypeInfo};
 

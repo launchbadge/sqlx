@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::io;
 #[cfg(unix)]
 use std::path::Path;
-use std::sync::atomic::AtomicU16;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU16, Ordering};
 
 use bytes::BytesMut;
 use conquer_once::Lazy;
@@ -12,7 +11,8 @@ use crossbeam::channel;
 use futures_util::future::{self, BoxFuture};
 use parking_lot::RwLock;
 
-use crate::{io::Stream as IoStream, Runtime};
+use crate::io::Stream as IoStream;
+use crate::Runtime;
 
 #[derive(Debug)]
 pub struct Mock;
@@ -67,6 +67,9 @@ impl Runtime for Mock {
     }
 }
 
+#[cfg(feature = "blocking")]
+impl crate::blocking::Runtime for Mock {}
+
 impl Mock {
     #[must_use]
     pub fn stream() -> MockStream {
@@ -95,6 +98,11 @@ impl MockStream {
     #[must_use]
     pub const fn port(&self) -> u16 {
         self.port
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.rbuf.is_empty() && self.read.is_empty() && self.write.is_empty()
     }
 }
 

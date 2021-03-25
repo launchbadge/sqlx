@@ -2,18 +2,15 @@ use std::mem;
 use std::path::{Path, PathBuf};
 
 use either::Either;
-use sqlx_core::Runtime;
 
-impl<Rt> super::PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl super::PgConnectOptions {
     /// Sets the hostname of the database server.
     ///
     /// If the hostname begins with a slash (`/`), it is interpreted as the absolute path
     /// to a Unix domain socket file instead of a hostname of a server.
     ///
-    /// Defaults to `localhost`.
+    /// Defaults to either the `PGHOSTADDR` or `PGHOST` environment variable, falling back
+    /// to `localhost` if neither are present.
     ///
     pub fn host(&mut self, host: impl AsRef<str>) -> &mut Self {
         let host = host.as_ref();
@@ -29,7 +26,14 @@ where
 
     /// Sets the path of the Unix domain socket to connect to.
     ///
-    /// Overrides [`host()`](#method.host) and [`port()`](#method.port).
+    /// Overrides [`host`](#method.host).
+    ///
+    /// Defaults to, and overrides a default `host`, if one of the files is present in
+    /// the local filesystem:
+    ///
+    /// -   `/var/run/postgresql/.s.PGSQL.{port}`
+    /// -   `/private/tmp/.s.PGSQL.{port}`
+    /// -   `/tmp/.s.PGSQL.{port}`
     ///
     pub fn socket(&mut self, socket: impl AsRef<Path>) -> &mut Self {
         self.address = Either::Right(socket.as_ref().to_owned());
@@ -38,7 +42,8 @@ where
 
     /// Sets the TCP port number of the database server.
     ///
-    /// Defaults to `3306`.
+    /// Defaults to the `PGPORT` environment variable, falling back to `5432`
+    /// if not present.
     ///
     pub fn port(&mut self, port: u16) -> &mut Self {
         self.address = match self.address {
@@ -49,34 +54,44 @@ where
         self
     }
 
-    /// Sets the username to be used for authentication.
-    // FIXME: Specify what happens when you do NOT set this
+    /// Sets the user to be used for authentication.
+    ///
+    /// Defaults to the `PGUSER` environment variable, if present.
+    ///
     pub fn username(&mut self, username: impl AsRef<str>) -> &mut Self {
         self.username = Some(username.as_ref().to_owned());
         self
     }
 
     /// Sets the password to be used for authentication.
+    ///
+    /// Defaults to the `PGPASSWORD` environment variable, if present.
+    ///
     pub fn password(&mut self, password: impl AsRef<str>) -> &mut Self {
         self.password = Some(password.as_ref().to_owned());
         self
     }
 
-    /// Sets the default database for the connection.
+    /// Sets the database for the connection.
+    ///
+    /// Defaults to the `PGDATABASE` environment variable, falling back to
+    /// the name of the user, if not present.
+    ///
     pub fn database(&mut self, database: impl AsRef<str>) -> &mut Self {
         self.database = Some(database.as_ref().to_owned());
         self
     }
 
-    /// Sets the character set for the connection.
-    pub fn charset(&mut self, charset: impl AsRef<str>) -> &mut Self {
-        self.charset = charset.as_ref().to_owned();
-        self
-    }
-
-    /// Sets the timezone for the connection.
-    pub fn timezone(&mut self, timezone: impl AsRef<str>) -> &mut Self {
-        self.timezone = timezone.as_ref().to_owned();
+    /// Sets the application name for the connection.
+    ///
+    /// The name will be displayed in the `pg_stat_activity` view and
+    /// included in CSV log entries. Only printable ASCII characters may be
+    /// used in the `application_name` value.
+    ///
+    /// Defaults to the `PGAPPNAME` environment variable, if present.
+    ///
+    pub fn application_name(&mut self, name: impl AsRef<str>) -> &mut Self {
+        self.application_name = Some(name.as_ref().to_owned());
         self
     }
 }

@@ -1,15 +1,30 @@
-use sqlx_core::{Database, HasOutput, Runtime};
+use sqlx_core::database::{HasOutput, HasRawValue};
+use sqlx_core::Database;
+
+use super::{PgColumn, PgOutput, PgQueryResult, PgRawValue, PgRow, PgTypeId, PgTypeInfo};
 
 #[derive(Debug)]
 pub struct Postgres;
 
-impl<Rt> Database<Rt> for Postgres
-where
-    Rt: Runtime,
-{
-    type Connection = super::PostgresConnection<Rt>;
+impl Database for Postgres {
+    type Column = PgColumn;
+
+    type Row = PgRow;
+
+    type QueryResult = PgQueryResult;
+
+    type TypeInfo = PgTypeInfo;
+
+    type TypeId = PgTypeId;
 }
 
+// 'x: execution
 impl<'x> HasOutput<'x> for Postgres {
-    type Output = &'x mut Vec<u8>;
+    type Output = PgOutput<'x>;
+}
+
+// 'r: row
+impl<'r> HasRawValue<'r> for Postgres {
+    type Database = Self;
+    type RawValue = PgRawValue<'r>;
 }

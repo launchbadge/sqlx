@@ -1,4 +1,5 @@
-use bytes::{buf::Chain, Bytes};
+use bytes::buf::Chain;
+use bytes::Bytes;
 use sha1::{Digest, Sha1};
 use sqlx_core::Result;
 

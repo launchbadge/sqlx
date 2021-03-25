@@ -1,94 +1,95 @@
 use std::fmt::{self, Debug, Formatter};
 
-use sqlx_core::io::BufStream;
+#[cfg(feature = "async")]
+use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
-use crate::{Postgres, PostgresConnectOptions};
+use crate::stream::PgStream;
+use crate::{PgConnectOptions, Postgres};
 
-#[macro_use]
-mod sasl;
-
-mod close;
 mod connect;
-mod ping;
-mod stream;
 
-/// A single connection (also known as a session) to a PostgreSQL database server.
-#[allow(clippy::module_name_repetitions)]
-pub struct PostgresConnection<Rt>
-where
-    Rt: Runtime,
-{
-    stream: BufStream<Rt, NetStream<Rt>>,
+/// A single connection (also known as a session) to a
+/// PostgreSQL database server.
+pub struct PgConnection<Rt: Runtime> {
+    stream: PgStream<Rt>,
 
     // process id of this backend
-    // used to send cancel requests
+    // can be used to send cancel requests
     #[allow(dead_code)]
     process_id: u32,
 
     // secret key of this backend
-    // used to send cancel requests
+    // can be used to send cancel requests
     #[allow(dead_code)]
     secret_key: u32,
 }
 
-impl<Rt> PostgresConnection<Rt>
-where
-    Rt: Runtime,
-{
-    pub(crate) fn new(stream: NetStream<Rt>) -> Self {
-        Self { stream: BufStream::with_capacity(stream, 4096, 1024), process_id: 0, secret_key: 0 }
-    }
-}
-
-impl<Rt> Debug for PostgresConnection<Rt>
+impl<Rt> Debug for PgConnection<Rt>
 where
     Rt: Runtime,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PostgresConnection").finish()
+        f.debug_struct("PgConnection").finish()
     }
 }
 
-impl<Rt> Connection<Rt> for PostgresConnection<Rt>
-where
-    Rt: Runtime,
-{
+impl<Rt: Runtime> PgConnection<Rt> {
+    pub(crate) fn new(stream: NetStream<Rt>) -> Self {
+        Self { stream: PgStream::new(stream), process_id: 0, secret_key: 0 }
+    }
+}
+
+impl<Rt: Runtime> Connection<Rt> for PgConnection<Rt> {
     type Database = Postgres;
 
     #[cfg(feature = "async")]
-    fn ping(&mut self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<()>>
+    fn ping(&mut self) -> BoxFuture<'_, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
     {
-        Box::pin(self.ping_async())
+        todo!()
+    }
+
+    #[cfg(feature = "async")]
+    fn describe<'x, 'e, 'q>(
+        &'e mut self,
+        query: &'q str,
+    ) -> BoxFuture<'x, sqlx_core::Result<sqlx_core::Describe<Postgres>>>
+    where
+        Rt: sqlx_core::Async,
+        'e: 'x,
+        'q: 'x,
+    {
+        todo!()
     }
 }
 
-impl<Rt: Runtime> Connect<Rt> for PostgresConnection<Rt> {
-    type Options = PostgresConnectOptions<Rt>;
+impl<Rt: Runtime> Connect<Rt> for PgConnection<Rt> {
+    type Options = PgConnectOptions;
 
     #[cfg(feature = "async")]
-    fn connect(url: &str) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self>>
+    fn connect_with(options: &PgConnectOptions) -> BoxFuture<'_, sqlx_core::Result<Self>>
     where
         Self: Sized,
         Rt: sqlx_core::Async,
     {
-        use sqlx_core::ConnectOptions;
-
-        let options = url.parse::<Self::Options>();
-        Box::pin(async move { options?.connect().await })
+        PgConnection::connect_async(options).boxed()
     }
 }
 
-impl<Rt: Runtime> Close<Rt> for PostgresConnection<Rt> {
+impl<Rt: Runtime> Close<Rt> for PgConnection<Rt> {
     #[cfg(feature = "async")]
-    fn close(self) -> futures_util::future::BoxFuture<'static, sqlx_core::Result<()>>
+    fn close(mut self) -> BoxFuture<'static, sqlx_core::Result<()>>
     where
         Rt: sqlx_core::Async,
     {
-        Box::pin(self.close_async())
+        Box::pin(async move {
+            self.stream.close_async().await?;
+
+            Ok(())
+        })
     }
 }
 
@@ -96,29 +97,40 @@ impl<Rt: Runtime> Close<Rt> for PostgresConnection<Rt> {
 mod blocking {
     use sqlx_core::blocking::{Close, Connect, Connection, Runtime};
 
-    use super::{PostgresConnectOptions, PostgresConnection};
+    use super::{PgConnectOptions, PgConnection, Postgres};
 
-    impl<Rt: Runtime> Connection<Rt> for PostgresConnection<Rt> {
+    impl<Rt: Runtime> Connection<Rt> for PgConnection<Rt> {
         #[inline]
         fn ping(&mut self) -> sqlx_core::Result<()> {
-            self.ping()
+            todo!()
+        }
+
+        fn describe<'x, 'e, 'q>(
+            &'e mut self,
+            query: &'q str,
+        ) -> sqlx_core::Result<sqlx_core::Describe<Postgres>>
+        where
+            'e: 'x,
+            'q: 'x,
+        {
+            todo!()
         }
     }
 
-    impl<Rt: Runtime> Connect<Rt> for PostgresConnection<Rt> {
+    impl<Rt: Runtime> Connect<Rt> for PgConnection<Rt> {
         #[inline]
-        fn connect(url: &str) -> sqlx_core::Result<Self>
+        fn connect_with(options: &PgConnectOptions) -> sqlx_core::Result<Self>
         where
             Self: Sized,
         {
-            Self::connect(&url.parse::<PostgresConnectOptions<Rt>>()?)
+            Self::connect_blocking(options)
         }
     }
 
-    impl<Rt: Runtime> Close<Rt> for PostgresConnection<Rt> {
+    impl<Rt: Runtime> Close<Rt> for PgConnection<Rt> {
         #[inline]
-        fn close(self) -> sqlx_core::Result<()> {
-            self.close()
+        fn close(mut self) -> sqlx_core::Result<()> {
+            self.stream.close_blocking()
         }
     }
 }

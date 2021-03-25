@@ -1,6 +1,5 @@
-use crate::Describe;
-
 use super::{Close, Connect, ConnectOptions, Runtime};
+use crate::Describe;
 
 /// A unique connection (session) with a specific database.
 ///
@@ -21,7 +20,7 @@ where
 
     fn describe<'x, 'e, 'q>(
         &'e mut self,
-        query: &'q str
+        query: &'q str,
     ) -> crate::Result<Describe<Self::Database>>
     where
         'e: 'x,

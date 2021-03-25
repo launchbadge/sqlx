@@ -1,52 +1,31 @@
-pub trait PgBufMutExt {
-    fn write_length_prefixed<F>(&mut self, f: F)
+use sqlx_core::io::WriteExt;
+use sqlx_core::Result;
+
+pub trait PgWriteExt: WriteExt {
+    fn write_len_prefixed<F>(&mut self, f: F) -> Result<()>
     where
-        F: FnOnce(&mut Vec<u8>);
-
-    fn write_statement_name(&mut self, id: u32);
-
-    fn write_portal_name(&mut self, id: Option<u32>);
+        F: FnOnce(&mut Vec<u8>) -> Result<()>;
 }
 
-impl PgBufMutExt for Vec<u8> {
-    // writes a length-prefixed message, this is used when encoding nearly all messages as postgres
-    // wants us to send the length of the often-variable-sized messages up front
-    fn write_length_prefixed<F>(&mut self, f: F)
+impl PgWriteExt for Vec<u8> {
+    /// Writes a length-prefixed message, this is used when encoding nearly
+    /// all messages as postgres wants us to send the length of the
+    /// often-variable-sized messages up front.
+    fn write_len_prefixed<F>(&mut self, f: F) -> Result<()>
     where
-        F: FnOnce(&mut Vec<u8>),
+        F: FnOnce(&mut Vec<u8>) -> Result<()>,
     {
         // reserve space to write the prefixed length
         let offset = self.len();
-        self.extend(&[0; 4]);
+        self.extend_from_slice(&[0; 4]);
 
         // write the main body of the message
-        f(self);
+        f(self)?;
 
         // now calculate the size of what we wrote and set the length value
         let size = (self.len() - offset) as i32;
         self[offset..(offset + 4)].copy_from_slice(&size.to_be_bytes());
-    }
 
-    // writes a statement name by ID
-    #[inline]
-    fn write_statement_name(&mut self, id: u32) {
-        // N.B. if you change this don't forget to update it in ../describe.rs
-        self.extend(b"sqlx_s_");
-
-        itoa::write(&mut *self, id).unwrap();
-
-        self.push(0);
-    }
-
-    // writes a portal name by ID
-    #[inline]
-    fn write_portal_name(&mut self, id: Option<u32>) {
-        if let Some(id) = id {
-            self.extend(b"sqlx_p_");
-
-            itoa::write(&mut *self, id).unwrap();
-        }
-
-        self.push(0);
+        Ok(())
     }
 }

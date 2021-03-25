@@ -33,13 +33,13 @@ mysql = ["sqlx-mysql"]
 mysql-async = ["async", "mysql", "sqlx-mysql/async"]
 mysql-blocking = ["blocking", "mysql", "sqlx-mysql/blocking"]
 
-## Postgres
-#postgres = ["sqlx-postgres"]
-#postgres-async = ["async", "postgres", "sqlx-postgres/async"]
-#postgres-blocking = ["blocking", "postgres", "sqlx-postgres/blocking"]
+# Postgres
+postgres = ["sqlx-postgres"]
+postgres-async = ["async", "postgres", "sqlx-postgres/async"]
+postgres-blocking = ["blocking", "postgres", "sqlx-postgres/blocking"]
 
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 sqlx-mysql = { version = "0.6.0-pre", path = "../sqlx-mysql", optional = true }
-#sqlx-postgres = { version = "0.6.0-pre", path = "../sqlx-postgres", optional = true }
+sqlx-postgres = { version = "0.6.0-pre", path = "../sqlx-postgres", optional = true }
 futures-util = { version = "0.3", optional = true, features = ["io"] }

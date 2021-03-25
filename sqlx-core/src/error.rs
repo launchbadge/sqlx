@@ -7,8 +7,10 @@ use either::Either;
 use crate::decode::Error as DecodeError;
 use crate::encode::Error as EncodeError;
 
+mod client;
 mod database;
 
+pub use client::ClientError;
 pub use database::DatabaseError;
 
 use crate::Column;
@@ -25,8 +27,15 @@ pub enum Error {
     /// to be parsed.
     ConnectOptions { message: Cow<'static, str>, source: Option<Box<dyn StdError + Send + Sync>> },
 
-    /// The database returned an error.
+    /// An error that was returned from the database, normally from the
+    /// execution of a SQL command.
+    ///
     Database(Box<dyn DatabaseError>),
+
+    /// An error was identified on the client from the result of interacting
+    /// with the database.
+    ///
+    Client(Box<dyn ClientError>),
 
     /// An IO error returned while reading or writing a socket attached
     /// to the database server.
@@ -93,6 +102,16 @@ impl Error {
     }
 
     #[doc(hidden)]
+    pub fn client(err: impl ClientError) -> Self {
+        Self::Client(Box::new(err))
+    }
+
+    #[doc(hidden)]
+    pub fn database(err: impl DatabaseError) -> Self {
+        Self::Database(Box::new(err))
+    }
+
+    #[doc(hidden)]
     pub fn column_decode(column: &impl Column, source: DecodeError) -> Self {
         crate::Error::ColumnDecode {
             source,
@@ -108,6 +127,8 @@ impl Display for Error {
             Self::Network(source) => write!(f, "{}", source),
 
             Self::Database(source) => write!(f, "{}", source),
+
+            Self::Client(source) => write!(f, "{}", source),
 
             Self::ConnectOptions { message, source: None } => {
                 write!(f, "{}", message)

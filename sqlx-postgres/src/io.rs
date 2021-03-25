@@ -1,3 +1,3 @@
 mod write;
 
-pub(crate) use write::PgBufMutExt;
+pub(crate) use write::PgWriteExt;

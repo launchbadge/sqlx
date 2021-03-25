@@ -2,24 +2,20 @@ use std::borrow::Cow;
 use std::str::FromStr;
 
 use percent_encoding::percent_decode_str;
-use sqlx_core::{Error, Runtime};
+use sqlx_core::Error;
 use url::Url;
 
-use crate::PostgresConnectOptions;
+use crate::PgConnectOptions;
 
-impl<Rt> FromStr for PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl FromStr for PgConnectOptions {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url: Url =
-            s.parse().map_err(|error| Error::configuration("for database URL", error))?;
+        let url: Url = s.parse().map_err(|error| Error::opt("for database URL", error))?;
 
-        if !matches!(url.scheme(), "postgres") {
-            return Err(Error::configuration_msg(format!(
-                "unsupported URL scheme {:?} for MySQL",
+        if !matches!(url.scheme(), "postgres" | "postgresql") {
+            return Err(Error::opt_msg(format!(
+                "unsupported URL scheme {:?} for Postgres",
                 url.scheme()
             )));
         }
@@ -55,6 +51,14 @@ where
 
         for (key, value) in url.query_pairs() {
             match &*key {
+                "host" | "hostaddr" => {
+                    options.host(value);
+                }
+
+                "port" => {
+                    options.port(value.parse().map_err(|err| Error::opt("for port", err))?);
+                }
+
                 "user" | "username" => {
                     options.username(value);
                 }
@@ -63,24 +67,16 @@ where
                     options.password(value);
                 }
 
-                // ssl-mode     compatibly with SQLx <= 0.5
-                // sslmode      compatibly with PostgreSQL
-                // sslMode      compatibly with JDBC MySQL
-                // tls          compatibly with Go MySQL [preferred]
                 "ssl-mode" | "sslmode" | "sslMode" | "tls" => {
                     todo!()
                 }
 
-                "charset" => {
-                    options.charset(value);
-                }
-
-                "timezone" => {
-                    options.timezone(value);
-                }
-
                 "socket" => {
                     options.socket(&*value);
+                }
+
+                "application_name" => {
+                    options.application_name(&*value);
                 }
 
                 _ => {
@@ -94,7 +90,6 @@ where
     }
 }
 
-// todo: this should probably go somewhere common
 fn percent_decode_str_utf8(value: &str) -> Cow<'_, str> {
     percent_decode_str(value).decode_utf8_lossy()
 }
@@ -103,72 +98,68 @@ fn percent_decode_str_utf8(value: &str) -> Cow<'_, str> {
 mod tests {
     use std::path::Path;
 
-    use sqlx_core::mock::Mock;
-
-    use super::PostgresConnectOptions;
+    use super::PgConnectOptions;
 
     #[test]
     fn parse() {
-        let url = "postgres://user:password@hostname:5432/database?timezone=system&charset=utf8";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let url = "postgresql://user:password@hostname:8915/database?application_name=sqlx";
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
         assert_eq!(options.get_host(), "hostname");
-        assert_eq!(options.get_port(), 5432);
+        assert_eq!(options.get_port(), 8915);
         assert_eq!(options.get_database(), Some("database"));
-        assert_eq!(options.get_timezone(), "system");
-        assert_eq!(options.get_charset(), "utf8");
+        assert_eq!(options.get_application_name(), Some("sqlx"));
     }
 
     #[test]
     fn parse_with_defaults() {
         let url = "postgres://";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), None);
         assert_eq!(options.get_password(), None);
         assert_eq!(options.get_host(), "localhost");
-        assert_eq!(options.get_port(), 3306);
+        assert_eq!(options.get_port(), 5432);
         assert_eq!(options.get_database(), None);
-        assert_eq!(options.get_timezone(), "utc");
-        assert_eq!(options.get_charset(), "utf8mb4");
+        assert_eq!(options.get_application_name(), None);
     }
 
     #[test]
     fn parse_socket_from_query() {
-        let url = "postgres://user:password@localhost/database?socket=/var/run/postgresd/postgresd.sock";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let url = "postgresql://user:password@localhost/database?socket=/var/run/postgresql.sock";
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
         assert_eq!(options.get_database(), Some("database"));
-        assert_eq!(options.get_socket(), Some(Path::new("/var/run/postgresd/postgresd.sock")));
+        assert_eq!(options.get_socket(), Some(Path::new("/var/run/postgresql.sock")));
     }
 
     #[test]
     fn parse_socket_from_host() {
         // socket path in host requires URL encoding - but does work
-        let url = "postgres://user:password@%2Fvar%2Frun%2Fpostgresd%2Fpostgresd.sock/database";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let url = "postgres://user:password@%2Fvar%2Frun%2Fpostgres%2Fpostgres.sock/database";
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user"));
         assert_eq!(options.get_password(), Some("password"));
         assert_eq!(options.get_database(), Some("database"));
-        assert_eq!(options.get_socket(), Some(Path::new("/var/run/postgresd/postgresd.sock")));
+        assert_eq!(options.get_socket(), Some(Path::new("/var/run/postgres/postgres.sock")));
     }
 
     #[test]
     #[should_panic]
     fn fail_to_parse_non_postgres() {
-        let url = "postgres://user:password@hostname:5432/database?timezone=system&charset=utf8";
-        let _: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let url = "mysql://user:password@hostname:5432/database?timezone=system&charset=utf8";
+        let _: PgConnectOptions = url.parse().unwrap();
     }
 
     #[test]
     fn parse_username_with_at_sign() {
         let url = "postgres://user@hostname:password@hostname:5432/database";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_username(), Some("user@hostname"));
     }
@@ -176,7 +167,7 @@ mod tests {
     #[test]
     fn parse_password_with_non_ascii_chars() {
         let url = "postgres://username:p@ssw0rd@hostname:5432/database";
-        let options: PostgresConnectOptions<Mock> = url.parse().unwrap();
+        let options: PgConnectOptions = url.parse().unwrap();
 
         assert_eq!(options.get_password(), Some("p@ssw0rd"));
     }

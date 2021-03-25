@@ -87,7 +87,7 @@ impl<'r> RawValue<'r> for MySqlRawValue<'r> {
         self.value.is_none()
     }
 
-    fn type_info(&self) -> &'r MySqlTypeInfo {
+    fn type_info(&self) -> &MySqlTypeInfo {
         self.type_info
     }
 }

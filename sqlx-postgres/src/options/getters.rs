@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use sqlx_core::Runtime;
+use super::{default, PgConnectOptions};
 
-use super::{default, PostgresConnectOptions};
-
-impl<Rt: Runtime> PostgresConnectOptions<Rt> {
+impl PgConnectOptions {
     /// Returns the hostname of the database server.
     #[must_use]
     pub fn get_host(&self) -> &str {
@@ -41,15 +39,9 @@ impl<Rt: Runtime> PostgresConnectOptions<Rt> {
         self.password.as_deref()
     }
 
-    /// Returns the character set for the connection.
+    /// Returns the application name for the connection.
     #[must_use]
-    pub fn get_charset(&self) -> &str {
-        &self.charset
-    }
-
-    /// Returns the timezone for the connection.
-    #[must_use]
-    pub fn get_timezone(&self) -> &str {
-        &self.timezone
+    pub fn get_application_name(&self) -> Option<&str> {
+        self.application_name.as_deref()
     }
 }

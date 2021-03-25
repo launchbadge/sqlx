@@ -2,7 +2,7 @@
 name = "sqlx-postgres"
 version = "0.6.0-pre"
 repository = "https://github.com/launchbadge/sqlx"
-description = "MySQL database driver for SQLx, the Rust SQL Toolkit."
+description = "PostgreSQL database driver for SQLx, the Rust SQL Toolkit."
 license = "MIT OR Apache-2.0"
 edition = "2018"
 keywords = ["postgres", "sqlx", "database"]
@@ -23,35 +23,28 @@ default = []
 blocking = ["sqlx-core/blocking"]
 
 # async runtime
-# not meant to be used directly
 async = ["futures-util", "sqlx-core/async", "futures-io"]
 
 [dependencies]
+atoi = "0.4.0"
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 futures-util = { version = "0.3.8", optional = true }
-either = "1.6.1"
 log = "0.4.11"
+either = "1.6.1"
 bytestring = "1.0.0"
 url = "2.2.0"
+hex = "0.4.3"
 percent-encoding = "2.1.0"
 futures-io = { version = "0.3", optional = true }
 bytes = "1.0"
 memchr = "2.3"
 bitflags = "1.2"
-sha-1 = "0.9.2"
-sha2 = "0.9.2"
-rsa = "0.3.0"
 base64 = "0.13.0"
-rand = "0.7"
+md-5 = "0.9.1"
 itoa = "0.4.7"
-atoi = "0.4.0"
-byteorder = { version = "1.4.2", default-features = false, features = [ "std" ] }
-md-5 = { version = "0.9.1", default-features = false }
-hmac = { version = "0.10.1", default-features = false }
-stringprep = "0.1.2"
-crypto-mac = "0.10.0"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
 futures-executor = "0.3.8"
 anyhow = "1.0.37"
+conquer-once = "0.3.2"

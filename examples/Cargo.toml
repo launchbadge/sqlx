@@ -3,5 +3,6 @@ members = [
     "quickstart/mysql+blocking",
     "quickstart/mysql+async-std",
     "quickstart/mysql+tokio",
-    "quickstart/mysql+quickstart"
+    "quickstart/postgres+async-std",
+    "quickstart/mysql+quickstart",
 ]

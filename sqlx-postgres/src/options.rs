@@ -1,58 +1,36 @@
 use std::fmt::{self, Debug, Formatter};
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use either::Either;
-use sqlx_core::{ConnectOptions, Runtime};
-
-use crate::PostgresConnection;
+use sqlx_core::ConnectOptions;
 
 mod builder;
 mod default;
 mod getters;
 mod parse;
 
-// TODO: RSA Public Key (to avoid the key exchange for caching_sha2 and sha256 plugins)
-
-/// Options which can be used to configure how a PostgreSQL connection is opened.
+/// Options which can be used to configure how a Postgres connection is opened.
+///
+/// A value of `PgConnectOptions` can be parsed from a connection URI, as
+/// described by [libpq](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING).
+///
+/// ```text
+/// postgresql://[user[:password]@][host][:port][/database][?param1=value1&...]
+/// ```
 ///
 #[allow(clippy::module_name_repetitions)]
-pub struct PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
-    runtime: PhantomData<Rt>,
+#[derive(Clone)]
+pub struct PgConnectOptions {
     pub(crate) address: Either<(String, u16), PathBuf>,
     username: Option<String>,
     password: Option<String>,
     database: Option<String>,
-    timezone: String,
-    charset: String,
+    application_name: Option<String>,
 }
 
-impl<Rt> Clone for PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
-    fn clone(&self) -> Self {
-        Self {
-            runtime: PhantomData,
-            address: self.address.clone(),
-            username: self.username.clone(),
-            password: self.password.clone(),
-            database: self.database.clone(),
-            timezone: self.timezone.clone(),
-            charset: self.charset.clone(),
-        }
-    }
-}
-
-impl<Rt> Debug for PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
+impl Debug for PgConnectOptions {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PostgresConnectOptions")
+        f.debug_struct("PgConnectOptions")
             .field(
                 "address",
                 &self
@@ -64,40 +42,12 @@ where
             .field("username", &self.username)
             .field("password", &self.password)
             .field("database", &self.database)
-            .field("timezone", &self.timezone)
-            .field("charset", &self.charset)
+            .field("application_name", &self.application_name)
             .finish()
     }
 }
 
-impl<Rt> ConnectOptions<Rt> for PostgresConnectOptions<Rt>
-where
-    Rt: Runtime,
-{
-    type Connection = PostgresConnection<Rt>;
-
-    #[cfg(feature = "async")]
-    fn connect(&self) -> futures_util::future::BoxFuture<'_, sqlx_core::Result<Self::Connection>>
-    where
-        Self::Connection: Sized,
-        Rt: sqlx_core::Async,
-    {
-        Box::pin(PostgresConnection::<Rt>::connect_async(self))
-    }
-}
+impl ConnectOptions for PgConnectOptions {}
 
 #[cfg(feature = "blocking")]
-mod blocking {
-    use sqlx_core::blocking::{ConnectOptions, Runtime};
-
-    use super::{PostgresConnectOptions, PostgresConnection};
-
-    impl<Rt: Runtime> ConnectOptions<Rt> for PostgresConnectOptions<Rt> {
-        fn connect(&self) -> sqlx_core::Result<Self::Connection>
-        where
-            Self::Connection: Sized,
-        {
-            <PostgresConnection<Rt>>::connect(self)
-        }
-    }
-}
+impl sqlx_core::blocking::ConnectOptions for PgConnectOptions {}
