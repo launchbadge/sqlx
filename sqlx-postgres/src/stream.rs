@@ -157,11 +157,11 @@ impl<Rt: Runtime> DerefMut for PgStream<Rt> {
 
 macro_rules! read_message {
     (@blocking $stream:expr) => {
-        $stream.read_message_blocking()?
+        $stream.read_message_blocking()
     };
 
     ($stream:expr) => {
-        $stream.read_message_async().await?
+        $stream.read_message_async().await
     };
 }
 

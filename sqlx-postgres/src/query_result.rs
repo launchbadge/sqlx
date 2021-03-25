@@ -5,7 +5,9 @@ use std::str::Utf8Error;
 use bytes::Bytes;
 use bytestring::ByteString;
 use memchr::memrchr;
-use sqlx_core::QueryResult;
+use sqlx_core::{Error, QueryResult, Result};
+
+use crate::PgClientError;
 
 // TODO: add unit tests for command tag parsing
 
@@ -21,7 +23,7 @@ pub struct PgQueryResult {
 }
 
 impl PgQueryResult {
-    pub(crate) fn parse(mut command: Bytes) -> Result<Self, Utf8Error> {
+    pub(crate) fn parse(mut command: Bytes) -> Result<Self> {
         // look backwards for the first SPACE
         let offset = memrchr(b' ', &command);
 
@@ -31,7 +33,9 @@ impl PgQueryResult {
             0
         };
 
-        Ok(Self { command: command.try_into()?, rows_affected: rows })
+        let command: ByteString = command.try_into().map_err(PgClientError::NotUtf8)?;
+
+        Ok(Self { command, rows_affected: rows })
     }
 
     /// Returns the command tag.

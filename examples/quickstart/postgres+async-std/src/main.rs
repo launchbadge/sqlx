@@ -1,5 +1,5 @@
 use sqlx::postgres::{PgConnectOptions, PgConnection};
-use sqlx::{Connection, Close, ConnectOptions};
+use sqlx::{Close, ConnectOptions, Connection, Executor};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,7 +10,8 @@ async fn main() -> anyhow::Result<()> {
         // set a password (perhaps from somewhere else than the rest of the URL)
         .password("password")
         // connect to the database (non-blocking)
-        .connect().await?;
+        .connect()
+        .await?;
 
     // the following are equivalent to the above:
 
@@ -23,9 +24,11 @@ async fn main() -> anyhow::Result<()> {
     //  when writing a *type*, Rust allows default type parameters
     //  as opposed to writing a *path* where it does not (yet)
 
+    let res = conn.execute("SELECT 1").await?;
+
     // ping, this makes sure the server is still there
     // hopefully it is – we did just connect to it
-    conn.ping().await?;
+    // conn.ping().await?;
 
     // close the connection explicitly
     // this kindly informs the database server that we'll be terminating

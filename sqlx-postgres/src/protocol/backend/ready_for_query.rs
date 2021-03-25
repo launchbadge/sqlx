@@ -30,7 +30,7 @@ impl Deserialize<'_> for ReadyForQuery {
             b'E' => TransactionStatus::Error,
 
             status => {
-                return Err(Error::client(PgClientError::UnknownTransactionStatus(status)));
+                return Err(PgClientError::UnknownTransactionStatus(status).into());
             }
         };
 

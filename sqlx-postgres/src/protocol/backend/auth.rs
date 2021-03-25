@@ -50,7 +50,7 @@ impl Deserialize<'_> for Authentication {
             11 => AuthenticationSaslContinue::deserialize(buf).map(Self::SaslContinue),
             12 => AuthenticationSaslFinal::deserialize(buf).map(Self::SaslFinal),
 
-            ty => Err(Error::client(PgClientError::UnknownAuthenticationMethod(ty))),
+            ty => Err(PgClientError::UnknownAuthenticationMethod(ty).into()),
         }
     }
 }

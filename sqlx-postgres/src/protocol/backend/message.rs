@@ -68,7 +68,7 @@ impl TryFrom<u8> for BackendMessageType {
             b'c' => Self::CopyDone,
 
             _ => {
-                return Err(Error::client(PgClientError::UnknownMessageType(ty)));
+                return Err(PgClientError::UnknownMessageType(ty).into());
             }
         })
     }

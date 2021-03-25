@@ -15,7 +15,7 @@
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Error, Result, Runtime};
 
-use crate::protocol::backend::{Authentication, BackendMessage, BackendMessageType};
+use crate::protocol::backend::{Authentication, BackendMessage, BackendMessageType, KeyData};
 use crate::protocol::frontend::{Password, PasswordMd5, Startup};
 use crate::{PgClientError, PgConnectOptions, PgConnection};
 
@@ -47,7 +47,7 @@ impl<Rt: Runtime> PgConnection<Rt> {
         match message.ty {
             BackendMessageType::Authentication => match message.deserialize()? {
                 Authentication::Ok => {
-                    return Ok(true);
+                    // nothing more to do with authentication
                 }
 
                 Authentication::Md5Password(data) => {
@@ -68,11 +68,26 @@ impl<Rt: Runtime> PgConnection<Rt> {
                 Authentication::SaslFinal(_) => todo!("sasl final"),
             },
 
+            BackendMessageType::ReadyForQuery => {
+                self.handle_ready_for_query(message.deserialize()?);
+
+                // fully connected
+                return Ok(true);
+            }
+
+            BackendMessageType::BackendKeyData => {
+                let key_data: KeyData = message.deserialize()?;
+
+                self.process_id = key_data.process_id;
+                self.secret_key = key_data.secret_key;
+            }
+
             ty => {
-                return Err(Error::client(PgClientError::UnexpectedMessageType {
+                return Err(PgClientError::UnexpectedMessageType {
                     ty: ty as u8,
                     context: "starting up",
-                }));
+                }
+                .into());
             }
         }
 
@@ -100,13 +115,15 @@ macro_rules! impl_connect {
         // to begin a session, a frontend should send a startup message
         // this is built up of various startup parameters that control the connection
         self_.write_startup_message($options)?;
+        self_.pending_ready_for_query_count += 1;
 
         // the server then uses this information and the contents of
         // its configuration files (such as pg_hba.conf) to determine whether the connection is
         // provisionally acceptable, and what additional
         // authentication is required (if any).
         loop {
-            let message = read_message!($(@$blocking)? self_.stream);
+            let message = read_message!($(@$blocking)? self_.stream)?;
+
             if self_.handle_startup_response($options, message)? {
                 // complete, successful authentication
                 break;

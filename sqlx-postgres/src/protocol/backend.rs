@@ -14,6 +14,6 @@ pub(crate) use key_data::KeyData;
 pub(crate) use message::{BackendMessage, BackendMessageType};
 pub(crate) use parameter_description::ParameterDescription;
 pub(crate) use parameter_status::ParameterStatus;
-pub(crate) use ready_for_query::ReadyForQuery;
-pub(crate) use row_description::RowDescription;
+pub(crate) use ready_for_query::{ReadyForQuery, TransactionStatus};
+pub(crate) use row_description::{Field, RowDescription};
 pub(crate) use sasl::{AuthenticationSasl, AuthenticationSaslContinue, AuthenticationSaslFinal};

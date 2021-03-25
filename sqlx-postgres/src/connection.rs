@@ -5,15 +5,29 @@ use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
+use crate::protocol::backend::TransactionStatus;
 use crate::stream::PgStream;
 use crate::{PgConnectOptions, Postgres};
 
+#[macro_use]
+mod flush;
+
 mod connect;
+mod executor;
 
 /// A single connection (also known as a session) to a
 /// PostgreSQL database server.
 pub struct PgConnection<Rt: Runtime> {
     stream: PgStream<Rt>,
+
+    // number of commands that have been executed
+    // and have yet to see their completion acknowledged
+    // in other words, the number of <ReadyForQuery> messages
+    // we expect before the stream is clear
+    pending_ready_for_query_count: usize,
+
+    // current transaction status
+    transaction_status: TransactionStatus,
 
     // process id of this backend
     // can be used to send cancel requests
@@ -37,7 +51,13 @@ where
 
 impl<Rt: Runtime> PgConnection<Rt> {
     pub(crate) fn new(stream: NetStream<Rt>) -> Self {
-        Self { stream: PgStream::new(stream), process_id: 0, secret_key: 0 }
+        Self {
+            stream: PgStream::new(stream),
+            process_id: 0,
+            secret_key: 0,
+            transaction_status: TransactionStatus::Idle,
+            pending_ready_for_query_count: 0,
+        }
     }
 }
 

@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 use std::str::Utf8Error;
 
-use sqlx_core::ClientError;
+use sqlx_core::{ClientError, Error};
 
 use crate::protocol::backend::BackendMessageType;
 
@@ -15,6 +15,7 @@ pub enum PgClientError {
     UnknownAuthenticationMethod(u32),
     UnknownMessageType(u8),
     UnknownTransactionStatus(u8),
+    UnknownValueFormat(i16),
     UnexpectedMessageType { ty: u8, context: &'static str },
 }
 
@@ -31,6 +32,10 @@ impl Display for PgClientError {
                 write!(f, "in ReadyForQuery, unknown transaction status: {}", status)
             }
 
+            Self::UnknownValueFormat(format) => {
+                write!(f, "unknown value format: {}", format)
+            }
+
             Self::UnknownMessageType(ty) => {
                 write!(f, "unknown protocol message type: '{}' ({})", *ty as char, *ty)
             }
@@ -45,3 +50,9 @@ impl Display for PgClientError {
 impl StdError for PgClientError {}
 
 impl ClientError for PgClientError {}
+
+impl From<PgClientError> for Error {
+    fn from(err: PgClientError) -> Error {
+        Error::client(err)
+    }
+}
