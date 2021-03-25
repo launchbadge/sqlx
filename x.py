@@ -11,7 +11,7 @@ from subprocess import check_call, check_output, PIPE
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-q", "--quiet", action="store_true")
-parser.add_argument("-t", "--target")
+parser.add_argument("target")
 parser.add_argument("-l", "--list-targets", action="store_true")
 parser.add_argument("--coverage", action="store_true")
 
