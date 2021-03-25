@@ -11,7 +11,7 @@ from subprocess import check_call, check_output, PIPE
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-q", "--quiet", action="store_true")
-parser.add_argument("target")
+parser.add_argument("target", nargs="?")
 parser.add_argument("-l", "--list-targets", action="store_true")
 parser.add_argument("--coverage", action="store_true")
 
@@ -55,16 +55,22 @@ def run(cmd, *, cwd, env=None, comment=None, tag=None):
         sys.exit(1)
 
 
-def run_checks(project: str, *, cmd="check"):
-    run_check(project, args=[], cmd=cmd)
-    run_check(project, args=["--features", "blocking"], variant="blocking", cmd=cmd)
-    run_check(project, args=["--features", "async"], variant="async", cmd=cmd)
-    run_check(project, args=["--all-features"], variant="all", cmd=cmd)
+def run_checks(project: str, *, tag: str = None, cmd="check", lib=True):
+    if tag is None:
+        tag = f"{cmd}:{project.rsplit('-', maxsplit=1)[-1]}"
+    else:
+        tag = f"{cmd}:{tag}"
+
+    run_check(project, args=[], cmd=cmd, lib=lib, tag=tag)
+
+    if lib:
+        run_check(project, args=["--features", "blocking"], variant="blocking", cmd=cmd, lib=lib, tag=tag)
+        run_check(project, args=["--features", "async"], variant="async", cmd=cmd, lib=lib, tag=tag)
+        run_check(project, args=["--all-features"], variant="all", cmd=cmd, lib=lib, tag=tag)
 
 
-def run_check(project: str, *, args, variant=None, cmd="check"):
+def run_check(project: str, *, args, tag, variant=None, cmd="check", lib: bool = True):
     comment = f"{cmd} {project}"
-    tag = f"{cmd}:{project.rsplit('-', maxsplit=1)[-1]}"
 
     if variant is not None:
         tag += f":{variant}"
@@ -74,7 +80,7 @@ def run_check(project: str, *, args, variant=None, cmd="check"):
         return
 
     # update timestamp to ensure check runs
-    Path(f"{project}/src/lib.rs").touch()
+    Path(f"{project}/src/{'lib' if lib else 'main'}.rs").touch()
 
     run([x for x in [
         "cargo", "+nightly", cmd,
@@ -157,7 +163,11 @@ def main():
     run_checks("sqlx-postgres")
     run_checks("sqlx")
 
-    # run checks
+    # run checks for *examples*
+    run_checks("examples/quickstart/postgres+async-std", lib=False, tag="postgres:examples:quickstart:async-std")
+    run_checks("examples/quickstart/mysql+async-std", lib=False, tag="mysql:examples:quickstart:async-std")
+
+    # run checks with clippy
     run_checks("sqlx-core", cmd="clippy")
     run_checks("sqlx-mysql", cmd="clippy")
     run_checks("sqlx-postgres", cmd="clippy")
