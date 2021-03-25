@@ -1,4 +1,5 @@
 use sqlx::postgres::{PgConnectOptions, PgConnection};
+use sqlx::{Connection, Close, ConnectOptions};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
@@ -8,9 +9,8 @@ async fn main() -> anyhow::Result<()> {
     let mut conn: PgConnection = PgConnectOptions::parse("postgres://postgres@localhost")?
         // set a password (perhaps from somewhere else than the rest of the URL)
         .password("password")
-        // connect to the database (blocking)
-        .connect()
-        .await?;
+        // connect to the database (non-blocking)
+        .connect().await?;
 
     // the following are equivalent to the above:
 

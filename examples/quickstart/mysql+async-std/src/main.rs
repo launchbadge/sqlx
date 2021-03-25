@@ -1,4 +1,5 @@
 use sqlx::mysql::{MySqlConnectOptions, MySqlConnection};
+use sqlx::{ConnectOptions, Connection, Close};
 
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
