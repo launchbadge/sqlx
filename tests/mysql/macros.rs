@@ -388,7 +388,7 @@ pub mod test_for_attr_with {
 
         #[derive(Debug, PartialEq)]
         struct Id(i64);
-        impl std::convert::TryFrom<i64> for Id{
+        impl std::convert::TryFrom<i64> for Id {
             type Error = std::io::Error;
             fn try_from(value: i64) -> Result<Self, Self::Error> {
                 Ok(Id(value))

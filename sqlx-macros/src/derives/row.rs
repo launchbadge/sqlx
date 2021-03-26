@@ -6,7 +6,7 @@ use syn::{
 };
 
 use super::{
-    attributes::{parse_child_attributes, parse_container_attributes,SqlxChildAttributes},
+    attributes::{parse_child_attributes, parse_container_attributes, SqlxChildAttributes},
     rename_all,
 };
 
@@ -67,11 +67,12 @@ fn expand_derive_from_row_struct(
     for field in row_fields.iter() {
         let ty = &field.ty;
 
-        match &field.attrs.try_from{
-            Some(try_from) =>{
-                predicates.push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
+        match &field.attrs.try_from {
+            Some(try_from) => {
+                predicates
+                    .push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
                 predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>));
-            },
+            }
             None => {
                 predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
                 predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
@@ -176,7 +177,7 @@ fn expand_derive_from_row_struct_unnamed(
 
     for field in fields {
         let ty = &field.ty;
-        
+
         predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
         predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
     }

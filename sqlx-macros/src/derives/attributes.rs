@@ -70,7 +70,7 @@ pub struct SqlxContainerAttributes {
 pub struct SqlxChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
-    pub try_from:Option<Ident>,
+    pub try_from: Option<Ident>,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -208,7 +208,11 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         }
     }
 
-    Ok(SqlxChildAttributes { rename, default,try_from })
+    Ok(SqlxChildAttributes {
+        rename,
+        default,
+        try_from,
+    })
 }
 
 pub fn check_transparent_attributes(
