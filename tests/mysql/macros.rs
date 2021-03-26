@@ -354,3 +354,56 @@ async fn test_column_override_exact_enum() -> anyhow::Result<()> {
 }
 
 // we don't emit bind parameter type-checks for MySQL so testing the overrides is redundant
+
+pub mod test_for_attr_with {
+    use super::*;
+
+    #[sqlx_macros::test]
+    async fn test_from_row() -> anyhow::Result<()> {
+        #[derive(sqlx::FromRow)]
+        struct Record {
+            #[sqlx(try_from = "i64")]
+            id: u64,
+        }
+
+        let mut conn = new::<MySql>().await?;
+        let mut conn = with_test_row(&mut conn).await?;
+
+        let record = sqlx::query_as::<_, Record>("select id from tweet")
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(record.id, 1);
+
+        Ok(())
+    }
+
+    #[sqlx_macros::test]
+    async fn test_from_row_for_custom_type() -> anyhow::Result<()> {
+        #[derive(sqlx::FromRow)]
+        struct Record {
+            #[sqlx(try_from = "i64")]
+            id: Id,
+        }
+
+        #[derive(Debug, PartialEq)]
+        struct Id(i64);
+        impl std::convert::TryFrom<i64> for Id{
+            type Error = std::io::Error;
+            fn try_from(value: i64) -> Result<Self, Self::Error> {
+                Ok(Id(value))
+            }
+        }
+
+        let mut conn = new::<MySql>().await?;
+        let mut conn = with_test_row(&mut conn).await?;
+
+        let record = sqlx::query_as::<_, Record>("select id from tweet")
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(record.id, Id(1));
+
+        Ok(())
+    }
+}
