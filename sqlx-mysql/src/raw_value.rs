@@ -55,7 +55,7 @@ impl<'r> MySqlRawValue<'r> {
         self.format
     }
 
-    /// Returns the underlying byte view of this value as a byte slice.
+    /// Returns the underlying byte view of this value.
     pub fn as_bytes(&self) -> DecodeResult<&'r [u8]> {
         self.value.map(|bytes| &**bytes).ok_or(DecodeError::UnexpectedNull)
     }

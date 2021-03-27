@@ -19,7 +19,7 @@ impl MySqlRow {
     }
 
     /// Returns `true` if the row contains only `NULL` values.
-    fn is_null(&self) -> bool {
+    pub fn is_null(&self) -> bool {
         self.values.iter().all(Option::is_some)
     }
 
