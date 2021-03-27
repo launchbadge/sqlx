@@ -11,6 +11,7 @@ from subprocess import check_call, check_output, PIPE
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-q", "--quiet", action="store_true")
+parser.add_argument("-e", "--exact", action="store_true")
 parser.add_argument("target", nargs="?")
 parser.add_argument("-l", "--list-targets", action="store_true")
 parser.add_argument("--coverage", action="store_true")
@@ -33,6 +34,10 @@ def should_run(tag):
         return False
 
     if argv.target is not None:
+        if argv.exact:
+            if argv.target != tag:
+                return False
+
         if not re.match(argv.target.replace("_", ".*?"), tag):
             return False
 
