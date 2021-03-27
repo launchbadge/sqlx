@@ -290,7 +290,7 @@
 /// project and your database schema itself, run
 /// `cargo install sqlx-cli && cargo sqlx prepare --check` in your Continuous Integration script.
 ///
-/// See [the README for `sqlx-cli`](https://crates.io/crate/sqlx-cli) for more information.
+/// See [the README for `sqlx-cli`](https://crates.io/crates/sqlx-cli) for more information.
 ///
 /// ## See Also
 /// * [query_as!] if you want to use a struct you can name,
