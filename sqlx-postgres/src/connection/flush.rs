@@ -1,6 +1,7 @@
+use sqlx_core::{Error, Result, Runtime};
+
 use crate::protocol::backend::{BackendMessage, BackendMessageType};
 use crate::PgConnection;
-use sqlx_core::{Error, Result, Runtime};
 
 impl<Rt: Runtime> PgConnection<Rt> {
     fn handle_message_in_flush(&mut self, message: BackendMessage) -> Result<bool> {

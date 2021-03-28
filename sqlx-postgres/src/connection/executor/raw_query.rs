@@ -1,19 +1,39 @@
 use sqlx_core::{Execute, Result, Runtime};
 
-use crate::protocol::frontend::Query;
-use crate::{PgConnection, PgRawValueFormat, Postgres};
+use crate::protocol::frontend::{self, Bind, PortalRef, Query, StatementRef, Sync};
+use crate::{PgConnection, Postgres};
 
 macro_rules! impl_raw_query {
     ($(@$blocking:ident)? $self:ident, $query:ident) => {{
-        let format = if let Some(arguments) = $query.arguments() {
-            todo!("prepared query for postgres")
+        if let Some(arguments) = $query.arguments() {
+            // prepare the statement for execution
+            let statement = raw_prepare!($(@$blocking)? $self, $query.sql(), arguments);
+
+            // bind values to the prepared statement
+            $self.stream.write_message(&Bind {
+                portal: PortalRef::Unnamed,
+                statement: StatementRef::Named(statement.id),
+                arguments,
+                parameters: &statement.parameters,
+            })?;
+
+            // describe the bound prepared statement (portal)
+            $self.stream.write_message(&frontend::Describe {
+                target: frontend::Target::Portal(PortalRef::Unnamed),
+            })?;
+
+            // execute the bound prepared statement (portal)
+            $self.stream.write_message(&frontend::Execute {
+                portal: PortalRef::Unnamed,
+                max_rows: 0,
+            })?;
+
+            // <Sync> is what closes the extended query invocation and
+            // issues a <ReadyForQuery>
+            $self.stream.write_message(&Sync)?;
         } else {
             // directly execute the query as an unprepared, simple query
             $self.stream.write_message(&Query { sql: $query.sql() })?;
-
-            // unprepared queries use the TEXT format
-            // this is a significant waste of bandwidth for large result sets
-            PgRawValueFormat::Text
         };
 
         // as we have written a SQL command of some kind to the stream
@@ -22,13 +42,13 @@ macro_rules! impl_raw_query {
         // half-way through, we need to flush the stream until the ReadyForQuery point
         $self.pending_ready_for_query_count += 1;
 
-        Ok(format)
+        Ok(())
     }};
 }
 
 impl<Rt: Runtime> PgConnection<Rt> {
     #[cfg(feature = "async")]
-    pub(super) async fn raw_query_async<'q, 'a, E>(&mut self, query: E) -> Result<PgRawValueFormat>
+    pub(super) async fn raw_query_async<'q, 'a, E>(&mut self, query: E) -> Result<()>
     where
         Rt: sqlx_core::Async,
         E: Execute<'q, 'a, Postgres>,
@@ -38,7 +58,7 @@ impl<Rt: Runtime> PgConnection<Rt> {
     }
 
     #[cfg(feature = "blocking")]
-    pub(super) fn raw_query_blocking<'q, 'a, E>(&mut self, query: E) -> Result<PgRawValueFormat>
+    pub(super) fn raw_query_blocking<'q, 'a, E>(&mut self, query: E) -> Result<()>
     where
         Rt: sqlx_core::blocking::Runtime,
         E: Execute<'q, 'a, Postgres>,

@@ -4,8 +4,6 @@ use std::str::Utf8Error;
 
 use sqlx_core::{ClientError, Error};
 
-use crate::protocol::backend::BackendMessageType;
-
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum PgClientError {

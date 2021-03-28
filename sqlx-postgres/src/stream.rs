@@ -105,8 +105,10 @@ macro_rules! impl_read_message {
             // bytes 1..4 will be the length of the message
             let size = ($self.stream.get(1, 4).get_u32() - 4) as usize;
 
-            // read <size> bytes _after_ the header
-            impl_read_message!($(@$blocking)? @stream $self, 4, size);
+            if size > 0 {
+                // read <size> bytes _after_ the header
+                impl_read_message!($(@$blocking)? @stream $self, 4, size);
+            }
 
             if let Some(message) = $self.read_message(size)? {
                 break message;

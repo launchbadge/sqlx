@@ -9,6 +9,7 @@ pub(crate) struct Terminate;
 impl Serialize<'_> for Terminate {
     fn serialize_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<()> {
         buf.push(b'X');
+        buf.extend_from_slice(&4_i32.to_be_bytes());
 
         Ok(())
     }

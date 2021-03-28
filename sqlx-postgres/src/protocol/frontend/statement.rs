@@ -1,7 +1,7 @@
 use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum StatementRef {
     Unnamed,
     Named(u32),

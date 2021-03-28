@@ -2,9 +2,11 @@ use bytes::{Buf, Bytes};
 use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
+use crate::{PgTypeId, PgTypeInfo};
+
 #[derive(Debug)]
 pub(crate) struct ParameterDescription {
-    pub(crate) parameters: Vec<u32>,
+    pub(crate) parameters: Vec<PgTypeInfo>,
 }
 
 impl Deserialize<'_> for ParameterDescription {
@@ -13,7 +15,7 @@ impl Deserialize<'_> for ParameterDescription {
         let mut parameters = Vec::with_capacity(cnt as usize);
 
         for _ in 0..cnt {
-            parameters.push(buf.get_u32());
+            parameters.push(PgTypeInfo(PgTypeId::Oid(buf.get_u32())));
         }
 
         Ok(Self { parameters })

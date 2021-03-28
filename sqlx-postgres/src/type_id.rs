@@ -117,4 +117,8 @@ impl PgTypeId {
             _ => "UNKNOWN",
         }
     }
+
+    pub(crate) const fn is_integer(&self) -> bool {
+        matches!(*self, Self::SMALLINT | Self::INTEGER | Self::BIGINT)
+    }
 }

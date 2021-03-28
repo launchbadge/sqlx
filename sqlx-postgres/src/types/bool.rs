@@ -2,7 +2,7 @@ use sqlx_core::{decode, encode, Decode, Encode, Type};
 
 use crate::{PgOutput, PgRawValue, PgRawValueFormat, PgTypeId, PgTypeInfo, Postgres};
 
-// <https://www.postgresql.org/docs/current/datatype-boolean.html>
+// https://www.postgresql.org/docs/current/datatype-boolean.html
 
 impl Type<Postgres> for bool {
     fn type_id() -> PgTypeId
@@ -14,7 +14,7 @@ impl Type<Postgres> for bool {
 }
 
 impl Encode<Postgres> for bool {
-    fn encode(&self, ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, _ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result<()> {
         out.buffer().push(*self as u8);
 
         Ok(())

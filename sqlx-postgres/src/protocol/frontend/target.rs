@@ -18,12 +18,12 @@ impl Serialize<'_> for Target {
             match self {
                 Self::Portal(portal) => {
                     buf.push(b'P');
-                    portal.serialize(buf);
+                    portal.serialize(buf)?;
                 }
 
                 Self::Statement(statement) => {
                     buf.push(b'S');
-                    statement.serialize(buf);
+                    statement.serialize(buf)?;
                 }
             }
 

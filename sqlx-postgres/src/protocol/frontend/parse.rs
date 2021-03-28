@@ -1,18 +1,16 @@
+use std::fmt::{self, Debug, Formatter};
+
 use sqlx_core::io::{Serialize, WriteExt};
 use sqlx_core::Result;
 
 use crate::io::PgWriteExt;
-use crate::protocol::frontend::{PortalRef, StatementRef};
+use crate::protocol::frontend::StatementRef;
+use crate::{PgArguments, PgTypeId};
 
-#[derive(Debug)]
 pub(crate) struct Parse<'a> {
     pub(crate) statement: StatementRef,
     pub(crate) sql: &'a str,
-
-    /// The parameter data types specified (could be zero). Note that this is not an
-    /// indication of the number of parameters that might appear in the query string,
-    /// only the number that the frontend wants to pre-specify types for.
-    pub(crate) parameters: &'a [u32],
+    pub(crate) arguments: &'a PgArguments<'a>,
 }
 
 impl Serialize<'_> for Parse<'_> {
@@ -24,15 +22,29 @@ impl Serialize<'_> for Parse<'_> {
             buf.write_str_nul(self.sql);
 
             // TODO: return a proper error
-            assert!(!(self.parameters.len() >= (u16::MAX as usize)));
+            assert!(!(self.arguments.len() >= (u16::MAX as usize)));
 
-            buf.extend(&(self.parameters.len() as u16).to_be_bytes());
+            // note: named arguments should have been converted to positional before this point
+            debug_assert_eq!(self.arguments.num_named(), 0);
 
-            for &oid in self.parameters {
+            buf.extend(&(self.arguments.len() as u16).to_be_bytes());
+
+            for arg in self.arguments.positional() {
+                let oid = match arg.type_id() {
+                    PgTypeId::Oid(oid) => oid,
+                    PgTypeId::Name(_) => todo!(),
+                };
+
                 buf.extend(&oid.to_be_bytes());
             }
 
             Ok(())
         })
+    }
+}
+
+impl Debug for Parse<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Parse").field("statement", &self.statement).field("sql", &self.sql).finish()
     }
 }

@@ -13,7 +13,7 @@
 //! <https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3>
 
 use sqlx_core::net::Stream as NetStream;
-use sqlx_core::{Error, Result, Runtime};
+use sqlx_core::{Result, Runtime};
 
 use crate::protocol::backend::{Authentication, BackendMessage, BackendMessageType, KeyData};
 use crate::protocol::frontend::{Password, PasswordMd5, Startup};

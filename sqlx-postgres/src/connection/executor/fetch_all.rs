@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Execute, Result, Runtime};
+use sqlx_core::{Execute, Result, Runtime};
 
-use crate::protocol::backend::{BackendMessage, BackendMessageType, ReadyForQuery, RowDescription};
-use crate::{PgClientError, PgColumn, PgConnection, PgQueryResult, PgRow, Postgres};
+use crate::protocol::backend::{BackendMessage, BackendMessageType, RowDescription};
+use crate::{PgClientError, PgColumn, PgConnection, PgRow, Postgres};
 
 impl<Rt: Runtime> PgConnection<Rt> {
     fn handle_message_in_fetch_all(
@@ -14,6 +13,8 @@ impl<Rt: Runtime> PgConnection<Rt> {
         columns: &mut Option<Arc<[PgColumn]>>,
     ) -> Result<bool> {
         match message.ty {
+            BackendMessageType::BindComplete => {}
+
             BackendMessageType::DataRow => {
                 rows.push(PgRow::new(message.deserialize()?, &columns));
             }

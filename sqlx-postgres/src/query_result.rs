@@ -1,11 +1,10 @@
 use std::convert::TryInto;
 use std::fmt::{self, Debug, Formatter};
-use std::str::Utf8Error;
 
 use bytes::Bytes;
 use bytestring::ByteString;
 use memchr::memrchr;
-use sqlx_core::{Error, QueryResult, Result};
+use sqlx_core::{QueryResult, Result};
 
 use crate::PgClientError;
 

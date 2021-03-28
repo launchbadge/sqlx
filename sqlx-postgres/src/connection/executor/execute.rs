@@ -1,4 +1,4 @@
-use sqlx_core::{Error, Execute, Result, Runtime};
+use sqlx_core::{Execute, Result, Runtime};
 
 use crate::protocol::backend::{BackendMessage, BackendMessageType};
 use crate::{PgClientError, PgConnection, PgQueryResult, Postgres};
@@ -10,6 +10,8 @@ impl<Rt: Runtime> PgConnection<Rt> {
         result: &mut PgQueryResult,
     ) -> Result<bool> {
         match message.ty {
+            BackendMessageType::BindComplete => {}
+
             // ignore rows received or metadata about them
             // TODO: should we log a warning? its wasteful to use `execute` on a query
             //       that does return rows

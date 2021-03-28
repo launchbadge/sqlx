@@ -1,5 +1,5 @@
 #[cfg(feature = "async")]
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::future::BoxFuture;
 use sqlx_core::{Execute, Executor, Result, Runtime};
 
 use crate::protocol::backend::ReadyForQuery;

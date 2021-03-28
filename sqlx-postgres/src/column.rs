@@ -1,7 +1,7 @@
 use std::num::{NonZeroI16, NonZeroI32};
 
 use bytestring::ByteString;
-use sqlx_core::{Column, Database};
+use sqlx_core::Column;
 
 use crate::protocol::backend::Field;
 use crate::{PgRawValueFormat, PgTypeId, PgTypeInfo, Postgres};

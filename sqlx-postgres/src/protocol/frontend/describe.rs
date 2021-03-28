@@ -1,17 +1,16 @@
-use sqlx_core::io::{Serialize, WriteExt};
+use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
-use crate::io::PgWriteExt;
 use crate::protocol::frontend::Target;
 
 #[derive(Debug)]
 pub(crate) struct Describe {
-    target: Target,
+    pub(crate) target: Target,
 }
 
 impl Serialize<'_> for Describe {
     fn serialize_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<()> {
         buf.push(b'D');
-        buf.write_len_prefixed(|buf| self.target.serialize(buf))
+        self.target.serialize(buf)
     }
 }

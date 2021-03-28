@@ -34,7 +34,7 @@ mod options;
 mod output;
 mod protocol;
 mod query_result;
-// mod raw_statement;
+mod raw_statement;
 mod raw_value;
 mod row;
 // mod transaction;
@@ -58,5 +58,4 @@ pub use row::PgRow;
 pub use type_id::PgTypeId;
 pub use type_info::PgTypeInfo;
 
-// 'a: argument values
-pub type PgArguments<'a> = Arguments<'a, Postgres>;
+pub type PgArguments<'v> = Arguments<'v, Postgres>;

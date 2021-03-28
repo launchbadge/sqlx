@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "async")]
-use futures_util::future::{BoxFuture, FutureExt, TryFutureExt};
+use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Close, Connect, Connection, Runtime};
 
@@ -19,6 +19,9 @@ mod executor;
 /// PostgreSQL database server.
 pub struct PgConnection<Rt: Runtime> {
     stream: PgStream<Rt>,
+
+    // next statement identifier
+    next_statement_id: u32,
 
     // number of commands that have been executed
     // and have yet to see their completion acknowledged
@@ -57,6 +60,7 @@ impl<Rt: Runtime> PgConnection<Rt> {
             secret_key: 0,
             transaction_status: TransactionStatus::Idle,
             pending_ready_for_query_count: 0,
+            next_statement_id: 1,
         }
     }
 }

@@ -1,6 +1,6 @@
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
 use sqlx_core::io::Deserialize;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 use crate::PgClientError;
 
