@@ -4,8 +4,8 @@ use sqlx_test::{new, test_type};
 #[derive(Debug, PartialEq, sqlx::Type)]
 #[repr(u32)]
 enum Origin {
-  Foo = 1,
-  Bar = 2,
+    Foo = 1,
+    Bar = 2,
 }
 
 test_type!(origin_enum<Origin>(Sqlite,
