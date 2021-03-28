@@ -8,7 +8,6 @@ use crate::DefaultRuntime;
 pub type MySqlConnection<Rt = DefaultRuntime> = sqlx_mysql::MySqlConnection<Rt>;
 
 pub use sqlx_mysql::{
-    types, MySql, MySqlColumn, MySqlDatabaseError, MySqlQueryResult, MySqlRawValue,
-    MySqlRawValueFormat, MySqlRow, MySqlTypeId,
-    MySqlConnectOptions,
+    types, MySql, MySqlColumn, MySqlConnectOptions, MySqlDatabaseError, MySqlQueryResult,
+    MySqlRawValue, MySqlRawValueFormat, MySqlRow, MySqlTypeId,
 };

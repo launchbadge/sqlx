@@ -26,9 +26,9 @@ pub trait ConnectOptions:
     #[cfg(feature = "async")]
     #[inline]
     fn connect<C, Rt>(&self) -> futures_util::future::BoxFuture<'_, crate::Result<C>>
-        where
-            C: crate::Connect<Rt, Options = Self> + Sized,
-            Rt: crate::Async,
+    where
+        C: crate::Connect<Rt, Options = Self> + Sized,
+        Rt: crate::Async,
     {
         C::connect_with(self)
     }
