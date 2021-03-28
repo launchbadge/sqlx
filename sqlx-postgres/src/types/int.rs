@@ -10,9 +10,6 @@ use crate::{PgOutput, PgRawValue, PgRawValueFormat, PgTypeId, PgTypeInfo, Postgr
 
 // https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-INT
 
-// todo: allow encode/decode across different integer types
-// todo: condense with a macro
-
 // check that the incoming value is not too large or too small
 // to fit into the target SQL type
 fn ensure_not_too_large_or_too_small(value: i128, ty: &PgTypeInfo) -> encode::Result<()> {
