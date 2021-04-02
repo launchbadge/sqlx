@@ -69,7 +69,7 @@ impl<DB: Database> PoolConnection<DB> {
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
 impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
-        if let Some(mut live) = self.live.take() {
+        if let Some(live) = self.live.take() {
             let pool = self.pool.clone();
             spawn(async move {
                 let mut floating = live.float(&pool);
