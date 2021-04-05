@@ -211,6 +211,6 @@ fn expand_derive_has_sql_type_struct(
 fn type_name(ident: &Ident, explicit_name: Option<&TypeName>) -> TokenStream {
     explicit_name.map(|tn| tn.get()).unwrap_or_else(|| {
         let s = ident.to_string();
-        quote_spanned!(ident.span()=> { #s })
+        quote_spanned!(ident.span()=> #s)
     })
 }
