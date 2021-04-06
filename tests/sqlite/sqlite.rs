@@ -504,3 +504,23 @@ async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.execute("CREATE TEMPORARY TABLE foobar (id INTEGER)")
+        .await?;
+    conn.execute("INSERT INTO foobar VALUES (42)").await?;
+    conn.execute("INSERT INTO foobar VALUES (43)").await?;
+
+    let mut rows = sqlx::query("SELECT id FROM foobar").fetch(&mut conn);
+    let row = rows.try_next().await?.unwrap();
+    let x: i32 = row.try_get("id")?;
+    assert_eq!(x, 42);
+    drop(rows);
+
+    conn.execute("DROP TABLE foobar").await?;
+
+    Ok(())
+}
