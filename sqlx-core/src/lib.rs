@@ -48,6 +48,7 @@ pub mod types;
 #[macro_use]
 pub mod query;
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 #[macro_use]
 pub mod acquire;
 
@@ -63,6 +64,7 @@ pub mod describe;
 pub mod executor;
 pub mod from_row;
 mod io;
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 mod logger;
 mod net;
 pub mod query_as;
@@ -71,7 +73,7 @@ pub mod row;
 pub mod type_info;
 pub mod value;
 
-#[cfg(feature = "migrate")]
+#[cfg(all(feature = "migrate", not(feature = "_rt-wasm-bindgen")))]
 pub mod migrate;
 
 #[cfg(all(

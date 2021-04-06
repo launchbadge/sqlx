@@ -1,6 +1,7 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use crate::logger::QueryLogger;
 use crate::postgres::message::{
     self, Bind, Close, CommandComplete, DataRow, MessageFormat, ParameterDescription, Parse, Query,
@@ -13,8 +14,17 @@ use crate::postgres::{
     PgValueFormat, Postgres,
 };
 use either::Either;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::future::LocalBoxFuture as BoxFuture;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::stream::BoxStream;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::stream::LocalBoxStream as BoxStream;
+
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
 use std::{borrow::Cow, sync::Arc};
@@ -199,7 +209,10 @@ impl PgConnection {
         persistent: bool,
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
-        let mut logger = QueryLogger::new(query, self.log_settings.clone());
+        #[cfg(not(feature = "_rt-wasm-bindgen"))]
+        {
+            let mut logger = QueryLogger::new(query, self.log_settings.clone());
+        }
 
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
@@ -297,7 +310,10 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
-                        logger.increment_rows();
+                        #[cfg(not(feature = "_rt-wasm-bindgen"))]
+                        {
+                            logger.increment_rows();
+                        }
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

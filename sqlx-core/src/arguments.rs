@@ -5,6 +5,7 @@ use crate::encode::Encode;
 use crate::types::Type;
 
 /// A tuple of arguments to be sent to the database.
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub trait Arguments<'q>: Send + Sized + Default {
     type Database: Database;
 
@@ -14,11 +15,28 @@ pub trait Arguments<'q>: Send + Sized + Default {
 
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
-    where
-        T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
+        where T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
 }
 
+#[cfg(feature = "_rt-wasm-bindgen")]
+pub trait Arguments<'q>: Sized + Default {
+    type Database: Database;
+
+    /// Reserves the capacity for at least `additional` more values (of `size` total bytes) to
+    /// be added to the arguments without a reallocation.
+    fn reserve(&mut self, additional: usize, size: usize);
+
+    /// Add the value to the end of the arguments.
+    fn add<T>(&mut self, value: T)
+        where T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
+}
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {
+    fn into_arguments(self) -> <DB as HasArguments<'q>>::Arguments;
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized {
     fn into_arguments(self) -> <DB as HasArguments<'q>>::Arguments;
 }
 

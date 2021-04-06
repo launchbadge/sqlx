@@ -1,4 +1,7 @@
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::future::LocalBoxFuture as BoxFuture;
 
 use crate::error::Error;
 use crate::executor::Executor;
