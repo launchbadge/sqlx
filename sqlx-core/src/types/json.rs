@@ -42,6 +42,18 @@ impl<T> AsMut<T> for Json<T> {
     }
 }
 
+impl<T> Into<T> for Json<T> {
+    fn into(self) -> T {
+        self.0
+    }
+}
+
+impl<T> From<T> for Json<T> {
+    fn from(other: T) -> Self<T> {
+        Self(other)
+    }
+}
+
 impl<DB> Type<DB> for JsonValue
 where
     Json<Self>: Type<DB>,
