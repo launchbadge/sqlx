@@ -210,9 +210,7 @@ impl PgConnection {
         metadata_opt: Option<Arc<PgStatementMetadata>>,
     ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
         #[cfg(not(feature = "_rt-wasm-bindgen"))]
-        {
-            let mut logger = QueryLogger::new(query, self.log_settings.clone());
-        }
+        let mut logger = QueryLogger::new(query, self.log_settings.clone());
 
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
@@ -311,9 +309,7 @@ impl PgConnection {
 
                     MessageFormat::DataRow => {
                         #[cfg(not(feature = "_rt-wasm-bindgen"))]
-                        {
-                            logger.increment_rows();
-                        }
+                        logger.increment_rows();
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

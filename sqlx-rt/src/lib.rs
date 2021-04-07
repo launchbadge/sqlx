@@ -207,6 +207,6 @@ pub use {
         sink::Sink,
     },
     wasm_bindgen_futures::futures_0_3::spawn_local as spawn,
+    web_sys::console,
     ws_stream_wasm::{WsMeta, WsStream, WsStreamIo},
-    web_sys::console
 };

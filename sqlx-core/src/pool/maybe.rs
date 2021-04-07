@@ -47,7 +47,6 @@ macro_rules! impl_into_maybe_pool {
             }
         }
 
-        #[cfg(feature = "_rt-wasm-bindgen")]
         impl<'c> From<&'c mut $C> for crate::pool::MaybePoolConnection<'c, $DB> {
             fn from(v: &'c mut $C) -> Self {
                 crate::pool::MaybePoolConnection::Connection(v)

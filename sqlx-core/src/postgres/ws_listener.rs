@@ -1,18 +1,10 @@
 use crate::describe::Describe;
-use either::Either;
 use crate::executor::{Execute, Executor};
-use crate::{connection::Connection, error::Error};
-use crate::{
-    postgres::{
-        message::{MessageFormat, Notification}
-    },
-};
+use crate::postgres::message::{MessageFormat, Notification};
 use crate::postgres::{PgConnection, PgQueryResult, PgRow, PgStatement, PgTypeInfo, Postgres};
+use crate::{connection::Connection, error::Error};
+use either::Either;
 use futures_channel::mpsc;
-use futures_core::stream::Stream;
-use std::fmt::{self, Debug};
-use std::io;
-use std::str::from_utf8;
 #[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
 #[cfg(feature = "_rt-wasm-bindgen")]
@@ -21,6 +13,10 @@ use futures_core::future::LocalBoxFuture as BoxFuture;
 use futures_core::stream::BoxStream;
 #[cfg(feature = "_rt-wasm-bindgen")]
 use futures_core::stream::LocalBoxStream as BoxStream;
+use futures_core::stream::Stream;
+use std::fmt::{self, Debug};
+use std::io;
+use std::str::from_utf8;
 
 /// Represents a connection to a Postgres db over a websocket connection
 pub struct PgListener {
@@ -28,7 +24,7 @@ pub struct PgListener {
     buffer_rx: mpsc::UnboundedReceiver<Notification>,
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
-    url: String
+    url: String,
 }
 
 /// An asynchronous notification from Postgres.
@@ -46,7 +42,7 @@ impl PgListener {
             buffer_rx: receiver,
             buffer_tx: None,
             channels: Vec::new(),
-            url: url.into()
+            url: url.into(),
         })
     }
 

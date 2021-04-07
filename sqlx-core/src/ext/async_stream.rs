@@ -48,21 +48,23 @@ impl<'a, T> TryAsyncStream<'a, T> {
 #[cfg(feature = "_rt-wasm-bindgen")]
 impl<'a, T> TryAsyncStream<'a, T> {
     pub fn new<F, Fut>(f: F) -> Self
-        where F: FnOnce(mpsc::Sender<Result<T, Error>>) -> Fut,
-              Fut: 'a + Future<Output = Result<(), Error>>,
-              T: 'a
+    where
+        F: FnOnce(mpsc::Sender<Result<T, Error>>) -> Fut,
+        Fut: 'a + Future<Output = Result<(), Error>>,
+        T: 'a,
     {
         let (mut sender, receiver) = mpsc::channel(0);
 
         let future = f(sender.clone());
         let future = async move {
-                         if let Err(error) = future.await {
-                             let _ = sender.send(Err(error)).await;
-                         }
+            if let Err(error) = future.await {
+                let _ = sender.send(Err(error)).await;
+            }
 
-                         Ok(())
-                     }.fuse()
-                      .boxed_local();
+            Ok(())
+        }
+        .fuse()
+        .boxed_local();
 
         Self { future, receiver }
     }

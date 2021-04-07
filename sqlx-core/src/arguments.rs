@@ -15,7 +15,8 @@ pub trait Arguments<'q>: Send + Sized + Default {
 
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
-        where T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
+    where
+        T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
 }
 
 #[cfg(feature = "_rt-wasm-bindgen")]
@@ -28,7 +29,8 @@ pub trait Arguments<'q>: Sized + Default {
 
     /// Add the value to the end of the arguments.
     fn add<T>(&mut self, value: T)
-        where T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
+    where
+        T: 'q + Encode<'q, Self::Database> + Type<Self::Database>;
 }
 #[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {

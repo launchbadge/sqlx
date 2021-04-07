@@ -184,7 +184,9 @@ impl Connection for PgConnection {
 
     #[doc(hidden)]
     #[cfg(not(feature = "_rt-wasm-bindgen"))]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> { self.wait_until_ready().boxed() }
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        self.wait_until_ready().boxed()
+    }
 
     #[cfg(feature = "_rt-wasm-bindgen")]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
