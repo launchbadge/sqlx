@@ -145,7 +145,7 @@ async fn configure_tls_connector(
             builder.add_root_certificate(cert);
 
             #[cfg(feature = "openssl-native")]
-            if let (Some(cert), Some(key)) = (client_key_path, client_cert_path) {
+            if let (Some(cert), Some(key)) = (client_cert_path, client_key_path) {
                 let cert_data = cert.data().await?;
                 let key_data = key.data().await?;
                 if let (Ok(pkey), Ok(cert)) = (
