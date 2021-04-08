@@ -152,11 +152,14 @@ async fn configure_tls_connector(
                     PKey::private_key_from_pem(&key_data),
                     X509::from_pem(&cert_data),
                 ) {
-                    if let (Ok(pkcs), Ok(der)) = (
-                        Pkcs12::builder().build(PASSWORD, PASSWORD, pkey.as_ref(), cert.as_ref()),
-                        pkcs.to_der(),
-                    ) {
-                        builder.identity(identity);
+                    if let Ok(pkcs) =
+                        Pkcs12::builder().build(PASSWORD, PASSWORD, pkey.as_ref(), cert.as_ref())
+                    {
+                        if let Ok(der) = pkcs.to_der() {
+                            let identity = Identity::from_pkcs12(&der, PASSWORD)?;
+
+                            builder.identity(identity);
+                        }
                     }
                 }
             }
