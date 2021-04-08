@@ -420,6 +420,28 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
+    // Test that initial PRAGMAs are not cached as we are not going to
+    // execute them more than once.
+    assert_eq!(0, conn.cached_statements_size());
+
+    let row = conn.fetch_one(sqlx::query("SELECT 100 AS val")).await?;
+    let val: i32 = row.get("val");
+    assert_eq!(val, 100);
+    assert_eq!(1, conn.cached_statements_size());
+
+    let row = conn.fetch_one("SELECT 100 AS val").await?;
+    let val: i32 = row.get("val");
+    assert_eq!(val, 100);
+    assert_eq!(1, conn.cached_statements_size());
+
+    let row = conn.fetch_one("SELECT 200 AS val").await?;
+    let val: i32 = row.get("val");
+    assert_eq!(val, 200);
+    assert_eq!(2, conn.cached_statements_size());
+
+    conn.clear_cached_statements().await?;
+    assert_eq!(0, conn.cached_statements_size());
+
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")
             .bind(i)

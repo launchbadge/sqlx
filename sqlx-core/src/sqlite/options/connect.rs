@@ -1,6 +1,7 @@
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
+use crate::query::query;
 use crate::sqlite::connection::establish::establish;
 use crate::sqlite::{SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
@@ -25,7 +26,7 @@ impl ConnectOptions for SqliteConnectOptions {
                 self.synchronous.as_str(),
             );
 
-            conn.execute(&*init).await?;
+            conn.execute(query(&*init).persistent(false)).await?;
 
             Ok(conn)
         })
