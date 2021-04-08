@@ -108,12 +108,39 @@ where
             }
         }
 
+        // authentication using user's key and its associated certificate
+        let user_auth = match (tls_config.client_cert_path, tls_config.client_key_path) {
+            (Some(cert_path), Some(key_path)) => {
+                let cert_chain = certs_from_pem(cert_path.data().await?)?;
+                let key_der = private_key_from_pem(key_path.data().await?)?;
+                Some((cert_chain, key_der))
+            }
+            (None, None) => None,
+            (_, _) => {
+                return Err(Error::Configuration(
+                    "user auth key and certs must be given together".into(),
+                ))
+            }
+        };
+
         if tls_config.accept_invalid_hostnames {
             let verifier = WebPkiVerifier::new(cert_store, None);
 
+            if let Some(user_auth) = user_auth {
+                config
+                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_single_cert(user_auth.0, user_auth.1)
+                    .map_err(|err| Error::Tls(err.into()))?
+            } else {
+                config
+                    .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
+                    .with_no_client_auth()
+            }
+        } else if let Some(user_auth) = user_auth {
             config
-                .with_custom_certificate_verifier(Arc::new(NoHostnameTlsVerifier { verifier }))
-                .with_no_client_auth()
+                .with_root_certificates(cert_store)
+                .with_single_cert(user_auth.0, user_auth.1)
+                .map_err(|err| Error::Tls(err.into()))?
         } else {
             config
                 .with_root_certificates(cert_store)

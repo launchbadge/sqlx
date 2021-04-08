@@ -84,7 +84,7 @@ services:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 15
+                VERSION: 15
         ports:
             - 5432
         environment:
@@ -103,7 +103,7 @@ services:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 14
+                VERSION: 14
         ports:
             - 5432
         environment:
@@ -122,7 +122,7 @@ services:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 13
+                VERSION: 13
         ports:
             - 5432
         environment:
@@ -136,12 +136,31 @@ services:
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
 
+    postgres_13_cert:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 13
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
+
     postgres_12:
         build:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 12
+                VERSION: 12
         ports:
             - 5432
         environment:
@@ -154,6 +173,25 @@ services:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
+
+    postgres_12_cert:
+        build:
+            context: .
+            dockerfile: postgres/Dockerfile
+            args:
+                VERSION: 12.3
+        ports:
+            - 5432
+        environment:
+            POSTGRES_DB: sqlx
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: password
+            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        volumes:
+            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
+        command: >
+            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key -c ssl_ca_file=/var/lib/postgresql/ca.crt -c hba_file=/var/lib/postgresql/pg_hba.conf
 
     postgres_11:
         build:
@@ -162,7 +200,7 @@ services:
             args:
                 VERSION: 11
         ports:
-          - 5432
+            - 5432
         environment:
             POSTGRES_DB: sqlx
             POSTGRES_USER: postgres
