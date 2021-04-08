@@ -88,8 +88,8 @@ fn prepare(
         // statement in zSql. these routines only compile the first statement,
         // so tail is left pointing to what remains un-compiled.
 
-        let n = (tail as i32) - (query_ptr as i32);
-        query.advance(n as usize);
+        let n = (tail as usize) - (query_ptr as usize);
+        query.advance(n);
 
         if let Some(handle) = NonNull::new(statement_handle) {
             return Ok(Some(StatementHandle(handle)));
