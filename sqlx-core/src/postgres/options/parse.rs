@@ -57,6 +57,10 @@ impl FromStr for PgConnectOptions {
                     options = options.ssl_root_cert(&*value);
                 }
 
+                "sslcert" => options = options.ssl_client_cert(&*value),
+
+                "sslkey" => options = options.ssl_client_key(&*value),
+
                 "statement-cache-capacity" => {
                     options =
                         options.statement_cache_capacity(value.parse().map_err(Error::config)?);

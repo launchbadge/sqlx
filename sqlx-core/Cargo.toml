@@ -42,6 +42,9 @@ runtime-actix-rustls = [ "sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-act
 runtime-async-std-rustls = [ "sqlx-rt/runtime-async-std-rustls", "_tls-rustls", "_rt-async-std" ]
 runtime-tokio-rustls = [ "sqlx-rt/runtime-tokio-rustls", "_tls-rustls", "_rt-tokio" ]
 
+# openssl
+openssl-native = [ "openssl" ]
+
 # for conditional compilation
 _rt-actix = [ "tokio-stream" ]
 _rt-async-std = []
@@ -110,3 +113,4 @@ stringprep = "0.1.2"
 bstr = { version = "0.2.14", default-features = false, features = [ "std" ], optional = true }
 git2 = { version = "0.13.12", default-features = false, optional = true }
 hashlink = "0.6.0"
+openssl = { version = "0.10.33", optional = true }

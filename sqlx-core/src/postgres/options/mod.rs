@@ -81,6 +81,8 @@ pub struct PgConnectOptions {
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
+    pub(crate) ssl_client_cert: Option<CertificateInput>,
+    pub(crate) ssl_client_key: Option<CertificateInput>,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
@@ -129,6 +131,8 @@ impl PgConnectOptions {
             password: var("PGPASSWORD").ok(),
             database: var("PGDATABASE").ok(),
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
+            ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
+            ssl_client_key: var("PGSSLKEY").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -266,6 +270,38 @@ impl PgConnectOptions {
     /// ```
     pub fn ssl_root_cert(mut self, cert: impl AsRef<Path>) -> Self {
         self.ssl_root_cert = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
+        self
+    }
+
+    /// Sets the name of a file containing SSL client certificate.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// let options = PgConnectOptions::new()
+    ///     // Providing a CA certificate with less than VerifyCa is pointless
+    ///     .ssl_mode(PgSslMode::VerifyCa)
+    ///     .ssl_client_cert("./client.crt");
+    /// ```
+    pub fn ssl_client_cert(mut self, cert: impl AsRef<Path>) -> Self {
+        self.ssl_client_cert = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
+        self
+    }
+
+    /// Sets the name of a file containing SSL client key.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::{PgSslMode, PgConnectOptions};
+    /// let options = PgConnectOptions::new()
+    ///     // Providing a CA certificate with less than VerifyCa is pointless
+    ///     .ssl_mode(PgSslMode::VerifyCa)
+    ///     .ssl_client_key("./client.key");
+    /// ```
+    pub fn ssl_client_key(mut self, cert: impl AsRef<Path>) -> Self {
+        self.ssl_client_key = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
         self
     }
 
