@@ -3,16 +3,16 @@ use sqlx_core::{Error, Result, Runtime};
 use crate::protocol::backend::{BackendMessage, BackendMessageType};
 use crate::PgConnection;
 
+// in postgres, it is sufficient to drop *all* non-async messages until
+// we hit N <ReadyForQuery> messages where N is the number of times we've written a
+// a frontend message that would generate a backend <ReadyForQuery>
+
 impl<Rt: Runtime> PgConnection<Rt> {
     fn handle_message_in_flush(&mut self, message: BackendMessage) -> Result<bool> {
-        match message.ty {
-            BackendMessageType::ReadyForQuery => {
-                self.handle_ready_for_query(message.deserialize()?);
+        if let BackendMessageType::ReadyForQuery = message.ty {
+            self.handle_ready_for_query(message.deserialize()?);
 
-                return Ok(true);
-            }
-
-            _ => {}
+            return Ok(true);
         }
 
         Ok(false)
@@ -34,15 +34,13 @@ macro_rules! impl_flush {
 
                     Err(error) => {
                         if matches!(error, Error::Database(_)) {
-                            // log database errors instead of failing on them
-                            // during a flush
+                            // log database errors instead of failing on them during a flush
                             log::error!("{}", error);
                         } else {
                             return Err(error);
                         }
                     }
                 }
-
             }
         }
 
