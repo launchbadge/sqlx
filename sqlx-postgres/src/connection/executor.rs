@@ -1,5 +1,5 @@
 #[cfg(feature = "async")]
-use futures_util::future::BoxFuture;
+use futures_util::future::{BoxFuture, FutureExt};
 use sqlx_core::{Execute, Executor, Result, Runtime};
 
 use crate::protocol::backend::ReadyForQuery;
@@ -37,7 +37,7 @@ impl<Rt: Runtime> Executor<Rt> for PgConnection<Rt> {
         'q: 'x,
         'v: 'x,
     {
-        Box::pin(self.execute_async(query))
+        self.execute_async(query).boxed()
     }
 
     #[cfg(feature = "async")]
@@ -50,7 +50,7 @@ impl<Rt: Runtime> Executor<Rt> for PgConnection<Rt> {
         'q: 'x,
         'v: 'x,
     {
-        Box::pin(self.fetch_all_async(query))
+        self.fetch_all_async(query).boxed()
     }
 
     #[cfg(feature = "async")]
@@ -66,7 +66,7 @@ impl<Rt: Runtime> Executor<Rt> for PgConnection<Rt> {
         'q: 'x,
         'v: 'x,
     {
-        Box::pin(self.fetch_optional_async(query))
+        self.fetch_optional_async(query).boxed()
     }
 }
 

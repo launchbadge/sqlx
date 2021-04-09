@@ -20,7 +20,7 @@ pub enum PgClientError {
 impl Display for PgClientError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotUtf8(source) => write!(f, "{}", source),
+            Self::NotUtf8(source) => write!(f, "unexpected invalid utf-8: {}", source),
 
             Self::UnknownAuthenticationMethod(method) => {
                 write!(f, "unknown authentication method: {}", method)
@@ -50,7 +50,7 @@ impl StdError for PgClientError {}
 impl ClientError for PgClientError {}
 
 impl From<PgClientError> for Error {
-    fn from(err: PgClientError) -> Error {
-        Error::client(err)
+    fn from(err: PgClientError) -> Self {
+        Self::client(err)
     }
 }

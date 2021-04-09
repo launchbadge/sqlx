@@ -1,38 +1,47 @@
 use sqlx_core::{Execute, Result, Runtime};
 
 use crate::protocol::frontend::{self, Bind, PortalRef, Query, StatementRef, Sync};
-use crate::{PgConnection, Postgres};
+use crate::raw_statement::RawStatement;
+use crate::{PgArguments, PgConnection, Postgres};
+
+impl<Rt: Runtime> PgConnection<Rt> {
+    fn write_raw_query_statement(
+        &mut self,
+        statement: &RawStatement,
+        arguments: &PgArguments<'_>,
+    ) -> Result<()> {
+        // bind values to the prepared statement
+        self.stream.write_message(&Bind {
+            portal: PortalRef::Unnamed,
+            statement: StatementRef::Named(statement.id),
+            arguments,
+            parameters: &statement.parameters,
+        })?;
+
+        // describe the bound prepared statement (portal)
+        self.stream.write_message(&frontend::Describe {
+            target: frontend::Target::Portal(PortalRef::Unnamed),
+        })?;
+
+        // execute the bound prepared statement (portal)
+        self.stream
+            .write_message(&frontend::Execute { portal: PortalRef::Unnamed, max_rows: 0 })?;
+
+        // <Sync> is what closes the extended query invocation and
+        // issues a <ReadyForQuery>
+        self.stream.write_message(&Sync)?;
+
+        Ok(())
+    }
+}
 
 macro_rules! impl_raw_query {
     ($(@$blocking:ident)? $self:ident, $query:ident) => {{
         if let Some(arguments) = $query.arguments() {
-            // prepare the statement for execution
             let statement = raw_prepare!($(@$blocking)? $self, $query.sql(), arguments);
 
-            // bind values to the prepared statement
-            $self.stream.write_message(&Bind {
-                portal: PortalRef::Unnamed,
-                statement: StatementRef::Named(statement.id),
-                arguments,
-                parameters: &statement.parameters,
-            })?;
-
-            // describe the bound prepared statement (portal)
-            $self.stream.write_message(&frontend::Describe {
-                target: frontend::Target::Portal(PortalRef::Unnamed),
-            })?;
-
-            // execute the bound prepared statement (portal)
-            $self.stream.write_message(&frontend::Execute {
-                portal: PortalRef::Unnamed,
-                max_rows: 0,
-            })?;
-
-            // <Sync> is what closes the extended query invocation and
-            // issues a <ReadyForQuery>
-            $self.stream.write_message(&Sync)?;
+            $self.write_raw_query_statement(&statement, arguments)?;
         } else {
-            // directly execute the query as an unprepared, simple query
             $self.stream.write_message(&Query { sql: $query.sql() })?;
         };
 

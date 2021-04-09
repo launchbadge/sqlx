@@ -28,9 +28,8 @@ impl<Rt: Runtime> PgConnection<Rt> {
                 *columns = Some(message.deserialize::<RowDescription>()?.columns.into());
             }
 
-            BackendMessageType::CommandComplete => {
-                // one statement has finished
-            }
+            // one statement has finished
+            BackendMessageType::CommandComplete => {}
 
             BackendMessageType::ReadyForQuery => {
                 self.handle_ready_for_query(message.deserialize()?);

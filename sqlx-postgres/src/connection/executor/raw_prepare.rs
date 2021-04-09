@@ -41,9 +41,8 @@ impl<Rt: Runtime> PgConnection<Rt> {
         statement: &mut RawStatement,
     ) -> Result<bool> {
         match message.ty {
-            BackendMessageType::ParseComplete => {
-                // next message should be <ReadyForQuery>
-            }
+            // next message should be <ReadyForQuery>
+            BackendMessageType::ParseComplete => {}
 
             BackendMessageType::ReadyForQuery => {
                 self.handle_ready_for_query(message.deserialize()?);
