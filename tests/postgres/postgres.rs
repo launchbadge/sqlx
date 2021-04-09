@@ -1065,6 +1065,3 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
 
     Ok(())
 }
-
-
-
