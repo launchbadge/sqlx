@@ -101,7 +101,7 @@ sqlx-macros = { version = "0.5.1", path = "sqlx-macros", default-features = fals
 anyhow = "1.0.31"
 time_ = { version = "0.2.16", package = "time" }
 futures = "0.3.5"
-env_logger = "0.7.1"
+env_logger = "0.8.3"
 async-std = { version = "1.8.0", features = [ "attributes" ] }
 tokio = { version = "1.0.1", features = [ "full" ] }
 dotenv = "0.15.0"

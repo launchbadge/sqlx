@@ -171,7 +171,7 @@ pub(crate) async fn authenticate(
 // nonce is a sequence of random printable bytes
 fn gen_nonce() -> String {
     let mut rng = rand::thread_rng();
-    let count = rng.gen_range(64, 128);
+    let count = rng.gen_range(64..128);
 
     // printable = %x21-2B / %x2D-7E
     // ;; Printable ASCII except ",".
@@ -179,10 +179,10 @@ fn gen_nonce() -> String {
     // ;; a valid "value".
     let nonce: String = std::iter::repeat(())
         .map(|()| {
-            let mut c = rng.gen_range(0x21, 0x7F) as u8;
+            let mut c = rng.gen_range(0x21..0x7F) as u8;
 
             while c == 0x2C {
-                c = rng.gen_range(0x21, 0x7F) as u8;
+                c = rng.gen_range(0x21..0x7F) as u8;
             }
 
             c
@@ -191,7 +191,7 @@ fn gen_nonce() -> String {
         .map(|c| c as char)
         .collect();
 
-    rng.gen_range(32, 128);
+    rng.gen_range(32..128);
     format!("{}={}", NONCE_ATTR, nonce)
 }
 

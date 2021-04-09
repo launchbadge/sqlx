@@ -53,7 +53,7 @@ _tls-rustls = [ "rustls", "webpki", "webpki-roots" ]
 offline = [ "serde", "either/serde" ]
 
 [dependencies]
-ahash = "0.6.2"
+ahash = "0.7.2"
 atoi = "0.4.0"
 sqlx-rt = { path = "../sqlx-rt", version = "0.3.0" }
 base64 = { version = "0.13.0", default-features = false, optional = true, features = [ "std" ] }
@@ -81,7 +81,7 @@ hmac = { version = "0.10.1", default-features = false, optional = true }
 itoa = "0.4.5"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 libc = "0.2.71"
-libsqlite3-sys = { version = "0.20.1", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
+libsqlite3-sys = { version = "0.22.0", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.9.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
@@ -89,9 +89,9 @@ num-bigint = { version = "0.3.1", default-features = false, optional = true, fea
 once_cell = "1.5.2"
 percent-encoding = "2.1.0"
 parking_lot = "0.11.0"
-rand = { version = "0.7.3", default-features = false, optional = true, features = [ "std" ] }
+rand = { version = "0.8.3", default-features = false, optional = true, features = [ "std" ] }
 regex = { version = "1.3.9", optional = true }
-rsa = { version = "0.3.0", optional = true }
+rsa = { version = "0.4.0", optional = true }
 rustls = { version = "0.19.0", features = [ "dangerous_configuration" ], optional = true }
 serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
 serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
