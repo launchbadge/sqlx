@@ -8,7 +8,36 @@ some tips and guidelines useful to experienced open source contributors.
 
 ## Getting Started
 
-> todo: how to setup the project, run tests, etc.
+SQLx uses a Python3 script called `x.py` to run `check`, `test`, etc. on 
+all of the crates in the workspace in all of the supported 
+feature configurations.
+
+- Run `check` for all postgres variants (incl. examples)
+
+    ```sh
+    $ ./x.py check:postgres
+    ```
+
+- Run `check` for _only_ blocking postgres
+
+    ```sh
+    # -e is short for --exact
+    $ ./x.py -e check:postgres:blocking
+    ```
+
+- Run `check` for all async variants
+
+    ```sh
+    $ ./x.py check:_:async
+    ```
+  
+- Run `unit` tests
+
+    ```sh
+    $ ./x.py unit
+    ```
+  
+- Use `-l` or `--list` to list all tasks.
 
 ## Conventions
 

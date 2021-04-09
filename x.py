@@ -132,6 +132,7 @@ def run_unit_test(project: str):
     run([x for x in [
         "cargo", "+nightly", "test",
         "-q" if argv.quiet else None,
+        "--message-format", "human" if argv.verbose else "short",
         "--manifest-path", f"{project}/Cargo.toml",
         "--features", "blocking",
         *unknown,
