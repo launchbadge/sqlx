@@ -26,7 +26,7 @@ mod tests {
         let mut buf = Vec::new();
         Terminate.serialize(&mut buf)?;
 
-        assert_eq!(&buf, &[b'X']);
+        assert_eq!(&buf, &[b'X', 0, 0, 0, 4]);
 
         Ok(())
     }

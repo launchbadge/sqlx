@@ -83,7 +83,7 @@ impl<Rt: Runtime> PgConnection<Rt> {
         Rt: sqlx_core::blocking::Runtime,
         E: Execute<'q, 'a, Postgres>,
     {
-        flush!(self);
+        flush!(@blocking self);
         impl_fetch_all!(@blocking self, query)
     }
 }
