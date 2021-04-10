@@ -230,6 +230,49 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
 
+  postgres_cert:
+    name: Postgres Certificate Authentication
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        postgres: [12, 10, 9_6, 9_5]
+        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls]
+    needs: check
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --features postgres,openssl,all-types,runtime-${{ matrix.runtime }}
+
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_${{ matrix.postgres }}_cert
+      - run: sleep 10
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --features any,postgres,openssl,macros,migrate,all-types,runtime-${{ matrix.runtime }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslcert=.%2Ftests%2Fcerts%2Fclient.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key
+
   mysql:
     name: MySQL
     runs-on: ubuntu-20.04
