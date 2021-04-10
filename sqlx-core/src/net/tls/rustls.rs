@@ -13,6 +13,8 @@ pub async fn configure_tls_connector(
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
     root_cert_path: Option<&CertificateInput>,
+    client_cert_path: Option<&CertificateInput>,
+    client_key_path: Option<&CertificateInput>,
 ) -> Result<sqlx_rt::TlsConnector, Error> {
     let mut config = ClientConfig::new();
 
