@@ -420,10 +420,21 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
+    // Initial PRAGMAs are not cached as we are not going to execute
+    // them more than once.
+    assert_eq!(0, conn.cached_statements_size());
+
+    // `&str` queries are not persistent.
+    let row = conn.fetch_one("SELECT 100 AS val").await?;
+    let val: i32 = row.get("val");
+    assert_eq!(val, 100);
+    assert_eq!(0, conn.cached_statements_size());
+
+    // `Query` is persistent by default.
+    let mut conn = new::<Sqlite>().await?;
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")
             .bind(i)
-            .persistent(true)
             .fetch_one(&mut conn)
             .await?;
 
@@ -431,13 +442,15 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
         assert_eq!(i, val);
     }
-
     assert_eq!(1, conn.cached_statements_size());
+
+    // Cache can be cleared.
     conn.clear_cached_statements().await?;
     assert_eq!(0, conn.cached_statements_size());
 
+    // `Query` is not persistent if `.persistent(false)` is used
+    // explicity.
     let mut conn = new::<Sqlite>().await?;
-
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")
             .bind(i)
@@ -449,7 +462,6 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
         assert_eq!(i, val);
     }
-
     assert_eq!(0, conn.cached_statements_size());
 
     Ok(())
