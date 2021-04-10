@@ -111,6 +111,10 @@ pub enum MigrateCommand {
         /// List all the migrations to be run without applying
         #[clap(long)]
         dry_run: bool,
+
+        /// Ignore applied migrations that missing in the resolved migrations
+        #[clap(long)]
+        ignore_missing: bool,
     },
 
     /// Revert the latest migration with a down file.
@@ -118,6 +122,10 @@ pub enum MigrateCommand {
         /// List the migration to be reverted without applying
         #[clap(long)]
         dry_run: bool,
+
+        /// Ignore applied migrations that missing in the resolved migrations
+        #[clap(long)]
+        ignore_missing: bool,
     },
 
     /// List all available migrations.

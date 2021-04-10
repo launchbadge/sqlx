@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 mod connect;
 mod parse;
+mod pgpass;
 mod ssl_mode;
 use crate::{connection::LogSettings, net::CertificateInput};
 pub use ssl_mode::PgSslMode;
@@ -123,13 +124,21 @@ impl PgConnectOptions {
 
         let host = var("PGHOST").ok().unwrap_or_else(|| default_host(port));
 
+        let username = var("PGUSER").ok().unwrap_or_else(whoami::username);
+
+        let database = var("PGDATABASE").ok();
+
+        let password = var("PGPASSWORD")
+            .ok()
+            .or_else(|| pgpass::load_password(&host, port, &username, database.as_deref()));
+
         PgConnectOptions {
             port,
             host,
             socket: None,
-            username: var("PGUSER").ok().unwrap_or_else(whoami::username),
-            password: var("PGPASSWORD").ok(),
-            database: var("PGDATABASE").ok(),
+            username,
+            password,
+            database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_client_cert: var("PGSSLCERT").ok().map(CertificateInput::from),
             ssl_client_key: var("PGSSLKEY").ok().map(CertificateInput::from),

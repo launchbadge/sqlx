@@ -2,7 +2,7 @@ use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::migrate::MigrateError;
-use crate::migrate::Migration;
+use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
 use crate::postgres::{PgConnectOptions, PgConnection, Postgres};
 use crate::query::query;
@@ -107,16 +107,38 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
-    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let row = query_as(
-                "SELECT version, NOT success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1",
+            let row: Option<(i64,)> = query_as(
+                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
             )
             .fetch_optional(self)
             .await?;
 
-            Ok(row)
+            Ok(row.map(|r| r.0))
+        })
+    }
+
+    fn list_applied_migrations(
+        &mut self,
+    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+        Box::pin(async move {
+            // language=SQL
+            let rows: Vec<(i64, Vec<u8>)> =
+                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
+                    .fetch_all(self)
+                    .await?;
+
+            let migrations = rows
+                .into_iter()
+                .map(|(version, checksum)| AppliedMigration {
+                    version,
+                    checksum: checksum.into(),
+                })
+                .collect();
+
+            Ok(migrations)
         })
     }
 
@@ -153,30 +175,6 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
                 .await?;
 
             Ok(())
-        })
-    }
-
-    fn validate<'e: 'm, 'm>(
-        &'e mut self,
-        migration: &'m Migration,
-    ) -> BoxFuture<'m, Result<(), MigrateError>> {
-        Box::pin(async move {
-            // language=SQL
-            let checksum: Option<Vec<u8>> =
-                query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = $1")
-                    .bind(migration.version)
-                    .fetch_optional(self)
-                    .await?;
-
-            if let Some(checksum) = checksum {
-                return if checksum == &*migration.checksum {
-                    Ok(())
-                } else {
-                    Err(MigrateError::VersionMismatch(migration.version))
-                };
-            } else {
-                Err(MigrateError::VersionMissing(migration.version))
-            }
         })
     }
 

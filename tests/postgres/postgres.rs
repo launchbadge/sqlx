@@ -888,3 +888,180 @@ from (values (null)) vals(val)
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_listener_cleanup() -> anyhow::Result<()> {
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    use tokio::time::timeout;
+
+    #[cfg(feature = "_rt-async-std")]
+    use async_std::future::timeout;
+
+    use sqlx::pool::PoolOptions;
+    use sqlx::postgres::PgListener;
+
+    // Create a connection on which to send notifications
+    let mut notify_conn = new::<Postgres>().await?;
+
+    // Create a pool with exactly one connection so we can
+    // deterministically test the cleanup.
+    let pool = PoolOptions::<Postgres>::new()
+        .min_connections(1)
+        .max_connections(1)
+        .test_before_acquire(true)
+        .connect(&env::var("DATABASE_URL")?)
+        .await?;
+
+    let mut listener = PgListener::connect_with(&pool).await?;
+    listener.listen("test_channel").await?;
+
+    // Checks for a notification on the test channel
+    async fn try_recv(listener: &mut PgListener) -> anyhow::Result<bool> {
+        match timeout(Duration::from_millis(100), listener.recv()).await {
+            Ok(res) => {
+                res?;
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    // Check no notification is received before one is sent
+    assert!(!try_recv(&mut listener).await?, "Notification not sent");
+
+    // Check notification is sent and received
+    notify_conn.execute("NOTIFY test_channel").await?;
+    assert!(
+        try_recv(&mut listener).await?,
+        "Notification sent and received"
+    );
+    assert!(
+        !try_recv(&mut listener).await?,
+        "Notification is not duplicated"
+    );
+
+    // Test that cleanup stops listening on the channel
+    drop(listener);
+    let mut listener = PgListener::connect_with(&pool).await?;
+
+    // Check notification is sent but not received
+    notify_conn.execute("NOTIFY test_channel").await?;
+    assert!(
+        !try_recv(&mut listener).await?,
+        "Notification is not received on fresh listener"
+    );
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct MonthId(i16);
+
+    impl sqlx::Type<Postgres> for MonthId {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("month_id")
+        }
+
+        fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+            *ty == Self::type_info()
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for MonthId {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(<i16 as sqlx::Decode<Postgres>>::decode(value)?))
+        }
+    }
+
+    impl<'q> sqlx::Encode<'q, Postgres> for MonthId {
+        fn encode_by_ref(
+            &self,
+            buf: &mut sqlx::postgres::PgArgumentBuffer,
+        ) -> sqlx::encode::IsNull {
+            self.0.encode(buf)
+        }
+    }
+
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct WinterYearMonth {
+        year: i32,
+        month: MonthId,
+    }
+
+    impl sqlx::Type<Postgres> for WinterYearMonth {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("winter_year_month")
+        }
+
+        fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+            *ty == Self::type_info()
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for WinterYearMonth {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+
+            let year = decoder.try_decode::<i32>()?;
+            let month = decoder.try_decode::<MonthId>()?;
+
+            Ok(Self { year, month })
+        }
+    }
+
+    impl<'q> sqlx::Encode<'q, Postgres> for WinterYearMonth {
+        fn encode_by_ref(
+            &self,
+            buf: &mut sqlx::postgres::PgArgumentBuffer,
+        ) -> sqlx::encode::IsNull {
+            let mut encoder = sqlx::postgres::types::PgRecordEncoder::new(buf);
+            encoder.encode(self.year);
+            encoder.encode(self.month);
+            encoder.finish();
+            sqlx::encode::IsNull::No
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    {
+        let result = sqlx::query("DELETE FROM heating_bills;")
+            .execute(&mut conn)
+            .await;
+
+        let result = result.unwrap();
+        assert_eq!(result.rows_affected(), 1);
+    }
+
+    {
+        let result = sqlx::query(
+            "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
+        )
+        .bind(WinterYearMonth {
+            year: 2021,
+            month: MonthId(1),
+        })
+        .execute(&mut conn)
+        .await;
+
+        let result = result.unwrap();
+        assert_eq!(result.rows_affected(), 1);
+    }
+
+    {
+        let result = sqlx::query("DELETE FROM heating_bills;")
+            .execute(&mut conn)
+            .await;
+
+        let result = result.unwrap();
+        assert_eq!(result.rows_affected(), 1);
+    }
+
+    Ok(())
+}
