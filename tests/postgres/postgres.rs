@@ -6,7 +6,6 @@ use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
-use std::thread;
 use std::time::Duration;
 
 #[sqlx_macros::test]
@@ -505,11 +504,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 #[ignore]
 #[sqlx_macros::test]
 async fn pool_smoke_test() -> anyhow::Result<()> {
-    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
-    use tokio::{task::spawn, time::sleep, time::timeout};
-
-    #[cfg(feature = "_rt-async-std")]
-    use async_std::{future::timeout, task::sleep, task::spawn};
+    use futures::{future, task::Poll, Future};
 
     eprintln!("starting pool");
 
@@ -523,7 +518,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     // spin up more tasks than connections available, and ensure we don't deadlock
     for i in 0..20 {
         let pool = pool.clone();
-        spawn(async move {
+        sqlx_rt::spawn(async move {
             loop {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     eprintln!("pool task {} dying due to {}", i, e);
@@ -535,26 +530,32 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
 
     for _ in 0..5 {
         let pool = pool.clone();
-        // we don't need async, just need this to run concurrently
-        // if we use `task::spawn()` we risk starving the event loop because we don't yield
-        thread::spawn(move || {
+        sqlx_rt::spawn(async move {
             while !pool.is_closed() {
-                // drop acquire() futures in a hot loop
-                // https://github.com/launchbadge/sqlx/issues/83
-                drop(pool.acquire());
+                let acquire = pool.acquire();
+                futures::pin_mut!(acquire);
+
+                // poll the acquire future once to put the waiter in the queue
+                future::poll_fn(move |cx| {
+                    let _ = acquire.as_mut().poll(cx);
+                    Poll::Ready(())
+                })
+                .await;
+
+                sqlx_rt::yield_now().await;
             }
         });
     }
 
     eprintln!("sleeping for 30 seconds");
 
-    sleep(Duration::from_secs(30)).await;
+    sqlx_rt::sleep(Duration::from_secs(30)).await;
 
     // assert_eq!(pool.size(), 10);
 
     eprintln!("closing pool");
 
-    timeout(Duration::from_secs(30), pool.close()).await?;
+    sqlx_rt::timeout(Duration::from_secs(30), pool.close()).await?;
 
     eprintln!("pool closed successfully");
 

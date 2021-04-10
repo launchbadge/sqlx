@@ -5,6 +5,7 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 
+#[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};
 
 impl<DB> Type<DB> for BString

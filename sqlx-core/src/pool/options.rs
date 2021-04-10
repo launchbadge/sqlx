@@ -5,6 +5,7 @@ use crate::pool::inner::SharedPool;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
 use sqlx_rt::spawn;
+use std::cmp;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -228,22 +229,20 @@ impl<DB: Database> PoolOptions<DB> {
 }
 
 async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(), Error> {
-    for _ in 0..pool.options.min_connections.max(1) {
+    for _ in 0..cmp::max(pool.options.min_connections, 1) {
         let deadline = Instant::now() + pool.options.connect_timeout;
 
         // this guard will prevent us from exceeding `max_size`
         if let Some(guard) = pool.try_increment_size() {
             // [connect] will raise an error when past deadline
-            // [connect] returns None if its okay to retry
-            if let Some(conn) = pool.connection(deadline, guard).await? {
-                let is_ok = pool
-                    .idle_conns
-                    .push(conn.into_idle().into_leakable())
-                    .is_ok();
+            let conn = pool.connection(deadline, guard).await?;
+            let is_ok = pool
+                .idle_conns
+                .push(conn.into_idle().into_leakable())
+                .is_ok();
 
-                if !is_ok {
-                    panic!("BUG: connection queue overflow in init_min_connections");
-                }
+            if !is_ok {
+                panic!("BUG: connection queue overflow in init_min_connections");
             }
         }
     }
