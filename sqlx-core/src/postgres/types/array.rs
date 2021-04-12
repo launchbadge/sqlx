@@ -37,7 +37,6 @@ impl<'q, T> Encode<'q, Postgres> for Vec<T>
 where
     for<'a> &'a [T]: Encode<'q, Postgres>,
     T: Encode<'q, Postgres>,
-    Self: Type<Postgres>,
 {
     #[inline]
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
@@ -48,7 +47,6 @@ where
 impl<'q, T> Encode<'q, Postgres> for &'_ [T]
 where
     T: Encode<'q, Postgres> + Type<Postgres>,
-    Self: Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend(&1_i32.to_be_bytes()); // number of dimensions
@@ -77,7 +75,6 @@ where
 impl<'r, T> Decode<'r, Postgres> for Vec<T>
 where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
-    Self: Type<Postgres>,
 {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         let element_type_info;
