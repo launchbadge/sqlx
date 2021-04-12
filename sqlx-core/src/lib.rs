@@ -67,6 +67,7 @@ mod logger;
 mod net;
 pub mod query_as;
 pub mod query_scalar;
+pub mod query_builder;
 pub mod row;
 pub mod type_info;
 pub mod value;
