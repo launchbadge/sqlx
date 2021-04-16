@@ -14,6 +14,7 @@ pub enum PgClientError {
     UnknownMessageType(u8),
     UnknownTransactionStatus(u8),
     UnknownValueFormat(i16),
+    UnknownNoticeSeverity(Box<str>),
     UnexpectedMessageType { ty: u8, context: &'static str },
 }
 
@@ -28,6 +29,10 @@ impl Display for PgClientError {
 
             Self::UnknownTransactionStatus(status) => {
                 write!(f, "in ReadyForQuery, unknown transaction status: {}", status)
+            }
+
+            Self::UnknownNoticeSeverity(severity) => {
+                write!(f, "unknown notice severity: {}", severity)
             }
 
             Self::UnknownValueFormat(format) => {

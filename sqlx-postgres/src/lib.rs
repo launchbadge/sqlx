@@ -52,6 +52,7 @@ pub use database::Postgres;
 pub use error::PgClientError;
 pub use options::PgConnectOptions;
 pub use output::PgOutput;
+pub use protocol::backend::{PgNotice, PgNoticeSeverity};
 pub use query_result::PgQueryResult;
 pub use raw_value::{PgRawValue, PgRawValueFormat};
 pub use row::PgRow;
