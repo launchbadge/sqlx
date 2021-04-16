@@ -1,8 +1,7 @@
-use std::borrow::Cow;
-
+use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
 /// Dialog authentication implementation
 ///
@@ -27,9 +26,10 @@ impl super::AuthPlugin for DialogAuthPlugin {
         _nonce: &Chain<Bytes, Bytes>,
         _password: &str,
     ) -> Result<Option<Vec<u8>>> {
-        Err(super::err_msg(
-            self.name(),
+        Err(MySqlClientError::auth_plugin(
+            self,
             "interactive dialog authentication is currently not supported",
-        ))
+        )
+        .into())
     }
 }

@@ -1,3 +1,7 @@
+use super::rsa::encrypt as rsa_encrypt;
+use super::xor_eq;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
@@ -12,7 +16,7 @@ use sqlx_core::Result;
 #[derive(Debug)]
 pub(crate) struct CachingSha2AuthPlugin;
 
-impl super::AuthPlugin for CachingSha2AuthPlugin {
+impl AuthPlugin for CachingSha2AuthPlugin {
     fn name(&self) -> &'static str {
         "caching_sha2_password"
     }
@@ -44,7 +48,7 @@ impl super::AuthPlugin for CachingSha2AuthPlugin {
         // SHA256( nonce + SHA256( SHA256( password ) ) )
         let nonce_pw_sha1_sha1 = hasher.finalize();
 
-        super::xor_eq(&mut pw_sha2, &nonce_pw_sha1_sha1);
+        xor_eq(&mut pw_sha2, &nonce_pw_sha1_sha1);
 
         pw_sha2.to_vec()
     }
@@ -60,10 +64,11 @@ impl super::AuthPlugin for CachingSha2AuthPlugin {
         const AUTH_CONTINUE: u8 = 0x4;
 
         if command != 0x01 {
-            return Err(super::err_msg(
-                self.name(),
-                &format!("Received 0x{:x} but expected 0x1 (MORE DATA)", command),
-            ));
+            return Err(MySqlClientError::auth_plugin(
+                self,
+                format!("received 0x{:x} but expected 0x1 (MORE DATA)", command),
+            )
+            .into());
         }
 
         match data[0] {
@@ -78,7 +83,7 @@ impl super::AuthPlugin for CachingSha2AuthPlugin {
 
             _ => {
                 let rsa_pub_key = data;
-                let encrypted = super::rsa::encrypt(self.name(), &rsa_pub_key, password, nonce)?;
+                let encrypted = rsa_encrypt(self, &rsa_pub_key, password, nonce)?;
 
                 Ok(Some(encrypted))
             }

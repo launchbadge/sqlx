@@ -7,7 +7,7 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Result, Runtime};
 
 use crate::protocol::{MaybeCommand, Packet, Quit};
-use crate::MySqlDatabaseError;
+use crate::{MySqlClientError, MySqlDatabaseError};
 
 /// Reads and writes packets to and from the MySQL database server.
 ///
@@ -101,11 +101,10 @@ impl<Rt: Runtime> MySqlStream<Rt> {
         if packet.bytes.len() != len {
             // BUG: something is very wrong somewhere if this branch is executed
             //      either in the SQLx MySQL driver or in the MySQL server
-            return Err(MySqlDatabaseError::malformed_packet(&format!(
-                "Received {} bytes for packet but expecting {} bytes",
-                packet.bytes.len(),
-                len
-            ))
+            return Err(MySqlClientError::UnexpectedPacketSize {
+                expected: len,
+                actual: packet.bytes.len(),
+            }
             .into());
         }
 

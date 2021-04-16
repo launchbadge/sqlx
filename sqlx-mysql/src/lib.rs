@@ -48,7 +48,7 @@ mod mock;
 pub use column::MySqlColumn;
 pub use connection::MySqlConnection;
 pub use database::MySql;
-pub use error::MySqlDatabaseError;
+pub use error::{MySqlClientError, MySqlDatabaseError};
 pub use options::MySqlConnectOptions;
 pub use output::MySqlOutput;
 pub use query_result::MySqlQueryResult;

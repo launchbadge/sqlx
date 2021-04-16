@@ -1,12 +1,15 @@
 use std::str::from_utf8;
 
+use crate::protocol::auth_plugin::xor_eq;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
 use sqlx_core::Result;
 
 pub(crate) fn encrypt(
-    plugin: &'static str,
+    plugin: &impl AuthPlugin,
     key: &[u8],
     password: &str,
     nonce: &Chain<Bytes, Bytes>,
@@ -20,18 +23,20 @@ pub(crate) fn encrypt(
     nonce.extend_from_slice(&*a);
     nonce.extend_from_slice(&*b);
 
-    super::xor_eq(&mut pass, &*nonce);
+    xor_eq(&mut pass, &*nonce);
 
     // client sends an RSA encrypted password
     let public = parse_rsa_pub_key(plugin, key)?;
     let padding = PaddingScheme::new_oaep::<sha1::Sha1>();
 
-    public.encrypt(&mut rng(), padding, &pass[..]).map_err(|err| super::err(plugin, &err))
+    public
+        .encrypt(&mut rng(), padding, &pass[..])
+        .map_err(|err| MySqlClientError::auth_plugin(plugin, err).into())
 }
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
-fn parse_rsa_pub_key(plugin: &'static str, key: &[u8]) -> Result<RSAPublicKey> {
-    let key = from_utf8(key).map_err(|err| super::err(plugin, &err))?;
+fn parse_rsa_pub_key(plugin: &impl AuthPlugin, key: &[u8]) -> Result<RSAPublicKey> {
+    let key = from_utf8(key).map_err(|err| MySqlClientError::auth_plugin(plugin, err))?;
 
     // Takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
@@ -43,9 +48,9 @@ fn parse_rsa_pub_key(plugin: &'static str, key: &[u8]) -> Result<RSAPublicKey> {
             data
         });
 
-    let der = base64::decode(&encoded).map_err(|err| super::err(plugin, &err))?;
+    let der = base64::decode(&encoded).map_err(|err| MySqlClientError::auth_plugin(plugin, err))?;
 
-    RSAPublicKey::from_pkcs8(&der).map_err(|err| super::err(plugin, &err))
+    RSAPublicKey::from_pkcs8(&der).map_err(|err| MySqlClientError::auth_plugin(plugin, err).into())
 }
 
 fn to_asciz(s: &str) -> Vec<u8> {

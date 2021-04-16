@@ -1,11 +1,10 @@
-use std::error::Error as StdError;
 use std::fmt::Debug;
 
 use bytes::buf::Chain;
 use bytes::Bytes;
-use sqlx_core::{Error, Result};
+use sqlx_core::Result;
 
-use crate::MySqlDatabaseError;
+use crate::MySqlClientError;
 
 mod caching_sha2;
 mod dialog;
@@ -44,11 +43,7 @@ impl dyn AuthPlugin {
             _ if s == NativeAuthPlugin.name() => Ok(Box::new(NativeAuthPlugin)),
             _ if s == DialogAuthPlugin.name() => Ok(Box::new(DialogAuthPlugin)),
 
-            _ => Err(MySqlDatabaseError::new(
-                2059,
-                &format!("Authentication plugin '{}' cannot be loaded", s),
-            )
-            .into()),
+            _ => Err(MySqlClientError::UnknownAuthPlugin(s.to_owned()).into()),
         }
     }
 }
@@ -61,19 +56,4 @@ fn xor_eq(x: &mut [u8], y: &[u8]) {
     for i in 0..x.len() {
         x[i] ^= y[i % y_len];
     }
-}
-
-fn err_msg(plugin: &'static str, message: &str) -> Error {
-    MySqlDatabaseError::new(
-        2061,
-        &format!("Authentication plugin '{}' reported error: {}", plugin, message),
-    )
-    .into()
-}
-
-fn err<E>(plugin: &'static str, error: &E) -> Error
-where
-    E: StdError,
-{
-    err_msg(plugin, &error.to_string())
 }

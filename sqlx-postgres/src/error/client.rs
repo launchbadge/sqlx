@@ -10,7 +10,7 @@ pub enum PgClientError {
     // attempting to interpret data from postgres as UTF-8, when it should
     // be UTF-8, but for some reason (data corruption?) it is not
     NotUtf8(Utf8Error),
-    UnknownAuthenticationMethod(u32),
+    UnknownAuthMethod(u32),
     UnknownMessageType(u8),
     UnknownTransactionStatus(u8),
     UnknownValueFormat(i16),
@@ -22,7 +22,7 @@ impl Display for PgClientError {
         match self {
             Self::NotUtf8(source) => write!(f, "unexpected invalid utf-8: {}", source),
 
-            Self::UnknownAuthenticationMethod(method) => {
+            Self::UnknownAuthMethod(method) => {
                 write!(f, "unknown authentication method: {}", method)
             }
 

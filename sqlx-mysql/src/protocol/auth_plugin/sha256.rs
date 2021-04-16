@@ -1,3 +1,6 @@
+use super::rsa::encrypt as rsa_encrypt;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sqlx_core::Result;
@@ -13,7 +16,7 @@ use sqlx_core::Result;
 #[derive(Debug)]
 pub(crate) struct Sha256AuthPlugin;
 
-impl super::AuthPlugin for Sha256AuthPlugin {
+impl AuthPlugin for Sha256AuthPlugin {
     fn name(&self) -> &'static str {
         "sha256_password"
     }
@@ -36,14 +39,15 @@ impl super::AuthPlugin for Sha256AuthPlugin {
         password: &str,
     ) -> Result<Option<Vec<u8>>> {
         if command != 0x01 {
-            return Err(super::err_msg(
-                self.name(),
-                &format!("Received 0x{:x} but expected 0x1 (MORE DATA)", command),
-            ));
+            return Err(MySqlClientError::auth_plugin(
+                self,
+                format!("Received 0x{:x} but expected 0x1 (MORE DATA)", command),
+            )
+            .into());
         }
 
         let rsa_pub_key = data;
-        let encrypted = super::rsa::encrypt(self.name(), &rsa_pub_key, password, nonce)?;
+        let encrypted = rsa_encrypt(self, &rsa_pub_key, password, nonce)?;
 
         Ok(Some(encrypted))
     }

@@ -5,7 +5,7 @@ use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
 use crate::protocol::{AuthSwitch, Capabilities, ResultPacket};
-use crate::MySqlDatabaseError;
+use crate::{MySqlClientError, MySqlDatabaseError};
 
 #[derive(Debug)]
 pub(crate) enum AuthResponse {
@@ -28,10 +28,7 @@ impl Deserialize<'_, Capabilities> for AuthResponse {
             // send a command to the active auth plugin
             Some(command) => Ok(Self::Command(*command, buf.slice(1..))),
 
-            None => {
-                Err(MySqlDatabaseError::malformed_packet("Received no bytes for auth response")
-                    .into())
-            }
+            None => Err(MySqlClientError::EmptyPacket { context: "auth response" }.into()),
         }
     }
 }

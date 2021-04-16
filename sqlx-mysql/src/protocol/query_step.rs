@@ -4,7 +4,7 @@ use sqlx_core::Result;
 
 use super::{Capabilities, ResultPacket};
 use crate::protocol::Packet;
-use crate::MySqlDatabaseError;
+use crate::MySqlClientError;
 
 /// <https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-ProtocolText::Resultset>
 /// <https://mariadb.com/kb/en/result-set-packets/>
@@ -30,10 +30,10 @@ impl Deserialize<'_, Capabilities> for QueryStep {
             // If its non-0, then its a Row
             Some(_) => Ok(Self::Row(Packet { bytes: buf })),
 
-            None => Err(MySqlDatabaseError::malformed_packet(
-                "Received no bytes for the next step in a result set",
-            )
-            .into()),
+            None => {
+                Err(MySqlClientError::EmptyPacket { context: "the next step in a result set" }
+                    .into())
+            }
         }
     }
 }

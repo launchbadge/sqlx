@@ -4,7 +4,7 @@ use sqlx_core::Result;
 
 use super::{Capabilities, ResultPacket};
 use crate::io::MySqlBufExt;
-use crate::MySqlDatabaseError;
+use crate::{MySqlClientError, MySqlDatabaseError};
 
 /// The query-response packet is a meta-packet that starts with one of:
 ///
@@ -46,10 +46,7 @@ impl Deserialize<'_, Capabilities> for QueryResponse {
                 Ok(Self::ResultSet { columns: columns as u16 })
             }
 
-            None => Err(MySqlDatabaseError::malformed_packet(
-                "Received no bytes for COM_QUERY response",
-            )
-            .into()),
+            None => Err(MySqlClientError::EmptyPacket { context: "COM_QUERY response" }.into()),
         }
     }
 }
