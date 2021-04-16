@@ -194,12 +194,6 @@ impl StdError for Error {
     }
 }
 
-impl<E: DatabaseError> From<E> for Error {
-    fn from(error: E) -> Self {
-        Self::Database(Box::new(error))
-    }
-}
-
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
         Self::Network(error)

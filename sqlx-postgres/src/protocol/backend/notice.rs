@@ -5,7 +5,7 @@ use memchr::memchr;
 use sqlx_core::io::Deserialize;
 use std::convert::TryFrom;
 use std::fmt;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::num::NonZeroU8;
 use std::str::{from_utf8, FromStr};
 
@@ -46,6 +46,21 @@ impl FromStr for PgNoticeSeverity {
             _ => {
                 return Err(PgClientError::UnknownNoticeSeverity(s.into()));
             }
+        })
+    }
+}
+
+impl Display for PgNoticeSeverity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Panic => "PANIC",
+            Self::Fatal => "FATAL",
+            Self::Error => "ERROR",
+            Self::Warning => "WARNING",
+            Self::Notice => "NOTICE",
+            Self::Debug => "DEBUG",
+            Self::Info => "INFO",
+            Self::Log => "LOG",
         })
     }
 }
@@ -132,6 +147,12 @@ impl PgNotice {
         NoticeFields(&self.data)
             .find(|(ty, value)| *ty == field)
             .and_then(|(_, value)| from_utf8(value).ok())
+    }
+}
+
+impl Display for PgNotice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} [{}] {}", self.severity(), self.code(), self.message())
     }
 }
 

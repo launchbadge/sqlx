@@ -3,12 +3,15 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use bytes::Buf;
-use sqlx_core::io::{BufStream, Serialize, Stream};
+use sqlx_core::io::{BufStream, Deserialize, Serialize, Stream};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Result, Runtime};
 
-use crate::protocol::backend::{BackendMessage, BackendMessageType};
 use crate::protocol::frontend::Terminate;
+use crate::{
+    protocol::backend::{BackendMessage, BackendMessageType},
+    PgDatabaseError, PgNotice,
+};
 
 /// Reads and writes messages to and from the PostgreSQL database server.
 ///
@@ -72,8 +75,7 @@ impl<Rt: Runtime> PgStream<Rt> {
 
         match ty {
             BackendMessageType::ErrorResponse => {
-                // TODO: return a proper error
-                unimplemented!("error response");
+                return Err(PgDatabaseError(PgNotice::deserialize(contents)?).into());
             }
 
             BackendMessageType::NotificationResponse => {
@@ -82,7 +84,11 @@ impl<Rt: Runtime> PgStream<Rt> {
             }
 
             BackendMessageType::NoticeResponse => {
-                // TODO: log the incoming message
+                let _notice = PgNotice::deserialize(contents)?;
+
+                // TODO: allow a notice channel to be added
+                // TODO: if there is no notice channel, default to logging the message
+
                 Ok(None)
             }
 

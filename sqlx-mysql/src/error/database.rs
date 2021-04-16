@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use sqlx_core::DatabaseError;
+use sqlx_core::{DatabaseError, Error};
 
 use crate::protocol::ErrPacket;
 
@@ -57,3 +57,9 @@ impl Display for MySqlDatabaseError {
 }
 
 impl StdError for MySqlDatabaseError {}
+
+impl From<MySqlDatabaseError> for Error {
+    fn from(err: MySqlDatabaseError) -> Self {
+        Self::database(err)
+    }
+}
