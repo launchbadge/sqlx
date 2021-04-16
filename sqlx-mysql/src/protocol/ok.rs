@@ -4,7 +4,7 @@ use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
 use crate::io::MySqlBufExt;
-use crate::protocol::{Capabilities, Info, Status};
+use crate::protocol::{Capabilities, EofPacket, Info, Status};
 
 // https://dev.mysql.com/doc/internals/en/packet-OK_Packet.html
 // https://mariadb.com/kb/en/ok_packet/
@@ -25,6 +25,12 @@ pub(crate) struct OkPacket {
 
 impl Deserialize<'_, Capabilities> for OkPacket {
     fn deserialize_with(mut buf: Bytes, capabilities: Capabilities) -> Result<Self> {
+        if !capabilities.contains(Capabilities::DEPRECATE_EOF) && buf[0] == 0xfe {
+            // for versions of MySQL before 5.7.5, an EOF packet is generated
+            // instead of an OK packet with the tag 0xfe
+            return EofPacket::deserialize_with(buf, capabilities).map(Self::from);
+        }
+
         let tag = buf.get_u8();
         debug_assert!(tag == 0x00 || tag == 0xfe);
 

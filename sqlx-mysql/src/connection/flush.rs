@@ -1,7 +1,9 @@
 use sqlx_core::{Error, Result};
 
 use crate::connection::command::{Command, CommandQueue, PrepareCommand, QueryCommand};
-use crate::protocol::{PrepareResponse, QueryResponse, QueryStep, ResultPacket, Status};
+use crate::protocol::{
+    Capabilities, PrepareResponse, QueryResponse, QueryStep, ResultPacket, Status,
+};
 use crate::{MySqlConnection, MySqlDatabaseError};
 
 fn maybe_end_with(queue: &mut CommandQueue, res: ResultPacket) {
@@ -53,7 +55,7 @@ macro_rules! impl_flush {
                                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                                     PrepareResponse::Ok(ok) => {
                                         // STATE: expect the parameter definitions next
-                                        *cmd = PrepareCommand::ParameterDefinition { rem: ok.params, columns: ok.columns };
+                                        *cmd = PrepareCommand::ParameterDefinition { rem: ok.params.into(), columns: ok.columns };
                                     }
 
                                     PrepareResponse::Err(error) => {
@@ -67,10 +69,10 @@ macro_rules! impl_flush {
                             }
 
                             PrepareCommand::ParameterDefinition { rem, columns } => {
-                                if *rem == 0 {
+                                if (capabilities.contains(Capabilities::DEPRECATE_EOF) && *rem == 0) || *rem < 0 {
                                     // no more parameters
                                     // STATE: expect columns next
-                                    *cmd = PrepareCommand::ColumnDefinition { rem: *columns };
+                                    *cmd = PrepareCommand::ColumnDefinition { rem: (*columns).into() };
                                     continue;
                                 }
 
@@ -81,7 +83,7 @@ macro_rules! impl_flush {
                             }
 
                             PrepareCommand::ColumnDefinition { rem } => {
-                                if *rem == 0 {
+                                if (capabilities.contains(Capabilities::DEPRECATE_EOF) && *rem == 0) || *rem < 0 {
                                     // no more columns; done
                                     break commands.end();
                                 }
@@ -104,7 +106,7 @@ macro_rules! impl_flush {
                                     QueryResponse::End(end) => break maybe_end_with(commands, end),
                                     QueryResponse::ResultSet { columns } => {
                                         // STATE: expect the column definitions for each column
-                                        *cmd = QueryCommand::ColumnDefinition { rem: columns };
+                                        *cmd = QueryCommand::ColumnDefinition { rem: columns.into() };
                                     }
                                 }
                             }
@@ -112,7 +114,7 @@ macro_rules! impl_flush {
                             // expecting a column definition
                             // remembers how many more column definitions we need
                             QueryCommand::ColumnDefinition { rem } => {
-                                if *rem == 0 {
+                                if (capabilities.contains(Capabilities::DEPRECATE_EOF) && *rem == 0) || *rem < 0 {
                                     // no more parameters
                                     // STATE: now expecting OK (END), ERR, or a row
                                     *cmd = QueryCommand::QueryStep;

@@ -1,7 +1,7 @@
 use sqlx_core::{Result, Runtime};
 
 use crate::connection::command::PrepareCommand;
-use crate::protocol::{Prepare, PrepareResponse};
+use crate::protocol::{Capabilities, EofPacket, Prepare, PrepareResponse};
 use crate::raw_statement::RawStatement;
 use crate::{MySqlColumn, MySqlTypeInfo};
 
@@ -25,7 +25,7 @@ macro_rules! impl_raw_prepare {
 
         for index in (1..=ok.params).rev() {
             // STATE: remember that we are expecting #rem more columns
-            *cmd = PrepareCommand::ParameterDefinition { rem: index, columns: ok.columns };
+            *cmd = PrepareCommand::ParameterDefinition { rem: index.into(), columns: ok.columns };
 
             let def = read_packet!($(@$blocking)? stream).deserialize()?;
 
@@ -34,18 +34,28 @@ macro_rules! impl_raw_prepare {
             stmt.parameters_mut().push(MySqlTypeInfo::new(&def));
         }
 
-        // TODO: handle EOF for old MySQL
+        if ok.params > 0 && !capabilities.contains(Capabilities::DEPRECATE_EOF) {
+            // in versions of MySQL before 5.7.5, an EOF packet is issued at the
+            // end of the parameter list
+            *cmd = PrepareCommand::ParameterDefinition { rem: 0, columns: ok.columns };
+            let _eof: EofPacket = read_packet!($(@$blocking)? stream).deserialize_with(capabilities)?;
+        }
 
         for (index, rem) in (1..=ok.columns).rev().enumerate() {
             // STATE: remember that we are expecting #rem more columns
-            *cmd = PrepareCommand::ColumnDefinition { rem };
+            *cmd = PrepareCommand::ColumnDefinition { rem: rem.into() };
 
             let def = read_packet!($(@$blocking)? stream).deserialize()?;
 
             stmt.columns_mut().push(MySqlColumn::new(index, def));
         }
 
-        // TODO: handle EOF for old MySQL
+        if ok.columns > 0 && !capabilities.contains(Capabilities::DEPRECATE_EOF) {
+            // in versions of MySQL before 5.7.5, an EOF packet is issued at the
+            // end of the column list
+            *cmd = PrepareCommand::ColumnDefinition { rem: 0 };
+            let _eof: EofPacket = read_packet!($(@$blocking)? stream).deserialize_with(capabilities)?;
+        }
 
         // STATE: the command is complete
         cmd.end();

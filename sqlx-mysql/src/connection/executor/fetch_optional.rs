@@ -22,7 +22,7 @@ macro_rules! impl_fetch_optional {
                 match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {
                     QueryResponse::End(res) => break 'result res.into_result(),
                     QueryResponse::ResultSet { columns } => {
-                        let columns = recv_columns!($(@$blocking)? /* store = */ true, columns, stream, cmd);
+                        let columns = recv_columns!($(@$blocking)? /* store = */ true, columns, stream, cmd, capabilities);
 
                         'rows: loop {
                             match read_packet!($(@$blocking)? stream).deserialize_with(capabilities)? {

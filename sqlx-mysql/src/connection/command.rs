@@ -68,14 +68,12 @@ impl<'cmd, C> CommandGuard<'cmd, C> {
 
 impl<C> Drop for CommandGuard<'_, C> {
     fn drop(&mut self) {
-        self.queue.end();
-
-        if !self.ended {
-            // if the command was not "completed" by success or a known
-            // failure, we are in a **weird** state, queue up a close if
-            // someone tries to re-use this connection
-            self.queue.0.push_front(Command::Close);
+        if self.ended {
+            self.queue.0.pop_back();
         }
+
+        // if the command was not "completed" by success or a known
+        // failure, the future that was driving the command has been dropped
     }
 }
 
@@ -89,7 +87,7 @@ pub(crate) enum QueryCommand {
     QueryStep,
 
     // expecting {rem} more [ColumnDefinition] packets
-    ColumnDefinition { rem: u16 },
+    ColumnDefinition { rem: i32 },
 }
 
 impl QueryCommand {
@@ -102,13 +100,25 @@ impl Deref for CommandGuard<'_, QueryCommand> {
     type Target = QueryCommand;
 
     fn deref(&self) -> &Self::Target {
-        if let Command::Query(cmd) = &self.queue.0[self.index] { cmd } else { unreachable!() }
+        debug_assert!(!self.ended);
+
+        if let Command::Query(cmd) = &self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
 impl DerefMut for CommandGuard<'_, QueryCommand> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        if let Command::Query(cmd) = &mut self.queue.0[self.index] { cmd } else { unreachable!() }
+        debug_assert!(!self.ended);
+
+        if let Command::Query(cmd) = &mut self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -119,10 +129,10 @@ pub(crate) enum PrepareCommand {
 
     // expecting {rem} more [ColumnDefinition] packets for each parameter
     // stores {columns} as this state is before the [ColumnDefinition] state
-    ParameterDefinition { rem: u16, columns: u16 },
+    ParameterDefinition { rem: i32, columns: u16 },
 
     // expecting {rem} more [ColumnDefinition] packets for each parameter
-    ColumnDefinition { rem: u16 },
+    ColumnDefinition { rem: i32 },
 }
 
 impl PrepareCommand {
@@ -135,12 +145,24 @@ impl Deref for CommandGuard<'_, PrepareCommand> {
     type Target = PrepareCommand;
 
     fn deref(&self) -> &Self::Target {
-        if let Command::Prepare(cmd) = &self.queue.0[self.index] { cmd } else { unreachable!() }
+        debug_assert!(!self.ended);
+
+        if let Command::Prepare(cmd) = &self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
 impl DerefMut for CommandGuard<'_, PrepareCommand> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        if let Command::Prepare(cmd) = &mut self.queue.0[self.index] { cmd } else { unreachable!() }
+        debug_assert!(!self.ended);
+
+        if let Command::Prepare(cmd) = &mut self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
