@@ -27,11 +27,13 @@ runtime-tokio-native-tls = [ "sqlx-core/runtime-tokio-native-tls", "sqlx-rt/runt
 runtime-actix-rustls = [ "sqlx-core/runtime-actix-rustls", "sqlx-rt/runtime-actix-rustls", "_rt-actix" ]
 runtime-async-std-rustls = [ "sqlx-core/runtime-async-std-rustls", "sqlx-rt/runtime-async-std-rustls", "_rt-async-std" ]
 runtime-tokio-rustls = [ "sqlx-core/runtime-tokio-rustls", "sqlx-rt/runtime-tokio-rustls", "_rt-tokio" ]
+runtime-wasm-bindgen = [ "sqlx-core/runtime-wasm-bindgen", "sqlx-rt/runtime-wasm-bindgen", "_rt-wasm-bindgen" ]
 
 # for conditional compilation
 _rt-actix = []
 _rt-async-std = []
 _rt-tokio = []
+_rt-wasm-bindgen = []
 
 # offline building support
 offline = ["sqlx-core/offline", "hex", "once_cell", "serde", "serde_json", "sha2"]

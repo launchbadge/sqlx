@@ -11,6 +11,7 @@ compile_error!(
      and 'tls' is one of 'native-tls' and 'rustls'."
 );
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
@@ -20,6 +21,8 @@ pub use sqlx_core::database::{self, Database};
 pub use sqlx_core::describe::Describe;
 pub use sqlx_core::executor::{Execute, Executor};
 pub use sqlx_core::from_row::FromRow;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
@@ -34,7 +37,7 @@ pub use sqlx_core::value::{Value, ValueRef};
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
 
-#[cfg(feature = "migrate")]
+#[cfg(all(feature = "migrate", not(feature = "_rt-wasm-bindgen")))]
 pub use sqlx_core::migrate;
 
 #[cfg(all(
@@ -56,9 +59,13 @@ pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
 pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlPool};
 
+#[cfg(all(feature = "postgres", not(feature = "_rt-wasm-bindgen")))]
+#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
+pub use sqlx_core::postgres::PgPool;
+
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
+pub use sqlx_core::postgres::{self, PgConnection, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
@@ -135,6 +142,7 @@ pub mod query {
 
 /// Convenience re-export of common traits.
 pub mod prelude {
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     pub use super::Acquire;
     pub use super::ConnectOptions;
     pub use super::Connection;

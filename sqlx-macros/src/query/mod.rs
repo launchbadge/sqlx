@@ -12,12 +12,17 @@ use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use sqlx_rt::block_on;
 
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
 use crate::query::input::RecordType;
 use either::Either;
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+use {futures::channel::oneshot, sqlx_rt::spawn};
 
 mod args;
 mod data;
@@ -109,7 +114,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 
     let db_url = Url::parse(db_url)?;
     match db_url.scheme() {
-        #[cfg(feature = "postgres")]
+        #[cfg(all(feature = "postgres", not(feature = "_rt-wasm-bindgen")))]
         "postgres" | "postgresql" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
@@ -117,6 +122,25 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
             })?;
 
             expand_with_data(input, data, false)
+        },
+
+        #[cfg(all(feature = "postgres", feature="_rt-wasm-bindgen"))]
+        "postgres" | "postgresql" => {
+            let (tx, mut rx) = oneshot::channel();
+            let src = input.src.clone();
+            spawn(async move {
+                let mut conn = match sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await {
+                    Ok(conn) => conn,
+                    _ => return
+                };
+                let _ = tx.send(QueryData::from_db(&mut conn, &src).await);
+            });
+
+            if let Some(Ok(data)) = rx.try_recv()? {
+                expand_with_data(input, data, false)
+            } else {
+                Err("unable to connect to database".into())
+            }
         },
 
         #[cfg(not(feature = "postgres"))]

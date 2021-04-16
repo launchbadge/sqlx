@@ -1,7 +1,12 @@
 use std::marker::PhantomData;
 
 use either::Either;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::stream::BoxStream;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::stream::LocalBoxStream as BoxStream;
+
 use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::arguments::{Arguments, IntoArguments};
@@ -36,10 +41,43 @@ pub struct Map<'q, DB: Database, F, A> {
     mapper: F,
 }
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
 where
     DB: Database,
     A: Send + IntoArguments<'q, DB>,
+{
+    #[inline]
+    fn sql(&self) -> &'q str {
+        match self.statement {
+            Either::Right(ref statement) => statement.sql(),
+            Either::Left(sql) => sql,
+        }
+    }
+
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        match self.statement {
+            Either::Right(ref statement) => Some(&statement),
+            Either::Left(_) => None,
+        }
+    }
+
+    #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        self.arguments.take().map(IntoArguments::into_arguments)
+    }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        self.persistent
+    }
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
@@ -76,7 +114,17 @@ impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
     ///
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
+        if let Some(arguments) = &mut self.arguments {
+            arguments.add(value);
+        }
+
+        self
+    }
+
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    pub fn bind<T: 'q + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }
@@ -103,6 +151,7 @@ where
     }
 }
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 impl<'q, DB, A: Send> Query<'q, DB, A>
 where
     DB: Database,
@@ -227,6 +276,129 @@ where
     }
 }
 
+#[cfg(feature = "_rt-wasm-bindgen")]
+impl<'q, DB, A> Query<'q, DB, A>
+where
+    DB: Database,
+    A: 'q + IntoArguments<'q, DB>,
+{
+    /// Map each row in the result to another type.
+    ///
+    /// See [`try_map`](Query::try_map) for a fallible version of this method.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn map<F, O>(self, mut f: F) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error>, A>
+    where
+        F: FnMut(DB::Row) -> O,
+        O: Unpin,
+    {
+        self.try_map(move |row| Ok(f(row)))
+    }
+
+    /// Map each row in the result to another type.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
+    where
+        F: FnMut(DB::Row) -> Result<O, Error>,
+        O: Unpin,
+    {
+        Map {
+            inner: self,
+            mapper: f,
+        }
+    }
+
+    /// Execute the query and return the total number of rows affected.
+    #[inline]
+    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.execute(self).await
+    }
+
+    /// Execute multiple queries and return the rows affected from each query, in a stream.
+    #[inline]
+    pub async fn execute_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<DB::QueryResult, Error>>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.execute_many(self)
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    #[inline]
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<DB::Row, Error>>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch(self)
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    #[inline]
+    pub fn fetch_many<'e, 'c: 'e, E>(
+        self,
+        executor: E,
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_many(self)
+    }
+
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    #[inline]
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_all(self).await
+    }
+
+    /// Execute the query and returns exactly one row.
+    #[inline]
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_one(self).await
+    }
+
+    /// Execute the query and returns at most one row.
+    #[inline]
+    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
+    where
+        'q: 'e,
+        A: 'e,
+        E: Executor<'c, Database = DB>,
+    {
+        executor.fetch_optional(self).await
+    }
+}
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
 where
     DB: Database,
@@ -253,6 +425,34 @@ where
     }
 }
 
+#[cfg(feature = "_rt-wasm-bindgen")]
+impl<'q, DB, F, A> Execute<'q, DB> for Map<'q, DB, F, A>
+where
+    DB: Database,
+    A: IntoArguments<'q, DB>,
+{
+    #[inline]
+    fn sql(&self) -> &'q str {
+        self.inner.sql()
+    }
+
+    #[inline]
+    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+        self.inner.statement()
+    }
+
+    #[inline]
+    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+        self.inner.take_arguments()
+    }
+
+    #[inline]
+    fn persistent(&self) -> bool {
+        self.inner.arguments.is_some()
+    }
+}
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 impl<'q, DB, F, O, A> Map<'q, DB, F, A>
 where
     DB: Database,
@@ -315,6 +515,142 @@ where
                 })
             })
             .boxed()
+    }
+
+    /// Execute multiple queries and return the generated results as a stream
+    /// from each query, in a stream.
+    pub fn fetch_many<'e, 'c: 'e, E>(
+        mut self,
+        executor: E,
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, O>, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
+    {
+        Box::pin(try_stream! {
+            let mut s = executor.fetch_many(self.inner);
+
+            while let Some(v) = s.try_next().await? {
+                r#yield!(match v {
+                    Either::Left(v) => Either::Left(v),
+                    Either::Right(row) => {
+                        Either::Right((self.mapper)(row)?)
+                    }
+                });
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
+    {
+        self.fetch(executor).try_collect().await
+    }
+
+    /// Execute the query and returns exactly one row.
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
+    {
+        self.fetch_optional(executor)
+            .and_then(|row| match row {
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
+            })
+            .await
+    }
+
+    /// Execute the query and returns at most one row.
+    pub async fn fetch_optional<'e, 'c: 'e, E>(mut self, executor: E) -> Result<Option<O>, Error>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
+    {
+        let row = executor.fetch_optional(self.inner).await?;
+
+        if let Some(row) = row {
+            (self.mapper)(row).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+impl<'q, DB, F, O, A> Map<'q, DB, F, A>
+where
+    DB: Database,
+    F: FnMut(DB::Row) -> Result<O, Error>,
+    O: Unpin,
+    A: 'q + IntoArguments<'q, DB>,
+{
+    /// Map each row in the result to another type.
+    ///
+    /// See [`try_map`](Map::try_map) for a fallible version of this method.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn map<G, P>(self, mut g: G) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error>, A>
+    where
+        G: FnMut(O) -> P,
+        P: Unpin,
+    {
+        self.try_map(move |data| Ok(g(data)))
+    }
+
+    /// Map each row in the result to another type.
+    ///
+    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
+    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    #[inline]
+    pub fn try_map<G, P>(self, mut g: G) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error>, A>
+    where
+        G: FnMut(O) -> Result<P, Error>,
+        P: Unpin,
+    {
+        let mut f = self.mapper;
+        Map {
+            inner: self.inner,
+            mapper: move |row| f(row).and_then(|o| g(o)),
+        }
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
+    where
+        'q: 'e,
+        E: 'e + Executor<'c, Database = DB>,
+        DB: 'e,
+        F: 'e,
+        O: 'e,
+    {
+        self.fetch_many(executor)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(o) => Some(o),
+                })
+            })
+            .boxed_local()
     }
 
     /// Execute multiple queries and return the generated results as a stream

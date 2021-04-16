@@ -5,6 +5,7 @@
     feature = "runtime-actix-rustls",
     feature = "runtime-async-std-rustls",
     feature = "runtime-tokio-rustls",
+    feature = "runtime-wasm-bindgen",
 )))]
 compile_error!(
     "one of the features ['runtime-actix-native-tls', 'runtime-async-std-native-tls', \
@@ -193,3 +194,19 @@ pub use async_native_tls::{TlsConnector, TlsStream};
     )),
 ))]
 pub use async_rustls::{client::TlsStream, TlsConnector};
+
+//
+// wasm-bindgen
+//
+#[cfg(feature = "_rt-wasm-bindgen")]
+pub use {
+    async_io_stream::IoStream,
+    futures_util::{
+        io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+        pin_mut,
+        sink::Sink,
+    },
+    wasm_bindgen_futures::futures_0_3::spawn_local as spawn,
+    web_sys::console,
+    ws_stream_wasm::{WsMeta, WsStream, WsStreamIo},
+};

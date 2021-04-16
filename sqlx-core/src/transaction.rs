@@ -2,7 +2,10 @@ use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::future::LocalBoxFuture as BoxFuture;
 
 use crate::database::Database;
 use crate::error::Error;
@@ -95,6 +98,7 @@ where
 }
 
 // NOTE: required due to lack of lazy normalization
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 #[allow(unused_macros)]
 macro_rules! impl_executor_for_transaction {
     ($DB:ident, $Row:ident) => {
@@ -153,6 +157,77 @@ macro_rules! impl_executor_for_transaction {
                 self,
                 query: &'q str,
             ) -> futures_core::future::BoxFuture<
+                'e,
+                Result<crate::describe::Describe<Self::Database>, crate::error::Error>,
+            >
+            where
+                't: 'e,
+            {
+                (&mut **self).describe(query)
+            }
+        }
+    };
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+#[allow(unused_macros)]
+macro_rules! impl_executor_for_transaction {
+    ($DB:ident, $Row:ident) => {
+        impl<'c, 't> crate::executor::Executor<'t>
+            for &'t mut crate::transaction::Transaction<'c, $DB>
+        {
+            type Database = $DB;
+
+            fn fetch_many<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::stream::LocalBoxStream<
+                'e,
+                Result<
+                    either::Either<<$DB as crate::database::Database>::QueryResult, $Row>,
+                    crate::error::Error,
+                >,
+            >
+            where
+                't: 'e,
+                E: crate::executor::Execute<'q, Self::Database>,
+            {
+                (&mut **self).fetch_many(query)
+            }
+
+            fn fetch_optional<'e, 'q: 'e, E: 'q>(
+                self,
+                query: E,
+            ) -> futures_core::future::LocalBoxFuture<'e, Result<Option<$Row>, crate::error::Error>>
+            where
+                't: 'e,
+                E: crate::executor::Execute<'q, Self::Database>,
+            {
+                (&mut **self).fetch_optional(query)
+            }
+
+            fn prepare_with<'e, 'q: 'e>(
+                self,
+                sql: &'q str,
+                parameters: &'e [<Self::Database as crate::database::Database>::TypeInfo],
+            ) -> futures_core::future::LocalBoxFuture<
+                'e,
+                Result<
+                    <Self::Database as crate::database::HasStatement<'q>>::Statement,
+                    crate::error::Error,
+                >,
+            >
+            where
+                't: 'e,
+            {
+                (&mut **self).prepare_with(sql, parameters)
+            }
+
+            #[doc(hidden)]
+            fn describe<'e, 'q: 'e>(
+                self,
+                query: &'q str,
+            ) -> futures_core::future::LocalBoxFuture<
                 'e,
                 Result<crate::describe::Describe<Self::Database>, crate::error::Error>,
             >

@@ -18,6 +18,7 @@ runtime-tokio-native-tls = ["_rt-tokio", "_tls-native-tls", "tokio-native-tls"]
 runtime-actix-rustls = ["_rt-actix", "_tls-rustls", "tokio-rustls"]
 runtime-async-std-rustls = ["_rt-async-std", "_tls-rustls", "async-rustls"]
 runtime-tokio-rustls = ["_rt-tokio", "_tls-rustls", "tokio-rustls"]
+runtime-wasm-bindgen = ["_rt-wasm-bindgen"]
 
 # Not used directly and not re-exported from sqlx
 _rt-actix = ["actix-rt", "tokio", "once_cell"]
@@ -25,6 +26,7 @@ _rt-async-std = ["async-std"]
 _rt-tokio = ["tokio", "once_cell"]
 _tls-native-tls = ["native-tls"]
 _tls-rustls = []
+_rt-wasm-bindgen = [ "wasm-bindgen", "wasm-bindgen-futures", "futures-util", "ws_stream_wasm", "async_io_stream", "web-sys" ]
 
 [dependencies]
 async-native-tls = { version = "0.3.3", optional = true }
@@ -35,6 +37,12 @@ tokio-native-tls = { version = "0.3.0", optional = true }
 tokio-rustls = { version = "0.22.0", optional = true }
 native-tls = { version = "0.2.4", optional = true }
 once_cell = { version = "1.4", features = ["std"], optional = true }
+wasm-bindgen = { version = "0.2.71", optional = true }
+wasm-bindgen-futures = { version = "^0.3", features = ["futures_0_3"], optional = true }
+futures-util = { version = "0.3.5", features = ["sink", "io"], optional = true }
+ws_stream_wasm = { version = "0.7", optional = true }
+async_io_stream = { version = "0.3.1", optional = true }
+web-sys = { version = "*", optional = true }
 
 [dependencies.tokio]
 version = "1.0.1"
