@@ -68,6 +68,7 @@ use crate::value::{Value, ValueRef};
 ///
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database (e.g., MySQL, PostgreSQL).
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 pub trait Database:
     'static
     + Sized
@@ -88,6 +89,38 @@ pub trait Database:
 
     /// The concrete `QueryResult` implementation for this database.
     type QueryResult: 'static + Sized + Send + Sync + Default + Extend<Self::QueryResult>;
+
+    /// The concrete `Column` implementation for this database.
+    type Column: Column<Database = Self>;
+
+    /// The concrete `TypeInfo` implementation for this database.
+    type TypeInfo: TypeInfo;
+
+    /// The concrete type used to hold an owned copy of the not-yet-decoded value that was
+    /// received from the database.
+    type Value: Value<Database = Self> + 'static;
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+pub trait Database:
+    'static
+    + Sized
+    + Debug
+    + for<'r> HasValueRef<'r, Database = Self>
+    + for<'q> HasArguments<'q, Database = Self>
+    + for<'q> HasStatement<'q, Database = Self>
+{
+    /// The concrete `Connection` implementation for this database.
+    type Connection: Connection<Database = Self>;
+
+    /// The concrete `TransactionManager` implementation for this database.
+    type TransactionManager: TransactionManager<Database = Self>;
+
+    /// The concrete `Row` implementation for this database.
+    type Row: Row<Database = Self>;
+
+    /// The concrete `QueryResult` implementation for this database.
+    type QueryResult: 'static + Sized + Sync + Default + Extend<Self::QueryResult>;
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;

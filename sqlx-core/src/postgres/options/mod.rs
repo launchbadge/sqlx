@@ -5,7 +5,12 @@ mod connect;
 mod parse;
 mod pgpass;
 mod ssl_mode;
-use crate::{connection::LogSettings, net::CertificateInput};
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
+use crate::net::CertificateInput;
+
+use crate::connection::LogSettings;
+
 pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
@@ -81,10 +86,14 @@ pub struct PgConnectOptions {
     pub(crate) password: Option<String>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     pub(crate) ssl_root_cert: Option<CertificateInput>,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    pub(crate) ws_url: Option<String>,
 }
 
 impl Default for PgConnectOptions {
@@ -137,6 +146,8 @@ impl PgConnectOptions {
             username,
             password,
             database,
+
+            #[cfg(not(feature = "_rt-wasm-bindgen"))]
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
                 .ok()
@@ -145,6 +156,8 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
+            #[cfg(feature = "_rt-wasm-bindgen")]
+            ws_url: None,
         }
     }
 
@@ -240,6 +253,14 @@ impl PgConnectOptions {
         self
     }
 
+    /// Sets the websocket url.
+    ///
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    pub fn ws_url(mut self) -> Self {
+        self.ws_url = Some(format!("wss://{}:{}", self.host, self.port));
+        self
+    }
+
     /// Sets whether or with what priority a secure SSL TCP/IP connection will be negotiated
     /// with the server.
     ///
@@ -273,6 +294,7 @@ impl PgConnectOptions {
     ///     .ssl_mode(PgSslMode::VerifyCa)
     ///     .ssl_root_cert("./ca-certificate.crt");
     /// ```
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     pub fn ssl_root_cert(mut self, cert: impl AsRef<Path>) -> Self {
         self.ssl_root_cert = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
         self
@@ -289,6 +311,7 @@ impl PgConnectOptions {
     ///     .ssl_mode(PgSslMode::VerifyCa)
     ///     .ssl_root_cert_from_pem(vec![]);
     /// ```
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     pub fn ssl_root_cert_from_pem(mut self, pem_certificate: Vec<u8>) -> Self {
         self.ssl_root_cert = Some(CertificateInput::Inline(pem_certificate));
         self
@@ -322,16 +345,24 @@ impl PgConnectOptions {
     /// We try using a socket if hostname starts with `/` or if socket parameter
     /// is specified.
     pub(crate) fn fetch_socket(&self) -> Option<String> {
-        match self.socket {
-            Some(ref socket) => {
-                let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port);
-                Some(full_path)
+        #[cfg(feature = "_rt-wasm-bindgen")]
+        {
+            self.ws_url.as_ref().cloned()
+        }
+
+        #[cfg(not(feature = "_rt-wasm-bindgen"))]
+        {
+            match self.socket {
+                Some(ref socket) => {
+                    let full_path = format!("{}/.s.PGSQL.{}", socket.display(), self.port);
+                    Some(full_path)
+                }
+                None if self.host.starts_with('/') => {
+                    let full_path = format!("{}/.s.PGSQL.{}", self.host, self.port);
+                    Some(full_path)
+                }
+                _ => None,
             }
-            None if self.host.starts_with('/') => {
-                let full_path = format!("{}/.s.PGSQL.{}", self.host, self.port);
-                Some(full_path)
-            }
-            _ => None,
         }
     }
 }

@@ -8,7 +8,10 @@ use crate::query_as::query_as;
 use crate::query_scalar::{query_scalar, query_scalar_with};
 use crate::types::Json;
 use crate::HashMap;
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+ use futures_core::future::LocalBoxFuture as BoxFuture;
 use std::convert::TryFrom;
 use std::fmt::Write;
 use std::sync::Arc;

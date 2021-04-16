@@ -3,7 +3,12 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_channel::mpsc;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::future::LocalBoxFuture as BoxFuture;
+
 use futures_core::stream::Stream;
 use futures_util::{pin_mut, FutureExt, SinkExt};
 
@@ -14,6 +19,7 @@ pub struct TryAsyncStream<'a, T> {
     future: BoxFuture<'a, Result<(), Error>>,
 }
 
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 impl<'a, T> TryAsyncStream<'a, T> {
     pub fn new<F, Fut>(f: F) -> Self
     where
@@ -33,6 +39,31 @@ impl<'a, T> TryAsyncStream<'a, T> {
         }
         .fuse()
         .boxed();
+
+        Self { future, receiver }
+    }
+}
+
+#[cfg(feature = "_rt-wasm-bindgen")]
+impl<'a, T> TryAsyncStream<'a, T> {
+    pub fn new<F, Fut>(f: F) -> Self
+    where
+        F: FnOnce(mpsc::Sender<Result<T, Error>>) -> Fut,
+        Fut: 'a + Future<Output = Result<(), Error>>,
+        T: 'a,
+    {
+        let (mut sender, receiver) = mpsc::channel(0);
+
+        let future = f(sender.clone());
+        let future = async move {
+            if let Err(error) = future.await {
+                let _ = sender.send(Err(error)).await;
+            }
+
+            Ok(())
+        }
+        .fuse()
+        .boxed_local();
 
         Self { future, receiver }
     }

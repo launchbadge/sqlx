@@ -3,7 +3,10 @@ use crate::HashMap;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
-use crate::postgres::connection::{sasl, stream::PgStream, tls};
+use crate::postgres::connection::{sasl, stream::PgStream};
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
+use crate::postgres::connection::tls;
+
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
@@ -17,6 +20,7 @@ impl PgConnection {
         let mut stream = PgStream::connect(options).await?;
 
         // Upgrade to TLS if we were asked to and the server supports it
+        #[cfg(not(feature = "_rt-wasm-bindgen"))]
         tls::maybe_upgrade(&mut stream, options).await?;
 
         // To begin a session, a frontend opens a connection to the server

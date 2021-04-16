@@ -42,10 +42,13 @@ runtime-actix-rustls = [ "sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-act
 runtime-async-std-rustls = [ "sqlx-rt/runtime-async-std-rustls", "_tls-rustls", "_rt-async-std" ]
 runtime-tokio-rustls = [ "sqlx-rt/runtime-tokio-rustls", "_tls-rustls", "_rt-tokio" ]
 
+runtime-wasm-bindgen = ["sqlx-rt/runtime-wasm-bindgen", "_rt-wasm-bindgen"]
+
 # for conditional compilation
 _rt-actix = [ "tokio-stream" ]
 _rt-async-std = []
 _rt-tokio = [ "tokio-stream" ]
+_rt-wasm-bindgen = []
 _tls-native-tls = []
 _tls-rustls = [ "rustls", "webpki", "webpki-roots" ]
 

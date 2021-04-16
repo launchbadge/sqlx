@@ -7,7 +7,12 @@ use log::Level;
 
 use crate::error::Error;
 use crate::io::{BufStream, Decode, Encode};
-use crate::net::{MaybeTlsStream, Socket};
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
+use crate::net::MaybeTlsStream;
+
+use crate::net::Socket;
+
 use crate::postgres::message::{Message, MessageFormat, Notice, Notification};
 use crate::postgres::{PgConnectOptions, PgDatabaseError, PgSeverity};
 
@@ -21,8 +26,10 @@ use crate::postgres::{PgConnectOptions, PgDatabaseError, PgSeverity};
 // is fully prepared to receive queries
 
 pub struct PgStream {
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     inner: BufStream<MaybeTlsStream<Socket>>,
-
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    inner: BufStream<Socket>,
     // buffer of unreceived notification messages from `PUBLISH`
     // this is set when creating a PgListener and only written to if that listener is
     // re-used for query execution in-between receiving messages
@@ -31,17 +38,33 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
-        let socket = match options.fetch_socket() {
-            Some(ref path) => Socket::connect_uds(path).await?,
-            None => Socket::connect_tcp(&options.host, options.port).await?,
-        };
+        #[cfg(feature = "_rt-wasm-bindgen")]
+        {
+            let socket = match options.fetch_socket() {
+                Some(ref path) => Socket::connect_ws(path).await?,
+                None => return Err(Error::Configuration("no ws url set".into())),
+            };
+            let inner = BufStream::new(socket);
 
-        let inner = BufStream::new(MaybeTlsStream::Raw(socket));
+            Ok(Self {
+                inner,
+                notifications: None,
+            })
+        }
 
-        Ok(Self {
-            inner,
-            notifications: None,
-        })
+        #[cfg(not(feature = "_rt-wasm-bindgen"))]
+        {
+            let socket = match options.fetch_socket() {
+                Some(ref path) => Socket::connect_uds(path).await?,
+                None => Socket::connect_tcp(&options.host, options.port).await?,
+            };
+            let inner = BufStream::new(MaybeTlsStream::Raw(socket));
+
+            Ok(Self {
+                inner,
+                notifications: None,
+            })
+        }
     }
 
     pub(crate) async fn send<'en, T>(&mut self, message: T) -> Result<(), Error>
@@ -151,7 +174,10 @@ impl PgStream {
 }
 
 impl Deref for PgStream {
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     type Target = BufStream<MaybeTlsStream<Socket>>;
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    type Target = BufStream<Socket>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {

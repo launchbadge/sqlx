@@ -2,7 +2,12 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
 use crate::HashMap;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 use futures_core::future::BoxFuture;
+#[cfg(feature = "_rt-wasm-bindgen")]
+use futures_core::future::LocalBoxFuture as BoxFuture;
+
 use futures_util::{FutureExt, TryFutureExt};
 
 use crate::common::StatementCache;
@@ -24,6 +29,8 @@ mod establish;
 mod executor;
 mod sasl;
 mod stream;
+
+#[cfg(not(feature = "_rt-wasm-bindgen"))]
 mod tls;
 
 /// A connection to a PostgreSQL database.
@@ -128,10 +135,16 @@ impl Connection for PgConnection {
         })
     }
 
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
     }
+    #[cfg(feature = "_rt-wasm-bindgen")]
+     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+         // By sending a comment we avoid an error if the connection was in the middle of a rowset
+         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed_local()
+     }
 
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
@@ -168,8 +181,13 @@ impl Connection for PgConnection {
     }
 
     #[doc(hidden)]
+    #[cfg(not(feature = "_rt-wasm-bindgen"))]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         self.wait_until_ready().boxed()
+    }
+    #[cfg(feature = "_rt-wasm-bindgen")]
+    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        self.wait_until_ready().boxed_local()
     }
 
     #[doc(hidden)]
