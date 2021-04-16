@@ -13,7 +13,17 @@ pub struct MySqlTypeId(u8, u8);
 const UNSIGNED: u8 = 0x80;
 
 impl MySqlTypeId {
-    pub(crate) const fn new(def: &ColumnDefinition) -> Self {
+    pub(crate) fn new(def: &ColumnDefinition) -> Self {
+        if def.schema.is_empty()
+            && def.ty == Self::VARCHAR.0
+            && def.flags.contains(ColumnFlags::BINARY_COLLATION)
+        {
+            // older MySQL typed every parameter as VARBINARY
+            // this will pick it up and emit a NULL type so we don't
+            // try and do strong type checking on parameters
+            return Self::NULL;
+        }
+
         Self(def.ty, if def.flags.contains(ColumnFlags::UNSIGNED) { UNSIGNED } else { 0 })
     }
 

@@ -16,10 +16,10 @@ impl Type<MySql> for &'_ str {
 }
 
 impl Encode<MySql> for &'_ str {
-    fn encode(&self, _: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, _: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result {
         out.buffer().write_bytes_lenenc(self.as_bytes());
 
-        Ok(())
+        Ok(encode::IsNull::No)
     }
 }
 
@@ -40,7 +40,7 @@ impl Type<MySql> for String {
 }
 
 impl Encode<MySql> for String {
-    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result {
         <&str as Encode<MySql>>::encode(&self.as_str(), ty, out)
     }
 }
@@ -62,7 +62,7 @@ impl Type<MySql> for ByteString {
 }
 
 impl Encode<MySql> for ByteString {
-    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result {
         <&str as Encode<MySql>>::encode(&&**self, ty, out)
     }
 }

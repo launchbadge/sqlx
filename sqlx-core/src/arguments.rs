@@ -173,8 +173,8 @@ impl<'a, Db: Database> Argument<'a, Db> {
         &self,
         ty: &Db::TypeInfo,
         out: &mut <Db as HasOutput<'x>>::Output,
-    ) -> Result<()> {
-        let res = if !self.unchecked && !(self.type_compatible)(ty) {
+    ) -> Result<encode::IsNull> {
+        let res = if !self.unchecked && !ty.is_unknown() && !(self.type_compatible)(ty) {
             Err(encode::Error::TypeNotCompatible {
                 rust_type_name: self.rust_type_name,
                 sql_type_name: ty.name(),

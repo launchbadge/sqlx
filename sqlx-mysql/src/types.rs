@@ -123,6 +123,7 @@
 mod bool;
 mod bytes;
 mod int;
+mod null;
 mod str;
 mod uint;
 

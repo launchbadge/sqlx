@@ -92,7 +92,7 @@ pub trait Row: 'static + Send + Sync {
     {
         let value = self.try_get_raw(&index)?;
 
-        let res = if !T::compatible(value.type_info()) {
+        let res = if !value.is_null() && !T::compatible(value.type_info()) {
             Err(decode::Error::TypeNotCompatible {
                 rust_type_name: any::type_name::<T>(),
                 sql_type_name: value.type_info().name(),

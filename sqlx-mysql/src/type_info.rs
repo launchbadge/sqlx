@@ -20,7 +20,7 @@ pub struct MySqlTypeInfo {
 }
 
 impl MySqlTypeInfo {
-    pub(crate) const fn new(def: &ColumnDefinition) -> Self {
+    pub(crate) fn new(def: &ColumnDefinition) -> Self {
         Self {
             id: MySqlTypeId::new(def),
             charset: def.charset,

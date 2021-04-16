@@ -16,7 +16,7 @@ impl Type<MySql> for bool {
 }
 
 impl Encode<MySql> for bool {
-    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result {
         <i128 as Encode<MySql>>::encode(&(*self as i128), ty, out)
     }
 }

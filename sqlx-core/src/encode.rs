@@ -4,15 +4,31 @@ use std::fmt::{self, Display, Formatter};
 use crate::database::HasOutput;
 use crate::Database;
 
+/// Type returned from [`Encode::encode`] that indicates if the value encoded is the SQL `null` or not.
+pub enum IsNull {
+    /// The value is the SQL `null`.
+    ///
+    /// No data was written to the output buffer.
+    ///
+    Yes,
+
+    /// The value is not the SQL `null`.
+    ///
+    /// This does not mean that any data was written to the output buffer. For example,
+    /// an empty string has no data, but is not null.
+    ///
+    No,
+}
+
 /// A type that can be encoded into a SQL value.
 pub trait Encode<Db: Database>: Send + Sync {
     /// Encode this value into the specified SQL type.
-    fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result<()>;
+    fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result;
 }
 
 impl<T: Encode<Db>, Db: Database> Encode<Db> for &T {
     #[inline]
-    fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result<()> {
+    fn encode(&self, ty: &Db::TypeInfo, out: &mut <Db as HasOutput<'_>>::Output) -> Result {
         (*self).encode(ty, out)
     }
 }
@@ -63,4 +79,4 @@ impl<E: StdError + Send + Sync + 'static> From<E> for Error {
 }
 
 /// A specialized result type representing the result of encoding a SQL value.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result = std::result::Result<IsNull, Error>;

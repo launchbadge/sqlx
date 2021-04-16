@@ -33,7 +33,7 @@ where
 
 // check that the incoming value is not too large
 // to fit into the target SQL type
-fn ensure_not_too_large(value: u128, ty: &MySqlTypeInfo) -> encode::Result<()> {
+fn ensure_not_too_large(value: u128, ty: &MySqlTypeInfo) -> Result<(), encode::Error> {
     let max = match ty.id() {
         MySqlTypeId::TINYINT => i8::MAX as _,
         MySqlTypeId::SMALLINT => i16::MAX as _,
@@ -47,8 +47,11 @@ fn ensure_not_too_large(value: u128, ty: &MySqlTypeInfo) -> encode::Result<()> {
         MySqlTypeId::INT_UNSIGNED => u32::MAX as _,
         MySqlTypeId::BIGINT_UNSIGNED => u64::MAX as _,
 
-        // not an integer type
-        _ => unreachable!(),
+        // not an integer type, if we got this far its because this is _unchecked
+        // just let it through
+        _ => {
+            return Ok(());
+        }
     };
 
     if value > max {
@@ -75,12 +78,12 @@ macro_rules! impl_type_uint {
         }
 
         impl Encode<MySql> for $ty {
-            fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result<()> {
+            fn encode(&self, ty: &MySqlTypeInfo, out: &mut MySqlOutput<'_>) -> encode::Result {
                 ensure_not_too_large((*self $(as $real)?).into(), ty)?;
 
                 out.buffer().extend_from_slice(&self.to_le_bytes());
 
-                Ok(())
+                Ok(encode::IsNull::No)
             }
         }
 

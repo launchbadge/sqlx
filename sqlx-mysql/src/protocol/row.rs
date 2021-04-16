@@ -40,7 +40,7 @@ impl<'de> Deserialize<'de, (MySqlRawValueFormat, &'de [MySqlColumn])> for Row {
 
             // [0x00] packer header
             let header = buf.get_u8();
-            assert!(header == 0x00);
+            assert_eq!(header, 0x00);
 
             // NULL bit map
             let null = buf.split_to((columns.len() + 9) / 8);
@@ -49,7 +49,7 @@ impl<'de> Deserialize<'de, (MySqlRawValueFormat, &'de [MySqlColumn])> for Row {
             // NULL columns are marked in the bitmap and are not in this list
             for (i, col) in columns.iter().enumerate() {
                 // NOTE: the column index starts at the 3rd bit
-                let null_i = i + 3;
+                let null_i = i + 2;
                 let is_null = null[null_i / 8] & (1 << (null_i % 8) as u8) != 0;
 
                 if is_null {
