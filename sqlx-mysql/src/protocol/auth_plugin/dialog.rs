@@ -1,7 +1,8 @@
-use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sqlx_core::Result;
+
+use crate::MySqlClientError;
 
 /// Dialog authentication implementation
 ///

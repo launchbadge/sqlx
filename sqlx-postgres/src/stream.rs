@@ -7,11 +7,9 @@ use sqlx_core::io::{BufStream, Deserialize, Serialize, Stream};
 use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Result, Runtime};
 
+use crate::protocol::backend::{BackendMessage, BackendMessageType};
 use crate::protocol::frontend::Terminate;
-use crate::{
-    protocol::backend::{BackendMessage, BackendMessageType},
-    PgDatabaseError, PgNotice,
-};
+use crate::{PgDatabaseError, PgNotice};
 
 /// Reads and writes messages to and from the PostgreSQL database server.
 ///

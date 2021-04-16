@@ -1,6 +1,7 @@
-use sqlx_core::{DatabaseError, Error};
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
+
+use sqlx_core::{DatabaseError, Error};
 
 use crate::PgNotice;
 

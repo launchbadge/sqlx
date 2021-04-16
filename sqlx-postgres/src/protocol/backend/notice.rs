@@ -1,13 +1,15 @@
-use crate::PgClientError;
-use bytes::{Buf, Bytes};
-use bytestring::ByteString;
-use memchr::memchr;
-use sqlx_core::io::Deserialize;
 use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::num::NonZeroU8;
 use std::str::{from_utf8, FromStr};
+
+use bytes::{Buf, Bytes};
+use bytestring::ByteString;
+use memchr::memchr;
+use sqlx_core::io::Deserialize;
+
+use crate::PgClientError;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
@@ -374,7 +376,10 @@ mod tests {
 
         assert!(notice.severity.is_error());
         assert_eq!(notice.severity, PgNoticeSeverity::Fatal);
-        assert_eq!(notice.message, "failed to parse error received from postgres, likely invalid authentication, confirm connection information and check database logs");
+        assert_eq!(
+            notice.message,
+            "failed to parse error received from postgres, likely invalid authentication, confirm connection information and check database logs"
+        );
         assert_eq!(notice.code, "28P01");
 
         Ok(())

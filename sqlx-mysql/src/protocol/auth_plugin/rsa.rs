@@ -1,12 +1,13 @@
 use std::str::from_utf8;
 
-use crate::protocol::auth_plugin::xor_eq;
-use crate::protocol::AuthPlugin;
-use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
 use sqlx_core::Result;
+
+use crate::protocol::auth_plugin::xor_eq;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 
 pub(crate) fn encrypt(
     plugin: &impl AuthPlugin,

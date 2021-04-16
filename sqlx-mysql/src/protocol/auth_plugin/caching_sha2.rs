@@ -1,11 +1,12 @@
-use super::rsa::encrypt as rsa_encrypt;
-use super::xor_eq;
-use crate::protocol::AuthPlugin;
-use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
 use sqlx_core::Result;
+
+use super::rsa::encrypt as rsa_encrypt;
+use super::xor_eq;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 
 /// Implements SHA-256 authentication but uses caching on the server-side for better performance.
 /// After the first authentication, a fast path is used that doesn't involve the RSA key exchange.

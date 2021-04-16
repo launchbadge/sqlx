@@ -1,8 +1,9 @@
 use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
-use crate::protocol::AuthPlugin;
 use sqlx_core::{ClientError, Error};
+
+use crate::protocol::AuthPlugin;
 
 #[derive(Debug)]
 #[non_exhaustive]

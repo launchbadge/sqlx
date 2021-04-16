@@ -1,6 +1,7 @@
+use std::ops::Not;
+
 use crate::database::{HasOutput, HasRawValue};
 use crate::{decode, encode, Database, Decode, Encode, RawValue, Type};
-use std::ops::Not;
 
 #[derive(Debug)]
 pub struct Null;

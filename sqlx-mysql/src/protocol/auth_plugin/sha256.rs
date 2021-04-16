@@ -1,9 +1,10 @@
-use super::rsa::encrypt as rsa_encrypt;
-use crate::protocol::AuthPlugin;
-use crate::MySqlClientError;
 use bytes::buf::Chain;
 use bytes::Bytes;
 use sqlx_core::Result;
+
+use super::rsa::encrypt as rsa_encrypt;
+use crate::protocol::AuthPlugin;
+use crate::MySqlClientError;
 
 /// Implements SHA-256 authentication.
 ///
