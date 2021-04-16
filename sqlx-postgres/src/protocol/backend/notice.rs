@@ -154,7 +154,7 @@ impl PgNotice {
 
 impl Display for PgNotice {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} [{}] {}", self.severity(), self.code(), self.message())
+        write!(f, "{} ({}): {}", self.severity(), self.code(), self.message())
     }
 }
 
