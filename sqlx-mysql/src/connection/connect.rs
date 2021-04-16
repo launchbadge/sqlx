@@ -435,7 +435,7 @@ mod tests {
 
         assert_eq!(
             err.to_string(),
-            "2061 (HY000): Authentication plugin \'dialog\' reported error: interactive dialog authentication is currently not supported"
+            "authentication plugin \'dialog\' reported error: interactive dialog authentication is currently not supported"
         );
 
         Ok(())
@@ -454,10 +454,7 @@ mod tests {
             .connect::<MySqlConnection<Mock>, _>()
             .unwrap_err();
 
-        assert_eq!(
-            err.to_string(),
-            "2059 (HY000): Authentication plugin 'mysql_old_password' cannot be loaded"
-        );
+        assert_eq!(err.to_string(), "unknown authentication plugin: mysql_old_password");
 
         Ok(())
     }
