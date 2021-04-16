@@ -95,8 +95,10 @@ impl_type_int! { i8 => SMALLINT }
 impl_type_int! { i16 => SMALLINT }
 impl_type_int! { i32 => INTEGER }
 impl_type_int! { i64 => BIGINT }
+impl_type_int! { i128 => BIGINT }
 
 impl_type_int! { u8 => SMALLINT }
 impl_type_int! { u16 => SMALLINT }
 impl_type_int! { u32 => INTEGER }
 impl_type_int! { u64 => BIGINT }
+impl_type_int! { u128 => BIGINT }
