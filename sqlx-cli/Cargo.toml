@@ -1,18 +1,18 @@
 [package]
 name = "sqlx-cli"
-version = "0.5.1"
+version = "0.5.2"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
 edition = "2018"
 readme = "README.md"
 homepage = "https://github.com/launchbadge/sqlx"
 repository = "https://github.com/launchbadge/sqlx"
-keywords = [ "database", "postgres", "database-management", "migration"]
-categories = [ "database", "command-line-utilities" ]
+keywords = ["database", "postgres", "database-management", "migration"]
+categories = ["database", "command-line-utilities"]
 license = "MIT OR Apache-2.0"
 default-run = "sqlx"
 authors = [
     "Jesper Axelsson <jesperaxe@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>"
+    "Austin Bonander <austin.bonander@gmail.com>",
 ]
 
 [[bin]]
@@ -27,7 +27,12 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread"] }
-sqlx = { version = "0.5.1", path = "..", default-features = false, features = [ "runtime-async-std-native-tls", "migrate", "any", "offline" ] }
+sqlx = { version = "0.5.2", path = "..", default-features = false, features = [
+    "runtime-async-std-native-tls",
+    "migrate",
+    "any",
+    "offline",
+] }
 futures = "0.3"
 clap = "=3.0.0-beta.2"
 chrono = "0.4"
@@ -44,12 +49,12 @@ openssl = { version = "0.10.30", optional = true }
 remove_dir_all = "0.7.0"
 
 [features]
-default = [ "postgres", "sqlite", "mysql" ]
+default = ["postgres", "sqlite", "mysql"]
 
 # databases
-mysql = [ "sqlx/mysql" ]
-postgres = [ "sqlx/postgres" ]
-sqlite = [ "sqlx/sqlite" ]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
 
 # workaround for musl + openssl issues
-openssl-vendored = [ "openssl/vendored" ]
+openssl-vendored = ["openssl/vendored"]

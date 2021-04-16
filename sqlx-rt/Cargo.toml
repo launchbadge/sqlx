@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-rt"
-version = "0.3.0"
+version = "0.5.2"
 repository = "https://github.com/launchbadge/sqlx"
 license = "MIT OR Apache-2.0"
 description = "Runtime abstraction used by SQLx, the Rust SQL toolkit. Not intended to be used directly."
@@ -12,7 +12,11 @@ authors = [
 
 [features]
 runtime-actix-native-tls = ["_rt-actix", "_tls-native-tls", "tokio-native-tls"]
-runtime-async-std-native-tls = ["_rt-async-std", "_tls-native-tls", "async-native-tls"]
+runtime-async-std-native-tls = [
+    "_rt-async-std",
+    "_tls-native-tls",
+    "async-native-tls",
+]
 runtime-tokio-native-tls = ["_rt-tokio", "_tls-native-tls", "tokio-native-tls"]
 
 runtime-actix-rustls = ["_rt-actix", "_tls-rustls", "tokio-rustls"]

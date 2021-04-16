@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.5.1"
+version = "0.5.2"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -16,85 +16,134 @@ authors = [
 features = ["all-databases", "all-types", "offline", "runtime-async-std-native-tls"]
 
 [features]
-default = [ "migrate" ]
-migrate = [ "sha2", "crc" ]
+default = ["migrate"]
+migrate = ["sha2", "crc"]
 
 # databases
-all-databases = [ "postgres", "mysql", "sqlite", "mssql", "any" ]
-postgres = [ "md-5", "sha2", "base64", "sha-1", "rand", "hmac", "futures-channel/sink", "futures-util/sink", "json", "dirs" ]
-mysql = [ "sha-1", "sha2", "generic-array", "num-bigint", "base64", "digest", "rand", "rsa" ]
-sqlite = [ "libsqlite3-sys" ]
-mssql = [ "uuid", "encoding_rs", "regex" ]
+all-databases = ["postgres", "mysql", "sqlite", "mssql", "any"]
+postgres = [
+    "md-5",
+    "sha2",
+    "base64",
+    "sha-1",
+    "rand",
+    "hmac",
+    "futures-channel/sink",
+    "futures-util/sink",
+    "json",
+    "dirs",
+]
+mysql = [
+    "sha-1",
+    "sha2",
+    "generic-array",
+    "num-bigint",
+    "base64",
+    "digest",
+    "rand",
+    "rsa",
+]
+sqlite = ["libsqlite3-sys"]
+mssql = ["uuid", "encoding_rs", "regex"]
 any = []
 
 # types
-all-types = [ "chrono", "time", "bigdecimal", "decimal", "ipnetwork", "json", "uuid", "bit-vec" ]
-bigdecimal = [ "bigdecimal_", "num-bigint" ]
-decimal = [ "rust_decimal", "num-bigint" ]
-json = [ "serde", "serde_json" ]
+all-types = [
+    "chrono",
+    "time",
+    "bigdecimal",
+    "decimal",
+    "ipnetwork",
+    "json",
+    "uuid",
+    "bit-vec",
+]
+bigdecimal = ["bigdecimal_", "num-bigint"]
+decimal = ["rust_decimal", "num-bigint"]
+json = ["serde", "serde_json"]
 
 # runtimes
-runtime-actix-native-tls = [ "sqlx-rt/runtime-actix-native-tls", "_tls-native-tls", "_rt-actix" ]
-runtime-async-std-native-tls = [ "sqlx-rt/runtime-async-std-native-tls", "_tls-native-tls", "_rt-async-std" ]
-runtime-tokio-native-tls = [ "sqlx-rt/runtime-tokio-native-tls", "_tls-native-tls", "_rt-tokio" ]
+runtime-actix-native-tls = [
+    "sqlx-rt/runtime-actix-native-tls",
+    "_tls-native-tls",
+    "_rt-actix",
+]
+runtime-async-std-native-tls = [
+    "sqlx-rt/runtime-async-std-native-tls",
+    "_tls-native-tls",
+    "_rt-async-std",
+]
+runtime-tokio-native-tls = [
+    "sqlx-rt/runtime-tokio-native-tls",
+    "_tls-native-tls",
+    "_rt-tokio",
+]
 
-runtime-actix-rustls = [ "sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-actix" ]
-runtime-async-std-rustls = [ "sqlx-rt/runtime-async-std-rustls", "_tls-rustls", "_rt-async-std" ]
-runtime-tokio-rustls = [ "sqlx-rt/runtime-tokio-rustls", "_tls-rustls", "_rt-tokio" ]
+runtime-actix-rustls = ["sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-actix"]
+runtime-async-std-rustls = [
+    "sqlx-rt/runtime-async-std-rustls",
+    "_tls-rustls",
+    "_rt-async-std",
+]
+runtime-tokio-rustls = ["sqlx-rt/runtime-tokio-rustls", "_tls-rustls", "_rt-tokio"]
 
 # for conditional compilation
-_rt-actix = [ "tokio-stream" ]
+_rt-actix = ["tokio-stream"]
 _rt-async-std = []
-_rt-tokio = [ "tokio-stream" ]
+_rt-tokio = ["tokio-stream"]
 _tls-native-tls = []
-_tls-rustls = [ "rustls", "webpki", "webpki-roots" ]
+_tls-rustls = ["rustls", "webpki", "webpki-roots"]
 
 # support offline/decoupled building (enables serialization of `Describe`)
-offline = [ "serde", "either/serde" ]
+offline = ["serde", "either/serde"]
 
 [dependencies]
 ahash = "0.7.2"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.3.0" }
-base64 = { version = "0.13.0", default-features = false, optional = true, features = [ "std" ] }
+sqlx-rt = { path = "../sqlx-rt", version = "0.5.2" }
+base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
 bigdecimal_ = { version = "0.2.0", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.8.1", optional = true }
 bit-vec = { version = "0.6.2", optional = true }
 bitflags = { version = "1.2.1", default-features = false }
 bytes = "1.0.0"
-byteorder = { version = "1.3.4", default-features = false, features = [ "std" ] }
-chrono = { version = "0.4.11", default-features = false, features = [ "clock" ], optional = true }
+byteorder = { version = "1.3.4", default-features = false, features = ["std"] }
+chrono = { version = "0.4.11", default-features = false, features = ["clock"], optional = true }
 crc = { version = "1.8.1", optional = true }
 crossbeam-queue = "0.3.1"
 crossbeam-channel = "0.5.0"
 crossbeam-utils = { version = "0.8.1", default-features = false }
-digest = { version = "0.9.0", default-features = false, optional = true, features = [ "std" ] }
+digest = { version = "0.9.0", default-features = false, optional = true, features = ["std"] }
 dirs = { version = "3.0.1", optional = true }
 encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
-futures-channel = { version = "0.3.5", default-features = false, features = [ "sink", "alloc", "std" ] }
+futures-channel = { version = "0.3.5", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.5", default-features = false }
-futures-util = { version = "0.3.5", features = [ "sink" ] }
+futures-util = { version = "0.3.5", features = ["sink"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"
 hmac = { version = "0.10.1", default-features = false, optional = true }
 itoa = "0.4.5"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 libc = "0.2.71"
-libsqlite3-sys = { version = "0.22.0", optional = true, default-features = false, features = [ "pkg-config", "vcpkg", "bundled" ] }
+libsqlite3-sys = { version = "0.22.0", optional = true, default-features = false, features = [
+    "pkg-config",
+    "vcpkg",
+    "bundled",
+] }
 log = { version = "0.4.8", default-features = false }
 md-5 = { version = "0.9.0", default-features = false, optional = true }
 memchr = { version = "2.3.3", default-features = false }
-num-bigint = { version = "0.3.1", default-features = false, optional = true, features = [ "std" ] }
+num-bigint = { version = "0.3.1", default-features = false, optional = true, features = ["std"] }
 once_cell = "1.5.2"
 percent-encoding = "2.1.0"
 parking_lot = "0.11.0"
-rand = { version = "0.8.3", default-features = false, optional = true, features = [ "std", "std_rng" ] }
+rand = { version = "0.8.3", default-features = false, optional = true, features = ["std", "std_rng"] }
 regex = { version = "1.3.9", optional = true }
 rsa = { version = "0.4.0", optional = true }
-rustls = { version = "0.19.0", features = [ "dangerous_configuration" ], optional = true }
-serde = { version = "1.0.106", features = [ "derive", "rc" ], optional = true }
-serde_json = { version = "1.0.51", features = [ "raw_value" ], optional = true }
+rustls = { version = "0.19.0", features = ["dangerous_configuration"], optional = true }
+serde = { version = "1.0.106", features = ["derive", "rc"], optional = true }
+serde_json = { version = "1.0.51", features = ["raw_value"], optional = true }
 sha-1 = { version = "0.9.0", default-features = false, optional = true }
 sha2 = { version = "0.9.0", default-features = false, optional = true }
 sqlformat = "0.1.0"
@@ -103,11 +152,11 @@ time = { version = "0.2.16", optional = true }
 tokio-stream = { version = "0.1.2", features = ["fs"], optional = true }
 smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
-uuid = { version = "0.8.1", default-features = false, optional = true, features = [ "std" ] }
+uuid = { version = "0.8.1", default-features = false, optional = true, features = ["std"] }
 webpki = { version = "0.21.3", optional = true }
 webpki-roots = { version = "0.21.0", optional = true }
 whoami = "1.0.1"
 stringprep = "0.1.2"
-bstr = { version = "0.2.14", default-features = false, features = [ "std" ], optional = true }
+bstr = { version = "0.2.14", default-features = false, features = ["std"], optional = true }
 git2 = { version = "0.13.12", default-features = false, optional = true }
 hashlink = "0.6.0"

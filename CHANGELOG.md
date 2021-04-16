@@ -5,9 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.2 - 2021-04-15
+
+-   [[#1149]] Tweak and optimize Pool internals [[@abonander]]
+
+-   [[#1132]] Remove `'static` bound on `Connection::transaction` [[@argv-minus-one]]
+
+-   [[#1128]] Fix `-y` flag for `sqlx db reset -y` [[@qqwa]]
+
+-   [[#1099]] [[#1097]] Truncate buffer when `BufStream` is dropped [[@Diggsey]]
+
+[#1132]: https://github.com/launchbadge/sqlx/pull/1132
+[#1149]: https://github.com/launchbadge/sqlx/pull/1149
+[#1128]: https://github.com/launchbadge/sqlx/pull/1128
+[#1099]: https://github.com/launchbadge/sqlx/pull/1099
+[#1097]: https://github.com/launchbadge/sqlx/issues/1097
+
+### PostgreSQL
+
+-   [[#1170]] Remove `Self: Type` bounds in `Encode` / `Decode` implementations for arrays [[@jplatte]]
+
+    Enables working around the lack of support for user-defined array types:
+
+    ```rust
+    #[derive(sqlx::Encode)]
+    struct Foos<'a>(&'a [Foo]);
+
+    impl sqlx::Type<sqlx::Postgres> for Foos<'_> {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::with_name("_foo")
+        }
+    }
+
+    query_as!(
+        Whatever,
+        "<QUERY with $1 of type foo[]>",
+        Foos(&foo_vec) as _,
+    )
+    ```
+
+-   [[#1141]] Use `u16::MAX` instead of `i16::MAX` for a check against the largest number of parameters in a query [[@crajcan]]
+
+-   [[#1112]] Add support for `DOMAIN` types [[@demurgos]]
+
+-   [[#1100]] Explicitly `UNLISTEN` before returning connections to the pool in `PgListener` [[@Diggsey]]
+
+[#1170]: https://github.com/launchbadge/sqlx/pull/1170
+[#1141]: https://github.com/launchbadge/sqlx/pull/1141
+[#1112]: https://github.com/launchbadge/sqlx/pull/1112
+[#1100]: https://github.com/launchbadge/sqlx/pull/1100
+
+### SQLite
+
+-   [[#1161]] Catch `SQLITE_MISUSE` on connection close and panic [[@link2xt]]
+
+-   [[#1160]] Do not cast pointers to `i32` (cast to `usize`) [[@link2xt]]
+
+-   [[#1156]] Reset the statement when `fetch_many` stream is dropped [[@link2xt]]
+
+[#1161]: https://github.com/launchbadge/sqlx/pull/1161
+[#1160]: https://github.com/launchbadge/sqlx/pull/1160
+[#1156]: https://github.com/launchbadge/sqlx/pull/1156
+
 ## 0.5.1 - 2021-02-04
 
- - Update sqlx-rt to 0.3.
+-   Update sqlx-rt to 0.3.
 
 ## 0.5.0 - 2021-02-04
 
@@ -15,8 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   [[#983]] [[#1022]] Upgrade async runtime dependencies [[@seryl], [@ant32], [@jplatte], [@robjtede]]
 
-    - tokio 1.0
-    - actix-rt 2.0
+    -   tokio 1.0
+    -   actix-rt 2.0
 
 -   [[#854]] Allow chaining `map` and `try_map` [[@jplatte]]
 
@@ -53,7 +115,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [[#918]] Recover from dropping `wait_for_conn` inside Pool. [[@antialize]]
 
 [#821]: https://github.com/launchbadge/sqlx/issues/821
-
 [#918]: https://github.com/launchbadge/sqlx/pull/918
 [#919]: https://github.com/launchbadge/sqlx/pull/919
 [#983]: https://github.com/launchbadge/sqlx/pull/983
@@ -123,7 +184,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#850]: https://github.com/launchbadge/sqlx/pull/850
 [#845]: https://github.com/launchbadge/sqlx/pull/845
 [#839]: https://github.com/launchbadge/sqlx/pull/839
-
 [#747]: https://github.com/launchbadge/sqlx/issues/747
 
 ## 0.4.1 – 2020-11-13
@@ -803,13 +863,13 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@mcronce]: https://github.com/mcronce
 [@hamza1311]: https://github.com/hamza1311
 [@augustocdias]: https://github.com/augustocdias
-[@Pleto]: https://github.com/Pleto
+[@pleto]: https://github.com/Pleto
 [@chertov]: https://github.com/chertov
 [@framp]: https://github.com/framp
 [@markazmierczak]: https://github.com/markazmierczak
 [@msrd0]: https://github.com/msrd0
 [@joshtriplett]: https://github.com/joshtriplett
-[@NyxCode]: https://github.com/NyxCode
+[@nyxcode]: https://github.com/NyxCode
 [@nitsky]: https://github.com/nitsky
 [@esemeniuc]: https://github.com/esemeniuc
 [@iamsiddhant05]: https://github.com/iamsiddhant05
@@ -824,3 +884,9 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@fl9]: https://github.com/fl9
 [@antialize]: https://github.com/antialize
 [@dignifiedquire]: https://github.com/dignifiedquire
+[@argv-minus-one]: https://github.com/argv-minus-one
+[@qqwa]: https://github.com/qqwa
+[@diggsey]: https://github.com/Diggsey
+[@crajcan]: https://github.com/crajcan
+[@demurgos]: https://github.com/demurgos
+[@link2xt]: https://github.com/link2xt
