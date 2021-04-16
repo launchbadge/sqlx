@@ -71,5 +71,5 @@ pub use sqlx_core::AsyncStd;
 pub use sqlx_core::Tokio;
 pub use sqlx_core::{
     Acquire, Arguments, Close, Connect, ConnectOptions, Connection, Database, Decode, Describe,
-    Encode, Error, Execute, Executor, FromRow, Result, Row, Runtime, Type,
+    Encode, Error, Execute, Executor, FromRow, Null, Result, Row, Runtime, Type,
 };

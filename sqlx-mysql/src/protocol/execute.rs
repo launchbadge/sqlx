@@ -5,6 +5,7 @@ use sqlx_core::{Arguments, Result};
 
 use super::Command;
 use crate::{MySql, MySqlOutput, MySqlTypeId, MySqlTypeInfo};
+use sqlx_core::encode::IsNull;
 
 // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/mysql__com_8h.html#a3e5e9e744ff6f7b989a604fd669977da
 const NO_CURSOR: u8 = 0;
@@ -39,12 +40,17 @@ impl Serialize<'_> for Execute<'_, '_> {
         // iterate through each (parameter, value) pair in the statement
         // with the goal to encode each value to the buffer
 
+        let prev_len = buf.len();
         let mut out = MySqlOutput::new(buf, self.parameters.len());
         let mut args = self.arguments.positional();
 
         for param in self.parameters {
             if let Some(argument) = args.next() {
-                argument.encode(param, &mut out)?;
+                if let IsNull::Yes = argument.encode(param, &mut out)? {
+                    debug_assert!(out.buffer().len() != prev_len);
+                    out.null();
+                }
+
                 out.declare(argument.type_id());
             } else {
                 // if we run out of values, start sending NULL for
