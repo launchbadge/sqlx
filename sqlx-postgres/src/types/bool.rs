@@ -14,10 +14,10 @@ impl Type<Postgres> for bool {
 }
 
 impl Encode<Postgres> for bool {
-    fn encode(&self, _ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result<()> {
+    fn encode(&self, _ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result {
         out.buffer().push(*self as u8);
 
-        Ok(())
+        Ok(encode::IsNull::No)
     }
 }
 

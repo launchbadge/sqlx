@@ -12,23 +12,17 @@ use crate::{PgOutput, PgRawValue, PgRawValueFormat, PgTypeId, PgTypeInfo, Postgr
 
 // check that the incoming value is not too large or too small
 // to fit into the target SQL type
-fn ensure_not_too_large_or_too_small(value: i128, ty: &PgTypeInfo) -> encode::Result<()> {
-    let max: i128 = match ty.id() {
-        PgTypeId::SMALLINT => i16::MAX as _,
-        PgTypeId::INTEGER => i32::MAX as _,
-        PgTypeId::BIGINT => i64::MAX as _,
+fn ensure_not_too_large_or_too_small(value: i128, ty: &PgTypeInfo) -> Result<(), encode::Error> {
+    let (max, min): (i128, i128) = match ty.id() {
+        PgTypeId::SMALLINT => (i16::MAX as _, i16::MIN as _),
+        PgTypeId::INTEGER => (i32::MAX as _, i32::MIN as _),
+        PgTypeId::BIGINT => (i64::MAX as _, i64::MIN as _),
 
-        // not an integer type
-        _ => unreachable!(),
-    };
-
-    let min: i128 = match ty.id() {
-        PgTypeId::SMALLINT => i16::MIN as _,
-        PgTypeId::INTEGER => i32::MIN as _,
-        PgTypeId::BIGINT => i64::MIN as _,
-
-        // not an integer type
-        _ => unreachable!(),
+        _ => {
+            // for non-integer types, ignore the check
+            // if we got this far its because someone asked for and `_unchecked` bind
+            return Ok(());
+        }
     };
 
     if value > max {
@@ -80,12 +74,12 @@ macro_rules! impl_type_int {
         }
 
         impl Encode<Postgres> for $ty {
-            fn encode(&self, ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result<()> {
+            fn encode(&self, ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result {
                 ensure_not_too_large_or_too_small((*self $(as $real)?).into(), ty)?;
 
                 out.buffer().extend_from_slice(&self.to_be_bytes());
 
-                Ok(())
+                Ok(encode::IsNull::No)
             }
         }
 
