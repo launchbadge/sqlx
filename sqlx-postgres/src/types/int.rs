@@ -44,6 +44,30 @@ fn ensure_not_too_large_or_too_small(value: i128, ty: &PgTypeInfo) -> Result<(),
     Ok(())
 }
 
+fn ensure_not_too_large(value: u128, ty: &PgTypeInfo) -> Result<(), encode::Error> {
+    let max: u128 = match ty.id() {
+        PgTypeId::SMALLINT => i16::MAX as _,
+        PgTypeId::INTEGER => i32::MAX as _,
+        PgTypeId::BIGINT => i64::MAX as _,
+
+        _ => {
+            // for non-integer types, ignore the check
+            // if we got this far its because someone asked for and `_unchecked` bind
+            return Ok(());
+        }
+    };
+
+    if value > max {
+        return Err(encode::Error::msg(format!(
+            "number `{}` too large to fit in SQL type `{}`",
+            value,
+            ty.name()
+        )));
+    }
+
+    Ok(())
+}
+
 fn decode_int<T>(value: &PgRawValue<'_>) -> decode::Result<T>
 where
     T: TryFrom<i64> + TryFrom<u64> + FromStr,
@@ -97,8 +121,38 @@ impl_type_int! { i32 => INTEGER }
 impl_type_int! { i64 => BIGINT }
 impl_type_int! { i128 => BIGINT }
 
-impl_type_int! { u8 => SMALLINT }
-impl_type_int! { u16 => SMALLINT }
-impl_type_int! { u32 => INTEGER }
-impl_type_int! { u64 => BIGINT }
-impl_type_int! { u128 => BIGINT }
+macro_rules! impl_type_uint {
+    ($ty:ty $(: $real:ty)? => $sql:ident) => {
+        impl Type<Postgres> for $ty {
+            fn type_id() -> PgTypeId {
+                PgTypeId::$sql
+            }
+
+            fn compatible(ty: &PgTypeInfo) -> bool {
+                ty.id().is_integer()
+            }
+        }
+
+        impl Encode<Postgres> for $ty {
+            fn encode(&self, ty: &PgTypeInfo, out: &mut PgOutput<'_>) -> encode::Result {
+                ensure_not_too_large((*self $(as $real)?).into(), ty)?;
+
+                out.buffer().extend_from_slice(&self.to_be_bytes());
+
+                Ok(encode::IsNull::No)
+            }
+        }
+
+        impl<'r> Decode<'r, Postgres> for $ty {
+            fn decode(value: PgRawValue<'r>) -> decode::Result<Self> {
+                decode_int(&value)
+            }
+        }
+    };
+}
+
+impl_type_uint! { u8 => SMALLINT }
+impl_type_uint! { u16 => SMALLINT }
+impl_type_uint! { u32 => INTEGER }
+impl_type_uint! { u64 => BIGINT }
+impl_type_uint! { u128 => BIGINT }

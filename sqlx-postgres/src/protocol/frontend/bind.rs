@@ -6,6 +6,7 @@ use sqlx_core::Result;
 use crate::io::PgWriteExt;
 use crate::protocol::frontend::{PortalRef, StatementRef};
 use crate::{PgArguments, PgOutput, PgRawValueFormat, PgTypeInfo};
+use sqlx_core::encode::IsNull;
 
 pub(crate) struct Bind<'a> {
     pub(crate) portal: PortalRef,
@@ -50,16 +51,28 @@ impl Serialize<'_> for Bind<'_> {
                 let offset = out.buffer().len();
                 out.buffer().extend_from_slice(&[0; 4]);
 
-                let len = if let Some(argument) = args.next() {
-                    argument.encode(param, &mut out)?;
-
-                    // prefixed length does not include the length in the length
-                    // unlike the regular "prefixed length" bytes protocol type
-                    (out.buffer().len() - offset - 4) as i32
-                } else {
+                let prev_len = out.buffer().len();
+                let null = args
+                    .next()
+                    .map(|argument| argument.encode(param, &mut out))
+                    .transpose()?
                     // if we run out of values, start sending NULL for
+                    .unwrap_or(IsNull::Yes);
+
+                let len = match null {
                     // NULL is encoded as a -1 for the length
-                    -1_i32
+                    IsNull::Yes => {
+                        // no data *should* have been written to the buffer if we were told the expression is NULL
+                        debug_assert_eq!(prev_len, out.buffer().len());
+
+                        -1_i32
+                    }
+
+                    IsNull::No => {
+                        // prefixed length does not include the length in the length
+                        // unlike the regular "prefixed length" bytes protocol type
+                        (out.buffer().len() - offset - 4) as i32
+                    }
                 };
 
                 // write the len to the beginning of the value

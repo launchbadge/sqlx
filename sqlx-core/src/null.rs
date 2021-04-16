@@ -6,6 +6,22 @@ use crate::{decode, encode, Database, Decode, Encode, RawValue, Type};
 #[derive(Debug)]
 pub struct Null;
 
+impl<Db: Database> Encode<Db> for Null {
+    fn encode(
+        &self,
+        _: &<Db as Database>::TypeInfo,
+        _: &mut <Db as HasOutput<'_>>::Output,
+    ) -> encode::Result {
+        Ok(encode::IsNull::Yes)
+    }
+}
+
+impl<'r, Db: Database> Decode<'r, Db> for Null {
+    fn decode(_: <Db as HasRawValue<'r>>::RawValue) -> decode::Result<Self> {
+        Ok(Self)
+    }
+}
+
 impl<Db: Database, T: Type<Db>> Type<Db> for Option<T>
 where
     Null: Type<Db>,

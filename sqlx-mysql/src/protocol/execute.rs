@@ -47,7 +47,9 @@ impl Serialize<'_> for Execute<'_, '_> {
         for param in self.parameters {
             if let Some(argument) = args.next() {
                 if let IsNull::Yes = argument.encode(param, &mut out)? {
+                    // no data *should* have been written to the buffer if we were told the expression is NULL
                     debug_assert!(out.buffer().len() != prev_len);
+
                     out.null();
                 }
 
