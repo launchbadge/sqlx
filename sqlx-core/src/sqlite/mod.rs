@@ -27,7 +27,9 @@ pub use column::SqliteColumn;
 pub use connection::SqliteConnection;
 pub use database::Sqlite;
 pub use error::SqliteError;
-pub use options::{SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous};
+pub use options::{
+    SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
+};
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
 pub use statement::SqliteStatement;
