@@ -26,6 +26,8 @@ mod tokio_;
 pub use actix_::Actix;
 #[cfg(feature = "async-std")]
 pub use async_std_::AsyncStd;
+use std::future::Future;
+use std::time::Duration;
 #[cfg(feature = "tokio")]
 pub use tokio_::Tokio;
 
@@ -80,6 +82,15 @@ pub trait Runtime: 'static + Send + Sync + Sized + Debug {
     #[doc(hidden)]
     #[cfg(all(unix, feature = "async"))]
     fn connect_unix_async(path: &Path) -> BoxFuture<'_, io::Result<Self::UnixStream>>
+    where
+        Self: Async;
+
+    #[doc(hidden)]
+    #[cfg(all(unix, feature = "async"))]
+    fn timeout_async<'a, F: Future + Send + 'a>(
+        fut: F,
+        timeout: Duration,
+    ) -> BoxFuture<'a, Option<F::Output>>
     where
         Self: Async;
 }

@@ -25,7 +25,10 @@ pub enum Error {
     /// The database URL is malformed or contains invalid or unsupported
     /// values for one or more options; a value of [`ConnectOptions`] failed
     /// to be parsed.
-    ConnectOptions { message: Cow<'static, str>, source: Option<Box<dyn StdError + Send + Sync>> },
+    ConnectOptions {
+        message: Cow<'static, str>,
+        source: Option<Box<dyn StdError + Send + Sync>>,
+    },
 
     /// An error that was returned from the database, normally from the
     /// execution of a SQL command.
@@ -65,6 +68,8 @@ pub enum Error {
     ///
     Closed,
 
+    AcquireTimedOut,
+
     /// An error occurred decoding a SQL value from the database.
     Decode(DecodeError),
 
@@ -72,19 +77,31 @@ pub enum Error {
     Encode(EncodeError),
 
     /// An attempt to access a column by index past the end of the row.
-    ColumnIndexOutOfBounds { index: usize, len: usize },
+    ColumnIndexOutOfBounds {
+        index: usize,
+        len: usize,
+    },
 
     /// An attempt to access a column by name where no such column is
     /// present in the row.
-    ColumnNotFound { name: Box<str> },
+    ColumnNotFound {
+        name: Box<str>,
+    },
 
     /// An error occurred decoding a SQL value of a specific column
     /// from the database.
-    ColumnDecode { column_index: usize, column_name: Box<str>, source: DecodeError },
+    ColumnDecode {
+        column_index: usize,
+        column_name: Box<str>,
+        source: DecodeError,
+    },
 
     /// An error occurred encoding a value for a specific parameter to
     /// be sent to the database.
-    ParameterEncode { parameter: Either<usize, Box<str>>, source: EncodeError },
+    ParameterEncode {
+        parameter: Either<usize, Box<str>>,
+        source: EncodeError,
+    },
 }
 
 impl Error {
@@ -143,6 +160,8 @@ impl Display for Error {
             }
 
             Self::Closed => f.write_str("Connection or pool is closed"),
+
+            Self::AcquireTimedOut => f.write_str("Timeout on acquiring a connection from Pool"),
 
             Self::Decode(error) => {
                 write!(f, "Decode: {}", error)
