@@ -32,7 +32,7 @@
 ///
 /// | Number of Rows | Method to Call*             | Returns                                             | Notes |
 /// |----------------| ----------------------------|-----------------------------------------------------|-------|
-/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::QueryResult>                          | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
+/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::QueryResult>`                     | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<{adhoc struct}>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<{adhoc struct}>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
