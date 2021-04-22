@@ -1,8 +1,6 @@
-use std::env;
-use std::path::Path;
-#[cfg(feature = "offline")]
 use std::path::PathBuf;
 
+use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
 use url::Url;
@@ -24,81 +22,86 @@ mod data;
 mod input;
 mod output;
 
+struct Metadata {
+    manifest_dir: PathBuf,
+    offline: bool,
+    database_url: Option<String>,
+}
+
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
-#[cfg(feature = "offline")]
-static CRATE_ROOT: once_cell::sync::Lazy<PathBuf> = once_cell::sync::Lazy::new(|| {
-    use serde::Deserialize;
-    use std::process::Command;
+static METADATA: Lazy<Metadata> = Lazy::new(|| {
+    use std::env;
 
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` must be set");
-
-    let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
-
-    let output = Command::new(&cargo)
-        .args(&["metadata", "--format-version=1"])
-        .current_dir(manifest_dir)
-        .output()
-        .expect("Could not fetch metadata");
-
-    #[derive(Deserialize)]
-    struct Metadata {
-        workspace_root: PathBuf,
-    }
-
-    let metadata: Metadata =
-        serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-    metadata.workspace_root
-});
-
-pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
-    let manifest_dir =
-        env::var("CARGO_MANIFEST_DIR").map_err(|_| "`CARGO_MANIFEST_DIR` must be set")?;
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
+        .expect("`CARGO_MANIFEST_DIR` must be set")
+        .into();
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
-    let env_path = Path::new(&manifest_dir).join(".env");
+    let env_path = METADATA.manifest_dir.join(".env");
     if env_path.exists() {
-        dotenv::from_path(&env_path)
-            .map_err(|e| format!("failed to load environment from {:?}, {}", env_path, e))?
+        let res = dotenv::from_path(&env_path);
+        if let Err(e) = res {
+            panic!("failed to load environment from {:?}, {}", env_path, e);
+        }
+    } else {
+        let _ = dotenv::dotenv();
     }
 
-    // if `dotenv` wasn't initialized by the above we make sure to do it here
-    match (
-        dotenv::var("SQLX_OFFLINE")
-            .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
-            .unwrap_or(false),
-        dotenv::var("DATABASE_URL"),
-    ) {
-        (false, Ok(db_url)) => expand_from_db(input, &db_url),
+    // TODO: Switch to `var_os` when MSRV >= 1.53, so OsStr::eq_ignore_ascii_case can be used:
+    // https://doc.rust-lang.org/nightly/std/ffi/struct.OsStr.html#method.eq_ignore_ascii_case
+    let offline = env::var("SQLX_OFFLINE")
+        .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
+        .unwrap_or(false);
+
+    let database_url = env::var("DATABASE_URL").ok();
+
+    Metadata {
+        manifest_dir,
+        offline,
+        database_url,
+    }
+});
+
+pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
+    match &*METADATA {
+        Metadata {
+            offline: false,
+            database_url: Some(db_url),
+            ..
+        } => expand_from_db(input, &db_url),
 
         #[cfg(feature = "offline")]
         _ => {
-            let data_file_path = Path::new(&manifest_dir).join("sqlx-data.json");
-
-            let workspace_data_file_path = CRATE_ROOT.join("sqlx-data.json");
-
-            if data_file_path.exists() {
-                expand_from_file(input, data_file_path)
-            } else if workspace_data_file_path.exists() {
-                expand_from_file(input, workspace_data_file_path)
-            } else {
-                Err(
+            let data_dir = METADATA.manifest_dir.join(".sqlx");
+            if !data_dir.exists() {
+                return Err(
                     "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
-                     and sqlx-data.json must exist, to use query macros"
+                     and .sqlx must exist, to use query macros"
                         .into(),
-                )
+                );
             }
+
+            let data_file_path = data_dir.join(format!("query-{}.json", hash_string(&input.src)));
+            if !data_file_path.exists() {
+                return Err("No cached query data found, please rerun `cargo sqlx prepare`".into());
+            }
+
+            expand_from_file(input, data_file_path)
         }
 
         #[cfg(not(feature = "offline"))]
-        (true, _) => {
+        Metadata { offline: true, .. } => {
             Err("The cargo feature `offline` has to be enabled to use `SQLX_OFFLINE`".into())
         }
 
         #[cfg(not(feature = "offline"))]
-        (false, Err(_)) => Err("`DATABASE_URL` must be set to use query macros".into()),
+        Metadata {
+            offline: false,
+            database_url: None,
+            ..
+        } => Err("`DATABASE_URL` must be set to use query macros".into()),
     }
 }
 
@@ -322,14 +325,35 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        let mut save_dir =
-            PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target/".into()));
+        use std::{fs, io};
 
-        save_dir.push("sqlx");
+        let save_dir = METADATA.manifest_dir.join(".sqlx");
+        match fs::metadata(&save_dir) {
+            Err(e) => {
+                if e.kind() != io::ErrorKind::NotFound {
+                    // Can't obtain information about .sqlx
+                    return Err(e.into());
+                }
 
-        std::fs::create_dir_all(&save_dir)?;
-        data.save_in(save_dir, input.src_span)?;
+                // .sqlx doesn't exist, do nothing
+            }
+            Ok(meta) => {
+                if !meta.is_dir() {
+                    return Err(".sqlx exists, but is not a direcory".into());
+                }
+
+                // .sqlx exists and is a directory, store data
+                data.save_in(save_dir)?;
+            }
+        }
     }
 
     Ok(ret_tokens)
+}
+
+pub fn hash_string(query: &str) -> String {
+    // picked `sha2` because it's already in the dependency tree for both MySQL and Postgres
+    use sha2::{Digest, Sha256};
+
+    hex::encode(Sha256::digest(query.as_bytes()))
 }

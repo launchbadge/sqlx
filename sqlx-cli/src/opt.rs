@@ -29,9 +29,12 @@ pub enum Command {
         #[clap(long)]
         check: bool,
 
-        /// Generate a single top-level `sqlx-data.json` file when using a cargo workspace.
+        /// Do a clean build of all crates in the workspace.
+        ///
+        /// This option is intended for workspaces where multiple crates use SQLx; if there is only
+        /// one, it is better to run `cargo sqlx prepare` without this option inside of that crate.
         #[clap(long)]
-        merged: bool,
+        workspace: bool,
 
         /// Arguments to be passed to `cargo rustc ...`.
         #[clap(last = true)]

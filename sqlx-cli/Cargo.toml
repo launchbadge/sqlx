@@ -45,8 +45,6 @@ serde_json = "1.0.53"
 serde = { version = "1.0.110", features = ["derive"] }
 glob = "0.3.0"
 openssl = { version = "0.10.30", optional = true }
-# workaround for https://github.com/rust-lang/rust/issues/29497
-remove_dir_all = "0.7.0"
 
 [features]
 default = ["postgres", "sqlite", "mysql"]
