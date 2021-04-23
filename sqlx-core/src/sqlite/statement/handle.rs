@@ -13,16 +13,16 @@ use libsqlite3_sys::{
     sqlite3_column_count, sqlite3_column_database_name, sqlite3_column_decltype,
     sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name,
     sqlite3_column_origin_name, sqlite3_column_table_name, sqlite3_column_type,
-    sqlite3_column_value, sqlite3_db_handle, sqlite3_reset, sqlite3_sql, sqlite3_stmt,
-    sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value, SQLITE_OK,
-    SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_sql,
+    sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value,
+    SQLITE_MISUSE, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub(crate) struct StatementHandle(pub(super) NonNull<sqlite3_stmt>);
 
 // access to SQLite3 statement handles are safe to send and share between threads
@@ -282,5 +282,22 @@ impl StatementHandle {
 
     pub(crate) fn reset(&self) {
         unsafe { sqlite3_reset(self.0.as_ptr()) };
+    }
+}
+impl Drop for StatementHandle {
+    fn drop(&mut self) {
+        unsafe {
+            // https://sqlite.org/c3ref/finalize.html
+            let status = sqlite3_finalize(self.0.as_ptr());
+            if status == SQLITE_MISUSE {
+                // Panic in case of detected misuse of SQLite API.
+                //
+                // sqlite3_finalize returns it at least in the
+                // case of detected double free, i.e. calling
+                // sqlite3_finalize on already finalized
+                // statement.
+                panic!("Detected sqlite3_finalize misuse.");
+            }
+        }
     }
 }

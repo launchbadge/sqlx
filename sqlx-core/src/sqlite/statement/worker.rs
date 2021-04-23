@@ -4,6 +4,7 @@ use crossbeam_channel::{unbounded, Sender};
 use either::Either;
 use futures_channel::oneshot;
 use libsqlite3_sys::{sqlite3_step, SQLITE_DONE, SQLITE_ROW};
+use std::sync::Arc;
 use std::thread;
 
 // Each SQLite connection has a dedicated thread.
@@ -18,7 +19,7 @@ pub(crate) struct StatementWorker {
 
 enum StatementWorkerCommand {
     Step {
-        statement: StatementHandle,
+        statement: Arc<StatementHandle>,
         tx: oneshot::Sender<Result<Either<u64, ()>, Error>>,
     },
 }
@@ -50,12 +51,15 @@ impl StatementWorker {
 
     pub(crate) async fn step(
         &mut self,
-        statement: StatementHandle,
+        statement: &Arc<StatementHandle>,
     ) -> Result<Either<u64, ()>, Error> {
         let (tx, rx) = oneshot::channel();
 
         self.tx
-            .send(StatementWorkerCommand::Step { statement, tx })
+            .send(StatementWorkerCommand::Step {
+                statement: Arc::clone(statement),
+                tx,
+            })
             .map_err(|_| Error::WorkerCrashed)?;
 
         rx.await.map_err(|_| Error::WorkerCrashed)?
