@@ -2,7 +2,7 @@ use crate::common::StatementCache;
 use crate::connection::{Connection, LogSettings};
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::mssql::connection::stream::MssqlStream;
+use crate::mssql::connection::stream::{MssqlStream, Shutdown};
 use crate::mssql::statement::MssqlStatementMetadata;
 use crate::mssql::{Mssql, MssqlConnectOptions};
 use crate::transaction::Transaction;
@@ -15,6 +15,7 @@ mod establish;
 mod executor;
 mod prepare;
 mod stream;
+mod tls;
 
 pub struct MssqlConnection {
     pub(crate) stream: MssqlStream,

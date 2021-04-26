@@ -19,12 +19,23 @@ use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
 use crate::mssql::{MssqlColumn, MssqlConnectOptions, MssqlDatabaseError};
+use crate::mssql::connection::tls::TlsStreamWrapper;
 use crate::net::MaybeTlsStream;
 use crate::HashMap;
 use std::sync::Arc;
 
+pub(crate) trait Shutdown {
+    fn shutdown(&mut self, how: std::net::Shutdown) -> std::io::Result<()>;
+}
+
+impl Shutdown for TcpStream {
+    fn shutdown(&mut self, how: std::net::Shutdown) -> std::io::Result<()> {
+        (self as &TcpStream).shutdown(how)
+    }
+}
+
 pub(crate) struct MssqlStream {
-    inner: BufStream<MaybeTlsStream<TcpStream>>,
+    inner: BufStream<MaybeTlsStream<TlsStreamWrapper<TcpStream>>>,
 
     // how many Done (or Error) we are currently waiting for
     pub(crate) pending_done_count: usize,
@@ -46,7 +57,7 @@ pub(crate) struct MssqlStream {
 impl MssqlStream {
     pub(super) async fn connect(options: &MssqlConnectOptions) -> Result<Self, Error> {
         let inner = BufStream::new(MaybeTlsStream::Raw(
-            TcpStream::connect((&*options.host, options.port)).await?,
+            TcpStream::connect((&*options.host, options.port)).await?.into(),
         ));
 
         Ok(Self {
@@ -67,7 +78,6 @@ impl MssqlStream {
         //       We likely need to double-buffer the writes so we know to chunk
 
         // write out the packet header, leaving room for setting the packet length later
-
         let mut len_offset = 0;
 
         self.inner.write_with(
@@ -222,7 +232,7 @@ impl MssqlStream {
 }
 
 impl Deref for MssqlStream {
-    type Target = BufStream<MaybeTlsStream<TcpStream>>;
+    type Target = BufStream<MaybeTlsStream<TlsStreamWrapper<TcpStream>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner

@@ -243,6 +243,9 @@ bitflags! {
     /// wire encryption to be used.
     #[derive(Default)]
     pub(crate) struct Encrypt: u8 {
+        /// Encryption is available but off.
+        const OFF = 0x00;
+
         /// Encryption is available but on.
         const ON = 0x01;
 

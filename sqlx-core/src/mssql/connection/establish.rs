@@ -1,7 +1,7 @@
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
-use crate::mssql::connection::stream::MssqlStream;
+use crate::mssql::connection::{stream::MssqlStream, tls};
 use crate::mssql::protocol::login::Login7;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
@@ -15,14 +15,13 @@ impl MssqlConnection {
         // Send PRELOGIN to set up the context for login. The server should immediately
         // respond with a PRELOGIN message of its own.
 
-        // TODO: Encryption
         // TODO: Send the version of SQLx over
 
         stream.write_packet(
             PacketType::PreLogin,
             PreLogin {
                 version: Version::default(),
-                encryption: Encrypt::NOT_SUPPORTED,
+                encryption: Encrypt::OFF,
 
                 ..Default::default()
             },
@@ -32,6 +31,8 @@ impl MssqlConnection {
 
         let (_, packet) = stream.recv_packet().await?;
         let _ = PreLogin::decode(packet)?;
+
+        tls::maybe_upgrade(&mut stream, options).await?;
 
         // LOGIN7 defines the authentication rules for use between client and server
 
