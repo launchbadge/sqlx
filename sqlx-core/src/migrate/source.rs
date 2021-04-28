@@ -11,6 +11,12 @@ pub trait MigrationSource<'s>: Debug {
     fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>>;
 }
 
+/// Implementation of the `MigrationSource` for [std::path::Path].
+///
+/// The path has to point to a directory, which contains the migration SQL scripts. All these
+/// scripts must be stored in files with names using the format `<VERSION>_<DESCRIPTION>.sql`,
+/// where `<VERSION>` is a string that can be parsed into `i64` and its value is greater than zero,
+/// and `<DESCRIPTION>` is a string.
 impl<'s> MigrationSource<'s> for &'s Path {
     fn resolve(self) -> BoxFuture<'s, Result<Vec<Migration>, BoxDynError>> {
         Box::pin(async move {

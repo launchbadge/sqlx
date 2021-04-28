@@ -9,7 +9,7 @@ use crate::HashMap;
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
     sqlite3, sqlite3_clear_bindings, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset,
-    sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
+    sqlite3_stmt, SQLITE_MISUSE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
 use smallvec::SmallVec;
 use std::i32;
@@ -88,8 +88,8 @@ fn prepare(
         // statement in zSql. these routines only compile the first statement,
         // so tail is left pointing to what remains un-compiled.
 
-        let n = (tail as i32) - (query_ptr as i32);
-        query.advance(n as usize);
+        let n = (tail as usize) - (query_ptr as usize);
+        query.advance(n);
 
         if let Some(handle) = NonNull::new(statement_handle) {
             return Ok(Some(StatementHandle(handle)));
@@ -201,7 +201,16 @@ impl Drop for VirtualStatement {
 
             unsafe {
                 // https://sqlite.org/c3ref/finalize.html
-                let _ = sqlite3_finalize(handle.0.as_ptr());
+                let status = sqlite3_finalize(handle.0.as_ptr());
+                if status == SQLITE_MISUSE {
+                    // Panic in case of detected misuse of SQLite API.
+                    //
+                    // sqlite3_finalize returns it at least in the
+                    // case of detected double free, i.e. calling
+                    // sqlite3_finalize on already finalized
+                    // statement.
+                    panic!("Detected sqlite3_finalize misuse.");
+                }
             }
         }
     }

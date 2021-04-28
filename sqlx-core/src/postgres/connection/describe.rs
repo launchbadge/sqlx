@@ -9,8 +9,85 @@ use crate::query_scalar::{query_scalar, query_scalar_with};
 use crate::types::Json;
 use crate::HashMap;
 use futures_core::future::BoxFuture;
+use std::convert::TryFrom;
 use std::fmt::Write;
 use std::sync::Arc;
+
+/// Describes the type of the `pg_type.typtype` column
+///
+/// See <https://www.postgresql.org/docs/13/catalog-pg-type.html>
+enum TypType {
+    Base,
+    Composite,
+    Domain,
+    Enum,
+    Pseudo,
+    Range,
+}
+
+impl TryFrom<u8> for TypType {
+    type Error = ();
+
+    fn try_from(t: u8) -> Result<Self, Self::Error> {
+        let t = match t {
+            b'b' => Self::Base,
+            b'c' => Self::Composite,
+            b'd' => Self::Domain,
+            b'e' => Self::Enum,
+            b'p' => Self::Pseudo,
+            b'r' => Self::Range,
+            _ => return Err(()),
+        };
+        Ok(t)
+    }
+}
+
+/// Describes the type of the `pg_type.typcategory` column
+///
+/// See <https://www.postgresql.org/docs/13/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE>
+enum TypCategory {
+    Array,
+    Boolean,
+    Composite,
+    DateTime,
+    Enum,
+    Geometric,
+    Network,
+    Numeric,
+    Pseudo,
+    Range,
+    String,
+    Timespan,
+    User,
+    BitString,
+    Unknown,
+}
+
+impl TryFrom<u8> for TypCategory {
+    type Error = ();
+
+    fn try_from(c: u8) -> Result<Self, Self::Error> {
+        let c = match c {
+            b'A' => Self::Array,
+            b'B' => Self::Boolean,
+            b'C' => Self::Composite,
+            b'D' => Self::DateTime,
+            b'E' => Self::Enum,
+            b'G' => Self::Geometric,
+            b'I' => Self::Network,
+            b'N' => Self::Numeric,
+            b'P' => Self::Pseudo,
+            b'R' => Self::Range,
+            b'S' => Self::String,
+            b'T' => Self::Timespan,
+            b'U' => Self::User,
+            b'V' => Self::BitString,
+            b'X' => Self::Unknown,
+            _ => return Err(()),
+        };
+        Ok(c)
+    }
+}
 
 impl PgConnection {
     pub(super) async fn handle_row_description(
@@ -106,31 +183,46 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: u32) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, category, relation_id, element): (String, i8, u32, u32) = query_as(
-                "SELECT typname, typcategory, typrelid, typelem FROM pg_catalog.pg_type WHERE oid = $1",
+            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, u32, u32, u32) = query_as(
+                "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
             )
             .bind(oid)
             .fetch_one(&mut *self)
             .await?;
 
-            match category as u8 {
-                b'A' => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                    kind: PgTypeKind::Array(self.fetch_type_by_oid(element).await?),
-                    name: name.into(),
-                    oid,
-                })))),
+            let typ_type = TypType::try_from(typ_type as u8);
+            let category = TypCategory::try_from(category as u8);
 
-                b'P' => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                    kind: PgTypeKind::Pseudo,
-                    name: name.into(),
-                    oid,
-                })))),
+            match (typ_type, category) {
+                (Ok(TypType::Domain), _) => self.fetch_domain_by_oid(oid, base_type, name).await,
 
-                b'R' => self.fetch_range_by_oid(oid, name).await,
+                (Ok(TypType::Base), Ok(TypCategory::Array)) => {
+                    Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                        kind: PgTypeKind::Array(self.fetch_type_by_oid(element).await?),
+                        name: name.into(),
+                        oid,
+                    }))))
+                }
 
-                b'E' => self.fetch_enum_by_oid(oid, name).await,
+                (Ok(TypType::Pseudo), Ok(TypCategory::Pseudo)) => {
+                    Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                        kind: PgTypeKind::Pseudo,
+                        name: name.into(),
+                        oid,
+                    }))))
+                }
 
-                b'C' => self.fetch_composite_by_oid(oid, relation_id, name).await,
+                (Ok(TypType::Range), Ok(TypCategory::Range)) => {
+                    self.fetch_range_by_oid(oid, name).await
+                }
+
+                (Ok(TypType::Enum), Ok(TypCategory::Enum)) => {
+                    self.fetch_enum_by_oid(oid, name).await
+                }
+
+                (Ok(TypType::Composite), Ok(TypCategory::Composite)) => {
+                    self.fetch_composite_by_oid(oid, relation_id, name).await
+                }
 
                 _ => Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
                     kind: PgTypeKind::Simple,
@@ -194,6 +286,23 @@ ORDER BY attnum
                 oid,
                 name: name.into(),
                 kind: PgTypeKind::Composite(Arc::from(fields)),
+            }))))
+        })
+    }
+
+    fn fetch_domain_by_oid(
+        &mut self,
+        oid: u32,
+        base_type: u32,
+        name: String,
+    ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
+        Box::pin(async move {
+            let base_type = self.maybe_fetch_type_info_by_oid(base_type, true).await?;
+
+            Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
+                oid,
+                name: name.into(),
+                kind: PgTypeKind::Domain(base_type),
             }))))
         })
     }

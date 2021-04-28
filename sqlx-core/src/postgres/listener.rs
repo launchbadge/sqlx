@@ -257,6 +257,17 @@ impl PgListener {
     }
 }
 
+impl Drop for PgListener {
+    fn drop(&mut self) {
+        if let Some(mut conn) = self.connection.take() {
+            // Unregister any listeners before returning the connection to the pool.
+            sqlx_rt::spawn(async move {
+                let _ = conn.execute("UNLISTEN *").await;
+            });
+        }
+    }
+}
+
 impl<'c> Executor<'c> for &'c mut PgListener {
     type Database = Postgres;
 

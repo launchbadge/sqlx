@@ -105,7 +105,8 @@ pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<TokenStream
         ::sqlx::migrate::Migrator {
             migrations: ::std::borrow::Cow::Borrowed(&[
                 #(#migrations),*
-            ])
+            ]),
+            ignore_missing: false,
         }
     })
 }

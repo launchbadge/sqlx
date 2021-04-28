@@ -34,11 +34,13 @@ mod json;
 
 #[cfg(feature = "uuid")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
+#[doc(no_inline)]
 pub use uuid::{self, Uuid};
 
 #[cfg(feature = "chrono")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono")))]
 pub mod chrono {
+    #[doc(no_inline)]
     pub use chrono::{
         DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
     };
@@ -46,25 +48,30 @@ pub mod chrono {
 
 #[cfg(feature = "bit-vec")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bit-vec")))]
+#[doc(no_inline)]
 pub use bit_vec::BitVec;
 
 #[cfg(feature = "time")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time {
+    #[doc(no_inline)]
     pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 }
 
 #[cfg(feature = "bigdecimal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
+#[doc(no_inline)]
 pub use bigdecimal::BigDecimal;
 
 #[cfg(feature = "decimal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "decimal")))]
+#[doc(no_inline)]
 pub use rust_decimal::Decimal;
 
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {
+    #[doc(no_inline)]
     pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 }
 

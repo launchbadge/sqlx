@@ -13,8 +13,9 @@ use libsqlite3_sys::{
     sqlite3_column_count, sqlite3_column_database_name, sqlite3_column_decltype,
     sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name,
     sqlite3_column_origin_name, sqlite3_column_table_name, sqlite3_column_type,
-    sqlite3_column_value, sqlite3_db_handle, sqlite3_sql, sqlite3_stmt, sqlite3_stmt_readonly,
-    sqlite3_table_column_metadata, sqlite3_value, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_column_value, sqlite3_db_handle, sqlite3_reset, sqlite3_sql, sqlite3_stmt,
+    sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value, SQLITE_OK,
+    SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
@@ -277,5 +278,9 @@ impl StatementHandle {
 
     pub(crate) fn column_text(&self, index: usize) -> Result<&str, BoxDynError> {
         Ok(from_utf8(self.column_blob(index))?)
+    }
+
+    pub(crate) fn reset(&self) {
+        unsafe { sqlite3_reset(self.0.as_ptr()) };
     }
 }

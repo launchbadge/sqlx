@@ -1,32 +1,56 @@
 [package]
 name = "sqlx-macros"
-version = "0.5.1"
+version = "0.5.2"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
 edition = "2018"
 authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>", # ryan@launchbadge.com
-    "Austin Bonander <austin.bonander@gmail.com>", # austin@launchbadge.com
-    "Chloe Ross <orangesnowfox@gmail.com>", # chloe@launchbadge.com
-    "Daniel Akhterov <akhterovd@gmail.com>", # daniel@launchbadge.com
-]
+    "Ryan Leckey <leckey.ryan@gmail.com>",
+    "Austin Bonander <austin.bonander@gmail.com>",
+    "Chloe Ross <orangesnowfox@gmail.com>",
+    "Daniel Akhterov <akhterovd@gmail.com>",
+] # daniel@launchbadge.com
 
 [lib]
 proc-macro = true
 
 [features]
-default = [ "runtime-async-std-native-tls", "migrate" ]
-migrate = [ "sha2", "sqlx-core/migrate" ]
+default = ["runtime-async-std-native-tls", "migrate"]
+migrate = ["sha2", "sqlx-core/migrate"]
 
 # runtimes
-runtime-actix-native-tls = [ "sqlx-core/runtime-actix-native-tls", "sqlx-rt/runtime-actix-native-tls", "_rt-actix" ]
-runtime-async-std-native-tls = [ "sqlx-core/runtime-async-std-native-tls", "sqlx-rt/runtime-async-std-native-tls", "_rt-async-std" ]
-runtime-tokio-native-tls = [ "sqlx-core/runtime-tokio-native-tls", "sqlx-rt/runtime-tokio-native-tls", "_rt-tokio" ]
+runtime-actix-native-tls = [
+    "sqlx-core/runtime-actix-native-tls",
+    "sqlx-rt/runtime-actix-native-tls",
+    "_rt-actix",
+]
+runtime-async-std-native-tls = [
+    "sqlx-core/runtime-async-std-native-tls",
+    "sqlx-rt/runtime-async-std-native-tls",
+    "_rt-async-std",
+]
+runtime-tokio-native-tls = [
+    "sqlx-core/runtime-tokio-native-tls",
+    "sqlx-rt/runtime-tokio-native-tls",
+    "_rt-tokio",
+]
 
-runtime-actix-rustls = [ "sqlx-core/runtime-actix-rustls", "sqlx-rt/runtime-actix-rustls", "_rt-actix" ]
-runtime-async-std-rustls = [ "sqlx-core/runtime-async-std-rustls", "sqlx-rt/runtime-async-std-rustls", "_rt-async-std" ]
-runtime-tokio-rustls = [ "sqlx-core/runtime-tokio-rustls", "sqlx-rt/runtime-tokio-rustls", "_rt-tokio" ]
+runtime-actix-rustls = [
+    "sqlx-core/runtime-actix-rustls",
+    "sqlx-rt/runtime-actix-rustls",
+    "_rt-actix",
+]
+runtime-async-std-rustls = [
+    "sqlx-core/runtime-async-std-rustls",
+    "sqlx-rt/runtime-async-std-rustls",
+    "_rt-async-std",
+]
+runtime-tokio-rustls = [
+    "sqlx-core/runtime-tokio-rustls",
+    "sqlx-rt/runtime-tokio-rustls",
+    "_rt-tokio",
+]
 
 # for conditional compilation
 _rt-actix = []
@@ -37,34 +61,34 @@ _rt-tokio = []
 offline = ["sqlx-core/offline", "hex", "once_cell", "serde", "serde_json", "sha2"]
 
 # database
-mysql = [ "sqlx-core/mysql" ]
-postgres = [ "sqlx-core/postgres" ]
-sqlite = [ "sqlx-core/sqlite" ]
-mssql = [ "sqlx-core/mssql" ]
+mysql = ["sqlx-core/mysql"]
+postgres = ["sqlx-core/postgres"]
+sqlite = ["sqlx-core/sqlite"]
+mssql = ["sqlx-core/mssql"]
 
 # type
-bigdecimal = [ "sqlx-core/bigdecimal" ]
-decimal = [ "sqlx-core/decimal" ]
-chrono = [ "sqlx-core/chrono" ]
-time = [ "sqlx-core/time" ]
-ipnetwork = [ "sqlx-core/ipnetwork" ]
-uuid = [ "sqlx-core/uuid" ]
-bit-vec = [ "sqlx-core/bit-vec" ]
-json = [ "sqlx-core/json", "serde_json" ]
+bigdecimal = ["sqlx-core/bigdecimal"]
+decimal = ["sqlx-core/decimal"]
+chrono = ["sqlx-core/chrono"]
+time = ["sqlx-core/time"]
+ipnetwork = ["sqlx-core/ipnetwork"]
+uuid = ["sqlx-core/uuid"]
+bit-vec = ["sqlx-core/bit-vec"]
+json = ["sqlx-core/json", "serde_json"]
 
 [dependencies]
 dotenv = { version = "0.15.0", default-features = false }
-futures = { version = "0.3.4", default-features = false, features = [ "executor" ] }
+futures = { version = "0.3.4", default-features = false, features = ["executor"] }
 hex = { version = "0.4.2", optional = true }
 heck = "0.3.1"
 either = "1.5.3"
 once_cell = { version = "1.5.2", optional = true }
 proc-macro2 = { version = "1.0.9", default-features = false }
-sqlx-core = { version = "0.5.1", default-features = false, path = "../sqlx-core" }
-sqlx-rt = { version = "0.3.0", default-features = false, path = "../sqlx-rt" }
+sqlx-core = { version = "0.5.2", default-features = false, path = "../sqlx-core" }
+sqlx-rt = { version = "0.5.2", default-features = false, path = "../sqlx-rt" }
 serde = { version = "1.0.111", features = ["derive"], optional = true }
 serde_json = { version = "1.0.30", features = ["preserve_order"], optional = true }
 sha2 = { version = "0.9.1", optional = true }
-syn = { version = "1.0.30", default-features = false, features = [ "full" ] }
+syn = { version = "1.0.30", default-features = false, features = ["full"] }
 quote = { version = "1.0.6", default-features = false }
 url = { version = "2.1.1", default-features = false }
