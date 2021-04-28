@@ -105,6 +105,14 @@ impl SqliteConnectOptions {
         self
     }
 
+    /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
+    ///
+    /// By default, this is disabled.
+    pub fn shared_cache(mut self, on: bool) -> Self {
+        self.shared_cache = on;
+        self
+    }
+
     /// Sets the [journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode) for the database connection.
     ///
     /// The default journal mode is WAL. For most use cases this can be significantly faster but
