@@ -17,6 +17,7 @@ pub(crate) enum Message {
     ReturnStatus(ReturnStatus),
     ReturnValue(ReturnValue),
     Order(Order),
+    Reroute(String, u16),
 }
 
 #[derive(Debug)]

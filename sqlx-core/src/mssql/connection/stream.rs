@@ -146,6 +146,10 @@ impl MssqlStream {
                                 self.transaction_descriptor = 0;
                             }
 
+                            EnvChange::RoutingInformation(host, port) => {
+                                return Ok(Message::Reroute(host, port));
+                            }
+
                             _ => {}
                         }
 

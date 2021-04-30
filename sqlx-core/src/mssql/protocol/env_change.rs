@@ -3,7 +3,7 @@ use bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::mssql::io::MssqlBufExt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub(crate) enum EnvChange {
     Database(String),
@@ -28,11 +28,13 @@ pub(crate) enum EnvChange {
     LoginRequestUserNameAck,
 
     // TDS 7.4+
-    RoutingInformation,
+    RoutingInformation(String, u16),
 }
 
 impl EnvChange {
     pub(crate) fn get(buf: &mut Bytes) -> Result<Self, Error> {
+        // FIXME: All of the get_* calls below can panic if we didn't get enough data from the
+        // server. Should add error handling to fail gracefully.
         let len = buf.get_u16_le();
         let ty = buf.get_u8();
         let mut data = buf.split_to((len - 1) as usize);
@@ -57,9 +59,42 @@ impl EnvChange {
                 EnvChange::RollbackTransaction(data.get_u64_le())
             }
 
+            20 => {
+                let _value_len = data.get_u16_le();
+                let protocol = data.get_u8();
+                if protocol != 0 /* TCP */ {
+                    return Err(
+                        err_protocol!("unexpected protocol {} in Routing ENVCHANGE", protocol));
+                }
+                let new_port = data.get_u16_le();
+                let new_host = data.get_us_varchar()?;
+                let old_value = data.get_u16_le();
+                if old_value != 0 {
+                    return Err(
+                        err_protocol!("unexpected old value {} in Routing ENVCHANGE", old_value));
+                }
+                EnvChange::RoutingInformation(new_host, new_port)
+            }
+
             _ => {
                 return Err(err_protocol!("unexpected value {} for ENVCHANGE Type", ty));
             }
         })
     }
+}
+
+#[test]
+fn test_envchange_routing() {
+    let buf = vec![
+        0x14, 0x00, // Data size
+        0x14, // EnvChange type.
+        0x00, 0x00, // Value len (ignored).
+        0x00, // Protocol (TCP).
+        0x34, 0x12, // New port.
+        0x05, 0x00, b'h', 0, b'e', 0, b'l', 0, b'l', 0, b'o', 0, // New host.
+        0x00, 0x00, // Old value
+    ];
+    let mut bytes = Bytes::from(buf);
+    let ec = EnvChange::get(&mut bytes).unwrap();
+    assert_eq!(EnvChange::RoutingInformation("hello".to_owned(), 4660), ec);
 }
