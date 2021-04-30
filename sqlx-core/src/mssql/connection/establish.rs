@@ -6,7 +6,7 @@ use crate::mssql::protocol::login::Login7;
 use crate::mssql::protocol::message::Message;
 use crate::mssql::protocol::packet::PacketType;
 use crate::mssql::protocol::pre_login::{Encrypt, PreLogin, Version};
-use crate::mssql::{MssqlConnectOptions, MssqlConnection};
+use crate::mssql::{MssqlConnectOptions, MssqlConnection, MssqlSslMode};
 
 impl MssqlConnection {
     pub(crate) async fn establish(options: &MssqlConnectOptions) -> Result<Self, Error> {
@@ -21,7 +21,7 @@ impl MssqlConnection {
             PacketType::PreLogin,
             PreLogin {
                 version: Version::default(),
-                encryption: Encrypt::OFF,
+                encryption: Encrypt::from_ssl_mode(options.ssl_mode),
 
                 ..Default::default()
             },

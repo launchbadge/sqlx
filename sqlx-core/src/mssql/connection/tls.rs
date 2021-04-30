@@ -10,7 +10,7 @@
 use crate::error::Error;
 use crate::mssql::connection::stream::{MssqlStream, Shutdown};
 use crate::mssql::protocol::packet::PacketType;
-use crate::mssql::MssqlConnectOptions;
+use crate::mssql::{MssqlConnectOptions, MssqlSslMode};
 use sqlx_rt::{AsyncRead, AsyncWrite};
 use std::io::{IoSlice, IoSliceMut};
 use std::pin::Pin;
@@ -356,21 +356,37 @@ pub(super) async fn maybe_upgrade(
     stream: &mut MssqlStream,
     options: &MssqlConnectOptions,
 ) -> Result<(), Error> {
-    if !upgrade(stream, options).await? {
-        return Err(Error::Tls("server does not support TLS".into()));
+    match options.ssl_mode {
+        MssqlSslMode::Disabled => (),
+
+        MssqlSslMode::Preferred => {
+            upgrade(stream, options).await?;
+        }
+
+        _ => {
+            if !upgrade(stream, options).await? {
+                return Err(Error::Tls("server does not support TLS".into()));
+            }
+        }
     }
 
     Ok(())
 }
 
 async fn upgrade(stream: &mut MssqlStream, options: &MssqlConnectOptions) -> Result<bool, Error> {
+    let accept_invalid_certs = !matches!(
+        options.ssl_mode,
+        MssqlSslMode::VerifyCa | MssqlSslMode::VerifyIdentity
+    );
+    let accept_invalid_host_names = !matches!(options.ssl_mode, MssqlSslMode::VerifyIdentity);
+
     stream.wrap_tls(true);
     let result = stream
         .upgrade(
             &options.host,
-            false /* accept_invalid_certs */,
-            false /* accept_invalid_hostnames */,
-            None /* ssl_root_cert */,
+            accept_invalid_certs,
+            accept_invalid_host_names,
+            options.ssl_ca.as_ref(),
         )
         .await;
     stream.wrap_tls(false);

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::error::Error;
 use crate::io::{Decode, Encode};
+use crate::mssql::MssqlSslMode;
 
 /// A message sent by the client to set up context for login. The server responds to a client
 /// `PRELOGIN` message with a message of packet header type `0x04` and the packet data
@@ -258,6 +259,17 @@ bitflags! {
         /// The client certificate should be used to authenticate
         /// the user in place of a user/password.
         const CLIENT_CERT = 0x80;
+    }
+}
+
+impl Encrypt {
+    pub(crate) fn from_ssl_mode(ssl_mode: MssqlSslMode) -> Self {
+        match ssl_mode {
+            MssqlSslMode::Disabled => Self::NOT_SUPPORTED,
+            MssqlSslMode::Preferred => Self::OFF,
+            MssqlSslMode::Required | MssqlSslMode::VerifyCa | MssqlSslMode::VerifyIdentity =>
+                Self::REQUIRED,
+        }
     }
 }
 

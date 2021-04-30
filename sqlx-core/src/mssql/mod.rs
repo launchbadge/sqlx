@@ -21,7 +21,7 @@ pub use column::MssqlColumn;
 pub use connection::MssqlConnection;
 pub use database::Mssql;
 pub use error::MssqlDatabaseError;
-pub use options::MssqlConnectOptions;
+pub use options::{MssqlConnectOptions, MssqlSslMode};
 pub use query_result::MssqlQueryResult;
 pub use row::MssqlRow;
 pub use statement::MssqlStatement;
