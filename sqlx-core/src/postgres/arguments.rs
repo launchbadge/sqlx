@@ -4,8 +4,10 @@ use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+use crate::postgres::type_info::PgType;
 use crate::postgres::{PgConnection, PgTypeInfo, Postgres};
 use crate::types::Type;
+use std::convert::TryInto;
 
 // TODO: buf.patch(|| ...) is a poor name, can we think of a better name? Maybe `buf.lazy(||)` ?
 // TODO: Extend the patch system to support dynamic lengths
@@ -139,6 +141,42 @@ impl PgArgumentBuffer {
 
         // write the len to the beginning of the value
         self[offset..(offset + 4)].copy_from_slice(&len.to_be_bytes());
+    }
+
+    pub(crate) fn encode_iter<'q, T, I>(&mut self, iter: I)
+    where
+        T: Encode<'q, Postgres> + Type<Postgres>,
+        I: IntoIterator<Item = T>,
+    {
+        self.extend(&1_i32.to_be_bytes()); // number of dimensions
+        self.extend(&0_i32.to_be_bytes()); // flags
+
+        // element type
+        match T::type_info().0 {
+            PgType::DeclareWithName(name) => self.patch_type_by_name(&name),
+
+            ty => {
+                self.extend(&ty.oid().to_be_bytes());
+            }
+        }
+
+        let len_at = self.len();
+
+        self.extend(&[0u8; 4]); // len (initially zero but we'll fix this up)
+        self.extend(&1_i32.to_be_bytes()); // lower bound
+
+        // count while encoding items at the same time
+        let len: i32 = iter
+            .into_iter()
+            .map(|item| item.encode(self))
+            .count()
+            .try_into()
+            // in practice, Postgres will reject arrays significantly smaller than this:
+            // https://github.com/postgres/postgres/blob/e6f9539dc32473793c03cbe95bc099ee0a199c73/src/backend/utils/adt/arrayutils.c#L66
+            .expect("array length exceeds maximum the Postgres protocol can handle");
+
+        // fixup the actual length
+        self[len_at..len_at + 4].copy_from_slice(&len.to_be_bytes());
     }
 
     // Adds a callback to be invoked later when we know the parameter type

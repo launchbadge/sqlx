@@ -476,3 +476,20 @@ test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)))
 test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
 ));
+
+mod array {
+    use sqlx::types::Array;
+
+    use std::collections::HashSet;
+
+    macro_rules! set [
+        ($($item:expr),*) => {{
+            let mut set = HashSet::new();
+            $(set.insert($item);)*
+            set
+        }}
+    ];
+
+    test_type!(array_to_hashset<String>(Postgres, 
+        "array['foo', 'bar', 'baz']" == Array(set!["foo", "bar", "baz"])));
+}

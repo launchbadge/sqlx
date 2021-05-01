@@ -20,6 +20,10 @@
 
 use crate::database::Database;
 
+#[cfg(feature = "array")]
+#[cfg_attr(docsrs, doc(cfg(feature = "array")))]
+mod array;
+
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 pub mod bstr;
@@ -74,6 +78,9 @@ pub mod ipnetwork {
     #[doc(no_inline)]
     pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 }
+
+#[cfg(feature = "array")]
+pub use array::Array;
 
 #[cfg(feature = "json")]
 pub use json::Json;

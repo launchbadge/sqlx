@@ -32,6 +32,7 @@ postgres = [
     "futures-util/sink",
     "json",
     "dirs",
+    "array"
 ]
 mysql = [
     "sha-1",
@@ -58,6 +59,7 @@ all-types = [
     "uuid",
     "bit-vec",
 ]
+array = []
 bigdecimal = ["bigdecimal_", "num-bigint"]
 decimal = ["rust_decimal", "num-bigint"]
 json = ["serde", "serde_json"]

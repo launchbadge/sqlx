@@ -55,6 +55,19 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments
         self.inner = self.inner.bind(value);
         self
     }
+
+    /// Bind any iterable as an array.
+    /// Only supported on databases with first-class arrays, like Postgres.
+    ///
+    /// See also: [Array][crate::types::Array]
+    #[cfg(feature = "array")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "array")))]
+    pub fn bind_array<I>(mut self, iter: I) -> Self
+    where
+        crate::types::Array<I>: Encode<'q, DB> + Type<DB> + Send + 'q,
+    {
+        self.bind(crate::types::Array(iter))
+    }
 }
 
 // FIXME: This is very close, nearly 1:1 with `Map`
