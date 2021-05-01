@@ -36,6 +36,20 @@ impl MssqlConnection {
 
         // LOGIN7 defines the authentication rules for use between client and server
 
+        // Unsure if we should be populating this unconditionally, but Azure SQL requires this field
+        // to be present.
+        let server_name = match options.ssl_mode {
+            MssqlSslMode::Disabled => "",
+            _ => {
+                let mut fields = options.host.split('.');
+                match fields.next() {
+                    Some(name) => name,
+                    None => "",
+                }
+            }
+        };
+        log::debug!("mssql: Setting server_name to {}", server_name);
+
         stream.write_packet(
             PacketType::Tds7Login,
             Login7 {
@@ -48,7 +62,7 @@ impl MssqlConnection {
                 username: &options.username,
                 password: options.password.as_deref().unwrap_or_default(),
                 app_name: "",
-                server_name: "",
+                server_name: server_name,
                 client_interface_name: "",
                 language: "",
                 database: &*options.database,
