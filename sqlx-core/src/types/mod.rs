@@ -117,6 +117,7 @@ pub use json::Json;
 ///   `<SQL type name>` instead. May trigger errors or unexpected behavior if the encoding of the
 ///   given type is different than that of the inferred type (e.g. if you rename the above to
 ///   `VARCHAR`). Affects Postgres only.
+/// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in FromRow`](crate::from_row::FromRow#rename_all)
 ///
 /// ### Enumeration
 ///
