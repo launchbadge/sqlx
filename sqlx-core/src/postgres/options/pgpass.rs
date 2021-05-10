@@ -89,11 +89,17 @@ fn load_password_from_line(
     database: Option<&str>,
 ) -> Option<String> {
     let whole_line = line;
-    matches_next_field(whole_line, &mut line, host)?;
-    matches_next_field(whole_line, &mut line, &port.to_string())?;
-    matches_next_field(whole_line, &mut line, username)?;
-    matches_next_field(whole_line, &mut line, database.unwrap_or_default())?;
-    Some(line.to_owned())
+
+    match line.trim_start().chars().next() {
+        None | Some('#') => None,
+        _ => {
+            matches_next_field(whole_line, &mut line, host)?;
+            matches_next_field(whole_line, &mut line, &port.to_string())?;
+            matches_next_field(whole_line, &mut line, username)?;
+            matches_next_field(whole_line, &mut line, database.unwrap_or_default())?;
+            Some(line.to_owned())
+        }
+    }
 }
 
 /// check if the next field matches the provided value
