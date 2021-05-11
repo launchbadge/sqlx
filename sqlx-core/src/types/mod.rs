@@ -28,6 +28,10 @@ pub mod bstr;
 #[cfg_attr(docsrs, doc(cfg(feature = "git2")))]
 pub mod git2;
 
+#[cfg(feature = "secrecy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "secrecy")))]
+pub mod secrecy;
+
 #[cfg(feature = "json")]
 #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;

@@ -2080,6 +2080,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0673d6a6449f5e7d12a1caf424fd9363e2af3a4953023ed455e3c4beef4597c0"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2364,6 +2373,7 @@ dependencies = [
  "rsa",
  "rust_decimal",
  "rustls",
+ "secrecy",
  "serde",
  "serde_json",
  "sha-1",

@@ -63,6 +63,7 @@ all-types = [
     "bit-vec",
     "bstr",
     "git2",
+    "secrecy"
 ]
 
 # previous runtimes, available as features for error messages better than just
@@ -127,6 +128,7 @@ time = ["sqlx-core/time", "sqlx-macros/time"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
+secrecy = ["sqlx-core/secrecy"]
 
 [dependencies]
 sqlx-core = { version = "0.5.2", path = "sqlx-core", default-features = false }

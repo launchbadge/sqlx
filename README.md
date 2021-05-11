@@ -168,6 +168,8 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `tls`: Add support for TLS connections.
 
+-   `secrecy`: Add support for `secrecy::Secret<T>`.
+
 ## Usage
 
 ### Quickstart
