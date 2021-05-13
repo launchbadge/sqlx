@@ -121,8 +121,8 @@ impl_any_type!(chrono::NaiveDateTime);
 impl_any_type!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any(feature = "sqlite", feature = "postgres"),
-    not(any(feature = "mysql", feature = "mssql"))
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
 ))]
 impl_any_type!(chrono::DateTime<chrono::offset::Local>);
 
@@ -153,8 +153,8 @@ impl_any_encode!(chrono::NaiveDateTime);
 impl_any_encode!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any(feature = "sqlite", feature = "postgres"),
-    not(any(feature = "mysql", feature = "mssql"))
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
 ))]
 impl_any_encode!(chrono::DateTime<chrono::offset::Local>);
 
@@ -185,7 +185,7 @@ impl_any_decode!(chrono::NaiveDateTime);
 impl_any_decode!(chrono::DateTime<chrono::offset::Utc>);
 #[cfg(all(
     feature = "chrono",
-    any(feature = "sqlite", feature = "postgres"),
-    not(any(feature = "mysql", feature = "mssql"))
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
 ))]
 impl_any_decode!(chrono::DateTime<chrono::offset::Local>);
