@@ -1,6 +1,7 @@
 use crate::database::{Database, HasArguments, HasStatement};
 use crate::describe::Describe;
 use crate::error::Error;
+use crate::any_query::{AnyKind, AnyQuery};
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -186,6 +187,11 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     /// Gets the SQL that will be executed.
     fn sql(&self) -> &'q str;
 
+    /// Gets the SQL that will be executed for a given driver.
+    fn sql_for_kind(&self, _kind: AnyKind) -> &'q str {
+        self.sql()
+    }
+
     /// Gets the previously cached statement, if available.
     fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement>;
 
@@ -202,10 +208,17 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
 
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
 //       involved to write `conn.execute(format!("SELECT {}", val))`
-impl<'q, DB: Database> Execute<'q, DB> for &'q str {
+impl<'q, DB: Database, Q> Execute<'q, DB> for Q
+where Q: AnyQuery<'q>
+{
     #[inline]
     fn sql(&self) -> &'q str {
-        self
+        self.build(None)
+    }
+
+    #[inline]
+    fn sql_for_kind(&self, kind: AnyKind) -> &'q str {
+        self.build(Some(kind))
     }
 
     #[inline]
@@ -224,10 +237,17 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 }
 
-impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
+impl<'q, DB: Database, Q> Execute<'q, DB> for (Q, Option<<DB as HasArguments<'q>>::Arguments>)
+where Q: AnyQuery<'q>
+{
     #[inline]
     fn sql(&self) -> &'q str {
-        self.0
+        self.0.build(None)
+    }
+
+    #[inline]
+    fn sql_for_kind(&self, kind: AnyKind) -> &'q str {
+        self.0.build(Some(kind))
     }
 
     #[inline]

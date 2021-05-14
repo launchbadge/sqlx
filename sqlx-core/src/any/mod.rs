@@ -13,7 +13,6 @@ mod arguments;
 pub(crate) mod column;
 mod connection;
 mod database;
-mod kind;
 mod options;
 mod query_result;
 pub(crate) mod row;
@@ -44,6 +43,10 @@ pub use value::{AnyValue, AnyValueRef};
 pub type AnyPool = crate::pool::Pool<Any>;
 
 pub type AnyPoolOptions = crate::pool::PoolOptions<Any>;
+
+mod kind {
+    pub type AnyKind = crate::any_query::AnyKind;
+}
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(AnyArguments<'q>);

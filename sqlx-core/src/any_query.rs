@@ -65,3 +65,13 @@ impl FromStr for AnyKind {
         }
     }
 }
+
+pub trait AnyQuery<'q> : Send + Sized + std::marker::Sync {
+    fn build(&self, kind: Option<AnyKind>) -> &'q str;
+}
+
+impl<'q> AnyQuery<'q> for &'q str {
+    fn build(&self, _kind: Option<AnyKind>) -> &'q str {
+        self
+    }
+}

@@ -2,6 +2,7 @@ use crate::any::connection::AnyConnectionKind;
 use crate::any::{
     Any, AnyColumn, AnyConnection, AnyQueryResult, AnyRow, AnyStatement, AnyTypeInfo,
 };
+use crate::any_query::AnyKind;
 use crate::database::Database;
 use crate::describe::Describe;
 use crate::error::Error;
@@ -10,6 +11,19 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
+
+fn get_kind(connection_kind: &AnyConnectionKind) -> AnyKind {
+    match connection_kind {
+        #[cfg(feature = "postgres")]
+        AnyConnectionKind::Postgres(_) => AnyKind::Postgres,
+        #[cfg(feature = "mysql")]
+        AnyConnectionKind::MySql(_) => AnyKind::MySql,
+        #[cfg(feature = "sqlite")]
+        AnyConnectionKind::Sqlite(_) => AnyKind::Sqlite,
+        #[cfg(feature = "mssql")]
+        AnyConnectionKind::Mssql(_) => AnyKind::Mssql,
+    }
+}
 
 impl<'c> Executor<'c> for &'c mut AnyConnection {
     type Database = Any;
@@ -23,7 +37,7 @@ impl<'c> Executor<'c> for &'c mut AnyConnection {
         E: Execute<'q, Self::Database>,
     {
         let arguments = query.take_arguments();
-        let query = query.sql();
+        let query = query.sql_for_kind(get_kind(&self.0));
 
         match &mut self.0 {
             #[cfg(feature = "postgres")]

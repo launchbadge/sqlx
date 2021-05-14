@@ -57,6 +57,7 @@ pub mod column;
 #[macro_use]
 pub mod statement;
 
+pub mod any_query;
 mod common;
 pub mod database;
 pub mod describe;
