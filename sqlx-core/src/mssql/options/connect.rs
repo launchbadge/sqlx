@@ -1,3 +1,5 @@
+#[cfg(feature = "any")]
+use crate::any::AnyKind;
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::mssql::{MssqlConnectOptions, MssqlConnection};
@@ -23,5 +25,10 @@ impl ConnectOptions for MssqlConnectOptions {
     fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) -> &mut Self {
         self.log_settings.log_slow_statements(level, duration);
         self
+    }
+
+    #[cfg(feature = "any")]
+    fn get_kind(&self) -> AnyKind {
+        AnyKind::Mssql
     }
 }

@@ -1,3 +1,5 @@
+#[cfg(feature = "any")]
+use crate::any::AnyKind;
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 use crate::transaction::Transaction;
@@ -172,4 +174,8 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug {
         self.log_statements(LevelFilter::Off)
             .log_slow_statements(LevelFilter::Off, Duration::default())
     }
+
+    /// Returns the driver used for the connection.
+    #[cfg(feature = "any")]
+    fn get_kind(&self) -> AnyKind;
 }
