@@ -149,6 +149,11 @@ impl<'a, Db: Database> Arguments<'a, Db> {
         self.positional.iter()
     }
 
+    /// Returns an iterator of the named parameters.
+    pub fn named(&self) -> impl Iterator<Item = &Argument<'a, Db>> {
+        self.named.iter()
+    }
+
     /// Returns a reference to the argument at the location, if present.
     pub fn get<'x, I: ArgumentIndex<'a, Db>>(&'x self, index: &I) -> Option<&'x Argument<'a, Db>> {
         index.get(self)
@@ -156,6 +161,24 @@ impl<'a, Db: Database> Arguments<'a, Db> {
 }
 
 impl<'a, Db: Database> Argument<'a, Db> {
+    /// Gets the name of this argument, if it is a named argument, None otherwise
+    pub fn name<'b>(&'b self) -> Option<&'a str>{
+        if let Either::Right(name) = self.parameter{
+            Some(name)
+        }else{
+            None
+        }
+    }
+
+    /// Gets the name of this argument, if it is a named argument, None otherwise
+    pub fn id(&self) -> Option<usize>{
+        if let Either::Left(id) = self.parameter{
+            Some(id)
+        }else{
+            None
+        }
+    }
+
     /// Returns the SQL type identifier of the argument.
     #[must_use]
     pub fn type_id(&self) -> Db::TypeId {
