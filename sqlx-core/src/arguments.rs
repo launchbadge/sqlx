@@ -163,20 +163,12 @@ impl<'a, Db: Database> Arguments<'a, Db> {
 impl<'a, Db: Database> Argument<'a, Db> {
     /// Gets the name of this argument, if it is a named argument, None otherwise
     pub fn name<'b>(&'b self) -> Option<&'a str>{
-        if let Either::Right(name) = self.parameter{
-            Some(name)
-        }else{
-            None
-        }
+        self.parameter.right()
     }
 
-    /// Gets the name of this argument, if it is a named argument, None otherwise
-    pub fn id(&self) -> Option<usize>{
-        if let Either::Left(id) = self.parameter{
-            Some(id)
-        }else{
-            None
-        }
+    /// Gets the position of this argument, if it is a positional argument, None otherwise
+    pub fn position(&self) -> Option<usize>{
+        self.parameter.left()
     }
 
     /// Returns the SQL type identifier of the argument.
