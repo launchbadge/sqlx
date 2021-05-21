@@ -31,6 +31,11 @@ impl<'q, 'a, Db: Database, Rt: Runtime> Query<'q, 'a, Db, Rt> {
         self.arguments.add_unchecked(value);
         self
     }
+
+    pub fn bind_named<T: 'a + TypeEncode<Db>>(&mut self, name: &'a str, value: &'a T) -> &mut Self{ //we don't use AsRef<str> since that breaks lifetimes
+        self.arguments.add_as(name, value);
+        self
+    }
 }
 
 #[cfg(feature = "async")]
