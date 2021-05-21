@@ -245,7 +245,7 @@
 /// # async fn main() {
 /// # let mut conn = panic!();
 /// #[derive(sqlx::Type)]
-/// #[sqlx(transparent)
+/// #[sqlx(transparent)]
 /// struct MyInt4(i32);
 ///
 /// let my_int = MyInt4(1);
