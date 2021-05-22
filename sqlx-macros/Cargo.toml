@@ -58,7 +58,7 @@ _rt-async-std = []
 _rt-tokio = []
 
 # offline building support
-offline = ["sqlx-core/offline", "hex", "once_cell", "serde", "serde_json", "sha2"]
+offline = ["sqlx-core/offline", "hex", "serde", "serde_json", "sha2"]
 
 # database
 mysql = ["sqlx-core/mysql"]
@@ -82,7 +82,7 @@ futures = { version = "0.3.4", default-features = false, features = ["executor"]
 hex = { version = "0.4.2", optional = true }
 heck = "0.3.1"
 either = "1.5.3"
-once_cell = { version = "1.5.2", optional = true }
+once_cell = "1.5.2"
 proc-macro2 = { version = "1.0.9", default-features = false }
 sqlx-core = { version = "0.5.3", default-features = false, path = "../sqlx-core" }
 sqlx-rt = { version = "0.5.3", default-features = false, path = "../sqlx-rt" }
