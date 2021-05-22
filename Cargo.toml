@@ -17,7 +17,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.5.2"
+version = "0.5.3"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -31,7 +31,7 @@ authors = [
     "Austin Bonander <austin.bonander@gmail.com>",
     "Chloe Ross <orangesnowfox@gmail.com>",
     "Daniel Akhterov <akhterovd@gmail.com>",
-] # daniel@launchbadge.com
+]
 
 [package.metadata.docs.rs]
 features = ["all", "runtime-async-std-native-tls"]
@@ -129,8 +129,8 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { version = "0.5.2", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.5.2", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.5.3", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.5.3", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.31"

@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-cli"
-version = "0.5.2"
+version = "0.5.3"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
 edition = "2018"
 readme = "README.md"
@@ -27,7 +27,7 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread"] }
-sqlx = { version = "0.5.2", path = "..", default-features = false, features = [
+sqlx = { version = "0.5.3", path = "..", default-features = false, features = [
     "runtime-async-std-native-tls",
     "migrate",
     "any",

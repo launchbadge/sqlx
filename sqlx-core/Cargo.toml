@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.5.2"
+version = "0.5.3"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -100,7 +100,7 @@ offline = ["serde", "either/serde"]
 [dependencies]
 ahash = "0.7.2"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.5.2" }
+sqlx-rt = { path = "../sqlx-rt", version = "0.5.3" }
 base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
 bigdecimal_ = { version = "0.2.0", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.8.1", optional = true }
@@ -153,10 +153,10 @@ tokio-stream = { version = "0.1.2", features = ["fs"], optional = true }
 smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = ["std"] }
-webpki = { version = "0.21.3", optional = true }
-webpki-roots = { version = "0.21.0", optional = true }
+webpki = { version = "0.22.0", optional = true }
+webpki-roots = { version = "0.22.0", optional = true }
 whoami = "1.0.1"
 stringprep = "0.1.2"
 bstr = { version = "0.2.14", default-features = false, features = ["std"], optional = true }
 git2 = { version = "0.13.12", default-features = false, optional = true }
-hashlink = "0.6.0"
+hashlink = "0.7.0"

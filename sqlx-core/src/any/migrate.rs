@@ -80,6 +80,7 @@ impl Migrate for AnyConnection {
         }
     }
 
+    #[allow(deprecated)]
     fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
         match &mut self.0 {
             #[cfg(feature = "postgres")]
@@ -112,6 +113,7 @@ impl Migrate for AnyConnection {
         }
     }
 
+    #[allow(deprecated)]
     fn validate<'e: 'm, 'm>(
         &'e mut self,
         migration: &'m Migration,
