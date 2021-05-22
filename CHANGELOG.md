@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.3 - 2021-05-21
+
+-   [[#1211]] Even more tweaks and fixes to the Pool internals [[@abonander]]
+
+-   [[#1213]] Add support for bytes and `chrono::NaiveDateTime` to `Any` [[@guylapid]]
+
+-   [[#1224]] Add support for `chrono::DateTime<Local>` to `Any` with `MySQL` [[@NatPRoach]]
+
+-   [[#1216]] Skip empty lines and comments in pgpass files [[@feikesteenbergen]]
+
+-   [[#1218]] Add support for `PgMoney` to the compile-time type-checking [[@iamsiddhant05]]
+
+[#1211]: https://github.com/launchbadge/sqlx/pull/1211
+[#1213]: https://github.com/launchbadge/sqlx/pull/1213
+[#1216]: https://github.com/launchbadge/sqlx/pull/1216
+[#1218]: https://github.com/launchbadge/sqlx/pull/1218
+[#1224]: https://github.com/launchbadge/sqlx/pull/1224
+
 ## 0.5.2 - 2021-04-15
 
 -   [[#1149]] Tweak and optimize Pool internals [[@abonander]]
@@ -890,3 +908,6 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@crajcan]: https://github.com/crajcan
 [@demurgos]: https://github.com/demurgos
 [@link2xt]: https://github.com/link2xt
+[@guylapid]: https://github.com/guylapid
+[@natproach]: https://github.com/NatPRoach
+[@feikesteenbergen]: https://github.com/feikesteenbergen
