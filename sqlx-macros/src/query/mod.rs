@@ -37,7 +37,7 @@ struct Metadata {
 static METADATA: Lazy<Metadata> = Lazy::new(|| {
     use std::env;
 
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
+    let manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR")
         .expect("`CARGO_MANIFEST_DIR` must be set")
         .into();
 
@@ -47,7 +47,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
-    let env_path = METADATA.manifest_dir.join(".env");
+    let env_path = manifest_dir.join(".env");
     if env_path.exists() {
         let res = dotenv::from_path(&env_path);
         if let Err(e) = res {
