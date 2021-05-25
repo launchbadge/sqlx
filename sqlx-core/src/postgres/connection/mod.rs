@@ -62,6 +62,9 @@ pub struct PgConnection {
     pub(crate) transaction_depth: usize,
 
     log_settings: LogSettings,
+
+    // parameter status info from server
+    parameter_status_map: HashMap<String, String>,
 }
 
 impl PgConnection {
@@ -80,6 +83,14 @@ impl PgConnection {
         }
 
         Ok(())
+    }
+
+    fn get_parameter_status(&self, key: &str) -> Option<&String> {
+        self.parameter_status_map.get(key)
+    }
+
+    fn has_parameter_status(&self, key: &str) -> bool {
+        self.parameter_status_map.contains_key(key)
     }
 
     async fn recv_ready_for_query(&mut self) -> Result<(), Error> {

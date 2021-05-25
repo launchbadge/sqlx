@@ -4,6 +4,7 @@ use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
 use crate::postgres::connection::{sasl, stream::PgStream, tls};
+use crate::postgres::message::ParameterStatus;
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
@@ -56,6 +57,7 @@ impl PgConnection {
         let mut process_id = 0;
         let mut secret_key = 0;
         let transaction_status;
+        let mut parameter_status_map = HashMap::new();
 
         loop {
             let message = stream.recv().await?;
@@ -116,10 +118,23 @@ impl PgConnection {
 
                 MessageFormat::ReadyForQuery => {
                     // start-up is completed. The frontend can now issue commands
+                    println!("message.contents.len(): {}", message.contents.len());
                     transaction_status =
                         ReadyForQuery::decode(message.contents)?.transaction_status;
 
                     break;
+                }
+
+                MessageFormat::ParameterStatus => {
+                    // informs the frontend about the current (initial)
+                    // setting of backend parameters
+
+                    let parameter_status: ParameterStatus = message.decode()?;
+                    if parameter_status.key == "crdb_version" {
+                        //Currently all CockroachDB versions requires this
+                        println!("{}", parameter_status.val);
+                    }
+                    parameter_status_map.insert(parameter_status.key, parameter_status.val);
                 }
 
                 _ => {
@@ -143,6 +158,7 @@ impl PgConnection {
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
             log_settings: options.log_settings.clone(),
+            parameter_status_map,
         })
     }
 }

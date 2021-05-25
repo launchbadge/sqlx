@@ -400,12 +400,14 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
             .await?;
 
         // patch up our null inference with data from EXPLAIN
-        let nullable_patch = self
-            .nullables_from_explain(stmt_id, meta.parameters.len())
-            .await?;
+        if !self.has_parameter_status("crdb_version") {
+            let nullable_patch = self
+                .nullables_from_explain(stmt_id, meta.parameters.len())
+                .await?;
 
-        for (nullable, patch) in nullables.iter_mut().zip(nullable_patch) {
-            *nullable = patch.or(*nullable);
+            for (nullable, patch) in nullables.iter_mut().zip(nullable_patch) {
+                *nullable = patch.or(*nullable);
+            }
         }
 
         Ok(nullables)
