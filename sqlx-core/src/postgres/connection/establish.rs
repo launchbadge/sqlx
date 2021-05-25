@@ -118,7 +118,6 @@ impl PgConnection {
 
                 MessageFormat::ReadyForQuery => {
                     // start-up is completed. The frontend can now issue commands
-                    println!("message.contents.len(): {}", message.contents.len());
                     transaction_status =
                         ReadyForQuery::decode(message.contents)?.transaction_status;
 
@@ -130,10 +129,6 @@ impl PgConnection {
                     // setting of backend parameters
 
                     let parameter_status: ParameterStatus = message.decode()?;
-                    if parameter_status.key == "crdb_version" {
-                        //Currently all CockroachDB versions requires this
-                        println!("{}", parameter_status.val);
-                    }
                     parameter_status_map.insert(parameter_status.key, parameter_status.val);
                 }
 
