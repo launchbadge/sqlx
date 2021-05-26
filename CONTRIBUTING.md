@@ -54,6 +54,7 @@ and type parameters.
 | `'e` | Executor |
 | `'c` | Connection |
 | `'p` | Pool |
+| `'t` | Transaction |
 
 ### Type Parameters
 
