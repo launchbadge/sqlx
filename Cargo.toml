@@ -12,6 +12,7 @@ members = [
     "examples/postgres/listen",
     "examples/postgres/todos",
     "examples/postgres/mockable-todos",
+    "examples/postgres/transaction",
     "examples/sqlite/todos",
 ]
 
