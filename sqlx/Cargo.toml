@@ -28,6 +28,9 @@ async-std = ["async", "sqlx-core/async-std"]
 actix = ["async", "sqlx-core/actix"]
 tokio = ["async", "sqlx-core/tokio"]
 
+# Connection Pool
+pool = ["crossbeam-queue", "parking_lot"]
+
 # MySQL
 mysql = ["sqlx-mysql"]
 mysql-async = ["async", "mysql", "sqlx-mysql/async"]
@@ -38,8 +41,15 @@ postgres = ["sqlx-postgres"]
 postgres-async = ["async", "postgres", "sqlx-postgres/async"]
 postgres-blocking = ["blocking", "postgres", "sqlx-postgres/blocking"]
 
+
 [dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core" }
 sqlx-mysql = { version = "0.6.0-pre", path = "../sqlx-mysql", optional = true }
 sqlx-postgres = { version = "0.6.0-pre", path = "../sqlx-postgres", optional = true }
 futures-util = { version = "0.3", optional = true, features = ["io"] }
+
+crossbeam-queue = { version = "0.3.1", optional = true }
+parking_lot = { version = "0.11", optional = true }
+
+[dev-dependencies]
+futures = "0.3.5"

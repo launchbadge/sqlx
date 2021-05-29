@@ -46,6 +46,9 @@
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
+#[cfg(feature = "pool")]
+pub mod pool;
+
 mod query;
 mod query_as;
 mod runtime;
