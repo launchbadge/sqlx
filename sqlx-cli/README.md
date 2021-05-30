@@ -49,17 +49,19 @@ $ sqlx migrate run
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
 
-#### Enable building in "offline" mode with `query!()`
+#### Enable building in "offline mode" with `query!()`
 
 Note: must be run as `cargo sqlx`.
 
 ```bash
 cargo sqlx prepare
 ```
-Saves query data to `sqlx-data.json` in the current directory; check this file into version control
-and an active database connection will no longer be needed to build your project.
 
-Has no effect unless the `offline` feature of `sqlx` is enabled in your project. Omitting that feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
+Saves query metadata to `sqlx-data.json` in the current directory; check this file into version
+control and an active database connection will no longer be needed to build your project.
+
+Has no effect unless the `offline` feature of `sqlx` is enabled in your project. Omitting that
+feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
 
 ```json
 {
@@ -67,10 +69,12 @@ Has no effect unless the `offline` feature of `sqlx` is enabled in your project.
 }
 ```
 
-----
+---
+
 ```bash
 cargo sqlx prepare --check
 ```
+
 Exits with a nonzero exit status if the data in `sqlx-data.json` is out of date with the current
 database schema and queries in the project. Intended for use in Continuous Integration.
 
@@ -79,3 +83,6 @@ database schema and queries in the project. Intended for use in Continuous Integ
 To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
 variable to `true`.
+
+If you want to make this the default, just add it to your `.env` file. `cargo sqlx prepare` will
+still do the right thing and connect to the database.
