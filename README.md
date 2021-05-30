@@ -59,8 +59,7 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
--   **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
-    compile time. (You can still use dynamic SQL queries if you like.)
+-   **Compile-time checked queries** (if you want). See [SQLx is not an ORM](#sqlx-is-not-an-orm).
 
 -   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
 
@@ -173,6 +172,24 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
 
 -   `tls`: Add support for TLS connections.
+
+## SQLx is not an ORM!
+
+SQLx supports **compile-time checked queries**. It does not, however, do this by providing a Rust
+API or DSL (domain-specific language) for building queries. Instead, it provides macros that take
+regular SQL as an input and ensure that it is valid for your database. The way this works is that
+SQLx connects to your development DB at compile time to have the database itself verify (and return
+some info on) your SQL queries. This has some potentially surprising implications:
+
+- Since SQLx never has to parse the SQL string itself, any syntax that the development DB accepts
+  can be used (including things added by database extensions)
+- Due to the different amount of information databases let you retrieve about queries, the extent of
+  SQL verification you get from the query macros depends on the database
+
+**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`], which is built on top
+of SQLx.
+
+[`ormx`]: https://crates.io/crates/ormx
 
 ## Usage
 
