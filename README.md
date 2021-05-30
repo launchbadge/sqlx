@@ -359,8 +359,8 @@ Differences from `query()`:
     ```
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
-officially supporting anonymous records). To address that, there is a `query_as!()` macro that is identical
-except that you can name the output type.
+officially supporting anonymous records). To address that, there is a `query_as!()` macro that is 
+mostly identical except that you can name the output type.
 
 ```rust
 // no traits are needed
@@ -381,6 +381,11 @@ WHERE organization = ?
 // countries[0].country
 // countries[0].count
 ```
+
+To avoid the need of having a development database around to compile the project even when no
+modifications (to the database-accessing parts of the code) are done, you can enable "offline mode"
+to cache the results of the SQL query analysis using the `sqlx` command-line tool. See
+[sqlx-cli/README.md](./sqlx-cli/README.md#enable-building-in-offline-mode-with-query).
 
 ## Safety
 
