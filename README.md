@@ -112,6 +112,8 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
 [`actix`]: https://github.com/actix/actix-net
+[`native-tls`]: https://crates.io/crates/native-tls
+[`rustls`]: https://crates.io/crates/rustls
 
 ```toml
 # Cargo.toml
