@@ -50,7 +50,7 @@
 <br />
 
 <div align="center">
-  <sub>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a></sub>
+  <small>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a></small>
 </div>
 
 <br />
@@ -68,11 +68,15 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)) and TLS backends ([native-tls](https://crates.io/crates/native-tls), [rustls](https://crates.io/crates/rustls)).
 
-<sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
-we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
+<small><small>
 
-<sub><sup>†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
-with C, those interactions are `unsafe`.</sup></sub>
+† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
+we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
+
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
+with C, those interactions are `unsafe`.
+
+</small></small>
 
 [postgresql]: http://postgresql.org/
 [sqlite]: https://sqlite.org/
@@ -118,7 +122,7 @@ sqlx = { version = "0.5", features = [ "runtime-tokio-rustls" ] }
 sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 ```
 
-<sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
+<small><small>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</small></small>
 
 #### Cargo Feature Flags
 
