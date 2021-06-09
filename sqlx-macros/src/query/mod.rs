@@ -303,7 +303,8 @@ where
                 for rust_col in &columns {
                     if rust_col.type_.is_wildcard() {
                         return Err(
-                            "columns may not have wildcard overrides in `query!()` or `query_as!()"
+                            "wildcard overrides are only allowed with an explicit record type, \
+                             e.g. `query_as!()` and its variants"
                                 .into(),
                         );
                     }
