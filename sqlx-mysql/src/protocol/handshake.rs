@@ -112,7 +112,7 @@ impl Deserialize<'_> for Handshake {
             status,
             auth_plugin_data: auth_plugin_data_1.chain(auth_plugin_data_2),
             auth_plugin: auth_plugin_name
-                .map(|name| AuthPlugin::parse(&name))
+                .map(|name| <dyn AuthPlugin>::parse(&name))
                 .transpose()?
                 .unwrap_or_else(|| Box::new(NativeAuthPlugin)),
         })

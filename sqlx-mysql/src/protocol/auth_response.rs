@@ -5,7 +5,7 @@ use sqlx_core::io::Deserialize;
 use sqlx_core::Result;
 
 use crate::protocol::{AuthSwitch, Capabilities, ResultPacket};
-use crate::{MySqlClientError, MySqlDatabaseError};
+use crate::MySqlClientError;
 
 #[derive(Debug)]
 pub(crate) enum AuthResponse {

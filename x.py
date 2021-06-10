@@ -235,7 +235,7 @@ def run_integration_test(project: str, database: str):
         "-q" if argv.quiet else None,
         "--message-format", "human" if argv.verbose else "short",
         "--manifest-path", f"{project}/Cargo.toml",
-        "--features", "async",
+        "--features", "async,sqlx-core/tokio",
         *unknown,
     ] if x], env=env, cwd=project_dir, comment=f"integration test {project}", tag=tag)
 

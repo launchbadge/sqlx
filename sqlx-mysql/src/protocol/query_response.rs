@@ -4,7 +4,7 @@ use sqlx_core::Result;
 
 use super::{Capabilities, ResultPacket};
 use crate::io::MySqlBufExt;
-use crate::{MySqlClientError, MySqlDatabaseError};
+use crate::MySqlClientError;
 
 /// The query-response packet is a meta-packet that starts with one of:
 ///

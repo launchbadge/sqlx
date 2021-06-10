@@ -102,7 +102,11 @@ impl Deref for CommandGuard<'_, QueryCommand> {
     fn deref(&self) -> &Self::Target {
         debug_assert!(!self.ended);
 
-        if let Command::Query(cmd) = &self.queue.0[self.index] { cmd } else { unreachable!() }
+        if let Command::Query(cmd) = &self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -110,7 +114,11 @@ impl DerefMut for CommandGuard<'_, QueryCommand> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         debug_assert!(!self.ended);
 
-        if let Command::Query(cmd) = &mut self.queue.0[self.index] { cmd } else { unreachable!() }
+        if let Command::Query(cmd) = &mut self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -139,7 +147,11 @@ impl Deref for CommandGuard<'_, PrepareCommand> {
     fn deref(&self) -> &Self::Target {
         debug_assert!(!self.ended);
 
-        if let Command::Prepare(cmd) = &self.queue.0[self.index] { cmd } else { unreachable!() }
+        if let Command::Prepare(cmd) = &self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -147,6 +159,10 @@ impl DerefMut for CommandGuard<'_, PrepareCommand> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         debug_assert!(!self.ended);
 
-        if let Command::Prepare(cmd) = &mut self.queue.0[self.index] { cmd } else { unreachable!() }
+        if let Command::Prepare(cmd) = &mut self.queue.0[self.index] {
+            cmd
+        } else {
+            unreachable!()
+        }
     }
 }

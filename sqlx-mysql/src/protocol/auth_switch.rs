@@ -28,7 +28,7 @@ impl Deserialize<'_> for AuthSwitch {
 
         let plugin_data = buf.chain(Bytes::new());
 
-        let plugin = AuthPlugin::parse(&*name)?;
+        let plugin = <dyn AuthPlugin>::parse(&*name)?;
 
         Ok(Self { plugin, plugin_data })
     }

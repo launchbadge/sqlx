@@ -25,6 +25,7 @@ mod ping;
 pub struct MySqlConnection<Rt: Runtime> {
     stream: MySqlStream<Rt>,
     connection_id: u32,
+
     closed: bool,
 
     // the capability flags are used by the client and server to indicate which
@@ -59,6 +60,11 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
                 | Capabilities::SESSION_TRACK
                 | Capabilities::DEPRECATE_EOF,
         }
+    }
+
+    /// Returns the server-assigned connection identifier associated with this connection.
+    pub fn id(&self) -> u32 {
+        self.connection_id
     }
 }
 

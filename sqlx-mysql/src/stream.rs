@@ -7,7 +7,7 @@ use sqlx_core::net::Stream as NetStream;
 use sqlx_core::{Result, Runtime};
 
 use crate::protocol::{MaybeCommand, Packet, Quit};
-use crate::{MySqlClientError, MySqlDatabaseError};
+use crate::MySqlClientError;
 
 /// Reads and writes packets to and from the MySQL database server.
 ///
