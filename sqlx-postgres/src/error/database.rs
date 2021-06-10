@@ -25,6 +25,21 @@ impl DatabaseError for PgDatabaseError {
     fn message(&self) -> &str {
         self.0.message()
     }
+
+    #[inline(always)]
+    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[inline(always)]
+    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[inline(always)]
+    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+        self
+    }
 }
 
 impl From<PgDatabaseError> for Error {
