@@ -185,18 +185,18 @@ def run_database(db: str, *, force=False):
     if not force and not should_run(tag, default=False):
         return
 
-    out = subprocess.run([
+    stderr = subprocess.run([
         "docker-compose",
         "up",
         "-d",
         db,
-    ], cwd=project_dir, check=True, capture_output=True).stdout
+    ], cwd=project_dir, check=True, capture_output=True).stderr
 
     if db.startswith("mysql_") or db.startswith("mariadb_"):
         port = database_ports[db]
         url = f"mysql://root:password@localhost:{port}/sqlx"
 
-    if b"up-to-date" not in out:
+    if b"up-to-date" not in stderr:
         # sleep 10 seconds the first time we start-up the db
         time.sleep(10)
 

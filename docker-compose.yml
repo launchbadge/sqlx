@@ -33,3 +33,58 @@ services:
             MYSQL_DATABASE: "sqlx"
         volumes:
             - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mariadb_10_6:
+        image: mariadb:10.6
+        ports:
+            - 3320:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mariadb_10_5:
+        image: mariadb:10.5
+        ports:
+            - 3321:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mariadb_10_4:
+        image: mariadb:10.4
+        ports:
+            - 3322:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mariadb_10_3:
+        image: mariadb:10.3
+        ports:
+            - 3323:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mariadb_10_2:
+        image: mariadb:10.2
+        ports:
+            - 3324:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
