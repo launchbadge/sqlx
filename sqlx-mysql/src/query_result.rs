@@ -77,7 +77,11 @@ impl MySqlQueryResult {
     #[must_use]
     pub const fn inserted_id(&self) -> Option<u64> {
         // NOTE: a valid ID is never zero
-        if self.0.last_insert_id == 0 { None } else { Some(self.0.last_insert_id) }
+        if self.0.last_insert_id == 0 {
+            None
+        } else {
+            Some(self.0.last_insert_id)
+        }
     }
 
     /// Returns the number of errors, warnings, and notes generated during
@@ -152,7 +156,7 @@ impl QueryResult for MySqlQueryResult {
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
-    use conquer_once::Lazy;
+    use once_cell::sync::Lazy;
     use sqlx_core::io::Deserialize;
 
     use super::MySqlQueryResult;

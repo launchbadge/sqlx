@@ -7,9 +7,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 keywords = ["mysql", "sqlx", "database"]
 categories = ["database", "asynchronous"]
-authors = [
-    "LaunchBadge <contact@launchbadge.com>"
-]
+authors = ["LaunchBadge <contact@launchbadge.com>"]
 
 [package.metadata.docs.rs]
 # > RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features --no-deps --open
@@ -47,4 +45,4 @@ rand = "0.7"
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
 futures-executor = "0.3.8"
 anyhow = "1.0.37"
-conquer-once = "0.3.2"
+once_cell = "1.5.2"
