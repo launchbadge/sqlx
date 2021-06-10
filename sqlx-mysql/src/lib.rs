@@ -42,7 +42,7 @@ mod type_id;
 mod type_info;
 pub mod types;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "blocking"))]
 mod mock;
 
 pub use column::MySqlColumn;

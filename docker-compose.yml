@@ -1,0 +1,35 @@
+version: "3.3"
+
+services:
+    mysql_8:
+        image: mysql:8.0
+        ports:
+            - 3306:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mysql_5_7:
+        image: mysql:5.7
+        ports:
+            - 3307:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"
+
+    mysql_5_6:
+        image: mysql:5.6
+        ports:
+            - 3308:3306
+        environment:
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: "password"
+            MYSQL_DATABASE: "sqlx"
+        volumes:
+            - "./sqlx-mysql/tests/sqlx.sql:/docker-entrypoint-initdb.d/sqlx.sql"

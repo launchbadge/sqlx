@@ -153,7 +153,7 @@ impl<Rt: Runtime> MySqlConnection<Rt> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "blocking"))]
 mod tests {
     use std::str::FromStr;
 
