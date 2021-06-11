@@ -79,7 +79,7 @@ impl From<MySqlConnectOptions> for AnyConnectOptions {
 #[cfg(feature = "sqlite")]
 impl From<SqliteConnectOptions> for AnyConnectOptions {
     fn from(options: SqliteConnectOptions) -> Self {
-        Self(AnyConnectOptionsKind::Sqlite(options))
+        Self(AnyConnectOptionsKind::Sqlite(options.create_if_missing(true)))
     }
 }
 
