@@ -44,7 +44,7 @@ macro_rules! impl_flush {
 
                 Command::Simple => {
                     // simple commands where we expect an OK or ERR
-                    // ex. COM_PING, COM_QUERY, COM_STMT_RESET, COM_SET_OPTION
+                    // ex. COM_PING, COM_STMT_RESET, COM_SET_OPTION
                     maybe_end_with(commands, read_packet!($(@$blocking)? stream).deserialize_with(capabilities)?);
                 }
 

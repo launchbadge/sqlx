@@ -1123,6 +1123,7 @@ dependencies = [
  "sha-1",
  "sha2",
  "sqlx-core",
+ "sqlx-test",
  "tokio",
  "url",
 ]
@@ -1150,6 +1151,15 @@ dependencies = [
  "percent-encoding",
  "sqlx-core",
  "url",
+]
+
+[[package]]
+name = "sqlx-test"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "futures-util",
+ "tokio",
 ]
 
 [[package]]

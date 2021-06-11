@@ -1,9 +1,4 @@
 [workspace]
 default-members = ["sqlx"]
 
-members = [
-    "sqlx-core",
-    "sqlx-mysql",
-    "sqlx-postgres",
-    "sqlx",
-]
+members = ["sqlx-core", "sqlx-mysql", "sqlx-postgres", "sqlx-test", "sqlx"]

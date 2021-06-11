@@ -43,6 +43,7 @@ rand = "0.7"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
+sqlx-test = { path = "../sqlx-test" }
 futures-executor = "0.3.8"
 anyhow = "1.0.37"
 tokio = { version = "1.0", features = ["full"] }
