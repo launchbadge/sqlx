@@ -41,6 +41,7 @@ mod raw_value;
 pub mod row;
 mod runtime;
 mod r#type;
+pub mod transaction;
 mod type_info;
 
 #[doc(hidden)]
