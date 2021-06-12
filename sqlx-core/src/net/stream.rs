@@ -2,7 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use either::Either;
-#[cfg(feature = "async")]
+#[cfg(all(feature = "async", feature = "unix"))]
 use futures_util::future::{self, FutureExt};
 
 use crate::io::Stream as IoStream;
@@ -35,7 +35,7 @@ where
             Either::Right(socket) => Rt::connect_unix_async(socket).await.map(Self::Unix),
 
             #[cfg(not(unix))]
-            Either(_socket) => Err(io::Error::new(
+            Either::Right(_socket) => Err(io::Error::new(
                 io::ErrorKind::Other,
                 "Unix streams are not supported outside Unix platforms",
             )),
@@ -54,7 +54,7 @@ where
             Either::Right(socket) => Rt::connect_unix(socket).map(Self::Unix),
 
             #[cfg(not(unix))]
-            Either(_socket) => Err(io::Error::new(
+            Either::Right(_socket) => Err(io::Error::new(
                 io::ErrorKind::Other,
                 "Unix streams are not supported outside Unix platforms",
             )),
@@ -207,8 +207,7 @@ where
         Rt: crate::Async,
     {
         match self {
-            Self::Tcp(stream) => stream.shutdown_async().left_future(),
-            Self::Unix(stream) => stream.shutdown_async().right_future(),
+            Self::Tcp(stream) => stream.shutdown_async(),
         }
     }
 
@@ -236,12 +235,12 @@ where
 
     #[doc(hidden)]
     #[cfg(feature = "blocking")]
-    fn shutdown(&'s mut self) -> io::Result<usize>
+    fn shutdown(&'s mut self) -> io::Result<()>
     where
         Rt: crate::blocking::Runtime,
     {
         match self {
-            Self::Tcp(stream) => stream.shutdown(buf),
+            Self::Tcp(stream) => stream.shutdown(),
         }
     }
 }
