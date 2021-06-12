@@ -4,4 +4,5 @@ members = [
     "quickstart/mysql+async-std",
     "quickstart/mysql+tokio",
     "quickstart/postgres+async-std",
+    "quickstart/mysql+quickstart",
 ]
