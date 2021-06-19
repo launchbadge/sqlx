@@ -29,8 +29,6 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         })?
         .to_owned();
 
-    filename.push('\0');
-
     // By default, we connect to an in-memory database.
     // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
     // cannot satisfy our wish for a thread-safe, lock-free connection object
@@ -54,6 +52,13 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
     } else {
         SQLITE_OPEN_PRIVATECACHE
     };
+
+    if options.immutable {
+        filename = format!("file:{}?immutable=true", filename);
+        flags |= libsqlite3_sys::SQLITE_OPEN_URI;
+    }
+
+    filename.push('\0');
 
     let busy_timeout = options.busy_timeout;
 
