@@ -184,6 +184,10 @@ impl<DB: Database> SharedPool<DB> {
                 future::poll_fn(|cx| -> Poll<()> {
                     let waiter = waiter.get_or_insert_with(|| Waiter::push_new(cx, &self.waiters));
 
+                    if !self.idle_conns.is_empty() {
+                        return Poll::Ready(());
+                    }
+
                     if waiter.is_woken() {
                         waiter.actually_woke = true;
                         Poll::Ready(())
