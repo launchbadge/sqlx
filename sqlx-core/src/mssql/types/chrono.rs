@@ -1,35 +1,3 @@
-
-Skip to content
-Pull requests
-Issues
-Marketplace
-Explore
-@XuTuKe
-launchbadge /
-sqlx
-
-61
-4.2k
-
-    400
-
-Code
-Issues 260
-Pull requests 20
-Discussions
-Actions
-Wiki
-Security
-
-    Insights
-
-sqlx/sqlx-core/src/mssql/types/chrono.rs
-@danielakhterov
-danielakhterov feat: add support for chrono on mssql
-Latest commit 416375d on Jul 8, 2020
-History
-1 contributor
-104 lines (85 sloc) 2.86 KB
 use std::mem;
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -134,19 +102,3 @@ impl<'r> Decode<'r, Mssql> for DateTime<Utc> {
         todo!()
     }
 }
-
-    © 2021 GitHub, Inc.
-    Terms
-    Privacy
-    Security
-    Status
-    Docs
-
-    Contact GitHub
-    Pricing
-    API
-    Training
-    Blog
-    About
-
-Loading complete
