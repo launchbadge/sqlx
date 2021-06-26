@@ -491,7 +491,9 @@ impl TypeInfo {
             DataType::BigInt => "BIGINT",
             DataType::Real => "REAL",
             DataType::Float => "FLOAT",
-
+            DataType::DateTime2N => "DATETIME2",
+            DataType::DateTimeN => "DATETIME",
+            DataType::DateN => "DATE",
             DataType::IntN => match self.size {
                 1 => "TINYINT",
                 2 => "SMALLINT",
@@ -529,7 +531,15 @@ impl TypeInfo {
             DataType::Real => s.push_str("real"),
             DataType::Float => s.push_str("float"),
             DataType::Bit => s.push_str("bit"),
-
+            DataType::DateN => {
+                s.push_str("date");
+            },
+            DataType::DateTime2N => {
+                s.push_str("datetime2");
+            },
+            DataType::DateTimeN => {
+                s.push_str("datetime");
+            },
             DataType::IntN => s.push_str(match self.size {
                 1 => "tinyint",
                 2 => "smallint",
