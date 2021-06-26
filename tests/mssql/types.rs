@@ -41,3 +41,14 @@ test_type!(bool(
     "CAST(1 as BIT)" == true,
     "CAST(0 as BIT)" == false
 ));
+
+#[cfg(feature = "chrono")]
+mod chrono {
+    use super::*;
+    use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    test_type!(chrono_date<NaiveDateTime>(Mssql,
+        "CAST('2020-07-08 01:0:0.000' as datetime)" == NaiveDate::from_ymd(2020, 7, 8).and_hms_milli(1, 0, 0, 0),
+        "CAST('2020-07-08 01:41:21.900' as datetime)" == NaiveDate::from_ymd(2020, 7, 8).and_hms_milli(1, 41, 21, 900),
+        "CAST('2020-07-08 01:43:18.537' as datetime)" == NaiveDate::from_ymd(2020, 7, 8).and_hms_milli(1, 43, 18, 530)
+    ));
+}
