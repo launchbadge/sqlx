@@ -2,7 +2,7 @@ use crate::database::Database;
 use crate::pool::PoolConnection;
 use std::ops::{Deref, DerefMut};
 
-pub(crate) enum MaybePoolConnection<'c, DB: Database> {
+pub enum MaybePoolConnection<'c, DB: Database> {
     #[allow(dead_code)]
     Connection(&'c mut DB::Connection),
     PoolConnection(PoolConnection<DB>),
