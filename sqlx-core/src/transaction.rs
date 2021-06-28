@@ -54,7 +54,7 @@ pub struct Transaction<'c, DB>
 where
     DB: Database,
 {
-    connection: MaybePoolConnection<'c, DB>,
+    pub connection: MaybePoolConnection<'c, DB>,
     open: bool,
 }
 
