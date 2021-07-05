@@ -3,7 +3,7 @@ use rustls::{
     Certificate, ClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier, TLSError,
     WebPKIVerifier,
 };
-use std::io::Cursor;
+use std::io::{BufReader, Cursor};
 use std::sync::Arc;
 use webpki::DNSNameRef;
 
@@ -34,6 +34,21 @@ pub async fn configure_tls_connector(
                 .root_store
                 .add_pem_file(&mut cursor)
                 .map_err(|_| Error::Tls(format!("Invalid certificate {}", ca).into()))?;
+        }
+
+        if let (Some(cert), Some(key)) = (client_cert_path, client_key_path) {
+            let key_data = key.data().await?;
+            let cert_data = cert.data().await?;
+            let certs = to_certs(cert_data);
+            let key = to_private_key(key_data)?;
+            match config.set_single_client_cert(certs, key) {
+                Ok(_) => (),
+                Err(err) => {
+                    return Err(Error::Configuration(
+                        format!("no keys found in: {:?}", err).into(),
+                    ))
+                }
+            }
         }
 
         if accept_invalid_hostnames {
@@ -78,4 +93,30 @@ impl ServerCertVerifier for NoHostnameTlsVerifier {
             res => res,
         }
     }
+}
+
+fn to_certs(pem: Vec<u8>) -> Vec<rustls::Certificate> {
+    let cur = Cursor::new(pem);
+    let mut reader = BufReader::new(cur);
+    rustls_pemfile::certs(&mut reader)
+        .unwrap()
+        .iter()
+        .map(|v| rustls::Certificate(v.clone()))
+        .collect()
+}
+
+fn to_private_key(pem: Vec<u8>) -> Result<rustls::PrivateKey, Error> {
+    let cur = Cursor::new(pem);
+    let mut reader = BufReader::new(cur);
+
+    loop {
+        match rustls_pemfile::read_one(&mut reader)? {
+            Some(rustls_pemfile::Item::RSAKey(key)) => return Ok(rustls::PrivateKey(key)),
+            Some(rustls_pemfile::Item::PKCS8Key(key)) => return Ok(rustls::PrivateKey(key)),
+            None => break,
+            _ => {}
+        }
+    }
+
+    Err(Error::Configuration("no keys found pem file".into()))
 }

@@ -1041,7 +1041,7 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
             .await;
 
         let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
+        assert_eq!(result.rows_affected(), 0);
     }
 
     {
