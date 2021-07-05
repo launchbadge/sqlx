@@ -16,6 +16,7 @@
 #![cfg_attr(feature = "sqlite", deny(unsafe_code))]
 #![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
 
+#![feature(future_readiness_fns)]
 #[cfg(feature = "bigdecimal")]
 extern crate bigdecimal_ as bigdecimal;
 
