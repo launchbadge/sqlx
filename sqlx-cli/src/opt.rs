@@ -69,14 +69,14 @@ pub enum DatabaseCommand {
         #[clap(short)]
         yes: bool,
 
-        /// Path to folder containing migrations. Defaults to 'migrations'
+        /// Path to folder containing migrations.
         #[clap(long, default_value = "migrations")]
         source: String,
     },
 
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
     Setup {
-        /// Path to folder containing migrations. Defaults to 'migrations'
+        /// Path to folder containing migrations.
         #[clap(long, default_value = "migrations")]
         source: String,
     },
@@ -85,7 +85,7 @@ pub enum DatabaseCommand {
 /// Group of commands for creating and running migrations.
 #[derive(Clap, Debug)]
 pub struct MigrateOpt {
-    /// Path to folder containing migrations. Defaults to 'migrations'
+    /// Path to folder containing migrations.
     #[clap(long, default_value = "migrations")]
     pub source: String,
 

@@ -50,7 +50,7 @@
 <br />
 
 <div align="center">
-  <sub>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a></sub>
+  <small>Built with ❤️ by <a href="https://launchbadge.com">The LaunchBadge team</a></small>
 </div>
 
 <br />
@@ -59,20 +59,23 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
 
--   **Type-safe SQL** (if you want it) without DSLs. Use the `query!()` macro to check your SQL and bind parameters at
-    compile time. (You can still use dynamic SQL queries if you like.)
+-   **Compile-time checked queries** (if you want). See [SQLx is not an ORM](#sqlx-is-not-an-orm).
 
 -   **Database Agnostic**. Support for [PostgreSQL], [MySQL], [SQLite], and [MSSQL].
 
 -   **Pure Rust**. The Postgres and MySQL/MariaDB drivers are written in pure Rust using **zero** unsafe<sub>††</sub> code.
 
-*   **Runtime Agnostic**. Works on different runtimes ([async-std](https://crates.io/crates/async-std) / [tokio](https://crates.io/crates/tokio) / [actix](https://crates.io/crates/actix-rt)) and TLS backends ([native-tls](https://crates.io/crates/native-tls), [rustls](https://crates.io/crates/rustls)).
+-   **Runtime Agnostic**. Works on different runtimes ([`async-std`] / [`tokio`] / [`actix`]) and TLS backends ([`native-tls`], [`rustls`]).
 
-<sub><sup>† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
-we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).</sup></sub>
+<small><small>
 
-<sub><sup>†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
-with C, those interactions are `unsafe`.</sup></sub>
+† The SQLite driver uses the libsqlite3 C library as SQLite is an embedded database (the only way
+we could be pure Rust for SQLite is by porting _all_ of SQLite to Rust).
+
+†† SQLx uses `#![forbid(unsafe_code)]` unless the `sqlite` feature is enabled. As the SQLite driver interacts
+with C, those interactions are `unsafe`.
+
+</small></small>
 
 [postgresql]: http://postgresql.org/
 [sqlite]: https://sqlite.org/
@@ -108,6 +111,8 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 [`async-std`]: https://github.com/async-rs/async-std
 [`tokio`]: https://github.com/tokio-rs/tokio
 [`actix`]: https://github.com/actix/actix-net
+[`native-tls`]: https://crates.io/crates/native-tls
+[`rustls`]: https://crates.io/crates/rustls
 
 ```toml
 # Cargo.toml
@@ -118,7 +123,7 @@ sqlx = { version = "0.5", features = [ "runtime-tokio-rustls" ] }
 sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 ```
 
-<sub><sup>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</sup></sub>
+<small><small>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</small></small>
 
 #### Cargo Feature Flags
 
@@ -167,6 +172,24 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.
 
 -   `tls`: Add support for TLS connections.
+
+## SQLx is not an ORM!
+
+SQLx supports **compile-time checked queries**. It does not, however, do this by providing a Rust
+API or DSL (domain-specific language) for building queries. Instead, it provides macros that take
+regular SQL as an input and ensure that it is valid for your database. The way this works is that
+SQLx connects to your development DB at compile time to have the database itself verify (and return
+some info on) your SQL queries. This has some potentially surprising implications:
+
+- Since SQLx never has to parse the SQL string itself, any syntax that the development DB accepts
+  can be used (including things added by database extensions)
+- Due to the different amount of information databases let you retrieve about queries, the extent of
+  SQL verification you get from the query macros depends on the database
+
+**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`], which is built on top
+of SQLx.
+
+[`ormx`]: https://crates.io/crates/ormx
 
 ## Usage
 
@@ -336,8 +359,8 @@ Differences from `query()`:
     ```
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
-officially supporting anonymous records). To address that, there is a `query_as!()` macro that is identical
-except that you can name the output type.
+officially supporting anonymous records). To address that, there is a `query_as!()` macro that is 
+mostly identical except that you can name the output type.
 
 ```rust
 // no traits are needed
@@ -358,6 +381,11 @@ WHERE organization = ?
 // countries[0].country
 // countries[0].count
 ```
+
+To avoid the need of having a development database around to compile the project even when no
+modifications (to the database-accessing parts of the code) are done, you can enable "offline mode"
+to cache the results of the SQL query analysis using the `sqlx` command-line tool. See
+[sqlx-cli/README.md](./sqlx-cli/README.md#enable-building-in-offline-mode-with-query).
 
 ## Safety
 

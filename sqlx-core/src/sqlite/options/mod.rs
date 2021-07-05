@@ -62,6 +62,7 @@ pub struct SqliteConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) synchronous: SqliteSynchronous,
     pub(crate) auto_vacuum: SqliteAutoVacuum,
+    pub(crate) page_size: u32,
 }
 
 impl Default for SqliteConnectOptions {
@@ -86,6 +87,7 @@ impl SqliteConnectOptions {
             log_settings: Default::default(),
             synchronous: SqliteSynchronous::Full,
             auto_vacuum: Default::default(),
+            page_size: 4096,
         }
     }
 
@@ -100,6 +102,14 @@ impl SqliteConnectOptions {
     /// By default, this is enabled.
     pub fn foreign_keys(mut self, on: bool) -> Self {
         self.foreign_keys = on;
+        self
+    }
+
+    /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
+    ///
+    /// By default, this is disabled.
+    pub fn shared_cache(mut self, on: bool) -> Self {
+        self.shared_cache = on;
         self
     }
 
@@ -170,6 +180,14 @@ impl SqliteConnectOptions {
     /// The default auto_vacuum setting is NONE.
     pub fn auto_vacuum(mut self, auto_vacuum: SqliteAutoVacuum) -> Self {
         self.auto_vacuum = auto_vacuum;
+        self
+    }
+
+    /// Sets the [page_size](https://www.sqlite.org/pragma.html#pragma_page_size) setting for the database connection.
+    ///
+    /// The default page_size setting is 4096.
+    pub fn page_size(mut self, page_size: u32) -> Self {
+        self.page_size = page_size;
         self
     }
 }

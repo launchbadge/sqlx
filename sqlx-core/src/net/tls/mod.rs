@@ -262,7 +262,9 @@ where
             #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
             MaybeTlsStream::Tls(s) => s.get_ref().get_ref().get_ref(),
 
-            MaybeTlsStream::Upgrading => panic!(io::Error::from(io::ErrorKind::ConnectionAborted)),
+            MaybeTlsStream::Upgrading => {
+                panic!("{}", io::Error::from(io::ErrorKind::ConnectionAborted))
+            }
         }
     }
 }
@@ -284,7 +286,9 @@ where
             #[cfg(all(not(feature = "_rt-async-std"), feature = "_tls-native-tls"))]
             MaybeTlsStream::Tls(s) => s.get_mut().get_mut().get_mut(),
 
-            MaybeTlsStream::Upgrading => panic!(io::Error::from(io::ErrorKind::ConnectionAborted)),
+            MaybeTlsStream::Upgrading => {
+                panic!("{}", io::Error::from(io::ErrorKind::ConnectionAborted))
+            }
         }
     }
 }

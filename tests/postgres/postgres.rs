@@ -509,26 +509,31 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     eprintln!("starting pool");
 
     let pool = PgPoolOptions::new()
-        .connect_timeout(Duration::from_secs(30))
-        .min_connections(5)
-        .max_connections(10)
+        .connect_timeout(Duration::from_secs(5))
+        .min_connections(1)
+        .max_connections(1)
         .connect(&dotenv::var("DATABASE_URL")?)
         .await?;
 
     // spin up more tasks than connections available, and ensure we don't deadlock
-    for i in 0..20 {
+    for i in 0..200 {
         let pool = pool.clone();
         sqlx_rt::spawn(async move {
             loop {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
-                    eprintln!("pool task {} dying due to {}", i, e);
-                    break;
+                    // normal error at termination of the test
+                    if !matches!(e, sqlx::Error::PoolClosed) {
+                        eprintln!("pool task {} dying due to {}", i, e);
+                        break;
+                    }
                 }
             }
         });
     }
 
-    for _ in 0..5 {
+    // spawn a bunch of tasks that attempt to acquire but give up to ensure correct handling
+    // of cancellations
+    for _ in 0..50 {
         let pool = pool.clone();
         sqlx_rt::spawn(async move {
             while !pool.is_closed() {

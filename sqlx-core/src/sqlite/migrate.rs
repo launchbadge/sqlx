@@ -6,6 +6,7 @@ use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
 use crate::query::query;
 use crate::query_as::query_as;
+use crate::query_scalar::query_scalar;
 use crate::sqlite::{Sqlite, SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
 use sqlx_rt::fs;
@@ -73,6 +74,19 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         })
     }
 
+    fn version(&mut self) -> BoxFuture<'_, Result<Option<(i64, bool)>, MigrateError>> {
+        Box::pin(async move {
+            // language=SQLite
+            let row = query_as(
+                "SELECT version, NOT success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1",
+            )
+            .fetch_optional(self)
+            .await?;
+
+            Ok(row)
+        })
+    }
+
     fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
         Box::pin(async move {
             // language=SQLite
@@ -114,6 +128,30 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
     fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
         Box::pin(async move { Ok(()) })
+    }
+
+    fn validate<'e: 'm, 'm>(
+        &'e mut self,
+        migration: &'m Migration,
+    ) -> BoxFuture<'m, Result<(), MigrateError>> {
+        Box::pin(async move {
+            // language=SQL
+            let checksum: Option<Vec<u8>> =
+                query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = ?1")
+                    .bind(migration.version)
+                    .fetch_optional(self)
+                    .await?;
+
+            if let Some(checksum) = checksum {
+                if checksum == &*migration.checksum {
+                    Ok(())
+                } else {
+                    Err(MigrateError::VersionMismatch(migration.version))
+                }
+            } else {
+                Err(MigrateError::VersionMissing(migration.version))
+            }
+        })
     }
 
     fn apply<'e: 'm, 'm>(
