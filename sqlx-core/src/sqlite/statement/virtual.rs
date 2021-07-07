@@ -8,8 +8,7 @@ use crate::sqlite::{SqliteColumn, SqliteError, SqliteRow, SqliteValue};
 use crate::HashMap;
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
-    sqlite3, sqlite3_clear_bindings, sqlite3_prepare_v3, sqlite3_reset, sqlite3_stmt, SQLITE_OK,
-    SQLITE_PREPARE_PERSISTENT,
+    sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
 use smallvec::SmallVec;
 use std::i32;
@@ -92,7 +91,7 @@ fn prepare(
         query.advance(n);
 
         if let Some(handle) = NonNull::new(statement_handle) {
-            return Ok(Some(StatementHandle(handle)));
+            return Ok(Some(StatementHandle::new(handle)));
         }
     }
 
@@ -183,13 +182,11 @@ impl VirtualStatement {
         for (i, handle) in self.handles.iter().enumerate() {
             SqliteRow::inflate_if_needed(&handle, &self.columns[i], self.last_row_values[i].take());
 
-            unsafe {
-                // Reset A Prepared Statement Object
-                // https://www.sqlite.org/c3ref/reset.html
-                // https://www.sqlite.org/c3ref/clear_bindings.html
-                sqlite3_reset(handle.0.as_ptr());
-                sqlite3_clear_bindings(handle.0.as_ptr());
-            }
+            // Reset A Prepared Statement Object
+            // https://www.sqlite.org/c3ref/reset.html
+            // https://www.sqlite.org/c3ref/clear_bindings.html
+            handle.reset();
+            handle.clear_bindings();
         }
     }
 }

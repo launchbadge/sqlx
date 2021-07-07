@@ -3,7 +3,6 @@ use crate::sqlite::statement::StatementHandle;
 use crossbeam_channel::{unbounded, Sender};
 use either::Either;
 use futures_channel::oneshot;
-use libsqlite3_sys::{sqlite3_step, SQLITE_DONE, SQLITE_ROW};
 use std::sync::{Arc, Weak};
 use std::thread;
 
@@ -33,14 +32,7 @@ impl StatementWorker {
                 match cmd {
                     StatementWorkerCommand::Step { statement, tx } => {
                         let resp = if let Some(statement) = statement.upgrade() {
-                            let status = unsafe { sqlite3_step(statement.0.as_ptr()) };
-
-                            let resp = match status {
-                                SQLITE_ROW => Ok(Either::Right(())),
-                                SQLITE_DONE => Ok(Either::Left(statement.changes())),
-                                _ => Err(statement.last_error().into()),
-                            };
-                            resp
+                            statement.step()
                         } else {
                             // Statement is already finalized.
                             Err(Error::WorkerCrashed)
