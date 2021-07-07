@@ -4,6 +4,7 @@ use crossbeam_channel::{unbounded, Sender};
 use either::Either;
 use futures_channel::oneshot;
 use libsqlite3_sys::{sqlite3_step, SQLITE_DONE, SQLITE_ROW};
+use std::sync::{Arc, Weak};
 use std::thread;
 
 // Each SQLite connection has a dedicated thread.
@@ -18,7 +19,7 @@ pub(crate) struct StatementWorker {
 
 enum StatementWorkerCommand {
     Step {
-        statement: StatementHandle,
+        statement: Weak<StatementHandle>,
         tx: oneshot::Sender<Result<Either<u64, ()>, Error>>,
     },
 }
@@ -31,14 +32,19 @@ impl StatementWorker {
             for cmd in rx {
                 match cmd {
                     StatementWorkerCommand::Step { statement, tx } => {
-                        let status = unsafe { sqlite3_step(statement.0.as_ptr()) };
+                        let resp = if let Some(statement) = statement.upgrade() {
+                            let status = unsafe { sqlite3_step(statement.0.as_ptr()) };
 
-                        let resp = match status {
-                            SQLITE_ROW => Ok(Either::Right(())),
-                            SQLITE_DONE => Ok(Either::Left(statement.changes())),
-                            _ => Err(statement.last_error().into()),
+                            let resp = match status {
+                                SQLITE_ROW => Ok(Either::Right(())),
+                                SQLITE_DONE => Ok(Either::Left(statement.changes())),
+                                _ => Err(statement.last_error().into()),
+                            };
+                            resp
+                        } else {
+                            // Statement is already finalized.
+                            Err(Error::WorkerCrashed)
                         };
-
                         let _ = tx.send(resp);
                     }
                 }
@@ -50,12 +56,15 @@ impl StatementWorker {
 
     pub(crate) async fn step(
         &mut self,
-        statement: StatementHandle,
+        statement: &Arc<StatementHandle>,
     ) -> Result<Either<u64, ()>, Error> {
         let (tx, rx) = oneshot::channel();
 
         self.tx
-            .send(StatementWorkerCommand::Step { statement, tx })
+            .send(StatementWorkerCommand::Step {
+                statement: Arc::downgrade(statement),
+                tx,
+            })
             .map_err(|_| Error::WorkerCrashed)?;
 
         rx.await.map_err(|_| Error::WorkerCrashed)?

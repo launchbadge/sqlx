@@ -62,12 +62,14 @@ fn bind(
 /// A structure holding sqlite statement handle and resetting the
 /// statement when it is dropped.
 struct StatementResetter {
-    handle: StatementHandle,
+    handle: Arc<StatementHandle>,
 }
 
 impl StatementResetter {
-    fn new(handle: StatementHandle) -> Self {
-        Self { handle }
+    fn new(handle: &Arc<StatementHandle>) -> Self {
+        Self {
+            handle: Arc::clone(handle),
+        }
     }
 }
 
@@ -113,7 +115,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 // is dropped. `StatementResetter` will reliably reset the
                 // statement even if the stream returned from `fetch_many`
                 // is dropped early.
-                let _resetter = StatementResetter::new(*stmt);
+                let _resetter = StatementResetter::new(stmt);
 
                 // bind values to the statement
                 num_arguments += bind(stmt, &arguments, num_arguments)?;
@@ -125,7 +127,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                     // invoke [sqlite3_step] on the dedicated worker thread
                     // this will move us forward one row or finish the statement
-                    let s = worker.step(*stmt).await?;
+                    let s = worker.step(stmt).await?;
 
                     match s {
                         Either::Left(changes) => {
@@ -145,7 +147,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                         Either::Right(()) => {
                             let (row, weak_values_ref) = SqliteRow::current(
-                                *stmt,
+                                &stmt,
                                 columns,
                                 column_names
                             );
@@ -205,12 +207,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                 // invoke [sqlite3_step] on the dedicated worker thread
                 // this will move us forward one row or finish the statement
-                match worker.step(*stmt).await? {
+                match worker.step(stmt).await? {
                     Either::Left(_) => (),
 
                     Either::Right(()) => {
                         let (row, weak_values_ref) =
-                            SqliteRow::current(*stmt, columns, column_names);
+                            SqliteRow::current(stmt, columns, column_names);
 
                         *last_row_values = Some(weak_values_ref);
 
