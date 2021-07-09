@@ -55,6 +55,12 @@
 
 <br />
 
+<div align="center">
+    <h5>Have a question? Be sure to <a href="FAQ.md">check the FAQ first!</a></h5>
+</div>
+
+<br />
+
 SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time checked queries without a DSL.
 
 -   **Truly Asynchronous**. Built from the ground-up using async/await for maximum concurrency.
