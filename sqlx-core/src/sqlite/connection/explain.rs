@@ -3,6 +3,7 @@ use crate::query_as::query_as;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteConnection, SqliteTypeInfo};
 use crate::HashMap;
+use std::collections::hash_map::Entry;
 use std::str::from_utf8;
 
 // affinity
@@ -17,6 +18,8 @@ const SQLITE_AFF_REAL: u8 = 0x45; /* 'E' */
 const OP_INIT: &str = "Init";
 const OP_GOTO: &str = "Goto";
 const OP_COLUMN: &str = "Column";
+const OP_OPEN_READ: &str = "OpenRead";
+const OP_OPEN_WRITE: &str = "OpenWrite";
 const OP_AGG_STEP: &str = "AggStep";
 const OP_FUNCTION: &str = "Function";
 const OP_MOVE: &str = "Move";
@@ -34,6 +37,7 @@ const OP_BLOB: &str = "Blob";
 const OP_VARIABLE: &str = "Variable";
 const OP_COUNT: &str = "Count";
 const OP_ROWID: &str = "Rowid";
+const OP_NEWROWID: &str = "NewRowid";
 const OP_OR: &str = "Or";
 const OP_AND: &str = "And";
 const OP_BIT_AND: &str = "BitAnd";
@@ -73,13 +77,17 @@ fn opcode_to_type(op: &str) -> DataType {
     }
 }
 
+// Opcode Reference: https://sqlite.org/opcode.html
 pub(super) async fn explain(
     conn: &mut SqliteConnection,
     query: &str,
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
+    // Registers
     let mut r = HashMap::<i64, DataType>::with_capacity(6);
-    let mut r_cursor = HashMap::<i64, Vec<i64>>::with_capacity(6);
+    // Rows that each cursor points to
+    let mut r_cursor = HashMap::<i64, HashMap::<i64, DataType>>::with_capacity(6);
 
+    // Nullable columns
     let mut n = HashMap::<i64, bool>::with_capacity(6);
 
     let program =
@@ -119,10 +127,22 @@ pub(super) async fn explain(
             }
 
             OP_COLUMN => {
-                r_cursor.entry(p1).or_default().push(p3);
+                //Get the row stored at p1, or NULL
+                if let Entry::Occupied(record) = r_cursor.entry(p1) {
+                    //get the column stored at p2, or NULL
+                    if let Some(col) = record.get().get(&p2) {
+                        // insert into p3 the datatype of the col
+                        r.insert(p3, *col);
+                    }
+                }
 
-                // r[p3] = <value of column>
+                // conditionals not met -- return NULL
                 r.insert(p3, DataType::Null);
+            }
+
+            OP_OPEN_READ | OP_OPEN_WRITE => {
+                //Create a new pointer which is referenced by p1
+                r_cursor.insert(p1, HashMap::with_capacity(6));
             }
 
             OP_VARIABLE => {
@@ -147,7 +167,7 @@ pub(super) async fn explain(
             OP_NULL_ROW => {
                 // all values of cursor X are potentially nullable
                 for column in &r_cursor[&p1] {
-                    n.insert(*column, true);
+                    n.insert(*column.0, true);
                 }
             }
 
@@ -184,7 +204,7 @@ pub(super) async fn explain(
                 }
             }
 
-            OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID => {
+            OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID | OP_NEWROWID => {
                 // r[p2] = <value of constant>
                 r.insert(p2, opcode_to_type(&opcode));
                 n.insert(p2, n.get(&p2).copied().unwrap_or(false));
