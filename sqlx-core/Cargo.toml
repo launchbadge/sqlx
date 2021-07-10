@@ -119,6 +119,7 @@ encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
 futures-channel = { version = "0.3.5", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.5", default-features = false }
+futures-intrusive = "0.4.0"
 futures-util = { version = "0.3.5", features = ["sink"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"

@@ -519,14 +519,19 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     for i in 0..200 {
         let pool = pool.clone();
         sqlx_rt::spawn(async move {
-            loop {
+            for j in 0.. {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     // normal error at termination of the test
-                    if !matches!(e, sqlx::Error::PoolClosed) {
-                        eprintln!("pool task {} dying due to {}", i, e);
-                        break;
+                    if matches!(e, sqlx::Error::PoolClosed) {
+                        eprintln!("pool task {} exiting normally after {} iterations", i, j);
+                    } else {
+                        eprintln!("pool task {} dying due to {} after {} iterations", i, e, j);
                     }
+                    break;
                 }
+
+                // shouldn't be necessary if the pool is fair
+                // sqlx_rt::yield_now().await;
             }
         });
     }
@@ -547,6 +552,8 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 })
                 .await;
 
+                // this one is necessary since this is a hot loop,
+                // otherwise this task will never be descheduled
                 sqlx_rt::yield_now().await;
             }
         });
