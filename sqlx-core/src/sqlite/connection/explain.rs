@@ -59,7 +59,7 @@ const OP_RESULT_ROW: &str = "ResultRow";
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum RegDataType {
     Single(DataType),
-    Record(Vec<DataType>)
+    Record(Vec<DataType>),
 }
 
 impl RegDataType {
@@ -106,7 +106,7 @@ pub(super) async fn explain(
     // Map between pointer and register
     let mut r_cursor = HashMap::<i64, Vec<i64>>::with_capacity(6);
     // Rows that pointers point to
-    let mut p = HashMap::<i64, HashMap::<i64, DataType>>::with_capacity(6);
+    let mut p = HashMap::<i64, HashMap<i64, DataType>>::with_capacity(6);
 
     // Nullable columns
     let mut n = HashMap::<i64, bool>::with_capacity(6);
@@ -155,21 +155,23 @@ pub(super) async fn explain(
                         r.insert(p3, RegDataType::Single(*col));
                         // map between pointer p1 and register p3
                         r_cursor.entry(p1).or_default().push(p3);
-                        
                     } else {
                         r.insert(p3, RegDataType::Single(DataType::Null));
                     }
                 } else {
                     r.insert(p3, RegDataType::Single(DataType::Null));
                 }
-                
             }
 
             OP_MAKE_RECORD => {
                 // p3 = Record([p1 .. p1 + p2])
                 let mut record = Vec::with_capacity(p2 as usize);
-                for reg in p1..p1+p2 {
-                    record.push(r.get(&reg).map(|d| d.clone().map_to_datatype()).unwrap_or(DataType::Null));
+                for reg in p1..p1 + p2 {
+                    record.push(
+                        r.get(&reg)
+                            .map(|d| d.clone().map_to_datatype())
+                            .unwrap_or(DataType::Null),
+                    );
                 }
                 r.insert(p3, RegDataType::Record(record));
             }
@@ -248,7 +250,8 @@ pub(super) async fn explain(
                 }
             }
 
-            OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID | OP_NEWROWID => {
+            OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID
+            | OP_NEWROWID => {
                 // r[p2] = <value of constant>
                 r.insert(p2, RegDataType::Single(opcode_to_type(&opcode)));
                 n.insert(p2, n.get(&p2).copied().unwrap_or(false));
@@ -268,7 +271,14 @@ pub(super) async fn explain(
                 // r[p3] = r[p1] + r[p2]
                 match (r.get(&p1).cloned(), r.get(&p2).cloned()) {
                     (Some(a), Some(b)) => {
-                        r.insert(p3, if matches!(a, RegDataType::Single(DataType::Null)) { b } else { a });
+                        r.insert(
+                            p3,
+                            if matches!(a, RegDataType::Single(DataType::Null)) {
+                                b
+                            } else {
+                                a
+                            },
+                        );
                     }
 
                     (Some(v), None) => {
@@ -316,7 +326,11 @@ pub(super) async fn explain(
 
     if let Some(result) = result {
         for i in result {
-            output.push(SqliteTypeInfo(r.remove(&i).map(|d| d.map_to_datatype()).unwrap_or(DataType::Null)));
+            output.push(SqliteTypeInfo(
+                r.remove(&i)
+                    .map(|d| d.map_to_datatype())
+                    .unwrap_or(DataType::Null),
+            ));
             nullable.push(n.remove(&i));
         }
     }
