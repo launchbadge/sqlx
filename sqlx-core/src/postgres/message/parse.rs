@@ -27,7 +27,7 @@ impl Encode<'_> for Parse<'_> {
             buf.put_str_nul(self.query);
 
             // TODO: Return an error here instead
-            assert!(self.param_types.len() <= (i16::MAX as usize));
+            assert!(self.param_types.len() <= (u16::MAX as usize));
 
             buf.extend(&(self.param_types.len() as i16).to_be_bytes());
 

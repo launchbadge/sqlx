@@ -50,10 +50,10 @@ pub trait Connection: Send {
     /// })).await
     /// # }
     /// ```
-    fn transaction<F, R, E>(&mut self, callback: F) -> BoxFuture<'_, Result<R, E>>
+    fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
     where
         for<'c> F: FnOnce(&'c mut Transaction<'_, Self::Database>) -> BoxFuture<'c, Result<R, E>>
-            + 'static
+            + 'a
             + Send
             + Sync,
         Self: Sized,

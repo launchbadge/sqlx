@@ -32,7 +32,7 @@
 ///
 /// | Number of Rows | Method to Call*             | Returns                                             | Notes |
 /// |----------------| ----------------------------|-----------------------------------------------------|-------|
-/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::QueryResult>                          | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
+/// | None†          | `.execute(...).await`       | `sqlx::Result<DB::QueryResult>`                     | For `INSERT`/`UPDATE`/`DELETE` without `RETURNING`. |
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<{adhoc struct}>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<{adhoc struct}>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
@@ -245,7 +245,7 @@
 /// # async fn main() {
 /// # let mut conn = panic!();
 /// #[derive(sqlx::Type)]
-/// #[sqlx(transparent)
+/// #[sqlx(transparent)]
 /// struct MyInt4(i32);
 ///
 /// let my_int = MyInt4(1);
@@ -290,7 +290,7 @@
 /// project and your database schema itself, run
 /// `cargo install sqlx-cli && cargo sqlx prepare --check` in your Continuous Integration script.
 ///
-/// See [the README for `sqlx-cli`](https://crates.io/crate/sqlx-cli) for more information.
+/// See [the README for `sqlx-cli`](https://crates.io/crates/sqlx-cli) for more information.
 ///
 /// ## See Also
 /// * [query_as!] if you want to use a struct you can name,

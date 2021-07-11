@@ -59,6 +59,24 @@ fn bind(
     Ok(n)
 }
 
+/// A structure holding sqlite statement handle and resetting the
+/// statement when it is dropped.
+struct StatementResetter {
+    handle: StatementHandle,
+}
+
+impl StatementResetter {
+    fn new(handle: StatementHandle) -> Self {
+        Self { handle }
+    }
+}
+
+impl Drop for StatementResetter {
+    fn drop(&mut self) {
+        self.handle.reset();
+    }
+}
+
 impl<'c> Executor<'c> for &'c mut SqliteConnection {
     type Database = Sqlite;
 
@@ -91,6 +109,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             let mut num_arguments = 0;
 
             while let Some((stmt, columns, column_names, last_row_values)) = stmt.prepare(conn)? {
+                // Prepare to reset raw SQLite statement when the handle
+                // is dropped. `StatementResetter` will reliably reset the
+                // statement even if the stream returned from `fetch_many`
+                // is dropped early.
+                let _resetter = StatementResetter::new(*stmt);
+
                 // bind values to the statement
                 num_arguments += bind(stmt, &arguments, num_arguments)?;
 

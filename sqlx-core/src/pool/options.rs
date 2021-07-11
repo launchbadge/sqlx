@@ -235,16 +235,14 @@ async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(),
         // this guard will prevent us from exceeding `max_size`
         if let Some(guard) = pool.try_increment_size() {
             // [connect] will raise an error when past deadline
-            // [connect] returns None if its okay to retry
-            if let Some(conn) = pool.connection(deadline, guard).await? {
-                let is_ok = pool
-                    .idle_conns
-                    .push(conn.into_idle().into_leakable())
-                    .is_ok();
+            let conn = pool.connection(deadline, guard).await?;
+            let is_ok = pool
+                .idle_conns
+                .push(conn.into_idle().into_leakable())
+                .is_ok();
 
-                if !is_ok {
-                    panic!("BUG: connection queue overflow in init_min_connections");
-                }
+            if !is_ok {
+                panic!("BUG: connection queue overflow in init_min_connections");
             }
         }
     }

@@ -2,7 +2,7 @@ use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::migrate::MigrateError;
-use crate::migrate::Migration;
+use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
 use crate::mysql::{MySql, MySqlConnectOptions, MySqlConnection};
 use crate::query::query;
@@ -107,6 +107,41 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .await?;
 
             Ok(row)
+        })
+    }
+
+    fn dirty_version(&mut self) -> BoxFuture<'_, Result<Option<i64>, MigrateError>> {
+        Box::pin(async move {
+            // language=SQL
+            let row: Option<(i64,)> = query_as(
+                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
+            )
+            .fetch_optional(self)
+            .await?;
+
+            Ok(row.map(|r| r.0))
+        })
+    }
+
+    fn list_applied_migrations(
+        &mut self,
+    ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
+        Box::pin(async move {
+            // language=SQL
+            let rows: Vec<(i64, Vec<u8>)> =
+                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
+                    .fetch_all(self)
+                    .await?;
+
+            let migrations = rows
+                .into_iter()
+                .map(|(version, checksum)| AppliedMigration {
+                    version,
+                    checksum: checksum.into(),
+                })
+                .collect();
+
+            Ok(migrations)
         })
     }
 

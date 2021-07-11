@@ -79,13 +79,13 @@ pub fn quote_args<DB: DatabaseExt>(
                             use ::sqlx::ty_match::{WrapSameExt as _, MatchBorrowExt as _};
 
                             // evaluate the expression only once in case it contains moves
-                            let _expr = ::sqlx::ty_match::dupe_value(#name);
+                            let expr = ::sqlx::ty_match::dupe_value(#name);
 
-                            // if `_expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
-                            let ty_check = ::sqlx::ty_match::WrapSame::<#param_ty, _>::new(&_expr).wrap_same();
+                            // if `expr` is `Option<T>`, get `Option<$ty>`, otherwise `$ty`
+                            let ty_check = ::sqlx::ty_match::WrapSame::<#param_ty, _>::new(&expr).wrap_same();
 
-                            // if `_expr` is `&str`, convert `String` to `&str`
-                            let (mut _ty_check, match_borrow) = ::sqlx::ty_match::MatchBorrow::new(ty_check, &_expr);
+                            // if `expr` is `&str`, convert `String` to `&str`
+                            let (mut _ty_check, match_borrow) = ::sqlx::ty_match::MatchBorrow::new(ty_check, &expr);
 
                             _ty_check = match_borrow.match_borrow();
 

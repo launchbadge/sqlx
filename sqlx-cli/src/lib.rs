@@ -27,12 +27,14 @@ pub async fn run(opt: Opt) -> anyhow::Result<()> {
                 description,
                 reversible,
             } => migrate::add(&migrate.source, &description, reversible).await?,
-            MigrateCommand::Run { dry_run } => {
-                migrate::run(&migrate.source, &database_url, dry_run).await?
-            }
-            MigrateCommand::Revert { dry_run } => {
-                migrate::revert(&migrate.source, &database_url, dry_run).await?
-            }
+            MigrateCommand::Run {
+                dry_run,
+                ignore_missing,
+            } => migrate::run(&migrate.source, &database_url, dry_run, ignore_missing).await?,
+            MigrateCommand::Revert {
+                dry_run,
+                ignore_missing,
+            } => migrate::revert(&migrate.source, &database_url, dry_run, ignore_missing).await?,
             MigrateCommand::Info => migrate::info(&migrate.source, &database_url).await?,
         },
 
@@ -40,7 +42,7 @@ pub async fn run(opt: Opt) -> anyhow::Result<()> {
             DatabaseCommand::Create => database::create(&database_url).await?,
             DatabaseCommand::Drop { yes } => database::drop(&database_url, !yes).await?,
             DatabaseCommand::Reset { yes, source } => {
-                database::reset(&source, &database_url, yes).await?
+                database::reset(&source, &database_url, !yes).await?
             }
             DatabaseCommand::Setup { source } => database::setup(&source, &database_url).await?,
         },

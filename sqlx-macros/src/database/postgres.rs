@@ -16,6 +16,8 @@ impl_database_ext! {
 
         sqlx::postgres::types::PgInterval,
 
+        sqlx::postgres::types::PgMoney,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
@@ -76,6 +78,7 @@ impl_database_ext! {
         Vec<i64> | &[i64],
         Vec<f32> | &[f32],
         Vec<f64> | &[f64],
+        Vec<sqlx::postgres::types::PgMoney> | &[sqlx::postgres::types::PgMoney],
 
         #[cfg(feature = "uuid")]
         Vec<sqlx::types::Uuid> | &[sqlx::types::Uuid],

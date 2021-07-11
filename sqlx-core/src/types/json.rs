@@ -86,7 +86,6 @@ where
 
 impl<'q, DB> Encode<'q, DB> for JsonValue
 where
-    Self: Type<DB>,
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
@@ -97,7 +96,6 @@ where
 
 impl<'r, DB> Decode<'r, DB> for JsonValue
 where
-    Self: Type<DB>,
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
@@ -124,7 +122,6 @@ where
 // implementation for Encode
 impl<'r, DB> Decode<'r, DB> for &'r JsonRawValue
 where
-    Self: Type<DB>,
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {

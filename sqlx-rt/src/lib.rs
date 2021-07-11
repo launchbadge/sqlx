@@ -75,7 +75,7 @@ mod tokio_runtime {
     where
         F: FnOnce() -> R,
     {
-        RUNTIME.enter();
+        let _rt = RUNTIME.enter();
         f()
     }
 }
