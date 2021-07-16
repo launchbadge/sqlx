@@ -73,6 +73,14 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `ipnetwork::IpNetwork`                | INET, CIDR                                           |
 //!
+//! ### [`mac_address`](https://crates.io/crates/mac_address)
+//!
+//! Requires the `mac_address` Cargo feature flag.
+//!
+//! | Rust type                             | Postgres type(s)                                     |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `mac_address::MacAddress`             | MACADDR                                              |
+//!
 //! ### [`bit-vec`](https://crates.io/crates/bit-vec)
 //!
 //! Requires the `bit-vec` Cargo feature flag.
@@ -193,6 +201,9 @@ mod json;
 
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
+
+#[cfg(feature = "mac_address")]
+mod mac_address;
 
 #[cfg(feature = "bit-vec")]
 mod bit_vec;

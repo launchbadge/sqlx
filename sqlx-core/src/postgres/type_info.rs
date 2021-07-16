@@ -198,6 +198,8 @@ impl PgTypeInfo {
         .contains(self)
         {
             Some("ipnetwork")
+        } else if [PgTypeInfo::MACADDR].contains(self) {
+            Some("mac_address")
         } else if [PgTypeInfo::NUMERIC, PgTypeInfo::NUMERIC_ARRAY].contains(self) {
             Some("bigdecimal")
         } else {
