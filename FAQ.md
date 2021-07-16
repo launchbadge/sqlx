@@ -35,10 +35,10 @@ Note that you can use any operator that returns a boolean, but beware that `!= A
 
 The equivalent of `NOT IN (...)` would be `!= ALL($1)`:
 
-`lhs != ALL(rhs) -> lhs != rhs[0] AND lhs != rhs[1] AND ... lhs != rhs[length(rhs) - 1]`
+`lhs != ALL(rhs) -> true AND lhs != rhs[0] AND lhs != rhs[1] AND ... lhs != rhs[length(rhs) - 1]`
 
-Note that `ANY` with any operator with an empty array will return `false`, thus the leading `false OR ...`,
-while `ALL` with an empty array will return `true`, thus the leading `true AND ...`.
+Note that `ANY` using any operator and passed an empty array will return `false`, thus the leading `false OR ...`.  
+Meanwhile, `ALL` with any operator and passed an empty array will return `true`, thus the leading `true AND ...`.
 
 See also: [Postgres Manual, Section 9.24: Row and Array Comparisons](https://www.postgresql.org/docs/current/functions-comparisons.html)
 
