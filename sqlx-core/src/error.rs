@@ -13,10 +13,11 @@ mod database;
 pub use client::ClientError;
 pub use database::DatabaseError;
 
+use crate::arguments::ArgumentIndex;
 use crate::Column;
 
 /// Specialized `Result` type returned from fallible methods within SQLx.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// Error type returned for all methods in SQLX.
 #[derive(Debug)]
@@ -84,7 +85,10 @@ pub enum Error {
 
     /// An error occurred encoding a value for a specific parameter to
     /// be sent to the database.
-    ParameterEncode { parameter: Either<usize, Box<str>>, source: EncodeError },
+    ParameterEncode { parameter: ArgumentIndex<'static>, source: EncodeError },
+
+    /// An error occurred while parsing or expanding the generic placeholder syntax in a query.
+    Placeholders(crate::placeholders::Error),
 }
 
 impl Error {
@@ -172,13 +176,11 @@ impl Display for Error {
                 }
             }
 
-            Self::ParameterEncode { parameter: Either::Left(index), source } => {
-                write!(f, "Encode parameter {}: {}", index, source)
+            Self::ParameterEncode { parameter, source } => {
+                write!(f, "Encode parameter {}: {}", parameter, source)
             }
 
-            Self::ParameterEncode { parameter: Either::Right(name), source } => {
-                write!(f, "Encode parameter `{}`: {}", name, source)
-            }
+            Self::Placeholders(e) => e.fmt(f),
         }
     }
 }
@@ -188,7 +190,7 @@ impl StdError for Error {
         match self {
             Self::ConnectOptions { source: Some(source), .. } => Some(&**source),
             Self::Network(source) => Some(source),
-
+            Self::Placeholders(source) => Some(source),
             _ => None,
         }
     }

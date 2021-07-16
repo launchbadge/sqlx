@@ -1,8 +1,11 @@
-use sqlx_core::{Execute, Result, Runtime};
+use sqlx_core::{placeholders, Arguments, Execute, Result, Runtime};
 
-use crate::protocol::frontend::{self, Bind, PortalRef, Query, StatementRef, Sync};
+use crate::protocol::frontend::{self, Bind, PortalRef, Query, StatementId, Sync};
 use crate::raw_statement::RawStatement;
 use crate::{PgArguments, PgConnection, Postgres};
+use sqlx_core::arguments::ArgumentIndex;
+use sqlx_core::placeholders::{ArgumentKind, Placeholder};
+use std::borrow::Cow;
 
 impl<Rt: Runtime> PgConnection<Rt> {
     fn write_raw_query_statement(
@@ -13,7 +16,7 @@ impl<Rt: Runtime> PgConnection<Rt> {
         // bind values to the prepared statement
         self.stream.write_message(&Bind {
             portal: PortalRef::Unnamed,
-            statement: StatementRef::Named(statement.id),
+            statement: statement.id,
             arguments,
             parameters: &statement.parameters,
         })?;
@@ -37,11 +40,17 @@ impl<Rt: Runtime> PgConnection<Rt> {
 
 macro_rules! impl_raw_query {
     ($(@$blocking:ident)? $self:ident, $query:ident) => {{
+        let parsed = placeholders::parse_query($query.sql())?;
+
         if let Some(arguments) = $query.arguments() {
-            let statement = raw_prepare!($(@$blocking)? $self, $query.sql(), arguments);
+            let statement = raw_prepare!($(@$blocking)? $self, &parsed, arguments);
 
             $self.write_raw_query_statement(&statement, arguments)?;
         } else {
+            if !parsed.placeholders().is_empty() {
+                return Err(placeholders::Error::PreparedStatementsOnly.into());
+            }
+
             $self.stream.write_message(&Query { sql: $query.sql() })?;
         };
 

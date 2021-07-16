@@ -1,4 +1,5 @@
 use sqlx_core::database::{HasOutput, HasRawValue};
+use sqlx_core::placeholders;
 use sqlx_core::Database;
 
 use super::{
@@ -18,6 +19,8 @@ impl Database for MySql {
     type TypeInfo = MySqlTypeInfo;
 
     type TypeId = MySqlTypeId;
+    const PLACEHOLDER_CHAR: char = '?';
+    const PARAM_INDEXING: placeholders::ParamIndexing = placeholders::ParamIndexing::Implicit;
 }
 
 impl<'x> HasOutput<'x> for MySql {

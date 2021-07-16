@@ -4,13 +4,13 @@ use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
 use crate::io::PgWriteExt;
-use crate::protocol::frontend::{PortalRef, StatementRef};
+use crate::protocol::frontend::{PortalRef, StatementId};
 use crate::{PgArguments, PgOutput, PgRawValueFormat, PgTypeInfo};
 use sqlx_core::encode::IsNull;
 
 pub(crate) struct Bind<'a> {
     pub(crate) portal: PortalRef,
-    pub(crate) statement: StatementRef,
+    pub(crate) statement: StatementId,
     pub(crate) parameters: &'a [PgTypeInfo],
     pub(crate) arguments: &'a PgArguments<'a>,
 }

@@ -42,9 +42,17 @@ bitflags = "1.2"
 base64 = "0.13.0"
 md-5 = "0.9.1"
 itoa = "0.4.7"
+paste = "1.0.5"
 
 [dev-dependencies]
 sqlx-core = { version = "0.6.0-pre", path = "../sqlx-core", features = ["_mock"] }
+sqlx-test = { path = "../sqlx-test" }
 futures-executor = "0.3.8"
 anyhow = "1.0.37"
 conquer-once = "0.3.2"
+tokio = { version = "1.0", features = ["full"] }
+
+[[test]]
+name = "postgres-connection"
+path = "tests/connection.rs"
+required-features = ["async", "sqlx-core/tokio"]

@@ -2,14 +2,14 @@ use sqlx_core::io::Serialize;
 use sqlx_core::Result;
 
 use crate::io::PgWriteExt;
-use crate::protocol::frontend::{PortalRef, StatementRef};
+use crate::protocol::frontend::{PortalRef, StatementId};
 
 /// Target a command at a portal *or* statement.
 /// Used by [`Describe`] and [`Close`].
 #[derive(Debug)]
 pub(crate) enum Target {
     Portal(PortalRef),
-    Statement(StatementRef),
+    Statement(StatementId),
 }
 
 impl Serialize<'_> for Target {
