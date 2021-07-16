@@ -31,11 +31,14 @@ as comma-expansion means each possible length of the array generates a different
 
 Note that you can use any operator that returns a boolean, but beware that `!= ANY($1)` is **not equivalent** to `NOT IN (...)` as it effectively works like this:
 
-`lhs != ANY(rhs) -> lhs != rhs[0] OR lhs != rhs[1] OR ... lhs != rhs[length(rhs) - 1]`
+`lhs != ANY(rhs) -> false OR lhs != rhs[0] OR lhs != rhs[1] OR ... lhs != rhs[length(rhs) - 1]`
 
 The equivalent of `NOT IN (...)` would be `!= ALL($1)`:
 
 `lhs != ALL(rhs) -> lhs != rhs[0] AND lhs != rhs[1] AND ... lhs != rhs[length(rhs) - 1]`
+
+Note that `ANY` with any operator with an empty array will return `false`, thus the leading `false OR ...`,
+while `ALL` with an empty array will return `true`, thus the leading `true AND ...`.
 
 See also: [Postgres Manual, Section 9.24: Row and Array Comparisons](https://www.postgresql.org/docs/current/functions-comparisons.html)
 
