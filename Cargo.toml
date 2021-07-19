@@ -59,6 +59,7 @@ all-types = [
     "time",
     "chrono",
     "ipnetwork",
+    "mac_address",
     "uuid",
     "bit-vec",
     "bstr",
@@ -121,6 +122,7 @@ bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
 decimal = ["sqlx-core/decimal", "sqlx-macros/decimal"]
 chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros/ipnetwork"]
+mac_address = ["sqlx-core/mac_address", "sqlx-macros/mac_address"]
 uuid = ["sqlx-core/uuid", "sqlx-macros/uuid"]
 json = ["sqlx-core/json", "sqlx-macros/json"]
 time = ["sqlx-core/time", "sqlx-macros/time"]

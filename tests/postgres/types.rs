@@ -167,6 +167,14 @@ test_type!(ipnetwork<sqlx::types::ipnetwork::IpNetwork>(Postgres,
             .unwrap(),
 ));
 
+#[cfg(feature = "mac_address")]
+test_type!(mac_address<sqlx::types::mac_address::MacAddress>(Postgres,
+    "'00:01:02:03:04:05'::macaddr"
+        == "00:01:02:03:04:05"
+            .parse::<sqlx::types::mac_address::MacAddress>()
+            .unwrap()
+));
+
 #[cfg(feature = "bit-vec")]
 test_type!(bitvec<sqlx::types::BitVec>(
     Postgres,
@@ -198,6 +206,15 @@ test_type!(ipnetwork_vec<Vec<sqlx::types::ipnetwork::IpNetwork>>(Postgres,
         == vec![
            "127.0.0.1".parse::<sqlx::types::ipnetwork::IpNetwork>().unwrap(),
            "8.8.8.8/24".parse::<sqlx::types::ipnetwork::IpNetwork>().unwrap()
+        ]
+));
+
+#[cfg(feature = "mac_address")]
+test_type!(mac_address_vec<Vec<sqlx::types::mac_address::MacAddress>>(Postgres,
+    "'{01:02:03:04:05:06,FF:FF:FF:FF:FF:FF}'::inet[]"
+        == vec![
+           "01:02:03:04:05:06".parse::<sqlx::types::mac_address::MacAddress>().unwrap(),
+           "FF:FF:FF:FF:FF:FF".parse::<sqlx::types::mac_address::MacAddress>().unwrap()
         ]
 ));
 

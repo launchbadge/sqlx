@@ -75,6 +75,13 @@ pub mod ipnetwork {
     pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 }
 
+#[cfg(feature = "mac_address")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mac_address")))]
+pub mod mac_address {
+    #[doc(no_inline)]
+    pub use mac_address::MacAddress;
+}
+
 #[cfg(feature = "json")]
 pub use json::Json;
 
