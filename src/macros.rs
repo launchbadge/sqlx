@@ -745,6 +745,8 @@ macro_rules! query_file_scalar_unchecked (
 /// }
 /// ```
 ///
+/// You can run `sqlx migrate build-script` to generate this file automatically.
+///
 /// See: [The Cargo Book: 3.8 Build Scripts; Outputs of the Build Script](https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html#outputs-of-the-build-script)
 ///
 /// #### Nightly Rust: `cfg` Flag
