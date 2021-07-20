@@ -61,7 +61,7 @@ pub mod offline {
         /// Find and deserialize the data table for this query from a shared `sqlx-data.json`
         /// file. The expected structure is a JSON map keyed by the SHA-256 hash of queries in hex.
         pub fn from_data_file(path: impl AsRef<Path>, query: &str) -> crate::Result<Self> {
-            serde_json::Deserializer::from_reader(BufReader::new(
+            let this = serde_json::Deserializer::from_reader(BufReader::new(
                 File::open(path.as_ref()).map_err(|e| {
                     format!("failed to open path {}: {}", path.as_ref().display(), e)
                 })?,
@@ -69,8 +69,22 @@ pub mod offline {
             .deserialize_map(DataFileVisitor {
                 query,
                 hash: hash_string(query),
-            })
-            .map_err(Into::into)
+            })?;
+
+            #[cfg(procmacr2_semver_exempt)]
+            {
+                let path = path.as_ref().canonicalize()?;
+                let path = path.to_str().ok_or_else(|| {
+                    format!(
+                        "sqlx-data.json path cannot be represented as a string: {:?}",
+                        path
+                    )
+                })?;
+
+                proc_macro::tracked_path::path(path);
+            }
+
+            Ok(this)
         }
     }
 

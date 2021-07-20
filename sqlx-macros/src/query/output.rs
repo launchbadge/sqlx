@@ -157,7 +157,14 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
     let db_path = DB::db_path();
     let row_path = DB::row_path();
-    let sql = &input.src;
+
+    // if this query came from a file, use `include_str!()` to tell the compiler where it came from
+    let sql = if let Some(ref path) = &input.file_path {
+        quote::quote_spanned! { input.src_span => include_str!(#path) }
+    } else {
+        let sql = &input.sql;
+        quote! { #sql }
+    };
 
     quote! {
         ::sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
@@ -200,7 +207,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     };
 
     let db = DB::db_path();
-    let query = &input.src;
+    let query = &input.sql;
 
     Ok(quote! {
         ::sqlx::query_scalar_with::<#db, #ty, _>(#query, #bind_args)

@@ -105,7 +105,8 @@ async fn test_query_file() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
 
-    println!("{:?}", account);
+    assert_eq!(account.id, 1);
+    assert_eq!(account.name, Option::<String>::None);
 
     Ok(())
 }
