@@ -7,6 +7,8 @@ static EMBEDDED: Migrator = sqlx::migrate!("tests/migrate/migrations");
 async fn same_output() -> anyhow::Result<()> {
     let runtime = Migrator::new(Path::new("tests/migrate/migrations")).await?;
 
+    assert_eq!(runtime.migrations.len(), EMBEDDED.migrations.len());
+
     for (e, r) in EMBEDDED.iter().zip(runtime.iter()) {
         assert_eq!(e.version, r.version);
         assert_eq!(e.description, r.description);
