@@ -884,6 +884,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-intrusive"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62007592ac46aa7c2b6416f7deb9a8a8f63a01e0f1d6e1787d5630170db2b63e"
+dependencies = [
+ "futures-core",
+ "lock_api",
+ "parking_lot",
+]
+
+[[package]]
 name = "futures-io"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2356,6 +2367,7 @@ dependencies = [
  "encoding_rs",
  "futures-channel",
  "futures-core",
+ "futures-intrusive",
  "futures-util",
  "generic-array",
  "git2",

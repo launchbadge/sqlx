@@ -1,12 +1,15 @@
-use super::inner::{DecrementSizeGuard, SharedPool};
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use sqlx_rt::spawn;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
+
+use futures_intrusive::sync::SemaphoreReleaser;
+
+use crate::connection::Connection;
+use crate::database::Database;
+use crate::error::Error;
+
+use super::inner::{DecrementSizeGuard, SharedPool};
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -28,8 +31,8 @@ pub(super) struct Idle<DB: Database> {
 
 /// RAII wrapper for connections being handled by functions that may drop them
 pub(super) struct Floating<'p, C> {
-    inner: C,
-    guard: DecrementSizeGuard<'p>,
+    pub(super) inner: C,
+    pub(super) guard: DecrementSizeGuard<'p>,
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
@@ -71,7 +74,7 @@ impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
         if let Some(live) = self.live.take() {
             let pool = self.pool.clone();
-            spawn(async move {
+            sqlx_rt::spawn(async move {
                 let mut floating = live.float(&pool);
 
                 // test the connection on-release to ensure it is still viable
@@ -102,7 +105,8 @@ impl<DB: Database> Live<DB> {
     pub fn float(self, pool: &SharedPool<DB>) -> Floating<'_, Self> {
         Floating {
             inner: self,
-            guard: DecrementSizeGuard::new(pool),
+            // create a new guard from a previously leaked permit
+            guard: DecrementSizeGuard::new_permit(pool),
         }
     }
 
@@ -161,6 +165,11 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
         }
     }
 
+    pub async fn close(self) -> Result<(), Error> {
+        // `guard` is dropped as intended
+        self.inner.raw.close().await
+    }
+
     pub fn detach(self) -> DB::Connection {
         self.inner.raw
     }
@@ -174,10 +183,14 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
 }
 
 impl<'s, DB: Database> Floating<'s, Idle<DB>> {
-    pub fn from_idle(idle: Idle<DB>, pool: &'s SharedPool<DB>) -> Self {
+    pub fn from_idle(
+        idle: Idle<DB>,
+        pool: &'s SharedPool<DB>,
+        permit: SemaphoreReleaser<'s>,
+    ) -> Self {
         Self {
             inner: idle,
-            guard: DecrementSizeGuard::new(pool),
+            guard: DecrementSizeGuard::from_permit(pool, permit),
         }
     }
 
@@ -192,9 +205,12 @@ impl<'s, DB: Database> Floating<'s, Idle<DB>> {
         }
     }
 
-    pub async fn close(self) -> Result<(), Error> {
+    pub async fn close(self) -> DecrementSizeGuard<'s> {
         // `guard` is dropped as intended
-        self.inner.live.raw.close().await
+        if let Err(e) = self.inner.live.raw.close().await {
+            log::debug!("error occurred while closing the pool connection: {}", e);
+        }
+        self.guard
     }
 }
 
