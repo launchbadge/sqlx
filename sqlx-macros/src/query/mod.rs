@@ -320,6 +320,7 @@ where
                     |&output::RustColumn {
                          ref ident,
                          ref type_,
+                         ..
                      }| quote!(#ident: #type_,),
                 );
 
