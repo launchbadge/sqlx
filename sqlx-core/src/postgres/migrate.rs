@@ -24,9 +24,9 @@ fn parse_for_maintenance(uri: &str) -> Result<(PgConnectOptions, String), Error>
         .to_owned();
 
     // switch us to the maintenance database
-    // use `postgres` _unless_ the current user is postgres, in which case, use `template1`
+    // use `postgres` _unless_ the database is postgres, in which case, use `template1`
     // this matches the behavior of the `createdb` util
-    options.database = if options.username == "postgres" {
+    options.database = if database == "postgres" {
         Some("template1".into())
     } else {
         Some("postgres".into())
