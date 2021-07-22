@@ -3,7 +3,7 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::sqlite::connection::ConnectionHandle;
-use crate::sqlite::statement::StatementHandle;
+use crate::sqlite::statement::{StatementHandle, StatementWorker};
 use crate::sqlite::{SqliteColumn, SqliteError, SqliteRow, SqliteValue};
 use crate::HashMap;
 use bytes::{Buf, Bytes};
@@ -176,7 +176,7 @@ impl VirtualStatement {
         )))
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub(crate) async fn reset(&mut self, worker: &mut StatementWorker) -> Result<(), Error> {
         self.index = 0;
 
         for (i, handle) in self.handles.iter().enumerate() {
@@ -185,9 +185,11 @@ impl VirtualStatement {
             // Reset A Prepared Statement Object
             // https://www.sqlite.org/c3ref/reset.html
             // https://www.sqlite.org/c3ref/clear_bindings.html
-            handle.reset();
+            worker.reset(handle).await?;
             handle.clear_bindings();
         }
+
+        Ok(())
     }
 }
 

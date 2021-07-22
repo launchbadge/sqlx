@@ -6,6 +6,9 @@ use futures_channel::oneshot;
 use std::sync::{Arc, Weak};
 use std::thread;
 
+use libsqlite3_sys::{sqlite3_reset, sqlite3_step, SQLITE_DONE, SQLITE_ROW};
+use std::future::Future;
+
 // Each SQLite connection has a dedicated thread.
 
 // TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
@@ -21,6 +24,10 @@ enum StatementWorkerCommand {
         statement: Weak<StatementHandle>,
         tx: oneshot::Sender<Result<Either<u64, ()>, Error>>,
     },
+    Reset {
+        statement: Weak<StatementHandle>,
+        tx: oneshot::Sender<()>,
+    },
 }
 
 impl StatementWorker {
@@ -31,13 +38,37 @@ impl StatementWorker {
             for cmd in rx {
                 match cmd {
                     StatementWorkerCommand::Step { statement, tx } => {
-                        let resp = if let Some(statement) = statement.upgrade() {
-                            statement.step()
+                        let statement = if let Some(statement) = statement.upgrade() {
+                            statement
                         } else {
-                            // Statement is already finalized.
-                            Err(Error::WorkerCrashed)
+                            // statement is already finalized, the sender shouldn't be expecting a response
+                            continue;
                         };
-                        let _ = tx.send(resp);
+
+                        // SAFETY: only the `StatementWorker` calls this function
+                        let status = unsafe { sqlite3_step(statement.as_ptr()) };
+                        let result = match status {
+                            SQLITE_ROW => Ok(Either::Right(())),
+                            SQLITE_DONE => Ok(Either::Left(statement.changes())),
+                            _ => Err(statement.last_error().into()),
+                        };
+
+                        let _ = tx.send(result);
+                    }
+                    StatementWorkerCommand::Reset { statement, tx } => {
+                        if let Some(statement) = statement.upgrade() {
+                            // SAFETY: this must be the only place we call `sqlite3_reset`
+                            unsafe { sqlite3_reset(statement.as_ptr()) };
+
+                            // `sqlite3_reset()` always returns either `SQLITE_OK`
+                            // or the last error code for the statement,
+                            // which should have already been handled;
+                            // so it's assumed the return value is safe to ignore.
+                            //
+                            // https://www.sqlite.org/c3ref/reset.html
+
+                            let _ = tx.send(());
+                        }
                     }
                 }
             }
@@ -60,5 +91,35 @@ impl StatementWorker {
             .map_err(|_| Error::WorkerCrashed)?;
 
         rx.await.map_err(|_| Error::WorkerCrashed)?
+    }
+
+    /// Send a command to the worker to execute `sqlite3_reset()` next.
+    ///
+    /// This method is written to execute the sending of the command eagerly so
+    /// you do not need to await the returned future unless you want to.
+    ///
+    /// The only error is `WorkerCrashed` as `sqlite3_reset()` returns the last error
+    /// in the statement execution which should have already been handled from `step()`.
+    pub(crate) fn reset(
+        &mut self,
+        statement: &Arc<StatementHandle>,
+    ) -> impl Future<Output = Result<(), Error>> {
+        // execute the sending eagerly so we don't need to spawn the future
+        let (tx, rx) = oneshot::channel();
+
+        let send_res = self
+            .tx
+            .send(StatementWorkerCommand::Reset {
+                statement: Arc::downgrade(statement),
+                tx,
+            })
+            .map_err(|_| Error::WorkerCrashed);
+
+        async move {
+            send_res?;
+
+            // wait for the response
+            rx.await.map_err(|_| Error::WorkerCrashed)
+        }
     }
 }

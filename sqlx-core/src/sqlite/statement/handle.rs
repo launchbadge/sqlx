@@ -1,13 +1,11 @@
-use either::Either;
 use std::ffi::c_void;
 use std::ffi::CStr;
-use std::hint;
+
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
-use std::sync::atomic::{AtomicU8, Ordering};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
@@ -27,7 +25,7 @@ use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
 
 #[derive(Debug)]
-pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>, Lock);
+pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 
 // access to SQLite3 statement handles are safe to send and share between threads
 // as long as the `sqlite3_step` call is serialized.
@@ -37,7 +35,11 @@ unsafe impl Sync for StatementHandle {}
 
 impl StatementHandle {
     pub(super) fn new(ptr: NonNull<sqlite3_stmt>) -> Self {
-        Self(ptr, Lock::new())
+        Self(ptr)
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut sqlite3_stmt {
+        self.0.as_ptr()
     }
 
     #[inline]
@@ -288,41 +290,13 @@ impl StatementHandle {
         Ok(from_utf8(self.column_blob(index))?)
     }
 
-    pub(crate) fn step(&self) -> Result<Either<u64, ()>, Error> {
-        self.1.enter_step();
-
-        let status = unsafe { sqlite3_step(self.0.as_ptr()) };
-        let result = match status {
-            SQLITE_ROW => Ok(Either::Right(())),
-            SQLITE_DONE => Ok(Either::Left(self.changes())),
-            _ => Err(self.last_error().into()),
-        };
-
-        if self.1.exit_step() {
-            unsafe { sqlite3_reset(self.0.as_ptr()) };
-            self.1.exit_reset();
-        }
-
-        result
-    }
-
-    pub(crate) fn reset(&self) {
-        if !self.1.enter_reset() {
-            // reset or step already in progress
-            return;
-        }
-
-        unsafe { sqlite3_reset(self.0.as_ptr()) };
-
-        self.1.exit_reset();
-    }
-
     pub(crate) fn clear_bindings(&self) {
         unsafe { sqlite3_clear_bindings(self.0.as_ptr()) };
     }
 }
 impl Drop for StatementHandle {
     fn drop(&mut self) {
+        // SAFETY: we have exclusive access to the `StatementHandle` here
         unsafe {
             // https://sqlite.org/c3ref/finalize.html
             let status = sqlite3_finalize(self.0.as_ptr());
@@ -336,46 +310,5 @@ impl Drop for StatementHandle {
                 panic!("Detected sqlite3_finalize misuse.");
             }
         }
-    }
-}
-
-const RESET: u8 = 0b0000_0001;
-const STEP: u8 = 0b0000_0010;
-
-// Lock to synchronize calls to `step` and `reset`.
-#[derive(Debug)]
-struct Lock(AtomicU8);
-
-impl Lock {
-    fn new() -> Self {
-        Self(AtomicU8::new(0))
-    }
-
-    // If this returns `true` reset can be performed, otherwise reset must be delayed until the
-    // current step finishes and `exit_step` is called.
-    fn enter_reset(&self) -> bool {
-        self.0.fetch_or(RESET, Ordering::Acquire) == 0
-    }
-
-    fn exit_reset(&self) {
-        self.0.fetch_and(!RESET, Ordering::Release);
-    }
-
-    fn enter_step(&self) {
-        // NOTE: spin loop should be fine here as we are only waiting for a `reset` to finish which
-        // should be quick.
-        while self
-            .0
-            .compare_exchange(0, STEP, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            hint::spin_loop();
-        }
-    }
-
-    // If this returns `true` it means a previous attempt to reset was delayed and must be
-    // performed now (followed by `exit_reset`).
-    fn exit_step(&self) -> bool {
-        self.0.fetch_and(!STEP, Ordering::Release) & RESET != 0
     }
 }
