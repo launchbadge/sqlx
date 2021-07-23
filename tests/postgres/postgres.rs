@@ -968,6 +968,12 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if !(conn.server_major_version().await? >= 11) {
+        return Ok(());
+    }
+
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct MonthId(i16);
 
@@ -1040,21 +1046,14 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
         }
     }
 
-    let mut conn = new::<Postgres>().await?;
+    // Ensure the table is empty to begin to avoid CPK violations from repeat runs
+    sqlx::query("DELETE FROM heating_bills;")
+        .execute(&mut conn)
+        .await;
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
-            .execute(&mut conn)
-            .await;
-
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
-
-    {
-        let result = sqlx::query(
-            "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
-        )
+    let result = sqlx::query(
+        "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
+    )
         .bind(WinterYearMonth {
             year: 2021,
             month: MonthId(1),
@@ -1062,18 +1061,8 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
         .execute(&mut conn)
         .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
-
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
-            .execute(&mut conn)
-            .await;
-
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
 
     Ok(())
 }

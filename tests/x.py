@@ -88,8 +88,6 @@ for path in glob(os.path.join(os.path.dirname(__file__), "target/**/*.gc*"), rec
 # check
 #
 
-run("cargo c", comment="check with a default set of features", tag="check")
-
 run(
     "cargo c --no-default-features --features runtime-async-std-native-tls,all-databases,all-types,offline,macros",
     comment="check with async-std",
@@ -113,15 +111,21 @@ run(
 #
 
 run(
-    "cargo test --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types",
+    "cargo test --no-default-features --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types,runtime-async-std-native-tls",
     comment="unit test core",
-    tag="unit"
+    tag="unit_async_std"
 )
 
 run(
     "cargo test --no-default-features --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types,runtime-tokio-native-tls",
     comment="unit test core",
     tag="unit_tokio"
+)
+
+run(
+    "cargo test --no-default-features --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types,runtime-actix-native-tls",
+    comment="unit test core",
+    tag="unit_actix"
 )
 
 #
