@@ -5,7 +5,6 @@ use crate::postgres::types::array_compatible;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres};
 use crate::types::Type;
 use std::borrow::Cow;
-use crate::database::{HasArguments, HasValueRef};
 
 impl Type<Postgres> for str {
     fn type_info() -> PgTypeInfo {
