@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Release sqlx-cli
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        bin: [sqlx, cargo-sqlx]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            args: --features openssl-vendored
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: '.exe'
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            args: --features openssl-vendored
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cli-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build ${{ matrix.bin }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --manifest-path sqlx-cli/Cargo.toml --bin ${{ matrix.bin }} ${{ matrix.args }}
+
+      - name: Rename and strip executables
+        run: |
+          # We're not using any arguments here because --strip-unneeded is not
+          # supported on macos
+          strip target/release/${{ matrix.bin }}${{ matrix.ext }}
+          # Rename the executable to include the target triple
+          mv target/release/${{ matrix.bin }}${{ matrix.ext }} ${{ matrix.bin }}-${{ matrix.target }}${{ matrix.ext }}
+
+      - uses: softprops/action-gh-release@b7e450da2a4b4cb4bfbae528f788167786cfcedf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: ${{ matrix.bin }}-${{ matrix.target }}${{ matrix.ext }}
+
