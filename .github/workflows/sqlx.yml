@@ -213,8 +213,9 @@ jobs:
           args: >
             --features postgres,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_${{ matrix.postgres }}
-      - run: sleep 10
+      - run: |
+          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
+          docker exec postgres_${{ matrix.postgres }} bash -c "until pg_isready; do sleep 1; done"
 
       - uses: actions-rs/cargo@v1
         with:
