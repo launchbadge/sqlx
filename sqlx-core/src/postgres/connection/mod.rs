@@ -17,6 +17,7 @@ use crate::postgres::message::{
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
+use crate::row::Row;
 use crate::transaction::Transaction;
 
 pub(crate) mod describe;
