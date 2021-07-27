@@ -106,6 +106,8 @@ impl MessageFormat {
             b'C' => MessageFormat::CommandComplete,
             b'd' => MessageFormat::CopyData,
             b'c' => MessageFormat::CopyDone,
+            b'G' => MessageFormat::CopyInResponse,
+            b'H' => MessageFormat::CopyOutResponse,
             b'D' => MessageFormat::DataRow,
             b'E' => MessageFormat::ErrorResponse,
             b'I' => MessageFormat::EmptyQueryResponse,

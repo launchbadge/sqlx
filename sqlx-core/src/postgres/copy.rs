@@ -8,6 +8,7 @@ use crate::postgres::message::{
 use crate::postgres::Postgres;
 use bytes::{BufMut, Bytes};
 use futures_core::stream::BoxStream;
+use smallvec::alloc::borrow::Cow;
 use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
@@ -235,8 +236,18 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
                 "fail_with: expected ErrorResponse, got: {:?}",
                 msg.format
             )),
-            // FIXME: inspect the `DatabaseError` to make sure we're not discarding another error
-            Err(Error::Database(_db)) => Ok(()),
+            Err(Error::Database(e)) => {
+                match e.code() {
+                    Some(Cow::Borrowed("57014")) => {
+                        // postgres abort received error code
+                        conn.stream
+                            .recv_expect(MessageFormat::ReadyForQuery)
+                            .await?;
+                        Ok(())
+                    }
+                    _ => Err(Error::Database(e)),
+                }
+            }
             Err(e) => Err(e),
         }
     }
@@ -254,6 +265,10 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
         let cc: CommandComplete = conn
             .stream
             .recv_expect(MessageFormat::CommandComplete)
+            .await?;
+
+        conn.stream
+            .recv_expect(MessageFormat::ReadyForQuery)
             .await?;
 
         Ok(cc.rows_affected())
@@ -279,7 +294,7 @@ async fn pg_begin_copy_out<'c, C: DerefMut<Target = PgConnection> + Send + 'c>(
 
     let _: CopyResponse = conn
         .stream
-        .recv_expect(MessageFormat::CopyInResponse)
+        .recv_expect(MessageFormat::CopyOutResponse)
         .await?;
 
     let stream: TryAsyncStream<'c, Bytes> = try_stream! {
@@ -289,6 +304,8 @@ async fn pg_begin_copy_out<'c, C: DerefMut<Target = PgConnection> + Send + 'c>(
                 MessageFormat::CopyData => r#yield!(msg.decode::<CopyData<Bytes>>()?.0),
                 MessageFormat::CopyDone => {
                     let _ = msg.decode::<CopyDone>()?;
+                    conn.stream.recv_expect(MessageFormat::CommandComplete).await?;
+                    conn.stream.recv_expect(MessageFormat::ReadyForQuery).await?;
                     return Ok(())
                 },
                 _ => return Err(err_protocol!("unexpected message format during copy out: {:?}", msg.format))

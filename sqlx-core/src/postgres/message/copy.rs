@@ -3,7 +3,6 @@ use crate::io::{BufExt, BufMutExt, Decode, Encode};
 use bytes::{Buf, BufMut, Bytes};
 use std::ops::Deref;
 
-
 /// The same structure is sent for both `CopyInResponse` and `CopyOutResponse`
 pub struct CopyResponse {
     pub format: i8,
