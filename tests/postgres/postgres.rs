@@ -1051,15 +1051,14 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
         .execute(&mut conn)
         .await;
 
-    let result = sqlx::query(
-        "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
-    )
-        .bind(WinterYearMonth {
-            year: 2021,
-            month: MonthId(1),
-        })
-        .execute(&mut conn)
-        .await;
+    let result =
+        sqlx::query("INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);")
+            .bind(WinterYearMonth {
+                year: 2021,
+                month: MonthId(1),
+            })
+            .execute(&mut conn)
+            .await;
 
     let result = result.unwrap();
     assert_eq!(result.rows_affected(), 1);
