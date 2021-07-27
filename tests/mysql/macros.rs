@@ -188,19 +188,13 @@ async fn test_column_override_nullable() -> anyhow::Result<()> {
 
 async fn with_test_row<'a>(
     conn: &'a mut MySqlConnection,
-) -> anyhow::Result<Transaction<'a, MySql>> {
+) -> anyhow::Result<(Transaction<'a, MySql>, MyInt)> {
     let mut transaction = conn.begin().await?;
-    sqlx::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
+    let id = sqlx::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
         .execute(&mut transaction)
-        .await?;
-    Ok(transaction)
-}
-
-async fn last_insert_id(conn: &mut MySqlConnection) -> anyhow::Result<MyInt> {
-    let result = sqlx::query!("SELECT last_insert_id() AS last_insert_id")
-        .fetch_one(conn)
-        .await?;
-    Ok(MyInt(result.last_insert_id as i64))
+        .await?
+        .last_insert_id();
+    Ok((transaction, MyInt(id as i64)))
 }
 
 #[derive(PartialEq, Eq, Debug, sqlx::Type)]
@@ -218,8 +212,7 @@ struct OptionalRecord {
 #[sqlx_macros::test]
 async fn test_column_override_wildcard() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
-    let id = last_insert_id(&mut conn).await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(Record, "select id as `id: _` from tweet")
         .fetch_one(&mut conn)
@@ -246,7 +239,7 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
+    let (mut conn, _) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(Record, "select owner_id as `id!: _` from tweet")
         .fetch_one(&mut conn)
@@ -260,8 +253,7 @@ async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
-    let id = last_insert_id(&mut conn).await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(OptionalRecord, "select id as `id?: _` from tweet")
         .fetch_one(&mut conn)
@@ -275,8 +267,7 @@ async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
-    let id = last_insert_id(&mut conn).await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select id as `id: MyInt` from tweet")
         .fetch_one(&mut conn)
@@ -303,7 +294,7 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
+    let (mut conn, _) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select owner_id as `id!: MyInt` from tweet")
         .fetch_one(&mut conn)
@@ -317,8 +308,7 @@ async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
 #[sqlx_macros::test]
 async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
     let mut conn = new::<MySql>().await?;
-    let mut conn = with_test_row(&mut conn).await?;
-    let id = last_insert_id(&mut conn).await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select id as `id?: MyInt` from tweet")
         .fetch_one(&mut conn)
