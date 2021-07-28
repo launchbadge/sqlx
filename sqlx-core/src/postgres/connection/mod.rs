@@ -177,3 +177,20 @@ impl Connection for PgConnection {
         !self.stream.wbuf.is_empty()
     }
 }
+
+pub trait PgConnectionInfo {
+    /// the version number of the server in `libpq` format
+    fn server_version_num(&self) -> Option<u32>;
+}
+
+impl PgConnectionInfo for PgConnection {
+    fn server_version_num(&self) -> Option<u32> {
+        self.stream.server_version_num
+    }
+}
+
+impl PgConnectionInfo for crate::pool::PoolConnection<Postgres> {
+    fn server_version_num(&self) -> Option<u32> {
+        self.stream.server_version_num
+    }
+}

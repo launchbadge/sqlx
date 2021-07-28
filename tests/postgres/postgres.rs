@@ -2,7 +2,7 @@ use futures::TryStreamExt;
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
+use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -968,6 +968,30 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS heating_bills;
+DROP DOMAIN IF EXISTS winter_year_month;
+DROP TYPE IF EXISTS year_month;
+DROP DOMAIN IF EXISTS month_id;
+
+CREATE DOMAIN month_id AS INT2 CHECK (1 <= value AND value <= 12);
+CREATE TYPE year_month AS (year INT4, month month_id);
+CREATE DOMAIN winter_year_month AS year_month CHECK ((value).month <= 3);
+CREATE TABLE heating_bills (
+  month winter_year_month NOT NULL PRIMARY KEY,
+  cost INT4 NOT NULL
+);
+    "#,
+    )
+    .await?;
+
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct MonthId(i16);
 
@@ -1039,41 +1063,44 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
             sqlx::encode::IsNull::No
         }
     }
-
     let mut conn = new::<Postgres>().await?;
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
-            .execute(&mut conn)
-            .await;
-
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
-
-    {
-        let result = sqlx::query(
-            "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
-        )
-        .bind(WinterYearMonth {
-            year: 2021,
-            month: MonthId(1),
-        })
+    let result = sqlx::query("DELETE FROM heating_bills;")
         .execute(&mut conn)
         .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 0);
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
+    let result =
+        sqlx::query("INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);")
+            .bind(WinterYearMonth {
+                year: 2021,
+                month: MonthId(1),
+            })
             .execute(&mut conn)
             .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    let result = sqlx::query("DELETE FROM heating_bills;")
+        .execute(&mut conn)
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_pg_server_num() -> anyhow::Result<()> {
+    use sqlx::postgres::PgConnectionInfo;
+
+    let conn = new::<Postgres>().await?;
+
+    assert!(conn.server_version_num().is_some());
 
     Ok(())
 }

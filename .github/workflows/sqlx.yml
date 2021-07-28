@@ -32,7 +32,8 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     steps:
       - uses: actions/checkout@v2
 
@@ -48,7 +49,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -56,21 +57,22 @@ jobs:
           args: >
             --manifest-path sqlx-core/Cargo.toml
             --no-default-features
-            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}
+            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: check
           args: >
             --no-default-features
-            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }},macros
+            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }},macros
 
   test:
     name: Unit Test
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     steps:
       - uses: actions/checkout@v2
 
@@ -93,7 +95,7 @@ jobs:
           command: test
           args: >
             --manifest-path sqlx-core/Cargo.toml
-            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}
+            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
   cli:
     name: CLI Binaries
@@ -148,7 +150,8 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -165,14 +168,14 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: >
             --no-default-features
-            --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}
+            --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
             --
             --test-threads=1
         env:
@@ -183,8 +186,9 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        postgres: [12, 10, 9_6, 9_5]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        postgres: [13, 9_6]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -201,23 +205,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: >
-            --features postgres,all-types,runtime-${{ matrix.runtime }}
+            --features postgres,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 postgres_${{ matrix.postgres }}
-      - run: sleep 10
+      - run: |
+          docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
+          docker exec postgres_${{ matrix.postgres }} bash -c "until pg_isready; do sleep 1; done"
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }}
+            --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
 
@@ -226,7 +231,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }}
+            --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
 
@@ -235,8 +240,9 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mysql: [8, 5_7, 5_6]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        mysql: [8, 5_6]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -253,13 +259,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: >
-            --features mysql,all-types,runtime-${{ matrix.runtime }}
+            --features mysql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
       - run: sleep 60
@@ -269,7 +275,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
@@ -278,8 +284,9 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [10_5, 10_4, 10_3, 10_2, 10_1]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        mariadb: [10_6, 10_2]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -297,13 +304,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: >
-            --features mysql,all-types,runtime-${{ matrix.runtime }}
+            --features mysql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}
       - run: sleep 30
@@ -313,7 +320,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
@@ -322,8 +329,9 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mssql: [2019]
-        runtime: [async-std-native-tls, tokio-native-tls, actix-native-tls, async-std-rustls, tokio-rustls, actix-rustls]
+        mssql: [2019, 2017]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -340,13 +348,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: >
-            --features mssql,all-types,runtime-${{ matrix.runtime }}
+            --features mssql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 1433:1433 mssql_${{ matrix.mssql }}
       - run: sleep 80 # MSSQL takes a "bit" to startup
@@ -356,6 +364,6 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mssql,macros,migrate,all-types,runtime-${{ matrix.runtime }}
+            --features any,mssql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mssql://sa:Password123!@localhost/sqlx
