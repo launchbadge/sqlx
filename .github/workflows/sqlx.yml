@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        postgres: [13, 12, 11, 10, 9_6]
+        postgres: [13, 9_6]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
@@ -240,7 +240,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mysql: [8, 5_7, 5_6]
+        mysql: [8, 5_6]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
@@ -284,7 +284,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mariadb: [10_6, 10_5, 10_4, 10_3, 10_2]
+        mariadb: [10_6, 10_2]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
