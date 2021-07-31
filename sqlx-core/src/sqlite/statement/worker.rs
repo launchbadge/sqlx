@@ -6,6 +6,8 @@ use futures_channel::oneshot;
 use std::sync::{Arc, Weak};
 use std::thread;
 
+use crate::sqlite::connection::ConnectionHandleRef;
+
 use libsqlite3_sys::{sqlite3_reset, sqlite3_step, SQLITE_DONE, SQLITE_ROW};
 use std::future::Future;
 
@@ -31,7 +33,7 @@ enum StatementWorkerCommand {
 }
 
 impl StatementWorker {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(conn: ConnectionHandleRef) -> Self {
         let (tx, rx) = unbounded();
 
         thread::spawn(move || {
@@ -72,6 +74,9 @@ impl StatementWorker {
                     }
                 }
             }
+
+            // SAFETY: we need to make sure a strong ref to `conn` always outlives anything in `rx`
+            drop(conn);
         });
 
         Self { tx }
