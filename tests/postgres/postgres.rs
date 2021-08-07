@@ -1104,3 +1104,40 @@ async fn test_pg_server_num() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+
+async fn test_issue_1254() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "pair")]
+    struct Pair {
+        one: i32,
+        two: i32,
+    }
+
+    // array for custom type is not supported, use wrapper
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "_pair")]
+    struct Pairs(Vec<Pair>);
+
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        "
+DROP TABLE IF EXISTS issue_1254;
+DROP TYPE IF EXISTS pair;
+
+CREATE TYPE pair AS (one INT4, two INT4);
+CREATE TABLE issue_1254 (id INT4 PRIMARY KEY, pairs PAIR[]);
+",
+    )
+    .await?;
+
+    let result = sqlx::query("INSERT INTO issue_1254 VALUES($1, $2)")
+        .bind(0)
+        .bind(Pairs(vec![Pair { one: 94, two: 87 }]))
+        .execute(&mut conn)
+        .await?;
+    assert_eq!(result.rows_affected(), 1);
+
+    Ok(())
+}
