@@ -190,4 +190,21 @@ impl SqliteConnectOptions {
         self.page_size = page_size;
         self
     }
+
+    /// Sets the log settings.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::sqlite::SqliteConnectOptions;
+    /// let options = SqliteConnectOptions::new()
+    ///     .log_settings(sqlx_core::connection::LogSettings {
+    ///     statements_level: sqlx_core::connection::LevelFilter::Info,
+    ///     ..Default::default()
+    /// });
+    /// ```
+    pub fn log_settings(mut self, log_settings: LogSettings) -> Self {
+        self.log_settings = log_settings;
+        self
+    }
 }
