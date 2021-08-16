@@ -34,7 +34,11 @@ sqlx = { version = "0.5.5", path = "..", default-features = false, features = [
     "offline",
 ] }
 futures = "0.3"
+# FIXME: we need to fix both of these versions until Clap 3.0 proper is released, then we can drop `clap_derive`
+# https://github.com/launchbadge/sqlx/issues/1378
+# https://github.com/clap-rs/clap/issues/2705
 clap = "=3.0.0-beta.2"
+clap_derive = "=3.0.0-beta.2"
 chrono = "0.4"
 anyhow = "1.0"
 url = { version = "2.1.1", default-features = false }
