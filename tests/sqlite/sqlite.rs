@@ -542,7 +542,6 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 async fn concurrent_resets_dont_segfault() {
     use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
     use std::{str::FromStr, time::Duration};
-    use tokio::time;
 
     let mut conn = SqliteConnectOptions::from_str(":memory:")
         .unwrap()
@@ -555,7 +554,7 @@ async fn concurrent_resets_dont_segfault() {
         .await
         .unwrap();
 
-    let task = tokio::spawn(async move {
+    sqlx_rt::spawn(async move {
         for i in 0..1000 {
             sqlx::query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                 .bind(i)
@@ -566,7 +565,5 @@ async fn concurrent_resets_dont_segfault() {
         }
     });
 
-    time::sleep(Duration::from_millis(1)).await;
-
-    task.abort();
+    sqlx_rt::sleep(Duration::from_millis(1)).await;
 }
