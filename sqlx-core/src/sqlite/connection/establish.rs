@@ -87,7 +87,7 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         // https://www.sqlite.org/c3ref/extended_result_codes.html
         unsafe {
             // NOTE: ignore the failure here
-            sqlite3_extended_result_codes(handle.0.as_ptr(), 1);
+            sqlite3_extended_result_codes(handle.as_ptr(), 1);
         }
 
         // Configure a busy timeout
@@ -99,7 +99,7 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
         let ms =
             i32::try_from(busy_timeout.as_millis()).expect("Given busy timeout value is too big.");
 
-        status = unsafe { sqlite3_busy_timeout(handle.0.as_ptr(), ms) };
+        status = unsafe { sqlite3_busy_timeout(handle.as_ptr(), ms) };
 
         if status != SQLITE_OK {
             return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
@@ -109,8 +109,8 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
     })?;
 
     Ok(SqliteConnection {
+        worker: StatementWorker::new(handle.to_ref()),
         handle,
-        worker: StatementWorker::new(),
         statements: StatementCache::new(options.statement_cache_capacity),
         statement: None,
         transaction_depth: 0,

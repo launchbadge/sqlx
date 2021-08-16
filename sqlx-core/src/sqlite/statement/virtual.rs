@@ -3,13 +3,12 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::sqlite::connection::ConnectionHandle;
-use crate::sqlite::statement::StatementHandle;
+use crate::sqlite::statement::{StatementHandle, StatementWorker};
 use crate::sqlite::{SqliteColumn, SqliteError, SqliteRow, SqliteValue};
 use crate::HashMap;
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
-    sqlite3, sqlite3_clear_bindings, sqlite3_finalize, sqlite3_prepare_v3, sqlite3_reset,
-    sqlite3_stmt, SQLITE_MISUSE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
+    sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
 use smallvec::SmallVec;
 use std::i32;
@@ -31,7 +30,7 @@ pub(crate) struct VirtualStatement {
     // underlying sqlite handles for each inner statement
     // a SQL query string in SQLite is broken up into N statements
     // we use a [`SmallVec`] to optimize for the most likely case of a single statement
-    pub(crate) handles: SmallVec<[StatementHandle; 1]>,
+    pub(crate) handles: SmallVec<[Arc<StatementHandle>; 1]>,
 
     // each set of columns
     pub(crate) columns: SmallVec<[Arc<Vec<SqliteColumn>>; 1]>,
@@ -92,7 +91,7 @@ fn prepare(
         query.advance(n);
 
         if let Some(handle) = NonNull::new(statement_handle) {
-            return Ok(Some(StatementHandle(handle)));
+            return Ok(Some(StatementHandle::new(handle)));
         }
     }
 
@@ -126,7 +125,7 @@ impl VirtualStatement {
         conn: &mut ConnectionHandle,
     ) -> Result<
         Option<(
-            &StatementHandle,
+            &Arc<StatementHandle>,
             &mut Arc<Vec<SqliteColumn>>,
             &Arc<HashMap<UStr, usize>>,
             &mut Option<Weak<AtomicPtr<SqliteValue>>>,
@@ -159,7 +158,7 @@ impl VirtualStatement {
                     column_names.insert(name, i);
                 }
 
-                self.handles.push(statement);
+                self.handles.push(Arc::new(statement));
                 self.columns.push(Arc::new(columns));
                 self.column_names.push(Arc::new(column_names));
                 self.last_row_values.push(None);
@@ -177,20 +176,20 @@ impl VirtualStatement {
         )))
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub(crate) async fn reset(&mut self, worker: &mut StatementWorker) -> Result<(), Error> {
         self.index = 0;
 
         for (i, handle) in self.handles.iter().enumerate() {
             SqliteRow::inflate_if_needed(&handle, &self.columns[i], self.last_row_values[i].take());
 
-            unsafe {
-                // Reset A Prepared Statement Object
-                // https://www.sqlite.org/c3ref/reset.html
-                // https://www.sqlite.org/c3ref/clear_bindings.html
-                sqlite3_reset(handle.0.as_ptr());
-                sqlite3_clear_bindings(handle.0.as_ptr());
-            }
+            // Reset A Prepared Statement Object
+            // https://www.sqlite.org/c3ref/reset.html
+            // https://www.sqlite.org/c3ref/clear_bindings.html
+            worker.reset(handle).await?;
+            handle.clear_bindings();
         }
+
+        Ok(())
     }
 }
 
@@ -198,20 +197,6 @@ impl Drop for VirtualStatement {
     fn drop(&mut self) {
         for (i, handle) in self.handles.drain(..).enumerate() {
             SqliteRow::inflate_if_needed(&handle, &self.columns[i], self.last_row_values[i].take());
-
-            unsafe {
-                // https://sqlite.org/c3ref/finalize.html
-                let status = sqlite3_finalize(handle.0.as_ptr());
-                if status == SQLITE_MISUSE {
-                    // Panic in case of detected misuse of SQLite API.
-                    //
-                    // sqlite3_finalize returns it at least in the
-                    // case of detected double free, i.e. calling
-                    // sqlite3_finalize on already finalized
-                    // statement.
-                    panic!("Detected sqlite3_finalize misuse.");
-                }
-            }
         }
     }
 }
