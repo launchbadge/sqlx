@@ -120,7 +120,7 @@ for runtime in ["async-std", "tokio", "actix"]:
         #
 
         run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,sqlite,runtime-{runtime}-native-tls",
+            f"cargo test --no-default-features --features macros,offline,any,all-types,sqlite,runtime-{runtime}-{tls}",
             comment=f"test sqlite",
             service="sqlite",
             tag=f"sqlite" if runtime == "async-std" else f"sqlite_{runtime}",
@@ -132,7 +132,7 @@ for runtime in ["async-std", "tokio", "actix"]:
 
         for version in ["13", "12", "11", "10", "9_6"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-native-tls",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
                 comment=f"test postgres {version}",
                 service=f"postgres_{version}",
                 tag=f"postgres_{version}" if runtime == "async-std" else f"postgres_{version}_{runtime}",
@@ -141,7 +141,7 @@ for runtime in ["async-std", "tokio", "actix"]:
         ## +ssl
         for version in ["13", "12", "11", "10", "9_6"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-native-tls",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
                 comment=f"test postgres {version} ssl",
                 database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt",
                 service=f"postgres_{version}",
@@ -154,7 +154,7 @@ for runtime in ["async-std", "tokio", "actix"]:
 
         for version in ["8", "5_7", "5_6"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-native-tls",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
                 comment=f"test mysql {version}",
                 service=f"mysql_{version}",
                 tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
@@ -166,7 +166,7 @@ for runtime in ["async-std", "tokio", "actix"]:
 
         for version in ["10_6", "10_5", "10_4", "10_3", "10_2"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-native-tls",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
                 comment=f"test mariadb {version}",
                 service=f"mariadb_{version}",
                 tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
@@ -178,7 +178,7 @@ for runtime in ["async-std", "tokio", "actix"]:
 
         for version in ["2019", "2017"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,mssql,runtime-{runtime}-native-tls",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mssql,runtime-{runtime}-{tls}",
                 comment=f"test mssql {version}",
                 service=f"mssql_{version}",
                 tag=f"mssql_{version}" if runtime == "async-std" else f"mssql_{version}_{runtime}",
