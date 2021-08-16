@@ -81,6 +81,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         let output = Command::new(&cargo)
             .args(&["metadata", "--format-version=1"])
             .current_dir(&manifest_dir)
+            .env_remove("__CARGO_FIX_PLZ")
             .output()
             .expect("Could not fetch metadata");
 
