@@ -2459,6 +2459,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqlx-example-postgres-transaction"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "futures",
+ "sqlx",
+]
+
+[[package]]
 name = "sqlx-example-sqlite-todos"
 version = "0.1.0"
 dependencies = [

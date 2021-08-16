@@ -36,6 +36,7 @@
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<{adhoc struct}>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<{adhoc struct}>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
+/// | Multiple   | `.fetch_all(...)`               | `sqlx::Result<Vec<{adhoc struct}>>`  | |
 ///
 /// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// † Only callable if the query returns no columns; otherwise it's assumed the query *may* return at least one row.
@@ -459,6 +460,7 @@ macro_rules! query_file_unchecked (
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<T>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<T>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<T>>`  | Call `.try_next().await` to get each row result. |
+/// | Multiple       | `.fetch_all(...)`           | `sqlx::Result<Vec<T>>`  | |
 ///
 /// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// (`.execute()` is omitted as this macro requires at least one column to be returned.)
