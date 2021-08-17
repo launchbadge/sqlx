@@ -47,3 +47,16 @@ fn bench_decode_parameter_status(b: &mut test::Bencher) {
         ParameterStatus::decode(test::black_box(Bytes::from_static(DATA))).unwrap();
     });
 }
+
+#[test]
+fn test_decode_parameter_status_response() {
+    const PARAMETER_STATUS_RESPONSE: &[u8] = b"crdb_version\0CockroachDB CCL v21.1.0 (x86_64-unknown-linux-gnu, built 2021/05/17 13:49:40, go1.15.11)\0";
+
+    let message = ParameterStatus::decode(Bytes::from(PARAMETER_STATUS_RESPONSE)).unwrap();
+
+    assert_eq!(message.name, "crdb_version");
+    assert_eq!(
+        message.value,
+        "CockroachDB CCL v21.1.0 (x86_64-unknown-linux-gnu, built 2021/05/17 13:49:40, go1.15.11)"
+    );
+}
