@@ -132,13 +132,6 @@ impl<DB: Database> DerefMut for Idle<DB> {
     }
 }
 
-impl<'s, C> Floating<'s, C> {
-    pub fn into_leakable(self) -> C {
-        self.guard.cancel();
-        self.inner
-    }
-}
-
 impl<'s, DB: Database> Floating<'s, Live<DB>> {
     pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<'s>) -> Self {
         Self {
