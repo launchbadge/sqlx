@@ -132,8 +132,8 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { version = "0.5.5", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.5.5", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.5.6", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.5.6", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.31"
