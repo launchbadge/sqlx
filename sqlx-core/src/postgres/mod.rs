@@ -37,6 +37,7 @@ pub use row::PgRow;
 pub use statement::PgStatement;
 pub use transaction::PgTransactionManager;
 pub use type_info::{PgTypeInfo, PgTypeKind};
+pub use types::PgHasArrayType;
 pub use value::{PgValue, PgValueFormat, PgValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for Postgres.

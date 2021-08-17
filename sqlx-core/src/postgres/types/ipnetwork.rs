@@ -5,7 +5,9 @@ use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 // https://github.com/rust-lang/rust/search?q=AF_INET&unscoped_q=AF_INET
@@ -34,23 +36,13 @@ impl Type<Postgres> for IpNetwork {
     }
 }
 
-impl Type<Postgres> for [IpNetwork] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for IpNetwork {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INET_ARRAY
     }
 
-    fn compatible(ty: &PgTypeInfo) -> bool {
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
         *ty == PgTypeInfo::CIDR_ARRAY || *ty == PgTypeInfo::INET_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<IpNetwork> {
-    fn type_info() -> PgTypeInfo {
-        <[IpNetwork] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[IpNetwork] as Type<Postgres>>::compatible(ty)
     }
 }
 

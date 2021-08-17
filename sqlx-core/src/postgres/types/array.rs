@@ -7,29 +7,49 @@ use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
-impl<T> Type<Postgres> for [Option<T>]
-where
-    [T]: Type<Postgres>,
-{
-    fn type_info() -> PgTypeInfo {
-        <[T] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[T] as Type<Postgres>>::compatible(ty)
+pub trait PgHasArrayType {
+    fn array_type_info() -> PgTypeInfo;
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        *ty == Self::array_type_info()
     }
 }
 
-impl<T> Type<Postgres> for Vec<Option<T>>
+impl<T> PgHasArrayType for Option<T>
 where
-    Vec<T>: Type<Postgres>,
+    T: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
+impl<T> Type<Postgres> for [T]
+where
+    T: PgHasArrayType,
 {
     fn type_info() -> PgTypeInfo {
-        <Vec<T> as Type<Postgres>>::type_info()
+        T::array_type_info()
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        <Vec<T> as Type<Postgres>>::compatible(ty)
+        T::array_compatible(ty)
+    }
+}
+
+impl<T> Type<Postgres> for Vec<T>
+where
+    T: PgHasArrayType,
+{
+    fn type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
     }
 }
 

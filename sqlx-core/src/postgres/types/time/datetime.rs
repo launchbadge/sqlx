@@ -2,7 +2,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::time::PG_EPOCH;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 use std::borrow::Cow;
 use std::mem;
@@ -20,27 +22,15 @@ impl Type<Postgres> for OffsetDateTime {
     }
 }
 
-impl Type<Postgres> for [PrimitiveDateTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PrimitiveDateTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMP_ARRAY
     }
 }
 
-impl Type<Postgres> for [OffsetDateTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for OffsetDateTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMPTZ_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<PrimitiveDateTime> {
-    fn type_info() -> PgTypeInfo {
-        <[PrimitiveDateTime] as Type<Postgres>>::type_info()
-    }
-}
-
-impl Type<Postgres> for Vec<OffsetDateTime> {
-    fn type_info() -> PgTypeInfo {
-        <[OffsetDateTime] as Type<Postgres>>::type_info()
     }
 }
 
