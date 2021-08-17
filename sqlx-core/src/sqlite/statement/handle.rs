@@ -14,10 +14,9 @@ use libsqlite3_sys::{
     sqlite3_column_bytes, sqlite3_column_count, sqlite3_column_database_name,
     sqlite3_column_decltype, sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64,
     sqlite3_column_name, sqlite3_column_origin_name, sqlite3_column_table_name,
-    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset,
-    sqlite3_sql, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata,
-    sqlite3_value, SQLITE_DONE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT,
-    SQLITE_UTF8,
+    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_sql,
+    sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value,
+    SQLITE_MISUSE, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
