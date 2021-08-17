@@ -4,32 +4,34 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgType;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
-impl<T> Type<Postgres> for [Option<T>]
+impl<T> Type<Postgres> for [T]
 where
-    [T]: Type<Postgres>,
+    T: PgHasArrayType,
 {
     fn type_info() -> PgTypeInfo {
-        <[T] as Type<Postgres>>::type_info()
+        T::array_type_info()
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        <[T] as Type<Postgres>>::compatible(ty)
+        T::array_compatible(ty)
     }
 }
 
-impl<T> Type<Postgres> for Vec<Option<T>>
+impl<T> Type<Postgres> for Vec<T>
 where
-    Vec<T>: Type<Postgres>,
+    T: PgHasArrayType,
 {
     fn type_info() -> PgTypeInfo {
-        <Vec<T> as Type<Postgres>>::type_info()
+        T::array_type_info()
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        <Vec<T> as Type<Postgres>>::compatible(ty)
+        T::array_compatible(ty)
     }
 }
 

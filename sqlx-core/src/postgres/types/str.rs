@@ -2,7 +2,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::array_compatible;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef, Postgres};
+use crate::postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef, Postgres};
 use crate::types::Type;
 
 impl Type<Postgres> for str {
@@ -22,23 +22,13 @@ impl Type<Postgres> for str {
     }
 }
 
-impl Type<Postgres> for [&'_ str] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for &'_ str {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TEXT_ARRAY
     }
 
-    fn compatible(ty: &PgTypeInfo) -> bool {
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
         array_compatible::<&str>(ty)
-    }
-}
-
-impl Type<Postgres> for Vec<&'_ str> {
-    fn type_info() -> PgTypeInfo {
-        <[&str] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[&str] as Type<Postgres>>::compatible(ty)
     }
 }
 
@@ -72,23 +62,13 @@ impl Type<Postgres> for String {
     }
 }
 
-impl Type<Postgres> for [String] {
-    fn type_info() -> PgTypeInfo {
-        <[&str] as Type<Postgres>>::type_info()
+impl PgHasArrayType for String {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
     }
 
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[&str] as Type<Postgres>>::compatible(ty)
-    }
-}
-
-impl Type<Postgres> for Vec<String> {
-    fn type_info() -> PgTypeInfo {
-        <[String] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[String] as Type<Postgres>>::compatible(ty)
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        <&str as PgHasArrayType>::array_compatible(ty)
     }
 }
 

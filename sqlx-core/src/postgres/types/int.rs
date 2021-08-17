@@ -3,7 +3,9 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for i8 {
@@ -12,15 +14,9 @@ impl Type<Postgres> for i8 {
     }
 }
 
-impl Type<Postgres> for [i8] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for i8 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::CHAR_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<i8> {
-    fn type_info() -> PgTypeInfo {
-        <[i8] as Type<Postgres>>::type_info()
     }
 }
 
@@ -45,15 +41,9 @@ impl Type<Postgres> for i16 {
     }
 }
 
-impl Type<Postgres> for [i16] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for i16 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT2_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<i16> {
-    fn type_info() -> PgTypeInfo {
-        <[i16] as Type<Postgres>>::type_info()
     }
 }
 
@@ -80,15 +70,9 @@ impl Type<Postgres> for u32 {
     }
 }
 
-impl Type<Postgres> for [u32] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for u32 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::OID_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<u32> {
-    fn type_info() -> PgTypeInfo {
-        <[u32] as Type<Postgres>>::type_info()
     }
 }
 
@@ -115,15 +99,9 @@ impl Type<Postgres> for i32 {
     }
 }
 
-impl Type<Postgres> for [i32] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for i32 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT4_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<i32> {
-    fn type_info() -> PgTypeInfo {
-        <[i32] as Type<Postgres>>::type_info()
     }
 }
 
@@ -150,15 +128,9 @@ impl Type<Postgres> for i64 {
     }
 }
 
-impl Type<Postgres> for [i64] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for i64 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT8_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<i64> {
-    fn type_info() -> PgTypeInfo {
-        <[i64] as Type<Postgres>>::type_info()
     }
 }
 

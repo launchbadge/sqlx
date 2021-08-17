@@ -1,6 +1,7 @@
 //! **PostgreSQL** database driver.
 
 mod arguments;
+mod array;
 mod column;
 mod connection;
 mod database;
@@ -21,6 +22,7 @@ mod value;
 mod migrate;
 
 pub use arguments::{PgArgumentBuffer, PgArguments};
+pub use array::PgHasArrayType;
 pub use column::PgColumn;
 pub use connection::{PgConnection, PgConnectionInfo};
 pub use database::Postgres;
