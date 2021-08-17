@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.6 - 2021-08-16
+
+A large bugfix release, including but not limited to:
+
+* [[#1329]] Implement `MACADDR` type for Postgres [[@nomick]]
+* [[#1363]] Fix `PortalSuspended` for array of composite types in Postgres [[@AtkinsChang]]
+* [[#1320]] Reimplement `sqlx::Pool` internals using `futures-intrusive` [[@abonander]]
+    * This addresses a number of deadlocks/stalls on acquiring connections from the pool.
+* [[#1332]] Macros: tell the compiler about external files/env vars to watch [[@abonander]]
+    * Includes `sqlx build-script` to create a `build.rs` to watch `migrations/` for changes.
+    * Nightly users can try `RUSTFLAGS=--cfg sqlx_macros_unstable` to tell the compiler 
+      to watch `migrations/` for changes instead of using a build script. 
+    * See the new section in the docs for `sqlx::migrate!()` for details.
+* [[#1351]] Fix a few sources of segfaults/errors in SQLite driver [[@abonander]]
+    * Includes contributions from [[@link2ext]] and [[@madadam]].
+* [[#1323]] Keep track of column typing in SQLite EXPLAIN parsing [[@marshoepial]]
+    * This fixes errors in the macros when using `INSERT/UPDATE/DELETE ... RETURNING ...` in SQLite.
+    
+[A total of 25 pull requests][0.5.6-prs] were merged this release cycle!
+
+[#1329]: https://github.com/launchbadge/sqlx/pull/1329
+[#1363]: https://github.com/launchbadge/sqlx/pull/1363
+[#1320]: https://github.com/launchbadge/sqlx/pull/1320
+[#1332]: https://github.com/launchbadge/sqlx/pull/1332
+[#1351]: https://github.com/launchbadge/sqlx/pull/1351
+[#1323]: https://github.com/launchbadge/sqlx/pull/1323
+[0.5.6-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2021-05-24..2021-08-17
+
 ## 0.5.5 - 2021-05-24
 
 -   [[#1242]] Fix infinite loop at compile time when using query macros [[@toshokan]]
@@ -925,3 +953,8 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@feikesteenbergen]: https://github.com/feikesteenbergen
 [@etcaton]: https://github.com/ETCaton
 [@toshokan]: https://github.com/toshokan
+[@nomick]: https://github.com/nomick
+[@marshoepial]: https://github.com/marshoepial
+[@link2ext]: https://github.com/link2ext
+[@madadam]: https://github.com/madadam
+[@AtkinsChang]: https://github.com/AtkinsChang
