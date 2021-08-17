@@ -23,6 +23,7 @@ mod input;
 mod output;
 
 struct Metadata {
+    #[allow(unused)]
     manifest_dir: PathBuf,
     offline: bool,
     database_url: Option<String>,
@@ -35,46 +36,52 @@ struct Metadata {
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
 // reflect the workspace dir: https://github.com/rust-lang/cargo/issues/3946
 static METADATA: Lazy<Metadata> = Lazy::new(|| {
-    use std::env;
-
-    let manifest_dir: PathBuf = env::var("CARGO_MANIFEST_DIR")
+    let manifest_dir: PathBuf = env("CARGO_MANIFEST_DIR")
         .expect("`CARGO_MANIFEST_DIR` must be set")
         .into();
 
     #[cfg(feature = "offline")]
-    let target_dir =
-        env::var_os("CARGO_TARGET_DIR").map_or_else(|| "target".into(), |dir| dir.into());
+    let target_dir = env("CARGO_TARGET_DIR").map_or_else(|_| "target".into(), |dir| dir.into());
 
     // If a .env file exists at CARGO_MANIFEST_DIR, load environment variables from this,
     // otherwise fallback to default dotenv behaviour.
     let env_path = manifest_dir.join(".env");
-    if env_path.exists() {
+
+    #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
+    let env_path = if env_path.exists() {
         let res = dotenv::from_path(&env_path);
         if let Err(e) = res {
             panic!("failed to load environment from {:?}, {}", env_path, e);
         }
+
+        Some(env_path)
     } else {
-        let _ = dotenv::dotenv();
+        dotenv::dotenv().ok()
+    };
+
+    // tell the compiler to watch the `.env` for changes, if applicable
+    #[cfg(procmacro2_semver_exempt)]
+    if let Some(env_path) = env_path.as_ref().and_then(|path| path.to_str()) {
+        proc_macro::tracked_path::path(env_path);
     }
 
-    // TODO: Switch to `var_os` after feature(osstring_ascii) is stable.
-    // Stabilization PR: https://github.com/rust-lang/rust/pull/80193
-    let offline = env::var("SQLX_OFFLINE")
+    let offline = env("SQLX_OFFLINE")
         .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
         .unwrap_or(false);
 
-    let database_url = env::var("DATABASE_URL").ok();
+    let database_url = env("DATABASE_URL").ok();
 
     #[cfg(feature = "offline")]
     let workspace_root = {
         use serde::Deserialize;
         use std::process::Command;
 
-        let cargo = env::var_os("CARGO").expect("`CARGO` must be set");
+        let cargo = env("CARGO").expect("`CARGO` must be set");
 
         let output = Command::new(&cargo)
             .args(&["metadata", "--format-version=1"])
             .current_dir(&manifest_dir)
+            .env_remove("__CARGO_FIX_PLZ")
             .output()
             .expect("Could not fetch metadata");
 
@@ -151,7 +158,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "postgres" | "postgresql" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.src).await
+                QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
             expand_with_data(input, data, false)
@@ -164,7 +171,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "mssql" | "sqlserver" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::mssql::MssqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.src).await
+                QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
             expand_with_data(input, data, false)
@@ -177,7 +184,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "mysql" | "mariadb" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.src).await
+                QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
             expand_with_data(input, data, false)
@@ -190,7 +197,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "sqlite" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.src).await
+                QueryData::from_db(&mut conn, &input.sql).await
             })?;
 
             expand_with_data(input, data, false)
@@ -207,7 +214,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 pub fn expand_from_file(input: QueryMacroInput, file: PathBuf) -> crate::Result<TokenStream> {
     use data::offline::DynQueryData;
 
-    let query_data = DynQueryData::from_data_file(file, &input.src)?;
+    let query_data = DynQueryData::from_data_file(file, &input.sql)?;
     assert!(!query_data.db_name.is_empty());
 
     match &*query_data.db_name {
@@ -288,7 +295,7 @@ where
         .all(|it| it.type_info().is_void())
     {
         let db_path = DB::db_path();
-        let sql = &input.src;
+        let sql = &input.sql;
 
         quote! {
             ::sqlx::query_with::<#db_path, _>(#sql, #query_args)
@@ -314,6 +321,7 @@ where
                     |&output::RustColumn {
                          ref ident,
                          ref type_,
+                         ..
                      }| quote!(#ident: #type_,),
                 );
 
@@ -367,4 +375,17 @@ where
     }
 
     Ok(ret_tokens)
+}
+
+/// Get the value of an environment variable, telling the compiler about it if applicable.
+fn env(name: &str) -> Result<String, std::env::VarError> {
+    #[cfg(procmacro2_semver_exempt)]
+    {
+        proc_macro::tracked_env::var(name)
+    }
+
+    #[cfg(not(procmacro2_semver_exempt))]
+    {
+        std::env::var(name)
+    }
 }

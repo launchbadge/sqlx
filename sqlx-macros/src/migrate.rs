@@ -24,7 +24,7 @@ struct QuotedMigration {
     version: i64,
     description: String,
     migration_type: QuotedMigrationType,
-    sql: String,
+    path: String,
     checksum: Vec<u8>,
 }
 
@@ -34,7 +34,7 @@ impl ToTokens for QuotedMigration {
             version,
             description,
             migration_type,
-            sql,
+            path,
             checksum,
         } = &self;
 
@@ -43,7 +43,8 @@ impl ToTokens for QuotedMigration {
                 version: #version,
                 description: ::std::borrow::Cow::Borrowed(#description),
                 migration_type:  #migration_type,
-                sql: ::std::borrow::Cow::Borrowed(#sql),
+                // this tells the compiler to watch this path for changes
+                sql: ::std::borrow::Cow::Borrowed(include_str!(#path)),
                 checksum: ::std::borrow::Cow::Borrowed(&[
                     #(#checksum),*
                 ]),
@@ -59,7 +60,7 @@ pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<TokenStream
     let path = crate::common::resolve_path(&dir.value(), dir.span())?;
     let mut migrations = Vec::new();
 
-    for entry in fs::read_dir(path)? {
+    for entry in fs::read_dir(&path)? {
         let entry = entry?;
         if !fs::metadata(entry.path())?.is_file() {
             // not a file; ignore
@@ -89,17 +90,42 @@ pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<TokenStream
 
         let checksum = Vec::from(Sha384::digest(sql.as_bytes()).as_slice());
 
+        // canonicalize the path so we can pass it to `include_str!()`
+        let path = entry.path().canonicalize()?;
+        let path = path
+            .to_str()
+            .ok_or_else(|| {
+                format!(
+                    "migration path cannot be represented as a string: {:?}",
+                    path
+                )
+            })?
+            .to_owned();
+
         migrations.push(QuotedMigration {
             version,
             description,
             migration_type: QuotedMigrationType(migration_type),
-            sql,
+            path,
             checksum,
         })
     }
 
     // ensure that we are sorted by `VERSION ASC`
     migrations.sort_by_key(|m| m.version);
+
+    #[cfg(any(sqlx_macros_unstable, procmacro2_semver_exempt))]
+    {
+        let path = path.canonicalize()?;
+        let path = path.to_str().ok_or_else(|| {
+            format!(
+                "migration directory path cannot be represented as a string: {:?}",
+                path
+            )
+        })?;
+
+        proc_macro::tracked_path::path(path);
+    }
 
     Ok(quote! {
         ::sqlx::migrate::Migrator {

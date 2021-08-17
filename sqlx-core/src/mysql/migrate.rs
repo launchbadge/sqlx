@@ -8,7 +8,6 @@ use crate::mysql::{MySql, MySqlConnectOptions, MySqlConnection};
 use crate::query::query;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
-use crc::crc32;
 use futures_core::future::BoxFuture;
 use std::str::FromStr;
 use std::time::Duration;
@@ -266,9 +265,10 @@ async fn current_database(conn: &mut MySqlConnection) -> Result<String, MigrateE
 
 // inspired from rails: https://github.com/rails/rails/blob/6e49cc77ab3d16c06e12f93158eaf3e507d4120e/activerecord/lib/active_record/migration.rb#L1308
 fn generate_lock_id(database_name: &str) -> String {
+    const CRC_IEEE: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
     // 0x3d32ad9e chosen by fair dice roll
     format!(
         "{:x}",
-        0x3d32ad9e * (crc32::checksum_ieee(database_name.as_bytes()) as i64)
+        0x3d32ad9e * (CRC_IEEE.checksum(database_name.as_bytes()) as i64)
     )
 }

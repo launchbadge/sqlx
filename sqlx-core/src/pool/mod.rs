@@ -256,7 +256,9 @@ impl<DB: Database> Pool<DB> {
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool.
     pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
-        self.0.try_acquire().map(|conn| conn.attach(&self.0))
+        self.0
+            .try_acquire()
+            .map(|conn| conn.into_live().attach(&self.0))
     }
 
     /// Retrieves a new connection and immediately begins a new transaction.

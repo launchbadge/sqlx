@@ -172,6 +172,21 @@ async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_describes_insert_with_returning() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe("INSERT INTO tweet (id, text) VALUES (2, 'Hello') RETURNING *")
+        .await?;
+
+    assert_eq!(d.columns().len(), 4);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.column(1).type_info().name(), "TEXT");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_describes_bad_statement() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 

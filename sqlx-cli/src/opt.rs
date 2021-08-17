@@ -130,4 +130,13 @@ pub enum MigrateCommand {
 
     /// List all available migrations.
     Info,
+
+    /// Generate a `build.rs` to trigger recompilation when a new migration is added.
+    ///
+    /// Must be run in a Cargo project root.
+    BuildScript {
+        /// Overwrite the build script if it already exists.
+        #[clap(long)]
+        force: bool,
+    },
 }

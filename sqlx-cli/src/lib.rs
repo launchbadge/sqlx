@@ -36,6 +36,7 @@ pub async fn run(opt: Opt) -> anyhow::Result<()> {
                 ignore_missing,
             } => migrate::revert(&migrate.source, &database_url, dry_run, ignore_missing).await?,
             MigrateCommand::Info => migrate::info(&migrate.source, &database_url).await?,
+            MigrateCommand::BuildScript { force } => migrate::build_script(&migrate.source, force)?,
         },
 
         Command::Database(database) => match database.command {

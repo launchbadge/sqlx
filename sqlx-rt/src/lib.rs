@@ -105,7 +105,8 @@ pub use tokio_rustls::{client::TlsStream, TlsConnector};
 #[macro_export]
 macro_rules! blocking {
     ($($expr:tt)*) => {
-        $crate::tokio::task::block_in_place(move || { $($expr)* })
+        $crate::tokio::task::spawn_blocking(move || { $($expr)* })
+            .await.expect("Blocking task failed to complete.")
     };
 }
 

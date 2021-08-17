@@ -17,7 +17,7 @@ mod executor;
 mod explain;
 mod handle;
 
-pub(crate) use handle::ConnectionHandle;
+pub(crate) use handle::{ConnectionHandle, ConnectionHandleRef};
 
 /// A connection to a [Sqlite] database.
 pub struct SqliteConnection {
