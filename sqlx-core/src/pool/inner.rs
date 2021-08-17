@@ -322,16 +322,16 @@ fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
         (None, None) => return,
     };
 
-    // let pool = Arc::clone(&pool);
-    //
-    // sqlx_rt::spawn(async move {
-    //     while !pool.is_closed() {
-    //         if !pool.idle_conns.is_empty() {
-    //             do_reap(&pool).await;
-    //         }
-    //         sqlx_rt::sleep(period).await;
-    //     }
-    // });
+    let pool = Arc::clone(&pool);
+
+    sqlx_rt::spawn(async move {
+        while !pool.is_closed() {
+            if !pool.idle_conns.is_empty() {
+                do_reap(&pool).await;
+            }
+            sqlx_rt::sleep(period).await;
+        }
+    });
 }
 
 async fn do_reap<DB: Database>(pool: &SharedPool<DB>) {
