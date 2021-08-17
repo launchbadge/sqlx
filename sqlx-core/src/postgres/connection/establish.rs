@@ -4,6 +4,7 @@ use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
 use crate::postgres::connection::{sasl, stream::PgStream, tls};
+use crate::postgres::message::ParameterStatus;
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
@@ -121,6 +122,7 @@ impl PgConnection {
 
                     break;
                 }
+
 
                 _ => {
                     return Err(err_protocol!(

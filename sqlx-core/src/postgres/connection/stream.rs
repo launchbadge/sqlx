@@ -112,25 +112,6 @@ impl PgStream {
                     }
                 }
 
-                MessageFormat::ParameterStatus => {
-                    // informs the frontend about the current (initial)
-                    // setting of backend parameters
-
-                    let ParameterStatus { name, value } = message.decode()?;
-                    // TODO: handle `client_encoding`, `DateStyle` change
-
-                    match name.as_str() {
-                        "server_version" => {
-                            self.server_version_num = parse_server_version(&value);
-                        }
-                        _ => {
-                            self.parameter_statuses.insert(name, value);
-                        }
-                    }
-
-                    continue;
-                }
-
                 MessageFormat::NoticeResponse => {
                     // do we need this to be more configurable?
                     // if you are reading this comment and think so, open an issue

@@ -62,6 +62,7 @@ pub struct PgConnection {
     pub(crate) transaction_depth: usize,
 
     log_settings: LogSettings,
+
 }
 
 impl PgConnection {
@@ -81,6 +82,7 @@ impl PgConnection {
 
         Ok(())
     }
+
 
     async fn recv_ready_for_query(&mut self) -> Result<(), Error> {
         let r: ReadyForQuery = self
