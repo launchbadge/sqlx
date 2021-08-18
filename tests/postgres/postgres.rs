@@ -2,7 +2,7 @@ use futures::TryStreamExt;
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
+use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -1096,8 +1096,6 @@ CREATE TABLE heating_bills (
 
 #[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
-    use sqlx::postgres::PgConnectionInfo;
-
     let conn = new::<Postgres>().await?;
 
     assert!(conn.server_version_num().is_some());
