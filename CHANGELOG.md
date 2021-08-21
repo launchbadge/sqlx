@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.7 - 2021-08-20
+
+* [[#1392]] use `resolve_path` when getting path for `include_str!()` [[@abonander]]
+    * Fixes a regression introduced by [[#1332]].
+* [[#1393]] avoid recursively spawning tasks in `PgListener::drop()` [[@abonander]]
+    * Fixes a panic that occurs when `PgListener` is dropped in `async fn main()`.
+
+[#1392]: https://github.com/launchbadge/sqlx/pull/1392
+[#1393]: https://github.com/launchbadge/sqlx/pull/1393
+
 ## 0.5.6 - 2021-08-16
 
 A large bugfix release, including but not limited to:
