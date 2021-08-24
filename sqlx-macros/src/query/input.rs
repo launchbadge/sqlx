@@ -120,7 +120,7 @@ impl QuerySrc {
 
     fn file_path(&self, source_span: Span) -> syn::Result<Option<String>> {
         if let QuerySrc::File(ref file) = *self {
-            let path = std::path::Path::new(file)
+            let path = crate::common::resolve_path(file, source_span)?
                 .canonicalize()
                 .map_err(|e| syn::Error::new(source_span, e))?;
 
