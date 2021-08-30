@@ -1,6 +1,6 @@
 use crate::migrate;
 use console::style;
-use dialoguer::Confirm;
+use promptly::{prompt, ReadlineError};
 use sqlx::any::Any;
 use sqlx::migrate::MigrateDatabase;
 
@@ -13,16 +13,7 @@ pub async fn create(uri: &str) -> anyhow::Result<()> {
 }
 
 pub async fn drop(uri: &str, confirm: bool) -> anyhow::Result<()> {
-    if confirm
-        && !Confirm::new()
-            .with_prompt(format!(
-                "\nAre you sure you want to drop the database at {}?",
-                style(uri).cyan()
-            ))
-            .wait_for_newline(true)
-            .default(false)
-            .interact()?
-    {
+    if confirm && !ask_to_continue(uri) {
         return Ok(());
     }
 
@@ -41,4 +32,29 @@ pub async fn reset(migration_source: &str, uri: &str, confirm: bool) -> anyhow::
 pub async fn setup(migration_source: &str, uri: &str) -> anyhow::Result<()> {
     create(uri).await?;
     migrate::run(migration_source, uri, false, false).await
+}
+
+fn ask_to_continue(uri: &str) -> bool {
+    loop {
+        let r: Result<String, ReadlineError> =
+            prompt(format!("Drop database at {}? (y/n)", style(uri).cyan()));
+        match r {
+            Ok(response) => {
+                if response == "n" || response == "N" {
+                    return false;
+                } else if response == "y" || response == "Y" {
+                    return true;
+                } else {
+                    println!(
+                        "Response not recognized: {}\nPlease type 'y' or 'n' and press enter.",
+                        response
+                    );
+                }
+            }
+            Err(e) => {
+                println!("{}", e);
+                return false;
+            }
+        }
+    }
 }
