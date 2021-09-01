@@ -25,6 +25,22 @@ pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::Row;
+pub mod rt {
+    //! This module contains feature specific to only certain runtimes
+
+    // rustdoc doesn't appear to transfer these doc() attributes across 
+    // crates, so we have to replicated it here
+    #[cfg_attr(
+        docsrs,
+        doc(cfg(any(
+            feature = "runtime-actix-native-tls",
+            feature = "runtime-tokio-native-tls",
+            feature = "runtime-actix-rustls",
+            feature = "runtime-tokio-rustls",
+        )))
+    )]
+    pub use sqlx_core::rt::set_runtime;
+}
 pub use sqlx_core::statement::Statement;
 pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;

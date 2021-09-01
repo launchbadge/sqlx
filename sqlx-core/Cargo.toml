@@ -13,7 +13,7 @@ authors = [
 ]
 
 [package.metadata.docs.rs]
-features = ["all-databases", "all-types", "offline", "runtime-async-std-native-tls"]
+features = ["all-databases", "all-types", "offline", "runtime-async-std-native-tls", "rt-docs"]
 
 [features]
 default = ["migrate"]
@@ -78,6 +78,9 @@ runtime-tokio-native-tls = [
     "sqlx-rt/runtime-tokio-native-tls",
     "_tls-native-tls",
     "_rt-tokio",
+]
+"rt-docs" = [
+    "sqlx-rt/rt-docs"
 ]
 
 runtime-actix-rustls = ["sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-actix"]

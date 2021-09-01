@@ -68,6 +68,7 @@ mod net;
 pub mod query_as;
 pub mod query_scalar;
 pub mod row;
+pub mod rt;
 pub mod type_info;
 pub mod value;
 

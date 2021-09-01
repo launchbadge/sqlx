@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #[cfg(not(any(
     feature = "runtime-actix-native-tls",
     feature = "runtime-async-std-native-tls",
@@ -50,32 +52,76 @@ pub use tokio::net::UnixStream;
 #[cfg(all(
     any(feature = "_rt-tokio", feature = "_rt-actix"),
     not(feature = "_rt-async-std"),
+    not(feature = "rt-docs"),
 ))]
-pub use tokio_runtime::{block_on, enter_runtime};
+pub use tokio_runtime::{block_on, enter_runtime, set_runtime};
+
+#[cfg(feature = "rt-docs")]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(
+        feature = "runtime-actix-native-tls",
+        feature = "runtime-tokio-native-tls",
+        feature = "runtime-actix-rustls",
+        feature = "runtime-tokio-rustls",
+    )))
+)]
+/// Configure sqlx to use a [`Handle`][tokio::runtime::Handle] to a pre-existing `Runtime`
+pub fn set_runtime(h: tokio::runtime::Handle) -> Result<(), tokio::runtime::Handle> {
+    Ok(())
+}
 
 #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
 mod tokio_runtime {
-    use once_cell::sync::Lazy;
-    use tokio::runtime::{self, Runtime};
+    use once_cell::sync::OnceCell;
+    use tokio::runtime::{self, Handle, Runtime};
+
+    enum RuntimeType {
+        Built(Runtime),
+        Handle(Handle),
+    }
 
     // lazily initialize a global runtime once for multiple invocations of the macros
-    static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-        runtime::Builder::new_multi_thread()
-            .enable_io()
-            .enable_time()
-            .build()
-            .expect("failed to initialize Tokio runtime")
-    });
+    static RUNTIME: OnceCell<RuntimeType> = OnceCell::new();
+
+    /// Configure sqlx to use a [`Handle`][tokio::runtime::Handle] to a pre-existing `Runtime`
+    pub fn set_runtime(h: Handle) -> Result<(), Handle> {
+        RUNTIME.set(RuntimeType::Handle(h)).map_err(|rt| match rt {
+            RuntimeType::Handle(h) => h,
+            _ => unreachable!(),
+        })
+    }
+
+    fn default_runtime_init() -> RuntimeType {
+        RuntimeType::Built(
+            runtime::Builder::new_multi_thread()
+                .enable_io()
+                .enable_time()
+                .build()
+                .expect("failed to initialize Tokio runtime"),
+        )
+    }
 
     pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-        RUNTIME.block_on(future)
+        let runtime = RUNTIME.get_or_init(default_runtime_init);
+
+        match runtime {
+            RuntimeType::Built(r) => r.block_on(future),
+            RuntimeType::Handle(h) => h.block_on(future),
+        }
     }
 
     pub fn enter_runtime<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
     {
-        let _rt = RUNTIME.enter();
+        let runtime = RUNTIME.get_or_init(default_runtime_init);
+
+        let _guard = match runtime {
+            RuntimeType::Built(r) => r.enter(),
+            RuntimeType::Handle(h) => h.enter(),
+        };
+
         f()
     }
 }
