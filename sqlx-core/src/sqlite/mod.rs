@@ -5,6 +5,8 @@
 // invariants.
 #![allow(unsafe_code)]
 
+use crate::executor::Executor;
+
 mod arguments;
 mod column;
 mod connection;
@@ -42,6 +44,10 @@ pub type SqlitePool = crate::pool::Pool<Sqlite>;
 
 /// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for SQLite.
 pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
+
+/// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
+pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
+impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(SqliteArguments<'q>);
