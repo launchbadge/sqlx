@@ -15,22 +15,22 @@ pub enum PgValueFormat {
 /// Implementation of [`ValueRef`] for PostgreSQL.
 #[derive(Clone)]
 pub struct PgValueRef<'r> {
-    pub(crate) value: Option<&'r [u8]>,
-    pub(crate) row: Option<&'r Bytes>,
-    pub(crate) type_info: PgTypeInfo,
-    pub(crate) format: PgValueFormat,
+    pub value: Option<&'r [u8]>,
+    pub row: Option<&'r Bytes>,
+    pub type_info: PgTypeInfo,
+    pub format: PgValueFormat,
 }
 
 /// Implementation of [`Value`] for PostgreSQL.
 #[derive(Clone)]
 pub struct PgValue {
-    pub(crate) value: Option<Bytes>,
-    pub(crate) type_info: PgTypeInfo,
-    pub(crate) format: PgValueFormat,
+    pub value: Option<Bytes>,
+    pub type_info: PgTypeInfo,
+    pub format: PgValueFormat,
 }
 
 impl<'r> PgValueRef<'r> {
-    pub(crate) fn get(buf: &mut &'r [u8], format: PgValueFormat, ty: PgTypeInfo) -> Self {
+    pub fn get(buf: &mut &'r [u8], format: PgValueFormat, ty: PgTypeInfo) -> Self {
         let mut element_len = buf.get_i32();
 
         let element_val = if element_len == -1 {
@@ -50,18 +50,18 @@ impl<'r> PgValueRef<'r> {
         }
     }
 
-    pub(crate) fn format(&self) -> PgValueFormat {
+    pub fn format(&self) -> PgValueFormat {
         self.format
     }
 
-    pub(crate) fn as_bytes(&self) -> Result<&'r [u8], BoxDynError> {
+    pub fn as_bytes(&self) -> Result<&'r [u8], BoxDynError> {
         match &self.value {
             Some(v) => Ok(v),
             None => Err(UnexpectedNullError.into()),
         }
     }
 
-    pub(crate) fn as_str(&self) -> Result<&'r str, BoxDynError> {
+    pub fn as_str(&self) -> Result<&'r str, BoxDynError> {
         Ok(from_utf8(self.as_bytes()?)?)
     }
 }

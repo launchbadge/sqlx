@@ -5,13 +5,13 @@ use crate::postgres::{PgTypeInfo, Postgres};
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgColumn {
-    pub(crate) ordinal: usize,
-    pub(crate) name: UStr,
-    pub(crate) type_info: PgTypeInfo,
+    pub ordinal: usize,
+    pub name: UStr,
+    pub type_info: PgTypeInfo,
     #[cfg_attr(feature = "offline", serde(skip))]
-    pub(crate) relation_id: Option<i32>,
+    pub relation_id: Option<i32>,
     #[cfg_attr(feature = "offline", serde(skip))]
-    pub(crate) relation_attribute_no: Option<i16>,
+    pub relation_attribute_no: Option<i16>,
 }
 
 impl crate::column::private_column::Sealed for PgColumn {}

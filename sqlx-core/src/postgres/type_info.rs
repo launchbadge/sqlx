@@ -8,8 +8,7 @@ use crate::ext::ustr::UStr;
 use crate::type_info::TypeInfo;
 
 /// Type information for a PostgreSQL type.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PgTypeInfo(pub(crate) PgType);
 
 impl Deref for PgTypeInfo {
@@ -20,8 +19,7 @@ impl Deref for PgTypeInfo {
     }
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[repr(u32)]
 pub enum PgType {
     Bool,
@@ -131,17 +129,14 @@ pub enum PgType {
     DeclareWithOid(u32),
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PgCustomType {
-    #[cfg_attr(feature = "offline", serde(skip))]
-    pub(crate) oid: u32,
-    pub(crate) name: UStr,
-    pub(crate) kind: PgTypeKind,
+    pub oid: u32,
+    pub name: UStr,
+    pub kind: PgTypeKind,
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PgTypeKind {
     Simple,
     Pseudo,
@@ -154,7 +149,7 @@ pub enum PgTypeKind {
 
 impl PgTypeInfo {
     /// Returns the corresponding `PgTypeInfo` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
+    pub fn try_from_oid(oid: u32) -> Option<Self> {
         PgType::try_from_oid(oid).map(Self)
     }
 
@@ -233,7 +228,7 @@ impl PgTypeInfo {
 
 impl PgType {
     /// Returns the corresponding `PgType` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
+    pub fn try_from_oid(oid: u32) -> Option<Self> {
         Some(match oid {
             16 => PgType::Bool,
             17 => PgType::Bytea,
@@ -334,14 +329,14 @@ impl PgType {
         })
     }
 
-    pub(crate) fn oid(&self) -> u32 {
+    pub fn oid(&self) -> u32 {
         match self.try_oid() {
             Some(oid) => oid,
             None => unreachable!("(bug) use of unresolved type declaration [oid]"),
         }
     }
 
-    pub(crate) fn try_oid(&self) -> Option<u32> {
+    pub fn try_oid(&self) -> Option<u32> {
         Some(match self {
             PgType::Bool => 16,
             PgType::Bytea => 17,
@@ -444,7 +439,7 @@ impl PgType {
         })
     }
 
-    pub(crate) fn display_name(&self) -> &str {
+    pub fn display_name(&self) -> &str {
         match self {
             PgType::Bool => "BOOL",
             PgType::Bytea => "BYTEA",
@@ -544,7 +539,7 @@ impl PgType {
         }
     }
 
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         match self {
             PgType::Bool => "bool",
             PgType::Bytea => "bytea",
@@ -644,7 +639,7 @@ impl PgType {
         }
     }
 
-    pub(crate) fn kind(&self) -> &PgTypeKind {
+    pub fn kind(&self) -> &PgTypeKind {
         match self {
             PgType::Bool => &PgTypeKind::Simple,
             PgType::Bytea => &PgTypeKind::Simple,
