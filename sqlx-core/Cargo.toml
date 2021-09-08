@@ -121,7 +121,7 @@ either = "1.5.3"
 futures-channel = { version = "0.3.5", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.5", default-features = false }
 futures-intrusive = "0.4.0"
-futures-util = { version = "0.3.5", features = ["sink"] }
+futures-util = { version = "0.3.5", default-features = false, features = ["alloc", "sink"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"
 hmac = { version = "0.10.1", default-features = false, optional = true }
