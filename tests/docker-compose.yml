@@ -235,6 +235,8 @@ services:
             dockerfile: mssql/mssql-2017.dockerfile
             args:
                 VERSION: 2017-latest
+        ports:
+          - 1433
         environment:
             ACCEPT_EULA: "Y"
             SA_PASSWORD: Password123!

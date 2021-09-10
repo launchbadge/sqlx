@@ -216,8 +216,6 @@ pub fn check_transparent_attributes(
         field
     );
 
-    assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
-
     let ch_attributes = parse_child_attributes(&field.attrs)?;
 
     assert_attribute!(

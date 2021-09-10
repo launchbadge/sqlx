@@ -536,3 +536,34 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// https://github.com/launchbadge/sqlx/issues/1300
+#[sqlx_macros::test]
+async fn concurrent_resets_dont_segfault() {
+    use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
+    use std::{str::FromStr, time::Duration};
+
+    let mut conn = SqliteConnectOptions::from_str(":memory:")
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+
+    sqlx::query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
+        .execute(&mut conn)
+        .await
+        .unwrap();
+
+    sqlx_rt::spawn(async move {
+        for i in 0..1000 {
+            sqlx::query("INSERT INTO stuff (name, value) VALUES (?, ?)")
+                .bind(i)
+                .bind(0)
+                .execute(&mut conn)
+                .await
+                .unwrap();
+        }
+    });
+
+    sqlx_rt::sleep(Duration::from_millis(1)).await;
+}
