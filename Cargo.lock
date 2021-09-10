@@ -2535,7 +2535,6 @@ version = "0.5.7"
 dependencies = [
  "dotenv",
  "either",
- "futures",
  "heck",
  "hex",
  "once_cell",

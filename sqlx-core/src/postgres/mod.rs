@@ -1,5 +1,7 @@
 //! **PostgreSQL** database driver.
 
+use crate::executor::Executor;
+
 mod arguments;
 mod column;
 mod connection;
@@ -40,6 +42,10 @@ pub type PgPool = crate::pool::Pool<Postgres>;
 
 /// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for Postgres.
 pub type PgPoolOptions = crate::pool::PoolOptions<Postgres>;
+
+/// An alias for [`Executor<'_, Database = Postgres>`][Executor].
+pub trait PgExecutor<'c>: Executor<'c, Database = Postgres> {}
+impl<'c, T: Executor<'c, Database = Postgres>> PgExecutor<'c> for T {}
 
 impl_into_arguments_for_arguments!(PgArguments);
 impl_executor_for_pool_connection!(Postgres, PgConnection, PgRow);

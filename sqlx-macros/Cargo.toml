@@ -79,7 +79,6 @@ json = ["sqlx-core/json", "serde_json"]
 
 [dependencies]
 dotenv = { version = "0.15.0", default-features = false }
-futures = { version = "0.3.4", default-features = false, features = ["executor"] }
 hex = { version = "0.4.2", optional = true }
 heck = "0.3.1"
 either = "1.5.3"

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use dotenv::dotenv;
 
 use crate::opt::{Command, DatabaseCommand, MigrateCommand};
 
@@ -13,8 +12,6 @@ mod prepare;
 pub use crate::opt::Opt;
 
 pub async fn run(opt: Opt) -> Result<()> {
-    dotenv().ok();
-
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add {

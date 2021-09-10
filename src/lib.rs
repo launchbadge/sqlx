@@ -46,23 +46,23 @@ pub use sqlx_core::migrate;
     ),
     feature = "any"
 ))]
-pub use sqlx_core::any::{self, Any, AnyConnection, AnyPool};
+pub use sqlx_core::any::{self, Any, AnyConnection, AnyExecutor, AnyPool};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
+pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
 
 #[cfg(feature = "mssql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlPool};
+pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlExecutor, MssqlPool};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
+pub use sqlx_core::postgres::{self, PgConnection, PgExecutor, PgPool, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
-pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
+pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]
