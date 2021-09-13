@@ -107,6 +107,7 @@ impl SqliteConnectOptions {
             statement_cache_capacity: 100,
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
+            immutable: false,
             pragmas,
         }
     }
