@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
@@ -1106,6 +1106,100 @@ async fn test_pg_server_num() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_can_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let mut copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.send("id\n1\n2\n".as_bytes()).await?;
+    let rows = copy.finish().await?;
+    assert_eq!(rows, 2);
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_abort_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let mut copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.abort("this is only a test").await?;
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_copy_out() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    {
+        let mut copy = conn
+            .copy_out_raw(
+                "
+            COPY (SELECT generate_series(1, 2) AS id) TO STDOUT WITH (FORMAT CSV, HEADER);
+        ",
+            )
+            .await?;
+
+        assert_eq!(copy.next().await.unwrap().unwrap(), "id\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "1\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "2\n");
+        if copy.next().await.is_some() {
+            anyhow::bail!("Unexpected data from COPY");
+        }
+    }
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
 
 async fn test_issue_1254() -> anyhow::Result<()> {
     #[derive(sqlx::Type)]

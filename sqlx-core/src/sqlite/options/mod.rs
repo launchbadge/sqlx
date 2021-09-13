@@ -63,6 +63,7 @@ pub struct SqliteConnectOptions {
     pub(crate) synchronous: SqliteSynchronous,
     pub(crate) auto_vacuum: SqliteAutoVacuum,
     pub(crate) page_size: u32,
+    pub(crate) immutable: bool,
 }
 
 impl Default for SqliteConnectOptions {
@@ -88,6 +89,7 @@ impl SqliteConnectOptions {
             synchronous: SqliteSynchronous::Full,
             auto_vacuum: Default::default(),
             page_size: 4096,
+            immutable: false,
         }
     }
 
@@ -188,6 +190,28 @@ impl SqliteConnectOptions {
     /// The default page_size setting is 4096.
     pub fn page_size(mut self, page_size: u32) -> Self {
         self.page_size = page_size;
+        self
+    }
+
+    pub fn immutable(mut self, immutable: bool) -> Self {
+        self.immutable = immutable;
+        self
+    }
+  
+    /// Sets the log settings.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::sqlite::SqliteConnectOptions;
+    /// let options = SqliteConnectOptions::new()
+    ///     .log_settings(sqlx_core::connection::LogSettings {
+    ///     statements_level: sqlx_core::connection::LevelFilter::Info,
+    ///     ..Default::default()
+    /// });
+    /// ```
+    pub fn log_settings(mut self, log_settings: LogSettings) -> Self {
+        self.log_settings = log_settings;
         self
     }
 }

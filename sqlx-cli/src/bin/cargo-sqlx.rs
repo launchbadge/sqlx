@@ -1,5 +1,6 @@
 use clap::{crate_version, AppSettings, FromArgMatches, IntoApp};
 use console::style;
+use dotenv::dotenv;
 use sqlx_cli::Opt;
 use std::{env, process};
 
@@ -9,6 +10,7 @@ async fn main() {
     // so we want to notch out that superfluous "sqlx"
     let args = env::args_os().skip(2);
 
+    dotenv().ok();
     let matches = Opt::into_app()
         .version(crate_version!())
         .bin_name("cargo sqlx")

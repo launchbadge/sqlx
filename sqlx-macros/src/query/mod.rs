@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+#[cfg(feature = "offline")]
+use std::sync::{Arc, Mutex};
 
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
@@ -30,7 +32,38 @@ struct Metadata {
     #[cfg(feature = "offline")]
     target_dir: PathBuf,
     #[cfg(feature = "offline")]
-    workspace_root: PathBuf,
+    workspace_root: Arc<Mutex<Option<PathBuf>>>,
+}
+
+#[cfg(feature = "offline")]
+impl Metadata {
+    pub fn workspace_root(&self) -> PathBuf {
+        let mut root = self.workspace_root.lock().unwrap();
+        if root.is_none() {
+            use serde::Deserialize;
+            use std::process::Command;
+
+            let cargo = env("CARGO").expect("`CARGO` must be set");
+
+            let output = Command::new(&cargo)
+                .args(&["metadata", "--format-version=1"])
+                .current_dir(&self.manifest_dir)
+                .env_remove("__CARGO_FIX_PLZ")
+                .output()
+                .expect("Could not fetch metadata");
+
+            #[derive(Deserialize)]
+            struct CargoMetadata {
+                workspace_root: PathBuf,
+            }
+
+            let metadata: CargoMetadata =
+                serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
+
+            *root = Some(metadata.workspace_root);
+        }
+        root.clone().unwrap()
+    }
 }
 
 // If we are in a workspace, lookup `workspace_root` since `CARGO_MANIFEST_DIR` won't
@@ -71,31 +104,6 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     let database_url = env("DATABASE_URL").ok();
 
-    #[cfg(feature = "offline")]
-    let workspace_root = {
-        use serde::Deserialize;
-        use std::process::Command;
-
-        let cargo = env("CARGO").expect("`CARGO` must be set");
-
-        let output = Command::new(&cargo)
-            .args(&["metadata", "--format-version=1"])
-            .current_dir(&manifest_dir)
-            .env_remove("__CARGO_FIX_PLZ")
-            .output()
-            .expect("Could not fetch metadata");
-
-        #[derive(Deserialize)]
-        struct CargoMetadata {
-            workspace_root: PathBuf,
-        }
-
-        let metadata: CargoMetadata =
-            serde_json::from_slice(&output.stdout).expect("Invalid `cargo metadata` output");
-
-        metadata.workspace_root
-    };
-
     Metadata {
         manifest_dir,
         offline,
@@ -103,7 +111,7 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
         #[cfg(feature = "offline")]
         target_dir,
         #[cfg(feature = "offline")]
-        workspace_root,
+        workspace_root: Arc::new(Mutex::new(None)),
     }
 });
 
@@ -118,18 +126,20 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
         #[cfg(feature = "offline")]
         _ => {
             let data_file_path = METADATA.manifest_dir.join("sqlx-data.json");
-            let workspace_data_file_path = METADATA.workspace_root.join("sqlx-data.json");
 
             if data_file_path.exists() {
                 expand_from_file(input, data_file_path)
-            } else if workspace_data_file_path.exists() {
-                expand_from_file(input, workspace_data_file_path)
             } else {
-                Err(
-                    "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
+                let workspace_data_file_path = METADATA.workspace_root().join("sqlx-data.json");
+                if workspace_data_file_path.exists() {
+                    expand_from_file(input, workspace_data_file_path)
+                } else {
+                    Err(
+                        "`DATABASE_URL` must be set, or `cargo sqlx prepare` must have been run \
                      and sqlx-data.json must exist, to use query macros"
-                        .into(),
-                )
+                            .into(),
+                    )
+                }
             }
         }
 
