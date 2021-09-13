@@ -22,7 +22,8 @@ impl ConnectOptions for SqliteConnectOptions {
 
             for (key, value) in self.pragmas.iter() {
                use std::fmt::Write;
-               write!(init, "PRAGMA {} = {}; ", key, value).ok();
+                use std::fmt::Write;
+                write!(init, "PRAGMA {} = {}; ", key, value).ok();
             }
 
             conn.execute(&*init).await?;
