@@ -37,7 +37,7 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
-    net::TcpStream, task::spawn, task::yield_now, time::sleep, time::timeout,
+    net::TcpStream, runtime::Handle, task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -105,7 +105,8 @@ pub use tokio_rustls::{client::TlsStream, TlsConnector};
 #[macro_export]
 macro_rules! blocking {
     ($($expr:tt)*) => {
-        $crate::tokio::task::block_in_place(move || { $($expr)* })
+        $crate::tokio::task::spawn_blocking(move || { $($expr)* })
+            .await.expect("Blocking task failed to complete.")
     };
 }
 

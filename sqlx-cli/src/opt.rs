@@ -4,9 +4,6 @@ use clap::Clap;
 pub struct Opt {
     #[clap(subcommand)]
     pub command: Command,
-
-    #[clap(short = 'D', long)]
-    pub database_url: Option<String>,
 }
 
 #[derive(Clap, Debug)]
@@ -36,6 +33,10 @@ pub enum Command {
         /// Arguments to be passed to `cargo rustc ...`.
         #[clap(last = true)]
         args: Vec<String>,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 
     #[clap(alias = "mig")]
@@ -52,7 +53,11 @@ pub struct DatabaseOpt {
 #[derive(Clap, Debug)]
 pub enum DatabaseCommand {
     /// Creates the database specified in your DATABASE_URL.
-    Create,
+    Create {
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
+    },
 
     /// Drops the database specified in your DATABASE_URL.
     Drop {
@@ -60,6 +65,10 @@ pub enum DatabaseCommand {
         /// your database.
         #[clap(short)]
         yes: bool,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 
     /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
@@ -72,6 +81,10 @@ pub enum DatabaseCommand {
         /// Path to folder containing migrations.
         #[clap(long, default_value = "migrations")]
         source: String,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
@@ -79,6 +92,10 @@ pub enum DatabaseCommand {
         /// Path to folder containing migrations.
         #[clap(long, default_value = "migrations")]
         source: String,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 }
 
@@ -115,6 +132,10 @@ pub enum MigrateCommand {
         /// Ignore applied migrations that missing in the resolved migrations
         #[clap(long)]
         ignore_missing: bool,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 
     /// Revert the latest migration with a down file.
@@ -126,8 +147,25 @@ pub enum MigrateCommand {
         /// Ignore applied migrations that missing in the resolved migrations
         #[clap(long)]
         ignore_missing: bool,
+
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, short = 'D', env)]
+        database_url: String,
     },
 
     /// List all available migrations.
-    Info,
+    Info {
+        /// Location of the DB, by default will be read from the DATABASE_URL env var
+        #[clap(long, env)]
+        database_url: String,
+    },
+
+    /// Generate a `build.rs` to trigger recompilation when a new migration is added.
+    ///
+    /// Must be run in a Cargo project root.
+    BuildScript {
+        /// Overwrite the build script if it already exists.
+        #[clap(long)]
+        force: bool,
+    },
 }

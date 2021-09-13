@@ -1,9 +1,11 @@
 use clap::{crate_version, FromArgMatches, IntoApp};
 use console::style;
+use dotenv::dotenv;
 use sqlx_cli::Opt;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     let matches = Opt::into_app().version(crate_version!()).get_matches();
 
     // no special handling here

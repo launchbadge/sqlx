@@ -94,6 +94,20 @@ impl FromStr for SqliteConnectOptions {
                         }
                     },
 
+                    "immutable" => match &*value {
+                        "true" | "1" => {
+                            options.immutable = true;
+                        }
+                        "false" | "0" => {
+                            options.immutable = false;
+                        }
+                        _ => {
+                            return Err(Error::Configuration(
+                                format!("unknown value {:?} for `immutable`", value).into(),
+                            ));
+                        }
+                    },
+
                     _ => {
                         return Err(Error::Configuration(
                             format!(

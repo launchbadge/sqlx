@@ -1,5 +1,7 @@
 //! **MySQL** database driver.
 
+use crate::executor::Executor;
+
 mod arguments;
 mod collation;
 mod column;
@@ -38,6 +40,10 @@ pub type MySqlPool = crate::pool::Pool<MySql>;
 
 /// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for MySQL.
 pub type MySqlPoolOptions = crate::pool::PoolOptions<MySql>;
+
+/// An alias for [`Executor<'_, Database = MySql>`][Executor].
+pub trait MySqlExecutor<'c>: Executor<'c, Database = MySql> {}
+impl<'c, T: Executor<'c, Database = MySql>> MySqlExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MySqlArguments);

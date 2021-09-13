@@ -198,6 +198,8 @@ impl PgTypeInfo {
         .contains(self)
         {
             Some("ipnetwork")
+        } else if [PgTypeInfo::MACADDR].contains(self) {
+            Some("mac_address")
         } else if [PgTypeInfo::NUMERIC, PgTypeInfo::NUMERIC_ARRAY].contains(self) {
             Some("bigdecimal")
         } else {
@@ -740,8 +742,11 @@ impl PgType {
 
             PgType::Custom(ty) => &ty.kind,
 
-            PgType::DeclareWithOid(_) | PgType::DeclareWithName(_) => {
-                unreachable!("(bug) use of unresolved type declaration [kind]")
+            PgType::DeclareWithOid(oid) => {
+                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
+            }
+            PgType::DeclareWithName(name) => {
+                unreachable!("(bug) use of unresolved type declaration [name={}]", name);
             }
         }
     }

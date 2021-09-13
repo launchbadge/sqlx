@@ -38,6 +38,10 @@ impl Type<Postgres> for [IpNetwork] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INET_ARRAY
     }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        *ty == PgTypeInfo::CIDR_ARRAY || *ty == PgTypeInfo::INET_ARRAY
+    }
 }
 
 impl Type<Postgres> for Vec<IpNetwork> {

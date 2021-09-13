@@ -8,7 +8,7 @@ use syn::{ExprArray, Type};
 
 /// Macro input shared by `query!()` and `query_file!()`
 pub struct QueryMacroInput {
-    pub(super) src: String,
+    pub(super) sql: String,
 
     #[cfg_attr(not(feature = "offline"), allow(dead_code))]
     pub(super) src_span: Span,
@@ -18,6 +18,8 @@ pub struct QueryMacroInput {
     pub(super) arg_exprs: Vec<Expr>,
 
     pub(super) checked: bool,
+
+    pub(super) file_path: Option<String>,
 }
 
 enum QuerySrc {
@@ -94,12 +96,15 @@ impl Parse for QueryMacroInput {
 
         let arg_exprs = args.unwrap_or_default();
 
+        let file_path = src.file_path(src_span)?;
+
         Ok(QueryMacroInput {
-            src: src.resolve(src_span)?,
+            sql: src.resolve(src_span)?,
             src_span,
             record_type,
             arg_exprs,
             checked,
+            file_path,
         })
     }
 }
@@ -110,6 +115,27 @@ impl QuerySrc {
         match self {
             QuerySrc::String(string) => Ok(string),
             QuerySrc::File(file) => read_file_src(&file, source_span),
+        }
+    }
+
+    fn file_path(&self, source_span: Span) -> syn::Result<Option<String>> {
+        if let QuerySrc::File(ref file) = *self {
+            let path = crate::common::resolve_path(file, source_span)?
+                .canonicalize()
+                .map_err(|e| syn::Error::new(source_span, e))?;
+
+            Ok(Some(
+                path.to_str()
+                    .ok_or_else(|| {
+                        syn::Error::new(
+                            source_span,
+                            "query file path cannot be represented as a string",
+                        )
+                    })?
+                    .to_string(),
+            ))
+        } else {
+            Ok(None)
         }
     }
 }

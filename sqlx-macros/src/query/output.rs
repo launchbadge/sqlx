@@ -14,6 +14,7 @@ use syn::Token;
 
 pub struct RustColumn {
     pub(super) ident: Ident,
+    pub(super) var_name: Ident,
     pub(super) type_: ColumnType,
 }
 
@@ -114,6 +115,9 @@ fn column_to_rust<DB: DatabaseExt>(describe: &Describe<DB>, i: usize) -> crate::
     };
 
     Ok(RustColumn {
+        // prefix the variable name we use in `quote_query_as!()` so it doesn't conflict
+        // https://github.com/launchbadge/sqlx/issues/1322
+        var_name: quote::format_ident!("sqlx_query_as_{}", decl.ident),
         ident: decl.ident,
         type_,
     })
@@ -129,7 +133,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
         |(
             i,
             &RustColumn {
-                ref ident,
+                ref var_name,
                 ref type_,
                 ..
             },
@@ -140,24 +144,32 @@ pub fn quote_query_as<DB: DatabaseExt>(
                     // binding to a `let` avoids confusing errors about
                     // "try expression alternatives have incompatible types"
                     // it doesn't seem to hurt inference in the other branches
-                    let #ident = row.try_get_unchecked::<#type_, _>(#i)?;
+                    let #var_name = row.try_get_unchecked::<#type_, _>(#i)?;
                 },
                 // type was overridden to be a wildcard so we fallback to the runtime check
-                (true, ColumnType::Wildcard) => quote! ( let #ident = row.try_get(#i)?; ),
+                (true, ColumnType::Wildcard) => quote! ( let #var_name = row.try_get(#i)?; ),
                 (true, ColumnType::OptWildcard) => {
-                    quote! ( let #ident = row.try_get::<::std::option::Option<_>, _>(#i)?; )
+                    quote! ( let #var_name = row.try_get::<::std::option::Option<_>, _>(#i)?; )
                 }
                 // macro is the `_unchecked!()` variant so this will die in decoding if it's wrong
-                (false, _) => quote!( let #ident = row.try_get_unchecked(#i)?; ),
+                (false, _) => quote!( let #var_name = row.try_get_unchecked(#i)?; ),
             }
         },
     );
 
     let ident = columns.iter().map(|col| &col.ident);
+    let var_name = columns.iter().map(|col| &col.var_name);
 
     let db_path = DB::db_path();
     let row_path = DB::row_path();
-    let sql = &input.src;
+
+    // if this query came from a file, use `include_str!()` to tell the compiler where it came from
+    let sql = if let Some(ref path) = &input.file_path {
+        quote::quote_spanned! { input.src_span => include_str!(#path) }
+    } else {
+        let sql = &input.sql;
+        quote! { #sql }
+    };
 
     quote! {
         ::sqlx::query_with::<#db_path, _>(#sql, #bind_args).try_map(|row: #row_path| {
@@ -165,7 +177,7 @@ pub fn quote_query_as<DB: DatabaseExt>(
 
             #(#instantiations)*
 
-            Ok(#out_ty { #(#ident: #ident),* })
+            Ok(#out_ty { #(#ident: #var_name),* })
         })
     }
 }
@@ -200,7 +212,7 @@ pub fn quote_query_scalar<DB: DatabaseExt>(
     };
 
     let db = DB::db_path();
-    let query = &input.src;
+    let query = &input.sql;
 
     Ok(quote! {
         ::sqlx::query_scalar_with::<#db, #ty, _>(#query, #bind_args)
