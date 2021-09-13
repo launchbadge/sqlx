@@ -21,7 +21,7 @@ impl ConnectOptions for SqliteConnectOptions {
             let mut init = String::new();
 
             for (key, value) in self.pragmas.iter() {
-                init += &format!("PRAGMA {} = {}; ", key, value);
+               write!(init, "PRAGMA {} = {}; ", key, value).ok();
             }
 
             conn.execute(&*init).await?;

@@ -219,9 +219,10 @@ impl SqliteConnectOptions {
     }
 
     /// Sets custom initial pragma for the database connection.
-    pub fn pragma<T>(mut self, key: T, value: T) -> Self
+    pub fn pragma<K, V>(mut self, key: K, value: V) -> Self
     where
-        T: Into<Cow<'static, str>>,
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
     {
         self.pragmas.insert(key.into(), value.into());
         self
