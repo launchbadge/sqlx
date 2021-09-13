@@ -21,7 +21,6 @@ impl ConnectOptions for SqliteConnectOptions {
             let mut init = String::new();
 
             for (key, value) in self.pragmas.iter() {
-               use std::fmt::Write;
                 use std::fmt::Write;
                 write!(init, "PRAGMA {} = {}; ", key, value).ok();
             }
