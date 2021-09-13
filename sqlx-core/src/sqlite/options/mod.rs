@@ -59,6 +59,7 @@ pub struct SqliteConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
+    pub(crate) immutable: bool,
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>>,
 }
 
