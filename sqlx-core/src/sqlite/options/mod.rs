@@ -197,7 +197,7 @@ impl SqliteConnectOptions {
         self.immutable = immutable;
         self
     }
-  
+
     /// Sets the log settings.
     ///
     /// # Example
