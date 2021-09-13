@@ -14,6 +14,8 @@ pub use locking_mode::SqliteLockingMode;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
 
+use indexmap::IndexMap;
+
 /// Options and flags which can be used to configure a SQLite connection.
 ///
 /// A value of `SqliteConnectOptions` can be parsed from a connection URI,
@@ -53,17 +55,12 @@ pub struct SqliteConnectOptions {
     pub(crate) in_memory: bool,
     pub(crate) read_only: bool,
     pub(crate) create_if_missing: bool,
-    pub(crate) journal_mode: SqliteJournalMode,
-    pub(crate) locking_mode: SqliteLockingMode,
-    pub(crate) foreign_keys: bool,
     pub(crate) shared_cache: bool,
     pub(crate) statement_cache_capacity: usize,
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
-    pub(crate) synchronous: SqliteSynchronous,
-    pub(crate) auto_vacuum: SqliteAutoVacuum,
-    pub(crate) page_size: u32,
     pub(crate) immutable: bool,
+    pub(crate) pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>>,
 }
 
 impl Default for SqliteConnectOptions {
@@ -74,22 +71,44 @@ impl Default for SqliteConnectOptions {
 
 impl SqliteConnectOptions {
     pub fn new() -> Self {
+        // set default pragmas
+        let mut pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>> = IndexMap::new();
+
+        let locking_mode: SqliteLockingMode = Default::default();
+        let auto_vacuum: SqliteAutoVacuum = Default::default();
+
+        // page_size must be set before any other action on the database.
+        pragmas.insert("page_size".into(), "4096".into());
+
+        // Note that locking_mode should be set before journal_mode; see
+        // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
+        pragmas.insert("locking_mode".into(), locking_mode.as_str().into());
+
+        pragmas.insert(
+            "journal_mode".into(),
+            SqliteJournalMode::Wal.as_str().into(),
+        );
+
+        pragmas.insert("foreign_keys".into(), "ON".into());
+
+        pragmas.insert(
+            "synchronous".into(),
+            SqliteSynchronous::Full.as_str().into(),
+        );
+
+        pragmas.insert("auto_vacuum".into(), auto_vacuum.as_str().into());
+
         Self {
             filename: Cow::Borrowed(Path::new(":memory:")),
             in_memory: false,
             read_only: false,
             create_if_missing: false,
-            foreign_keys: true,
             shared_cache: false,
             statement_cache_capacity: 100,
-            journal_mode: SqliteJournalMode::Wal,
-            locking_mode: Default::default(),
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
-            synchronous: SqliteSynchronous::Full,
-            auto_vacuum: Default::default(),
-            page_size: 4096,
             immutable: false,
+            pragmas,
         }
     }
 
@@ -103,7 +122,10 @@ impl SqliteConnectOptions {
     ///
     /// By default, this is enabled.
     pub fn foreign_keys(mut self, on: bool) -> Self {
-        self.foreign_keys = on;
+        self.pragmas.insert(
+            "foreign_keys".into(),
+            (if on { "ON" } else { "OFF" }).into(),
+        );
         self
     }
 
@@ -120,7 +142,8 @@ impl SqliteConnectOptions {
     /// The default journal mode is WAL. For most use cases this can be significantly faster but
     /// there are [disadvantages](https://www.sqlite.org/wal.html).
     pub fn journal_mode(mut self, mode: SqliteJournalMode) -> Self {
-        self.journal_mode = mode;
+        self.pragmas
+            .insert("journal_mode".into(), mode.as_str().into());
         self
     }
 
@@ -128,7 +151,8 @@ impl SqliteConnectOptions {
     ///
     /// The default locking mode is NORMAL.
     pub fn locking_mode(mut self, mode: SqliteLockingMode) -> Self {
-        self.locking_mode = mode;
+        self.pragmas
+            .insert("locking_mode".into(), mode.as_str().into());
         self
     }
 
@@ -173,7 +197,8 @@ impl SqliteConnectOptions {
     /// The default synchronous settings is FULL. However, if durability is not a concern,
     /// then NORMAL is normally all one needs in WAL mode.
     pub fn synchronous(mut self, synchronous: SqliteSynchronous) -> Self {
-        self.synchronous = synchronous;
+        self.pragmas
+            .insert("synchronous".into(), synchronous.as_str().into());
         self
     }
 
@@ -181,7 +206,8 @@ impl SqliteConnectOptions {
     ///
     /// The default auto_vacuum setting is NONE.
     pub fn auto_vacuum(mut self, auto_vacuum: SqliteAutoVacuum) -> Self {
-        self.auto_vacuum = auto_vacuum;
+        self.pragmas
+            .insert("auto_vacuum".into(), auto_vacuum.as_str().into());
         self
     }
 
@@ -189,7 +215,18 @@ impl SqliteConnectOptions {
     ///
     /// The default page_size setting is 4096.
     pub fn page_size(mut self, page_size: u32) -> Self {
-        self.page_size = page_size;
+        self.pragmas
+            .insert("page_size".into(), page_size.to_string().into());
+        self
+    }
+
+    /// Sets custom initial pragma for the database connection.
+    pub fn pragma<K, V>(mut self, key: K, value: V) -> Self
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        self.pragmas.insert(key.into(), value.into());
         self
     }
 
