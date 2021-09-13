@@ -5,6 +5,7 @@ use crate::executor::Executor;
 mod arguments;
 mod column;
 mod connection;
+mod copy;
 mod database;
 mod error;
 mod io;
