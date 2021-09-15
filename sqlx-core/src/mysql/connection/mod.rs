@@ -16,7 +16,7 @@ mod executor;
 mod stream;
 mod tls;
 
-pub(crate) use stream::{Busy, MySqlStream};
+pub(crate) use stream::{MySqlStream, Waiting};
 
 const MAX_PACKET_SIZE: u32 = 1024;
 

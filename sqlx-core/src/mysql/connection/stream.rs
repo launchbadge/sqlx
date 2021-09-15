@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
 
 use bytes::{Buf, Bytes};
@@ -16,15 +17,13 @@ pub struct MySqlStream {
     pub(crate) server_version: (u16, u16, u16),
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
-    pub(crate) busy: Busy,
+    pub(crate) waiting: VecDeque<Waiting>,
     pub(crate) charset: CharSet,
     pub(crate) collation: Collation,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Busy {
-    NotBusy,
-
+pub(crate) enum Waiting {
     // waiting for a result set
     Result,
 
@@ -65,7 +64,7 @@ impl MySqlStream {
         }
 
         Ok(Self {
-            busy: Busy::NotBusy,
+            waiting: VecDeque::new(),
             capabilities,
             server_version: (0, 0, 0),
             sequence_id: 0,
@@ -80,32 +79,32 @@ impl MySqlStream {
             self.stream.flush().await?;
         }
 
-        while self.busy != Busy::NotBusy {
-            while self.busy == Busy::Row {
+        while !self.waiting.is_empty() {
+            while self.waiting.front() == Some(&Waiting::Row) {
                 let packet = self.recv_packet().await?;
 
                 if packet[0] == 0xfe && packet.len() < 9 {
                     let eof = packet.eof(self.capabilities)?;
 
-                    self.busy = if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
-                        Busy::Result
+                    if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
+                        *self.waiting.front_mut().unwrap() = Waiting::Result;
                     } else {
-                        Busy::NotBusy
+                        self.waiting.pop_front();
                     };
                 }
             }
 
-            while self.busy == Busy::Result {
+            while self.waiting.front() == Some(&Waiting::Result) {
                 let packet = self.recv_packet().await?;
 
                 if packet[0] == 0x00 || packet[0] == 0xff {
                     let ok = packet.ok()?;
 
                     if !ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
-                        self.busy = Busy::NotBusy;
+                        self.waiting.pop_front();
                     }
                 } else {
-                    self.busy = Busy::Row;
+                    *self.waiting.front_mut().unwrap() = Waiting::Row;
                     self.skip_result_metadata(packet).await?;
                 }
             }
@@ -150,7 +149,7 @@ impl MySqlStream {
         // TODO: packet joining
 
         if payload[0] == 0xff {
-            self.busy = Busy::NotBusy;
+            self.waiting.pop_front();
 
             // instead of letting this packet be looked at everywhere, we check here
             // and emit a proper Error
