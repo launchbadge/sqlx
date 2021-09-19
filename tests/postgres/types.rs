@@ -280,7 +280,7 @@ mod chrono {
 mod time_tests {
     use super::*;
     use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-    use time::{date, time};
+    use time::macros::{date, time};
 
     type PgTimeTz = sqlx::postgres::types::PgTimeTz<Time, UtcOffset>;
 
@@ -298,8 +298,7 @@ mod time_tests {
     test_type!(time_date_time<PrimitiveDateTime>(
         Postgres,
         "TIMESTAMP '2019-01-02 05:10:20'" == date!(2019 - 1 - 2).with_time(time!(5:10:20)),
-        "TIMESTAMP '2019-01-02 05:10:20.115100'"
-            == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
+        "TIMESTAMP '2019-01-02 05:10:20.1151'" == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
     ));
 
     test_type!(time_timestamp<OffsetDateTime>(
@@ -311,10 +310,11 @@ mod time_tests {
     ));
 
     test_prepared_type!(time_time_tz<PgTimeTz>(Postgres,
-        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(0) },
-        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(60 * 60 * 6 + 1800) },
-        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::west_seconds(60 * 60 * 5) },
-        "TIMETZ '05:10:20+02'" == PgTimeTz { time: time!(5:10:20), offset: UtcOffset::east_seconds(60 * 60 * 2 )}
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(0).unwrap() },
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(0).unwrap() },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(60 * 60 * 6 + 1800).unwrap() },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(-(60 * 60 * 5)).unwrap() },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: time!(5:10:20), offset: UtcOffset::from_whole_seconds(60 * 60 * 2 ).unwrap() }
     ));
 }
 

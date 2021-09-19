@@ -3,8 +3,8 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
-use std::borrow::Cow;
 use std::mem;
+use time::macros::format_description;
 use time::{Duration, Time};
 
 impl Type<Postgres> for Time {
@@ -28,7 +28,7 @@ impl Type<Postgres> for Vec<Time> {
 impl Encode<'_, Postgres> for Time {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // TIME is encoded as the microseconds since midnight
-        let us = (*self - Time::midnight()).whole_microseconds() as i64;
+        let us = (*self - Time::MIDNIGHT).whole_microseconds() as i64;
         Encode::<Postgres>::encode(&us, buf)
     }
 
@@ -43,25 +43,13 @@ impl<'r> Decode<'r, Postgres> for Time {
             PgValueFormat::Binary => {
                 // TIME is encoded as the microseconds since midnight
                 let us = Decode::<Postgres>::decode(value)?;
-                Time::midnight() + Duration::microseconds(us)
+                Time::MIDNIGHT + Duration::microseconds(us)
             }
 
-            PgValueFormat::Text => {
-                // If there are less than 9 digits after the decimal point
-                // We need to zero-pad
-
-                // FIXME: Ask [time] to add a parse % for less-than-fixed-9 nanos
-
-                let s = value.as_str()?;
-
-                let s = if s.len() < 20 {
-                    Cow::Owned(format!("{:0<19}", s))
-                } else {
-                    Cow::Borrowed(s)
-                };
-
-                Time::parse(&*s, "%H:%M:%S.%N")?
-            }
+            PgValueFormat::Text => Time::parse(
+                value.as_str()?,
+                &format_description!("[hour]:[minute]:[second].[subsecond]"),
+            )?,
         })
     }
 }
