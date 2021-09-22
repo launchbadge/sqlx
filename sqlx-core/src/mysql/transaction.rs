@@ -2,7 +2,7 @@ use futures_core::future::BoxFuture;
 
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::mysql::connection::Busy;
+use crate::mysql::connection::Waiting;
 use crate::mysql::protocol::text::Query;
 use crate::mysql::{MySql, MySqlConnection};
 use crate::transaction::{
@@ -57,7 +57,7 @@ impl TransactionManager for MySqlTransactionManager {
         let depth = conn.transaction_depth;
 
         if depth > 0 {
-            conn.stream.busy = Busy::Result;
+            conn.stream.waiting.push_back(Waiting::Result);
             conn.stream.sequence_id = 0;
             conn.stream
                 .write_packet(Query(&*rollback_ansi_transaction_sql(depth)));
