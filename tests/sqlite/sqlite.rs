@@ -567,3 +567,26 @@ async fn concurrent_resets_dont_segfault() {
 
     sqlx_rt::sleep(Duration::from_millis(1)).await;
 }
+
+// https://github.com/launchbadge/sqlx/issues/1419
+// note: this passes before and after the fix; you need to run it with `--nocapture`
+// to see the panic from the worker thread, which doesn't happen after the fix
+#[sqlx_macros::test]
+async fn row_dropped_after_connection_doesnt_panic() {
+    let mut conn = SqliteConnection::connect(":memory:").await.unwrap();
+
+    let books = sqlx::query("SELECT 'hello' AS title")
+        .fetch_all(&mut conn)
+        .await
+        .unwrap();
+
+    for book in &books {
+        // force the row to be inflated
+        let _title: String = book.get("title");
+    }
+
+    // hold `books` past the lifetime of `conn`
+    drop(conn);
+    sqlx_rt::sleep(std::time::Duration::from_secs(1)).await;
+    drop(books);
+}

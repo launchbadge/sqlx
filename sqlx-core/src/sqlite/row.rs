@@ -11,7 +11,7 @@ use crate::column::ColumnIndex;
 use crate::error::Error;
 use crate::ext::ustr::UStr;
 use crate::row::Row;
-use crate::sqlite::statement::StatementHandle;
+use crate::sqlite::statement::{StatementHandle, StatementHandleRef};
 use crate::sqlite::{Sqlite, SqliteColumn, SqliteValue, SqliteValueRef};
 
 /// Implementation of [`Row`] for SQLite.
@@ -23,7 +23,7 @@ pub struct SqliteRow {
     // IF the user drops the Row before iterating the stream (so
     // nearly all of our internal stream iterators), the executor moves on; otherwise,
     // it actually inflates this row with a list of owned sqlite3 values.
-    pub(crate) statement: Arc<StatementHandle>,
+    pub(crate) statement: StatementHandleRef,
 
     pub(crate) values: Arc<AtomicPtr<SqliteValue>>,
     pub(crate) num_values: usize,
@@ -48,7 +48,7 @@ impl SqliteRow {
     // returns a weak reference to an atomic list where the executor should inflate if its going
     // to increment the statement with [step]
     pub(crate) fn current(
-        statement: &Arc<StatementHandle>,
+        statement: StatementHandleRef,
         columns: &Arc<Vec<SqliteColumn>>,
         column_names: &Arc<HashMap<UStr, usize>>,
     ) -> (Self, Weak<AtomicPtr<SqliteValue>>) {
@@ -57,7 +57,7 @@ impl SqliteRow {
         let size = statement.column_count();
 
         let row = Self {
-            statement: Arc::clone(statement),
+            statement,
             values,
             num_values: size,
             columns: Arc::clone(columns),

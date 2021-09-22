@@ -104,8 +104,7 @@ impl Connection for SqliteConnection {
 
 impl Drop for SqliteConnection {
     fn drop(&mut self) {
-        // before the connection handle is dropped,
-        // we must explicitly drop the statements as the drop-order in a struct is undefined
+        // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
         self.statement.take();
     }
