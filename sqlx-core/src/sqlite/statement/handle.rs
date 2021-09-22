@@ -20,11 +20,24 @@ use libsqlite3_sys::{
 };
 
 use crate::error::{BoxDynError, Error};
+use crate::sqlite::connection::ConnectionHandleRef;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
+use std::ops::Deref;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
+
+// wrapper for `Arc<StatementHandle>` which also holds a reference to the `ConnectionHandle`
+#[derive(Clone, Debug)]
+pub(crate) struct StatementHandleRef {
+    // NOTE: the ordering of fields here determines the drop order:
+    // https://doc.rust-lang.org/reference/destructors.html#destructors
+    // the statement *must* be dropped before the connection
+    statement: Arc<StatementHandle>,
+    connection: ConnectionHandleRef,
+}
 
 // access to SQLite3 statement handles are safe to send and share between threads
 // as long as the `sqlite3_step` call is serialized.
@@ -292,7 +305,18 @@ impl StatementHandle {
     pub(crate) fn clear_bindings(&self) {
         unsafe { sqlite3_clear_bindings(self.0.as_ptr()) };
     }
+
+    pub(crate) fn to_ref(
+        self: &Arc<StatementHandle>,
+        conn: ConnectionHandleRef,
+    ) -> StatementHandleRef {
+        StatementHandleRef {
+            statement: Arc::clone(self),
+            connection: conn,
+        }
+    }
 }
+
 impl Drop for StatementHandle {
     fn drop(&mut self) {
         // SAFETY: we have exclusive access to the `StatementHandle` here
@@ -309,5 +333,13 @@ impl Drop for StatementHandle {
                 panic!("Detected sqlite3_finalize misuse.");
             }
         }
+    }
+}
+
+impl Deref for StatementHandleRef {
+    type Target = StatementHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.statement
     }
 }

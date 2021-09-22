@@ -15,6 +15,7 @@ pub(crate) struct ConnectionHandle(Arc<HandleInner>);
 /// or `sqlite3_reset()`.
 ///
 /// Note that this does *not* actually give access to the database handle!
+#[derive(Clone, Debug)]
 pub(crate) struct ConnectionHandleRef(Arc<HandleInner>);
 
 // Wrapper for `*mut sqlite3` which finalizes the handle on-drop.

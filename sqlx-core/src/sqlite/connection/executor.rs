@@ -152,7 +152,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                         Either::Right(()) => {
                             let (row, weak_values_ref) = SqliteRow::current(
-                                &stmt,
+                                stmt.to_ref(conn.to_ref()),
                                 columns,
                                 column_names
                             );
@@ -216,8 +216,11 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                     Either::Left(_) => (),
 
                     Either::Right(()) => {
-                        let (row, weak_values_ref) =
-                            SqliteRow::current(stmt, columns, column_names);
+                        let (row, weak_values_ref) = SqliteRow::current(
+                            stmt.to_ref(self.handle.to_ref()),
+                            columns,
+                            column_names,
+                        );
 
                         *last_row_values = Some(weak_values_ref);
 
