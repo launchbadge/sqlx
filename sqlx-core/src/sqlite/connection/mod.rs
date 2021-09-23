@@ -62,9 +62,12 @@ impl Connection for SqliteConnection {
 
     type Options = SqliteConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        // nothing explicit to do; connection will close in drop
-        Box::pin(future::ok(()))
+    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            self.statements.clear();
+            self.statement.take();
+            self.worker.shutdown().await
+        })
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {

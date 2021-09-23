@@ -30,6 +30,9 @@ enum StatementWorkerCommand {
         statement: Weak<StatementHandle>,
         tx: oneshot::Sender<()>,
     },
+    Shutdown {
+        tx: oneshot::Sender<()>,
+    },
 }
 
 impl StatementWorker {
@@ -72,11 +75,15 @@ impl StatementWorker {
                             let _ = tx.send(());
                         }
                     }
+                    StatementWorkerCommand::Shutdown { tx } => {
+                        // SAFETY: we need to make sure a strong ref to `conn` always
+                        // outlives anything in `rx`
+                        drop(conn);
+                        let _ = tx.send(());
+                        break;
+                    }
                 }
             }
-
-            // SAFETY: we need to make sure a strong ref to `conn` always outlives anything in `rx`
-            drop(conn);
         });
 
         Self { tx }
@@ -126,5 +133,20 @@ impl StatementWorker {
             // wait for the response
             rx.await.map_err(|_| Error::WorkerCrashed)
         }
+    }
+
+    /// Send a command to the worker to shut down the processing thread.
+    ///
+    /// A `WorkerCrashed` error may be returned if the thread has already stopped.
+    /// Subsequent calls to `step()`, `reset()`, or this method will fail with
+    /// `WorkerCrashed`. Ensure that any associated statements are dropped first.
+    pub(crate) async fn shutdown(&mut self) -> Result<(), Error> {
+        let (tx, rx) = oneshot::channel();
+
+        self.tx
+            .send(StatementWorkerCommand::Shutdown { tx })
+            .map_err(|_| Error::WorkerCrashed)?;
+
+        rx.await.map_err(|_| Error::WorkerCrashed)
     }
 }
