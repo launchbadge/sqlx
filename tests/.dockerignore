@@ -2,4 +2,5 @@
 !certs/*
 !keys/*
 !mssql/*.sh
+!postgres/pg_hba.conf
 !*/*.sql
