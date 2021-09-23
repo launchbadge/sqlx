@@ -140,13 +140,19 @@ impl StatementWorker {
     /// A `WorkerCrashed` error may be returned if the thread has already stopped.
     /// Subsequent calls to `step()`, `reset()`, or this method will fail with
     /// `WorkerCrashed`. Ensure that any associated statements are dropped first.
-    pub(crate) async fn shutdown(&mut self) -> Result<(), Error> {
+    pub(crate) fn shutdown(&mut self) -> impl Future<Output = Result<(), Error>> {
         let (tx, rx) = oneshot::channel();
 
-        self.tx
+        let send_res = self
+            .tx
             .send(StatementWorkerCommand::Shutdown { tx })
-            .map_err(|_| Error::WorkerCrashed)?;
+            .map_err(|_| Error::WorkerCrashed);
 
-        rx.await.map_err(|_| Error::WorkerCrashed)
+        async move {
+            send_res?;
+
+            // wait for the response
+            rx.await.map_err(|_| Error::WorkerCrashed)
+        }
     }
 }
