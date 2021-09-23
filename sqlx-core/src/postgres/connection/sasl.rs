@@ -98,7 +98,7 @@ pub(crate) async fn authenticate(
     )?;
 
     // ClientKey := HMAC(SaltedPassword, "Client Key")
-    let mut mac = Hmac::<Sha256>::new_varkey(&salted_password).map_err(Error::protocol)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;
     mac.update(b"Client Key");
 
     let client_key = mac.finalize().into_bytes();
@@ -122,7 +122,7 @@ pub(crate) async fn authenticate(
     );
 
     // ClientSignature := HMAC(StoredKey, AuthMessage)
-    let mut mac = Hmac::<Sha256>::new_varkey(&stored_key).map_err(Error::protocol)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&stored_key).map_err(Error::protocol)?;
     mac.update(&auth_message.as_bytes());
 
     let client_signature = mac.finalize().into_bytes();
@@ -135,13 +135,13 @@ pub(crate) async fn authenticate(
         .collect();
 
     // ServerKey := HMAC(SaltedPassword, "Server Key")
-    let mut mac = Hmac::<Sha256>::new_varkey(&salted_password).map_err(Error::protocol)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;
     mac.update(b"Server Key");
 
     let server_key = mac.finalize().into_bytes();
 
     // ServerSignature := HMAC(ServerKey, AuthMessage)
-    let mut mac = Hmac::<Sha256>::new_varkey(&server_key).map_err(Error::protocol)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(&server_key).map_err(Error::protocol)?;
     mac.update(&auth_message.as_bytes());
 
     // client-final-message = client-final-message-without-proof "," proof
@@ -197,7 +197,7 @@ fn gen_nonce() -> String {
 
 // Hi(str, salt, i):
 fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error> {
-    let mut mac = Hmac::<Sha256>::new_varkey(s.as_bytes()).map_err(Error::protocol)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(s.as_bytes()).map_err(Error::protocol)?;
 
     mac.update(&salt);
     mac.update(&1u32.to_be_bytes());
@@ -206,7 +206,7 @@ fn hi<'a>(s: &'a str, salt: &'a [u8], iter_count: u32) -> Result<[u8; 32], Error
     let mut hi = u;
 
     for _ in 1..iter_count {
-        let mut mac = Hmac::<Sha256>::new_varkey(s.as_bytes()).map_err(Error::protocol)?;
+        let mut mac = Hmac::<Sha256>::new_from_slice(s.as_bytes()).map_err(Error::protocol)?;
         mac.update(u.as_slice());
         u = mac.finalize().into_bytes();
         hi = hi.iter().zip(u.iter()).map(|(&a, &b)| a ^ b).collect();

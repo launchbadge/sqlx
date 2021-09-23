@@ -124,7 +124,7 @@ futures-intrusive = "0.4.0"
 futures-util = { version = "0.3.5", default-features = false, features = ["alloc", "sink"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"
-hmac = { version = "0.10.1", default-features = false, optional = true }
+hmac = { version = "0.11.0", default-features = false, optional = true }
 itoa = "0.4.5"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 mac_address = { version = "1.1", default-features = false, optional = true }
