@@ -206,7 +206,8 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let _ = SqliteConnection::connect(":memory:").await?;
+    let conn = SqliteConnection::connect(":memory:").await?;
+    conn.close().await?;
 
     Ok(())
 }
@@ -215,7 +216,8 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
 async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
     // If the filename is an empty string, then a private, temporary on-disk database will
     // be created.
-    let _ = SqliteConnection::connect("").await?;
+    let conn = SqliteConnection::connect("").await?;
+    conn.close().await?;
 
     Ok(())
 }
