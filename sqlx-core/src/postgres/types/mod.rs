@@ -168,6 +168,7 @@ mod bytes;
 mod float;
 mod int;
 mod interval;
+mod map;
 mod money;
 mod range;
 mod record;
