@@ -175,7 +175,7 @@ mod str;
 mod tuple;
 mod void;
 
-#[cfg(any(feature = "chrono", feature = "time"))]
+#[cfg(any(feature = "chrono", feature = "time-02", feature = "time-03"))]
 mod time_tz;
 
 #[cfg(feature = "bigdecimal")]
@@ -190,8 +190,11 @@ mod decimal;
 #[cfg(feature = "chrono")]
 mod chrono;
 
-#[cfg(feature = "time")]
-mod time;
+#[cfg(feature = "time_02")]
+mod time_02;
+
+#[cfg(feature = "time_03")]
+mod time_03;
 
 #[cfg(feature = "uuid")]
 mod uuid;

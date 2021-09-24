@@ -131,7 +131,7 @@ mod chrono {
 mod time_tests {
     use super::*;
     use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
-    use time::{date, time};
+    use time::macros::{date, time};
 
     test_type!(time_date<Date>(
         MySql,

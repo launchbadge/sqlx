@@ -57,7 +57,8 @@ all-types = [
     "bigdecimal",
     "decimal",
     "json",
-    "time",
+    "time-02",
+    "time-03",
     "chrono",
     "ipnetwork",
     "mac_address",
@@ -126,7 +127,10 @@ ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros/ipnetwork"]
 mac_address = ["sqlx-core/mac_address", "sqlx-macros/mac_address"]
 uuid = ["sqlx-core/uuid", "sqlx-macros/uuid"]
 json = ["sqlx-core/json", "sqlx-macros/json"]
-time = ["sqlx-core/time", "sqlx-macros/time"]
+# NOTE: deprecated; use `time-02` instead
+time = ["time-02"]
+time-02 = ["sqlx-core/time-02", "sqlx-macros/time-02"]
+time-03 = ["sqlx-core/time-03", "sqlx-macros/time-03"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
@@ -137,7 +141,7 @@ sqlx-macros = { version = "0.5.7", path = "sqlx-macros", default-features = fals
 
 [dev-dependencies]
 anyhow = "1.0.31"
-time_ = { version = "0.2.16", package = "time" }
+time_ = { version = "0.3.2", package = "time" }
 futures = "0.3.5"
 env_logger = "0.8.3"
 async-std = { version = "1.8.0", features = ["attributes"] }

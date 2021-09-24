@@ -7,16 +7,22 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 use std::mem;
 
-#[cfg(feature = "time")]
-type DefaultTime = ::time::Time;
+#[cfg(feature = "time-02")]
+type DefaultTime = ::time_02::Time;
 
-#[cfg(all(not(feature = "time"), feature = "chrono"))]
+#[cfg(all(not(feature = "time-02"), feature = "time-03"))]
+type DefaultTime = ::time_03::Time;
+
+#[cfg(all(not(feature = "time-02"), not(feature = "time-03"), feature = "chrono"))]
 type DefaultTime = ::chrono::NaiveTime;
 
-#[cfg(feature = "time")]
-type DefaultOffset = ::time::UtcOffset;
+#[cfg(feature = "time-02")]
+type DefaultOffset = ::time_02::UtcOffset;
 
-#[cfg(all(not(feature = "time"), feature = "chrono"))]
+#[cfg(all(not(feature = "time-02"), feature = "time-03"))]
+type DefaultOffset = ::time_03::UtcOffset;
+
+#[cfg(all(not(feature = "time-02"), not(feature = "time-03"), feature = "chrono"))]
 type DefaultOffset = ::chrono::FixedOffset;
 
 /// Represents a moment of time, in a specified timezone.
@@ -129,10 +135,10 @@ mod chrono {
     }
 }
 
-#[cfg(feature = "time")]
-mod time {
+#[cfg(feature = "time-02")]
+mod time_02 {
     use super::*;
-    use ::time::{Duration, Time, UtcOffset};
+    use ::time_02::{Duration, Time, UtcOffset};
 
     impl Type<Postgres> for PgTimeTz<Time, UtcOffset> {
         fn type_info() -> PgTypeInfo {
@@ -169,6 +175,59 @@ mod time {
                     Ok(PgTimeTz {
                         time,
                         offset: UtcOffset::west_seconds(seconds as u32),
+                    })
+                }
+
+                PgValueFormat::Text => {
+                    // the `time` crate has a limited ability to parse and can't parse the
+                    // timezone format
+                    Err("reading a `TIMETZ` value in text format is not supported.".into())
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "time-03")]
+mod time_03 {
+    use super::*;
+    use ::time_03::{Duration, Time, UtcOffset};
+
+    impl Type<Postgres> for PgTimeTz<Time, UtcOffset> {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::TIMETZ
+        }
+    }
+
+    impl Encode<'_, Postgres> for PgTimeTz<Time, UtcOffset> {
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+            let _ = <Time as Encode<'_, Postgres>>::encode(self.time, buf);
+            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf);
+
+            IsNull::No
+        }
+
+        fn size_hint(&self) -> usize {
+            mem::size_of::<i64>() + mem::size_of::<i32>()
+        }
+    }
+
+    impl<'r> Decode<'r, Postgres> for PgTimeTz<Time, UtcOffset> {
+        fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+            match value.format() {
+                PgValueFormat::Binary => {
+                    let mut buf = Cursor::new(value.as_bytes()?);
+
+                    // TIME is encoded as the microseconds since midnight
+                    let us = buf.read_i64::<BigEndian>()?;
+                    let time = Time::MIDNIGHT + Duration::microseconds(us);
+
+                    // OFFSET is encoded as seconds from UTC
+                    let seconds = buf.read_i32::<BigEndian>()?;
+
+                    Ok(PgTimeTz {
+                        time,
+                        offset: -UtcOffset::from_whole_seconds(seconds)?,
                     })
                 }
 
