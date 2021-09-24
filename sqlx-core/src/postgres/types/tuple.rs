@@ -1,7 +1,7 @@
 use crate::decode::Decode;
 use crate::error::BoxDynError;
 use crate::postgres::types::PgRecordDecoder;
-use crate::postgres::{PgTypeInfo, PgValueRef, Postgres};
+use crate::postgres::{PgHasArrayType, PgTypeInfo, PgValueRef, Postgres};
 use crate::types::Type;
 
 macro_rules! impl_type_for_tuple {
@@ -13,17 +13,10 @@ macro_rules! impl_type_for_tuple {
             }
         }
 
-        impl<$($T,)*> Type<Postgres> for [($($T,)*)] {
+        impl<$($T,)*> PgHasArrayType for ($($T,)*) {
             #[inline]
-            fn type_info() -> PgTypeInfo {
+            fn array_type_info() -> PgTypeInfo {
                 PgTypeInfo::RECORD_ARRAY
-            }
-        }
-
-        impl<$($T,)*> Type<Postgres> for Vec<($($T,)*)> {
-            #[inline]
-            fn type_info() -> PgTypeInfo {
-                <[($($T,)*)] as Type<Postgres>>::type_info()
             }
         }
 

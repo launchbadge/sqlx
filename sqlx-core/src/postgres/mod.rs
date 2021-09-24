@@ -3,6 +3,7 @@
 use crate::executor::Executor;
 
 mod arguments;
+mod array;
 mod column;
 mod connection;
 mod copy;
@@ -24,6 +25,7 @@ mod value;
 mod migrate;
 
 pub use arguments::{PgArgumentBuffer, PgArguments};
+pub use array::PgHasArrayType;
 pub use column::PgColumn;
 pub use connection::{PgConnection, PgConnectionInfo};
 pub use database::Postgres;

@@ -3,7 +3,9 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for f32 {
@@ -12,15 +14,9 @@ impl Type<Postgres> for f32 {
     }
 }
 
-impl Type<Postgres> for [f32] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for f32 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::FLOAT4_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<f32> {
-    fn type_info() -> PgTypeInfo {
-        <[f32] as Type<Postgres>>::type_info()
     }
 }
 
@@ -47,15 +43,9 @@ impl Type<Postgres> for f64 {
     }
 }
 
-impl Type<Postgres> for [f64] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for f64 {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::FLOAT8_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<f64> {
-    fn type_info() -> PgTypeInfo {
-        <[f64] as Type<Postgres>>::type_info()
     }
 }
 

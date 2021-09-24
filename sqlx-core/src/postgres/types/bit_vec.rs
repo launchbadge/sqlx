@@ -2,7 +2,7 @@ use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
-    postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres},
+    postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres},
     types::Type,
 };
 use bit_vec::BitVec;
@@ -19,23 +19,13 @@ impl Type<Postgres> for BitVec {
     }
 }
 
-impl Type<Postgres> for [BitVec] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for BitVec {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::VARBIT_ARRAY
     }
 
-    fn compatible(ty: &PgTypeInfo) -> bool {
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
         *ty == PgTypeInfo::BIT_ARRAY || *ty == PgTypeInfo::VARBIT_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<BitVec> {
-    fn type_info() -> PgTypeInfo {
-        <[BitVec] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[BitVec] as Type<Postgres>>::compatible(ty)
     }
 }
 

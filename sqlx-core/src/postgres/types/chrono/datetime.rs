@@ -1,7 +1,9 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 use chrono::{
     DateTime, Duration, FixedOffset, Local, NaiveDate, NaiveDateTime, Offset, TimeZone, Utc,
@@ -20,27 +22,15 @@ impl<Tz: TimeZone> Type<Postgres> for DateTime<Tz> {
     }
 }
 
-impl Type<Postgres> for [NaiveDateTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for NaiveDateTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMP_ARRAY
     }
 }
 
-impl<Tz: TimeZone> Type<Postgres> for [DateTime<Tz>] {
-    fn type_info() -> PgTypeInfo {
+impl<Tz: TimeZone> PgHasArrayType for DateTime<Tz> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMPTZ_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<NaiveDateTime> {
-    fn type_info() -> PgTypeInfo {
-        <[NaiveDateTime] as Type<Postgres>>::type_info()
-    }
-}
-
-impl<Tz: TimeZone> Type<Postgres> for Vec<DateTime<Tz>> {
-    fn type_info() -> PgTypeInfo {
-        <[DateTime<Tz>] as Type<Postgres>>::type_info()
     }
 }
 
