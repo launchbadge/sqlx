@@ -76,14 +76,17 @@ impl StatementWorker {
                         }
                     }
                     StatementWorkerCommand::Shutdown { tx } => {
-                        // SAFETY: we need to make sure a strong ref to `conn` always
-                        // outlives anything in `rx`
+                        // drop the connection reference before sending confirmation
+                        // and ending the command loop
                         drop(conn);
                         let _ = tx.send(());
-                        break;
+                        return;
                     }
                 }
             }
+
+            // SAFETY: we need to make sure a strong ref to `conn` always outlives anything in `rx`
+            drop(conn);
         });
 
         Self { tx }
