@@ -104,7 +104,7 @@ services:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 14beta2
+              VERSION: 14rc1
         ports:
             - 5432
         environment:
