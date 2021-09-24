@@ -1,4 +1,6 @@
 use super::connection::{Floating, Idle, Live};
+#[cfg(feature = "any")]
+use crate::any::AnyKind;
 use crate::connection::ConnectOptions;
 use crate::connection::Connection;
 use crate::database::Database;
@@ -253,6 +255,11 @@ impl<DB: Database> SharedPool<DB> {
             sqlx_rt::sleep(backoff).await;
             backoff = cmp::min(backoff * 2, max_backoff);
         }
+    }
+
+    #[cfg(feature = "any")]
+    pub(super) fn get_kind(&self) -> AnyKind {
+        self.connect_options.get_kind()
     }
 }
 

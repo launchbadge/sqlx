@@ -55,6 +55,8 @@
 //! [`Pool::begin`].
 
 use self::inner::SharedPool;
+#[cfg(feature = "any")]
+use crate::any::AnyKind;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
@@ -303,6 +305,15 @@ impl<DB: Database> Pool<DB> {
     /// changing rapidly, this may run indefinitely.
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
+    }
+
+    /// Returns the (potentially dynamic) kind of driver used.
+    ///
+    /// This is mostly relevant for the `Any` driver, since the others have a
+    /// statically known kind.
+    #[cfg(feature = "any")]
+    pub fn get_kind(&self) -> AnyKind {
+        self.0.get_kind()
     }
 }
 

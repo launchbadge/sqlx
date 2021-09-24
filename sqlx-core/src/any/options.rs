@@ -15,9 +15,10 @@ use crate::mysql::MySqlConnectOptions;
 #[cfg(feature = "sqlite")]
 use crate::sqlite::SqliteConnectOptions;
 
-use crate::any::kind::AnyKind;
 #[cfg(feature = "mssql")]
 use crate::mssql::MssqlConnectOptions;
+
+use crate::any::kind::AnyKind;
 
 /// Opaque options for connecting to a database. These may only be constructed by parsing from
 /// a connection uri.
@@ -171,5 +172,9 @@ impl ConnectOptions for AnyConnectOptions {
             }
         };
         self
+    }
+
+    fn get_kind(&self) -> AnyKind {
+        self.kind()
     }
 }
