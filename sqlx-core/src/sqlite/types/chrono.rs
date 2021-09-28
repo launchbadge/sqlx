@@ -76,7 +76,7 @@ impl Encode<'_, Sqlite> for NaiveDate {
 
 impl Encode<'_, Sqlite> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format("%T%.f%").to_string(), buf)
+        Encode::<Sqlite>::encode(self.format("%T%.f").to_string(), buf)
     }
 }
 
