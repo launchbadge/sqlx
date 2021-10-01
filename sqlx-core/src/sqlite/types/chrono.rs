@@ -181,6 +181,7 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
         // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L29-L47
         let sqlite_time_formats = &[
             // Most likely format
+            #[rustfmt::skip]
             "%T.f", "%T%.f",
             // Other formats in order of appearance in docs
             "%R", "%RZ", "%T%.fZ", "%R%:z", "%T%.f%:z",
