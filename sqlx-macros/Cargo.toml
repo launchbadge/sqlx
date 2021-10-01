@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-macros"
-version = "0.5.7"
+version = "0.5.8"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"

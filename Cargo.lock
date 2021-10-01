@@ -2333,7 +2333,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2366,7 +2366,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2389,7 +2389,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "ahash",
  "atoi",
@@ -2526,7 +2526,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "dotenv",
  "either",
@@ -2546,7 +2546,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "actix-rt",
  "async-native-tls",

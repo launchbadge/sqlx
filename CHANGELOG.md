@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.8 - 2021-10-01
+
+[A total of 24 pull requests][0.5.8-prs] were merged this release cycle! Some highlights: 
+
+* [[#1289]] Support the `immutable` option on SQLite connections [[@djmarcin]]
+* [[#1295]] Support custom initial options for SQLite [[@ghassmo]]
+    * Allows specifying custom `PRAGMA`s and overriding those set by SQLx.
+* [[#1345]] Initial support for Postgres `COPY FROM/TO`[[@montanalow], [@abonander]]
+* [[#1439]] Handle multiple waiting results correctly in MySQL [[@eagletmt]]
+
+[#1289]: https://github.com/launchbadge/sqlx/pull/1289
+[#1295]: https://github.com/launchbadge/sqlx/pull/1295
+[#1345]: https://github.com/launchbadge/sqlx/pull/1345
+[#1439]: https://github.com/launchbadge/sqlx/pull/1439
+[0.5.8-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2021-08-21..2021-10-01
+
 ## 0.5.7 - 2021-08-20
 
 * [[#1392]] use `resolve_path` when getting path for `include_str!()` [[@abonander]]
@@ -968,3 +984,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@link2ext]: https://github.com/link2ext
 [@madadam]: https://github.com/madadam
 [@AtkinsChang]: https://github.com/AtkinsChang
+[@djmarcin]: https://github.com/djmarcin
+[@ghassmo]: https://github.com/ghassmo
+[@eagletmt]: https://github.com/eagletmt
+[@montanalow]: https://github.com/montanalow

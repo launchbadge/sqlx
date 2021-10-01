@@ -1148,7 +1148,7 @@ async fn it_can_abort_copy_in() -> anyhow::Result<()> {
     )
     .await?;
 
-    let mut copy = conn
+    let copy = conn
         .copy_in_raw(
             r#"
         COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
@@ -1201,6 +1201,7 @@ async fn it_can_copy_out() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
 async fn test_issue_1254() -> anyhow::Result<()> {
     #[derive(sqlx::Type)]
     #[sqlx(type_name = "pair")]
