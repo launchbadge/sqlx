@@ -223,7 +223,10 @@ impl Migrate for AnyConnection {
             AnyConnectionKind::MySql(conn) => conn.revert(migration),
 
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+            AnyConnectionKind::Mssql(_conn) => {
+                let _ = migration;
+                unimplemented!()
+            }
         }
     }
 }

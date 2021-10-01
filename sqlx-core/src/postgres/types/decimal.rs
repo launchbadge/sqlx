@@ -88,7 +88,8 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
     type Error = BoxDynError;
 
     fn try_from(decimal: &Decimal) -> Result<Self, BoxDynError> {
-        if decimal.is_zero() {
+        // `Decimal` added `is_zero()` as an inherent method in a more recent version
+        if Zero::is_zero(decimal) {
             return Ok(PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,
