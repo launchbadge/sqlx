@@ -319,23 +319,6 @@ impl PgConnectOptions {
         self
     }
 
-    /// Sets the log settings.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new()
-    ///     .log_settings(sqlx_core::connection::LogSettings {
-    ///     statements_level: sqlx_core::connection::LevelFilter::Info,
-    ///     ..Default::default()
-    /// });
-    /// ```
-    pub fn log_settings(mut self, log_settings: LogSettings) -> Self {
-        self.log_settings = log_settings;
-        self
-    }
-
     /// We try using a socket if hostname starts with `/` or if socket parameter
     /// is specified.
     pub(crate) fn fetch_socket(&self) -> Option<String> {
