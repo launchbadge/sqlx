@@ -127,9 +127,9 @@ pub trait Connection: Send {
 
 #[derive(Clone, Debug)]
 pub struct LogSettings {
-    pub statements_level: LevelFilter,
-    pub slow_statements_level: LevelFilter,
-    pub slow_statements_duration: Duration,
+    pub(crate) statements_level: LevelFilter,
+    pub(crate) slow_statements_level: LevelFilter,
+    pub(crate) slow_statements_duration: Duration,
 }
 
 impl Default for LogSettings {
