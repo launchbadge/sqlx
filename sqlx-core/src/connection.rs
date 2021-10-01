@@ -2,7 +2,7 @@ use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
-pub use log::LevelFilter;
+use log::LevelFilter;
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
@@ -126,16 +126,16 @@ pub trait Connection: Send {
 }
 
 #[derive(Clone, Debug)]
-pub struct LogSettings {
-    pub statements_level: LevelFilter,
-    pub slow_statements_level: LevelFilter,
-    pub slow_statements_duration: Duration,
+pub(crate) struct LogSettings {
+    pub(crate) statements_level: LevelFilter,
+    pub(crate) slow_statements_level: LevelFilter,
+    pub(crate) slow_statements_duration: Duration,
 }
 
 impl Default for LogSettings {
     fn default() -> Self {
         LogSettings {
-            statements_level: LevelFilter::Debug,
+            statements_level: LevelFilter::Info,
             slow_statements_level: LevelFilter::Warn,
             slow_statements_duration: Duration::from_secs(1),
         }
@@ -143,10 +143,10 @@ impl Default for LogSettings {
 }
 
 impl LogSettings {
-    pub fn log_statements(&mut self, level: LevelFilter) {
+    pub(crate) fn log_statements(&mut self, level: LevelFilter) {
         self.statements_level = level;
     }
-    pub fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) {
+    pub(crate) fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) {
         self.slow_statements_level = level;
         self.slow_statements_duration = duration;
     }
