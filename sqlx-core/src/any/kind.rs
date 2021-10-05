@@ -1,7 +1,7 @@
 use crate::error::Error;
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum AnyKind {
     #[cfg(feature = "postgres")]
     Postgres,
