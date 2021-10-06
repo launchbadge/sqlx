@@ -150,7 +150,30 @@ impl TryFrom<chrono::Duration> for PgInterval {
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
     /// microsecond or nanosecond overflow.
     fn try_from(value: chrono::Duration) -> Result<Self, BoxDynError> {
-        value.to_std()?.try_into()
+        value
+            .num_nanoseconds()
+            .map_or::<Result<_, Self::Error>, _>(
+                Err("Overflow has occurred for PostgreSQL `INTERVAL`".into()),
+                |nanoseconds| {
+                    if nanoseconds % 1000 != 0 {
+                        return Err(
+                            "PostgreSQL `INTERVAL` does not support nanoseconds precision".into(),
+                        );
+                    }
+                    Ok(())
+                },
+            )?;
+
+        value.num_microseconds().map_or(
+            Err("Overflow has occurred for PostgreSQL `INTERVAL`".into()),
+            |microseconds| {
+                Ok(Self {
+                    months: 0,
+                    days: 0,
+                    microseconds: microseconds,
+                })
+            },
+        )
     }
 }
 
