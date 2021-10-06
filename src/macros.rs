@@ -383,6 +383,70 @@ macro_rules! query_file (
     })
 );
 
+/// A variant of [query_file!] which takes an additional query name.
+///
+/// Useful when a single query file contains multiple queries separated by a comment
+/// specifying their query name.
+///
+/// -----
+///
+/// `examples/queries/account-by-id.sql`:
+/// ```sql
+/// --- name: get_account_by_id
+/// select * from (select (1) as id, 'Herp Derpinson' as name) accounts
+/// where id = ?;
+///
+/// --- name: get_all_accounts
+/// select * from accounts;
+/// ```
+///
+/// `src/my_query.rs`:
+/// ```rust,ignore
+/// # use sqlx::Connect;
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
+/// # #[async_std::main]
+/// # async fn main() -> sqlx::Result<()>{
+/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// #
+/// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
+/// let account = sqlx::named_query_from_file!(get_account_by_id, "examples/queries/account-by-id.sql", 1i32)
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// println!("{:?}", account);
+/// println!("{}: {}", account.id, account.name);
+///
+/// # Ok(())
+/// # }
+/// #
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
+/// # fn main() {}
+/// ```
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file (
+    ($name:ident, $path:literal) => ({
+        $crate::sqlx_macros::expand_query!(source_file = $path, query_name = $name)
+    });
+    ($name:ident, $path:literal, $($args:tt)*) => ({
+        $crate::sqlx_macros::expand_query!(source_file = $path, query_name = $name, args = [$($args)*])
+    })
+);
+
+/// A variant of [named_query_from_file!] which does not check the input or output types.
+/// This still does parse the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file_unchecked (
+    ($name:ident, $path:literal) => ({
+        $crate::sqlx_macros::expand_query!(source_file = $path, query_name = $name, checked = false)
+    });
+    ($name:ident, $path:literal, $($args:tt)*) => ({
+        $crate::sqlx_macros::expand_query!(source_file = $path, query_name = $name, args = [$($args)*], checked = false)
+    })
+);
+
 /// A variant of [query_file!] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
@@ -600,6 +664,73 @@ macro_rules! query_file_as (
     })
 );
 
+/// Extends [query_file_as!] with an additional query name.
+///
+/// `tests/test-query-account-by-id.sql`:
+/// ```sql
+/// --- name: get_account_by_id
+/// select id, name from (select (1) as id, 'Herp Derpinson' as name) accounts
+/// where id = ?;
+///
+/// --- name: get_all_accounts
+/// select * from accounts;
+/// ```
+///
+/// ```rust,ignore
+/// # use sqlx::Connect;
+/// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
+/// # #[async_std::main]
+/// # async fn main() -> sqlx::Result<()>{
+/// # let db_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// #
+/// # if !(db_url.starts_with("mysql") || db_url.starts_with("mariadb")) { return Ok(()) }
+/// # let mut conn = sqlx::MySqlConnection::connect(db_url).await?;
+/// #[derive(Debug)]
+/// struct Account {
+///     id: i32,
+///     name: String
+/// }
+///
+/// // let mut conn = <impl sqlx::Executor>;
+/// let account = sqlx::named_query_from_file_as!(Account, get_account_by_id, "tests/test-query-account-by-id.sql", 1i32)
+///     .fetch_one(&mut conn)
+///     .await?;
+///
+/// println!("{:?}", account);
+/// println!("{}: {}", account.id, account.name);
+///
+/// # Ok(())
+/// # }
+/// #
+/// # #[cfg(any(not(feature = "mysql"), not(feature = "_rt-async-std")))]
+/// # fn main() {}
+/// ```
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file_as (
+    ($out_struct:path, $name:ident, $path:literal) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, query_name = $name)
+    });
+    ($out_struct:path, $name:ident, $path:literal, $($args:tt)*) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, query_name = $name, args = [$($args)*])
+    })
+);
+
+/// A variant of [named_query_from_file_as!] which does not check the input or output types.
+/// This still does parse the query to ensure it's syntactically and semantically valid for the current database.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file_as_unchecked (
+    ($out_struct:path, $name:ident, $path:literal) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path,
+            query_name = $name, checked = false)
+    });
+    ($out_struct:path, $name:ident, $path:literal, $($args:tt)*) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path,
+            query_name = $name, checked = true, args = [$($args)*])
+    })
+);
+
 /// A variant of [query_as!] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
@@ -666,6 +797,18 @@ macro_rules! query_file_scalar (
     )
 );
 
+/// A variant of [query_file_scalar!] which takes an additional query name.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file_scalar (
+    ($name:ident, $path:literal) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, query_name = $ident)
+    );
+    ($name:ident, $path:literal, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, query_name = $ident, args = [$($args)*])
+    )
+);
+
 /// A variant of [query_scalar!] which does not typecheck bind parameters and leaves the output type
 /// to inference. The query itself is still checked that it is syntactically and semantically
 /// valid for the database, that it only produces one column and that the number of bind parameters
@@ -697,6 +840,18 @@ macro_rules! query_file_scalar_unchecked (
     );
     ($path:literal, $($args:tt)*) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, args = [$($args)*], checked = false)
+    )
+);
+
+/// A variant of [query_file_scalar_unchecked!] which takes an additional query name.
+#[macro_export]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
+macro_rules! named_query_from_file_scalar_unchecked (
+    ($name:ident, $path:literal) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, query_name = $name, checked = false)
+    );
+    ($name:ident, $path:literal, $($args:tt)*) => (
+        $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, query_name = $name, args = [$($args)*], checked = false)
     )
 );
 
