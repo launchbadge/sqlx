@@ -148,7 +148,7 @@ impl TryFrom<chrono::Duration> for PgInterval {
     /// Convert a `chrono::Duration` to a `PgInterval`.
     ///
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
-    /// microsecond or nanosecond overflow.
+    /// nanosecond overflow.
     fn try_from(value: chrono::Duration) -> Result<Self, BoxDynError> {
         value
             .num_nanoseconds()
@@ -352,10 +352,6 @@ fn test_pginterval_chrono() {
     // Case when precision loss occurs
     assert!(PgInterval::try_from(chrono::Duration::nanoseconds(27_000_001)).is_err());
     assert!(PgInterval::try_from(chrono::Duration::nanoseconds(-27_000_001)).is_err());
-
-    // Case when microsecond overflow occurs
-    assert!(PgInterval::try_from(chrono::Duration::seconds(10_000_000_000_000)).is_err());
-    assert!(PgInterval::try_from(chrono::Duration::seconds(-10_000_000_000_000)).is_err());
 
     // Case when nanosecond overflow occurs
     assert!(PgInterval::try_from(chrono::Duration::seconds(10_000_000_000)).is_err());
