@@ -774,6 +774,23 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_convert_non_utc_timestamptz() -> anyhow::Result<()> {
+    use sqlx::types::chrono::{DateTime, TimeZone, Utc};
+    let mut conn = new::<Postgres>().await?;
+    let date = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+    sqlx::query("SET TIME ZONE 'Europe/Berlin'")
+        .fetch_optional(&mut conn)
+        .await?;
+    let row: (DateTime<Utc>,) = sqlx::query_as("SELECT $1::timestamptz")
+        .bind(&date)
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(row.0, date);
+
+    Ok(())
+}
+
 // repro is more reliable with the basic scheduler used by `#[tokio::test]`
 #[cfg(feature = "_rt-tokio")]
 #[tokio::test]
