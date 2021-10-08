@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
@@ -742,6 +743,125 @@ impl PgType {
 
             PgType::Custom(ty) => &ty.kind,
 
+            PgType::DeclareWithOid(oid) => {
+                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
+            }
+            PgType::DeclareWithName(name) => {
+                unreachable!("(bug) use of unresolved type declaration [name={}]", name);
+            }
+        }
+    }
+
+    /// If `self` is an array type, return the type info for its element.
+    ///
+    /// This method should only be called on resolved types: calling it on
+    /// a type that is merely declared (DeclareWithOid/Name) is a bug.
+    pub(crate) fn try_array_element(&self) -> Option<Cow<'_, PgTypeInfo>> {
+        // We explicitly match on all the `None` cases to ensure an exhaustive match.
+        match self {
+            PgType::Bool => None,
+            PgType::BoolArray => Some(Cow::Owned(PgTypeInfo(PgType::Bool))),
+            PgType::Bytea => None,
+            PgType::ByteaArray => Some(Cow::Owned(PgTypeInfo(PgType::Bytea))),
+            PgType::Char => None,
+            PgType::CharArray => Some(Cow::Owned(PgTypeInfo(PgType::Char))),
+            PgType::Name => None,
+            PgType::NameArray => Some(Cow::Owned(PgTypeInfo(PgType::Name))),
+            PgType::Int8 => None,
+            PgType::Int8Array => Some(Cow::Owned(PgTypeInfo(PgType::Int8))),
+            PgType::Int2 => None,
+            PgType::Int2Array => Some(Cow::Owned(PgTypeInfo(PgType::Int2))),
+            PgType::Int4 => None,
+            PgType::Int4Array => Some(Cow::Owned(PgTypeInfo(PgType::Int4))),
+            PgType::Text => None,
+            PgType::TextArray => Some(Cow::Owned(PgTypeInfo(PgType::Text))),
+            PgType::Oid => None,
+            PgType::OidArray => Some(Cow::Owned(PgTypeInfo(PgType::Oid))),
+            PgType::Json => None,
+            PgType::JsonArray => Some(Cow::Owned(PgTypeInfo(PgType::Json))),
+            PgType::Point => None,
+            PgType::PointArray => Some(Cow::Owned(PgTypeInfo(PgType::Point))),
+            PgType::Lseg => None,
+            PgType::LsegArray => Some(Cow::Owned(PgTypeInfo(PgType::Lseg))),
+            PgType::Path => None,
+            PgType::PathArray => Some(Cow::Owned(PgTypeInfo(PgType::Path))),
+            PgType::Box => None,
+            PgType::BoxArray => Some(Cow::Owned(PgTypeInfo(PgType::Box))),
+            PgType::Polygon => None,
+            PgType::PolygonArray => Some(Cow::Owned(PgTypeInfo(PgType::Polygon))),
+            PgType::Line => None,
+            PgType::LineArray => Some(Cow::Owned(PgTypeInfo(PgType::Line))),
+            PgType::Cidr => None,
+            PgType::CidrArray => Some(Cow::Owned(PgTypeInfo(PgType::Cidr))),
+            PgType::Float4 => None,
+            PgType::Float4Array => Some(Cow::Owned(PgTypeInfo(PgType::Float4))),
+            PgType::Float8 => None,
+            PgType::Float8Array => Some(Cow::Owned(PgTypeInfo(PgType::Float8))),
+            PgType::Circle => None,
+            PgType::CircleArray => Some(Cow::Owned(PgTypeInfo(PgType::Circle))),
+            PgType::Macaddr8 => None,
+            PgType::Macaddr8Array => Some(Cow::Owned(PgTypeInfo(PgType::Macaddr8))),
+            PgType::Money => None,
+            PgType::MoneyArray => Some(Cow::Owned(PgTypeInfo(PgType::Money))),
+            PgType::Macaddr => None,
+            PgType::MacaddrArray => Some(Cow::Owned(PgTypeInfo(PgType::Macaddr))),
+            PgType::Inet => None,
+            PgType::InetArray => Some(Cow::Owned(PgTypeInfo(PgType::Inet))),
+            PgType::Bpchar => None,
+            PgType::BpcharArray => Some(Cow::Owned(PgTypeInfo(PgType::Bpchar))),
+            PgType::Varchar => None,
+            PgType::VarcharArray => Some(Cow::Owned(PgTypeInfo(PgType::Varchar))),
+            PgType::Date => None,
+            PgType::DateArray => Some(Cow::Owned(PgTypeInfo(PgType::Date))),
+            PgType::Time => None,
+            PgType::TimeArray => Some(Cow::Owned(PgTypeInfo(PgType::Time))),
+            PgType::Timestamp => None,
+            PgType::TimestampArray => Some(Cow::Owned(PgTypeInfo(PgType::Timestamp))),
+            PgType::Timestamptz => None,
+            PgType::TimestamptzArray => Some(Cow::Owned(PgTypeInfo(PgType::Timestamptz))),
+            PgType::Interval => None,
+            PgType::IntervalArray => Some(Cow::Owned(PgTypeInfo(PgType::Interval))),
+            PgType::Timetz => None,
+            PgType::TimetzArray => Some(Cow::Owned(PgTypeInfo(PgType::Timetz))),
+            PgType::Bit => None,
+            PgType::BitArray => Some(Cow::Owned(PgTypeInfo(PgType::Bit))),
+            PgType::Varbit => None,
+            PgType::VarbitArray => Some(Cow::Owned(PgTypeInfo(PgType::Varbit))),
+            PgType::Numeric => None,
+            PgType::NumericArray => Some(Cow::Owned(PgTypeInfo(PgType::Numeric))),
+            PgType::Record => None,
+            PgType::RecordArray => Some(Cow::Owned(PgTypeInfo(PgType::Record))),
+            PgType::Uuid => None,
+            PgType::UuidArray => Some(Cow::Owned(PgTypeInfo(PgType::Uuid))),
+            PgType::Jsonb => None,
+            PgType::JsonbArray => Some(Cow::Owned(PgTypeInfo(PgType::Jsonb))),
+            PgType::Int4Range => None,
+            PgType::Int4RangeArray => Some(Cow::Owned(PgTypeInfo(PgType::Int4Range))),
+            PgType::NumRange => None,
+            PgType::NumRangeArray => Some(Cow::Owned(PgTypeInfo(PgType::NumRange))),
+            PgType::TsRange => None,
+            PgType::TsRangeArray => Some(Cow::Owned(PgTypeInfo(PgType::TsRange))),
+            PgType::TstzRange => None,
+            PgType::TstzRangeArray => Some(Cow::Owned(PgTypeInfo(PgType::TstzRange))),
+            PgType::DateRange => None,
+            PgType::DateRangeArray => Some(Cow::Owned(PgTypeInfo(PgType::DateRange))),
+            PgType::Int8Range => None,
+            PgType::Int8RangeArray => Some(Cow::Owned(PgTypeInfo(PgType::Int8Range))),
+            PgType::Jsonpath => None,
+            PgType::JsonpathArray => Some(Cow::Owned(PgTypeInfo(PgType::Jsonpath))),
+            // There is no `UnknownArray`
+            PgType::Unknown => None,
+            // There is no `VoidArray`
+            PgType::Void => None,
+            PgType::Custom(ty) => match &ty.kind {
+                PgTypeKind::Simple => None,
+                PgTypeKind::Pseudo => None,
+                PgTypeKind::Domain(_) => None,
+                PgTypeKind::Composite(_) => None,
+                PgTypeKind::Array(ref elem_type_info) => Some(Cow::Borrowed(elem_type_info)),
+                PgTypeKind::Enum(_) => None,
+                PgTypeKind::Range(_) => None,
+            },
             PgType::DeclareWithOid(oid) => {
                 unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
             }

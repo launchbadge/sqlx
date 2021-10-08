@@ -1095,6 +1095,93 @@ CREATE TABLE heating_bills (
 }
 
 #[sqlx_macros::test]
+async fn it_resolves_custom_type_in_array() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    // language=PostgreSQL
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS pets;
+DROP TYPE IF EXISTS pet_name_and_race;
+
+CREATE TYPE pet_name_and_race AS (
+  name TEXT,
+  race TEXT
+);
+CREATE TABLE pets (
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  race TEXT NOT NULL,
+  PRIMARY KEY (owner, name)
+);
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Foo', 'cat');
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Bar', 'dog');
+    "#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRace {
+        name: String,
+        race: String,
+    }
+
+    impl sqlx::Type<Postgres> for PetNameAndRace {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRace {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+            let name = decoder.try_decode::<String>()?;
+            let race = decoder.try_decode::<String>()?;
+            Ok(Self { name, race })
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRaceArray(Vec<PetNameAndRace>);
+
+    impl sqlx::Type<Postgres> for PetNameAndRaceArray {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            // Array type name is the name of the element type prefixed with `_`
+            sqlx::postgres::PgTypeInfo::with_name("_pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRaceArray {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(Vec::<PetNameAndRace>::decode(value)?))
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let row = sqlx::query("select owner, array_agg(row(name, race)::pet_name_and_race) as pets from pets group by owner")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let pets: PetNameAndRaceArray = row.get("pets");
+
+    assert_eq!(pets.0.len(), 2);
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
     use sqlx::postgres::PgConnectionInfo;
 
