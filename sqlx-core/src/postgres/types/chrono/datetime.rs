@@ -61,6 +61,12 @@ impl Encode<'_, Postgres> for NaiveDateTime {
     }
 }
 
+fn is_timestamptz_output(value_as_str: &str) -> bool {
+    // This function returns true if the value contains a time-zone specifier
+    // This is given for timestamptz for some reason
+    return value_as_str.contains('+') || value_as_str.split('-').count() == 4usize;
+}
+
 impl<'r> Decode<'r, Postgres> for NaiveDateTime {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
@@ -75,10 +81,7 @@ impl<'r> Decode<'r, Postgres> for NaiveDateTime {
                 let s = value.as_str()?;
                 NaiveDateTime::parse_from_str(
                     s,
-                    if s.contains('+') {
-                        // Contains a time-zone specifier
-                        // This is given for timestamptz for some reason
-                        // Postgres already guarantees this to always be UTC
+                    if is_timestamptz_output(s) {
                         "%Y-%m-%d %H:%M:%S%.f%#z"
                     } else {
                         "%Y-%m-%d %H:%M:%S%.f"
@@ -101,21 +104,52 @@ impl<Tz: TimeZone> Encode<'_, Postgres> for DateTime<Tz> {
 
 impl<'r> Decode<'r, Postgres> for DateTime<Local> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Local.from_utc_datetime(&naive))
+        Ok(<DateTime<Utc> as Decode<Postgres>>::decode(value)?.with_timezone(&Local))
     }
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<Utc> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Utc.from_utc_datetime(&naive))
+        Ok(match value.format() {
+            PgValueFormat::Binary => {
+                // TIMESTAMP is encoded as the microseconds since the epoch
+                let epoch = Utc.ymd(2000, 1, 1).and_hms(0, 0, 0);
+                let us = Decode::<Postgres>::decode(value)?;
+                epoch + Duration::microseconds(us)
+            }
+
+            PgValueFormat::Text => {
+                let s = value.as_str()?;
+                DateTime::parse_from_str(
+                    s,
+                    if is_timestamptz_output(s) {
+                        // Note that because the output format differs from RFC3339,
+                        // `DateTime::parse_from_rfc3339` is not available
+                        "%Y-%m-%d %H:%M:%S%.f%#z"
+                    } else {
+                        "%Y-%m-%d %H:%M:%S%.f"
+                    },
+                )?
+                .with_timezone(&Utc)
+            }
+        })
     }
 }
 
 impl<'r> Decode<'r, Postgres> for DateTime<FixedOffset> {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let naive = <NaiveDateTime as Decode<Postgres>>::decode(value)?;
-        Ok(Utc.fix().from_utc_datetime(&naive))
+        let datetime_naive_utc = <DateTime<Utc> as Decode<Postgres>>::decode(value)?.naive_utc();
+        Ok(Utc.fix().from_utc_datetime(&datetime_naive_utc))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::is_timestamptz_output;
+    #[test]
+    fn distinguishing_timestamptz_output() {
+        assert!(is_timestamptz_output("2020-01-01 02:01:01+01"));
+        assert!(is_timestamptz_output("2020-01-01 02:01:01-01"));
+        assert!(!is_timestamptz_output("2020-01-01 02:01:01"));
     }
 }

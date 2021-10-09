@@ -774,6 +774,96 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn it_can_convert_timestamptz() -> anyhow::Result<()> {
+    use sqlx::types::chrono::{DateTime, TimeZone, Utc};
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC
+            Selected by: the struct "Query"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        sqlx::query("SET TIME ZONE 0").execute(&mut conn).await?;
+        let row = sqlx::query("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .fetch_one(&mut conn)
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC
+            Selected by: object satisfying the trait "Executor"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        conn.execute("SET TIME ZONE 0").await?;
+        let row = conn
+            .fetch_one("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC+1
+            Selected by: the struct "Query"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        sqlx::query("SET TIME ZONE +1").execute(&mut conn).await?;
+        let row = sqlx::query("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .fetch_one(&mut conn)
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC+1
+            Selected by: object satisfying the trait "Executor"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        conn.execute("SET TIME ZONE +1").await?;
+        let row = conn
+            .fetch_one("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC-1
+            Selected by: the struct "Query"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        sqlx::query("SET TIME ZONE -1").execute(&mut conn).await?;
+        let row = sqlx::query("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .fetch_one(&mut conn)
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    {
+        /*
+            Timezone into that the output is converted: UTC
+            Timezone set in DB: UTC-1
+            Selected by: object satisfying the trait "Executor"
+        */
+        let mut conn = new::<Postgres>().await?;
+        let date_time_expected = Utc.ymd(2020, 1, 1).and_hms(1, 1, 1);
+        conn.execute("SET TIME ZONE -1").await?;
+        let row = conn
+            .fetch_one("SELECT '2020-01-01 01:01:01+00'::timestamptz")
+            .await?;
+        assert_eq!(row.get::<DateTime<Utc>, _>(0), date_time_expected);
+    }
+    Ok(())
+}
+
 // repro is more reliable with the basic scheduler used by `#[tokio::test]`
 #[cfg(feature = "_rt-tokio")]
 #[tokio::test]
