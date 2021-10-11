@@ -108,6 +108,54 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             args: --features openssl-vendored
+            bin: target/debug/sqlx
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: target/debug/sqlx.exe
+          # FIXME: macOS build fails because of missing pin-project-internal
+#          - os: macOS-latest
+#            target: x86_64-apple-darwin
+#            bin: target/debug/sqlx
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cli-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path sqlx-cli/Cargo.toml --bin sqlx ${{ matrix.args }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: sqlx-${{ matrix.target }}
+          path: ${{ matrix.bin }}
+
+  cargo-cli:
+    name: CLI Cargo Binaries
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]#, macOS-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            args: --features openssl-vendored
             bin: target/debug/cargo-sqlx
           - os: windows-latest
             target: x86_64-pc-windows-msvc
