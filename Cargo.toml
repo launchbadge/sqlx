@@ -175,6 +175,14 @@ path = "tests/migrate/macro.rs"
 required-features = ["macros", "migrate"]
 
 #
+# Conditional query
+#
+
+[[test]]
+name = "conditional-query"
+path = "tests/conditional_query/conditional_query.rs"
+
+#
 # SQLite
 #
 

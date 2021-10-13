@@ -23,6 +23,7 @@ mod args;
 mod data;
 mod input;
 mod output;
+pub mod conditional;
 
 struct Metadata {
     #[allow(unused)]

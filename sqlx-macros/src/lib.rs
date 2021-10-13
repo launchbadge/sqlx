@@ -41,6 +41,14 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
     }
 }
 
+#[proc_macro]
+pub fn conditional_query_as(input: TokenStream) -> TokenStream {
+    match query::conditional::conditional_query_as(input.into()) {
+        Ok(output) => output,
+        Err(err) => err.to_compile_error()
+    }.into()
+}
+
 #[proc_macro_derive(Encode, attributes(sqlx))]
 pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
