@@ -163,4 +163,4 @@ stringprep = "0.1.2"
 bstr = { version = "0.2.14", default-features = false, features = ["std"], optional = true }
 git2 = { version = "0.13.20", default-features = false, optional = true }
 hashlink = "0.7.0"
-indexmap = "1.7.0"
+indexmap = "1.6.2"
