@@ -97,7 +97,7 @@ pub use self::options::PoolOptions;
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
-/// `Pool` is `Send`, `Sync` and `Clone`, so it should be created once at the start of your
+/// `Pool` is `Send`, `Sync` and `Clone` (internally backed by `Arc`), so it should be created once at the start of your
 /// application/daemon/web server/etc. and then shared with all tasks throughout its lifetime. How
 /// best to accomplish this depends on your program architecture.
 ///
