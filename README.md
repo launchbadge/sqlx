@@ -133,7 +133,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 #### Cargo Feature Flags
 
--   `runtime-async-std-native-tls` (on by default): Use the `async-std` runtime and `native-tls` TLS backend.
+-   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend.
 
 -   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
 
