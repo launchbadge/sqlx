@@ -193,4 +193,4 @@ pub use async_native_tls::{TlsConnector, TlsStream};
         feature = "_rt-actix"
     )),
 ))]
-pub use async_rustls::{client::TlsStream, TlsConnector};
+pub use futures_rustls::{client::TlsStream, TlsConnector};

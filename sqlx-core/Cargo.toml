@@ -93,7 +93,7 @@ _rt-actix = ["tokio-stream"]
 _rt-async-std = []
 _rt-tokio = ["tokio-stream"]
 _tls-native-tls = []
-_tls-rustls = ["rustls", "webpki", "webpki-roots"]
+_tls-rustls = ["rustls", "rustls-pemfile", "webpki-roots"]
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
@@ -144,7 +144,8 @@ parking_lot = "0.11.0"
 rand = { version = "0.8.3", default-features = false, optional = true, features = ["std", "std_rng"] }
 regex = { version = "1.3.9", optional = true }
 rsa = { version = "0.4.0", optional = true }
-rustls = { version = "0.19.0", features = ["dangerous_configuration"], optional = true }
+rustls = { version = "0.20.0", features = ["dangerous_configuration"], optional = true }
+rustls-pemfile = { version = "0.2.0", optional = true } 
 serde = { version = "1.0.106", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.51", features = ["raw_value"], optional = true }
 sha-1 = { version = "0.9.0", default-features = false, optional = true }
@@ -156,8 +157,7 @@ tokio-stream = { version = "0.1.2", features = ["fs"], optional = true }
 smallvec = "1.4.0"
 url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = ["std"] }
-webpki = { version = "0.21.0", optional = true }
-webpki-roots = { version = "0.21.0", optional = true }
+webpki-roots = { version = "0.22.0", optional = true }
 whoami = "1.0.1"
 stringprep = "0.1.2"
 bstr = { version = "0.2.14", default-features = false, features = ["std"], optional = true }

@@ -151,6 +151,10 @@ serde = { version = "1.0.111", features = ["derive"] }
 serde_json = "1.0.53"
 url = "2.1.1"
 
+[patch.crates-io]
+# waiting for rustls 0.20.1
+rustls = { git = "https://github.com/rustls/rustls.git" }
+
 #
 # Any
 #

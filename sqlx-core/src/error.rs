@@ -253,14 +253,6 @@ impl From<sqlx_rt::native_tls::Error> for Error {
     }
 }
 
-#[cfg(feature = "_tls-rustls")]
-impl From<webpki::InvalidDNSNameError> for Error {
-    #[inline]
-    fn from(error: webpki::InvalidDNSNameError) -> Self {
-        Error::Tls(Box::new(error))
-    }
-}
-
 // Format an error message as a `Protocol` error
 macro_rules! err_protocol {
     ($expr:expr) => {
