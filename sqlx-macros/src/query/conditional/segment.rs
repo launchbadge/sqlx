@@ -1,7 +1,7 @@
 use syn::{
     braced,
-    Error,
-    Expr, LitStr, parse::{Parse, ParseStream, Peek}, Pat, Token,
+    parse::{Parse, ParseStream, Peek},
+    Error, Expr, LitStr, Pat, Token,
 };
 
 /// A single "piece" of the input.

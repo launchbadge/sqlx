@@ -1,13 +1,12 @@
-use std::rc::Rc;
+use std::{fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{
-    Expr,
-    Ident, parse::{Parse, ParseStream}, Pat, Path, Result, Token,
-};
-
 use segment::*;
+use syn::{
+    parse::{Parse, ParseStream},
+    Expr, Ident, Pat, Path, Result, Token,
+};
 
 mod map;
 mod segment;
@@ -16,15 +15,12 @@ mod segment;
 pub fn conditional_query_as(input: TokenStream) -> Result<TokenStream> {
     let input = syn::parse2::<Input>(input)?;
     let ctx = input.to_context();
-    let out = ctx.generate_output(input.testing);
+    let out = ctx.generate_output();
     Ok(out)
 }
 
 /// Input to the conditional query macro.
 struct Input {
-    /// `true` if the macro should only output information about the query instead of actually
-    /// calling a query macro
-    testing: bool,
     query_as: Path,
     segments: Vec<QuerySegment>,
 }
@@ -46,15 +42,11 @@ impl Input {
     }
 }
 
-syn::custom_keyword!(testing);
-
 impl Parse for Input {
     fn parse(input: ParseStream) -> Result<Self> {
-        let testing = input.parse::<Option<testing>>()?.is_some();
         let query_as = input.parse::<Path>()?;
         input.parse::<Token![,]>()?;
         Ok(Self {
-            testing,
             query_as,
             segments: QuerySegment::parse_all(input)?,
         })
@@ -73,7 +65,7 @@ trait IsContext {
     /// Return the number of branches the current context, including its children, contains.
     fn branches(&self) -> usize;
     /// Generate a call to a sqlx query macro for this context.
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream;
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream;
     /// Add a piece of an SQL query to this context.
     fn add_sql(&mut self, sql: &SqlSegment);
     /// Add an argument to this context.
@@ -85,8 +77,8 @@ impl IsContext for Context {
         self.as_dyn().branches()
     }
 
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream {
-        self.as_dyn().to_query(testing, branch_counter)
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream {
+        self.as_dyn().to_query(branch_counter)
     }
 
     fn add_sql(&mut self, sql: &SqlSegment) {
@@ -99,22 +91,18 @@ impl IsContext for Context {
 }
 
 impl Context {
-    fn generate_output(&self, testing: bool) -> TokenStream {
+    fn generate_output(&self) -> TokenStream {
         let branches = self.branches();
 
         let result = {
             let mut branch_counter = 1;
-            let output = self.to_query(testing, &mut branch_counter);
+            let output = self.to_query(&mut branch_counter);
             assert_eq!(branch_counter, branches + 1);
             output
         };
 
-        if testing {
-            quote!( #result )
-        } else {
-            let map = map::generate_conditional_map(branches);
-            quote!( { #map #result } )
-        }
+        let map = map::generate_conditional_map(branches);
+        quote!( { #map #result } )
     }
 
     fn as_dyn(&self) -> &dyn IsContext {
@@ -197,19 +185,15 @@ impl IsContext for NormalContext {
         1
     }
 
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream {
-        let NormalContext { query_as, sql, args } = self;
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream {
+        let NormalContext {
+            query_as,
+            sql,
+            args,
+        } = self;
         *branch_counter += 1;
-
-        if testing {
-            quote! {
-                (stringify!(#query_as), #sql, vec![#(stringify!(#args)),*])
-                    as (&'static str, &'static str, Vec<&'static str>)
-            }
-        } else {
-            let variant = Ident::new(&format!("_{}", branch_counter), Span::call_site());
-            quote!(ConditionalMap::#variant(sqlx::query_as!(#query_as, #sql, #(#args),*)))
-        }
+        let variant = Ident::new(&format!("_{}", branch_counter), Span::call_site());
+        quote!(ConditionalMap::#variant(sqlx::query_as!(#query_as, #sql, #(#args),*)))
     }
 
     fn add_sql(&mut self, sql: &SqlSegment) {
@@ -220,10 +204,13 @@ impl IsContext for NormalContext {
     }
 
     fn add_arg(&mut self, arg: &ArgSegment) {
+        if !self.sql.is_empty() {
+            self.sql.push(' ');
+        }
         if cfg!(feature = "postgres") {
-            self.sql.push_str(&format!(" ${}", self.args.len() + 1));
+            write!(&mut self.sql, "${}", self.args.len() + 1).unwrap();
         } else {
-            self.sql.push_str(" ?");
+            self.sql.push('?');
         }
         self.args.push(arg.argument.clone());
     }
@@ -242,10 +229,10 @@ impl IsContext for IfContext {
         self.then.branches() + self.or_else.branches()
     }
 
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream {
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream {
         let condition = &self.condition;
-        let then = self.then.to_query(testing, branch_counter);
-        let or_else = self.or_else.to_query(testing, branch_counter);
+        let then = self.then.to_query(branch_counter);
+        let or_else = self.or_else.to_query(branch_counter);
         quote! {
             if #condition {
                 #then
@@ -278,12 +265,9 @@ impl IsContext for MatchContext {
         self.arms.iter().map(|arm| arm.branches()).sum()
     }
 
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream {
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream {
         let expr = &self.expr;
-        let arms = self
-            .arms
-            .iter()
-            .map(|arm| arm.to_query(testing, branch_counter));
+        let arms = self.arms.iter().map(|arm| arm.to_query(branch_counter));
         quote! {
             match #expr { #(#arms,)* }
         }
@@ -314,9 +298,9 @@ impl IsContext for MatchArmContext {
         self.inner.branches()
     }
 
-    fn to_query(&self, testing: bool, branch_counter: &mut usize) -> TokenStream {
+    fn to_query(&self, branch_counter: &mut usize) -> TokenStream {
         let pat = &self.pattern;
-        let inner = self.inner.to_query(testing, branch_counter);
+        let inner = self.inner.to_query(branch_counter);
         quote! {
             #pat => #inner
         }
