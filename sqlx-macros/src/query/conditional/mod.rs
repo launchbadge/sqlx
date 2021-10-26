@@ -1,7 +1,7 @@
 use std::{fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     Expr,
     Ident, parse::{Parse, ParseStream}, Pat, Path, Result, Token,
@@ -206,7 +206,7 @@ impl IsContext for NormalContext {
         match branches {
             1 => query_call,
             _ => {
-                let variant = Ident::new(&format!("_{}", branch_counter), Span::call_site());
+                let variant = format_ident!("_{}", branch_counter);
                 quote!(ConditionalMap::#variant(#query_call))
             }
         }

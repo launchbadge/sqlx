@@ -1,17 +1,17 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::Ident;
 
 pub fn generate_conditional_map(n: usize) -> TokenStream {
     let call_site = Span::call_site();
     let map_fns = (1..=n)
-        .map(|i| Ident::new(&format!("F{}", i), call_site))
+        .map(|i| format_ident!("F{}", i))
         .collect::<Vec<_>>();
     let args = (1..=n)
-        .map(|i| Ident::new(&format!("A{}", i), call_site))
+        .map(|i| format_ident!("A{}", i))
         .collect::<Vec<_>>();
     let variants = (1..=n)
-        .map(|i| Ident::new(&format!("_{}", i), call_site))
+        .map(|i| format_ident!("_{}", i))
         .collect::<Vec<_>>();
     let variant_declarations = (0..n).map(|i| {
         let variant = &variants[i];

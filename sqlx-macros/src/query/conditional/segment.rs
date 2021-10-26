@@ -210,11 +210,11 @@ impl Parse for QuerySegment {
         }
 
         if SqlSegment::matches(&input) {
-            Ok(QuerySegment::Sql(SqlSegment::parse(input)?))
+            Ok(QuerySegment::Sql(input.parse()?))
         } else if IfSegment::matches(&input) {
-            Ok(QuerySegment::If(IfSegment::parse(input)?))
+            Ok(QuerySegment::If(input.parse()?))
         } else if MatchSegment::matches(input) {
-            Ok(QuerySegment::Match(MatchSegment::parse(input)?))
+            Ok(QuerySegment::Match(input.parse()?))
         } else {
             let error = format!(
                 "expected `{}`, `{}` or `{}`",
