@@ -15,7 +15,7 @@ macro_rules! assert_attribute {
 
 macro_rules! fail {
     ($t:expr, $m:expr) => {
-        return Err(syn::Error::new_spanned($t, $m));
+        return Err(syn::Error::new_spanned($t, $m))
     };
 }
 
