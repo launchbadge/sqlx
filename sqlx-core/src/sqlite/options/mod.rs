@@ -244,6 +244,6 @@ impl SqliteConnectOptions {
     /// See [open](https://www.sqlite.org/c3ref/open.html) for more details.
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
-        serialized
+        self
     }
 }
