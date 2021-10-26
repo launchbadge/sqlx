@@ -22,7 +22,7 @@ impl QuerySegment {
     fn parse_until<T: Peek>(input: ParseStream, until: T) -> syn::Result<Vec<Self>> {
         let mut segments = vec![];
         while !input.is_empty() && !input.peek(until) {
-            segments.push(QuerySegment::parse(input)?)
+            segments.push(QuerySegment::parse(input)?);
         }
         Ok(segments)
     }
@@ -204,6 +204,11 @@ impl Parse for IfSegment {
 
 impl Parse for QuerySegment {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        // parse optional '+' for backwards compatibility
+        if input.peek(Token![+]) {
+            input.parse::<Token![+]>()?;
+        }
+
         if SqlSegment::matches(&input) {
             Ok(QuerySegment::Sql(SqlSegment::parse(input)?))
         } else if IfSegment::matches(&input) {
