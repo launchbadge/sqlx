@@ -69,8 +69,6 @@ trait IsContext {
     fn to_query(&self, branches: usize, branch_counter: &mut usize) -> TokenStream;
     /// Add a piece of an SQL query to this context.
     fn add_sql(&mut self, sql: &SqlSegment);
-    /// Add an argument to this context.
-    fn add_arg(&mut self, arg: &ArgSegment);
 }
 
 impl IsContext for Context {
@@ -84,10 +82,6 @@ impl IsContext for Context {
 
     fn add_sql(&mut self, sql: &SqlSegment) {
         self.as_dyn_mut().add_sql(sql);
-    }
-
-    fn add_arg(&mut self, arg: &ArgSegment) {
-        self.as_dyn_mut().add_arg(arg);
     }
 }
 
@@ -132,7 +126,6 @@ impl Context {
             QuerySegment::Sql(s) => self.add_sql(s),
             QuerySegment::If(s) => self.add_if(s),
             QuerySegment::Match(s) => self.add_match(s),
-            QuerySegment::Arg(s) => self.add_arg(s),
         }
     }
 
@@ -186,6 +179,16 @@ struct NormalContext {
     args: Vec<Expr>,
 }
 
+impl NormalContext {
+    fn add_parameter(&mut self) {
+        if cfg!(feature = "postgres") {
+            write!(&mut self.sql, "${}", self.args.len() + 1).unwrap();
+        } else {
+            self.sql.push('?');
+        }
+    }
+}
+
 impl IsContext for NormalContext {
     fn branches(&self) -> usize {
         1
@@ -213,19 +216,25 @@ impl IsContext for NormalContext {
         if !self.sql.is_empty() {
             self.sql.push(' ');
         }
-        self.sql.push_str(&sql.query);
-    }
 
-    fn add_arg(&mut self, arg: &ArgSegment) {
-        if !self.sql.is_empty() {
-            self.sql.push(' ');
+        // push the new sql segment, replacing inline arguments (`"{some rust expression}"`)
+        // with the appropriate placeholder (`$n` or `?`)
+        let mut args = sql.args.iter();
+        let mut arg = args.next();
+        for (idx, c) in sql.sql.chars().enumerate() {
+            if let Some((start, expr, end)) = arg {
+                if idx < *start {
+                    self.sql.push(c);
+                }
+                if idx == *end {
+                    self.args.push(expr.clone());
+                    self.add_parameter();
+                    arg = args.next();
+                }
+            } else {
+                self.sql.push(c);
+            }
         }
-        if cfg!(feature = "postgres") {
-            write!(&mut self.sql, "${}", self.args.len() + 1).unwrap();
-        } else {
-            self.sql.push('?');
-        }
-        self.args.push(arg.argument.clone());
     }
 }
 
@@ -259,11 +268,6 @@ impl IsContext for IfContext {
         self.then.add_sql(sql);
         self.or_else.add_sql(sql);
     }
-
-    fn add_arg(&mut self, arg: &ArgSegment) {
-        self.then.add_arg(arg);
-        self.or_else.add_arg(arg);
-    }
 }
 
 /// Context within `match .. { .. }`
@@ -291,12 +295,6 @@ impl IsContext for MatchContext {
             arm.add_sql(sql);
         }
     }
-
-    fn add_arg(&mut self, arg: &ArgSegment) {
-        for arm in &mut self.arms {
-            arm.add_arg(arg)
-        }
-    }
 }
 
 /// Context within the arm (`Pat => ..`) of a `match`
@@ -321,9 +319,5 @@ impl IsContext for MatchArmContext {
 
     fn add_sql(&mut self, sql: &SqlSegment) {
         self.inner.add_sql(sql);
-    }
-
-    fn add_arg(&mut self, arg: &ArgSegment) {
-        self.inner.add_arg(arg);
     }
 }

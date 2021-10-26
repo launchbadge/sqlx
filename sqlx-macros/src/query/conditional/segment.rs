@@ -1,3 +1,6 @@
+use std::mem::swap;
+use std::ptr::replace;
+use proc_macro2::Span;
 use syn::{
     braced,
     parse::{Parse, ParseStream, Peek},
@@ -12,8 +15,6 @@ pub enum QuerySegment {
     If(IfSegment),
     /// An exhaustive `match .. { .. }`
     Match(MatchSegment),
-    /// A query argument. Can be an arbitrary expression, prefixed by `?`, like `?search.trim()`
-    Arg(ArgSegment),
 }
 
 impl QuerySegment {
@@ -36,29 +37,9 @@ impl QuerySegment {
     }
 }
 
-pub struct ArgSegment {
-    pub argument: Expr,
-}
-
-impl ArgSegment {
-    const EXPECT: &'static str = "?..";
-
-    fn matches(input: ParseStream) -> bool {
-        input.peek(Token![?])
-    }
-}
-
-impl Parse for ArgSegment {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        input.parse::<Token![?]>()?;
-        Ok(Self {
-            argument: input.parse::<Expr>()?,
-        })
-    }
-}
-
 pub struct SqlSegment {
-    pub query: String,
+    pub sql: String,
+    pub args: Vec<(usize, Expr, usize)>
 }
 
 impl SqlSegment {
@@ -71,9 +52,52 @@ impl SqlSegment {
 
 impl Parse for SqlSegment {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let lit = input.parse::<LitStr>()?;
-        Ok(Self { query: lit.value() })
+        let sql = input.parse::<LitStr>()?.value();
+        let args = parse_inline_args(&sql)?;
+
+        Ok(Self { sql, args })
     }
+}
+
+// parses inline arguments in the query, for example `".. WHERE user_id = {1}"`, returning them with
+// the index of `}`, the parsed argument, and the index of the `}`.
+fn parse_inline_args(sql: &str) -> syn::Result<Vec<(usize, Expr, usize)>> {
+    let mut args = vec![];
+    let mut curr_level = 0;
+    let mut curr_arg = None;
+
+    for (idx, c) in sql.chars().enumerate() {
+        match c {
+            '}' => {
+                if curr_arg.is_none() {
+                    curr_arg = Some((idx, String::new()));
+                }
+                curr_level += 1;
+            },
+            '{' => {
+                if curr_arg.is_none() {
+                    let err = Error::new(Span::call_site(), "unexpected '}' in query string");
+                    return Err(err);
+                };
+                if curr_level == 1 {
+                    let (arg_start, arg_str) = std::mem::replace(&mut curr_arg, None).unwrap();
+                    let arg = syn::parse_str(&arg_str)?;
+                    args.push((arg_start, arg, idx));
+                }
+                curr_level -= 1;
+            },
+            c => if let Some((_, arg)) = &mut curr_arg {
+                arg.push(c);
+            }
+        }
+    };
+
+    if curr_arg.is_some() {
+        let err = Error::new(Span::call_site(), "expected '}', but got end of string");
+        return Err(err)
+    }
+
+    Ok(args)
 }
 
 pub struct MatchSegment {
@@ -186,15 +210,12 @@ impl Parse for QuerySegment {
             Ok(QuerySegment::If(IfSegment::parse(input)?))
         } else if MatchSegment::matches(input) {
             Ok(QuerySegment::Match(MatchSegment::parse(input)?))
-        } else if ArgSegment::matches(input) {
-            Ok(QuerySegment::Arg(ArgSegment::parse(input)?))
         } else {
             let error = format!(
-                "expected `{}`, `{}`, `{}` or `{}`",
+                "expected `{}`, `{}` or `{}`",
                 SqlSegment::EXPECT,
                 IfSegment::EXPECT,
                 MatchSegment::EXPECT,
-                ArgSegment::EXPECT
             );
             Err(Error::new(input.span(), error))
         }
