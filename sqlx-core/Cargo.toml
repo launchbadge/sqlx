@@ -164,3 +164,4 @@ bstr = { version = "0.2.14", default-features = false, features = ["std"], optio
 git2 = { version = "0.13.20", default-features = false, optional = true }
 hashlink = "0.7.0"
 indexmap = "1.7.0"
+combine = "4.5.2"

@@ -103,6 +103,9 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    /// An error occurred while parsing or expanding the generic placeholder syntax in a query.
+    Placeholders(crate::placeholders::Error),
 }
 
 impl StdError for Box<dyn DatabaseError> {}

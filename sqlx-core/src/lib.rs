@@ -57,6 +57,9 @@ pub mod column;
 #[macro_use]
 pub mod statement;
 
+#[doc(hidden)]
+pub mod placeholders;
+
 mod common;
 pub mod database;
 pub mod describe;
