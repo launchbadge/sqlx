@@ -68,13 +68,13 @@ fn parse_inline_args(sql: &str) -> syn::Result<Vec<(usize, Expr, usize)>> {
 
     for (idx, c) in sql.chars().enumerate() {
         match c {
-            '}' => {
+            '{' => {
                 if curr_arg.is_none() {
                     curr_arg = Some((idx, String::new()));
                 }
                 curr_level += 1;
             },
-            '{' => {
+            '}' => {
                 if curr_arg.is_none() {
                     let err = Error::new(Span::call_site(), "unexpected '}' in query string");
                     return Err(err);
