@@ -1,21 +1,20 @@
 use std::{fmt::Write, rc::Rc};
+use std::any::Any;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{
-    Expr,
-    Ident, parse::{Parse, ParseStream}, Pat, Path, Result, Token,
-};
+use syn::{Error, Expr, Ident, parse::{Parse, ParseStream}, Pat, Path, Result, Token};
+use syn::punctuated::Punctuated;
 
 use segment::*;
 
 mod map;
 mod segment;
 
-/// Expand a call to `conditional_query_as!`
-pub fn conditional_query_as(input: TokenStream) -> Result<TokenStream> {
+
+pub fn query_as(input: TokenStream) -> Result<TokenStream> {
     let input = syn::parse2::<Input>(input)?;
-    let ctx = input.to_context();
+    let ctx = input.to_context()?;
     let out = ctx.generate_output();
     Ok(out)
 }
@@ -24,11 +23,13 @@ pub fn conditional_query_as(input: TokenStream) -> Result<TokenStream> {
 struct Input {
     query_as: Path,
     segments: Vec<QuerySegment>,
+    // separately specified arguments
+    arguments: Vec<Expr>,
 }
 
 impl Input {
     /// Convert the input into a context
-    fn to_context(&self) -> Context {
+    fn to_context(&self) -> Result<Context> {
         let mut ctx = Context::Default(NormalContext {
             query_as: Rc::new(self.query_as.clone()),
             sql: String::new(),
@@ -39,7 +40,19 @@ impl Input {
             ctx.add_segment(segment);
         }
 
-        ctx
+        if ctx.branches() > 1 && !self.arguments.is_empty() {
+            let err = Error::new(
+                Span::call_site(),
+                "branches (`match` and `if`) can only be used with inline arguments"
+            );
+            Err(err)
+        } else {
+            match &mut ctx {
+                Context::Default(ctx) => ctx.args.extend(self.arguments.iter().cloned()),
+                _ => unreachable!()
+            }
+            Ok(ctx)
+        }
     }
 }
 
@@ -47,9 +60,15 @@ impl Parse for Input {
     fn parse(input: ParseStream) -> Result<Self> {
         let query_as = input.parse::<Path>()?;
         input.parse::<Token![,]>()?;
+        let segments = QuerySegment::parse_all(input)?;
+        let arguments = match input.parse::<Option<Token![,]>>()? {
+            None => vec![],
+            Some(..) => Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter().collect()
+        };
         Ok(Self {
             query_as,
-            segments: QuerySegment::parse_all(input)?,
+            segments,
+            arguments,
         })
     }
 }
@@ -202,7 +221,13 @@ impl IsContext for NormalContext {
         } = self;
         *branch_counter += 1;
 
-        let query_call = quote!(sqlx::query_as!(#query_as, #sql, #(#args),*));
+        let query_call = quote!(
+            sqlx_macros::expand_query!(
+                record = #query_as,
+                source = $sql,
+                args = [$($args),*]
+            )
+        );
         match branches {
             1 => query_call,
             _ => {

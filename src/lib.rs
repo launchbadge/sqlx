@@ -71,7 +71,7 @@ pub extern crate sqlx_macros;
 // derives
 #[cfg(feature = "macros")]
 #[doc(hidden)]
-pub use sqlx_macros::{FromRow, Type, conditional_query_as};
+pub use sqlx_macros::{FromRow, Type, query_as};
 
 #[cfg(feature = "macros")]
 mod macros;
