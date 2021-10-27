@@ -3,7 +3,6 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 pub fn generate_conditional_map(n: usize) -> TokenStream {
-    let call_site = Span::call_site();
     let map_fns = (1..=n)
         .map(|i| format_ident!("F{}", i))
         .collect::<Vec<_>>();

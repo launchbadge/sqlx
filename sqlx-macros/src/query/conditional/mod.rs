@@ -1,16 +1,16 @@
-use std::{fmt::Write, rc::Rc};
-use std::any::Any;
+use std::{any::Any, fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{Error, Expr, Ident, parse::{Parse, ParseStream}, Pat, Path, Result, Token};
-use syn::punctuated::Punctuated;
-
 use segment::*;
+use syn::{
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    Error, Expr, Ident, Pat, Path, Result, Token,
+};
 
 mod map;
 mod segment;
-
 
 pub fn query_as(input: TokenStream) -> Result<TokenStream> {
     let input = syn::parse2::<Input>(input)?;
@@ -43,13 +43,13 @@ impl Input {
         if ctx.branches() > 1 && !self.arguments.is_empty() {
             let err = Error::new(
                 Span::call_site(),
-                "branches (`match` and `if`) can only be used with inline arguments"
+                "branches (`match` and `if`) can only be used with inline arguments",
             );
             Err(err)
         } else {
             match &mut ctx {
                 Context::Default(ctx) => ctx.args.extend(self.arguments.iter().cloned()),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
             Ok(ctx)
         }
@@ -63,7 +63,9 @@ impl Parse for Input {
         let segments = QuerySegment::parse_all(input)?;
         let arguments = match input.parse::<Option<Token![,]>>()? {
             None => vec![],
-            Some(..) => Punctuated::<Expr, Token![,]>::parse_terminated(input)?.into_iter().collect()
+            Some(..) => Punctuated::<Expr, Token![,]>::parse_terminated(input)?
+                .into_iter()
+                .collect(),
         };
         Ok(Self {
             query_as,
@@ -221,13 +223,11 @@ impl IsContext for NormalContext {
         } = self;
         *branch_counter += 1;
 
-        let query_call = quote!(
-            sqlx_macros::expand_query!(
-                record = #query_as,
-                source = #sql,
-                args = [#(#args),*]
-            )
-        );
+        let query_call = quote!(sqlx_macros::expand_query!(
+            record = #query_as,
+            source = #sql,
+            args = [#(#args),*]
+        ));
         match branches {
             1 => query_call,
             _ => {
@@ -309,7 +309,10 @@ impl IsContext for MatchContext {
 
     fn to_query(&self, branches: usize, branch_counter: &mut usize) -> TokenStream {
         let expr = &self.expr;
-        let arms = self.arms.iter().map(|arm| arm.to_query(branches, branch_counter));
+        let arms = self
+            .arms
+            .iter()
+            .map(|arm| arm.to_query(branches, branch_counter));
         quote! {
             match #expr { #(#arms,)* }
         }
@@ -349,15 +352,55 @@ impl IsContext for MatchArmContext {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::conditional::Input;
+    use proc_macro2::{TokenStream, TokenTree};
     use quote::quote;
+
+    use crate::query::conditional::Input;
+
+    // credits: Yandros#4299
+    fn assert_token_stream_eq(ts1: TokenStream, ts2: TokenStream) {
+        fn assert_tt_eq(tt1: TokenTree, tt2: TokenTree) {
+            use ::proc_macro2::TokenTree::*;
+            match (tt1, tt2) {
+                (Group(g1), Group(g2)) => assert_token_stream_eq(g1.stream(), g2.stream()),
+                (Ident(lhs), Ident(rhs)) => assert_eq!(lhs.to_string(), rhs.to_string()),
+                (Punct(lhs), Punct(rhs)) => assert_eq!(lhs.as_char(), rhs.as_char()),
+                (Literal(lhs), Literal(rhs)) => assert_eq!(lhs.to_string(), rhs.to_string()),
+                _ => panic!("Not equal!"),
+            }
+        }
+
+        let mut ts1 = ts1.into_iter();
+        let mut ts2 = ts2.into_iter();
+        loop {
+            match (ts1.next(), ts2.next()) {
+                (Some(tt1), Some(tt2)) => assert_tt_eq(tt1, tt2),
+                (None, None) => return,
+                _ => panic!("Not equal!"),
+            }
+        }
+    }
 
     #[test]
     fn simple() {
         let input = quote! {
-            OptionalRecord, "select owner_id as `id: _` from tweet"
+            OptionalRecord, "select something from somewhere where something_else = {1}"
         };
         let result = syn::parse2::<Input>(input).unwrap();
-        println!("{}", result.segments.len());
+        let expected_query = if cfg!(feature = "postgres") {
+            "select something from somewhere where something_else = $1"
+        } else {
+            "select something from somewhere where something_else = ?"
+        };
+        assert_token_stream_eq(
+            result.to_context().unwrap().generate_output(),
+            quote! {
+                sqlx_macros::expand_query!(
+                    record = OptionalRecord,
+                    source = #expected_query,
+                    args = [1]
+                )
+            },
+        );
     }
 }

@@ -190,7 +190,6 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
 ///
 /// It unfortunately doesn't appear to be possible right now to make the error specifically mention
 /// the field; this probably requires the `const-panic` feature (still unstable as of Rust 1.45).
-#[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 #[proc_macro]
 pub fn query_as(input: TokenStream) -> TokenStream {
