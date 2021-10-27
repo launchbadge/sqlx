@@ -224,8 +224,8 @@ impl IsContext for NormalContext {
         let query_call = quote!(
             sqlx_macros::expand_query!(
                 record = #query_as,
-                source = $sql,
-                args = [$($args),*]
+                source = #sql,
+                args = [#(#args),*]
             )
         );
         match branches {
@@ -344,5 +344,20 @@ impl IsContext for MatchArmContext {
 
     fn add_sql(&mut self, sql: &SqlSegment) {
         self.inner.add_sql(sql);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::query::conditional::Input;
+    use quote::quote;
+
+    #[test]
+    fn simple() {
+        let input = quote! {
+            OptionalRecord, "select owner_id as `id: _` from tweet"
+        };
+        let result = syn::parse2::<Input>(input).unwrap();
+        println!("{}", result.segments.len());
     }
 }
