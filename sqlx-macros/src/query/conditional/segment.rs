@@ -60,7 +60,7 @@ impl Parse for SqlSegment {
 }
 
 // parses inline arguments in the query, for example `".. WHERE user_id = {1}"`, returning them with
-// the index of `}`, the parsed argument, and the index of the `}`.
+// the index of `{`, the parsed argument, and the index of the `}`.
 fn parse_inline_args(sql: &str) -> syn::Result<Vec<(usize, Expr, usize)>> {
     let mut args = vec![];
     let mut curr_level = 0;
