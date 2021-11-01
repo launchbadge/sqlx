@@ -64,7 +64,7 @@ pub(super) fn describe<'c: 'e, 'q: 'e, 'e>(
                     // fallback to [column_decltype]
                     if !stepped && stmt.read_only() {
                         stepped = true;
-                        let _ = conn.worker.step(*stmt).await;
+                        let _ = conn.worker.step(stmt).await;
                     }
 
                     let mut ty = stmt.column_type_info(col);

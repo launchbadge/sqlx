@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-cli"
-version = "0.5.5"
+version = "0.5.9"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
 edition = "2018"
 readme = "README.md"
@@ -27,20 +27,24 @@ path = "src/bin/cargo-sqlx.rs"
 [dependencies]
 dotenv = "0.15"
 tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread"] }
-sqlx = { version = "0.5.5", path = "..", default-features = false, features = [
+sqlx = { version = "0.5.9", path = "..", default-features = false, features = [
     "runtime-async-std-native-tls",
     "migrate",
     "any",
     "offline",
 ] }
 futures = "0.3"
+# FIXME: we need to fix both of these versions until Clap 3.0 proper is released, then we can drop `clap_derive`
+# https://github.com/launchbadge/sqlx/issues/1378
+# https://github.com/clap-rs/clap/issues/2705
 clap = "=3.0.0-beta.2"
+clap_derive = "=3.0.0-beta.2"
 chrono = "0.4"
 anyhow = "1.0"
 url = { version = "2.1.1", default-features = false }
 async-trait = "0.1.30"
 console = "0.14.1"
-dialoguer = "0.8.0"
+promptly = "0.3.0"
 serde_json = "1.0.53"
 serde = { version = "1.0.110", features = ["derive"] }
 glob = "0.3.0"

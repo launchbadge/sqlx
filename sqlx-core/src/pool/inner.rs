@@ -4,16 +4,16 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{deadline_as_timeout, PoolOptions};
-use crossbeam_queue::{ArrayQueue, SegQueue};
-use futures_core::task::{Poll, Waker};
+use crossbeam_queue::ArrayQueue;
+
 use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
-use futures_util::future;
+
 use std::cmp;
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Weak};
-use std::task::Context;
+use std::sync::Arc;
+
 use std::time::{Duration, Instant};
 
 /// Ihe number of permits to release to wake all waiters, such as on `SharedPool::close()`.
@@ -90,7 +90,7 @@ impl<DB: Database> SharedPool<DB> {
             .await;
 
         while let Some(idle) = self.idle_conns.pop() {
-            idle.live.float(self).close().await;
+            let _ = idle.live.float(self).close().await;
         }
     }
 
@@ -322,16 +322,16 @@ fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
         (None, None) => return,
     };
 
-    // let pool = Arc::clone(&pool);
-    //
-    // sqlx_rt::spawn(async move {
-    //     while !pool.is_closed() {
-    //         if !pool.idle_conns.is_empty() {
-    //             do_reap(&pool).await;
-    //         }
-    //         sqlx_rt::sleep(period).await;
-    //     }
-    // });
+    let pool = Arc::clone(&pool);
+
+    sqlx_rt::spawn(async move {
+        while !pool.is_closed() {
+            if !pool.idle_conns.is_empty() {
+                do_reap(&pool).await;
+            }
+            sqlx_rt::sleep(period).await;
+        }
+    });
 }
 
 async fn do_reap<DB: Database>(pool: &SharedPool<DB>) {

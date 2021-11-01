@@ -206,7 +206,8 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let _ = SqliteConnection::connect(":memory:").await?;
+    let conn = SqliteConnection::connect(":memory:").await?;
+    conn.close().await?;
 
     Ok(())
 }
@@ -215,7 +216,8 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
 async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
     // If the filename is an empty string, then a private, temporary on-disk database will
     // be created.
-    let _ = SqliteConnection::connect("").await?;
+    let conn = SqliteConnection::connect("").await?;
+    conn.close().await?;
 
     Ok(())
 }
@@ -535,4 +537,58 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     conn.execute("DROP TABLE foobar").await?;
 
     Ok(())
+}
+
+// https://github.com/launchbadge/sqlx/issues/1300
+#[sqlx_macros::test]
+async fn concurrent_resets_dont_segfault() {
+    use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
+    use std::{str::FromStr, time::Duration};
+
+    let mut conn = SqliteConnectOptions::from_str(":memory:")
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+
+    sqlx::query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
+        .execute(&mut conn)
+        .await
+        .unwrap();
+
+    sqlx_rt::spawn(async move {
+        for i in 0..1000 {
+            sqlx::query("INSERT INTO stuff (name, value) VALUES (?, ?)")
+                .bind(i)
+                .bind(0)
+                .execute(&mut conn)
+                .await
+                .unwrap();
+        }
+    });
+
+    sqlx_rt::sleep(Duration::from_millis(1)).await;
+}
+
+// https://github.com/launchbadge/sqlx/issues/1419
+// note: this passes before and after the fix; you need to run it with `--nocapture`
+// to see the panic from the worker thread, which doesn't happen after the fix
+#[sqlx_macros::test]
+async fn row_dropped_after_connection_doesnt_panic() {
+    let mut conn = SqliteConnection::connect(":memory:").await.unwrap();
+
+    let books = sqlx::query("SELECT 'hello' AS title")
+        .fetch_all(&mut conn)
+        .await
+        .unwrap();
+
+    for book in &books {
+        // force the row to be inflated
+        let _title: String = book.get("title");
+    }
+
+    // hold `books` past the lifetime of `conn`
+    drop(conn);
+    sqlx_rt::sleep(std::time::Duration::from_secs(1)).await;
+    drop(books);
 }

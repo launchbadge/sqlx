@@ -211,7 +211,7 @@ test_type!(ipnetwork_vec<Vec<sqlx::types::ipnetwork::IpNetwork>>(Postgres,
 
 #[cfg(feature = "mac_address")]
 test_type!(mac_address_vec<Vec<sqlx::types::mac_address::MacAddress>>(Postgres,
-    "'{01:02:03:04:05:06,FF:FF:FF:FF:FF:FF}'::inet[]"
+    "'{01:02:03:04:05:06,FF:FF:FF:FF:FF:FF}'::macaddr[]"
         == vec![
            "01:02:03:04:05:06".parse::<sqlx::types::mac_address::MacAddress>().unwrap(),
            "FF:FF:FF:FF:FF:FF".parse::<sqlx::types::mac_address::MacAddress>().unwrap()

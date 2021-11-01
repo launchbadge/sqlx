@@ -18,20 +18,12 @@ impl ConnectOptions for SqliteConnectOptions {
             let mut conn = establish(self).await?;
 
             // send an initial sql statement comprised of options
-            //
-            // page_size must be set before any other action on the database.
-            //
-            // Note that locking_mode should be set before journal_mode; see
-            // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
-            let init = format!(
-                "PRAGMA page_size = {}; PRAGMA locking_mode = {}; PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}; PRAGMA auto_vacuum = {}",
-                self.page_size,
-                self.locking_mode.as_str(),
-                self.journal_mode.as_str(),
-                if self.foreign_keys { "ON" } else { "OFF" },
-                self.synchronous.as_str(),
-                self.auto_vacuum.as_str(),
-            );
+            let mut init = String::new();
+
+            for (key, value) in self.pragmas.iter() {
+                use std::fmt::Write;
+                write!(init, "PRAGMA {} = {}; ", key, value).ok();
+            }
 
             conn.execute(&*init).await?;
 

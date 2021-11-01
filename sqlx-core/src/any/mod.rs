@@ -1,5 +1,7 @@
 //! Generic database driver with the specific driver selected at runtime.
 
+use crate::executor::Executor;
+
 #[macro_use]
 mod decode;
 
@@ -44,6 +46,10 @@ pub use value::{AnyValue, AnyValueRef};
 pub type AnyPool = crate::pool::Pool<Any>;
 
 pub type AnyPoolOptions = crate::pool::PoolOptions<Any>;
+
+/// An alias for [`Executor<'_, Database = Any>`][Executor].
+pub trait AnyExecutor<'c>: Executor<'c, Database = Any> {}
+impl<'c, T: Executor<'c, Database = Any>> AnyExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(AnyArguments<'q>);

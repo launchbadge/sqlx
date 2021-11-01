@@ -1,0 +1,10 @@
+[package]
+name = "sqlx-example-postgres-transaction"
+version = "0.1.0"
+edition = "2018"
+workspace = "../../../"
+
+[dependencies]
+async-std = { version = "1.8.0", features = [ "attributes", "unstable" ] }
+sqlx = { path = "../../../", features = [ "postgres", "tls", "runtime-async-std-native-tls" ] }
+futures = "0.3.1"

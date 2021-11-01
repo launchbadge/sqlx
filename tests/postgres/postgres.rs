@@ -1,8 +1,8 @@
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
+use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -968,6 +968,30 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS heating_bills;
+DROP DOMAIN IF EXISTS winter_year_month;
+DROP TYPE IF EXISTS year_month;
+DROP DOMAIN IF EXISTS month_id;
+
+CREATE DOMAIN month_id AS INT2 CHECK (1 <= value AND value <= 12);
+CREATE TYPE year_month AS (year INT4, month month_id);
+CREATE DOMAIN winter_year_month AS year_month CHECK ((value).month <= 3);
+CREATE TABLE heating_bills (
+  month winter_year_month NOT NULL PRIMARY KEY,
+  cost INT4 NOT NULL
+);
+    "#,
+    )
+    .await?;
+
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct MonthId(i16);
 
@@ -1039,41 +1063,176 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
             sqlx::encode::IsNull::No
         }
     }
-
     let mut conn = new::<Postgres>().await?;
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
-            .execute(&mut conn)
-            .await;
-
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
-
-    {
-        let result = sqlx::query(
-            "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
-        )
-        .bind(WinterYearMonth {
-            year: 2021,
-            month: MonthId(1),
-        })
+    let result = sqlx::query("DELETE FROM heating_bills;")
         .execute(&mut conn)
         .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 0);
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
+    let result =
+        sqlx::query("INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);")
+            .bind(WinterYearMonth {
+                year: 2021,
+                month: MonthId(1),
+            })
             .execute(&mut conn)
             .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    let result = sqlx::query("DELETE FROM heating_bills;")
+        .execute(&mut conn)
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_pg_server_num() -> anyhow::Result<()> {
+    use sqlx::postgres::PgConnectionInfo;
+
+    let conn = new::<Postgres>().await?;
+
+    assert!(conn.server_version_num().is_some());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let mut copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.send("id\n1\n2\n".as_bytes()).await?;
+    let rows = copy.finish().await?;
+    assert_eq!(rows, 2);
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_abort_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.abort("this is only a test").await?;
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_copy_out() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    {
+        let mut copy = conn
+            .copy_out_raw(
+                "
+            COPY (SELECT generate_series(1, 2) AS id) TO STDOUT WITH (FORMAT CSV, HEADER);
+        ",
+            )
+            .await?;
+
+        assert_eq!(copy.next().await.unwrap().unwrap(), "id\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "1\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "2\n");
+        if copy.next().await.is_some() {
+            anyhow::bail!("Unexpected data from COPY");
+        }
     }
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_issue_1254() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "pair")]
+    struct Pair {
+        one: i32,
+        two: i32,
+    }
+
+    // array for custom type is not supported, use wrapper
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "_pair")]
+    struct Pairs(Vec<Pair>);
+
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        "
+DROP TABLE IF EXISTS issue_1254;
+DROP TYPE IF EXISTS pair;
+
+CREATE TYPE pair AS (one INT4, two INT4);
+CREATE TABLE issue_1254 (id INT4 PRIMARY KEY, pairs PAIR[]);
+",
+    )
+    .await?;
+
+    let result = sqlx::query("INSERT INTO issue_1254 VALUES($1, $2)")
+        .bind(0)
+        .bind(Pairs(vec![Pair { one: 94, two: 87 }]))
+        .execute(&mut conn)
+        .await?;
+    assert_eq!(result.rows_affected(), 1);
 
     Ok(())
 }

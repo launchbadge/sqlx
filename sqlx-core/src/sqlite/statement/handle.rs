@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::ffi::CStr;
+
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::ptr::NonNull;
@@ -9,21 +10,34 @@ use std::str::{from_utf8, from_utf8_unchecked};
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_parameter_count, sqlite3_bind_parameter_name,
-    sqlite3_bind_text64, sqlite3_changes, sqlite3_column_blob, sqlite3_column_bytes,
-    sqlite3_column_count, sqlite3_column_database_name, sqlite3_column_decltype,
-    sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name,
-    sqlite3_column_origin_name, sqlite3_column_table_name, sqlite3_column_type,
-    sqlite3_column_value, sqlite3_db_handle, sqlite3_reset, sqlite3_sql, sqlite3_stmt,
-    sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value, SQLITE_OK,
-    SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings, sqlite3_column_blob,
+    sqlite3_column_bytes, sqlite3_column_count, sqlite3_column_database_name,
+    sqlite3_column_decltype, sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64,
+    sqlite3_column_name, sqlite3_column_origin_name, sqlite3_column_table_name,
+    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_sql,
+    sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value,
+    SQLITE_MISUSE, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
+use crate::sqlite::connection::ConnectionHandleRef;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
+use std::ops::Deref;
+use std::sync::Arc;
 
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct StatementHandle(pub(super) NonNull<sqlite3_stmt>);
+#[derive(Debug)]
+pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
+
+// wrapper for `Arc<StatementHandle>` which also holds a reference to the `ConnectionHandle`
+#[derive(Clone, Debug)]
+pub(crate) struct StatementHandleRef {
+    // NOTE: the ordering of fields here determines the drop order:
+    // https://doc.rust-lang.org/reference/destructors.html#destructors
+    // the statement *must* be dropped before the connection
+    statement: Arc<StatementHandle>,
+    connection: ConnectionHandleRef,
+}
 
 // access to SQLite3 statement handles are safe to send and share between threads
 // as long as the `sqlite3_step` call is serialized.
@@ -32,6 +46,14 @@ unsafe impl Send for StatementHandle {}
 unsafe impl Sync for StatementHandle {}
 
 impl StatementHandle {
+    pub(super) fn new(ptr: NonNull<sqlite3_stmt>) -> Self {
+        Self(ptr)
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut sqlite3_stmt {
+        self.0.as_ptr()
+    }
+
     #[inline]
     pub(super) unsafe fn db_handle(&self) -> *mut sqlite3 {
         // O(c) access to the connection handle for this statement handle
@@ -280,7 +302,44 @@ impl StatementHandle {
         Ok(from_utf8(self.column_blob(index))?)
     }
 
-    pub(crate) fn reset(&self) {
-        unsafe { sqlite3_reset(self.0.as_ptr()) };
+    pub(crate) fn clear_bindings(&self) {
+        unsafe { sqlite3_clear_bindings(self.0.as_ptr()) };
+    }
+
+    pub(crate) fn to_ref(
+        self: &Arc<StatementHandle>,
+        conn: ConnectionHandleRef,
+    ) -> StatementHandleRef {
+        StatementHandleRef {
+            statement: Arc::clone(self),
+            connection: conn,
+        }
+    }
+}
+
+impl Drop for StatementHandle {
+    fn drop(&mut self) {
+        // SAFETY: we have exclusive access to the `StatementHandle` here
+        unsafe {
+            // https://sqlite.org/c3ref/finalize.html
+            let status = sqlite3_finalize(self.0.as_ptr());
+            if status == SQLITE_MISUSE {
+                // Panic in case of detected misuse of SQLite API.
+                //
+                // sqlite3_finalize returns it at least in the
+                // case of detected double free, i.e. calling
+                // sqlite3_finalize on already finalized
+                // statement.
+                panic!("Detected sqlite3_finalize misuse.");
+            }
+        }
+    }
+}
+
+impl Deref for StatementHandleRef {
+    type Target = StatementHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.statement
     }
 }

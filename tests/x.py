@@ -88,116 +88,101 @@ for path in glob(os.path.join(os.path.dirname(__file__), "target/**/*.gc*"), rec
 # check
 #
 
-run("cargo c", comment="check with a default set of features", tag="check")
-
-run(
-    "cargo c --no-default-features --features runtime-async-std-native-tls,all-databases,all-types,offline,macros",
-    comment="check with async-std",
-    tag="check_async_std"
-)
-
-run(
-    "cargo c --no-default-features --features runtime-tokio-native-tls,all-databases,all-types,offline,macros",
-    comment="check with tokio",
-    tag="check_tokio"
-)
-
-run(
-    "cargo c --no-default-features --features runtime-actix-native-tls,all-databases,all-types,offline,macros",
-    comment="check with actix",
-    tag="check_actix"
-)
+for runtime in ["async-std", "tokio", "actix"]:
+    for tls in ["native-tls", "rustls"]:
+        run(
+            f"cargo c --no-default-features --features all-databases,all-types,offline,macros,runtime-{runtime}-{tls}",
+            comment="check with async-std",
+            tag=f"check_{runtime}_{tls}"
+        )
 
 #
 # unit test
 #
 
-run(
-    "cargo test --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types",
-    comment="unit test core",
-    tag="unit"
-)
-
-run(
-    "cargo test --no-default-features --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types,runtime-tokio-native-tls",
-    comment="unit test core",
-    tag="unit_tokio"
-)
+for runtime in ["async-std", "tokio", "actix"]:
+    for tls in ["native-tls", "rustls"]:
+        run(
+            f"cargo test --no-default-features --manifest-path sqlx-core/Cargo.toml --features all-databases,all-types,runtime-{runtime}-{tls}",
+            comment="unit test core",
+            tag=f"unit_{runtime}_{tls}"
+        )
 
 #
 # integration tests
 #
 
 for runtime in ["async-std", "tokio", "actix"]:
+    for tls in ["native-tls", "rustls"]:
 
-    #
-    # sqlite
-    #
+        #
+        # sqlite
+        #
 
-    run(
-        f"cargo test --no-default-features --features macros,offline,any,all-types,sqlite,runtime-{runtime}-native-tls",
-        comment=f"test sqlite",
-        service="sqlite",
-        tag=f"sqlite" if runtime == "async-std" else f"sqlite_{runtime}",
-    )
-
-    #
-    # postgres
-    #
-
-    for version in ["12", "10", "9_6", "9_5"]:
         run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-native-tls",
-            comment=f"test postgres {version}",
-            service=f"postgres_{version}",
-            tag=f"postgres_{version}" if runtime == "async-std" else f"postgres_{version}_{runtime}",
+            f"cargo test --no-default-features --features macros,offline,any,all-types,sqlite,runtime-{runtime}-{tls}",
+            comment=f"test sqlite",
+            service="sqlite",
+            tag=f"sqlite" if runtime == "async-std" else f"sqlite_{runtime}",
         )
 
-    # +ssl
-    for version in ["12", "10", "9_6", "9_5"]:
-        run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-native-tls",
-            comment=f"test postgres {version} ssl",
-            database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt",
-            service=f"postgres_{version}",
-            tag=f"postgres_{version}_ssl" if runtime == "async-std" else f"postgres_{version}_ssl_{runtime}",
-        )
+        #
+        # postgres
+        #
 
-    #
-    # mysql
-    #
+        for version in ["13", "12", "11", "10", "9_6"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
+                comment=f"test postgres {version}",
+                service=f"postgres_{version}",
+                tag=f"postgres_{version}" if runtime == "async-std" else f"postgres_{version}_{runtime}",
+            )
 
-    for version in ["8", "5_7", "5_6"]:
-        run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-native-tls",
-            comment=f"test mysql {version}",
-            service=f"mysql_{version}",
-            tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
-        )
+        ## +ssl
+        for version in ["13", "12", "11", "10", "9_6"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
+                comment=f"test postgres {version} ssl",
+                database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt",
+                service=f"postgres_{version}",
+                tag=f"postgres_{version}_ssl" if runtime == "async-std" else f"postgres_{version}_ssl_{runtime}",
+            )
 
-    #
-    # mariadb
-    #
+        #
+        # mysql
+        #
 
-    for version in ["10_5", "10_4", "10_3", "10_2", "10_1"]:
-        run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-native-tls",
-            comment=f"test mariadb {version}",
-            service=f"mariadb_{version}",
-            tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
-        )
+        for version in ["8", "5_7", "5_6"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
+                comment=f"test mysql {version}",
+                service=f"mysql_{version}",
+                tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
+            )
 
-    #
-    # mssql
-    #
+        #
+        # mariadb
+        #
 
-    for version in ["2019"]:
-        run(
-            f"cargo test --no-default-features --features macros,offline,any,all-types,mssql,runtime-{runtime}-native-tls",
-            comment=f"test mssql {version}",
-            service=f"mssql_{version}",
-            tag=f"mssql_{version}" if runtime == "async-std" else f"mssql_{version}_{runtime}",
-        )
+        for version in ["10_6", "10_5", "10_4", "10_3", "10_2"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
+                comment=f"test mariadb {version}",
+                service=f"mariadb_{version}",
+                tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
+            )
+
+        #
+        # mssql
+        #
+
+        for version in ["2019", "2017"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mssql,runtime-{runtime}-{tls}",
+                comment=f"test mssql {version}",
+                service=f"mssql_{version}",
+                tag=f"mssql_{version}" if runtime == "async-std" else f"mssql_{version}_{runtime}",
+            )
 
 # TODO: Use [grcov] if available
 # ~/.cargo/bin/grcov tests/.cache/target/debug -s sqlx-core/ -t html --llvm --branch -o ./target/debug/coverage

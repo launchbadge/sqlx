@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::logger::QueryLogger;
 use crate::sqlite::connection::describe::describe;
-use crate::sqlite::statement::{StatementHandle, VirtualStatement};
+use crate::sqlite::statement::{StatementHandle, StatementWorker, VirtualStatement};
 use crate::sqlite::{
     Sqlite, SqliteArguments, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement,
     SqliteTypeInfo,
@@ -16,7 +16,8 @@ use libsqlite3_sys::sqlite3_last_insert_rowid;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-fn prepare<'a>(
+async fn prepare<'a>(
+    worker: &mut StatementWorker,
     statements: &'a mut StatementCache<VirtualStatement>,
     statement: &'a mut Option<VirtualStatement>,
     query: &str,
@@ -39,7 +40,7 @@ fn prepare<'a>(
     if exists {
         // as this statement has been executed before, we reset before continuing
         // this also causes any rows that are from the statement to be inflated
-        statement.reset();
+        statement.reset(worker).await?;
     }
 
     Ok(statement)
@@ -61,19 +62,25 @@ fn bind(
 
 /// A structure holding sqlite statement handle and resetting the
 /// statement when it is dropped.
-struct StatementResetter {
-    handle: StatementHandle,
+struct StatementResetter<'a> {
+    handle: Arc<StatementHandle>,
+    worker: &'a mut StatementWorker,
 }
 
-impl StatementResetter {
-    fn new(handle: StatementHandle) -> Self {
-        Self { handle }
+impl<'a> StatementResetter<'a> {
+    fn new(worker: &'a mut StatementWorker, handle: &Arc<StatementHandle>) -> Self {
+        Self {
+            worker,
+            handle: Arc::clone(handle),
+        }
     }
 }
 
-impl Drop for StatementResetter {
+impl Drop for StatementResetter<'_> {
     fn drop(&mut self) {
-        self.handle.reset();
+        // this method is designed to eagerly send the reset command
+        // so we don't need to await or spawn it
+        let _ = self.worker.reset(&self.handle);
     }
 }
 
@@ -103,7 +110,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             } = self;
 
             // prepare statement object (or checkout from cache)
-            let stmt = prepare(statements, statement, sql, persistent)?;
+            let stmt = prepare(worker, statements, statement, sql, persistent).await?;
 
             // keep track of how many arguments we have bound
             let mut num_arguments = 0;
@@ -113,7 +120,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 // is dropped. `StatementResetter` will reliably reset the
                 // statement even if the stream returned from `fetch_many`
                 // is dropped early.
-                let _resetter = StatementResetter::new(*stmt);
+                let resetter = StatementResetter::new(worker, stmt);
 
                 // bind values to the statement
                 num_arguments += bind(stmt, &arguments, num_arguments)?;
@@ -125,7 +132,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                     // invoke [sqlite3_step] on the dedicated worker thread
                     // this will move us forward one row or finish the statement
-                    let s = worker.step(*stmt).await?;
+                    let s = resetter.worker.step(stmt).await?;
 
                     match s {
                         Either::Left(changes) => {
@@ -145,7 +152,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                         Either::Right(()) => {
                             let (row, weak_values_ref) = SqliteRow::current(
-                                *stmt,
+                                stmt.to_ref(conn.to_ref()),
                                 columns,
                                 column_names
                             );
@@ -188,7 +195,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
             } = self;
 
             // prepare statement object (or checkout from cache)
-            let virtual_stmt = prepare(statements, statement, sql, persistent)?;
+            let virtual_stmt = prepare(worker, statements, statement, sql, persistent).await?;
 
             // keep track of how many arguments we have bound
             let mut num_arguments = 0;
@@ -205,18 +212,21 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
 
                 // invoke [sqlite3_step] on the dedicated worker thread
                 // this will move us forward one row or finish the statement
-                match worker.step(*stmt).await? {
+                match worker.step(stmt).await? {
                     Either::Left(_) => (),
 
                     Either::Right(()) => {
-                        let (row, weak_values_ref) =
-                            SqliteRow::current(*stmt, columns, column_names);
+                        let (row, weak_values_ref) = SqliteRow::current(
+                            stmt.to_ref(self.handle.to_ref()),
+                            columns,
+                            column_names,
+                        );
 
                         *last_row_values = Some(weak_values_ref);
 
                         logger.increment_rows();
 
-                        virtual_stmt.reset();
+                        virtual_stmt.reset(worker).await?;
                         return Ok(Some(row));
                     }
                 }
@@ -238,11 +248,12 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
                 handle: ref mut conn,
                 ref mut statements,
                 ref mut statement,
+                ref mut worker,
                 ..
             } = self;
 
             // prepare statement object (or checkout from cache)
-            let statement = prepare(statements, statement, sql, true)?;
+            let statement = prepare(worker, statements, statement, sql, true).await?;
 
             let mut parameters = 0;
             let mut columns = None;

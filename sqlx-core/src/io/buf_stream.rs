@@ -15,7 +15,7 @@ pub struct BufStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    stream: S,
+    pub(crate) stream: S,
 
     // writes with `write` to the underlying stream are buffered
     // this can be flushed with `flush`

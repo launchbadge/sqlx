@@ -387,3 +387,62 @@ async fn test_issue_622() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_can_work_with_transactions() -> anyhow::Result<()> {
+    let mut conn = new::<MySql>().await?;
+    conn.execute("CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY);")
+        .await?;
+
+    // begin .. rollback
+
+    let mut tx = conn.begin().await?;
+    sqlx::query("INSERT INTO users (id) VALUES (?)")
+        .bind(1_i32)
+        .execute(&mut tx)
+        .await?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&mut tx)
+        .await?;
+    assert_eq!(count, 1);
+    tx.rollback().await?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(count, 0);
+
+    // begin .. commit
+
+    let mut tx = conn.begin().await?;
+    sqlx::query("INSERT INTO users (id) VALUES (?)")
+        .bind(1_i32)
+        .execute(&mut tx)
+        .await?;
+    tx.commit().await?;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(count, 1);
+
+    // begin .. (drop)
+
+    {
+        let mut tx = conn.begin().await?;
+
+        sqlx::query("INSERT INTO users (id) VALUES (?)")
+            .bind(2)
+            .execute(&mut tx)
+            .await?;
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+            .fetch_one(&mut tx)
+            .await?;
+        assert_eq!(count, 2);
+        // tx is dropped
+    }
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(count, 1);
+
+    Ok(())
+}

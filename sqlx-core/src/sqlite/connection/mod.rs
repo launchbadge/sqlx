@@ -17,7 +17,7 @@ mod executor;
 mod explain;
 mod handle;
 
-pub(crate) use handle::ConnectionHandle;
+pub(crate) use handle::{ConnectionHandle, ConnectionHandleRef};
 
 /// A connection to a [Sqlite] database.
 pub struct SqliteConnection {
@@ -62,9 +62,15 @@ impl Connection for SqliteConnection {
 
     type Options = SqliteConnectOptions;
 
-    fn close(self) -> BoxFuture<'static, Result<(), Error>> {
-        // nothing explicit to do; connection will close in drop
-        Box::pin(future::ok(()))
+    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            let shutdown = self.worker.shutdown();
+            // Drop the statement worker and any outstanding statements, which should
+            // cover all references to the connection handle outside of the worker thread
+            drop(self);
+            // Ensure the worker thread has terminated
+            shutdown.await
+        })
     }
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
@@ -104,8 +110,7 @@ impl Connection for SqliteConnection {
 
 impl Drop for SqliteConnection {
     fn drop(&mut self) {
-        // before the connection handle is dropped,
-        // we must explicitly drop the statements as the drop-order in a struct is undefined
+        // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
         self.statement.take();
     }
