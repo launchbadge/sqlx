@@ -64,8 +64,8 @@ impl Encode<'_, Postgres> for &'_ str {
 impl Encode<'_, Postgres> for Cow<'_, str> {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         match self {
-            Cow::Borrowed(str) => str.encode(buf),
-            Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf)
+            Cow::Borrowed(str) => <&str as Encode<Postgres>>::encode(*str, buf),
+            Cow::Owned(str) => <&str as Encode<Postgres>>::encode(&**str, buf),
         }
     }
 }
