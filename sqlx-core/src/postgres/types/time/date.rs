@@ -5,7 +5,7 @@ use crate::postgres::types::time::PG_EPOCH;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 use std::mem;
-use time::{Date, Duration};
+use time::{macros::format_description, Date, Duration};
 
 impl Type<Postgres> for Date {
     fn type_info() -> PgTypeInfo {
@@ -46,7 +46,7 @@ impl<'r> Decode<'r, Postgres> for Date {
                 PG_EPOCH + Duration::days(days.into())
             }
 
-            PgValueFormat::Text => Date::parse(value.as_str()?, "%Y-%m-%d")?,
+            PgValueFormat::Text => Date::parse(value.as_str()?, &format_description!("%Y-%m-%d"))?,
         })
     }
 }

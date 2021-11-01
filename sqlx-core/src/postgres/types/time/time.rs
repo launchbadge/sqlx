@@ -5,7 +5,7 @@ use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, P
 use crate::types::Type;
 use std::borrow::Cow;
 use std::mem;
-use time::{Duration, Time};
+use time::{macros::format_description, Duration, Time};
 
 impl Type<Postgres> for Time {
     fn type_info() -> PgTypeInfo {
@@ -28,7 +28,7 @@ impl Type<Postgres> for Vec<Time> {
 impl Encode<'_, Postgres> for Time {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         // TIME is encoded as the microseconds since midnight
-        let us = (*self - Time::midnight()).whole_microseconds() as i64;
+        let us = (*self - Time::MIDNIGHT).whole_microseconds() as i64;
         Encode::<Postgres>::encode(&us, buf)
     }
 
@@ -43,7 +43,7 @@ impl<'r> Decode<'r, Postgres> for Time {
             PgValueFormat::Binary => {
                 // TIME is encoded as the microseconds since midnight
                 let us = Decode::<Postgres>::decode(value)?;
-                Time::midnight() + Duration::microseconds(us)
+                Time::MIDNIGHT + Duration::microseconds(us)
             }
 
             PgValueFormat::Text => {
@@ -60,7 +60,7 @@ impl<'r> Decode<'r, Postgres> for Time {
                     Cow::Borrowed(s)
                 };
 
-                Time::parse(&*s, "%H:%M:%S.%N")?
+                Time::parse(&*s, &format_description!("%H:%M:%S.%N"))?
             }
         })
     }
