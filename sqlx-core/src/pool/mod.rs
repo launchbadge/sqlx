@@ -97,9 +97,10 @@ pub use self::options::PoolOptions;
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
-/// `Pool` is `Send`, `Sync` and `Clone` (internally backed by `Arc`), so it should be created once at the start of your
-/// application/daemon/web server/etc. and then shared with all tasks throughout its lifetime. How
-/// best to accomplish this depends on your program architecture.
+/// `Pool` is `Send`, `Sync` and `Clone`, and can be cloned cheaply (similar to a structure
+/// backed by Arc), so it should be created once at the start of your application/daemon/web server/
+/// etc. and then shared with all tasks throughout its lifetime, either by cloning or by
+/// reference. How best to accomplish this depends on your program architecture.
 ///
 /// In Actix-Web, you can share a single pool with all request handlers using [web::Data].
 ///
