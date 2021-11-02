@@ -18,6 +18,16 @@ pub struct PgInterval {
     pub microseconds: i64,
 }
 
+impl PgInterval {
+    pub fn from_std(value: std::time::Duration) -> Result<Self, BoxDynError> {
+        Self::try_from(value)
+    }
+
+    pub fn to_std(self) -> Result<std::time::Duration, BoxDynError> {
+        self.try_into()
+    }
+}
+
 impl Type<Postgres> for PgInterval {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL
@@ -115,6 +125,32 @@ impl TryFrom<std::time::Duration> for PgInterval {
     }
 }
 
+impl TryInto<std::time::Duration> for PgInterval {
+    type Error = BoxDynError;
+
+    /// Convert a `PgInterval` to a `std::time::Duration`
+    ///
+    /// This returns an error if there is an overflow for (months + days) to seconds or microseconds
+    /// to nanoseconds
+    fn try_into(self) -> Result<std::time::Duration, BoxDynError> {
+        let secs: u64 = u64::try_from(self.months)?
+            .checked_mul(30 * 24 * 60 * 60)
+            .ok_or("months would overflow in seconds")?
+            .checked_add(
+                u64::try_from(self.days)?
+                    .checked_mul(24 * 60 * 60)
+                    .ok_or("days would overflow in seconds")?,
+            )
+            .ok_or("months + days would overflow in seconds")?
+            .checked_add(u64::try_from(self.microseconds / 1_000_000)?)
+            .ok_or("months + days + microseconds would overflow in seconds")?;
+
+        let nanos: u32 = u32::try_from((self.microseconds % 1_000_000) * 1_000)?;
+
+        Ok(std::time::Duration::new(secs, nanos))
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for chrono::Duration {
     fn type_info() -> PgTypeInfo {
@@ -126,6 +162,13 @@ impl Type<Postgres> for chrono::Duration {
 impl Type<Postgres> for [chrono::Duration] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl<'de> Decode<'de, Postgres> for chrono::Duration {
+    fn decode(value: PgValueRef<'de>) -> Result<Self, BoxDynError> {
+        PgInterval::decode(value)?.try_into()
     }
 }
 
@@ -177,6 +220,19 @@ impl TryFrom<chrono::Duration> for PgInterval {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl TryInto<chrono::Duration> for PgInterval {
+    type Error = BoxDynError;
+
+    /// Convert a `PgInterval` to a `chrono::Duration`
+    ///
+    /// This returns an error if there is a loss of precision using nanoseconds or if there is a
+    /// microsecond or nanosecond overflow.
+    fn try_into(self) -> Result<chrono::Duration, BoxDynError> {
+        chrono::Duration::from_std(self.to_std()?).map_err(|e| Box::new(e) as BoxDynError)
+    }
+}
+
 #[cfg(feature = "time")]
 impl Type<Postgres> for time::Duration {
     fn type_info() -> PgTypeInfo {
@@ -188,6 +244,13 @@ impl Type<Postgres> for time::Duration {
 impl Type<Postgres> for [time::Duration] {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
+    }
+}
+
+#[cfg(feature = "time")]
+impl<'de> Decode<'de, Postgres> for time::Duration {
+    fn decode(value: PgValueRef<'de>) -> Result<Self, BoxDynError> {
+        PgInterval::decode(value)?.try_into()
     }
 }
 
@@ -221,6 +284,21 @@ impl TryFrom<time::Duration> for PgInterval {
             days: 0,
             microseconds: value.whole_microseconds().try_into()?,
         })
+    }
+}
+
+#[cfg(feature = "time")]
+impl TryInto<time::Duration> for PgInterval {
+    type Error = BoxDynError;
+
+    /// Convert a `PgInterval` to a `chrono::Duration`
+    ///
+    /// This returns an error if there is a loss of precision using nanoseconds or if there is a
+    /// microsecond or nanosecond overflow.
+    fn try_into(self) -> Result<time::Duration, BoxDynError> {
+        self.to_std()?
+            .try_into()
+            .map_err(|e| Box::new(e) as BoxDynError)
     }
 }
 
