@@ -181,4 +181,20 @@ for _every_ database we intend to support.
 
 Even Sisyphus would pity us.
 
----------
+----
+
+### Why does my project using sqlx query macros not build on docs.rs?
+
+Docs.rs doesn't have access to your database, so it needs to be provided a `sqlx-data.json` file and be instructed to set the `SQLX_OFFLINE` environment variable to true while compiling your project. Luckily for us, docs.rs creates a `DOCS_RS` environment variable that we can access in a custom build script to achieve this functionality.
+
+To do so, first, make sure that you have run `cargo sqlx prepare` to generate a `sqlx-data.json` file in your project.
+
+Next, create a file called `build.rs` in the root of your project directory (at the same level as `Cargo.toml`). Add the following code to it:
+```rs
+fn main() {
+    // When building in docs.rs, we want to set SQLX_OFFLINE mode to true
+    if std::env::var_os("DOCS_RS").is_some() {
+        println!("cargo:rustc-env=SQLX_OFFLINE=true");
+    }
+}
+```
