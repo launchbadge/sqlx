@@ -425,6 +425,13 @@ test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
 
+#[cfg(feature = "bigdecimal")]
+test_type!(numrange_bigdecimal<PgRange<sqlx::types::BigDecimal>>(Postgres,
+    "'(1.3,2.4)'::numrange" == PgRange::from(
+        (Bound::Excluded("1.3".parse::<sqlx::types::BigDecimal>().unwrap()),
+         Bound::Excluded("2.4".parse::<sqlx::types::BigDecimal>().unwrap())))
+));
+
 #[cfg(feature = "decimal")]
 test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0::numeric" == sqlx::types::Decimal::from_str("0").unwrap(),
@@ -434,6 +441,13 @@ test_type!(decimal<sqlx::types::Decimal>(Postgres,
     "0.01234::numeric" == sqlx::types::Decimal::from_str("0.01234").unwrap(),
     "12.34::numeric" == sqlx::types::Decimal::from_str("12.34").unwrap(),
     "12345.6789::numeric" == sqlx::types::Decimal::from_str("12345.6789").unwrap(),
+));
+
+#[cfg(feature = "decimal")]
+test_type!(numrange_decimal<PgRange<sqlx::types::Decimal>>(Postgres,
+    "'(1.3,2.4)'::numrange" == PgRange::from(
+        (Bound::Excluded(sqlx::types::Decimal::from_str("1.3").unwrap()),
+         Bound::Excluded(sqlx::types::Decimal::from_str("2.4").unwrap()))),
 ));
 
 const EXC2: Bound<i32> = Bound::Excluded(2);

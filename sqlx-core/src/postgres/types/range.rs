@@ -142,6 +142,17 @@ impl Type<Postgres> for PgRange<bigdecimal::BigDecimal> {
     }
 }
 
+#[cfg(feature = "decimal")]
+impl Type<Postgres> for PgRange<rust_decimal::Decimal> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<rust_decimal::Decimal>(ty)
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for PgRange<chrono::NaiveDate> {
     fn type_info() -> PgTypeInfo {
@@ -227,6 +238,13 @@ impl Type<Postgres> for [PgRange<bigdecimal::BigDecimal>] {
     }
 }
 
+#[cfg(feature = "decimal")]
+impl Type<Postgres> for [PgRange<rust_decimal::Decimal>] {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE_ARRAY
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for [PgRange<chrono::NaiveDate>] {
     fn type_info() -> PgTypeInfo {
@@ -283,6 +301,13 @@ impl Type<Postgres> for Vec<PgRange<i64>> {
 
 #[cfg(feature = "bigdecimal")]
 impl Type<Postgres> for Vec<PgRange<bigdecimal::BigDecimal>> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE_ARRAY
+    }
+}
+
+#[cfg(feature = "decimal")]
+impl Type<Postgres> for Vec<PgRange<rust_decimal::Decimal>> {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::NUM_RANGE_ARRAY
     }
