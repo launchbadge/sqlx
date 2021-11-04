@@ -229,6 +229,8 @@ impl<DB: Database> PoolOptions<DB> {
 }
 
 async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(), Error> {
+    let mut conns = Vec::with_capacity(pool.options.min_connections as usize);
+    let mut result = Ok(());
     for _ in 0..cmp::max(pool.options.min_connections, 1) {
         let deadline = Instant::now() + pool.options.connect_timeout;
         let permit = pool.semaphore.acquire(1).await;
@@ -236,12 +238,22 @@ async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(),
         // this guard will prevent us from exceeding `max_size`
         if let Ok(guard) = pool.try_increment_size(permit) {
             // [connect] will raise an error when past deadline
-            let conn = pool.connection(deadline, guard).await?;
-            pool.release(conn);
+            let conn = match pool.connection(deadline, guard).await {
+                Ok(c) => c,
+                Err(err) => {
+                    result = Err(err);
+                    break;
+                }
+            };
+            // Pin the connections to ensure new ones will be made
+            conns.push(conn);
         }
     }
 
-    Ok(())
+    for conn in conns {
+        pool.release(conn);
+    }
+    result
 }
 
 impl<DB: Database> Debug for PoolOptions<DB> {
