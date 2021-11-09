@@ -148,9 +148,32 @@ impl TryFrom<chrono::Duration> for PgInterval {
     /// Convert a `chrono::Duration` to a `PgInterval`.
     ///
     /// This returns an error if there is a loss of precision using nanoseconds or if there is a
-    /// microsecond or nanosecond overflow.
+    /// nanosecond overflow.
     fn try_from(value: chrono::Duration) -> Result<Self, BoxDynError> {
-        value.to_std()?.try_into()
+        value
+            .num_nanoseconds()
+            .map_or::<Result<_, Self::Error>, _>(
+                Err("Overflow has occurred for PostgreSQL `INTERVAL`".into()),
+                |nanoseconds| {
+                    if nanoseconds % 1000 != 0 {
+                        return Err(
+                            "PostgreSQL `INTERVAL` does not support nanoseconds precision".into(),
+                        );
+                    }
+                    Ok(())
+                },
+            )?;
+
+        value.num_microseconds().map_or(
+            Err("Overflow has occurred for PostgreSQL `INTERVAL`".into()),
+            |microseconds| {
+                Ok(Self {
+                    months: 0,
+                    days: 0,
+                    microseconds: microseconds,
+                })
+            },
+        )
     }
 }
 
@@ -283,6 +306,7 @@ fn test_encode_interval() {
 
 #[test]
 fn test_pginterval_std() {
+    // Case for positive duration
     let interval = PgInterval {
         days: 0,
         months: 0,
@@ -292,11 +316,18 @@ fn test_pginterval_std() {
         &PgInterval::try_from(std::time::Duration::from_micros(27_000)).unwrap(),
         &interval
     );
+
+    // Case when precision loss occurs
+    assert!(PgInterval::try_from(std::time::Duration::from_nanos(27_000_001)).is_err());
+
+    // Case when microsecond overflow occurs
+    assert!(PgInterval::try_from(std::time::Duration::from_secs(20_000_000_000_000)).is_err());
 }
 
 #[test]
 #[cfg(feature = "chrono")]
 fn test_pginterval_chrono() {
+    // Case for positive duration
     let interval = PgInterval {
         days: 0,
         months: 0,
@@ -306,11 +337,31 @@ fn test_pginterval_chrono() {
         &PgInterval::try_from(chrono::Duration::microseconds(27_000)).unwrap(),
         &interval
     );
+
+    // Case for negative duration
+    let interval = PgInterval {
+        days: 0,
+        months: 0,
+        microseconds: -27_000,
+    };
+    assert_eq!(
+        &PgInterval::try_from(chrono::Duration::microseconds(-27_000)).unwrap(),
+        &interval
+    );
+
+    // Case when precision loss occurs
+    assert!(PgInterval::try_from(chrono::Duration::nanoseconds(27_000_001)).is_err());
+    assert!(PgInterval::try_from(chrono::Duration::nanoseconds(-27_000_001)).is_err());
+
+    // Case when nanosecond overflow occurs
+    assert!(PgInterval::try_from(chrono::Duration::seconds(10_000_000_000)).is_err());
+    assert!(PgInterval::try_from(chrono::Duration::seconds(-10_000_000_000)).is_err());
 }
 
 #[test]
 #[cfg(feature = "time")]
 fn test_pginterval_time() {
+    // Case for positive duration
     let interval = PgInterval {
         days: 0,
         months: 0,
@@ -320,4 +371,23 @@ fn test_pginterval_time() {
         &PgInterval::try_from(time::Duration::microseconds(27_000)).unwrap(),
         &interval
     );
+
+    // Case for negative duration
+    let interval = PgInterval {
+        days: 0,
+        months: 0,
+        microseconds: -27_000,
+    };
+    assert_eq!(
+        &PgInterval::try_from(time::Duration::microseconds(-27_000)).unwrap(),
+        &interval
+    );
+
+    // Case when precision loss occurs
+    assert!(PgInterval::try_from(time::Duration::nanoseconds(27_000_001)).is_err());
+    assert!(PgInterval::try_from(time::Duration::nanoseconds(-27_000_001)).is_err());
+
+    // Case when microsecond overflow occurs
+    assert!(PgInterval::try_from(time::Duration::seconds(10_000_000_000_000)).is_err());
+    assert!(PgInterval::try_from(time::Duration::seconds(-10_000_000_000_000)).is_err());
 }
