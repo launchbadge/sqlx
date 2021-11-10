@@ -179,6 +179,11 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `tls`: Add support for TLS connections.
 
+-   `offline`: Enables building the macros in offline mode when a live database is not available (such as CI). 
+    -   Requires `sqlx-cli` installed to use. See [sqlx-cli/README.md][readme-offline].
+
+[readme-offline]: sqlx-cli/README.md#enable-building-in-offline-mode-with-query
+
 ## SQLx is not an ORM!
 
 SQLx supports **compile-time checked queries**. It does not, however, do this by providing a Rust
