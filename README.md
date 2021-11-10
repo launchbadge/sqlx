@@ -204,6 +204,8 @@ of SQLx.
 
 ## Usage
 
+See the `examples/` folder for more in-depth usage.
+
 ### Quickstart
 
 ```toml
