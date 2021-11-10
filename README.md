@@ -203,8 +203,18 @@ of SQLx.
 
 ```toml
 [dependencies]
-sqlx = { version = "0.4.1", features = [ "postgres" ] }
-async-std = { version = "1.6", features = [ "attributes" ] }
+# PICK ONE:
+# Async-std:
+sqlx = { version = "0.5", features = [  "runtime-async-std-native-tls", "postgres" ] }
+async-std = { version = "1", features = [ "attributes" ] }
+
+# Tokio:
+sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
+tokio = { version = "1", features = ["full"] }
+
+# Actix-web:
+sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
+actix-web = "3"
 ```
 
 ```rust
@@ -214,6 +224,7 @@ use sqlx::postgres::PgPoolOptions;
 
 #[async_std::main]
 // or #[tokio::main]
+// or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     //  for MySQL, use MySqlPoolOptions::new()
