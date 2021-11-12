@@ -26,6 +26,7 @@ mod migrate;
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;
 pub use connection::{PgConnection, PgConnectionInfo};
+pub use copy::PgCopyIn;
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
