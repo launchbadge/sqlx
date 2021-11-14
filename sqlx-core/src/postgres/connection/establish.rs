@@ -40,6 +40,10 @@ impl PgConnection {
             params.push(("application_name", application_name));
         }
 
+        if let Some(ref options) = options.options {
+            params.push(("options", options));
+        }
+
         stream
             .send(Startup {
                 username: Some(&options.username),

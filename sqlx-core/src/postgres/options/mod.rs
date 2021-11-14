@@ -33,6 +33,7 @@ pub use ssl_mode::PgSslMode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
+/// | `options` | `None` | The command-line options to send to the server at connection start. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -85,6 +86,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) options: Option<String>,
 }
 
 impl Default for PgConnectOptions {
@@ -145,6 +147,7 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
+            options: var("PGOPTIONS").ok(),
         }
     }
 
@@ -316,6 +319,20 @@ impl PgConnectOptions {
     /// ```
     pub fn application_name(mut self, application_name: &str) -> Self {
         self.application_name = Some(application_name.to_owned());
+        self
+    }
+
+    /// Sets the extra options. Defaults to None
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .options("-c geqo=off -c statement_timeout=5min");
+    /// ```
+    pub fn options(mut self, options: &str) -> Self {
+        self.options = Some(options.to_owned());
         self
     }
 

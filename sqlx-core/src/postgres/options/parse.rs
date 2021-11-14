@@ -85,6 +85,8 @@ impl FromStr for PgConnectOptions {
 
                 "application_name" => options = options.application_name(&*value),
 
+                "options" => options = options.options(&*value),
+
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }
@@ -194,4 +196,11 @@ fn it_parses_socket_correctly_with_username_percent_encoded() {
     assert_eq!("some_user", opts.username);
     assert_eq!(Some("/var/lib/postgres/".into()), opts.socket);
     assert_eq!(Some("database"), opts.database.as_deref());
+}
+#[test]
+fn it_parses_options() {
+    let uri = "postgres:///?options=-c%20synchronous_commit%3Doff%20--search_path%3Dpostgres";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(Some("-c synchronous_commit=off --search_path=postgres"), opts.options.as_deref());
 }
