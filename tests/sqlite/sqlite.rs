@@ -1,8 +1,10 @@
 use futures::TryStreamExt;
-use sqlx::sqlite::SqlitePoolOptions;
+use rand::{Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256PlusPlus;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{
-    query, sqlite::Sqlite, sqlite::SqliteRow, Column, Connection, Executor, Row, SqliteConnection,
-    SqlitePool, Statement, TypeInfo,
+    query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
+    SqliteConnection, SqlitePool, Statement, TypeInfo,
 };
 use sqlx_test::new;
 
@@ -389,7 +391,10 @@ SELECT id, text FROM _sqlx_test;
 async fn it_supports_collations() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    conn.create_collation("test_collation", |l, r| l.cmp(r).reverse())?;
+    // also tests `.lock_handle()`
+    conn.lock_handle()
+        .await?
+        .create_collation("test_collation", |l, r| l.cmp(r).reverse())?;
 
     let _ = conn
         .execute(
@@ -591,4 +596,65 @@ async fn row_dropped_after_connection_doesnt_panic() {
     drop(conn);
     sqlx_rt::sleep(std::time::Duration::from_secs(1)).await;
     drop(books);
+}
+
+// note: to repro issue #1467 this should be run in release mode
+#[sqlx_macros::test]
+async fn issue_1467() -> anyhow::Result<()> {
+    let mut conn = SqliteConnectOptions::new()
+        .filename(":memory:")
+        .connect()
+        .await?;
+
+    sqlx::query(
+        r#"
+    CREATE TABLE kv (k PRIMARY KEY, v);
+    CREATE INDEX idx_kv ON kv (v);
+    "#,
+    )
+    .execute(&mut conn)
+    .await?;
+
+    // Random seed:
+    let seed: [u8; 32] = rand::random();
+    println!("RNG seed: {}", hex::encode(&seed));
+
+    // Pre-determined seed:
+    // let mut seed: [u8; 32] = [0u8; 32];
+    // hex::decode_to_slice(
+    //     "135234871d03fc0479e22f2f06395b6074761bac5fe7dcf205dbe01eef9f7794",
+    //     &mut seed,
+    // )?;
+
+    // reproducible RNG for testing
+    let mut rng = Xoshiro256PlusPlus::from_seed(seed);
+
+    for i in 0..1_000_000 {
+        if i % 1_000 == 0 {
+            println!("{}", i);
+        }
+        let key = rng.gen_range(0..1_000);
+        let value = rng.gen_range(0..1_000);
+        let mut tx = conn.begin().await?;
+
+        let exists = sqlx::query("SELECT 1 FROM kv WHERE k = ?")
+            .bind(key)
+            .fetch_optional(&mut tx)
+            .await?;
+        if exists.is_some() {
+            sqlx::query("UPDATE kv SET v = ? WHERE k = ?")
+                .bind(value)
+                .bind(key)
+                .execute(&mut tx)
+                .await?;
+        } else {
+            sqlx::query("INSERT INTO kv(k, v) VALUES (?, ?)")
+                .bind(key)
+                .bind(value)
+                .execute(&mut tx)
+                .await?;
+        }
+        tx.commit().await?;
+    }
+    Ok(())
 }

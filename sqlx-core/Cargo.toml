@@ -43,7 +43,7 @@ mysql = [
     "rand",
     "rsa",
 ]
-sqlite = ["libsqlite3-sys"]
+sqlite = ["libsqlite3-sys", "futures-executor", "flume"]
 mssql = ["uuid", "encoding_rs", "regex"]
 any = []
 
@@ -122,6 +122,9 @@ futures-channel = { version = "0.3.5", default-features = false, features = ["si
 futures-core = { version = "0.3.5", default-features = false }
 futures-intrusive = "0.4.0"
 futures-util = { version = "0.3.5", default-features = false, features = ["alloc", "sink"] }
+# used by the SQLite worker thread to block on the async mutex that locks the database handle
+futures-executor = { version = "0.3.17", optional = true }
+flume = { version = "0.10.9", optional = true, default-features = false, features = ["async"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"
 hmac = { version = "0.11.0", default-features = false, optional = true }

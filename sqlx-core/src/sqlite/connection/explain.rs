@@ -1,7 +1,8 @@
 use crate::error::Error;
-use crate::query_as::query_as;
+use crate::from_row::FromRow;
+use crate::sqlite::connection::{execute, ConnectionState};
 use crate::sqlite::type_info::DataType;
-use crate::sqlite::{SqliteConnection, SqliteTypeInfo};
+use crate::sqlite::SqliteTypeInfo;
 use crate::HashMap;
 use std::str::from_utf8;
 
@@ -97,8 +98,8 @@ fn opcode_to_type(op: &str) -> DataType {
 }
 
 // Opcode Reference: https://sqlite.org/opcode.html
-pub(super) async fn explain(
-    conn: &mut SqliteConnection,
+pub(super) fn explain(
+    conn: &mut ConnectionState,
     query: &str,
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
     // Registers
@@ -111,10 +112,11 @@ pub(super) async fn explain(
     // Nullable columns
     let mut n = HashMap::<i64, bool>::with_capacity(6);
 
-    let program =
-        query_as::<_, (i64, String, i64, i64, i64, Vec<u8>)>(&*format!("EXPLAIN {}", query))
-            .fetch_all(&mut *conn)
-            .await?;
+    let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
+        execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
+            .filter_map(|res| res.map(|either| either.right()).transpose())
+            .map(|row| FromRow::from_row(&row?))
+            .collect::<Result<Vec<_>, Error>>()?;
 
     let mut program_i = 0;
     let program_size = program.len();
