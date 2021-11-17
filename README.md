@@ -369,7 +369,7 @@ Differences from `query()`:
 -   The output type is an anonymous record. In the above example the type would be similar to:
 
     ```rust
-    { country: String, count: i64 }
+    { country: Option<String>, count: i64 }
     ```
 
 -   The `DATABASE_URL` environment variable must be set at build time to a database which it can prepare
@@ -390,7 +390,7 @@ mostly identical except that you can name the output type.
 
 ```rust
 // no traits are needed
-struct Country { country: String, count: i64 }
+struct Country { country: Option<String>, count: i64 }
 
 let countries = sqlx::query_as!(Country,
         "
