@@ -3,7 +3,9 @@ use uuid::Uuid;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for Uuid {
@@ -12,15 +14,9 @@ impl Type<Postgres> for Uuid {
     }
 }
 
-impl Type<Postgres> for [Uuid] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for Uuid {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::UUID_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<Uuid> {
-    fn type_info() -> PgTypeInfo {
-        <[Uuid] as Type<Postgres>>::type_info()
     }
 }
 

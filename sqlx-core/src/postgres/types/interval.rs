@@ -6,7 +6,9 @@ use byteorder::{NetworkEndian, ReadBytesExt};
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 // `PgInterval` is available for direct access to the INTERVAL type
@@ -24,8 +26,8 @@ impl Type<Postgres> for PgInterval {
     }
 }
 
-impl Type<Postgres> for [PgInterval] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgInterval {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
     }
 }
@@ -77,8 +79,8 @@ impl Type<Postgres> for std::time::Duration {
     }
 }
 
-impl Type<Postgres> for [std::time::Duration] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for std::time::Duration {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
     }
 }
@@ -123,8 +125,8 @@ impl Type<Postgres> for chrono::Duration {
 }
 
 #[cfg(feature = "chrono")]
-impl Type<Postgres> for [chrono::Duration] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for chrono::Duration {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
     }
 }
@@ -185,8 +187,8 @@ impl Type<Postgres> for time::Duration {
 }
 
 #[cfg(feature = "time")]
-impl Type<Postgres> for [time::Duration] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for time::Duration {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INTERVAL_ARRAY
     }
 }

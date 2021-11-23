@@ -1,7 +1,9 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 use chrono::{Duration, NaiveTime};
 use std::mem;
@@ -12,15 +14,9 @@ impl Type<Postgres> for NaiveTime {
     }
 }
 
-impl Type<Postgres> for [NaiveTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for NaiveTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIME_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<NaiveTime> {
-    fn type_info() -> PgTypeInfo {
-        <[NaiveTime] as Type<Postgres>>::type_info()
     }
 }
 
