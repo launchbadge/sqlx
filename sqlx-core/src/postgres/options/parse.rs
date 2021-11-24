@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::postgres::PgConnectOptions;
+use crate::postgres::{parse_options, PgConnectOptions};
 use percent_encoding::percent_decode_str;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -85,7 +85,17 @@ impl FromStr for PgConnectOptions {
 
                 "application_name" => options = options.application_name(&*value),
 
-                "options" => options = options.options(&*value),
+                "options" => {
+                    if let Some(value) = parse_options(&value) {
+                        options = options.options(value);
+                    }
+                }
+
+                k if k.starts_with("options[") => {
+                    if let Some(key) = k.strip_prefix("options[").unwrap().strip_suffix(']') {
+                        options = options.options([(key, &*value)]);
+                    }
+                }
 
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
@@ -198,9 +208,30 @@ fn it_parses_socket_correctly_with_username_percent_encoded() {
     assert_eq!(Some("database"), opts.database.as_deref());
 }
 #[test]
-fn it_parses_options() {
-    let uri = "postgres:///?options=-c%20synchronous_commit%3Doff%20--search_path%3Dpostgres";
+fn it_parses_libpq_options_correctly() {
+    let uri = "postgres:///?options=-c%20synchronous_commit%3Doff%20-c%20search_path%3Dpostgres";
     let opts = PgConnectOptions::from_str(uri).unwrap();
 
-    assert_eq!(Some("-c synchronous_commit=off --search_path=postgres"), opts.options.as_deref());
+    assert_eq!(
+        Some(&"off".to_string()),
+        opts.options.get("synchronous_commit")
+    );
+    assert_eq!(
+        Some(&"postgres".to_string()),
+        opts.options.get("search_path")
+    );
+}
+#[test]
+fn it_parses_sqlx_options_correctly() {
+    let uri = "postgres:///?options[synchronous_commit]=off&options[search_path]=postgres";
+    let opts = PgConnectOptions::from_str(uri).unwrap();
+
+    assert_eq!(
+        Some(&"off".to_string()),
+        opts.options.get("synchronous_commit")
+    );
+    assert_eq!(
+        Some(&"postgres".to_string()),
+        opts.options.get("search_path")
+    );
 }

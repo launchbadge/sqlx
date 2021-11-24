@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env::var;
 use std::path::{Path, PathBuf};
 
@@ -33,7 +34,7 @@ pub use ssl_mode::PgSslMode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
-/// | `options` | `None` | The command-line options to send to the server at connection start. |
+/// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -86,7 +87,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
-    pub(crate) options: Option<String>,
+    pub(crate) options: HashMap<String, String>,
 }
 
 impl Default for PgConnectOptions {
@@ -147,7 +148,9 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
-            options: var("PGOPTIONS").ok(),
+            options: var("PGOPTIONS")
+                .and_then(|v| Ok(parse_options(&v).unwrap_or_default().into_iter().collect()))
+                .unwrap_or_default(),
         }
     }
 
@@ -329,10 +332,17 @@ impl PgConnectOptions {
     /// ```rust
     /// # use sqlx_core::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
-    ///     .options("-c geqo=off -c statement_timeout=5min");
+    ///     .options(&[("geqo", "off"), ("statement_timeout", "5min")]);
     /// ```
-    pub fn options(mut self, options: &str) -> Self {
-        self.options = Some(options.to_owned());
+    pub fn options<K, V, I>(mut self, options: I) -> Self
+    where
+        K: ToString,
+        V: ToString,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        for (k, v) in options {
+            self.options.insert(k.to_string(), v.to_string());
+        }
         self
     }
 
@@ -351,6 +361,24 @@ impl PgConnectOptions {
             _ => None,
         }
     }
+}
+
+/// Parse a libpq style options string
+pub(crate) fn parse_options(input: &str) -> Option<Vec<(String, String)>> {
+    let mut options = Vec::new();
+    for part in input.split(' ') {
+        let part = part.trim();
+        if part.is_empty() || part == "-c" {
+            continue;
+        }
+        let pair = part.splitn(2, '=').collect::<Vec<_>>();
+        if pair.len() != 2 {
+            return None;
+        }
+        options.push((pair[0].to_string(), pair[1].to_string()));
+    }
+
+    Some(options)
 }
 
 fn default_host(port: u16) -> String {

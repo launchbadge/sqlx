@@ -32,6 +32,7 @@ pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
 pub use message::PgSeverity;
 pub use options::{PgConnectOptions, PgSslMode};
+pub(crate) use options::parse_options;
 pub use query_result::PgQueryResult;
 pub use row::PgRow;
 pub use statement::PgStatement;

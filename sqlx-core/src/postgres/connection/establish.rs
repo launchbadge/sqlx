@@ -40,8 +40,8 @@ impl PgConnection {
             params.push(("application_name", application_name));
         }
 
-        if let Some(ref options) = options.options {
-            params.push(("options", options));
+        for (k, v) in options.options.iter() {
+            params.push((k, v));
         }
 
         stream
