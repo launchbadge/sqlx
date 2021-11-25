@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env::var;
 use std::path::{Path, PathBuf};
 
@@ -87,7 +86,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
-    pub(crate) options: HashMap<String, String>,
+    pub(crate) options: Option<String>,
 }
 
 impl Default for PgConnectOptions {
@@ -148,9 +147,7 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
-            options: var("PGOPTIONS")
-                .and_then(|v| Ok(parse_options(&v).unwrap_or_default().into_iter().collect()))
-                .unwrap_or_default(),
+            options: var("PGOPTIONS").ok(),
         }
     }
 
@@ -332,7 +329,7 @@ impl PgConnectOptions {
     /// ```rust
     /// # use sqlx_core::postgres::PgConnectOptions;
     /// let options = PgConnectOptions::new()
-    ///     .options(&[("geqo", "off"), ("statement_timeout", "5min")]);
+    ///     .options([("geqo", "off"), ("statement_timeout", "5min")]);
     /// ```
     pub fn options<K, V, I>(mut self, options: I) -> Self
     where
@@ -340,8 +337,15 @@ impl PgConnectOptions {
         V: ToString,
         I: IntoIterator<Item = (K, V)>,
     {
+        let mut options_str = String::new();
         for (k, v) in options {
-            self.options.insert(k.to_string(), v.to_string());
+            options_str += &format!("-c {}={}", k.to_string(), v.to_string());
+        }
+        if let Some(ref mut v) = self.options {
+            v.push(' ');
+            v.push_str(&options_str);
+        } else {
+            self.options = Some(options_str);
         }
         self
     }
@@ -361,24 +365,6 @@ impl PgConnectOptions {
             _ => None,
         }
     }
-}
-
-/// Parse a libpq style options string
-pub(crate) fn parse_options(input: &str) -> Option<Vec<(String, String)>> {
-    let mut options = Vec::new();
-    for part in input.split(' ') {
-        let part = part.trim();
-        if part.is_empty() || part == "-c" {
-            continue;
-        }
-        let pair = part.splitn(2, '=').collect::<Vec<_>>();
-        if pair.len() != 2 {
-            return None;
-        }
-        options.push((pair[0].to_string(), pair[1].to_string()));
-    }
-
-    Some(options)
 }
 
 fn default_host(port: u16) -> String {

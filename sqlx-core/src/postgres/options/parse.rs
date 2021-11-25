@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::postgres::{parse_options, PgConnectOptions};
+use crate::postgres::PgConnectOptions;
 use percent_encoding::percent_decode_str;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -86,8 +86,11 @@ impl FromStr for PgConnectOptions {
                 "application_name" => options = options.application_name(&*value),
 
                 "options" => {
-                    if let Some(value) = parse_options(&value) {
-                        options = options.options(value);
+                    if let Some(options) = options.options.as_mut() {
+                        options.push(' ');
+                        options.push_str(&*value);
+                    } else {
+                        options.options = Some(value.to_string());
                     }
                 }
 
@@ -209,16 +212,12 @@ fn it_parses_socket_correctly_with_username_percent_encoded() {
 }
 #[test]
 fn it_parses_libpq_options_correctly() {
-    let uri = "postgres:///?options=-c%20synchronous_commit%3Doff%20-c%20search_path%3Dpostgres";
+    let uri = "postgres:///?options=-c%20synchronous_commit%3Doff%20--search_path%3Dpostgres";
     let opts = PgConnectOptions::from_str(uri).unwrap();
 
     assert_eq!(
-        Some(&"off".to_string()),
-        opts.options.get("synchronous_commit")
-    );
-    assert_eq!(
-        Some(&"postgres".to_string()),
-        opts.options.get("search_path")
+        Some("-c synchronous_commit=off --search_path=postgres".into()),
+        opts.options
     );
 }
 #[test]
@@ -227,11 +226,7 @@ fn it_parses_sqlx_options_correctly() {
     let opts = PgConnectOptions::from_str(uri).unwrap();
 
     assert_eq!(
-        Some(&"off".to_string()),
-        opts.options.get("synchronous_commit")
-    );
-    assert_eq!(
-        Some(&"postgres".to_string()),
-        opts.options.get("search_path")
+        Some("-c synchronous_commit=off -c search_path=postgres".into()),
+        opts.options
     );
 }
