@@ -95,7 +95,7 @@ services:
             MYSQL_DATABASE: sqlx
 
     #
-    # PostgreSQL 13.x, 12.x, 11.x 10.x, 9.6.x
+    # PostgreSQL 14.x, 13.x, 12.x, 11.x 10.x, 9.6.x
     # https://www.postgresql.org/support/versioning/
     #
 
@@ -104,7 +104,7 @@ services:
             context: .
             dockerfile: postgres/Dockerfile
             args:
-              VERSION: 14rc1
+              VERSION: 14
         ports:
             - 5432
         environment:
