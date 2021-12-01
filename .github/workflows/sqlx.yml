@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        postgres: [13, 9_6]
+        postgres: [14, 9_6]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check

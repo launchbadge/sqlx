@@ -13,6 +13,9 @@ $ cargo install sqlx-cli
 
 # only for postgres
 $ cargo install sqlx-cli --no-default-features --features postgres
+
+# use vendored OpenSSL (build from source)
+$ cargo install sqlx-cli --features openssl-vendored
 ```
 
 ### Usage

@@ -179,6 +179,11 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `tls`: Add support for TLS connections.
 
+-   `offline`: Enables building the macros in offline mode when a live database is not available (such as CI). 
+    -   Requires `sqlx-cli` installed to use. See [sqlx-cli/README.md][readme-offline].
+
+[readme-offline]: sqlx-cli/README.md#enable-building-in-offline-mode-with-query
+
 ## SQLx is not an ORM!
 
 SQLx supports **compile-time checked queries**. It does not, however, do this by providing a Rust
@@ -199,12 +204,24 @@ of SQLx.
 
 ## Usage
 
+See the `examples/` folder for more in-depth usage.
+
 ### Quickstart
 
 ```toml
 [dependencies]
-sqlx = { version = "0.4.1", features = [ "postgres" ] }
-async-std = { version = "1.6", features = [ "attributes" ] }
+# PICK ONE:
+# Async-std:
+sqlx = { version = "0.5", features = [  "runtime-async-std-native-tls", "postgres" ] }
+async-std = { version = "1", features = [ "attributes" ] }
+
+# Tokio:
+sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
+tokio = { version = "1", features = ["full"] }
+
+# Actix-web:
+sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
+actix-web = "3"
 ```
 
 ```rust
@@ -214,6 +231,7 @@ use sqlx::postgres::PgPoolOptions;
 
 #[async_std::main]
 // or #[tokio::main]
+// or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     //  for MySQL, use MySqlPoolOptions::new()
@@ -358,11 +376,13 @@ Differences from `query()`:
     queries against; the database does not have to contain any data but must be the same
     kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
 
-    For convenience, you can use a .env file to set DATABASE_URL so that you don't have to pass it every time:
+    For convenience, you can use [a `.env` file][dotenv] to set DATABASE_URL so that you don't have to pass it every time:
 
     ```
     DATABASE_URL=mysql://localhost/my_database
     ```
+
+[dotenv]: https://github.com/dotenv-rs/dotenv#examples
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
 officially supporting anonymous records). To address that, there is a `query_as!()` macro that is 

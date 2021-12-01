@@ -7,8 +7,8 @@ use crate::{
 };
 use libsqlite3_sys::{
     sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK,
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_PRIVATECACHE,
-    SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 use sqlx_rt::blocking;
 use std::io;
@@ -33,7 +33,11 @@ pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<SqliteCo
     // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
     // cannot satisfy our wish for a thread-safe, lock-free connection object
 
-    let mut flags = SQLITE_OPEN_NOMUTEX;
+    let mut flags = if options.serialized {
+        SQLITE_OPEN_FULLMUTEX
+    } else {
+        SQLITE_OPEN_NOMUTEX
+    };
 
     flags |= if options.read_only {
         SQLITE_OPEN_READONLY

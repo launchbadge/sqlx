@@ -5,6 +5,7 @@ use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::type_info::{Collation, CollationFlags, DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo, MssqlValueRef};
 use crate::types::Type;
+use std::borrow::Cow;
 
 impl Type<Mssql> for str {
     fn type_info() -> MssqlTypeInfo {
@@ -79,5 +80,35 @@ impl Decode<'_, Mssql> for String {
             .decode_without_bom_handling(value.as_bytes()?)
             .0
             .into_owned())
+    }
+}
+
+impl Encode<'_, Mssql> for Cow<'_, str> {
+    fn produces(&self) -> Option<MssqlTypeInfo> {
+        match self {
+            Cow::Borrowed(str) => <&str as Encode<Mssql>>::produces(str),
+            Cow::Owned(str) => <&str as Encode<Mssql>>::produces(&(str.as_ref())),
+        }
+    }
+
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        match self {
+            Cow::Borrowed(str) => <&str as Encode<Mssql>>::encode_by_ref(str, buf),
+            Cow::Owned(str) => <&str as Encode<Mssql>>::encode_by_ref(&(str.as_ref()), buf),
+        }
+    }
+}
+
+impl<'r> Decode<'r, Mssql> for Cow<'r, str> {
+    fn decode(value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Cow::Owned(
+            value
+                .type_info
+                .0
+                .encoding()?
+                .decode_without_bom_handling(value.as_bytes()?)
+                .0
+                .into_owned(),
+        ))
     }
 }
