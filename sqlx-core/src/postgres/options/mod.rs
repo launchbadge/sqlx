@@ -89,7 +89,33 @@ pub struct PgConnectOptions {
 
 impl Default for PgConnectOptions {
     fn default() -> Self {
-        Self::new()
+        let port = var("PGPORT")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(5432);
+
+        let host = var("PGHOST").ok().unwrap_or_else(|| default_host(port));
+
+        let username = var("PGUSER").ok().unwrap_or_else(whoami::username);
+
+        let database = var("PGDATABASE").ok();
+
+        PgConnectOptions {
+            port,
+            host,
+            socket: None,
+            username,
+            password: var("PGPASSWORD").ok(),
+            database,
+            ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
+            ssl_mode: var("PGSSLMODE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or_default(),
+            statement_cache_capacity: 100,
+            application_name: var("PGAPPNAME").ok(),
+            log_settings: Default::default(),
+        }
     }
 }
 
@@ -115,37 +141,15 @@ impl PgConnectOptions {
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
-        let port = var("PGPORT")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(5432);
+        Self::default().apply_pgpass()
+    }
 
-        let host = var("PGHOST").ok().unwrap_or_else(|| default_host(port));
-
-        let username = var("PGUSER").ok().unwrap_or_else(whoami::username);
-
-        let database = var("PGDATABASE").ok();
-
-        let password = var("PGPASSWORD")
-            .ok()
-            .or_else(|| pgpass::load_password(&host, port, &username, database.as_deref()));
-
-        PgConnectOptions {
-            port,
-            host,
-            socket: None,
-            username,
-            password,
-            database,
-            ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
-            ssl_mode: var("PGSSLMODE")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or_default(),
-            statement_cache_capacity: 100,
-            application_name: var("PGAPPNAME").ok(),
-            log_settings: Default::default(),
+    pub(crate) fn apply_pgpass(mut self) -> Self {
+        if self.password.is_none() {
+            self.password = pgpass::load_password(&self.host, self.port, &self.username, self.database.as_deref());
         }
+
+        self
     }
 
     /// Sets the name of the host to connect to.

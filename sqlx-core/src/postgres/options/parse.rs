@@ -89,6 +89,8 @@ impl FromStr for PgConnectOptions {
             }
         }
 
+        let options = options.apply_pgpass();
+
         Ok(options)
     }
 }
