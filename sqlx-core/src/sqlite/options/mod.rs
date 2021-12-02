@@ -228,7 +228,14 @@ impl SqliteConnectOptions {
         K: Into<Cow<'static, str>>,
         V: Into<Cow<'static, str>>,
     {
+        // Since we want to set this given pragma to be the initial one, we
+        // have to reverse the IndexMap, then insert our pragma at the end,
+        // and finally reverse it back so the proper order is kept.
+        //
+        // This is mandatory if, for example, we want sqlcipher to work.
+        self.pragmas.reverse();
         self.pragmas.insert(key.into(), value.into());
+        self.pragmas.reverse();
         self
     }
 
