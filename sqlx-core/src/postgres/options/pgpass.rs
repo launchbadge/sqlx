@@ -221,7 +221,7 @@ mod tests {
         // normal
         assert_eq!(
             load_password_from_line(
-                "localhost:5432:foo:bar:baz",
+                "localhost:5432:bar:foo:baz",
                 "localhost",
                 5432,
                 "foo",
@@ -231,19 +231,19 @@ mod tests {
         );
         // wildcard
         assert_eq!(
-            load_password_from_line("*:5432:foo:bar:baz", "localhost", 5432, "foo", Some("bar")),
+            load_password_from_line("*:5432:bar:foo:baz", "localhost", 5432, "foo", Some("bar")),
             Some("baz".to_owned())
         );
         // accept wildcard with missing db
         assert_eq!(
-            load_password_from_line("localhost:5432:foo:*:baz", "localhost", 5432, "foo", None),
+            load_password_from_line("localhost:5432:*:foo:baz", "localhost", 5432, "foo", None),
             Some("baz".to_owned())
         );
 
         // doesn't match
         assert_eq!(
             load_password_from_line(
-                "thishost:5432:foo:bar:baz",
+                "thishost:5432:bar:foo:baz",
                 "thathost",
                 5432,
                 "foo",
@@ -254,7 +254,7 @@ mod tests {
         // malformed entry
         assert_eq!(
             load_password_from_line(
-                "localhost:5432:foo:bar",
+                "localhost:5432:bar:foo",
                 "localhost",
                 5432,
                 "foo",
