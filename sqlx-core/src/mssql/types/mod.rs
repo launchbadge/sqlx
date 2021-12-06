@@ -4,6 +4,7 @@ use crate::mssql::{Mssql, MssqlTypeInfo};
 
 mod bool;
 mod float;
+mod guid;
 mod int;
 mod str;
 

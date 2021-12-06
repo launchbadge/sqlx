@@ -1,3 +1,4 @@
+use sqlx::types::Uuid;
 use sqlx_core as sqlx;
 
 impl_database_ext! {
@@ -10,6 +11,7 @@ impl_database_ext! {
         f32,
         f64,
         String,
+        Uuid,
     },
     ParamChecking::Weak,
     feature-types: _info => None,

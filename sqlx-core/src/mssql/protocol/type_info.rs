@@ -515,6 +515,8 @@ impl TypeInfo {
             DataType::BigChar => "BIGCHAR",
             DataType::NChar => "NCHAR",
 
+            DataType::Guid => "GUID",
+
             _ => unimplemented!("name: unsupported data type {:?}", self.ty),
         }
     }
@@ -572,6 +574,10 @@ impl TypeInfo {
                 } else {
                     s.push_str("(max)");
                 }
+            }
+
+            DataType::Guid => {
+                s.push_str("guid");
             }
 
             DataType::BitN => {
