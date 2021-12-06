@@ -181,21 +181,11 @@ fn to_asciz(s: &str) -> Vec<u8> {
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
 fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
-    let key = std::str::from_utf8(key).map_err(Error::protocol)?;
+    let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
 
     // This takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL
 
-    let encoded =
-        key.lines()
-            .filter(|line| !line.starts_with("-"))
-            .fold(String::new(), |mut data, line| {
-                data.push_str(&line);
-                data
-            });
-
-    let der = base64::decode(&encoded).map_err(Error::protocol)?;
-
-    RsaPublicKey::from_public_key_der(&der).map_err(Error::protocol)
+    RsaPublicKey::from_public_key_pem(&pem).map_err(Error::protocol)
 }

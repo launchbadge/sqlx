@@ -38,7 +38,6 @@ mysql = [
     "sha2",
     "generic-array",
     "num-bigint",
-    "base64",
     "digest",
     "rand",
     "rsa",
