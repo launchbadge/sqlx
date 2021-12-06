@@ -3,7 +3,7 @@ use bytes::Bytes;
 use digest::{Digest, FixedOutput};
 use generic_array::GenericArray;
 use rand::thread_rng;
-use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
+use rsa::{pkcs8::FromPublicKey, PaddingScheme, PublicKey, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
@@ -180,7 +180,7 @@ fn to_asciz(s: &str) -> Vec<u8> {
 }
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
-fn parse_rsa_pub_key(key: &[u8]) -> Result<RSAPublicKey, Error> {
+fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
     let key = std::str::from_utf8(key).map_err(Error::protocol)?;
 
     // This takes advantage of the knowledge that we know
@@ -197,5 +197,5 @@ fn parse_rsa_pub_key(key: &[u8]) -> Result<RSAPublicKey, Error> {
 
     let der = base64::decode(&encoded).map_err(Error::protocol)?;
 
-    RSAPublicKey::from_pkcs8(&der).map_err(Error::protocol)
+    RsaPublicKey::from_public_key_der(&der).map_err(Error::protocol)
 }
