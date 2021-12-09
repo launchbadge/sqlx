@@ -169,6 +169,10 @@ impl Type<MySql> for NaiveDateTime {
     fn type_info() -> MySqlTypeInfo {
         MySqlTypeInfo::binary(ColumnType::Datetime)
     }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
+    }
 }
 
 impl Encode<'_, MySql> for NaiveDateTime {
