@@ -1257,7 +1257,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
                         Self::Number(_) => Some(PgTypeInfo::with_name("_int4")),
                         Self::Array(_) => None,
                     }
-                },
+                }
                 Self::String(_) => Some(PgTypeInfo::with_name("text")),
                 Self::Number(_) => Some(PgTypeInfo::with_name("int4")),
             }
@@ -1317,11 +1317,7 @@ async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
 
     assert_eq!(
         row,
-        Value::Array(vec![
-            Value::Number(3),
-            Value::Number(2),
-            Value::Number(1),
-        ])
+        Value::Array(vec![Value::Number(3), Value::Number(2), Value::Number(1)])
     );
 
     Ok(())
