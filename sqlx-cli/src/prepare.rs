@@ -115,7 +115,8 @@ hint: This command only works in the manifest directory of a Cargo package."#
             bail!("`cargo clean` failed with status: {}", check_status);
         }
 
-        let rustflags = env::var("RUSTFLAGS").unwrap_or_default().push_str(&format!(
+        let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
+        rustflags.push_str(&format!(
             " --cfg __sqlx_recompile_trigger=\"{}\"",
             SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
         ));
