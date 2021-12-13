@@ -16,6 +16,9 @@ $ cargo install sqlx-cli --no-default-features --features postgres
 
 # use vendored OpenSSL (build from source)
 $ cargo install sqlx-cli --features openssl-vendored
+
+# use Rustls rather than OpenSSL
+$ cargo install sqlx-cli --no-default-features --features rustls
 ```
 
 ### Usage
