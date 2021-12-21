@@ -20,7 +20,19 @@ impl ConnectOptions for SqliteConnectOptions {
             // send an initial sql statement comprised of options
             let mut init = String::new();
 
+            // This is a special case for sqlcipher. When the `key` pragma
+            // is set, we have to make sure it's executed first in order.
+            if let Some(pragma_key_password) = self.pragmas.get("key") {
+                use std::fmt::Write;
+                write!(init, "PRAGMA key = {}; ", pragma_key_password).ok();
+            }
+
             for (key, value) in self.pragmas.iter() {
+                // Since we've already written the possible `key` pragma
+                // above, we shall skip it now.
+                if key == "key" {
+                    continue;
+                }
                 use std::fmt::Write;
                 write!(init, "PRAGMA {} = {}; ", key, value).ok();
             }
