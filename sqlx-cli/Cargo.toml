@@ -54,7 +54,7 @@ remove_dir_all = "0.7.0"
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls"]
 rustls = ["sqlx/runtime-async-std-rustls"]
-native-tls = ["sqlx/runtime-async-std-native-tls", "openssl"]
+native-tls = ["sqlx/runtime-async-std-native-tls"]
 
 # databases
 mysql = ["sqlx/mysql"]
