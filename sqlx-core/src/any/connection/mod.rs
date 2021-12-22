@@ -1,6 +1,6 @@
 use futures_core::future::BoxFuture;
 
-use crate::any::{Any, AnyConnectOptions};
+use crate::any::{Any, AnyConnectOptions, AnyKind};
 use crate::connection::Connection;
 use crate::error::Error;
 
@@ -45,6 +45,30 @@ pub(crate) enum AnyConnectionKind {
 
     #[cfg(feature = "sqlite")]
     Sqlite(sqlite::SqliteConnection),
+}
+
+impl AnyConnectionKind {
+    pub fn kind(&self) -> AnyKind {
+        match self {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(_) => AnyKind::Postgres,
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(_) => AnyKind::MySql,
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(_) => AnyKind::Sqlite,
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(_) => AnyKind::Mssql,
+        }
+    }
+}
+
+impl AnyConnection {
+    pub fn kind(&self) -> AnyKind {
+        self.0.kind()
+    }
 }
 
 macro_rules! delegate_to {
