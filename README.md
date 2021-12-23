@@ -197,10 +197,14 @@ some info on) your SQL queries. This has some potentially surprising implication
 - Due to the different amount of information databases let you retrieve about queries, the extent of
   SQL verification you get from the query macros depends on the database
 
-**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`], which is built on top
-of SQLx.
+**If you are looking for an (asynchronous) ORM,** the following ones
+are built on top of SQLx:
+
+- [`ormx`]
+- [`sea-orm`]
 
 [`ormx`]: https://crates.io/crates/ormx
+[`sea-orm`]: https://crates.io/crates/sea-orm
 
 ## Usage
 
