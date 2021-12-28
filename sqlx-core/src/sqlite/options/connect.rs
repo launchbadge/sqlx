@@ -5,6 +5,7 @@ use crate::sqlite::connection::establish::establish;
 use crate::sqlite::{SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::fmt::Write;
 use std::time::Duration;
 
 impl ConnectOptions for SqliteConnectOptions {
@@ -20,8 +21,18 @@ impl ConnectOptions for SqliteConnectOptions {
             // send an initial sql statement comprised of options
             let mut init = String::new();
 
+            // This is a special case for sqlcipher. When the `key` pragma
+            // is set, we have to make sure it's executed first in order.
+            if let Some(pragma_key_password) = self.pragmas.get("key") {
+                write!(init, "PRAGMA key = {}; ", pragma_key_password).ok();
+            }
+
             for (key, value) in self.pragmas.iter() {
-                use std::fmt::Write;
+                // Since we've already written the possible `key` pragma
+                // above, we shall skip it now.
+                if key == "key" {
+                    continue;
+                }
                 write!(init, "PRAGMA {} = {}; ", key, value).ok();
             }
 
