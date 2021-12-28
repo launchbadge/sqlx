@@ -11,7 +11,6 @@ compile_error!(
      and 'tls' is one of 'native-tls' and 'rustls'."
 );
 
-pub use sqlx_core as core;
 pub use sqlx_core::Either;
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
