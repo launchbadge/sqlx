@@ -1,4 +1,5 @@
 use bytes::Buf;
+use std::borrow::Cow;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -103,7 +104,6 @@ where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
 {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let element_type_info;
         let format = value.format();
 
         match format {
@@ -131,7 +131,8 @@ where
 
                 // the OID of the element
                 let element_type_oid = buf.get_u32();
-                element_type_info = PgTypeInfo::try_from_oid(element_type_oid)
+                let element_type_info: PgTypeInfo = PgTypeInfo::try_from_oid(element_type_oid)
+                    .or_else(|| value.type_info.try_array_element().map(Cow::into_owned))
                     .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
 
                 // length of the array axis
@@ -159,7 +160,7 @@ where
 
             PgValueFormat::Text => {
                 // no type is provided from the database for the element
-                element_type_info = T::type_info();
+                let element_type_info = T::type_info();
 
                 let s = value.as_str()?;
 
