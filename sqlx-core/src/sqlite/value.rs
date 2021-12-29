@@ -10,19 +10,12 @@ use libsqlite3_sys::{
 };
 
 use crate::error::BoxDynError;
-use crate::sqlite::statement::StatementHandle;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{Sqlite, SqliteTypeInfo};
 use crate::value::{Value, ValueRef};
 use std::borrow::Cow;
 
 enum SqliteValueData<'r> {
-    Statement {
-        statement: &'r StatementHandle,
-        type_info: SqliteTypeInfo,
-        index: usize,
-    },
-
     Value(&'r SqliteValue),
 }
 
@@ -33,64 +26,32 @@ impl<'r> SqliteValueRef<'r> {
         Self(SqliteValueData::Value(value))
     }
 
-    pub(crate) fn statement(
-        statement: &'r StatementHandle,
-        type_info: SqliteTypeInfo,
-        index: usize,
-    ) -> Self {
-        Self(SqliteValueData::Statement {
-            statement,
-            type_info,
-            index,
-        })
-    }
-
     pub(super) fn int(&self) -> i32 {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_int(index),
-
             SqliteValueData::Value(v) => v.int(),
         }
     }
 
     pub(super) fn int64(&self) -> i64 {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_int64(index),
-
             SqliteValueData::Value(v) => v.int64(),
         }
     }
 
     pub(super) fn double(&self) -> f64 {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_double(index),
-
             SqliteValueData::Value(v) => v.double(),
         }
     }
 
     pub(super) fn blob(&self) -> &'r [u8] {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_blob(index),
-
             SqliteValueData::Value(v) => v.blob(),
         }
     }
 
     pub(super) fn text(&self) -> Result<&'r str, BoxDynError> {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_text(index),
-
             SqliteValueData::Value(v) => v.text(),
         }
     }
@@ -101,12 +62,6 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
 
     fn to_owned(&self) -> SqliteValue {
         match self.0 {
-            SqliteValueData::Statement {
-                statement,
-                index,
-                ref type_info,
-            } => unsafe { SqliteValue::new(statement.column_value(index), type_info.clone()) },
-
             SqliteValueData::Value(v) => v.clone(),
         }
     }
@@ -114,24 +69,11 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
     fn type_info(&self) -> Cow<'_, SqliteTypeInfo> {
         match self.0 {
             SqliteValueData::Value(v) => v.type_info(),
-
-            SqliteValueData::Statement {
-                ref type_info,
-                statement,
-                index,
-            } => statement
-                .column_type_info_opt(index)
-                .map(Cow::Owned)
-                .unwrap_or(Cow::Borrowed(type_info)),
         }
     }
 
     fn is_null(&self) -> bool {
         match self.0 {
-            SqliteValueData::Statement {
-                statement, index, ..
-            } => statement.column_type(index) == SQLITE_NULL,
-
             SqliteValueData::Value(v) => v.is_null(),
         }
     }
