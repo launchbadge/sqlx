@@ -11,7 +11,7 @@ impl FromStr for PgConnectOptions {
     fn from_str(s: &str) -> Result<Self, Error> {
         let url: Url = s.parse().map_err(Error::config)?;
 
-        let mut options = Self::default();
+        let mut options = Self::new_without_pgpass();
 
         if let Some(host) = url.host_str() {
             let host_decoded = percent_decode_str(host);
@@ -88,6 +88,8 @@ impl FromStr for PgConnectOptions {
                 _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
             }
         }
+
+        let options = options.apply_pgpass();
 
         Ok(options)
     }
