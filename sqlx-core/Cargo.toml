@@ -32,13 +32,13 @@ postgres = [
     "futures-util/sink",
     "json",
     "dirs",
+    "whoami",
 ]
 mysql = [
     "sha-1",
     "sha2",
     "generic-array",
     "num-bigint",
-    "base64",
     "digest",
     "rand",
     "rsa",
@@ -115,7 +115,7 @@ crossbeam-queue = "0.3.1"
 crossbeam-channel = "0.5.0"
 crossbeam-utils = { version = "0.8.1", default-features = false }
 digest = { version = "0.9.0", default-features = false, optional = true, features = ["std"] }
-dirs = { version = "3.0.1", optional = true }
+dirs = { version = "4", optional = true }
 encoding_rs = { version = "0.8.23", optional = true }
 either = "1.5.3"
 futures-channel = { version = "0.3.5", default-features = false, features = ["sink", "alloc", "std"] }
@@ -125,7 +125,7 @@ futures-util = { version = "0.3.5", default-features = false, features = ["alloc
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.2"
 hmac = { version = "0.11.0", default-features = false, optional = true }
-itoa = "0.4.5"
+itoa = "1"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 mac_address = { version = "1.1", default-features = false, optional = true }
 libc = "0.2.71"
@@ -143,7 +143,7 @@ percent-encoding = "2.1.0"
 parking_lot = "0.11.0"
 rand = { version = "0.8.3", default-features = false, optional = true, features = ["std", "std_rng"] }
 regex = { version = "1.3.9", optional = true }
-rsa = { version = "0.4.0", optional = true }
+rsa = { version = "0.5.0", optional = true }
 rustls = { version = "0.19.0", features = ["dangerous_configuration"], optional = true }
 serde = { version = "1.0.106", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.51", features = ["raw_value"], optional = true }
@@ -158,7 +158,7 @@ url = { version = "2.1.1", default-features = false }
 uuid = { version = "0.8.1", default-features = false, optional = true, features = ["std"] }
 webpki = { version = "0.21.0", optional = true }
 webpki-roots = { version = "0.21.0", optional = true }
-whoami = "1.0.1"
+whoami = { version = "1.0.1", optional = true }
 stringprep = "0.1.2"
 bstr = { version = "0.2.14", default-features = false, features = ["std"], optional = true }
 git2 = { version = "0.13.20", default-features = false, optional = true }
