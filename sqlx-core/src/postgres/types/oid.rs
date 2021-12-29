@@ -10,8 +10,15 @@ use crate::postgres::{
 };
 use crate::types::Type;
 
+/// The PostgreSQL [`OID`] type stores an object identifier,
+/// used internally by PostgreSQL as primary keys for various system tables.
+///
+/// [`OID`]: https://www.postgresql.org/docs/current/datatype-oid.html
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
-pub struct Oid(pub u32);
+pub struct Oid(
+    /// The raw unsigned integer value sent over the wire
+    pub u32,
+);
 
 impl Oid {
     pub(crate) fn incr_one(&mut self) {
