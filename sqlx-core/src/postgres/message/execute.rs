@@ -29,7 +29,7 @@ fn test_encode_execute() {
 
     let mut buf = Vec::new();
     let m = Execute {
-        portal: Some(5),
+        portal: Some(Oid(5)),
         limit: 2,
     };
 

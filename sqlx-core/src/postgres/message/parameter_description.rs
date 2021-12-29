@@ -30,8 +30,8 @@ fn test_decode_parameter_description() {
     let m = ParameterDescription::decode(DATA.into()).unwrap();
 
     assert_eq!(m.types.len(), 2);
-    assert_eq!(m.types[0], 0x0000_0000);
-    assert_eq!(m.types[1], 0x0000_0500);
+    assert_eq!(m.types[0], Oid(0x0000_0000));
+    assert_eq!(m.types[1], Oid(0x0000_0500));
 }
 
 #[test]

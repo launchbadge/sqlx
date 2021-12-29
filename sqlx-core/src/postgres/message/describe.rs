@@ -55,7 +55,7 @@ fn test_encode_describe_portal() {
     const EXPECTED: &[u8] = b"D\0\0\0\x0EPsqlx_p_5\0";
 
     let mut buf = Vec::new();
-    let m = Describe::Portal(5);
+    let m = Describe::Portal(Oid(5));
 
     m.encode(&mut buf);
 
@@ -79,7 +79,7 @@ fn test_encode_describe_statement() {
     const EXPECTED: &[u8] = b"D\0\0\0\x0ESsqlx_s_5\0";
 
     let mut buf = Vec::new();
-    let m = Describe::Statement(5);
+    let m = Describe::Statement(Oid(5));
 
     m.encode(&mut buf);
 

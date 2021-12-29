@@ -45,9 +45,9 @@ fn test_encode_parse() {
 
     let mut buf = Vec::new();
     let m = Parse {
-        statement: 1,
+        statement: Oid(1),
         query: "SELECT $1",
-        param_types: &[25],
+        param_types: &[Oid(25)],
     };
 
     m.encode(&mut buf);
