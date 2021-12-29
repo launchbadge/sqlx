@@ -89,6 +89,36 @@ pub struct PgConnectOptions {
 
 impl Default for PgConnectOptions {
     fn default() -> Self {
+        Self::new_without_pgpass().apply_pgpass()
+    }
+}
+
+impl PgConnectOptions {
+    /// Creates a new, default set of options ready for configuration.
+    ///
+    /// By default, this reads the following environment variables and sets their
+    /// equivalent options.
+    ///
+    ///  * `PGHOST`
+    ///  * `PGPORT`
+    ///  * `PGUSER`
+    ///  * `PGPASSWORD`
+    ///  * `PGDATABASE`
+    ///  * `PGSSLROOTCERT`
+    ///  * `PGSSLMODE`
+    ///  * `PGAPPNAME`
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new();
+    /// ```
+    pub fn new() -> Self {
+        Self::new_without_pgpass().apply_pgpass()
+    }
+
+    pub fn new_without_pgpass() -> Self {
         let port = var("PGPORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -116,32 +146,6 @@ impl Default for PgConnectOptions {
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
         }
-    }
-}
-
-impl PgConnectOptions {
-    /// Creates a new, default set of options ready for configuration.
-    ///
-    /// By default, this reads the following environment variables and sets their
-    /// equivalent options.
-    ///
-    ///  * `PGHOST`
-    ///  * `PGPORT`
-    ///  * `PGUSER`
-    ///  * `PGPASSWORD`
-    ///  * `PGDATABASE`
-    ///  * `PGSSLROOTCERT`
-    ///  * `PGSSLMODE`
-    ///  * `PGAPPNAME`
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::postgres::PgConnectOptions;
-    /// let options = PgConnectOptions::new();
-    /// ```
-    pub fn new() -> Self {
-        Self::default().apply_pgpass()
     }
 
     pub(crate) fn apply_pgpass(mut self) -> Self {
