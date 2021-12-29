@@ -78,7 +78,7 @@ where
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
 
             ty => {
-                buf.extend(&ty.oid().as_u32().to_be_bytes());
+                buf.extend(&ty.oid().0.to_be_bytes());
             }
         }
 
@@ -125,7 +125,7 @@ where
                 let _flags = buf.get_i32();
 
                 // the OID of the element
-                let element_type_oid = Oid::new(buf.get_u32());
+                let element_type_oid = Oid(buf.get_u32());
                 element_type_info = PgTypeInfo::try_from_oid(element_type_oid)
                     .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
 

@@ -33,7 +33,7 @@ impl Encode<'_> for Parse<'_> {
             buf.extend(&(self.param_types.len() as i16).to_be_bytes());
 
             for &oid in self.param_types {
-                buf.extend(&oid.as_u32().to_be_bytes());
+                buf.extend(&oid.0.to_be_bytes());
             }
         })
     }

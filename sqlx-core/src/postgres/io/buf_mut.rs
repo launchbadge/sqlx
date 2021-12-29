@@ -35,7 +35,7 @@ impl PgBufMutExt for Vec<u8> {
         // N.B. if you change this don't forget to update it in ../describe.rs
         self.extend(b"sqlx_s_");
 
-        itoa::write(&mut *self, id.as_u32()).unwrap();
+        itoa::write(&mut *self, id.0).unwrap();
 
         self.push(0);
     }
@@ -46,7 +46,7 @@ impl PgBufMutExt for Vec<u8> {
         if let Some(id) = id {
             self.extend(b"sqlx_p_");
 
-            itoa::write(&mut *self, id.as_u32()).unwrap();
+            itoa::write(&mut *self, id.0).unwrap();
         }
 
         self.push(0);

@@ -47,7 +47,7 @@ impl<'a> PgRecordEncoder<'a> {
             self.buf.patch_type_by_name(&name);
         } else {
             // write type id
-            self.buf.extend(&ty.0.oid().as_u32().to_be_bytes());
+            self.buf.extend(&ty.0.oid().0.to_be_bytes());
         }
 
         self.buf.encode(value);
@@ -102,7 +102,7 @@ impl<'r> PgRecordDecoder<'r> {
 
         match self.fmt {
             PgValueFormat::Binary => {
-                let element_type_oid = Oid::new(self.buf.get_u32());
+                let element_type_oid = Oid(self.buf.get_u32());
                 let element_type_opt = match self.typ.0.kind() {
                     PgTypeKind::Simple if self.typ.0 == PgType::Record => {
                         PgTypeInfo::try_from_oid(element_type_oid)
@@ -193,7 +193,7 @@ impl<'r> PgRecordDecoder<'r> {
                 T::decode(PgValueRef {
                     // NOTE: We pass `0` as the type ID because we don't have a reasonable value
                     //       we could use.
-                    type_info: PgTypeInfo::with_oid(Oid::new(0)),
+                    type_info: PgTypeInfo::with_oid(Oid(0)),
                     format: self.fmt,
                     value: buf,
                     row: None,

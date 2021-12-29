@@ -16,7 +16,7 @@ impl Decode<'_> for ParameterDescription {
         let mut types = SmallVec::with_capacity(cnt as usize);
 
         for _ in 0..cnt {
-            types.push(Oid::new(buf.get_u32()));
+            types.push(Oid(buf.get_u32()));
         }
 
         Ok(Self { types })

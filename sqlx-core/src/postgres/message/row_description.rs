@@ -46,7 +46,7 @@ impl Decode<'_> for RowDescription {
             let name = buf.get_str_nul()?.to_owned();
             let relation_id = buf.get_i32();
             let relation_attribute_no = buf.get_i16();
-            let data_type_id = Oid::new(buf.get_u32());
+            let data_type_id = Oid(buf.get_u32());
             let data_type_size = buf.get_i16();
             let type_modifier = buf.get_i32();
             let format = buf.get_i16();

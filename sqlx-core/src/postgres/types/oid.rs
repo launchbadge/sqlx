@@ -11,19 +11,9 @@ use crate::postgres::{
 use crate::types::Type;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
-pub struct Oid(u32);
+pub struct Oid(pub u32);
 
 impl Oid {
-    #[inline(always)]
-    pub const fn new(oid: u32) -> Self {
-        Self(oid)
-    }
-
-    #[inline(always)]
-    pub const fn as_u32(self) -> u32 {
-        self.0
-    }
-
     pub(crate) fn incr_one(&mut self) {
         self.0 = self.0.wrapping_add(1);
     }

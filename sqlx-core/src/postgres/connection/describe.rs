@@ -426,7 +426,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
     ) -> Result<Vec<Option<bool>>, Error> {
         let mut explain = format!(
             "EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}",
-            stmt_id.as_u32()
+            stmt_id.0
         );
         let mut comma = false;
 
