@@ -1,4 +1,5 @@
 use std::env::var;
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 mod connect;
@@ -322,7 +323,7 @@ impl PgConnectOptions {
         self
     }
 
-    /// Sets the extra options. Defaults to None
+    /// Set additional startup options for the connection as a list of key-value pairs.
     ///
     /// # Example
     ///
@@ -333,13 +334,13 @@ impl PgConnectOptions {
     /// ```
     pub fn options<K, V, I>(mut self, options: I) -> Self
     where
-        K: ToString,
-        V: ToString,
+        K: Display,
+        V: Display,
         I: IntoIterator<Item = (K, V)>,
     {
         let mut options_str = String::new();
         for (k, v) in options {
-            options_str += &format!("-c {}={}", k.to_string(), v.to_string());
+            options_str += &format!("-c {}={}", k, v);
         }
         if let Some(ref mut v) = self.options {
             v.push(' ');
