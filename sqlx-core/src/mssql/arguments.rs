@@ -72,7 +72,7 @@ impl MssqlArguments {
         self.name.push_str("@p");
 
         self.ordinal += 1;
-        let _ = itoa::fmt(&mut self.name, self.ordinal);
+        self.name.push_str(itoa::Buffer::new().format(self.ordinal));
 
         let MssqlArguments {
             ref name,
