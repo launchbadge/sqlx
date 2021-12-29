@@ -28,7 +28,6 @@ path = "src/bin/cargo-sqlx.rs"
 dotenv = "0.15"
 tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread"] }
 sqlx = { version = "0.5.9", path = "..", default-features = false, features = [
-    "runtime-async-std-native-tls",
     "migrate",
     "any",
     "offline",
@@ -53,7 +52,9 @@ openssl = { version = "0.10.30", optional = true }
 remove_dir_all = "0.7.0"
 
 [features]
-default = ["postgres", "sqlite", "mysql"]
+default = ["postgres", "sqlite", "mysql", "native-tls"]
+rustls = ["sqlx/runtime-async-std-rustls"]
+native-tls = ["sqlx/runtime-async-std-native-tls"]
 
 # databases
 mysql = ["sqlx/mysql"]
