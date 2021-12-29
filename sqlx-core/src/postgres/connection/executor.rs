@@ -8,6 +8,7 @@ use crate::postgres::message::{
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::PgType;
+use crate::postgres::types::Oid;
 use crate::postgres::{
     statement::PgStatement, PgArguments, PgConnection, PgQueryResult, PgRow, PgTypeInfo,
     PgValueFormat, Postgres,
@@ -24,9 +25,9 @@ async fn prepare(
     sql: &str,
     parameters: &[PgTypeInfo],
     metadata: Option<Arc<PgStatementMetadata>>,
-) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
+) -> Result<(Oid, Arc<PgStatementMetadata>), Error> {
     let id = conn.next_statement_id;
-    conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
+    conn.next_statement_id.incr_one();
 
     // build a list of type OIDs to send to the database in the PARSE command
     // we have not yet started the query sequence, so we are *safe* to cleanly make
@@ -169,7 +170,7 @@ impl PgConnection {
         // optional metadata that was provided by the user, this means they are reusing
         // a statement object
         metadata: Option<Arc<PgStatementMetadata>>,
-    ) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
+    ) -> Result<(Oid, Arc<PgStatementMetadata>), Error> {
         if let Some(statement) = self.cache_statement.get_mut(sql) {
             return Ok((*statement).clone());
         }

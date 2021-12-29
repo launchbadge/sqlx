@@ -3,10 +3,11 @@ use smallvec::SmallVec;
 
 use crate::error::Error;
 use crate::io::Decode;
+use crate::postgres::types::Oid;
 
 #[derive(Debug)]
 pub struct ParameterDescription {
-    pub types: SmallVec<[u32; 6]>,
+    pub types: SmallVec<[Oid; 6]>,
 }
 
 impl Decode<'_> for ParameterDescription {
@@ -15,7 +16,7 @@ impl Decode<'_> for ParameterDescription {
         let mut types = SmallVec::with_capacity(cnt as usize);
 
         for _ in 0..cnt {
-            types.push(buf.get_u32());
+            types.push(Oid::new(buf.get_u32()));
         }
 
         Ok(Self { types })

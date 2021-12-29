@@ -64,35 +64,6 @@ impl Decode<'_, Postgres> for i16 {
     }
 }
 
-impl Type<Postgres> for u32 {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::OID
-    }
-}
-
-impl PgHasArrayType for u32 {
-    fn array_type_info() -> PgTypeInfo {
-        PgTypeInfo::OID_ARRAY
-    }
-}
-
-impl Encode<'_, Postgres> for u32 {
-    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
-        buf.extend(&self.to_be_bytes());
-
-        IsNull::No
-    }
-}
-
-impl Decode<'_, Postgres> for u32 {
-    fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            PgValueFormat::Binary => BigEndian::read_u32(value.as_bytes()?),
-            PgValueFormat::Text => value.as_str()?.parse()?,
-        })
-    }
-}
-
 impl Type<Postgres> for i32 {
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::INT4

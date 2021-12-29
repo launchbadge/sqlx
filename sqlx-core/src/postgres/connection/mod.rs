@@ -15,6 +15,7 @@ use crate::postgres::message::{
     Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
+use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
 
@@ -46,14 +47,14 @@ pub struct PgConnection {
 
     // sequence of statement IDs for use in preparing statements
     // in PostgreSQL, the statement is prepared to a user-supplied identifier
-    next_statement_id: u32,
+    next_statement_id: Oid,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache<(u32, Arc<PgStatementMetadata>)>,
+    cache_statement: StatementCache<(Oid, Arc<PgStatementMetadata>)>,
 
     // cache user-defined types by id <-> info
-    cache_type_info: HashMap<u32, PgTypeInfo>,
-    cache_type_oid: HashMap<UStr, u32>,
+    cache_type_info: HashMap<Oid, PgTypeInfo>,
+    cache_type_oid: HashMap<UStr, Oid>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,

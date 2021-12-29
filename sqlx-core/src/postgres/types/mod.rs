@@ -169,6 +169,7 @@ mod float;
 mod int;
 mod interval;
 mod money;
+mod oid;
 mod range;
 mod record;
 mod str;
@@ -211,6 +212,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
 pub use money::PgMoney;
+pub use oid::Oid;
 pub use range::PgRange;
 
 #[cfg(any(feature = "chrono", feature = "time"))]

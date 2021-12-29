@@ -1,5 +1,6 @@
 use crate::io::Encode;
 use crate::postgres::io::PgBufMutExt;
+use crate::postgres::types::Oid;
 
 const DESCRIBE_PORTAL: u8 = b'P';
 const DESCRIBE_STATEMENT: u8 = b'S';
@@ -10,10 +11,10 @@ const DESCRIBE_STATEMENT: u8 = b'S';
 #[allow(dead_code)]
 pub enum Describe {
     UnnamedStatement,
-    Statement(u32),
+    Statement(Oid),
 
     UnnamedPortal,
-    Portal(u32),
+    Portal(Oid),
 }
 
 impl Encode<'_> for Describe {

@@ -4,6 +4,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgType;
+use crate::postgres::types::Oid;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
@@ -77,7 +78,7 @@ where
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
 
             ty => {
-                buf.extend(&ty.oid().to_be_bytes());
+                buf.extend(&ty.oid().as_u32().to_be_bytes());
             }
         }
 
@@ -124,7 +125,7 @@ where
                 let _flags = buf.get_i32();
 
                 // the OID of the element
-                let element_type_oid = buf.get_u32();
+                let element_type_oid = Oid::new(buf.get_u32());
                 element_type_info = PgTypeInfo::try_from_oid(element_type_oid)
                     .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
 

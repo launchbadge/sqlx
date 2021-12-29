@@ -1,9 +1,10 @@
 use crate::io::Encode;
 use crate::postgres::io::PgBufMutExt;
+use crate::postgres::types::Oid;
 
 pub struct Execute {
     /// The id of the portal to execute (`None` selects the unnamed portal).
-    pub portal: Option<u32>,
+    pub portal: Option<Oid>,
 
     /// Maximum number of rows to return, if portal contains a query
     /// that returns rows (ignored otherwise). Zero denotes “no limit”.
