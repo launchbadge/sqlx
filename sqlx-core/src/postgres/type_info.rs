@@ -864,7 +864,7 @@ impl PgType {
                 PgTypeKind::Range(_) => None,
             },
             PgType::DeclareWithOid(oid) => {
-                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
+                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
             }
             PgType::DeclareWithName(name) => {
                 unreachable!("(bug) use of unresolved type declaration [name={}]", name);
