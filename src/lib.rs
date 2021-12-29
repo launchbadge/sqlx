@@ -11,7 +11,6 @@ compile_error!(
      and 'tls' is one of 'native-tls' and 'rustls'."
 );
 
-pub use sqlx_core::Either;
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
 pub use sqlx_core::column::Column;
@@ -31,6 +30,7 @@ pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
+pub use sqlx_core::Either;
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
