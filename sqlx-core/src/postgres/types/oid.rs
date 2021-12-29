@@ -1,4 +1,6 @@
 use byteorder::{BigEndian, ByteOrder};
+#[cfg(feature = "serde")]
+use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -8,7 +10,7 @@ use crate::postgres::{
 };
 use crate::types::Type;
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
 pub struct Oid(u32);
 
 impl Oid {
@@ -53,5 +55,25 @@ impl Decode<'_, Postgres> for Oid {
             PgValueFormat::Binary => BigEndian::read_u32(value.as_bytes()?),
             PgValueFormat::Text => value.as_str()?.parse()?,
         }))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Oid {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Oid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        u32::deserialize(deserializer).map(Self)
     }
 }
