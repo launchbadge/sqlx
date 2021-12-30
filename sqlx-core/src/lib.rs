@@ -58,6 +58,7 @@ pub mod column;
 pub mod statement;
 
 mod common;
+pub use either::Either;
 pub mod database;
 pub mod describe;
 pub mod executor;

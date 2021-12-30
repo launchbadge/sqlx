@@ -11,9 +11,13 @@ use crate::connection::LogSettings;
 pub use auto_vacuum::SqliteAutoVacuum;
 pub use journal_mode::SqliteJournalMode;
 pub use locking_mode::SqliteLockingMode;
+use std::cmp::Ordering;
+use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
 
+use crate::common::DebugFn;
+use crate::sqlite::connection::collation::Collation;
 use indexmap::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
@@ -61,7 +65,14 @@ pub struct SqliteConnectOptions {
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>>,
+
+    pub(crate) command_channel_size: usize,
+    pub(crate) row_channel_size: usize,
+
+    pub(crate) collations: Vec<Collation>,
+
     pub(crate) serialized: bool,
+    pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 }
 
 impl Default for SqliteConnectOptions {
@@ -71,6 +82,9 @@ impl Default for SqliteConnectOptions {
 }
 
 impl SqliteConnectOptions {
+    /// Construct `Self` with default options.
+    ///
+    /// See the source of this method for the current defaults.
     pub fn new() -> Self {
         // set default pragmas
         let mut pragmas: IndexMap<Cow<'static, str>, Cow<'static, str>> = IndexMap::new();
@@ -110,7 +124,11 @@ impl SqliteConnectOptions {
             log_settings: Default::default(),
             immutable: false,
             pragmas,
+            collations: Default::default(),
             serialized: false,
+            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
+            command_channel_size: 50,
+            row_channel_size: 50,
         }
     }
 
@@ -232,6 +250,44 @@ impl SqliteConnectOptions {
         self
     }
 
+    /// Add a custom collation for comparing strings in SQL.
+    ///
+    /// If a collation with the same name already exists, it will be replaced.
+    ///
+    /// See [`sqlite3_create_collation()`](https://www.sqlite.org/c3ref/create_collation.html) for details.
+    ///
+    /// Note this excerpt:
+    /// > The collating function must obey the following properties for all strings A, B, and C:
+    /// >
+    /// > If A==B then B==A.  
+    /// > If A==B and B==C then A==C.  
+    /// > If A\<B then B>A.  
+    /// > If A<B and B<C then A<C.
+    /// >
+    /// > If a collating function fails any of the above constraints and that collating function is
+    /// > registered and used, then the behavior of SQLite is undefined.
+    pub fn collation<N, F>(mut self, name: N, collate: F) -> Self
+    where
+        N: Into<Arc<str>>,
+        F: Fn(&str, &str) -> Ordering + Send + Sync + 'static,
+    {
+        self.collations.push(Collation::new(name, collate));
+        self
+    }
+
+    /// Set to `true` to signal to SQLite that the database file is on read-only media.
+    ///
+    /// If enabled, SQLite assumes the database file _cannot_ be modified, even by higher
+    /// privileged processes, and so disables locking and change detection. This is intended
+    /// to improve performance but can produce incorrect query results or errors if the file
+    /// _does_ change.
+    ///
+    /// Note that this is different from the `SQLITE_OPEN_READONLY` flag set by
+    /// [`.read_only()`][Self::read_only], though the documentation suggests that this
+    /// does _imply_ `SQLITE_OPEN_READONLY`.
+    ///
+    /// See [`sqlite3_open`](https://www.sqlite.org/capi3ref.html#sqlite3_open) (subheading
+    /// "URI Filenames") for details.
     pub fn immutable(mut self, immutable: bool) -> Self {
         self.immutable = immutable;
         self
@@ -242,8 +298,49 @@ impl SqliteConnectOptions {
     /// The default setting is `false` corersponding to using `OPEN_NOMUTEX`, if `true` then `OPEN_FULLMUTEX`.
     ///
     /// See [open](https://www.sqlite.org/c3ref/open.html) for more details.
+    ///
+    /// ### Note
+    /// Setting this to `true` may help if you are getting access violation errors or segmentation
+    /// faults, but will also incur a significant performance penalty. You should leave this
+    /// set to `false` if at all possible.    
+    ///
+    /// If you do end up needing to set this to `true` for some reason, please
+    /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
+    /// a concurrency bug in SQLx. Please provide clear instructions for reproducing the issue,
+    /// including a sample database schema if applicable.
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
+        self
+    }
+
+    /// Provide a callback to generate the name of the background worker thread.
+    ///
+    /// The value passed to the callback is an auto-incremented integer for use as the thread ID.
+    pub fn thread_name(
+        mut self,
+        generator: impl Fn(u64) -> String + Send + Sync + 'static,
+    ) -> Self {
+        self.thread_name = Arc::new(DebugFn(generator));
+        self
+    }
+
+    /// Set the maximum number of commands to buffer for the worker thread before backpressure is
+    /// applied.
+    ///
+    /// Given that most commands sent to the worker thread involve waiting for a result,
+    /// the command channel is unlikely to fill up unless a lot queries are executed in a short
+    /// period but cancelled before their full resultsets are returned.
+    pub fn command_buffer_size(mut self, size: usize) -> Self {
+        self.command_channel_size = size;
+        self
+    }
+
+    /// Set the maximum number of rows to buffer back to the calling task when a query is executed.
+    ///
+    /// If the calling task cannot keep up, backpressure will be applied to the worker thread
+    /// in order to limit CPU and memory usage.
+    pub fn row_buffer_size(mut self, size: usize) -> Self {
+        self.row_channel_size = size;
         self
     }
 }
