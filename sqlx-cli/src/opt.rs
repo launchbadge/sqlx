@@ -1,12 +1,13 @@
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
+#[clap(version, about, author)]
 pub struct Opt {
     #[clap(subcommand)]
     pub command: Command,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub enum Command {
     #[clap(alias = "db")]
     Database(DatabaseOpt),
@@ -44,13 +45,13 @@ pub enum Command {
 }
 
 /// Group of commands for creating and dropping your database.
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct DatabaseOpt {
     #[clap(subcommand)]
     pub command: DatabaseCommand,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub enum DatabaseCommand {
     /// Creates the database specified in your DATABASE_URL.
     Create {
@@ -100,7 +101,7 @@ pub enum DatabaseCommand {
 }
 
 /// Group of commands for creating and running migrations.
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct MigrateOpt {
     /// Path to folder containing migrations.
     #[clap(long, default_value = "migrations")]
@@ -110,7 +111,7 @@ pub struct MigrateOpt {
     pub command: MigrateCommand,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub enum MigrateCommand {
     /// Create a new migration with the given description,
     /// and the current time as the version.

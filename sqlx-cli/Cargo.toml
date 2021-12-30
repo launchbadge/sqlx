@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-cli"
-version = "0.5.9"
+version = "0.5.10"
 description = "Command-line utility for SQLx, the Rust SQL toolkit."
 edition = "2018"
 readme = "README.md"
@@ -25,36 +25,32 @@ name = "cargo-sqlx"
 path = "src/bin/cargo-sqlx.rs"
 
 [dependencies]
-dotenv = "0.15"
-tokio = { version = "1.0.1", features = ["macros", "rt", "rt-multi-thread"] }
-sqlx = { version = "0.5.9", path = "..", default-features = false, features = [
+dotenv = "0.15.0"
+tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread"] }
+sqlx = { version = "0.5.10", path = "..", default-features = false, features = [
     "migrate",
     "any",
     "offline",
 ] }
-futures = "0.3"
-# FIXME: we need to fix both of these versions until Clap 3.0 proper is released, then we can drop `clap_derive`
-# https://github.com/launchbadge/sqlx/issues/1378
-# https://github.com/clap-rs/clap/issues/2705
-clap = "=3.0.0-beta.2"
-clap_derive = "=3.0.0-beta.2"
-chrono = "0.4"
-anyhow = "1.0"
-url = { version = "2.1.1", default-features = false }
-async-trait = "0.1.30"
+futures = "0.3.19"
+clap = { version = "3.0.0-rc.9", features = ["derive", "env", "cargo"] }
+chrono = "0.4.19"
+anyhow = "1.0.52"
+url = { version = "2.2.2", default-features = false }
+async-trait = "0.1.52"
 console = "0.14.1"
 promptly = "0.3.0"
-serde_json = "1.0.53"
-serde = { version = "1.0.110", features = ["derive"] }
+serde_json = "1.0.73"
+serde = { version = "1.0.132", features = ["derive"] }
 glob = "0.3.0"
-openssl = { version = "0.10.30", optional = true }
+openssl = { version = "0.10.38", optional = true }
 # workaround for https://github.com/rust-lang/rust/issues/29497
 remove_dir_all = "0.7.0"
 
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls"]
-rustls = ["sqlx/runtime-async-std-rustls"]
-native-tls = ["sqlx/runtime-async-std-native-tls"]
+rustls = ["sqlx/runtime-tokio-rustls"]
+native-tls = ["sqlx/runtime-tokio-native-tls"]
 
 # databases
 mysql = ["sqlx/mysql"]
