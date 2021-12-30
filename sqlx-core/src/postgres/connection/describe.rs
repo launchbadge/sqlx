@@ -16,6 +16,7 @@ use std::sync::Arc;
 /// Describes the type of the `pg_type.typtype` column
 ///
 /// See <https://www.postgresql.org/docs/13/catalog-pg-type.html>
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum TypType {
     Base,
     Composite,
@@ -45,6 +46,7 @@ impl TryFrom<u8> for TypType {
 /// Describes the type of the `pg_type.typcategory` column
 ///
 /// See <https://www.postgresql.org/docs/13/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE>
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum TypCategory {
     Array,
     Boolean,
@@ -198,7 +200,9 @@ impl PgConnection {
 
                 (Ok(TypType::Base), Ok(TypCategory::Array)) => {
                     Ok(PgTypeInfo(PgType::Custom(Arc::new(PgCustomType {
-                        kind: PgTypeKind::Array(self.fetch_type_by_oid(element).await?),
+                        kind: PgTypeKind::Array(
+                            self.maybe_fetch_type_info_by_oid(element, true).await?,
+                        ),
                         name: name.into(),
                         oid,
                     }))))

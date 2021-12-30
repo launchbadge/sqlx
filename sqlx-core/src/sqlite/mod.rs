@@ -5,6 +5,21 @@
 // invariants.
 #![allow(unsafe_code)]
 
+pub use arguments::{SqliteArgumentValue, SqliteArguments};
+pub use column::SqliteColumn;
+pub use connection::{LockedSqliteHandle, SqliteConnection};
+pub use database::Sqlite;
+pub use error::SqliteError;
+pub use options::{
+    SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
+};
+pub use query_result::SqliteQueryResult;
+pub use row::SqliteRow;
+pub use statement::SqliteStatement;
+pub use transaction::SqliteTransactionManager;
+pub use type_info::SqliteTypeInfo;
+pub use value::{SqliteValue, SqliteValueRef};
+
 use crate::executor::Executor;
 
 mod arguments;
@@ -23,21 +38,6 @@ mod value;
 
 #[cfg(feature = "migrate")]
 mod migrate;
-
-pub use arguments::{SqliteArgumentValue, SqliteArguments};
-pub use column::SqliteColumn;
-pub use connection::SqliteConnection;
-pub use database::Sqlite;
-pub use error::SqliteError;
-pub use options::{
-    SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
-};
-pub use query_result::SqliteQueryResult;
-pub use row::SqliteRow;
-pub use statement::SqliteStatement;
-pub use transaction::SqliteTransactionManager;
-pub use type_info::SqliteTypeInfo;
-pub use value::{SqliteValue, SqliteValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
 pub type SqlitePool = crate::pool::Pool<Sqlite>;

@@ -9,7 +9,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::numeric::{PgNumeric, PgNumericSign};
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for Decimal {
@@ -18,15 +20,9 @@ impl Type<Postgres> for Decimal {
     }
 }
 
-impl Type<Postgres> for [Decimal] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for Decimal {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::NUMERIC_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<Decimal> {
-    fn type_info() -> PgTypeInfo {
-        <[Decimal] as Type<Postgres>>::type_info()
     }
 }
 
@@ -88,7 +84,8 @@ impl TryFrom<&'_ Decimal> for PgNumeric {
     type Error = BoxDynError;
 
     fn try_from(decimal: &Decimal) -> Result<Self, BoxDynError> {
-        if decimal.is_zero() {
+        // `Decimal` added `is_zero()` as an inherent method in a more recent version
+        if Zero::is_zero(decimal) {
             return Ok(PgNumeric::Number {
                 sign: PgNumericSign::Positive,
                 scale: 0,

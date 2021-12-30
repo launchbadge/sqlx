@@ -8,6 +8,7 @@ mod backend_key_data;
 mod bind;
 mod close;
 mod command_complete;
+mod copy;
 mod data_row;
 mod describe;
 mod execute;
@@ -32,6 +33,7 @@ pub use backend_key_data::BackendKeyData;
 pub use bind::Bind;
 pub use close::Close;
 pub use command_complete::CommandComplete;
+pub use copy::{CopyData, CopyDone, CopyFail, CopyResponse};
 pub use data_row::DataRow;
 pub use describe::Describe;
 pub use execute::Execute;
@@ -59,6 +61,10 @@ pub enum MessageFormat {
     BindComplete,
     CloseComplete,
     CommandComplete,
+    CopyData,
+    CopyDone,
+    CopyInResponse,
+    CopyOutResponse,
     DataRow,
     EmptyQueryResponse,
     ErrorResponse,
@@ -98,6 +104,10 @@ impl MessageFormat {
             b'2' => MessageFormat::BindComplete,
             b'3' => MessageFormat::CloseComplete,
             b'C' => MessageFormat::CommandComplete,
+            b'd' => MessageFormat::CopyData,
+            b'c' => MessageFormat::CopyDone,
+            b'G' => MessageFormat::CopyInResponse,
+            b'H' => MessageFormat::CopyOutResponse,
             b'D' => MessageFormat::DataRow,
             b'E' => MessageFormat::ErrorResponse,
             b'I' => MessageFormat::EmptyQueryResponse,

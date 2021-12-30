@@ -13,6 +13,12 @@ $ cargo install sqlx-cli
 
 # only for postgres
 $ cargo install sqlx-cli --no-default-features --features postgres
+
+# use vendored OpenSSL (build from source)
+$ cargo install sqlx-cli --features openssl-vendored
+
+# use Rustls rather than OpenSSL
+$ cargo install sqlx-cli --no-default-features --features rustls
 ```
 
 ### Usage
@@ -48,6 +54,40 @@ $ sqlx migrate run
 ```
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
+
+#### Reverting Migrations
+
+If you would like to create _reversible_ migrations with corresponding "up" and "down" scripts, you use the `-r` flag when creating new migrations:
+
+```bash
+$ sqlx migrate add -r <name>
+Creating migrations/20211001154420_<name>.up.sql
+Creating migrations/20211001154420_<name>.down.sql
+```
+
+After that, you can run these as above:
+
+```bash
+$ sqlx migrate run
+Applied migrations/20211001154420 <name> (32.517835ms)
+```
+
+And reverts work as well:
+
+```bash
+$ sqlx migrate revert
+Applied 20211001154420/revert <name>
+```
+
+**Note**: attempting to mix "simple" migrations with reversible migrations with result in an error.
+
+```bash
+$ sqlx migrate add <name1>
+Creating migrations/20211001154420_<name>.sql
+
+$ sqlx migrate add -r <name2>
+error: cannot mix reversible migrations with simple migrations. All migrations should be reversible or simple migrations
+```
 
 #### Enable building in "offline mode" with `query!()`
 

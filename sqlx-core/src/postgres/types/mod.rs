@@ -208,6 +208,7 @@ mod mac_address;
 #[cfg(feature = "bit-vec")]
 mod bit_vec;
 
+pub use array::PgHasArrayType;
 pub use interval::PgInterval;
 pub use money::PgMoney;
 pub use range::PgRange;

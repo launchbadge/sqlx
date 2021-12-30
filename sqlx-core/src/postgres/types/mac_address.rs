@@ -5,7 +5,9 @@ use std::convert::TryInto;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for MacAddress {
@@ -18,19 +20,9 @@ impl Type<Postgres> for MacAddress {
     }
 }
 
-impl Type<Postgres> for [MacAddress] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for MacAddress {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::MACADDR_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<MacAddress> {
-    fn type_info() -> PgTypeInfo {
-        <[MacAddress] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[MacAddress] as Type<Postgres>>::compatible(ty)
     }
 }
 

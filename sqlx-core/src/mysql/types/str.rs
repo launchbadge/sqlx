@@ -5,6 +5,7 @@ use crate::mysql::io::MySqlBufMutExt;
 use crate::mysql::protocol::text::{ColumnFlags, ColumnType};
 use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
 use crate::types::Type;
+use std::borrow::Cow;
 
 const COLLATE_UTF8_GENERAL_CI: u16 = 33;
 const COLLATE_UTF8_UNICODE_CI: u16 = 192;
@@ -78,5 +79,20 @@ impl Encode<'_, MySql> for String {
 impl Decode<'_, MySql> for String {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
         <&str as Decode<MySql>>::decode(value).map(ToOwned::to_owned)
+    }
+}
+
+impl Encode<'_, MySql> for Cow<'_, str> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        match self {
+            Cow::Borrowed(str) => <&str as Encode<MySql>>::encode(*str, buf),
+            Cow::Owned(str) => <&str as Encode<MySql>>::encode(&**str, buf),
+        }
+    }
+}
+
+impl<'r> Decode<'r, MySql> for Cow<'r, str> {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        value.as_str().map(Cow::Borrowed)
     }
 }

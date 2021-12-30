@@ -5,6 +5,7 @@ use crate::executor::Executor;
 mod arguments;
 mod column;
 mod connection;
+mod copy;
 mod database;
 mod error;
 mod io;
@@ -25,6 +26,7 @@ mod migrate;
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;
 pub use connection::{PgConnection, PgConnectionInfo};
+pub use copy::PgCopyIn;
 pub use database::Postgres;
 pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
@@ -35,6 +37,7 @@ pub use row::PgRow;
 pub use statement::PgStatement;
 pub use transaction::PgTransactionManager;
 pub use type_info::{PgTypeInfo, PgTypeKind};
+pub use types::PgHasArrayType;
 pub use value::{PgValue, PgValueFormat, PgValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for Postgres.

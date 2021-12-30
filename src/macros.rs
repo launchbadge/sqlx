@@ -718,6 +718,8 @@ macro_rules! query_file_scalar_unchecked (
 /// unlike `include_str!()` which uses compiler internals to get the path of the file where it
 /// was invoked.
 ///
+/// See [MigrationSource][crate::migrate::MigrationSource] for details on structure of the ./migrations directory.
+///
 /// ## Triggering Recompilation on Migration Changes
 /// In some cases when making changes to embedded migrations, such as adding a new migration without
 /// changing any Rust source files, you might find that `cargo build` doesn't actually do anything,

@@ -2,7 +2,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::array_compatible;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::{Json, Type};
 use serde::{Deserialize, Serialize};
 
@@ -22,23 +24,13 @@ impl<T> Type<Postgres> for Json<T> {
     }
 }
 
-impl<T> Type<Postgres> for [Json<T>] {
-    fn type_info() -> PgTypeInfo {
+impl<T> PgHasArrayType for Json<T> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::JSONB_ARRAY
     }
 
-    fn compatible(ty: &PgTypeInfo) -> bool {
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
         array_compatible::<Json<T>>(ty)
-    }
-}
-
-impl<T> Type<Postgres> for Vec<Json<T>> {
-    fn type_info() -> PgTypeInfo {
-        <[Json<T>] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[Json<T>] as Type<Postgres>>::compatible(ty)
     }
 }
 

@@ -30,6 +30,7 @@ pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
+pub use sqlx_core::Either;
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};

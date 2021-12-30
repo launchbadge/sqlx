@@ -212,21 +212,4 @@ impl MySqlConnectOptions {
         self.collation = Some(collation.to_owned());
         self
     }
-
-    /// Sets the log settings.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use sqlx_core::mysql::MySqlConnectOptions;
-    /// let options = MySqlConnectOptions::new()
-    ///     .log_settings(sqlx_core::connection::LogSettings {
-    ///     statements_level: sqlx_core::connection::LevelFilter::Info,
-    ///     ..Default::default()
-    /// });
-    /// ```
-    pub fn log_settings(mut self, log_settings: LogSettings) -> Self {
-        self.log_settings = log_settings;
-        self
-    }
 }
