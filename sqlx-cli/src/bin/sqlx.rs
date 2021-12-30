@@ -1,4 +1,4 @@
-use clap::{crate_version, FromArgMatches, IntoApp};
+use clap::Parser;
 use console::style;
 use dotenv::dotenv;
 use sqlx_cli::Opt;
@@ -6,10 +6,8 @@ use sqlx_cli::Opt;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let matches = Opt::into_app().version(crate_version!()).get_matches();
-
     // no special handling here
-    if let Err(error) = sqlx_cli::run(Opt::from_arg_matches(&matches)).await {
+    if let Err(error) = sqlx_cli::run(Opt::parse()).await {
         println!("{} {}", style("error:").bold().red(), error);
         std::process::exit(1);
     }

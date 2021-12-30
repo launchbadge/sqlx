@@ -18,7 +18,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.5.9"
+version = "0.5.10"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -132,27 +132,27 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { version = "0.5.9", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.5.9", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.5.10", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.5.10", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.31"
-time_ = { version = "0.2.16", package = "time" }
-futures = "0.3.5"
-env_logger = "0.8.3"
-async-std = { version = "1.8.0", features = ["attributes"] }
-tokio = { version = "1.0.1", features = ["full"] }
+anyhow = "1.0.52"
+time_ = { version = "0.2.27", package = "time" }
+futures = "0.3.19"
+env_logger = "0.8.4"
+async-std = { version = "1.10.0", features = ["attributes"] }
+tokio = { version = "1.15.0", features = ["full"] }
 dotenv = "0.15.0"
-trybuild = "1.0.24"
+trybuild = "1.0.53"
 sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
-paste = "1.0.1"
-serde = { version = "1.0.111", features = ["derive"] }
-serde_json = "1.0.53"
-url = "2.1.1"
+paste = "1.0.6"
+serde = { version = "1.0.132", features = ["derive"] }
+serde_json = "1.0.73"
+url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
-hex = "0.4"
+hex = "0.4.3"
 #
 # Any
 #
