@@ -1,10 +1,10 @@
-use uuid::Uuid;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::mssql::protocol::type_info::{DataType, TypeInfo};
 use crate::mssql::{Mssql, MssqlTypeInfo, MssqlValueRef};
 use crate::types::Type;
+use uuid::Uuid;
 
 impl Type<Mssql> for Uuid {
     fn type_info() -> MssqlTypeInfo {

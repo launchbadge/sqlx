@@ -43,8 +43,8 @@ test_type!(bool(
 ));
 
 test_type!(uuid<sqlx::types::Uuid>(Mssql,
-    "'b731678f-636f-4135-bc6f-19440c13bd19'::uuid"
+    "CAST('b731678f-636f-4135-bc6f-19440c13bd19' AS uniqueidentifier)"
         == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
-    "'00000000-0000-0000-0000-000000000000'::uuid"
+    "CAST('00000000-0000-0000-0000-000000000000' AS uniqueidentifier)"
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
