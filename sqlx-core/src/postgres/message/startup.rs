@@ -7,6 +7,15 @@ use crate::postgres::io::PgBufMutExt;
 
 // Optionally, the startup message can include additional settings for run-time parameters.
 
+// The protocol version number. The most significant 16 bits are the
+// major version number (3 for the protocol described here). The least
+// significant 16 bits are the minor version number (0
+// for the protocol described here)
+#[cfg_attr(feature = "opengauss", allow(unused))]
+const PROTOCOL_VERSION_3: i32 = 0x3_0000;
+#[cfg_attr(not(feature = "opengauss"), allow(unused))]
+const PROTOCOL_VERSION_351: i32 = 0x3_0033;
+
 pub struct Startup<'a> {
     /// The database user name to connect as. Required; there is no default.
     pub username: Option<&'a str>,
@@ -24,11 +33,14 @@ impl Encode<'_> for Startup<'_> {
         buf.reserve(120);
 
         buf.put_length_prefixed(|buf| {
-            // The protocol version number. The most significant 16 bits are the
-            // major version number (3 for the protocol described here). The least
-            // significant 16 bits are the minor version number (0
-            // for the protocol described here)
-            buf.extend(&196_608_i32.to_be_bytes());
+            #[cfg(feature = "opengauss")]
+            {
+                buf.extend(&PROTOCOL_VERSION_351.to_be_bytes());
+            }
+            #[cfg(not(feature = "opengauss"))]
+            {
+                buf.extend(&PROTOCOL_VERSION_3.to_be_bytes());
+            }
 
             if let Some(username) = self.username {
                 // The database user name to connect as.
@@ -57,6 +69,7 @@ fn encode_startup_param(buf: &mut Vec<u8>, name: &str, value: &str) {
     buf.put_str_nul(value);
 }
 
+#[cfg(not(feature = "opengauss"))]
 #[test]
 fn test_encode_startup() {
     const EXPECTED: &[u8] = b"\0\0\0)\0\x03\0\0user\0postgres\0database\0postgres\0\0";
@@ -65,6 +78,23 @@ fn test_encode_startup() {
     let m = Startup {
         username: Some("postgres"),
         database: Some("postgres"),
+        params: &[],
+    };
+
+    m.encode(&mut buf);
+
+    assert_eq!(buf, EXPECTED);
+}
+
+#[cfg(feature = "opengauss")]
+#[test]
+fn test_encode_startup_opengauss() {
+    const EXPECTED: &[u8] = b"\0\0\0\x2b\0\x03\0\x33user\0opengauss\0database\0opengauss\0\0";
+
+    let mut buf = Vec::new();
+    let m = Startup {
+        username: Some("opengauss"),
+        database: Some("opengauss"),
         params: &[],
     };
 

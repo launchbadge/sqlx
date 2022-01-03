@@ -20,6 +20,7 @@ use crate::transaction::Transaction;
 
 pub use self::stream::PgStream;
 
+pub(crate) mod auth;
 pub(crate) mod describe;
 mod establish;
 mod executor;

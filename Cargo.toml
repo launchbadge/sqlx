@@ -117,6 +117,7 @@ postgres = ["sqlx-core/postgres", "sqlx-macros/postgres"]
 mysql = ["sqlx-core/mysql", "sqlx-macros/mysql"]
 sqlite = ["sqlx-core/sqlite", "sqlx-macros/sqlite"]
 mssql = ["sqlx-core/mssql", "sqlx-macros/mssql"]
+opengauss = ["sqlx-core/opengauss", "postgres"]
 
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]

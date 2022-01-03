@@ -14,6 +14,8 @@ pub enum Password<'a> {
         username: &'a str,
         salt: [u8; 4],
     },
+
+    Opaque(&'a [u8])
 }
 
 impl Password<'_> {
@@ -22,6 +24,7 @@ impl Password<'_> {
         match self {
             Password::Cleartext(s) => s.len() + 5,
             Password::Md5 { .. } => 35 + 5,
+            Password::Opaque(s) => s.len() + 5,
         }
     }
 }
@@ -64,6 +67,11 @@ impl Encode<'_> for Password<'_> {
                     let _ = write!(output, "md5{:x}", hasher.finalize());
 
                     buf.put_str_nul(&output);
+                },
+
+                Password::Opaque(data) => {
+                    buf.extend(*data);
+                    buf.push(0);
                 }
             }
         });

@@ -20,7 +20,7 @@ default = ["migrate"]
 migrate = ["sha2", "crc"]
 
 # databases
-all-databases = ["postgres", "mysql", "sqlite", "mssql", "any"]
+all-databases = ["postgres", "mysql", "sqlite", "mssql", "any", "opengauss"]
 postgres = [
     "md-5",
     "sha2",
@@ -45,6 +45,7 @@ mysql = [
 ]
 sqlite = ["libsqlite3-sys", "futures-executor", "flume"]
 mssql = ["uuid", "encoding_rs", "regex"]
+opengauss = ["postgres"]
 any = []
 
 # types
@@ -164,3 +165,4 @@ bstr = { version = "0.2.17", default-features = false, features = ["std"], optio
 git2 = { version = "0.13.25", default-features = false, optional = true }
 hashlink = "0.7.0"
 indexmap = "1.7.0"
+pbkdf2 = { version = "0.9.0", features = ["simple", "sha1"] }

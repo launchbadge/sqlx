@@ -43,6 +43,7 @@ pub enum Authentication {
     ///
     /// If further messages are needed, the server will
     /// respond with [Authentication::SaslContinue].
+    #[cfg_attr(feature = "opengauss", allow(unused))]
     Sasl(AuthenticationSasl),
 
     /// This message contains challenge data from the previous step of SASL negotiation.
@@ -56,6 +57,13 @@ pub enum Authentication {
     /// The server will next send [Authentication::Ok] to
     /// indicate successful authentication.
     SaslFinal(AuthenticationSaslFinal),
+
+    /// The frontend needs to send a [PasswordMessage] follow the openGauss
+    /// schema. Check [ConnectionFactoryImpl.java#L668][1] for more details.
+    ///
+    /// [1]: https://github.com/opengauss-mirror/openGauss-connector-jdbc/blob/662cf9e506c0bf7f244955c828fc910b87d904ca/pgjdbc/src/main/java/org/postgresql/core/v3/ConnectionFactoryImpl.java#L668
+    #[cfg_attr(not(feature = "opengauss"), allow(unused))]
+    Sha256Password(AuthenticationSha256Password),
 }
 
 impl Decode<'_> for Authentication {
@@ -72,6 +80,35 @@ impl Decode<'_> for Authentication {
                 Authentication::Md5Password(AuthenticationMd5Password { salt })
             }
 
+            #[cfg(feature = "opengauss")]
+            10 => {
+                let password_stored_method = buf.get_i32();
+                match password_stored_method {
+                    0 | 2 => {
+                        let mut random64code = [0u8; 64];
+                        buf.copy_to_slice(&mut random64code);
+
+                        let mut token = [0u8; 8];
+                        buf.copy_to_slice(&mut token);
+
+                        Authentication::Sha256Password(AuthenticationSha256Password {
+                            random64code,
+                            token,
+                            rounds: buf.get_u32(),
+                        })
+                    }
+                    1 => {
+                        let mut salt = [0; 4];
+                        buf.copy_to_slice(&mut salt);
+
+                        Authentication::Md5Password(AuthenticationMd5Password { salt })
+                    }
+                    _ => {
+                        return Err(Error::protocol("unsupported passowrd-stored method"));
+                    }
+                }
+            }
+            #[cfg(not(feature = "opengauss"))]
             10 => Authentication::Sasl(AuthenticationSasl(buf)),
             11 => Authentication::SaslContinue(AuthenticationSaslContinue::decode(buf)?),
             12 => Authentication::SaslFinal(AuthenticationSaslFinal::decode(buf)?),
@@ -87,6 +124,13 @@ impl Decode<'_> for Authentication {
 #[derive(Debug)]
 pub struct AuthenticationMd5Password {
     pub salt: [u8; 4],
+}
+
+#[derive(Debug)]
+pub struct AuthenticationSha256Password {
+    pub random64code: [u8; 64],
+    pub token: [u8; 8],
+    pub rounds: u32,
 }
 
 /// Body of [Authentication::Sasl].
