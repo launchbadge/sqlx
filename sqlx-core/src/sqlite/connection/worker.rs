@@ -215,9 +215,10 @@ impl ConnectionWorker {
                             tx.send(()).ok();
                         }
                         Command::Shutdown { tx } => {
-                            // drop the connection reference before sending confirmation
+                            // drop the connection references before sending confirmation
                             // and ending the command loop
                             drop(conn);
+                            drop(shared);
                             let _ = tx.send(());
                             return;
                         }
