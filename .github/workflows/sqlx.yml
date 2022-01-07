@@ -235,6 +235,59 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
 
+  opengauss:
+    name: openGauss
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        openguass: [2_1_0]
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+    needs: check
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-opengauss-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --features opengauss,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name openguass_${{ matrix.openguass }}
+      - run: sleep 60
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --features any,opengauss,macros,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: postgres://opengauss:password@localhost:5432/sqlx
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --features any,opengauss,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: postgres://opengauss:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
+
   mysql:
     name: MySQL
     runs-on: ubuntu-20.04

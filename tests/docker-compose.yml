@@ -253,3 +253,19 @@ services:
             LICENSE: accept
             DB2INST1_PASSWORD: password
             DBNAME: sqlx
+
+    #
+    # openGauss 2.1.0
+    # https://opengauss.org/en
+    #
+
+    opengauss_2_1_0:
+        build:
+            context: .
+            dockerfile: opengauss/Dockerfile
+            args:
+                VERSION: 2.1.0
+        ports:
+          - 5432
+        environment:
+            GS_PASSWORD: Password123!
