@@ -149,8 +149,7 @@
 ///
 /// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
 /// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
-/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
-/// forbidden for now as they produce rather nasty type errors.
+/// the expression which is not possible as the macros are currently implemented.
 ///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
