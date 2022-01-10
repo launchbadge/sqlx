@@ -1,6 +1,30 @@
 SQLx Frequently Asked Questions
 ===============================
 
+### What versions of Rust does SQLx support? What is SQLx's MSRV\*?
+
+Officially, we will only ever support the latest stable version of Rust. 
+It's just not something we consider to be worth keeping track of, given the current state of tooling.
+
+Cargo does support a [`rust-version`] field now in the package manifest, however that will only ensure
+that the user is using a `rustc` of that version or greater; it does not enforce that the crate's code is
+actually compatible with that version of Rust. That would need to be manually enforced and checked with CI,
+and we have enough CI passes already.
+
+In practice, we tend not to reach for language or library features that are *too* new, either because
+we don't need them or we just worked around their absence. There are language features we're waiting to be
+stabilized that we want to use (Generic Associated Types and Async Traits, to name a couple) which we will
+be utilizing when they're available, but that will be a major refactor with breaking API changes 
+which will then coincide with a major release.
+
+Thus, it is likely that a given SQLx release _will_ work with older versions of Rust. However,
+we make no guarantees about which exact versions it will work with besides the latest stable version,
+and we don't factor MSRV bumps into our semantic versioning.
+
+\*Minimum Supported Rust Version
+
+[`rust-version`]: https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-rust-version-field
+
 ----------------------------------------------------------------
 ### How can I do a `SELECT ... WHERE foo IN (...)` query?
 
