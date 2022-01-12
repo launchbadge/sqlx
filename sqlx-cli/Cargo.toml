@@ -33,7 +33,7 @@ sqlx = { version = "0.5.10", path = "..", default-features = false, features = [
     "offline",
 ] }
 futures = "0.3.19"
-clap = { version = "3.0.0-rc.9", features = ["derive", "env", "cargo"] }
+clap = { version = "3.0", features = ["derive", "env"] }
 chrono = "0.4.19"
 anyhow = "1.0.52"
 url = { version = "2.2.2", default-features = false }
