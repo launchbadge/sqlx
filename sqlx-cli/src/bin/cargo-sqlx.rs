@@ -4,6 +4,8 @@ use dotenv::dotenv;
 use sqlx_cli::Opt;
 use std::process;
 
+// cargo invokes this binary as `cargo-sqlx sqlx <args>`
+// so the parser below is defined with that in mind
 #[derive(Parser, Debug)]
 #[clap(bin_name = "cargo")]
 enum Cli {
