@@ -9,7 +9,7 @@ use std::process;
 #[derive(Parser, Debug)]
 #[clap(bin_name = "cargo")]
 enum Cli {
-    Sqlx(Opt)
+    Sqlx(Opt),
 }
 
 #[tokio::main]
