@@ -30,7 +30,7 @@ mod executor;
 /// sqlite://a.sqlite
 /// ```
 #[derive(Debug)]
-pub struct AnyConnection(pub(super) AnyConnectionKind);
+pub struct AnyConnection(pub AnyConnectionKind);
 
 #[derive(Debug)]
 pub enum AnyConnectionKind {
