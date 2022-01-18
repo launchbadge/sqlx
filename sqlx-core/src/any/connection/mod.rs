@@ -33,7 +33,7 @@ mod executor;
 pub struct AnyConnection(pub(super) AnyConnectionKind);
 
 #[derive(Debug)]
-pub(crate) enum AnyConnectionKind {
+pub enum AnyConnectionKind {
     #[cfg(feature = "postgres")]
     Postgres(postgres::PgConnection),
 
