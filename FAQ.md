@@ -35,7 +35,7 @@ a secure connection.
 Check the supported TLS versions for the database server version you're running. If it does not support TLS 1.2 or greater, then
 you likely will not be able to connect to it with RusTLS.
 
-The obvious solution, of course, is to upgrade your database server to a version that supports at least TLS 1.2.  
+The ideal solution, of course, is to upgrade your database server to a version that supports at least TLS 1.2.  
 
 * MySQL: [has supported TLS 1.2 since 5.6.46](https://dev.mysql.com/doc/refman/5.6/en/encrypted-connection-protocols-ciphers.html#encrypted-connection-supported-protocols). 
 * PostgreSQL: depends on the system OpenSSL version.
