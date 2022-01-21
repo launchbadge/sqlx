@@ -3,7 +3,7 @@ use bytes::Bytes;
 use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
 use rand::thread_rng;
-use rsa::{pkcs8::FromPublicKey, PaddingScheme, PublicKey, RsaPublicKey};
+use rsa::{pkcs8::DecodePublicKey, PaddingScheme, PublicKey, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
