@@ -183,3 +183,31 @@ impl Connection for AnyConnection {
         delegate_to!(self.should_flush())
     }
 }
+
+#[cfg(feature = "postgres")]
+impl From<postgres::PgConnection> for AnyConnection {
+    fn from(conn: postgres::PgConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Postgres(conn))
+    }
+}
+
+#[cfg(feature = "mssql")]
+impl From<mssql::MssqlConnection> for AnyConnection {
+    fn from(conn: mssql::MssqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Mssql(conn))
+    }
+}
+
+#[cfg(feature = "mysql")]
+impl From<mysql::MySqlConnection> for AnyConnection {
+    fn from(conn: mysql::MySqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::MySql(conn))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl From<sqlite::SqliteConnection> for AnyConnection {
+    fn from(conn: sqlite::SqliteConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Sqlite(conn))
+    }
+}
