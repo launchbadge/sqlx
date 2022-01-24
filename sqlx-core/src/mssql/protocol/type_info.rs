@@ -577,7 +577,7 @@ impl TypeInfo {
             }
 
             DataType::Guid => {
-                s.push_str("guid");
+                s.push_str("uniqueidentifier");
             }
 
             DataType::BitN => {
