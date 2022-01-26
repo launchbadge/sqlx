@@ -664,7 +664,6 @@ async fn issue_1467() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
-#[ignore] // FIXME
 async fn concurrent_read_and_write() {
     let pool: SqlitePool = SqlitePoolOptions::new()
         .min_connections(2)

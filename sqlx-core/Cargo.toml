@@ -134,6 +134,7 @@ libsqlite3-sys = { version = "0.23.2", optional = true, default-features = false
     "pkg-config",
     "vcpkg",
     "bundled",
+    "unlock_notify"
 ] }
 log = { version = "0.4.14", default-features = false }
 md-5 = { version = "0.9.1", default-features = false, optional = true }
