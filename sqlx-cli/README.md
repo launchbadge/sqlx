@@ -126,3 +126,7 @@ variable to `true`.
 
 If you want to make this the default, just add it to your `.env` file. `cargo sqlx prepare` will
 still do the right thing and connect to the database.
+
+#### Migration Side-Effects
+
+SQLx-cli migrations generate a new table in your database called `_sqlx_migrations`. Please refer to [side-effects documentation](sideeffects.md).
