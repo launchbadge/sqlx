@@ -515,6 +515,9 @@ impl TypeInfo {
             DataType::BigChar => "BIGCHAR",
             DataType::NChar => "NCHAR",
 
+            DataType::DateTime2N => "DATETIME2",
+            DataType::DateTimeOffsetN => "DATETIMEOFFSET",
+
             _ => unimplemented!("name: unsupported data type {:?}", self.ty),
         }
     }
@@ -576,6 +579,18 @@ impl TypeInfo {
 
             DataType::BitN => {
                 s.push_str("bit");
+            }
+
+            DataType::DateTime2N => {
+                s.push_str("datetime2(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
+            }
+
+            DataType::DateTimeOffsetN => {
+                s.push_str("datetimeoffset(");
+                s.push_str(itoa::Buffer::new().format(self.scale));
+                s.push_str(")");
             }
 
             _ => unimplemented!("fmt: unsupported data type {:?}", self.ty),

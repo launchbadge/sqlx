@@ -178,7 +178,7 @@ for runtime in ["async-std", "tokio", "actix"]:
 
         for version in ["2019", "2017"]:
             run(
-                f"cargo test --no-default-features --features macros,offline,any,all-types,mssql,runtime-{runtime}-{tls}",
+                f"cargo test --no-default-features --features macros,offline,any,all-types,with_chrono,mssql,runtime-{runtime}-{tls}",
                 comment=f"test mssql {version}",
                 service=f"mssql_{version}",
                 tag=f"mssql_{version}" if runtime == "async-std" else f"mssql_{version}_{runtime}",

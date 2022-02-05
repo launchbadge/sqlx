@@ -2354,6 +2354,7 @@ version = "0.5.11"
 dependencies = [
  "anyhow",
  "async-std",
+ "chrono",
  "dotenv",
  "env_logger 0.8.4",
  "futures",

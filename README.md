@@ -161,7 +161,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `uuid`: Add support for UUID (in Postgres).
 
--   `chrono`: Add support for date and time types from `chrono`.
+-   `with_chrono`: Add support for date and time types from `chrono`.
 
 -   `time`: Add support for date and time types from `time` crate (alternative to `chrono`, which is preferred by `query!` macro, if both enabled)
 

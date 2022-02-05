@@ -58,7 +58,7 @@ all-types = [
     "decimal",
     "json",
     "time",
-    "chrono",
+    "with_chrono",
     "ipnetwork",
     "mac_address",
     "uuid",
@@ -121,7 +121,7 @@ mssql = ["sqlx-core/mssql", "sqlx-macros/mssql"]
 # types
 bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros/bigdecimal"]
 decimal = ["sqlx-core/decimal", "sqlx-macros/decimal"]
-chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
+with_chrono = ["sqlx-core/chrono", "sqlx-macros/chrono"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros/ipnetwork"]
 mac_address = ["sqlx-core/mac_address", "sqlx-macros/mac_address"]
 uuid = ["sqlx-core/uuid", "sqlx-macros/uuid"]
@@ -153,6 +153,7 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
+chrono = "0.4.19"
 #
 # Any
 #

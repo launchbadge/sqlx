@@ -1,3 +1,4 @@
+use chrono::{DateTime, NaiveDateTime};
 use sqlx::mssql::Mssql;
 use sqlx_test::test_type;
 
@@ -40,4 +41,15 @@ test_type!(bool(
     Mssql,
     "CAST(1 as BIT)" == true,
     "CAST(0 as BIT)" == false
+));
+
+test_type!(NaiveDateTime(
+    Mssql,
+    "CAST('2016-10-23 12:45:37.1234567' as DateTime2)"
+        == NaiveDateTime::from_timestamp(1477226737, 123456700)
+));
+
+test_type!(DateTime<_>(
+    Mssql,
+    "CAST('2016-10-23 12:45:37.1234567 +02:00' as datetimeoffset(7))" == DateTime::parse_from_rfc3339("2016-10-23T12:45:37.1234567+02:00").unwrap()
 ));
