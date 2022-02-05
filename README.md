@@ -218,10 +218,6 @@ async-std = { version = "1", features = [ "attributes" ] }
 # Tokio:
 sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
 tokio = { version = "1", features = ["full"] }
-
-# Actix-web:
-sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
-actix-web = "3"
 ```
 
 ```rust

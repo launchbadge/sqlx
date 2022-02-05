@@ -128,15 +128,6 @@ pub fn test(_attr: TokenStream, input: TokenStream) -> TokenStream {
                 ::sqlx_rt::async_std::task::block_on(async { #body })
             }
         }
-    } else if cfg!(feature = "_rt-actix") {
-        quote! {
-            #[test]
-            #(#attrs)*
-            fn #name() #ret {
-                ::sqlx_rt::actix_rt::System::new()
-                    .block_on(async { #body })
-            }
-        }
     } else {
         panic!("one of 'runtime-actix', 'runtime-async-std' or 'runtime-tokio' features must be enabled");
     };

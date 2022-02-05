@@ -938,7 +938,7 @@ from (values (null)) vals(val)
 
 #[sqlx_macros::test]
 async fn test_listener_cleanup() -> anyhow::Result<()> {
-    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    #[cfg(feature = "_rt-tokio")]
     use tokio::time::timeout;
 
     #[cfg(feature = "_rt-async-std")]

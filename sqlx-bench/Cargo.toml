@@ -6,10 +6,7 @@ edition = "2021"
 publish = false
 
 [features]
-runtime-actix-native-tls = [
-    "sqlx/runtime-actix-native-tls",
-    "sqlx-rt/runtime-actix-native-tls",
-]
+runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx/runtime-async-std-native-tls",
     "sqlx-rt/runtime-async-std-native-tls",
@@ -19,10 +16,7 @@ runtime-tokio-native-tls = [
     "sqlx-rt/runtime-tokio-native-tls",
 ]
 
-runtime-actix-rustls = [
-    "sqlx/runtime-actix-rustls",
-    "sqlx-rt/runtime-actix-rustls",
-]
+runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = [
     "sqlx/runtime-async-std-rustls",
     "sqlx-rt/runtime-async-std-rustls",
