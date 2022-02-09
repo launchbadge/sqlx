@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .fetch_one(&mut transaction)
         .await?;
 
-    transaction.rollback();
+    transaction.rollback().await?;
 
     // check that inserted todo is now gone
     let inserted_todo = query!(r#"SELECT FROM todos WHERE id = $1"#, test_id)
