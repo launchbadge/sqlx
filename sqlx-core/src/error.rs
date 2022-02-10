@@ -104,7 +104,7 @@ pub enum Error {
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
 
-    /// A background worker has crashed.
+    /// LTree labels can only contain [A-Za-z_]
     #[cfg(feature = "ltree")]
     #[error("ltree label cotains invalid characters")]
     InvalidLtreeLabel,
