@@ -103,6 +103,11 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
+
+    /// A background worker has crashed.
+    #[cfg(feature = "ltree")]
+    #[error("ltree label cotains invalid characters")]
+    InvalidLtreeLabel,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

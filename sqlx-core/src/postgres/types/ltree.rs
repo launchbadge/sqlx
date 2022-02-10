@@ -6,9 +6,20 @@ use crate::error::{Error, BoxDynError};
 use crate::postgres::{PgArgumentBuffer, PgValueFormat, PgTypeInfo, PgValueRef, Postgres};
 use crate::types::Type;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PgLTree {
     labels: Vec<String>
+}
+
+impl PgLTree {
+    pub fn push(&mut self, label: String) -> Result<(), Error> {
+        if label.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_') {
+            self.labels.push(label);
+            Ok(())
+        } else {
+            Err(Error::InvalidLtreeLabel)
+        }
+    }
 }
 
 impl FromStr for PgLTree {
