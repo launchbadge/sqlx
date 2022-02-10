@@ -69,6 +69,9 @@ impl_database_ext! {
         #[cfg(feature = "bit-vec")]
         sqlx::types::BitVec,
 
+        #[cfg(feature = "ltree")]
+        sqlx::postgres::types::PgLTree,
+
         // Arrays
 
         Vec<bool> | &[bool],

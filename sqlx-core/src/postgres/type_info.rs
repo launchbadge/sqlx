@@ -116,6 +116,7 @@ pub enum PgType {
     JsonpathArray,
     Money,
     MoneyArray,
+    Ltree,
 
     // https://www.postgresql.org/docs/9.3/datatype-pseudo.html
     Void,
@@ -328,6 +329,7 @@ impl PgType {
             3927 => PgType::Int8RangeArray,
             4072 => PgType::Jsonpath,
             4073 => PgType::JsonpathArray,
+            16394 => PgType::Ltree,
 
             _ => {
                 return None;
@@ -436,6 +438,7 @@ impl PgType {
             PgType::Int8RangeArray => 3927,
             PgType::Jsonpath => 4072,
             PgType::JsonpathArray => 4073,
+            PgType::Ltree => 16394,
             PgType::Custom(ty) => ty.oid,
 
             PgType::DeclareWithOid(oid) => *oid,
@@ -538,6 +541,7 @@ impl PgType {
             PgType::JsonpathArray => "JSONPATH[]",
             PgType::Money => "MONEY",
             PgType::MoneyArray => "MONEY[]",
+            PgType::Ltree => "LTREE",
             PgType::Void => "VOID",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
@@ -638,6 +642,7 @@ impl PgType {
             PgType::JsonpathArray => "_jsonpath",
             PgType::Money => "money",
             PgType::MoneyArray => "_money",
+            PgType::Ltree => "ltree",
             PgType::Void => "void",
             PgType::Custom(ty) => &*ty.name,
             PgType::DeclareWithOid(_) => "?",
@@ -738,6 +743,7 @@ impl PgType {
             PgType::JsonpathArray => &PgTypeKind::Array(PgTypeInfo(PgType::Jsonpath)),
             PgType::Money => &PgTypeKind::Simple,
             PgType::MoneyArray => &PgTypeKind::Array(PgTypeInfo(PgType::Money)),
+            PgType::Ltree => &PgTypeKind::Simple,
 
             PgType::Void => &PgTypeKind::Pseudo,
 
@@ -849,6 +855,7 @@ impl PgType {
             PgType::Int8RangeArray => Some(Cow::Owned(PgTypeInfo(PgType::Int8Range))),
             PgType::Jsonpath => None,
             PgType::JsonpathArray => Some(Cow::Owned(PgTypeInfo(PgType::Jsonpath))),
+            PgType::Ltree => None,
             // There is no `UnknownArray`
             PgType::Unknown => None,
             // There is no `VoidArray`
@@ -1100,6 +1107,11 @@ impl PgTypeInfo {
 
     pub(crate) const INT8_RANGE: Self = Self(PgType::Int8Range);
     pub(crate) const INT8_RANGE_ARRAY: Self = Self(PgType::Int8RangeArray);
+
+    //
+    // ltree
+
+    pub(crate) const LTREE: Self = Self(PgType::Ltree);
 
     //
     // pseudo types

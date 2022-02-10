@@ -208,6 +208,12 @@ mod mac_address;
 #[cfg(feature = "bit-vec")]
 mod bit_vec;
 
+#[cfg(feature = "ltree")]
+mod ltree;
+
+#[cfg(feature = "ltree")]
+pub use ltree::PgLTree;
+
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
 pub use money::PgMoney;

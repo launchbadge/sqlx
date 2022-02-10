@@ -62,6 +62,7 @@ all-types = [
 bigdecimal = ["bigdecimal_", "num-bigint"]
 decimal = ["rust_decimal", "num-bigint"]
 json = ["serde", "serde_json"]
+ltree = ["postgres"]
 
 # runtimes
 runtime-actix-native-tls = [
