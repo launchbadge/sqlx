@@ -6,7 +6,7 @@ use crate::error::{Error, BoxDynError};
 use crate::postgres::{PgArgumentBuffer, PgValueFormat, PgTypeInfo, PgValueRef, Postgres};
 use crate::types::Type;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
     labels: Vec<String>
 }
