@@ -1,19 +1,22 @@
-use std::fmt::{self, Display, Formatter};
-use std::str::FromStr;
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::{Error, BoxDynError};
-use crate::postgres::{PgArgumentBuffer, PgValueFormat, PgTypeInfo, PgValueRef, Postgres};
+use crate::error::{BoxDynError, Error};
+use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
+use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
-    labels: Vec<String>
+    labels: Vec<String>,
 }
 
 impl PgLTree {
     pub fn push(&mut self, label: String) -> Result<(), Error> {
-        if label.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_') {
+        if label
+            .chars()
+            .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_')
+        {
             self.labels.push(label);
             Ok(())
         } else {
@@ -26,17 +29,22 @@ impl FromStr for PgLTree {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(
-            Self {
-                labels: s.split('.').map(|s| s.to_owned()).collect()
-            }
-        )
+        Ok(Self {
+            labels: s.split('.').map(|s| s.to_owned()).collect(),
+        })
     }
 }
 
 impl Display for PgLTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.labels.join("."))
+        let mut iter = self.labels.iter();
+        if let Some(label) = iter.next() {
+            write!(f, "{}", label)?;
+            while let Some(label) = iter.next() {
+                write!(f, ".{}", label)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -62,11 +70,11 @@ impl<'r> Decode<'r, Postgres> for PgLTree {
                 let bytes = value.as_bytes()?;
                 let version = i8::from_le_bytes([bytes[0]; 1]);
                 if version != 1 {
-                    todo!("add error here")
+                    return Err(Box::new(Error::InvalidLtreeVersion));
                 }
-                Ok(Self::from_str(&String::from_utf8(bytes[1..].to_vec())?)?)
-            },
-            PgValueFormat::Text => Ok(Self::from_str(value.as_str()?)?)
+                Ok(Self::from_str(std::str::from_utf8(&bytes[1..])?)?)
+            }
+            PgValueFormat::Text => Ok(Self::from_str(value.as_str()?)?),
         }
     }
 }

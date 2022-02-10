@@ -108,6 +108,11 @@ pub enum Error {
     #[cfg(feature = "ltree")]
     #[error("ltree label cotains invalid characters")]
     InvalidLtreeLabel,
+
+    /// LTree version not supported
+    #[cfg(feature = "ltree")]
+    #[error("ltree version not supported")]
+    InvalidLtreeVersion,
 }
 
 impl StdError for Box<dyn DatabaseError> {}
