@@ -4,7 +4,6 @@ use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 use std::fmt::{self, Display, Formatter};
-use std::iter::FromIterator;
 use std::str::FromStr;
 
 /// Represents ltree specific errors
@@ -39,10 +38,10 @@ impl PgLTree {
 
     /// creates ltree from an iterator with checking labels
     pub fn from_iter(
-        labels: impl IntoIterator<Item = String, IntoIter = std::vec::IntoIter<String>>,
+        labels: impl IntoIterator<Item = String>,
     ) -> Result<Self, Error> {
         let mut ltree = Self::default();
-        for label in labels {
+        for label in labels.into_iter() {
             ltree.push(label)?;
         }
         Ok(ltree)
