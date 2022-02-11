@@ -103,16 +103,6 @@ pub enum Error {
     #[cfg(feature = "migrate")]
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
-
-    /// LTree labels can only contain [A-Za-z0-9_]
-    #[cfg(feature = "ltree")]
-    #[error("ltree label cotains invalid characters")]
-    InvalidLtreeLabel,
-
-    /// LTree version not supported
-    #[cfg(feature = "ltree")]
-    #[error("ltree version not supported")]
-    InvalidLtreeVersion,
 }
 
 impl StdError for Box<dyn DatabaseError> {}

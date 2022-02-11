@@ -1,10 +1,27 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
-use crate::error::{BoxDynError, Error};
+use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
+
+
+/// Represents ltree specific errors
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum Error {
+   /// LTree labels can only contain [A-Za-z0-9_]
+    #[cfg(feature = "ltree")]
+    #[error("ltree label cotains invalid characters")]
+    InvalidLtreeLabel,
+
+    /// LTree version not supported
+    #[cfg(feature = "ltree")]
+    #[error("ltree version not supported")]
+    InvalidLtreeVersion,
+}
+
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
