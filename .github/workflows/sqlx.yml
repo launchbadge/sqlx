@@ -240,7 +240,9 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        mysql: [8, 5_6]
+        # FIXME: 8.0.28 introduced a regression in our type tests: https://github.com/launchbadge/sqlx/issues/1664
+        # The MySQL devs agreed that it was a regression and that it will be fixed in 8.0.29
+        mysql: [8.0.27, 5_6]
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
     needs: check
