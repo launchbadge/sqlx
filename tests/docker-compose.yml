@@ -7,7 +7,9 @@ services:
     #
 
     mysql_8:
-        image: mysql:8.0
+        # FIXME: 8.0.28 introduced a regression in our type tests: https://github.com/launchbadge/sqlx/issues/1664
+        # The MySQL devs agreed that it was a regression and that it will be fixed in 8.0.29
+        image: mysql:8.0.27
         volumes:
             - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         ports:
