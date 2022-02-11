@@ -50,7 +50,7 @@ impl Display for PgLTree {
 
 impl Type<Postgres> for PgLTree {
     fn type_info() -> PgTypeInfo {
-        PgTypeInfo::LTREE
+        PgTypeInfo::with_name("ltree")
     }
 }
 
