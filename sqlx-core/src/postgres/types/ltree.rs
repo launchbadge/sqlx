@@ -4,14 +4,14 @@ use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 use std::fmt::{self, Display, Formatter};
+use std::iter::FromIterator;
 use std::str::FromStr;
-
 
 /// Represents ltree specific errors
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-   /// LTree labels can only contain [A-Za-z0-9_]
+    /// LTree labels can only contain [A-Za-z0-9_]
     #[error("ltree label cotains invalid characters")]
     InvalidLtreeLabel,
 
@@ -20,7 +20,6 @@ pub enum Error {
     InvalidLtreeVersion,
 }
 
-
 /// Represents an postgres ltree. Not that this is an EXTENSION!
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
@@ -28,6 +27,28 @@ pub struct PgLTree {
 }
 
 impl PgLTree {
+    /// creates default/empty ltree
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// creates ltree from a [Vec<String>] without checking labels
+    pub fn new_unchecked(labels: Vec<String>) -> Self {
+        Self { labels }
+    }
+
+    /// creates ltree from an iterator with checking labels
+    pub fn from_iter(
+        labels: impl IntoIterator<Item = String, IntoIter = std::vec::IntoIter<String>>,
+    ) -> Result<Self, Error> {
+        let mut ltree = Self::default();
+        for label in labels {
+            ltree.push(label)?;
+        }
+        Ok(ltree)
+    }
+
+    /// push a label to ltree
     pub fn push(&mut self, label: String) -> Result<(), Error> {
         if label
             .bytes()
@@ -40,8 +61,18 @@ impl PgLTree {
         }
     }
 
+    /// pop a label from ltree
     pub fn pop(&mut self) -> Option<String> {
         self.labels.pop()
+    }
+}
+
+impl IntoIterator for PgLTree {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.labels.into_iter()
     }
 }
 

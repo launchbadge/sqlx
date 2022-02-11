@@ -1,5 +1,5 @@
-use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Write};
+use std::ops::{Deref, DerefMut};
 
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
