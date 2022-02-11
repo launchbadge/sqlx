@@ -18,6 +18,8 @@ impl_database_ext! {
 
         sqlx::postgres::types::PgMoney,
 
+        sqlx::postgres::types::PgLTree,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
@@ -68,9 +70,6 @@ impl_database_ext! {
 
         #[cfg(feature = "bit-vec")]
         sqlx::types::BitVec,
-
-        #[cfg(feature = "ltree")]
-        sqlx::postgres::types::PgLTree,
 
         // Arrays
 

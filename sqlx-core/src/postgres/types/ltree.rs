@@ -12,17 +12,16 @@ use std::str::FromStr;
 #[non_exhaustive]
 pub enum Error {
    /// LTree labels can only contain [A-Za-z0-9_]
-    #[cfg(feature = "ltree")]
     #[error("ltree label cotains invalid characters")]
     InvalidLtreeLabel,
 
     /// LTree version not supported
-    #[cfg(feature = "ltree")]
     #[error("ltree version not supported")]
     InvalidLtreeVersion,
 }
 
 
+/// Represents an postgres ltree. Not that this is an EXTENSION!
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
     labels: Vec<String>,

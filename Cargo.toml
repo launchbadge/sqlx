@@ -130,7 +130,6 @@ time = ["sqlx-core/time", "sqlx-macros/time"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
-ltree = ["sqlx-core/ltree", "sqlx-macros/ltree"]
 
 [dependencies]
 sqlx-core = { version = "0.5.10", path = "sqlx-core", default-features = false }
