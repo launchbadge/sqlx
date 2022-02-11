@@ -40,6 +40,10 @@ impl PgLTree {
             Err(Error::InvalidLtreeLabel)
         }
     }
+
+    pub fn pop(&mut self) -> Option<String> {
+        self.labels.pop()
+    }
 }
 
 impl FromStr for PgLTree {
