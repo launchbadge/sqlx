@@ -30,8 +30,8 @@ pub struct PgLTree {
 impl PgLTree {
     pub fn push(&mut self, label: String) -> Result<(), Error> {
         if label
-            .chars()
-            .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_')
+            .bytes()
+            .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
         {
             self.labels.push(label);
             Ok(())
