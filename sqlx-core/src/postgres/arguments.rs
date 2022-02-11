@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use std::fmt::{self, Write};
 
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
@@ -160,6 +161,24 @@ impl PgArgumentBuffer {
 
         self.extend_from_slice(&0_u32.to_be_bytes());
         self.type_holes.push((offset, type_name.clone()));
+    }
+
+    pub(crate) fn extend_display<T: fmt::Display>(&mut self, value: T) {
+        struct VecFmt<'a>(&'a mut Vec<u8>);
+
+        impl<'a> fmt::Write for VecFmt<'a> {
+            fn write_char(&mut self, c: char) -> fmt::Result {
+                self.write_str(c.encode_utf8(&mut [0u8; 4]))
+            }
+
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                self.0.extend_from_slice(s.as_bytes());
+                Ok(())
+            }
+        }
+
+        write!(VecFmt(&mut self.buffer), "{}", value)
+            .expect("Display implementation panicked while writing to PgArgumentBuffer");
     }
 }
 

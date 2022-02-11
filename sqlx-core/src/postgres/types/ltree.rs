@@ -77,7 +77,7 @@ impl Type<Postgres> for PgLTree {
 impl Encode<'_, Postgres> for PgLTree {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend(1i8.to_le_bytes());
-        buf.extend(self.to_string().as_bytes());
+        buf.extend_display(self);
 
         IsNull::No
     }
