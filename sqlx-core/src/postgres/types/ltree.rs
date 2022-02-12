@@ -4,12 +4,13 @@ use crate::error::BoxDynError;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 use std::fmt::{self, Display, Formatter};
+use std::ops::Deref;
 use std::str::FromStr;
 
 /// Represents ltree specific errors
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum Error {
+pub enum PgLTreeParseError {
     /// LTree labels can only contain [A-Za-z0-9_]
     #[error("ltree label cotains invalid characters")]
     InvalidLtreeLabel,
@@ -19,7 +20,16 @@ pub enum Error {
     InvalidLtreeVersion,
 }
 
-/// Represents an postgres ltree. Not that this is an EXTENSION!
+/// Container for a Label Tree (`ltree`) in Postgres.
+///
+/// See https://www.postgresql.org/docs/current/ltree.html
+///
+/// ### Note: Extension Required
+/// The `ltree` extension is not enabled by default in Postgres. You will need to do so explicitly:
+///
+/// ```ignore
+/// CREATE EXTENSION IF NOT EXISTS "ltree";
+/// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
     labels: Vec<String>,
@@ -37,26 +47,29 @@ impl PgLTree {
     }
 
     /// creates ltree from an iterator with checking labels
-    pub fn from_iter(
-        labels: impl IntoIterator<Item = String>,
-    ) -> Result<Self, Error> {
+    pub fn from_iter<I, S>(labels: I) -> Result<Self, PgLTreeParseError>
+    where
+        S: Into<String>,
+        I: IntoIterator<Item = S>,
+    {
         let mut ltree = Self::default();
-        for label in labels.into_iter() {
-            ltree.push(label)?;
+        for label in labels {
+            ltree.push(label.into())?;
         }
         Ok(ltree)
     }
 
     /// push a label to ltree
-    pub fn push(&mut self, label: String) -> Result<(), Error> {
-        if label
-            .bytes()
-            .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
+    pub fn push(&mut self, label: String) -> Result<(), PgLTreeParseError> {
+        if label.len() <= 256
+            && label
+                .bytes()
+                .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
         {
             self.labels.push(label);
             Ok(())
         } else {
-            Err(Error::InvalidLtreeLabel)
+            Err(PgLTreeParseError::InvalidLtreeLabel)
         }
     }
 
@@ -76,9 +89,9 @@ impl IntoIterator for PgLTree {
 }
 
 impl FromStr for PgLTree {
-    type Err = Error;
+    type Err = PgLTreeParseError;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
             labels: s.split('.').map(|s| s.to_owned()).collect(),
         })
@@ -90,7 +103,7 @@ impl Display for PgLTree {
         let mut iter = self.labels.iter();
         if let Some(label) = iter.next() {
             write!(f, "{}", label)?;
-            while let Some(label) = iter.next() {
+            for label in iter {
                 write!(f, ".{}", label)?;
             }
         }
@@ -98,8 +111,17 @@ impl Display for PgLTree {
     }
 }
 
+impl Deref for PgLTree {
+    type Target = [String];
+
+    fn deref(&self) -> &Self::Target {
+        &self.labels
+    }
+}
+
 impl Type<Postgres> for PgLTree {
     fn type_info() -> PgTypeInfo {
+        // Since `ltree` is enabled by an extension, it does not have a stable OID.
         PgTypeInfo::with_name("ltree")
     }
 }
@@ -120,7 +142,7 @@ impl<'r> Decode<'r, Postgres> for PgLTree {
                 let bytes = value.as_bytes()?;
                 let version = i8::from_le_bytes([bytes[0]; 1]);
                 if version != 1 {
-                    return Err(Box::new(Error::InvalidLtreeVersion));
+                    return Err(Box::new(PgLTreeParseError::InvalidLtreeVersion));
                 }
                 Ok(Self::from_str(std::str::from_utf8(&bytes[1..])?)?)
             }

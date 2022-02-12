@@ -1,4 +1,5 @@
-use std::fmt::{self, Write};
+use std::fmt;
+use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
 use crate::arguments::Arguments;
@@ -177,7 +178,7 @@ impl PgArgumentBuffer {
             }
         }
 
-        write!(VecFmt(&mut self.buffer), "{}", value)
+        write!(self.buffer, "{}", value)
             .expect("Display implementation panicked while writing to PgArgumentBuffer");
     }
 }

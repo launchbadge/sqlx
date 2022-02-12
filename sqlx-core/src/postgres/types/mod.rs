@@ -212,6 +212,7 @@ mod bit_vec;
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
 pub use ltree::PgLTree;
+pub use ltree::PgLTreeParseError;
 pub use money::PgMoney;
 pub use range::PgRange;
 
