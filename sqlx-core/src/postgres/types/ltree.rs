@@ -131,7 +131,7 @@ impl Type<Postgres> for PgLTree {
 
 impl PgHasArrayType for PgLTree {
     fn array_type_info() -> PgTypeInfo {
-        PgTypeInfo::with_name("ltree[]")
+        PgTypeInfo::with_name("_ltree")
     }
 }
 

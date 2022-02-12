@@ -158,6 +158,7 @@ macro_rules! __test_prepared_type {
 
                 $(
                     let query = format!($sql, $text);
+                    println!("{query}");
 
                     let row = sqlx::query(&query)
                         .bind($value)

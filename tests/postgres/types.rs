@@ -519,7 +519,7 @@ test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
 ));
 
 test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
-    "['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
+    "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
         vec![
             sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
             sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
