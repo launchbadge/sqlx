@@ -6,6 +6,7 @@ use crate::postgres::{
 };
 use crate::types::Type;
 use std::fmt::{self, Display, Formatter};
+use std::io::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -137,7 +138,8 @@ impl PgHasArrayType for PgLTree {
 impl Encode<'_, Postgres> for PgLTree {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         buf.extend(1i8.to_le_bytes());
-        buf.extend_display(self);
+        write!(buf, "{}", self)
+            .expect("Display implementation panicked while writing to PgArgumentBuffer");
 
         IsNull::No
     }
