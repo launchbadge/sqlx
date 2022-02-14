@@ -24,9 +24,9 @@ pub enum PgLTreeParseError {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct PglTreeLabel(String);
+pub struct PgLTreeLabel(String);
 
-impl PglTreeLabel {
+impl PgLTreeLabel {
     pub fn new(label: &str) -> Result<Self, PgLTreeParseError> {
         if label.len() <= 256
             && label
@@ -40,7 +40,7 @@ impl PglTreeLabel {
     }
 }
 
-impl Deref for PglTreeLabel {
+impl Deref for PgLTreeLabel {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -48,15 +48,15 @@ impl Deref for PglTreeLabel {
     }
 }
 
-impl FromStr for PglTreeLabel {
+impl FromStr for PgLTreeLabel {
     type Err = PgLTreeParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        PglTreeLabel::new(s)
+        PgLTreeLabel::new(s)
     }
 }
 
-impl Display for PglTreeLabel {
+impl Display for PgLTreeLabel {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -84,7 +84,7 @@ impl Display for PglTreeLabel {
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
-    labels: Vec<PglTreeLabel>,
+    labels: Vec<PgLTreeLabel>,
 }
 
 impl PgLTree {
@@ -93,8 +93,8 @@ impl PgLTree {
         Self::default()
     }
 
-    /// creates ltree from a [Vec<PglTreeLabel>]
-    pub fn from(labels: Vec<PglTreeLabel>) -> Self {
+    /// creates ltree from a [Vec<PgLTreeLabel>]
+    pub fn from(labels: Vec<PgLTreeLabel>) -> Self {
         Self { labels }
     }
 
@@ -113,18 +113,18 @@ impl PgLTree {
 
     /// push a label to ltree
     pub fn push(&mut self, label: &str) -> Result<(), PgLTreeParseError> {
-        self.labels.push(PglTreeLabel::new(label)?);
+        self.labels.push(PgLTreeLabel::new(label)?);
         Ok(())
     }
 
     /// pop a label from ltree
-    pub fn pop(&mut self) -> Option<PglTreeLabel> {
+    pub fn pop(&mut self) -> Option<PgLTreeLabel> {
         self.labels.pop()
     }
 }
 
 impl IntoIterator for PgLTree {
-    type Item = PglTreeLabel;
+    type Item = PgLTreeLabel;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -139,7 +139,7 @@ impl FromStr for PgLTree {
         Ok(Self {
             labels: s
                 .split('.')
-                .map(|s| PglTreeLabel::new(s))
+                .map(|s| PgLTreeLabel::new(s))
                 .collect::<Result<Vec<_>, Self::Err>>()?,
         })
     }
@@ -159,7 +159,7 @@ impl Display for PgLTree {
 }
 
 impl Deref for PgLTree {
-    type Target = [PglTreeLabel];
+    type Target = [PgLTreeLabel];
 
     fn deref(&self) -> &Self::Target {
         &self.labels

@@ -9,7 +9,7 @@ use std::io::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use crate::postgres::types::ltree::{PgLTreeParseError, PglTreeLabel};
+use crate::postgres::types::ltree::{PgLTreeParseError, PgLTreeLabel};
 
 /// Represents lquery specific errors
 #[derive(Debug, thiserror::Error)]
@@ -50,6 +50,10 @@ impl PgLQuery {
         Self::default()
     }
 
+    pub fn from(levels: Vec<PgLQueryLevel>) -> Self {
+        Self { levels }
+    }
+
     /// push a query level
     pub fn push(&mut self, level: PgLQueryLevel) {
         self.levels.push(level);
@@ -61,16 +65,16 @@ impl PgLQuery {
     }
 
     /// creates lquery from an iterator with checking labels
-    pub fn from_iter<I, S>(levels: I) -> Self
+    pub fn from_iter<I, S>(levels: I) -> Result<Self, PgLQueryParseError>
     where
-        S: Into<PgLQueryLevel>,
-        I: IntoIterator<Item = PgLQueryLevel>,
+        S: Into<String>,
+        I: IntoIterator<Item = S>,
     {
         let mut lquery = Self::default();
         for level in levels {
-            lquery.push(level.into());
+            lquery.push(PgLQueryLevel::from_str(&level.into())?);
         }
-        lquery
+        Ok(lquery)
     }
 }
 
@@ -180,7 +184,7 @@ impl Display for PgLQueryVariantFlag {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PgLQueryVariant {
-    label: PglTreeLabel,
+    label: PgLTreeLabel,
     modifiers: PgLQueryVariantFlag,
 }
 
@@ -262,7 +266,7 @@ impl FromStr for PgLQueryVariant {
         }
 
         Ok(PgLQueryVariant {
-            label: PglTreeLabel::new(&s[0..label_length])?,
+            label: PgLTreeLabel::new(&s[0..label_length])?,
             modifiers,
         })
     }
