@@ -2021,7 +2021,7 @@ dependencies = [
 [[package]]
 name = "rsa"
 version = "0.5.0"
-source = "git+https://github.com/RustCrypto/RSA.git?rev=6717592#6717592cc857a81c8c6f7d78c3e40ef36bd5cd67"
+source = "git+https://github.com/RustCrypto/RSA.git?rev=7395997#7395997c40b0f2c0bdb362b2998cbf9250408276"
 dependencies = [
  "byteorder",
  "digest",
