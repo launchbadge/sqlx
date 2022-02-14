@@ -107,7 +107,7 @@
 ///
 /// In Postgres and MySQL you may also use `IS [NOT] DISTINCT FROM` to compare with a possibly
 /// `NULL` value. In MySQL `IS NOT DISTINCT FROM` can be shortened to `<=>`.
-/// In SQLite you can us `IS` or `IS NOT`. Note that operator precedence may be different.
+/// In SQLite you can use `IS` or `IS NOT`. Note that operator precedence may be different.
 ///
 /// ## Nullability: Output Columns
 /// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
