@@ -1,5 +1,5 @@
 -- https://www.postgresql.org/docs/current/ltree.html
-CREATE EXTENSION IF NOT EXISTS 'ltree';
+CREATE EXTENSION IF NOT EXISTS ltree;
 
 -- https://www.postgresql.org/docs/current/sql-createtype.html
 CREATE TYPE status AS ENUM ('new', 'open', 'closed');
