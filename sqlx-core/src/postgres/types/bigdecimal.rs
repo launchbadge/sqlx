@@ -115,7 +115,7 @@ impl TryFrom<&'_ BigDecimal> for PgNumeric {
                 digits.push(base_10_to_10000(first));
             }
         } else if offset != 0 {
-            digits.push(base_10_to_10000(&base_10) * 10i16.pow(3 - base_10.len() as u32));
+            digits.push(base_10_to_10000(&base_10) * 10i16.pow((offset - base_10.len()) as u32));
         }
 
         if let Some(rest) = base_10.get(offset..) {
