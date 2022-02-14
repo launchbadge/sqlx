@@ -168,6 +168,7 @@ mod bytes;
 mod float;
 mod int;
 mod interval;
+mod lquery;
 mod ltree;
 mod money;
 mod range;
@@ -211,6 +212,9 @@ mod bit_vec;
 
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
+pub use lquery::PgLQuery;
+pub use lquery::PgLQueryLevel;
+pub use lquery::PgLQueryVariantFlag;
 pub use ltree::PgLTree;
 pub use ltree::PgLTreeParseError;
 pub use money::PgMoney;
