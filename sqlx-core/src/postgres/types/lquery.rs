@@ -9,6 +9,8 @@ use std::io::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use crate::postgres::types::ltree::{PgLTreeParseError, PglTreeLabel};
+
 /// Represents lquery specific errors
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -19,15 +21,14 @@ pub enum PgLQueryParseError {
     UnexpectedCharacter,
     #[error("error parsing integer: {0}")]
     ParseIntError(#[from] std::num::ParseIntError),
-    /// LTree labels can only contain [A-Za-z0-9_]
-    #[error("ltree label cotains invalid characters")]
-    InvalidLtreeLabel,
+    #[error("error parsing integer: {0}")]
+    LTreeParrseError(#[from] PgLTreeParseError),
     /// LQuery version not supported
     #[error("lquery version not supported")]
     InvalidLqueryVersion,
 }
 
-/// Container for a Label Tree Query (`ltree`) in Postgres.
+/// Container for a Label Tree Query (`lquery`) in Postgres.
 ///
 /// See https://www.postgresql.org/docs/current/ltree.html
 ///
@@ -179,7 +180,7 @@ impl Display for PgLQueryVariantFlag {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PgLQueryVariant {
-    label: String,
+    label: PglTreeLabel,
     modifiers: PgLQueryVariantFlag,
 }
 
@@ -260,18 +261,10 @@ impl FromStr for PgLQueryVariant {
             label_length -= 1;
         }
 
-        if label_length <= 256
-            && s[0..label_length]
-                .bytes()
-                .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
-        {
-            Ok(PgLQueryVariant {
-                label: s[0..label_length].into(),
-                modifiers,
-            })
-        } else {
-            Err(PgLQueryParseError::InvalidLtreeLabel)
-        }
+        Ok(PgLQueryVariant {
+            label: PglTreeLabel::new(&s[0..label_length])?,
+            modifiers,
+        })
     }
 }
 
