@@ -168,6 +168,7 @@ mod bytes;
 mod float;
 mod int;
 mod interval;
+mod ltree;
 mod money;
 mod range;
 mod record;
@@ -210,6 +211,8 @@ mod bit_vec;
 
 pub use array::PgHasArrayType;
 pub use interval::PgInterval;
+pub use ltree::PgLTree;
+pub use ltree::PgLTreeParseError;
 pub use money::PgMoney;
 pub use range::PgRange;
 

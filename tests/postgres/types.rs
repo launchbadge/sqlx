@@ -1,12 +1,11 @@
 extern crate time_ as time;
 
 use std::ops::Bound;
-#[cfg(feature = "decimal")]
-use std::str::FromStr;
 
 use sqlx::postgres::types::{PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
+use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
     "NULL::int2" == None::<i16>
@@ -512,4 +511,23 @@ test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)))
 
 test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
+));
+
+// FIXME: needed to disable `ltree` tests in Postgres 9.6
+// but `PgLTree` should just fall back to text format
+#[cfg(postgres_14)]
+test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
+    "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
+));
+
+// FIXME: needed to disable `ltree` tests in Postgres 9.6
+// but `PgLTree` should just fall back to text format
+#[cfg(postgres_14)]
+test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
+    "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
+        vec![
+            sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+            sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
+        ]
 ));
