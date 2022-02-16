@@ -147,8 +147,8 @@
 /// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
 /// ```
 ///
-/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression, 
-/// and then that syntax is stripped from the expression so as to not trigger type errors 
+/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression,
+/// and then that syntax is stripped from the expression so as to not trigger type errors
 /// (or an unstable syntax feature in the case of the latter, which is called type ascription).
 ///
 /// ## Type Overrides: Output Columns
