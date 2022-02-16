@@ -27,6 +27,16 @@ pub enum PgLTreeParseError {
 ///
 /// See https://www.postgresql.org/docs/current/ltree.html
 ///
+/// ### Note: Requires Postgres 13+
+///
+/// This integration requires that the `ltree` type support the binary format in the Postgres
+/// wire protocol, which only became available in Postgres 13.
+/// ([Postgres 13.0 Release Notes, Additional Modules][https://www.postgresql.org/docs/13/release-13.html#id-1.11.6.11.5.14])
+///
+/// Ideally, SQLx's Postgres driver should support falling back to text format for types
+/// which don't have `typsend` and `typrecv` entries in `pg_type`, but that work still needs
+/// to be done.
+///
 /// ### Note: Extension Required
 /// The `ltree` extension is not enabled by default in Postgres. You will need to do so explicitly:
 ///
