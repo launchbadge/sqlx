@@ -106,7 +106,7 @@ impl PgLTree {
     {
         let mut ltree = Self::default();
         for label in labels {
-            ltree.push(label.into())?;
+            ltree.push(&label.into())?;
         }
         Ok(ltree)
     }

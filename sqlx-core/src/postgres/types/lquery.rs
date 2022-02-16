@@ -9,7 +9,7 @@ use std::io::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 
-use crate::postgres::types::ltree::{PgLTreeParseError, PgLTreeLabel};
+use crate::postgres::types::ltree::{PgLTreeLabel, PgLTreeParseError};
 
 /// Represents lquery specific errors
 #[derive(Debug, thiserror::Error)]
