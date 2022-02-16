@@ -147,10 +147,9 @@
 /// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
 /// ```
 ///
-/// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
-/// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
-/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
-/// forbidden for now as they produce rather nasty type errors.
+/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression,
+/// and then that syntax is stripped from the expression so as to not trigger type errors
+/// (or an unstable syntax feature in the case of the latter, which is called type ascription).
 ///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
