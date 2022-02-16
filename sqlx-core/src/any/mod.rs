@@ -61,4 +61,26 @@ impl_column_index_for_statement!(AnyStatement);
 impl_into_maybe_pool!(Any, AnyConnection);
 
 // required because some databases have a different handling of NULL
-impl_encode_for_option!(Any);
+impl<'q, T> crate::encode::Encode<'q, Any> for Option<T>
+where
+    T: AnyEncode<'q> + 'q,
+{
+    fn encode_by_ref(&self, buf: &mut AnyArgumentBuffer<'q>) -> crate::encode::IsNull {
+        match &mut buf.0 {
+            #[cfg(feature = "postgres")]
+            arguments::AnyArgumentBufferKind::Postgres(args, _) => args.add(self),
+
+            #[cfg(feature = "mysql")]
+            arguments::AnyArgumentBufferKind::MySql(args, _) => args.add(self),
+
+            #[cfg(feature = "mssql")]
+            arguments::AnyArgumentBufferKind::Mssql(args, _) => args.add(self),
+
+            #[cfg(feature = "sqlite")]
+            arguments::AnyArgumentBufferKind::Sqlite(args) => args.add(self),
+        }
+
+        // unused
+        crate::encode::IsNull::No
+    }
+}
