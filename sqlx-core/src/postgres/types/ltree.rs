@@ -23,6 +23,45 @@ pub enum PgLTreeParseError {
     InvalidLtreeVersion,
 }
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PgLTreeLabel(String);
+
+impl PgLTreeLabel {
+    pub fn new(label: &str) -> Result<Self, PgLTreeParseError> {
+        if label.len() <= 256
+            && label
+                .bytes()
+                .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
+        {
+            Ok(Self(label.to_owned()))
+        } else {
+            Err(PgLTreeParseError::InvalidLtreeLabel)
+        }
+    }
+}
+
+impl Deref for PgLTreeLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for PgLTreeLabel {
+    type Err = PgLTreeParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PgLTreeLabel::new(s)
+    }
+}
+
+impl Display for PgLTreeLabel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Container for a Label Tree (`ltree`) in Postgres.
 ///
 /// See https://www.postgresql.org/docs/current/ltree.html
@@ -45,7 +84,7 @@ pub enum PgLTreeParseError {
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PgLTree {
-    labels: Vec<String>,
+    labels: Vec<PgLTreeLabel>,
 }
 
 impl PgLTree {
@@ -54,8 +93,8 @@ impl PgLTree {
         Self::default()
     }
 
-    /// creates ltree from a [Vec<String>] without checking labels
-    pub fn new_unchecked(labels: Vec<String>) -> Self {
+    /// creates ltree from a [Vec<PgLTreeLabel>]
+    pub fn from(labels: Vec<PgLTreeLabel>) -> Self {
         Self { labels }
     }
 
@@ -67,33 +106,25 @@ impl PgLTree {
     {
         let mut ltree = Self::default();
         for label in labels {
-            ltree.push(label.into())?;
+            ltree.push(&label.into())?;
         }
         Ok(ltree)
     }
 
     /// push a label to ltree
-    pub fn push(&mut self, label: String) -> Result<(), PgLTreeParseError> {
-        if label.len() <= 256
-            && label
-                .bytes()
-                .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
-        {
-            self.labels.push(label);
-            Ok(())
-        } else {
-            Err(PgLTreeParseError::InvalidLtreeLabel)
-        }
+    pub fn push(&mut self, label: &str) -> Result<(), PgLTreeParseError> {
+        self.labels.push(PgLTreeLabel::new(label)?);
+        Ok(())
     }
 
     /// pop a label from ltree
-    pub fn pop(&mut self) -> Option<String> {
+    pub fn pop(&mut self) -> Option<PgLTreeLabel> {
         self.labels.pop()
     }
 }
 
 impl IntoIterator for PgLTree {
-    type Item = String;
+    type Item = PgLTreeLabel;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -106,7 +137,10 @@ impl FromStr for PgLTree {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            labels: s.split('.').map(|s| s.to_owned()).collect(),
+            labels: s
+                .split('.')
+                .map(|s| PgLTreeLabel::new(s))
+                .collect::<Result<Vec<_>, Self::Err>>()?,
         })
     }
 }
@@ -125,7 +159,7 @@ impl Display for PgLTree {
 }
 
 impl Deref for PgLTree {
-    type Target = [String];
+    type Target = [PgLTreeLabel];
 
     fn deref(&self) -> &Self::Target {
         &self.labels
