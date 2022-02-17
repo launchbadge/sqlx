@@ -2461,6 +2461,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "sqlformat",
+ "sqlx",
  "sqlx-rt",
  "stringprep",
  "thiserror",
