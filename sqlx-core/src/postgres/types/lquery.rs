@@ -34,7 +34,7 @@ pub enum PgLQueryParseError {
 ///
 /// ### Note: Requires Postgres 13+
 ///
-/// This integration requires that the `ltree` type support the binary format in the Postgres
+/// This integration requires that the `lquery` type support the binary format in the Postgres
 /// wire protocol, which only became available in Postgres 13.
 /// ([Postgres 13.0 Release Notes, Additional Modules][https://www.postgresql.org/docs/13/release-13.html#id-1.11.6.11.5.14])
 ///
