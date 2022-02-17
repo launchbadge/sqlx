@@ -2449,6 +2449,7 @@ dependencies = [
  "memchr",
  "num-bigint",
  "once_cell",
+ "paste",
  "percent-encoding",
  "rand",
  "regex",

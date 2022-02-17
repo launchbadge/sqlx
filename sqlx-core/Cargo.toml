@@ -99,6 +99,7 @@ _tls-rustls = ["rustls", "webpki", "webpki-roots"]
 offline = ["serde", "either/serde"]
 
 [dependencies]
+paste = "1.0.6"
 ahash = "0.7.6"
 atoi = "0.4.0"
 sqlx-rt = { path = "../sqlx-rt", version = "0.5.10"}
