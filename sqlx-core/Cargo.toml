@@ -165,3 +165,6 @@ bstr = { version = "0.2.17", default-features = false, features = ["std"], optio
 git2 = { version = "0.13.25", default-features = false, optional = true }
 hashlink = "0.7.0"
 indexmap = "1.7.0"
+
+[dev-dependencies]
+sqlx = { version = "0.5.10", path = "..", features = ["postgres", "sqlite"] }
