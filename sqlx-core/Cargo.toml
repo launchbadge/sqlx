@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.5.10"
+version = "0.5.11"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -102,7 +102,7 @@ offline = ["serde", "either/serde"]
 paste = "1.0.6"
 ahash = "0.7.6"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.5.10"}
+sqlx-rt = { path = "../sqlx-rt", version = "0.5.11"}
 base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
 bigdecimal_ = { version = "0.2.2", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.19.0", optional = true }
@@ -165,7 +165,9 @@ stringprep = "0.1.2"
 bstr = { version = "0.2.17", default-features = false, features = ["std"], optional = true }
 git2 = { version = "0.13.25", default-features = false, optional = true }
 hashlink = "0.7.0"
-indexmap = "1.7.0"
+# NOTE: *must* remain below 1.7.0 to allow users to avoid the `ahash` cyclic dependency problem by pinning the version
+# https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
+indexmap = "1.6.0"
 
 [dev-dependencies]
-sqlx = { version = "0.5.10", path = "..", features = ["postgres", "sqlite"] }
+sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite"] }

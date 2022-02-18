@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-macros"
-version = "0.5.10"
+version = "0.5.11"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -84,10 +84,10 @@ heck = "0.3.3"
 either = "1.6.1"
 once_cell = "1.9.0"
 proc-macro2 = { version = "1.0.36", default-features = false }
-sqlx-core = { version = "0.5.10", default-features = false, path = "../sqlx-core" }
-sqlx-rt = { version = "0.5.10", default-features = false, path = "../sqlx-rt" }
+sqlx-core = { version = "0.5.11", default-features = false, path = "../sqlx-core" }
+sqlx-rt = { version = "0.5.11", default-features = false, path = "../sqlx-rt" }
 serde = { version = "1.0.132", features = ["derive"], optional = true }
-serde_json = { version = "1.0.73", features = ["preserve_order"], optional = true }
+serde_json = { version = "1.0.73", optional = true }
 sha2 = { version = "0.9.8", optional = true }
 syn = { version = "1.0.84", default-features = false, features = ["full"] }
 quote = { version = "1.0.14", default-features = false }
