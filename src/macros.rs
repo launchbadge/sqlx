@@ -45,7 +45,7 @@
 /// server with the schema that the query string will be checked against. All variants of `query!()`
 /// use [dotenv] so this can be in a `.env` file instead.
 ///
-///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
 ///
 /// * The query must be a string literal, or concatenation of string literals using `+` (useful
