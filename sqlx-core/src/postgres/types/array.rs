@@ -99,6 +99,76 @@ where
     }
 }
 
+impl<'q, T, O> Encode<'q, Postgres> for &'_ [T]
+where
+    T: ToOwned<Owned = O> + Encode<'q, Postgres>,
+    O: Encode<'q, Postgres> + Type<Postgres>,
+{
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        let type_info = if self.len() < 1 {
+            T::type_info()
+        } else {
+            self[0].produces().unwrap_or_else(T::type_info)
+        };
+
+        buf.extend(&1_i32.to_be_bytes()); // number of dimensions
+        buf.extend(&0_i32.to_be_bytes()); // flags
+
+        // element type
+        match type_info.0 {
+            PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
+
+            ty => {
+                buf.extend(&ty.oid().to_be_bytes());
+            }
+        }
+
+        buf.extend(&(self.len() as i32).to_be_bytes()); // len
+        buf.extend(&1_i32.to_be_bytes()); // lower bound
+
+        for element in self.iter() {
+            buf.encode(element);
+        }
+
+        IsNull::No
+    }
+}
+
+impl<'q, T, O> Encode<'q, Postgres> for Vec<T>
+where
+    T: ToOwned<Owned = O> + Encode<'q, Postgres>,
+    O: Encode<'q, Postgres> + Type<Postgres>,
+{
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        let type_info = if self.len() < 1 {
+            T::type_info()
+        } else {
+            self[0].produces().unwrap_or_else(T::type_info)
+        };
+
+        buf.extend(&1_i32.to_be_bytes()); // number of dimensions
+        buf.extend(&0_i32.to_be_bytes()); // flags
+
+        // element type
+        match type_info.0 {
+            PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
+
+            ty => {
+                buf.extend(&ty.oid().to_be_bytes());
+            }
+        }
+
+        buf.extend(&(self.len() as i32).to_be_bytes()); // len
+        buf.extend(&1_i32.to_be_bytes()); // lower bound
+
+        for element in self.iter() {
+            buf.encode(element);
+        }
+
+        IsNull::No
+    }
+}
+
 impl<'r, T> Decode<'r, Postgres> for Vec<T>
 where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
