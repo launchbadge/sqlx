@@ -83,7 +83,7 @@ impl MySqlStream {
             while self.waiting.front() == Some(&Waiting::Row) {
                 let packet = self.recv_packet().await?;
 
-                if packet[0] == 0xfe && packet.len() < 9 {
+                if !packet.is_empty() && packet[0] == 0xfe && packet.len() < 9 {
                     let eof = packet.eof(self.capabilities)?;
 
                     if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
@@ -97,7 +97,7 @@ impl MySqlStream {
             while self.waiting.front() == Some(&Waiting::Result) {
                 let packet = self.recv_packet().await?;
 
-                if packet[0] == 0x00 || packet[0] == 0xff {
+                if !packet.is_empty() && (packet[0] == 0x00 || packet[0] == 0xff) {
                     let ok = packet.ok()?;
 
                     if !ok.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {

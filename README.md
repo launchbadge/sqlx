@@ -413,6 +413,16 @@ modifications (to the database-accessing parts of the code) are done, you can en
 to cache the results of the SQL query analysis using the `sqlx` command-line tool. See
 [sqlx-cli/README.md](./sqlx-cli/README.md#enable-building-in-offline-mode-with-query).
 
+Compile time verified queries do quite a bit of work at compile time. Incremental actions like
+`cargo check` and `cargo build` can be significantly faster when using an optimized build by
+putting the following in your `Cargo.toml` (More information in the
+[Profiles section](https://doc.rust-lang.org/cargo/reference/profiles.html) of The Cargo Book)
+
+```toml
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+```
+
 ## Safety
 
 This crate uses `#![forbid(unsafe_code)]` to ensure everything is implemented in 100% Safe Rust.
