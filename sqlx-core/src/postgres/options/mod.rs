@@ -1,5 +1,5 @@
 use std::env::var;
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
 
 mod connect;
@@ -351,15 +351,14 @@ impl PgConnectOptions {
         V: Display,
         I: IntoIterator<Item = (K, V)>,
     {
-        let mut options_str = String::new();
+        // Do this in here so `options_str` is only set if we have an option to insert
+        let options_str = self.options.get_or_insert_with(String::new);
         for (k, v) in options {
-            options_str += &format!("-c {}={}", k, v);
-        }
-        if let Some(ref mut v) = self.options {
-            v.push(' ');
-            v.push_str(&options_str);
-        } else {
-            self.options = Some(options_str);
+            if !options_str.is_empty() {
+                options_str.push(' ');
+            }
+
+            write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
         }
         self
     }
@@ -398,4 +397,22 @@ fn default_host(port: u16) -> String {
 
     // fallback to localhost if no socket was found
     "localhost".to_owned()
+}
+
+#[test]
+fn test_options_formatting() {
+    let options = PgConnectOptions::new().options([("geqo", "off")]);
+    assert_eq!(options.options, Some("-c geqo=off".to_string()));
+    let options = options.options([("search_path", "sqlx")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c search_path=sqlx".to_string())
+    );
+    let options = PgConnectOptions::new().options([("geqo", "off"), ("statement_timeout", "5min")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c statement_timeout=5min".to_string())
+    );
+    let options = PgConnectOptions::new();
+    assert_eq!(options.options, None);
 }
