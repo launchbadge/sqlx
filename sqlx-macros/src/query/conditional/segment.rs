@@ -20,7 +20,7 @@ pub enum QuerySegment {
 
 impl QuerySegment {
     /// Parse segments up to the first occurrence of the given token, or until the input is empty.
-    fn parse_until<T: Peek>(input: ParseStream, until: T) -> syn::Result<Vec<Self>> {
+    pub fn parse_until<T: Peek>(input: ParseStream, until: T) -> syn::Result<Vec<Self>> {
         let mut segments = vec![];
         while !input.is_empty() && !input.peek(until) {
             segments.push(QuerySegment::parse(input)?);

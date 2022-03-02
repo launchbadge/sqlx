@@ -123,7 +123,7 @@ impl Input {
             match &mut ctx {
                 Context::Default(ctx) => ctx.args.extend(self.arguments.iter().cloned()),
                 // we know this can only be a default context since there is only one branch
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
 
@@ -135,7 +135,7 @@ impl Parse for Input {
     fn parse(input: ParseStream) -> Result<Self> {
         let query_as = input.parse::<Path>()?;
         input.parse::<Token![,]>()?;
-        let segments = QuerySegment::parse_all(input)?;
+        let segments = QuerySegment::parse_until(input, Token![,])?;
         let arguments = match input.parse::<Option<Token![,]>>()? {
             None => vec![],
             Some(..) => Punctuated::<Expr, Token![,]>::parse_terminated(input)?
@@ -499,7 +499,7 @@ mod tests {
             Article,
             r#"SELECT * FROM articles"#
             if let Some(name_filter) = filter {
-                r#"WHERE "name" ILIKE {name_filter}"#,
+                r#"WHERE "name" ILIKE {name_filter}"#
             }
         );
         let result = syn::parse2::<Input>(input).unwrap();
