@@ -2,7 +2,72 @@
 /// compile time.
 /// This is achieved by computing every possible query within a procedural macro.
 /// It's only during runtime when the appropriate query will be chosen and executed.
-
+///
+/// ## Return type
+/// Since a single invocation of `query_as!` executes one of many possible queries, it's return type
+/// would differ between different invocations. This, of course, would break as soon as one tried to
+/// do anything with the return value, for example `.await`ing it.
+/// Therefor, this module introduces a workaround for conditional queries. The behaviour of normal
+/// queries is not affected by this.
+///
+/// For each *conditional* invocation of `query_as!`, an enum will be generated, and the invocation
+/// expands to an instance of this enum. This enum contains a variant for each possible query.
+/// see `[map::generate_conditional_map]`
+///
+/// ## Arguments
+/// For conditional queries, arguments must be specified *inline* (for example ".. WHERE name ILIKE {filter}).
+/// For normal queries, arguments can still be passed as a comma-separated list.
+///
+/// ## Example
+/// To outline how this all works, let's consider the following example.
+/// ```rust,ignore
+///  sqlx::query_as!(
+///     Article,
+///     "SELECT * FROM articles"
+///     if let Some(name_filter) = filter {
+///         "WHERE name ILIKE {name_filter}
+///     }
+/// ```
+///
+/// This input will first be parsed into a list of `QuerySegment`s.
+/// For the example above, this would result in something like this:
+/// ```rust,ignore
+/// [
+///     SqlSegment { sql: "SELECT * FROM articles", args: [] },
+///     IfSegment {
+///         condition: "let Some (name_filter) = filter",
+///         then: [
+///             SqlSegment { sql: "WHERE name ILIKE {name_filter}" }
+///         ]
+///     }
+/// ```
+///
+/// These segments are now transformed into a tree-structure. In essence, this would result in:
+/// ```rust,ignore
+/// IfContext {
+///     condition: "let Some(name_filter) = filter",
+///     then: NormalContext { sql: "SELECT * FROM articles WHERE name ILIKE ?", args: ["name_filter"] },
+///     or_else: NormalContext { sql: "SELECT * FROM articles", args: [] },
+/// }
+/// ```
+///
+/// Finally, the resulting code is generated:
+/// ```rust,ignore
+///     enum ConditionalMap { .. }
+///     if let Some(name_filter) = filter {
+///         ConditionalMap::_1(sqlx_macros::expand_query!(
+///             record = Article,
+///             source = "SELECT * FROM articles WHERE name ILIKE ?",
+///             args = [name_filter]
+///         ))
+///     } else {
+///         ConditionalMap::_2(sqlx_macros::expand_query!(
+///             record = Article,
+///             source = "SELECT * FROM articles",
+///             args = []
+///         ))
+///     }
+/// ```
 use std::{any::Any, fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
@@ -46,19 +111,23 @@ impl Input {
             ctx.add_segment(segment);
         }
 
-        if ctx.branches() > 1 && !self.arguments.is_empty() {
-            let err = Error::new(
-                Span::call_site(),
-                "branches (`match` and `if`) can only be used with inline arguments",
-            );
-            Err(err)
-        } else {
+        // add separately specified arguments to context
+        if !self.arguments.is_empty() {
+            if ctx.branches() > 1 {
+                let err = Error::new(
+                    Span::call_site(),
+                    "branches (`match` and `if`) can only be used with inline arguments",
+                );
+                return Err(err);
+            }
             match &mut ctx {
                 Context::Default(ctx) => ctx.args.extend(self.arguments.iter().cloned()),
-                _ => unreachable!(),
+                // we know this can only be a default context since there is only one branch
+                _ => unreachable!()
             }
-            Ok(ctx)
         }
+
+        Ok(ctx)
     }
 }
 
@@ -82,7 +151,7 @@ impl Parse for Input {
 }
 
 /// A context describes the current position within a conditional query.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Context {
     Default(NormalContext),
     If(IfContext),
@@ -117,9 +186,9 @@ impl Context {
         let branches = self.branches();
 
         let result = {
-            let mut branch_counter = 1;
+            let mut branch_counter = 0;
             let output = self.to_query(branches, &mut branch_counter);
-            assert_eq!(branch_counter, branches + 1);
+            assert_eq!(branch_counter, branches);
             output
         };
 
@@ -199,7 +268,7 @@ impl Context {
 }
 
 /// A "normal" linear context without any branches.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct NormalContext {
     query_as: Rc<Path>,
     sql: String,
@@ -270,7 +339,7 @@ impl IsContext for NormalContext {
 }
 
 /// Context within an `if .. {..} else ..` clause.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct IfContext {
     condition: Expr,
     then: Box<Context>,
@@ -302,7 +371,7 @@ impl IsContext for IfContext {
 }
 
 /// Context within `match .. { .. }`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct MatchContext {
     expr: Expr,
     arms: Vec<MatchArmContext>,
@@ -332,7 +401,7 @@ impl IsContext for MatchContext {
 }
 
 /// Context within the arm (`Pat => ..`) of a `match`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct MatchArmContext {
     pattern: Pat,
     inner: Box<Context>,
@@ -408,5 +477,33 @@ mod tests {
                 )
             },
         );
+    }
+
+    #[test]
+    fn single_if() {
+        let input = quote!(
+            Article,
+            "SELECT * FROM articles"
+            if let Some(name_filter) = filter {
+                "WHERE name ILIKE {name_filter}"
+            }
+        );
+        let result = syn::parse2::<Input>(input).unwrap();
+        let ctx = result.to_context().unwrap();
+        let output = ctx.generate_output();
+    }
+
+    #[test]
+    fn raw_literal() {
+        let input = quote!(
+            Article,
+            r#"SELECT * FROM articles"#
+            if let Some(name_filter) = filter {
+                r#"WHERE "name" ILIKE {name_filter}"#,
+            }
+        );
+        let result = syn::parse2::<Input>(input).unwrap();
+        let ctx = result.to_context().unwrap();
+        let output = ctx.generate_output();
     }
 }

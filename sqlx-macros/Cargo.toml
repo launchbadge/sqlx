@@ -89,6 +89,6 @@ sqlx-rt = { version = "0.5.11", default-features = false, path = "../sqlx-rt" }
 serde = { version = "1.0.132", features = ["derive"], optional = true }
 serde_json = { version = "1.0.73", optional = true }
 sha2 = { version = "0.9.8", optional = true }
-syn = { version = "1.0.84", default-features = false, features = ["full"] }
+syn = { version = "1.0.84", default-features = false, features = ["full", "extra-traits"] }
 quote = { version = "1.0.14", default-features = false }
 url = { version = "2.2.2", default-features = false }

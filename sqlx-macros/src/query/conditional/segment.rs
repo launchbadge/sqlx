@@ -1,6 +1,6 @@
+use proc_macro2::Span;
 use std::mem::swap;
 use std::ptr::replace;
-use proc_macro2::Span;
 use syn::{
     braced,
     parse::{Parse, ParseStream, Peek},
@@ -8,6 +8,7 @@ use syn::{
 };
 
 /// A single "piece" of the input.
+#[derive(Debug)]
 pub enum QuerySegment {
     /// A part of an SQL query, like `"SELECT *"`
     Sql(SqlSegment),
@@ -37,9 +38,10 @@ impl QuerySegment {
     }
 }
 
+#[derive(Debug)]
 pub struct SqlSegment {
     pub sql: String,
-    pub args: Vec<(usize, Expr, usize)>
+    pub args: Vec<(usize, Expr, usize)>,
 }
 
 impl SqlSegment {
@@ -73,7 +75,7 @@ fn parse_inline_args(sql: &str) -> syn::Result<Vec<(usize, Expr, usize)>> {
                     curr_arg = Some((idx, String::new()));
                 }
                 curr_level += 1;
-            },
+            }
             '}' => {
                 if curr_arg.is_none() {
                     let err = Error::new(Span::call_site(), "unexpected '}' in query string");
@@ -85,26 +87,30 @@ fn parse_inline_args(sql: &str) -> syn::Result<Vec<(usize, Expr, usize)>> {
                     args.push((arg_start, arg, idx));
                 }
                 curr_level -= 1;
-            },
-            c => if let Some((_, arg)) = &mut curr_arg {
-                arg.push(c);
+            }
+            c => {
+                if let Some((_, arg)) = &mut curr_arg {
+                    arg.push(c);
+                }
             }
         }
-    };
+    }
 
     if curr_arg.is_some() {
         let err = Error::new(Span::call_site(), "expected '}', but got end of string");
-        return Err(err)
+        return Err(err);
     }
 
     Ok(args)
 }
 
+#[derive(Debug)]
 pub struct MatchSegment {
     pub expr: Expr,
     pub arms: Vec<MatchSegmentArm>,
 }
 
+#[derive(Debug)]
 pub struct MatchSegmentArm {
     pub pat: Pat,
     pub body: Vec<QuerySegment>,
@@ -159,6 +165,7 @@ impl Parse for MatchSegment {
     }
 }
 
+#[derive(Debug)]
 pub struct IfSegment {
     pub condition: Expr,
     pub then: Vec<QuerySegment>,

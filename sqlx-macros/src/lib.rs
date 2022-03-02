@@ -195,8 +195,9 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
 pub fn query_as(input: TokenStream) -> TokenStream {
     match query::query_as(input.into()) {
         Ok(output) => output,
-        Err(err) => err.to_compile_error()
-    }.into()
+        Err(err) => err.to_compile_error(),
+    }
+    .into()
 }
 
 #[proc_macro_derive(Encode, attributes(sqlx))]

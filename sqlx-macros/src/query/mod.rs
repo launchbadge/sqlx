@@ -20,10 +20,10 @@ use crate::query::input::RecordType;
 use either::Either;
 
 mod args;
+mod conditional;
 mod data;
 mod input;
 mod output;
-mod conditional;
 
 pub use conditional::query_as;
 
