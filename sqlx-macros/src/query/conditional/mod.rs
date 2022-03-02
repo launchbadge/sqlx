@@ -1,3 +1,8 @@
+/// This module introduces support for building dynamic queries while still having them checked at
+/// compile time.
+/// This is achieved by computing every possible query within a procedural macro.
+/// It's only during runtime when the appropriate query will be chosen and executed.
+
 use std::{any::Any, fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
@@ -12,6 +17,7 @@ use syn::{
 mod map;
 mod segment;
 
+/// Entry point of the `query_as!` macro
 pub fn query_as(input: TokenStream) -> Result<TokenStream> {
     let input = syn::parse2::<Input>(input)?;
     let ctx = input.to_context()?;
@@ -19,7 +25,7 @@ pub fn query_as(input: TokenStream) -> Result<TokenStream> {
     Ok(out)
 }
 
-/// Input to the conditional query macro.
+/// Input to the `query_as!` macro.
 struct Input {
     query_as: Path,
     segments: Vec<QuerySegment>,
