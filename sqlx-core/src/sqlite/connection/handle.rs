@@ -1,26 +1,20 @@
+use std::ffi::CString;
+use std::ptr;
 use std::ptr::NonNull;
 
-use libsqlite3_sys::{sqlite3, sqlite3_close, SQLITE_OK};
+use crate::error::Error;
+use libsqlite3_sys::{sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_OK};
 
 use crate::sqlite::SqliteError;
-use std::sync::Arc;
 
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
 #[derive(Debug)]
-pub(crate) struct ConnectionHandle(Arc<HandleInner>);
+pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
 
-/// A wrapper around `ConnectionHandle` which only exists for a `StatementWorker` to own
-/// which prevents the `sqlite3` handle from being finalized while it is running `sqlite3_step()`
-/// or `sqlite3_reset()`.
-///
-/// Note that this does *not* actually give access to the database handle!
+/// A wrapper around `ConnectionHandle` which *does not* finalize the handle on-drop.
 #[derive(Clone, Debug)]
-pub(crate) struct ConnectionHandleRef(Arc<HandleInner>);
-
-// Wrapper for `*mut sqlite3` which finalizes the handle on-drop.
-#[derive(Debug)]
-struct HandleInner(NonNull<sqlite3>);
+pub(crate) struct ConnectionHandleRaw(NonNull<sqlite3>);
 
 // A SQLite3 handle is safe to send between threads, provided not more than
 // one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
@@ -33,32 +27,67 @@ struct HandleInner(NonNull<sqlite3>);
 
 unsafe impl Send for ConnectionHandle {}
 
-// SAFETY: `Arc<T>` normally only implements `Send` where `T: Sync` because it allows
-// concurrent access.
-//
-// However, in this case we're only using `Arc` to prevent the database handle from being
-// finalized while the worker still holds a statement handle; `ConnectionHandleRef` thus
-// should *not* actually provide access to the database handle.
-unsafe impl Send for ConnectionHandleRef {}
+// SAFETY: this type does nothing but provide access to the DB handle pointer.
+unsafe impl Send for ConnectionHandleRaw {}
 
 impl ConnectionHandle {
     #[inline]
     pub(super) unsafe fn new(ptr: *mut sqlite3) -> Self {
-        Self(Arc::new(HandleInner(NonNull::new_unchecked(ptr))))
+        Self(NonNull::new_unchecked(ptr))
     }
 
     #[inline]
     pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
-        self.0 .0.as_ptr()
+        self.0.as_ptr()
+    }
+
+    pub(crate) fn as_non_null_ptr(&self) -> NonNull<sqlite3> {
+        self.0
     }
 
     #[inline]
-    pub(crate) fn to_ref(&self) -> ConnectionHandleRef {
-        ConnectionHandleRef(Arc::clone(&self.0))
+    pub(crate) fn to_raw(&self) -> ConnectionHandleRaw {
+        ConnectionHandleRaw(self.0)
+    }
+
+    pub(crate) fn last_insert_rowid(&mut self) -> i64 {
+        // SAFETY: we have exclusive access to the database handle
+        unsafe { sqlite3_last_insert_rowid(self.as_ptr()) }
+    }
+
+    pub(crate) fn exec(&mut self, query: impl Into<String>) -> Result<(), Error> {
+        let query = query.into();
+        let query = CString::new(query).map_err(|_| err_protocol!("query contains nul bytes"))?;
+
+        // SAFETY: we have exclusive access to the database handle
+        unsafe {
+            let status = sqlite3_exec(
+                self.as_ptr(),
+                query.as_ptr(),
+                // callback if we wanted result rows
+                None,
+                // callback data
+                ptr::null_mut(),
+                // out-pointer for the error message, we just use `SqliteError::new()`
+                ptr::null_mut(),
+            );
+
+            if status == SQLITE_OK {
+                Ok(())
+            } else {
+                Err(SqliteError::new(self.as_ptr()).into())
+            }
+        }
     }
 }
 
-impl Drop for HandleInner {
+impl ConnectionHandleRaw {
+    pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
+        self.0.as_ptr()
+    }
+}
+
+impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         unsafe {
             // https://sqlite.org/c3ref/close.html

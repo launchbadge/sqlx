@@ -55,6 +55,8 @@
 //! [`Pool::begin`].
 
 use self::inner::SharedPool;
+#[cfg(feature = "any")]
+use crate::any::{Any, AnyKind};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
@@ -97,11 +99,23 @@ pub use self::options::PoolOptions;
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
-/// `Pool` is `Send`, `Sync` and `Clone`, so it should be created once at the start of your
-/// application/daemon/web server/etc. and then shared with all tasks throughout its lifetime. How
-/// best to accomplish this depends on your program architecture.
+/// `Pool` is `Send`, `Sync` and `Clone`. It is intended to be created once at the start of your
+/// application/daemon/web server/etc. and then shared with all tasks throughout the process'
+/// lifetime. How best to accomplish this depends on your program architecture.
 ///
-/// In Actix-Web, you can share a single pool with all request handlers using [web::Data].
+/// In Actix-Web, for example, you can share a single pool with all request handlers using [web::Data].
+///
+/// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state.
+/// When the last remaining handle to the pool is dropped, the connections owned by the pool are
+/// immediately closed (also by dropping). `PoolConnection` returned by [Pool::acquire] and
+/// `Transaction` returned by [Pool::begin] both implicitly hold a reference to the pool for
+/// their lifetimes.
+///
+/// If you prefer to explicitly shutdown the pool and gracefully close its connections (which
+/// depending on the database type, may include sending a message to the database server that the
+/// connection is being closed), you can call [Pool::close] which causes all waiting and subsequent
+/// calls to [Pool::acquire] to return [Error::PoolClosed], and waits until all connections have
+/// been returned to the pool and gracefully closed.
 ///
 /// Type aliases are provided for each database to make it easier to sprinkle `Pool` through
 /// your codebase:
@@ -111,7 +125,7 @@ pub use self::options::PoolOptions;
 /// * [PgPool][crate::postgres::PgPool] (PostgreSQL)
 /// * [SqlitePool][crate::sqlite::SqlitePool] (SQLite)
 ///
-/// [web::Data]: https://docs.rs/actix-web/2.0.0/actix_web/web/struct.Data.html
+/// [web::Data]: https://docs.rs/actix-web/3/actix_web/web/struct.Data.html
 ///
 /// ### Why Use a Pool?
 ///
@@ -278,10 +292,29 @@ impl<DB: Database> Pool<DB> {
         }
     }
 
-    /// Ends the use of a connection pool. Prevents any new connections
-    /// and will close all active connections when they are returned to the pool.
+    /// Shut down the connection pool, waiting for all connections to be gracefully closed.
     ///
-    /// Does not resolve until all connections are closed.
+    /// Upon `.await`ing this call, any currently waiting or subsequent calls to [Pool::acquire] and
+    /// the like will immediately return [Error::PoolClosed] and no new connections will be opened.
+    ///
+    /// Any connections currently idle in the pool will be immediately closed, including sending
+    /// a graceful shutdown message to the database server, if applicable.
+    ///
+    /// Checked-out connections are unaffected, but will be closed in the same manner when they are
+    /// returned to the pool.
+    ///
+    /// Does not resolve until all connections are returned to the pool and gracefully closed.
+    ///
+    /// ### Note: `async fn`
+    /// Because this is an `async fn`, the pool will *not* be marked as closed unless the
+    /// returned future is polled at least once.
+    ///
+    /// If you want to close the pool but don't want to wait for all connections to be gracefully
+    /// closed, you can do `pool.close().now_or_never()`, which polls the future exactly once
+    /// with a no-op waker.
+    // TODO: I don't want to change the signature right now in case it turns out to be a
+    // breaking change, but this probably should eagerly mark the pool as closed and then the
+    // returned future only needs to be awaited to gracefully close the connections.
     pub async fn close(&self) {
         self.0.close().await;
     }
@@ -303,6 +336,17 @@ impl<DB: Database> Pool<DB> {
     /// changing rapidly, this may run indefinitely.
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
+    }
+}
+
+#[cfg(feature = "any")]
+impl Pool<Any> {
+    /// Returns the database driver currently in-use by this `Pool`.
+    ///
+    /// Determined by the connection URI.
+    #[cfg(feature = "any")]
+    pub fn any_kind(&self) -> AnyKind {
+        self.0.connect_options.kind()
     }
 }
 

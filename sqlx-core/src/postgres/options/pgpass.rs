@@ -90,13 +90,15 @@ fn load_password_from_line(
 ) -> Option<String> {
     let whole_line = line;
 
+    // Pgpass line ordering: hostname, port, database, username, password
+    // See: https://www.postgresql.org/docs/9.3/libpq-pgpass.html
     match line.trim_start().chars().next() {
         None | Some('#') => None,
         _ => {
             matches_next_field(whole_line, &mut line, host)?;
             matches_next_field(whole_line, &mut line, &port.to_string())?;
-            matches_next_field(whole_line, &mut line, username)?;
             matches_next_field(whole_line, &mut line, database.unwrap_or_default())?;
+            matches_next_field(whole_line, &mut line, username)?;
             Some(line.to_owned())
         }
     }
@@ -219,7 +221,7 @@ mod tests {
         // normal
         assert_eq!(
             load_password_from_line(
-                "localhost:5432:foo:bar:baz",
+                "localhost:5432:bar:foo:baz",
                 "localhost",
                 5432,
                 "foo",
@@ -229,19 +231,19 @@ mod tests {
         );
         // wildcard
         assert_eq!(
-            load_password_from_line("*:5432:foo:bar:baz", "localhost", 5432, "foo", Some("bar")),
+            load_password_from_line("*:5432:bar:foo:baz", "localhost", 5432, "foo", Some("bar")),
             Some("baz".to_owned())
         );
         // accept wildcard with missing db
         assert_eq!(
-            load_password_from_line("localhost:5432:foo:*:baz", "localhost", 5432, "foo", None),
+            load_password_from_line("localhost:5432:*:foo:baz", "localhost", 5432, "foo", None),
             Some("baz".to_owned())
         );
 
         // doesn't match
         assert_eq!(
             load_password_from_line(
-                "thishost:5432:foo:bar:baz",
+                "thishost:5432:bar:foo:baz",
                 "thathost",
                 5432,
                 "foo",
@@ -252,7 +254,7 @@ mod tests {
         // malformed entry
         assert_eq!(
             load_password_from_line(
-                "localhost:5432:foo:bar",
+                "localhost:5432:bar:foo",
                 "localhost",
                 5432,
                 "foo",

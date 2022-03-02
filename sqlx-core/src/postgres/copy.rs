@@ -75,10 +75,7 @@ impl Pool<Postgres> {
     /// ### Note
     /// [PgCopyIn::finish] or [PgCopyIn::abort] *must* be called when finished or the connection
     /// will return an error the next time it is used.
-    pub async fn copy_in_raw(
-        &mut self,
-        statement: &str,
-    ) -> Result<PgCopyIn<PoolConnection<Postgres>>> {
+    pub async fn copy_in_raw(&self, statement: &str) -> Result<PgCopyIn<PoolConnection<Postgres>>> {
         PgCopyIn::begin(self.acquire().await?, statement).await
     }
 
@@ -101,10 +98,7 @@ impl Pool<Postgres> {
     ///
     /// Command examples and accepted formats for `COPY` data are shown here:
     /// https://www.postgresql.org/docs/current/sql-copy.html
-    pub async fn copy_out_raw(
-        &mut self,
-        statement: &str,
-    ) -> Result<BoxStream<'static, Result<Bytes>>> {
+    pub async fn copy_out_raw(&self, statement: &str) -> Result<BoxStream<'static, Result<Bytes>>> {
         pg_begin_copy_out(self.acquire().await?, statement).await
     }
 }

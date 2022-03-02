@@ -5,6 +5,157 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.11 - 2021-02-17
+[20 pull requests][0.5.11-prs] were merged this release cycle.
+
+### Added
+* [[#1610]]: Allow converting `AnyConnectOptions` to a specific `ConnectOptions` [[@05storm26]]
+* [[#1652]]: Implement `From` for `AnyConnection` [[@genusistimelord]]
+* [[#1658]]: Handle `SQLITE_LOCKED` [[@madadam]]
+* [[#1665]]: Document offline mode usage with feature flags [[@sedrik]]
+* [[#1680]]: Show checksum mismatches in `sqlx migrate info` [[@ifn3]]
+* [[#1685]]: Add tip for setting `opt-level` for `sqlx-macros` [[@LovecraftianHorror]]
+* [[#1687]]: Docs: `Acquire` examples and alternative [[@stoically]]
+* [[#1696]]: Postgres: support for `ltree` [[@cemoktra]]
+* [[#1710]]: Postgres: support for `lquery` [[@cemoktra]]
+
+### Changed
+* [[#1605]]: Remove unused dependencies [[@paolobarbolini]]
+* [[#1606]]: Add target context to Postgres `NOTICE` logs [[@dbeckwith]]
+* [[#1684]]: Macros: Cache parsed `sqlx-data.json` instead of reparsing [[@LovecraftianHorror]]
+
+### Fixed
+* [[#1608]]: Drop worker shared state in shutdown (SQLite) [[@andrewwhitehead]]
+* [[#1619]]: Docs(macros): remove sentences banning usage of `as _` [[@k-jun]]
+* [[#1626]]: Simplify `cargo-sqlx` command-line definition [[@tranzystorek-io]]
+* [[#1636]]: Fix and extend Postgres transaction example [[@taladar]]
+* [[#1657]]: Fix typo in macro docs [[@p9s]]
+* [[#1661]]: Fix binding `Option<T>` for `Any` driver [[@ArGGu]]
+* [[#1667]]: MySQL: Avoid panicking if packet is empty [[@nappa85]]
+* [[#1692]]: Postgres: Fix power calculation when encoding `BigDecimal` into `NUMERIC` [[@VersBinarii]]
+
+Additionally, we have introduced two mitigations for [the issue of the cyclic dependency on `ahash`][aHash#95]: 
+
+* We re-downgraded our version requirement on `indexmap` from `1.7.0` back to `1.6.2` so users can pin it to that
+  version [as recommended in aHash#95][ahash-fix]. 
+  * [This was regressed accidentally during a sweeping dependency upgrade before the last release][indexmap-regression],
+    sorry about that.
+* Thanks to the work of [@LovecraftianHorror] in [#1684], we no longer require the `preserve_order` feature of
+  `serde_json` which gives users another place to break the cycle by simply not enabling that feature. 
+  * This may introduce extra churn in Git diffs for `sqlx-data.json`, however. If this is an issue for you but 
+    the dependency cycle isn't, you can re-enable the `preserve_order` feature:
+  ```toml
+  [dependencies]
+  serde_json = { version = "1", features = ["preserve_order"] }
+  ```
+
+[aHash#95]: https://github.com/tkaitchuck/aHash/issues/95
+[ahash-fix]: https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
+[indexmap-regression]: https://github.com/launchbadge/sqlx/pull/1603#issuecomment-1010827637
+
+[#1605]: https://github.com/launchbadge/sqlx/pull/1605
+[#1606]: https://github.com/launchbadge/sqlx/pull/1606
+[#1608]: https://github.com/launchbadge/sqlx/pull/1608
+[#1610]: https://github.com/launchbadge/sqlx/pull/1610
+[#1619]: https://github.com/launchbadge/sqlx/pull/1619
+[#1626]: https://github.com/launchbadge/sqlx/pull/1626
+[#1636]: https://github.com/launchbadge/sqlx/pull/1636
+[#1652]: https://github.com/launchbadge/sqlx/pull/1652
+[#1657]: https://github.com/launchbadge/sqlx/pull/1657
+[#1658]: https://github.com/launchbadge/sqlx/pull/1658
+[#1661]: https://github.com/launchbadge/sqlx/pull/1661
+[#1665]: https://github.com/launchbadge/sqlx/pull/1665
+[#1667]: https://github.com/launchbadge/sqlx/pull/1667
+[#1680]: https://github.com/launchbadge/sqlx/pull/1680
+[#1684]: https://github.com/launchbadge/sqlx/pull/1684
+[#1685]: https://github.com/launchbadge/sqlx/pull/1685
+[#1687]: https://github.com/launchbadge/sqlx/pull/1687
+[#1692]: https://github.com/launchbadge/sqlx/pull/1692
+[#1696]: https://github.com/launchbadge/sqlx/pull/1696
+[#1710]: https://github.com/launchbadge/sqlx/pull/1710
+
+[0.5.11-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2021-12-30..2022-02-17
+
+## 0.5.10 - 2021-12-29
+[A whopping 31 pull requests][0.5.10-prs] were merged this release cycle!
+
+According to this changelog, we saw 18 new contributors! However, some of these folks may have missed getting
+mentioned in previous entries since we only listed highlights. To avoid anyone feeling left out, I put in the effort
+this time and tried to list every single one here.
+
+### Added
+* [[#1228]]: Add `Pool::any_kind()` [[@nitnelave]]
+* [[#1343]]: Add `Encode/Decode` impl for `Cow<'_, str>` [[@Drevoed]]
+* [[#1474]]: Derive `Clone`, `Copy` for `AnyKind` [[@yuyawk]]
+* [[#1497]]: Update FAQ to explain how to configure docs.rs to build a project using SQLx [[@russweas]]
+* [[#1498]]: Add description of migration file structure to `migrate!()` docs [[@zbigniewzolnierowicz]]
+* [[#1508]]: Add `.persistent(bool)` to `QueryAs`, `QueryScalar` [[@akiradeveloper]]
+* [[#1514]]: Add support for serialized threading mode to SQLite [[@LLBlumire]]
+* [[#1523]]: Allow `rust_decimal::Decimal` in `PgRange` [[@meh]]
+* [[#1539]]: Support `PGOPTIONS` and adding custom configuration options in `PgConnectOptions` [[@liushuyu]]
+* [[#1562]]: Re-export `either::Either` used by `Executor::fetch_many()` [[@DoumanAsh]]
+* [[#1584]]: Add feature to use RusTLS instead of `native-tls` for `sqlx-cli` [[@SonicZentropy]]
+* [[#1592]]: Add `AnyConnection::kind()` [[@05storm26]]
+
+### Changes
+* [[#1385]]: Rewrite Postgres array handling to reduce boilerplate and allow custom types [[@jplatte]]
+* [[#1479]]: Remove outdated mention of `runtime-async-std-native-tls` as the default runtime in README.md [[@yerke]]
+* [[#1526]]: Revise `Pool` docs in a couple places [[@abonander]]
+* [[#1535]]: Bump `libsqlite-sys` to `0.23.1` [[@nitsky]]
+* [[#1551]]: SQLite: make worker thread responsible for all FFI calls [[@abonander]]
+    * If you were encountering segfaults with the SQLite driver, there's a good chance this will fix it!
+* [[#1557]]: CI: test with Postgres 14 [[@paolobarbolini]]
+* [[#1571]]: Make `whoami` dep optional, only pull it in for Postgres [[@joshtriplett]]
+* [[#1572]]: Update `rsa` crate to 0.5 [[@paolobarbolini]]
+* [[#1591]]: List SeaORM as an ORM option in the README [[@kunjee17]]
+* [[#1601]]: Update `itoa` and `dirs` [[@paolobarbolini]]
+
+### Fixes
+* [[#1475]]: Fix panic when converting a negative `chrono::Duration` to `PgInterval` [[@yuyawk]]
+* [[#1483]]: Fix error when decoding array of custom types from Postgres [[@demurgos]
+* [[#1501]]: Reduce `indexmap` version requirement to `1.6.2` [[@dimfeld]]
+* [[#1511]]: Fix element type given to Postgres for arrays of custom enums [[@chesedo]]
+* [[#1517]]: Fix mismatched type errors in MySQL type tests [[@abonander]]
+* [[#1537]]: Fix missing re-export of `PgCopyIn` [[@akiradeveloper]]
+* [[#1566]]: Match `~/.pgpass` password after URL parsing and fix user and database ordering [[@D1plo1d]]
+* [[#1582]]: `cargo sqlx prepare`: Append to existing `RUSTFLAGS` instead of overwriting [[@tkintscher]]
+* [[#1587]]: SQLite: if set, send `PRAGMA key` on a new connection before anything else. [[@parazyd]]
+    * This should fix problems with being unable to open databases using SQLCipher.
+    
+
+[#1228]: https://github.com/launchbadge/sqlx/pull/1228
+[#1343]: https://github.com/launchbadge/sqlx/pull/1343
+[#1385]: https://github.com/launchbadge/sqlx/pull/1385
+[#1474]: https://github.com/launchbadge/sqlx/pull/1474
+[#1475]: https://github.com/launchbadge/sqlx/pull/1475
+[#1479]: https://github.com/launchbadge/sqlx/pull/1479
+[#1483]: https://github.com/launchbadge/sqlx/pull/1483
+[#1497]: https://github.com/launchbadge/sqlx/pull/1497
+[#1498]: https://github.com/launchbadge/sqlx/pull/1498
+[#1501]: https://github.com/launchbadge/sqlx/pull/1501
+[#1508]: https://github.com/launchbadge/sqlx/pull/1508 
+[#1511]: https://github.com/launchbadge/sqlx/pull/1511
+[#1514]: https://github.com/launchbadge/sqlx/pull/1514
+[#1517]: https://github.com/launchbadge/sqlx/pull/1517
+[#1523]: https://github.com/launchbadge/sqlx/pull/1523
+[#1526]: https://github.com/launchbadge/sqlx/pull/1526
+[#1535]: https://github.com/launchbadge/sqlx/pull/1535
+[#1537]: https://github.com/launchbadge/sqlx/pull/1537
+[#1539]: https://github.com/launchbadge/sqlx/pull/1539
+[#1551]: https://github.com/launchbadge/sqlx/pull/1551
+[#1557]: https://github.com/launchbadge/sqlx/pull/1557
+[#1562]: https://github.com/launchbadge/sqlx/pull/1562
+[#1566]: https://github.com/launchbadge/sqlx/pull/1566
+[#1571]: https://github.com/launchbadge/sqlx/pull/1571
+[#1572]: https://github.com/launchbadge/sqlx/pull/1572
+[#1582]: https://github.com/launchbadge/sqlx/pull/1582
+[#1584]: https://github.com/launchbadge/sqlx/pull/1584
+[#1587]: https://github.com/launchbadge/sqlx/pull/1587
+[#1591]: https://github.com/launchbadge/sqlx/pull/1591
+[#1592]: https://github.com/launchbadge/sqlx/pull/1592
+[#1601]: https://github.com/launchbadge/sqlx/pull/1601
+[0.5.10-prs]: https://github.com/launchbadge/sqlx/pulls?page=1&q=is%3Apr+merged%3A2021-10-02..2021-12-31+sort%3Acreated-asc
+
 ## 0.5.9 - 2021-10-01
 
 A hotfix release to address the issue of the `sqlx` crate itself still depending on older versions of `sqlx-core` and 
@@ -995,3 +1146,36 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@ghassmo]: https://github.com/ghassmo
 [@eagletmt]: https://github.com/eagletmt
 [@montanalow]: https://github.com/montanalow
+[@nitnelave]: https://github.com/nitnelave
+[@Drevoed]: https://github.com/Drevoed
+[@yuyawk]: https://github.com/yuyawk
+[@yerke]: https://github.com/yerke
+[@russweas]: https://github.com/russweas
+[@zbigniewzolnierowicz]: https://github.com/zbigniewzolnierowicz
+[@dimfeld]: https://github.com/dimfeld
+[@akiradeveloper]: https://github.com/akiradeveloper
+[@chesedo]: https://github.com/chesedo
+[@LLBlumire]: https://github.com/LLBlumire
+[@liushuyu]: https://github.com/liushuyu
+[@paolobarbolini]: https://github.com/paolobarbolini
+[@DoumanAsh]: https://github.com/DoumanAsh
+[@D1plo1d]: https://github.com/D1plo1d
+[@tkintscher]: https://github.com/tkintscher
+[@SonicZentropy]: https://github.com/SonicZentropy
+[@parazyd]: https://github.com/parazyd
+[@kunjee17]: https://github.com/kunjee17
+[@05storm26]: https://github.com/05storm26
+[@dbeckwith]: https://github.com/dbeckwith
+[@k-jun]: https://github.com/k-jun
+[@tranzystorek-io]: https://github.com/tranzystorek-io
+[@taladar]: https://github.com/taladar
+[@genusistimelord]: https://github.com/genusistimelord
+[@p9s]: https://github.com/p9s
+[@ArGGu]: https://github.com/ArGGu
+[@sedrik]: https://github.com/sedrik
+[@nappa85]: https://github.com/nappa85
+[@ifn3]: https://github.com/ifn3
+[@LovecraftianHorror]: https://github.com/LovecraftianHorror
+[@stoically]: https://github.com/stoically
+[@VersBinarii]: https://github.com/VersBinarii
+[@cemoktra]: https://github.com/cemoktra

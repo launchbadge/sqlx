@@ -1,4 +1,5 @@
 use std::env::var;
+use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
 
 mod connect;
@@ -33,6 +34,7 @@ pub use ssl_mode::PgSslMode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
+/// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -85,11 +87,12 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) options: Option<String>,
 }
 
 impl Default for PgConnectOptions {
     fn default() -> Self {
-        Self::new()
+        Self::new_without_pgpass().apply_pgpass()
     }
 }
 
@@ -115,6 +118,10 @@ impl PgConnectOptions {
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
+        Self::new_without_pgpass().apply_pgpass()
+    }
+
+    pub fn new_without_pgpass() -> Self {
         let port = var("PGPORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -126,16 +133,12 @@ impl PgConnectOptions {
 
         let database = var("PGDATABASE").ok();
 
-        let password = var("PGPASSWORD")
-            .ok()
-            .or_else(|| pgpass::load_password(&host, port, &username, database.as_deref()));
-
         PgConnectOptions {
             port,
             host,
             socket: None,
             username,
-            password,
+            password: var("PGPASSWORD").ok(),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
@@ -145,7 +148,21 @@ impl PgConnectOptions {
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
+            options: var("PGOPTIONS").ok(),
         }
+    }
+
+    pub(crate) fn apply_pgpass(mut self) -> Self {
+        if self.password.is_none() {
+            self.password = pgpass::load_password(
+                &self.host,
+                self.port,
+                &self.username,
+                self.database.as_deref(),
+            );
+        }
+
+        self
     }
 
     /// Sets the name of the host to connect to.
@@ -319,6 +336,33 @@ impl PgConnectOptions {
         self
     }
 
+    /// Set additional startup options for the connection as a list of key-value pairs.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .options([("geqo", "off"), ("statement_timeout", "5min")]);
+    /// ```
+    pub fn options<K, V, I>(mut self, options: I) -> Self
+    where
+        K: Display,
+        V: Display,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        // Do this in here so `options_str` is only set if we have an option to insert
+        let options_str = self.options.get_or_insert_with(String::new);
+        for (k, v) in options {
+            if !options_str.is_empty() {
+                options_str.push(' ');
+            }
+
+            write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
+        }
+        self
+    }
+
     /// We try using a socket if hostname starts with `/` or if socket parameter
     /// is specified.
     pub(crate) fn fetch_socket(&self) -> Option<String> {
@@ -353,4 +397,22 @@ fn default_host(port: u16) -> String {
 
     // fallback to localhost if no socket was found
     "localhost".to_owned()
+}
+
+#[test]
+fn test_options_formatting() {
+    let options = PgConnectOptions::new().options([("geqo", "off")]);
+    assert_eq!(options.options, Some("-c geqo=off".to_string()));
+    let options = options.options([("search_path", "sqlx")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c search_path=sqlx".to_string())
+    );
+    let options = PgConnectOptions::new().options([("geqo", "off"), ("statement_timeout", "5min")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c statement_timeout=5min".to_string())
+    );
+    let options = PgConnectOptions::new();
+    assert_eq!(options.options, None);
 }

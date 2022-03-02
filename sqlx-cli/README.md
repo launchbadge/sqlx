@@ -12,7 +12,13 @@ mode with `sqlx::query!()` and friends.
 $ cargo install sqlx-cli
 
 # only for postgres
-$ cargo install sqlx-cli --no-default-features --features postgres
+$ cargo install sqlx-cli --no-default-features --features native-tls,postgres
+
+# use vendored OpenSSL (build from source)
+$ cargo install sqlx-cli --features openssl-vendored
+
+# use Rustls rather than OpenSSL (be sure to add the features for the databases you intend to use!)
+$ cargo install sqlx-cli --no-default-features --features rustls
 ```
 
 ### Usage
@@ -120,3 +126,13 @@ variable to `true`.
 
 If you want to make this the default, just add it to your `.env` file. `cargo sqlx prepare` will
 still do the right thing and connect to the database.
+
+#### Include queries behind feature flags (such as queryies inside of tests)
+
+In order for sqlx to be able to find queries behind certain feature flags you need to turn them
+on by passing arguments to rustc.
+
+This is how you would turn all targets and features on.
+```bash
+cargo sqlx prepare -- --all-targets --all-features
+```

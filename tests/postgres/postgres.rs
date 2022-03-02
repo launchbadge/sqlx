@@ -1095,6 +1095,93 @@ CREATE TABLE heating_bills (
 }
 
 #[sqlx_macros::test]
+async fn it_resolves_custom_type_in_array() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    // language=PostgreSQL
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS pets;
+DROP TYPE IF EXISTS pet_name_and_race;
+
+CREATE TYPE pet_name_and_race AS (
+  name TEXT,
+  race TEXT
+);
+CREATE TABLE pets (
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  race TEXT NOT NULL,
+  PRIMARY KEY (owner, name)
+);
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Foo', 'cat');
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Bar', 'dog');
+    "#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRace {
+        name: String,
+        race: String,
+    }
+
+    impl sqlx::Type<Postgres> for PetNameAndRace {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRace {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+            let name = decoder.try_decode::<String>()?;
+            let race = decoder.try_decode::<String>()?;
+            Ok(Self { name, race })
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRaceArray(Vec<PetNameAndRace>);
+
+    impl sqlx::Type<Postgres> for PetNameAndRaceArray {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            // Array type name is the name of the element type prefixed with `_`
+            sqlx::postgres::PgTypeInfo::with_name("_pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRaceArray {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(Vec::<PetNameAndRace>::decode(value)?))
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let row = sqlx::query("select owner, array_agg(row(name, race)::pet_name_and_race) as pets from pets group by owner")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let pets: PetNameAndRaceArray = row.get("pets");
+
+    assert_eq!(pets.0.len(), 2);
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
     use sqlx::postgres::PgConnectionInfo;
 
@@ -1197,6 +1284,128 @@ async fn it_can_copy_out() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
+    use sqlx::encode::IsNull;
+    use sqlx::postgres::{PgArgumentBuffer, PgTypeInfo};
+    use sqlx::{Decode, Encode, Type, ValueRef};
+
+    #[derive(Debug, PartialEq)]
+    enum Value {
+        String(String),
+        Number(i32),
+        Array(Vec<Value>),
+    }
+
+    impl<'r> Decode<'r, Postgres> for Value {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let typ = value.type_info().into_owned();
+
+            if typ == PgTypeInfo::with_name("text") {
+                let s = <String as Decode<'_, Postgres>>::decode(value)?;
+
+                Ok(Self::String(s))
+            } else if typ == PgTypeInfo::with_name("int4") {
+                let n = <i32 as Decode<'_, Postgres>>::decode(value)?;
+
+                Ok(Self::Number(n))
+            } else if typ == PgTypeInfo::with_name("_text") {
+                let arr = Vec::<String>::decode(value)?;
+                let v = arr.into_iter().map(|s| Value::String(s)).collect();
+
+                Ok(Self::Array(v))
+            } else if typ == PgTypeInfo::with_name("_int4") {
+                let arr = Vec::<i32>::decode(value)?;
+                let v = arr.into_iter().map(|n| Value::Number(n)).collect();
+
+                Ok(Self::Array(v))
+            } else {
+                Err("unknown type".into())
+            }
+        }
+    }
+
+    impl Encode<'_, Postgres> for Value {
+        fn produces(&self) -> Option<PgTypeInfo> {
+            match self {
+                Self::Array(a) => {
+                    if a.len() < 1 {
+                        return Some(PgTypeInfo::with_name("_text"));
+                    }
+
+                    match a[0] {
+                        Self::String(_) => Some(PgTypeInfo::with_name("_text")),
+                        Self::Number(_) => Some(PgTypeInfo::with_name("_int4")),
+                        Self::Array(_) => None,
+                    }
+                }
+                Self::String(_) => Some(PgTypeInfo::with_name("text")),
+                Self::Number(_) => Some(PgTypeInfo::with_name("int4")),
+            }
+        }
+
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+            match self {
+                Value::String(s) => <String as Encode<'_, Postgres>>::encode_by_ref(s, buf),
+                Value::Number(n) => <i32 as Encode<'_, Postgres>>::encode_by_ref(n, buf),
+                Value::Array(arr) => arr.encode(buf),
+            }
+        }
+    }
+
+    impl Type<Postgres> for Value {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::with_name("unknown")
+        }
+
+        fn compatible(ty: &PgTypeInfo) -> bool {
+            [
+                PgTypeInfo::with_name("text"),
+                PgTypeInfo::with_name("_text"),
+                PgTypeInfo::with_name("int4"),
+                PgTypeInfo::with_name("_int4"),
+            ]
+            .contains(ty)
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let (row,): (Value,) = sqlx::query_as("SELECT $1::text[] as Dummy")
+        .bind(Value::Array(vec![
+            Value::String("Test 0".to_string()),
+            Value::String("Test 1".to_string()),
+        ]))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(
+        row,
+        Value::Array(vec![
+            Value::String("Test 0".to_string()),
+            Value::String("Test 1".to_string()),
+        ])
+    );
+
+    let (row,): (Value,) = sqlx::query_as("SELECT $1::int4[] as Dummy")
+        .bind(Value::Array(vec![
+            Value::Number(3),
+            Value::Number(2),
+            Value::Number(1),
+        ]))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(
+        row,
+        Value::Array(vec![Value::Number(3), Value::Number(2), Value::Number(1)])
+    );
 
     Ok(())
 }
