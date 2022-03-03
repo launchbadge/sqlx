@@ -101,20 +101,19 @@ impl PgLTree {
     /// creates ltree from an iterator with checking labels
     pub fn from_iter<I, S>(labels: I) -> Result<Self, PgLTreeParseError>
     where
-        S: Into<String>,
+        String: From<S>,
         I: IntoIterator<Item = S>,
     {
         let mut ltree = Self::default();
         for label in labels {
-            ltree.push(&label.into())?;
+            ltree.push(String::from(label).parse()?);
         }
         Ok(ltree)
     }
 
     /// push a label to ltree
-    pub fn push(&mut self, label: &str) -> Result<(), PgLTreeParseError> {
-        self.labels.push(PgLTreeLabel::new(label)?);
-        Ok(())
+    pub fn push(&mut self, label: PgLTreeLabel) {
+        self.labels.push(label);
     }
 
     /// pop a label from ltree
