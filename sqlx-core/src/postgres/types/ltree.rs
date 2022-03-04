@@ -27,13 +27,17 @@ pub enum PgLTreeParseError {
 pub struct PgLTreeLabel(String);
 
 impl PgLTreeLabel {
-    pub fn new(label: &str) -> Result<Self, PgLTreeParseError> {
+    pub fn new<S>(label: S) -> Result<Self, PgLTreeParseError>
+    where
+        S: Into<String>,
+    {
+        let label = String::from(label);
         if label.len() <= 256
             && label
                 .bytes()
                 .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
         {
-            Ok(Self(label.to_owned()))
+            Ok(Self(label))
         } else {
             Err(PgLTreeParseError::InvalidLtreeLabel)
         }
@@ -106,7 +110,7 @@ impl PgLTree {
     {
         let mut ltree = Self::default();
         for label in labels {
-            ltree.push(String::from(label).parse()?);
+            ltree.push(PgLTreeLabel::new(label)?);
         }
         Ok(ltree)
     }
