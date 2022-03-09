@@ -31,7 +31,7 @@ pub fn generate_conditional_map(n: usize) -> TokenStream {
             #(#map_fns: FnMut(DB::Row) -> sqlx::Result<O> + Send,)*
             #(#args: 'q + Send + sqlx::IntoArguments<'q, DB>,)*
         {
-            pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> ormx::exports::futures::stream::BoxStream<'e, sqlx::Result<O>>
+            pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> sqlx::futures_core::stream::BoxStream<'e, sqlx::Result<O>>
             where
                 'q: 'e,
                 E: 'e + sqlx::Executor<'c, Database = DB>,
