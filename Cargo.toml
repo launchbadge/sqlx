@@ -258,6 +258,11 @@ name = "postgres-derives"
 path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
 
+[[test]]
+name = "postgres-conditonal_query"
+path = "tests/postgres/conditional_query.rs"
+required-features = ["postgres", "macros"]
+
 #
 # Microsoft SQL Server (MSSQL)
 #
