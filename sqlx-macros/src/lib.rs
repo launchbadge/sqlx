@@ -62,8 +62,9 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
 /// * If a column may be `NULL`, the corresponding field's type must be wrapped in `Option<_>`.
 /// * Neither the query nor the struct may have unused fields.
 ///
-/// The only modification to the `query!()` syntax is that the struct name is given before the SQL
-/// string:
+/// In contrast to the syntax of `query!()`, the struct name is given before the SQL
+/// string. Arguments may be passed, like in `query!()`, within a comma-seperated list after the
+/// SQL string, or inline within the query string using `"{<EXPRESSION>}"`:
 /// ```rust,ignore
 /// # use sqlx::Connect;
 /// # #[cfg(all(feature = "mysql", feature = "_rt-async-std"))]
@@ -80,10 +81,10 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// // let mut conn = <impl sqlx::Executor>;
+/// let id = 1;
 /// let account = sqlx::query_as!(
 ///         Account,
-///         "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = ?",
-///         1i32
+///         "select * from (select (1) as id, 'Herp Derpinson' as name) accounts where id = {id}"
 ///     )
 ///     .fetch_one(&mut conn)
 ///     .await?;
@@ -139,6 +140,50 @@ pub fn expand_query(input: TokenStream) -> TokenStream {
 ///
 /// assert_eq!(record.id, MyInt4(1));
 /// ```
+///
+/// ### Conditional Queries
+/// This macro allows you to dynamically construct queries at runtime, while still ensuring that
+/// they are checked at compile-time.
+///
+/// Let's consider an example first. Let's say you want to query all products from your database,
+/// while the user may decide if he wants them ordered in ascending or descending order.
+/// This could be achieved by writing both queries out by hand:
+/// ```rust,ignore
+/// let products = if order_ascending {
+///     sqlx::query_as!(
+///         Product,
+///         "SELECT * FROM products ORDER BY name ASC"
+///     )
+///     .fetch_all(&mut con)
+///     .await?
+/// } else {
+///     sqlx::query_as!(
+///         Product,
+///         "SELECT * FROM products ORDER BY name DESC"
+///     )
+///     .fetch_all(&mut con)
+///     .await?
+/// };
+/// ```
+/// To avoid repetition in these cases, you may use `if`, `if let` and `match` directly within the macro
+/// invocation:
+/// ```rust,ignore
+/// let products = sqlx::query_as!(
+///     Product,
+///     "SELECT * FROM products ORDER BY NAME"
+///     if order_ascending { "ASC" } else { "DESC" }
+/// )
+/// .fetch_all(&mut con)
+/// .await?;
+/// ```
+/// The macro will expand to something similar like in the verbose example above, ensuring that
+/// every possible query which may result from the macro invocation is checked at compile-time.
+///
+/// When writing *conditional* queries, parameters may only be given inline.
+///
+/// It is recommended to avoid using a lot of `if` and `match` clauses within a single `query_as!`
+/// invocation. Do not use much more than 6 within a single query to avoid drastically increased
+/// compile times.
 ///
 /// ### Troubleshooting: "error: mismatched types"
 /// If you get a "mismatched types" error from an invocation of this macro and the error
