@@ -56,10 +56,14 @@ async fn single_if() -> anyhow::Result<()> {
         let articles = sqlx::query_as!(
             Article,
             "SELECT *"
-            r#"FROM (VALUES (1, "Article1", "Peter"), (2, "Article2", "John")) articles(id, title, author)"#
+            "FROM ("
+                "VALUES (1, 'Article1', 'Peter'), (2, 'Article2', 'John')"
+            ") articles(id, title, author)"
             "ORDER BY title"
             if reverse_order {
-                "REV"
+                "DESC"
+            } else {
+                "ASC"
             }
         )
         .fetch_all(&mut conn)
@@ -71,23 +75,6 @@ async fn single_if() -> anyhow::Result<()> {
             assert_eq!(articles, expected);
         } else {
             assert_eq!(articles, expected);
-        }
-    }
-
-    for value in [true, false] {
-        let result = sqlx::query_as!(
-            Result,
-            "SELECT"
-            if value { "42" } else { "12" }
-            r#"AS "result""#
-        )
-        .fetch_one(&mut conn)
-        .await?;
-
-        if value {
-            assert_eq!(result.result, 42);
-        } else {
-            assert_eq!(result.result, 12);
         }
     }
 
