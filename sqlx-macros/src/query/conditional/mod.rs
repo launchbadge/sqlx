@@ -73,7 +73,6 @@ use std::{fmt::Write, rc::Rc};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use segment::*;
-use sha2::digest::generic_array::typenum::Exp;
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
