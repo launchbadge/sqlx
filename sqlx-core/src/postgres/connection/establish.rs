@@ -8,6 +8,8 @@ use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
 use crate::postgres::{PgConnectOptions, PgConnection};
+use rand::thread_rng;
+use rand::Rng;
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.11
@@ -142,7 +144,7 @@ impl PgConnection {
             transaction_status,
             transaction_depth: 0,
             pending_ready_for_query_count: 0,
-            next_statement_id: 1,
+            next_statement_id: thread_rng().gen(),
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),

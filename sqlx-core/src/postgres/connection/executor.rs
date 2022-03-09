@@ -17,6 +17,8 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::{pin_mut, TryStreamExt};
+use rand::thread_rng;
+use rand::Rng;
 use std::{borrow::Cow, sync::Arc};
 
 async fn prepare(
@@ -26,7 +28,13 @@ async fn prepare(
     metadata: Option<Arc<PgStatementMetadata>>,
 ) -> Result<(u32, Arc<PgStatementMetadata>), Error> {
     let id = conn.next_statement_id;
-    conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
+
+    // XXX(mq): Use random statement IDs instead of sequence to avoid conflicts (almost
+    //          100% of the time). This obviously is not the solution to the problem.
+    //          It is only the proof of concept to verify that this is the root cause
+    //          of the problem.
+    //conn.next_statement_id = conn.next_statement_id.wrapping_add(1);
+    conn.next_statement_id = thread_rng().gen();
 
     // build a list of type OIDs to send to the database in the PARSE command
     // we have not yet started the query sequence, so we are *safe* to cleanly make
