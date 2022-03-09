@@ -119,7 +119,7 @@ async fn dynamic_filtering() -> anyhow::Result<()> {
                 }
             }
         )
-        .fetch_all(&mut conn)
+        .fetch_all(con)
         .await?;
         Ok(articles)
     }

@@ -188,6 +188,7 @@ impl Context {
         let result = {
             let mut branch_counter = 0;
             let output = self.to_query(branches, &mut branch_counter);
+            println!("{}", output);
             assert_eq!(branch_counter, branches);
             output
         };
