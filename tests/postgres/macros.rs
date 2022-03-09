@@ -137,6 +137,25 @@ async fn test_query_as() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn test_query_as_inline_args() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let name: Option<&str> = None;
+    let account = sqlx::query_as!(
+        Account,
+        r#"SELECT id "id!", name from (VALUES (1, {name})) accounts(id, name)"#,
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    assert_eq!(None, account.name);
+
+    println!("{:?}", account);
+
+    Ok(())
+}
+
 #[derive(Debug)]
 struct RawAccount {
     r#type: i32,
