@@ -1,6 +1,4 @@
 use proc_macro2::Span;
-use std::mem::swap;
-use std::ptr::replace;
 use syn::{
     braced,
     parse::{Parse, ParseStream, Peek},

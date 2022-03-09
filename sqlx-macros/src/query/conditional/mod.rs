@@ -68,7 +68,7 @@
 ///         ))
 ///     }
 /// ```
-use std::{any::Any, fmt::Write, rc::Rc};
+use std::{fmt::Write, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -76,7 +76,7 @@ use segment::*;
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Error, Expr, Ident, Pat, Path, Result, Token,
+    Error, Expr, Pat, Path, Result, Token,
 };
 
 mod map;

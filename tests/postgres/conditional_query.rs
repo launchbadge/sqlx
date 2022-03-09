@@ -6,7 +6,7 @@ async fn simple() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
     struct Result {
-        result: i32,
+        result: Option<i32>,
     }
 
     for value in [true, false] {
@@ -20,9 +20,9 @@ async fn simple() -> anyhow::Result<()> {
         .await?;
 
         if value {
-            assert_eq!(result.result, 42);
+            assert_eq!(result.result, Some(42));
         } else {
-            assert_eq!(result.result, 12);
+            assert_eq!(result.result, Some(12));
         }
     }
 
@@ -33,7 +33,7 @@ async fn simple() -> anyhow::Result<()> {
 async fn single_if() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
-    #[derive(Clone, Eq, PartialEq. Debug)]
+    #[derive(Clone, Eq, PartialEq, Debug)]
     struct Article {
         id: i32,
         title: String,
@@ -56,8 +56,8 @@ async fn single_if() -> anyhow::Result<()> {
         let articles = sqlx::query_as!(
             Article,
             "SELECT *"
-            r#"FROM (VALUES (1, "Article1", "Peter"), (2, "Article2", "John"))"#
-            "ORDER BY name"
+            r#"FROM (VALUES (1, "Article1", "Peter"), (2, "Article2", "John")) articles(id, title, author)"#
+            "ORDER BY title"
             if reverse_order {
                 "REV"
             }
