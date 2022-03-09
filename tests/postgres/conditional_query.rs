@@ -55,7 +55,8 @@ async fn single_if() -> anyhow::Result<()> {
     for reverse_order in [true, false] {
         let articles = sqlx::query_as!(
             Article,
-            "SELECT *"
+            "SELECT"
+                r#"id AS "id!", title AS "title!", author AS "author!""#
             "FROM ("
                 "VALUES (1, 'Article1', 'Peter'), (2, 'Article2', 'John')"
             ") articles(id, title, author)"
