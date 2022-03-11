@@ -88,6 +88,7 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) options: Option<String>,
+    pub(crate) extra_float_digits: i32,
 }
 
 impl Default for PgConnectOptions {
@@ -149,6 +150,8 @@ impl PgConnectOptions {
             application_name: var("PGAPPNAME").ok(),
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
+            // NOTE: This is default in postgres 12+
+            extra_float_digits: 3
         }
     }
 
