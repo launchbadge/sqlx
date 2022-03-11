@@ -18,7 +18,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.5.10"
+version = "0.5.11"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
