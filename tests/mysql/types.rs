@@ -235,7 +235,8 @@ mod json_tests {
 
     test_type!(json<JsonValue>(
         MySql,
-        "SELECT CAST({0} AS BINARY) <=> CAST(? AS BINARY), CAST({0} AS BINARY) as _2, ? as _3",
+        // MySQL 8.0.27 changed `<=>` to return an unsigned integer
+        "SELECT CAST(CAST({0} AS BINARY) <=> CAST(? AS BINARY) AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
         "'\"Hello, World\"'" == json!("Hello, World"),
         "'\"😎\"'" == json!("😎"),
         "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
@@ -250,7 +251,8 @@ mod json_tests {
 
     test_type!(json_struct<Json<Friend>>(
         MySql,
-        "SELECT CAST({0} AS BINARY) <=> CAST(? AS BINARY), CAST({0} AS BINARY) as _2, ? as _3",
+        // MySQL 8.0.27 changed `<=>` to return an unsigned integer
+        "SELECT CAST(CAST({0} AS BINARY) <=> CAST(? AS BINARY) AS SIGNED INTEGER), CAST({0} AS BINARY) as _2, ? as _3",
         "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 

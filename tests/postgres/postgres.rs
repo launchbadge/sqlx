@@ -1,8 +1,8 @@
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::{
     PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
+use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -519,14 +519,19 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     for i in 0..200 {
         let pool = pool.clone();
         sqlx_rt::spawn(async move {
-            loop {
+            for j in 0.. {
                 if let Err(e) = sqlx::query("select 1 + 1").execute(&pool).await {
                     // normal error at termination of the test
-                    if !matches!(e, sqlx::Error::PoolClosed) {
-                        eprintln!("pool task {} dying due to {}", i, e);
-                        break;
+                    if matches!(e, sqlx::Error::PoolClosed) {
+                        eprintln!("pool task {} exiting normally after {} iterations", i, j);
+                    } else {
+                        eprintln!("pool task {} dying due to {} after {} iterations", i, e, j);
                     }
+                    break;
                 }
+
+                // shouldn't be necessary if the pool is fair
+                // sqlx_rt::yield_now().await;
             }
         });
     }
@@ -547,6 +552,8 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
                 })
                 .await;
 
+                // this one is necessary since this is a hot loop,
+                // otherwise this task will never be descheduled
                 sqlx_rt::yield_now().await;
             }
         });
@@ -961,6 +968,30 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS heating_bills;
+DROP DOMAIN IF EXISTS winter_year_month;
+DROP TYPE IF EXISTS year_month;
+DROP DOMAIN IF EXISTS month_id;
+
+CREATE DOMAIN month_id AS INT2 CHECK (1 <= value AND value <= 12);
+CREATE TYPE year_month AS (year INT4, month month_id);
+CREATE DOMAIN winter_year_month AS year_month CHECK ((value).month <= 3);
+CREATE TABLE heating_bills (
+  month winter_year_month NOT NULL PRIMARY KEY,
+  cost INT4 NOT NULL
+);
+    "#,
+    )
+    .await?;
+
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct MonthId(i16);
 
@@ -1032,41 +1063,385 @@ async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<
             sqlx::encode::IsNull::No
         }
     }
-
     let mut conn = new::<Postgres>().await?;
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
-            .execute(&mut conn)
-            .await;
-
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
-
-    {
-        let result = sqlx::query(
-            "INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);",
-        )
-        .bind(WinterYearMonth {
-            year: 2021,
-            month: MonthId(1),
-        })
+    let result = sqlx::query("DELETE FROM heating_bills;")
         .execute(&mut conn)
         .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
-    }
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 0);
 
-    {
-        let result = sqlx::query("DELETE FROM heating_bills;")
+    let result =
+        sqlx::query("INSERT INTO heating_bills(month, cost) VALUES($1::winter_year_month, 100);")
+            .bind(WinterYearMonth {
+                year: 2021,
+                month: MonthId(1),
+            })
             .execute(&mut conn)
             .await;
 
-        let result = result.unwrap();
-        assert_eq!(result.rows_affected(), 1);
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    let result = sqlx::query("DELETE FROM heating_bills;")
+        .execute(&mut conn)
+        .await;
+
+    let result = result.unwrap();
+    assert_eq!(result.rows_affected(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_resolves_custom_type_in_array() -> anyhow::Result<()> {
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
     }
+
+    // language=PostgreSQL
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS pets;
+DROP TYPE IF EXISTS pet_name_and_race;
+
+CREATE TYPE pet_name_and_race AS (
+  name TEXT,
+  race TEXT
+);
+CREATE TABLE pets (
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  race TEXT NOT NULL,
+  PRIMARY KEY (owner, name)
+);
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Foo', 'cat');
+INSERT INTO pets(owner, name, race)
+VALUES
+  ('Alice', 'Bar', 'dog');
+    "#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRace {
+        name: String,
+        race: String,
+    }
+
+    impl sqlx::Type<Postgres> for PetNameAndRace {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRace {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+            let name = decoder.try_decode::<String>()?;
+            let race = decoder.try_decode::<String>()?;
+            Ok(Self { name, race })
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PetNameAndRaceArray(Vec<PetNameAndRace>);
+
+    impl sqlx::Type<Postgres> for PetNameAndRaceArray {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            // Array type name is the name of the element type prefixed with `_`
+            sqlx::postgres::PgTypeInfo::with_name("_pet_name_and_race")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for PetNameAndRaceArray {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(Vec::<PetNameAndRace>::decode(value)?))
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let row = sqlx::query("select owner, array_agg(row(name, race)::pet_name_and_race) as pets from pets group by owner")
+        .fetch_one(&mut conn)
+        .await?;
+
+    let pets: PetNameAndRaceArray = row.get("pets");
+
+    assert_eq!(pets.0.len(), 2);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_pg_server_num() -> anyhow::Result<()> {
+    use sqlx::postgres::PgConnectionInfo;
+
+    let conn = new::<Postgres>().await?;
+
+    assert!(conn.server_version_num().is_some());
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let mut copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.send("id\n1\n2\n".as_bytes()).await?;
+    let rows = copy.finish().await?;
+    assert_eq!(rows, 2);
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_abort_copy_in() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        r#"
+        CREATE TEMPORARY TABLE users (id INTEGER NOT NULL);
+    "#,
+    )
+    .await?;
+
+    let copy = conn
+        .copy_in_raw(
+            r#"
+        COPY users (id) FROM STDIN WITH (FORMAT CSV, HEADER);
+    "#,
+        )
+        .await?;
+
+    copy.abort("this is only a test").await?;
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_copy_out() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    {
+        let mut copy = conn
+            .copy_out_raw(
+                "
+            COPY (SELECT generate_series(1, 2) AS id) TO STDOUT WITH (FORMAT CSV, HEADER);
+        ",
+            )
+            .await?;
+
+        assert_eq!(copy.next().await.unwrap().unwrap(), "id\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "1\n");
+        assert_eq!(copy.next().await.unwrap().unwrap(), "2\n");
+        if copy.next().await.is_some() {
+            anyhow::bail!("Unexpected data from COPY");
+        }
+    }
+
+    // conn is safe for reuse
+    let value = sqlx::query("select 1 + 1")
+        .try_map(|row: PgRow| row.try_get::<i32, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(2i32, value);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_encodes_custom_array_issue_1504() -> anyhow::Result<()> {
+    use sqlx::encode::IsNull;
+    use sqlx::postgres::{PgArgumentBuffer, PgTypeInfo};
+    use sqlx::{Decode, Encode, Type, ValueRef};
+
+    #[derive(Debug, PartialEq)]
+    enum Value {
+        String(String),
+        Number(i32),
+        Array(Vec<Value>),
+    }
+
+    impl<'r> Decode<'r, Postgres> for Value {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> std::result::Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let typ = value.type_info().into_owned();
+
+            if typ == PgTypeInfo::with_name("text") {
+                let s = <String as Decode<'_, Postgres>>::decode(value)?;
+
+                Ok(Self::String(s))
+            } else if typ == PgTypeInfo::with_name("int4") {
+                let n = <i32 as Decode<'_, Postgres>>::decode(value)?;
+
+                Ok(Self::Number(n))
+            } else if typ == PgTypeInfo::with_name("_text") {
+                let arr = Vec::<String>::decode(value)?;
+                let v = arr.into_iter().map(|s| Value::String(s)).collect();
+
+                Ok(Self::Array(v))
+            } else if typ == PgTypeInfo::with_name("_int4") {
+                let arr = Vec::<i32>::decode(value)?;
+                let v = arr.into_iter().map(|n| Value::Number(n)).collect();
+
+                Ok(Self::Array(v))
+            } else {
+                Err("unknown type".into())
+            }
+        }
+    }
+
+    impl Encode<'_, Postgres> for Value {
+        fn produces(&self) -> Option<PgTypeInfo> {
+            match self {
+                Self::Array(a) => {
+                    if a.len() < 1 {
+                        return Some(PgTypeInfo::with_name("_text"));
+                    }
+
+                    match a[0] {
+                        Self::String(_) => Some(PgTypeInfo::with_name("_text")),
+                        Self::Number(_) => Some(PgTypeInfo::with_name("_int4")),
+                        Self::Array(_) => None,
+                    }
+                }
+                Self::String(_) => Some(PgTypeInfo::with_name("text")),
+                Self::Number(_) => Some(PgTypeInfo::with_name("int4")),
+            }
+        }
+
+        fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+            match self {
+                Value::String(s) => <String as Encode<'_, Postgres>>::encode_by_ref(s, buf),
+                Value::Number(n) => <i32 as Encode<'_, Postgres>>::encode_by_ref(n, buf),
+                Value::Array(arr) => arr.encode(buf),
+            }
+        }
+    }
+
+    impl Type<Postgres> for Value {
+        fn type_info() -> PgTypeInfo {
+            PgTypeInfo::with_name("unknown")
+        }
+
+        fn compatible(ty: &PgTypeInfo) -> bool {
+            [
+                PgTypeInfo::with_name("text"),
+                PgTypeInfo::with_name("_text"),
+                PgTypeInfo::with_name("int4"),
+                PgTypeInfo::with_name("_int4"),
+            ]
+            .contains(ty)
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let (row,): (Value,) = sqlx::query_as("SELECT $1::text[] as Dummy")
+        .bind(Value::Array(vec![
+            Value::String("Test 0".to_string()),
+            Value::String("Test 1".to_string()),
+        ]))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(
+        row,
+        Value::Array(vec![
+            Value::String("Test 0".to_string()),
+            Value::String("Test 1".to_string()),
+        ])
+    );
+
+    let (row,): (Value,) = sqlx::query_as("SELECT $1::int4[] as Dummy")
+        .bind(Value::Array(vec![
+            Value::Number(3),
+            Value::Number(2),
+            Value::Number(1),
+        ]))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(
+        row,
+        Value::Array(vec![Value::Number(3), Value::Number(2), Value::Number(1)])
+    );
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_issue_1254() -> anyhow::Result<()> {
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "pair")]
+    struct Pair {
+        one: i32,
+        two: i32,
+    }
+
+    // array for custom type is not supported, use wrapper
+    #[derive(sqlx::Type)]
+    #[sqlx(type_name = "_pair")]
+    struct Pairs(Vec<Pair>);
+
+    let mut conn = new::<Postgres>().await?;
+    conn.execute(
+        "
+DROP TABLE IF EXISTS issue_1254;
+DROP TYPE IF EXISTS pair;
+
+CREATE TYPE pair AS (one INT4, two INT4);
+CREATE TABLE issue_1254 (id INT4 PRIMARY KEY, pairs PAIR[]);
+",
+    )
+    .await?;
+
+    let result = sqlx::query("INSERT INTO issue_1254 VALUES($1, $2)")
+        .bind(0)
+        .bind(Pairs(vec![Pair { one: 94, two: 87 }]))
+        .execute(&mut conn)
+        .await?;
+    assert_eq!(result.rows_affected(), 1);
 
     Ok(())
 }

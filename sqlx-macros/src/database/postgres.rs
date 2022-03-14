@@ -18,6 +18,10 @@ impl_database_ext! {
 
         sqlx::postgres::types::PgMoney,
 
+        sqlx::postgres::types::PgLTree,
+
+        sqlx::postgres::types::PgLQuery,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 
@@ -59,6 +63,9 @@ impl_database_ext! {
 
         #[cfg(feature = "ipnetwork")]
         sqlx::types::ipnetwork::IpNetwork,
+
+        #[cfg(feature = "mac_address")]
+        sqlx::types::mac_address::MacAddress,
 
         #[cfg(feature = "json")]
         serde_json::Value,
@@ -112,6 +119,9 @@ impl_database_ext! {
 
         #[cfg(feature = "ipnetwork")]
         Vec<sqlx::types::ipnetwork::IpNetwork> | &[sqlx::types::ipnetwork::IpNetwork],
+
+        #[cfg(feature = "mac_address")]
+        Vec<sqlx::types::mac_address::MacAddress> | &[sqlx::types::mac_address::MacAddress],
 
         #[cfg(feature = "json")]
         Vec<serde_json::Value> | &[serde_json::Value],

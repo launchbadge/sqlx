@@ -260,10 +260,23 @@ impl PgListener {
 impl Drop for PgListener {
     fn drop(&mut self) {
         if let Some(mut conn) = self.connection.take() {
-            // Unregister any listeners before returning the connection to the pool.
-            sqlx_rt::spawn(async move {
+            let fut = async move {
                 let _ = conn.execute("UNLISTEN *").await;
-            });
+
+                // inline the drop handler from `PoolConnection` so it doesn't try to spawn another task
+                // otherwise, it may trigger a panic if this task is dropped because the runtime is going away:
+                // https://github.com/launchbadge/sqlx/issues/1389
+                conn.return_to_pool().await;
+            };
+
+            // Unregister any listeners before returning the connection to the pool.
+            #[cfg(not(feature = "_rt-async-std"))]
+            if let Ok(handle) = sqlx_rt::Handle::try_current() {
+                handle.spawn(fut);
+            }
+
+            #[cfg(feature = "_rt-async-std")]
+            sqlx_rt::spawn(fut);
         }
     }
 }

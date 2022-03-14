@@ -1,4 +1,5 @@
 use bytes::Buf;
+use std::borrow::Cow;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -7,29 +8,49 @@ use crate::postgres::type_info::PgType;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
-impl<T> Type<Postgres> for [Option<T>]
-where
-    [T]: Type<Postgres>,
-{
-    fn type_info() -> PgTypeInfo {
-        <[T] as Type<Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &PgTypeInfo) -> bool {
-        <[T] as Type<Postgres>>::compatible(ty)
+pub trait PgHasArrayType {
+    fn array_type_info() -> PgTypeInfo;
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        *ty == Self::array_type_info()
     }
 }
 
-impl<T> Type<Postgres> for Vec<Option<T>>
+impl<T> PgHasArrayType for Option<T>
 where
-    Vec<T>: Type<Postgres>,
+    T: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
+impl<T> Type<Postgres> for [T]
+where
+    T: PgHasArrayType,
 {
     fn type_info() -> PgTypeInfo {
-        <Vec<T> as Type<Postgres>>::type_info()
+        T::array_type_info()
     }
 
     fn compatible(ty: &PgTypeInfo) -> bool {
-        <Vec<T> as Type<Postgres>>::compatible(ty)
+        T::array_compatible(ty)
+    }
+}
+
+impl<T> Type<Postgres> for Vec<T>
+where
+    T: PgHasArrayType,
+{
+    fn type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
     }
 }
 
@@ -49,11 +70,17 @@ where
     T: Encode<'q, Postgres> + Type<Postgres>,
 {
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        let type_info = if self.len() < 1 {
+            T::type_info()
+        } else {
+            self[0].produces().unwrap_or_else(T::type_info)
+        };
+
         buf.extend(&1_i32.to_be_bytes()); // number of dimensions
         buf.extend(&0_i32.to_be_bytes()); // flags
 
         // element type
-        match T::type_info().0 {
+        match type_info.0 {
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
 
             ty => {
@@ -77,7 +104,6 @@ where
     T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
 {
     fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
-        let element_type_info;
         let format = value.format();
 
         match format {
@@ -105,7 +131,8 @@ where
 
                 // the OID of the element
                 let element_type_oid = buf.get_u32();
-                element_type_info = PgTypeInfo::try_from_oid(element_type_oid)
+                let element_type_info: PgTypeInfo = PgTypeInfo::try_from_oid(element_type_oid)
+                    .or_else(|| value.type_info.try_array_element().map(Cow::into_owned))
                     .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
 
                 // length of the array axis
@@ -133,7 +160,7 @@ where
 
             PgValueFormat::Text => {
                 // no type is provided from the database for the element
-                element_type_info = T::type_info();
+                let element_type_info = T::type_info();
 
                 let s = value.as_str()?;
 

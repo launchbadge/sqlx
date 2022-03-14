@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use bytes::Buf;
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
+use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -21,17 +21,43 @@ impl Type<MySql> for DateTime<Utc> {
     }
 }
 
+/// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl Encode<'_, MySql> for DateTime<Utc> {
     fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
         Encode::<MySql>::encode(&self.naive_utc(), buf)
     }
 }
 
+/// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
 impl<'r> Decode<'r, MySql> for DateTime<Utc> {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         let naive: NaiveDateTime = Decode::<MySql>::decode(value)?;
 
         Ok(DateTime::from_utc(naive, Utc))
+    }
+}
+
+impl Type<MySql> for DateTime<Local> {
+    fn type_info() -> MySqlTypeInfo {
+        MySqlTypeInfo::binary(ColumnType::Timestamp)
+    }
+
+    fn compatible(ty: &MySqlTypeInfo) -> bool {
+        matches!(ty.r#type, ColumnType::Datetime | ColumnType::Timestamp)
+    }
+}
+
+/// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
+impl Encode<'_, MySql> for DateTime<Local> {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+        Encode::<MySql>::encode(&self.naive_utc(), buf)
+    }
+}
+
+/// Note: assumes the connection's `time_zone` is set to `+00:00` (UTC).
+impl<'r> Decode<'r, MySql> for DateTime<Local> {
+    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(<DateTime<Utc> as Decode<'r, MySql>>::decode(value)?.with_timezone(&Local))
     }
 }
 

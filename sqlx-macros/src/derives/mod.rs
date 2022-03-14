@@ -10,7 +10,7 @@ pub(crate) use r#type::expand_derive_type;
 pub(crate) use row::expand_derive_from_row;
 
 use self::attributes::RenameAll;
-use heck::{CamelCase, KebabCase, MixedCase, ShoutySnakeCase, SnakeCase};
+use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::TokenStream;
 use std::iter::FromIterator;
 use syn::DeriveInput;
@@ -32,7 +32,7 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
         RenameAll::UpperCase => s.to_uppercase(),
         RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
         RenameAll::KebabCase => s.to_kebab_case(),
-        RenameAll::CamelCase => s.to_mixed_case(),
-        RenameAll::PascalCase => s.to_camel_case(),
+        RenameAll::CamelCase => s.to_lower_camel_case(),
+        RenameAll::PascalCase => s.to_upper_camel_case(),
     }
 }

@@ -1,12 +1,16 @@
-use super::inner::{DecrementSizeGuard, SharedPool};
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use sqlx_rt::spawn;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Instant;
+
+use futures_intrusive::sync::SemaphoreReleaser;
+
+use crate::connection::Connection;
+use crate::database::Database;
+use crate::error::Error;
+
+use super::inner::{DecrementSizeGuard, SharedPool};
+use std::future::Future;
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
@@ -28,8 +32,8 @@ pub(super) struct Idle<DB: Database> {
 
 /// RAII wrapper for connections being handled by functions that may drop them
 pub(super) struct Floating<'p, C> {
-    inner: C,
-    guard: DecrementSizeGuard<'p>,
+    pub(super) inner: C,
+    pub(super) guard: DecrementSizeGuard<'p>,
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
@@ -57,43 +61,85 @@ impl<DB: Database> DerefMut for PoolConnection<DB> {
 
 impl<DB: Database> PoolConnection<DB> {
     /// Explicitly release a connection from the pool
-    pub fn release(mut self) -> DB::Connection {
+    #[deprecated = "renamed to `.detach()` for clarity"]
+    pub fn release(self) -> DB::Connection {
+        self.detach()
+    }
+
+    /// Detach this connection from the pool, allowing it to open a replacement.
+    ///
+    /// Note that if your application uses a single shared pool, this
+    /// effectively lets the application exceed the `max_connections` setting.
+    ///
+    /// If you want the pool to treat this connection as permanently checked-out,
+    /// use [`.leak()`][Self::leak] instead.
+    pub fn detach(mut self) -> DB::Connection {
         self.live
             .take()
             .expect("PoolConnection double-dropped")
             .float(&self.pool)
             .detach()
     }
+
+    /// Detach this connection from the pool, treating it as permanently checked-out.
+    ///
+    /// This effectively will reduce the maximum capacity of the pool by 1 every time it is used.
+    ///
+    /// If you don't want to impact the pool's capacity, use [`.detach()`][Self::detach] instead.
+    pub fn leak(mut self) -> DB::Connection {
+        self.live.take().expect("PoolConnection double-dropped").raw
+    }
+
+    /// Test the connection to make sure it is still live before returning it to the pool.
+    ///
+    /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
+    pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
+        // we want these to happen synchronously so the drop handler doesn't try to spawn a task anyway
+        // this also makes the returned future `'static`
+        let live = self.live.take();
+        let pool = self.pool.clone();
+
+        async move {
+            let mut floating = if let Some(live) = live {
+                live.float(&pool)
+            } else {
+                return;
+            };
+
+            // test the connection on-release to ensure it is still viable
+            // if an Executor future/stream is dropped during an `.await` call, the connection
+            // is likely to be left in an inconsistent state, in which case it should not be
+            // returned to the pool; also of course, if it was dropped due to an error
+            // this is simply a band-aid as SQLx-next (0.6) connections should be able
+            // to recover from cancellations
+            if let Err(e) = floating.raw.ping().await {
+                log::warn!(
+                    "error occurred while testing the connection on-release: {}",
+                    e
+                );
+
+                // we now consider the connection to be broken; just drop it to close
+                // trying to close gracefully might cause something weird to happen
+                drop(floating);
+            } else {
+                // if the connection is still viable, release it to the pool
+                pool.release(floating);
+            }
+        }
+    }
 }
 
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
 impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
-        if let Some(live) = self.live.take() {
-            let pool = self.pool.clone();
-            spawn(async move {
-                let mut floating = live.float(&pool);
+        if self.live.is_some() {
+            #[cfg(not(feature = "_rt-async-std"))]
+            if let Ok(handle) = sqlx_rt::Handle::try_current() {
+                handle.spawn(self.return_to_pool());
+            }
 
-                // test the connection on-release to ensure it is still viable
-                // if an Executor future/stream is dropped during an `.await` call, the connection
-                // is likely to be left in an inconsistent state, in which case it should not be
-                // returned to the pool; also of course, if it was dropped due to an error
-                // this is simply a band-aid as SQLx-next (0.6) connections should be able
-                // to recover from cancellations
-                if let Err(e) = floating.raw.ping().await {
-                    log::warn!(
-                        "error occurred while testing the connection on-release: {}",
-                        e
-                    );
-
-                    // we now consider the connection to be broken; just drop it to close
-                    // trying to close gracefully might cause something weird to happen
-                    drop(floating);
-                } else {
-                    // if the connection is still viable, release it to th epool
-                    pool.release(floating);
-                }
-            });
+            #[cfg(feature = "_rt-async-std")]
+            sqlx_rt::spawn(self.return_to_pool());
         }
     }
 }
@@ -102,7 +148,8 @@ impl<DB: Database> Live<DB> {
     pub fn float(self, pool: &SharedPool<DB>) -> Floating<'_, Self> {
         Floating {
             inner: self,
-            guard: DecrementSizeGuard::new(pool),
+            // create a new guard from a previously leaked permit
+            guard: DecrementSizeGuard::new_permit(pool),
         }
     }
 
@@ -125,13 +172,6 @@ impl<DB: Database> Deref for Idle<DB> {
 impl<DB: Database> DerefMut for Idle<DB> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live
-    }
-}
-
-impl<'s, C> Floating<'s, C> {
-    pub fn into_leakable(self) -> C {
-        self.guard.cancel();
-        self.inner
     }
 }
 
@@ -161,6 +201,11 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
         }
     }
 
+    pub async fn close(self) -> Result<(), Error> {
+        // `guard` is dropped as intended
+        self.inner.raw.close().await
+    }
+
     pub fn detach(self) -> DB::Connection {
         self.inner.raw
     }
@@ -174,10 +219,14 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
 }
 
 impl<'s, DB: Database> Floating<'s, Idle<DB>> {
-    pub fn from_idle(idle: Idle<DB>, pool: &'s SharedPool<DB>) -> Self {
+    pub fn from_idle(
+        idle: Idle<DB>,
+        pool: &'s SharedPool<DB>,
+        permit: SemaphoreReleaser<'s>,
+    ) -> Self {
         Self {
             inner: idle,
-            guard: DecrementSizeGuard::new(pool),
+            guard: DecrementSizeGuard::from_permit(pool, permit),
         }
     }
 
@@ -192,9 +241,12 @@ impl<'s, DB: Database> Floating<'s, Idle<DB>> {
         }
     }
 
-    pub async fn close(self) -> Result<(), Error> {
+    pub async fn close(self) -> DecrementSizeGuard<'s> {
         // `guard` is dropped as intended
-        self.inner.live.raw.close().await
+        if let Err(e) = self.inner.live.raw.close().await {
+            log::debug!("error occurred while closing the pool connection: {}", e);
+        }
+        self.guard
     }
 }
 

@@ -15,7 +15,7 @@ macro_rules! assert_attribute {
 
 macro_rules! fail {
     ($t:expr, $m:expr) => {
-        return Err(syn::Error::new_spanned($t, $m));
+        return Err(syn::Error::new_spanned($t, $m))
     };
 }
 
@@ -215,8 +215,6 @@ pub fn check_transparent_attributes(
         "unexpected #[sqlx(rename_all = ..)]",
         field
     );
-
-    assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
 
     let ch_attributes = parse_child_attributes(&field.attrs)?;
 

@@ -158,6 +158,7 @@ macro_rules! __test_prepared_type {
 
                 $(
                     let query = format!($sql, $text);
+                    println!("{query}");
 
                     let row = sqlx::query(&query)
                         .bind($value)
@@ -197,7 +198,8 @@ macro_rules! __test_prepared_type {
 #[macro_export]
 macro_rules! MySql_query_for_test_prepared_type {
     () => {
-        "SELECT {0} <=> ?, {0}, ?"
+        // MySQL 8.0.27 changed `<=>` to return an unsigned integer
+        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), {0}, ?"
     };
 }
 

@@ -5,7 +5,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::arguments::IntoArguments;
-use crate::database::{Database, HasArguments, HasStatement};
+use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
 use crate::encode::Encode;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -53,6 +53,24 @@ impl<'q, DB: Database, O> QueryAs<'q, DB, O, <DB as HasArguments<'q>>::Arguments
     /// See [`Query::bind`](Query::bind).
     pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
+        self
+    }
+}
+
+impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
+where
+    DB: Database + HasStatementCache,
+{
+    /// If `true`, the statement will get prepared once and cached to the
+    /// connection's statement cache.
+    ///
+    /// If queried once with the flag set to `true`, all subsequent queries
+    /// matching the one with the flag will use the cached statement until the
+    /// cache is cleared.
+    ///
+    /// Default: `true`.
+    pub fn persistent(mut self, value: bool) -> Self {
+        self.inner = self.inner.persistent(value);
         self
     }
 }

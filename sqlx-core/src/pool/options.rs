@@ -231,19 +231,13 @@ impl<DB: Database> PoolOptions<DB> {
 async fn init_min_connections<DB: Database>(pool: &SharedPool<DB>) -> Result<(), Error> {
     for _ in 0..cmp::max(pool.options.min_connections, 1) {
         let deadline = Instant::now() + pool.options.connect_timeout;
+        let permit = pool.semaphore.acquire(1).await;
 
         // this guard will prevent us from exceeding `max_size`
-        if let Some(guard) = pool.try_increment_size() {
+        if let Ok(guard) = pool.try_increment_size(permit) {
             // [connect] will raise an error when past deadline
             let conn = pool.connection(deadline, guard).await?;
-            let is_ok = pool
-                .idle_conns
-                .push(conn.into_idle().into_leakable())
-                .is_ok();
-
-            if !is_ok {
-                panic!("BUG: connection queue overflow in init_min_connections");
-            }
+            pool.release(conn);
         }
     }
 

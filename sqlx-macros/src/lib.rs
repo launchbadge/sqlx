@@ -2,6 +2,10 @@
     not(any(feature = "postgres", feature = "mysql", feature = "offline")),
     allow(dead_code, unused_macros, unused_imports)
 )]
+#![cfg_attr(
+    any(sqlx_macros_unstable, procmacro2_semver_exempt),
+    feature(track_path, proc_macro_tracked_env)
+)]
 extern crate proc_macro;
 
 use proc_macro::TokenStream;

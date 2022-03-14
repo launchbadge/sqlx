@@ -1,7 +1,9 @@
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 impl Type<Postgres> for bool {
@@ -10,15 +12,9 @@ impl Type<Postgres> for bool {
     }
 }
 
-impl Type<Postgres> for [bool] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for bool {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::BOOL_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<bool> {
-    fn type_info() -> PgTypeInfo {
-        <[bool] as Type<Postgres>>::type_info()
     }
 }
 

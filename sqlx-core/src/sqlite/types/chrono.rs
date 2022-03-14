@@ -76,7 +76,7 @@ impl Encode<'_, Sqlite> for NaiveDate {
 
 impl Encode<'_, Sqlite> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format("%T%.f%").to_string(), buf)
+        Encode::<Sqlite>::encode(self.format("%T%.f").to_string(), buf)
     }
 }
 
@@ -179,9 +179,11 @@ impl<'r> Decode<'r, Sqlite> for NaiveTime {
 
         // Loop over common time patterns, inspired by Diesel
         // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L29-L47
+        #[rustfmt::skip] // don't like how rustfmt mangles the comments
         let sqlite_time_formats = &[
             // Most likely format
-            "%T.f", // Other formats in order of appearance in docs
+            "%T.f", "%T%.f",
+            // Other formats in order of appearance in docs
             "%R", "%RZ", "%T%.fZ", "%R%:z", "%T%.f%:z",
         ];
 

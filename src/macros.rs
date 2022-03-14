@@ -36,6 +36,7 @@
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<{adhoc struct}>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<{adhoc struct}>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<{adhoc struct}>>`  | Call `.try_next().await` to get each row result. |
+/// | Multiple   | `.fetch_all(...)`               | `sqlx::Result<Vec<{adhoc struct}>>`  | |
 ///
 /// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// † Only callable if the query returns no columns; otherwise it's assumed the query *may* return at least one row.
@@ -44,7 +45,7 @@
 /// server with the schema that the query string will be checked against. All variants of `query!()`
 /// use [dotenv] so this can be in a `.env` file instead.
 ///
-///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
 ///
 /// * The query must be a string literal, or concatenation of string literals using `+` (useful
@@ -106,7 +107,7 @@
 ///
 /// In Postgres and MySQL you may also use `IS [NOT] DISTINCT FROM` to compare with a possibly
 /// `NULL` value. In MySQL `IS NOT DISTINCT FROM` can be shortened to `<=>`.
-/// In SQLite you can us `IS` or `IS NOT`. Note that operator precedence may be different.
+/// In SQLite you can use `IS` or `IS NOT`. Note that operator precedence may be different.
 ///
 /// ## Nullability: Output Columns
 /// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
@@ -146,10 +147,9 @@
 /// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
 /// ```
 ///
-/// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
-/// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
-/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
-/// forbidden for now as they produce rather nasty type errors.
+/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression,
+/// and then that syntax is stripped from the expression so as to not trigger type errors
+/// (or an unstable syntax feature in the case of the latter, which is called type ascription).
 ///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
@@ -459,6 +459,7 @@ macro_rules! query_file_unchecked (
 /// | Zero or One    | `.fetch_optional(...).await`| `sqlx::Result<Option<T>>`              | Extra rows are ignored. |
 /// | Exactly One    | `.fetch_one(...).await`     | `sqlx::Result<T>`                      | Errors if no rows were returned. Extra rows are ignored. Aggregate queries, use this. |
 /// | At Least One   | `.fetch(...)`               | `impl Stream<Item = sqlx::Result<T>>`  | Call `.try_next().await` to get each row result. |
+/// | Multiple       | `.fetch_all(...)`           | `sqlx::Result<Vec<T>>`  | |
 ///
 /// \* All methods accept one of `&mut {connection type}`, `&mut Transaction` or `&Pool`.
 /// (`.execute()` is omitted as this macro requires at least one column to be returned.)
@@ -715,6 +716,70 @@ macro_rules! query_file_scalar_unchecked (
 /// The directory must be relative to the project root (the directory containing `Cargo.toml`),
 /// unlike `include_str!()` which uses compiler internals to get the path of the file where it
 /// was invoked.
+///
+/// See [MigrationSource][crate::migrate::MigrationSource] for details on structure of the ./migrations directory.
+///
+/// ## Triggering Recompilation on Migration Changes
+/// In some cases when making changes to embedded migrations, such as adding a new migration without
+/// changing any Rust source files, you might find that `cargo build` doesn't actually do anything,
+/// or when you do `cargo run` your application isn't applying new migrations on startup.
+///
+/// This is because our ability to tell the compiler to watch external files for changes
+/// from a proc-macro is very limited. The compiler by default only re-runs proc macros when
+/// one ore more source files have changed, because normally it shouldn't have to otherwise. SQLx is
+/// just weird in that external factors can change the output of proc macros, much to the chagrin of
+/// the compiler team and IDE plugin authors.
+///
+/// As of 0.5.6, we emit `include_str!()` with an absolute path for each migration, but that
+/// only works to get the compiler to watch _existing_ migration files for changes.
+///
+/// Our only options for telling it to watch the whole `migrations/` directory are either via the
+/// user creating a Cargo build script in their project, or using an unstable API on nightly
+/// governed by a `cfg`-flag.
+///
+/// ##### Stable Rust: Cargo Build Script
+/// The only solution on stable Rust right now is to create a Cargo build script in your project
+/// and have it print `cargo:rerun-if-changed=migrations`:
+///
+/// `build.rs`
+/// ```
+/// fn main() {
+///     println!("cargo:rerun-if-changed=migrations");
+/// }
+/// ```
+///
+/// You can run `sqlx migrate build-script` to generate this file automatically.
+///
+/// See: [The Cargo Book: 3.8 Build Scripts; Outputs of the Build Script](https://doc.rust-lang.org/stable/cargo/reference/build-scripts.html#outputs-of-the-build-script)
+///
+/// #### Nightly Rust: `cfg` Flag
+/// The `migrate!()` macro also listens to `--cfg sqlx_macros_unstable`, which will enable
+/// the `track_path` feature to directly tell the compiler to watch the `migrations/` directory:
+///
+/// ```sh,ignore
+/// $ env RUSTFLAGS='--cfg sqlx_macros_unstable' cargo build
+/// ```
+///
+/// Note that this unfortunately will trigger a fully recompile of your dependency tree, at least
+/// for the first time you use it. It also, of course, requires using a nightly compiler.
+///
+/// You can also set it in `build.rustflags` in `.cargo/config.toml`:
+/// ```toml,ignore
+/// [build]
+/// rustflags = ["--cfg sqlx_macros_unstable"]
+/// ```
+///
+/// And then continue building and running your project normally.
+///
+/// If you're building on nightly anyways, it would be extremely helpful to help us test
+/// this feature and find any bugs in it.
+///
+/// Subscribe to [the `track_path` tracking issue](https://github.com/rust-lang/rust/issues/73921)
+/// for discussion and the future stabilization of this feature.
+///
+/// For brevity and because it involves the same commitment to unstable features in `proc_macro`,
+/// if you're using `--cfg procmacro2_semver_exempt` it will also enable this feature
+/// (see [`proc-macro2` docs / Unstable Features](https://docs.rs/proc-macro2/1.0.27/proc_macro2/#unstable-features)).
 #[cfg(feature = "migrate")]
 #[macro_export]
 macro_rules! migrate {

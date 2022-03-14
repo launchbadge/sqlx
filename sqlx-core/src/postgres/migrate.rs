@@ -8,7 +8,6 @@ use crate::postgres::{PgConnectOptions, PgConnection, Postgres};
 use crate::query::query;
 use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
-use crc::crc32;
 use futures_core::future::BoxFuture;
 use std::str::FromStr;
 use std::time::Duration;
@@ -25,9 +24,9 @@ fn parse_for_maintenance(uri: &str) -> Result<(PgConnectOptions, String), Error>
         .to_owned();
 
     // switch us to the maintenance database
-    // use `postgres` _unless_ the current user is postgres, in which case, use `template1`
+    // use `postgres` _unless_ the database is postgres, in which case, use `template1`
     // this matches the behavior of the `createdb` util
-    options.database = if options.username == "postgres" {
+    options.database = if database == "postgres" {
         Some("template1".into())
     } else {
         Some("postgres".into())
@@ -281,6 +280,7 @@ async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateErro
 
 // inspired from rails: https://github.com/rails/rails/blob/6e49cc77ab3d16c06e12f93158eaf3e507d4120e/activerecord/lib/active_record/migration.rb#L1308
 fn generate_lock_id(database_name: &str) -> i64 {
+    const CRC_IEEE: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
     // 0x3d32ad9e chosen by fair dice roll
-    0x3d32ad9e * (crc32::checksum_ieee(database_name.as_bytes()) as i64)
+    0x3d32ad9e * (CRC_IEEE.checksum(database_name.as_bytes()) as i64)
 }

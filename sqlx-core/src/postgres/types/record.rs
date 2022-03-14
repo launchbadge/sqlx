@@ -38,7 +38,7 @@ impl<'a> PgRecordEncoder<'a> {
         'a: 'q,
         T: Encode<'q, Postgres> + Type<Postgres>,
     {
-        let ty = T::type_info();
+        let ty = value.produces().unwrap_or_else(T::type_info);
 
         if let PgType::DeclareWithName(name) = ty.0 {
             // push a hole for this type ID

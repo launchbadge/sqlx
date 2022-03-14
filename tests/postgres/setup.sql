@@ -1,3 +1,6 @@
+-- https://www.postgresql.org/docs/current/ltree.html
+CREATE EXTENSION IF NOT EXISTS ltree;
+
 -- https://www.postgresql.org/docs/current/sql-createtype.html
 CREATE TYPE status AS ENUM ('new', 'open', 'closed');
 
@@ -28,12 +31,4 @@ CREATE TABLE products (
     product_no INTEGER,
     name TEXT,
     price NUMERIC CHECK (price > 0)
-);
-
-CREATE DOMAIN month_id AS INT2 CHECK (1 <= value AND value <= 12);
-CREATE TYPE year_month AS (year INT4, month month_id);
-CREATE DOMAIN winter_year_month AS year_month CHECK ((value).month <= 3);
-CREATE TABLE heating_bills (
-  month winter_year_month NOT NULL PRIMARY KEY,
-  cost INT4 NOT NULL
 );

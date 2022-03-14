@@ -218,6 +218,10 @@ impl PgConnection {
             // patch holes created during encoding
             arguments.apply_patches(self, &metadata.parameters).await?;
 
+            // apply patches use fetch_optional thaht may produce `PortalSuspended` message,
+            // consume messages til `ReadyForQuery` before bind and execute
+            self.wait_until_ready().await?;
+
             // bind to attach the arguments to the statement and create a portal
             self.stream.write(Bind {
                 portal: None,

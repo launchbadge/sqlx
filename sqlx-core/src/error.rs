@@ -36,10 +36,10 @@ pub enum Error {
 
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
-    Database(Box<dyn DatabaseError>),
+    Database(#[source] Box<dyn DatabaseError>),
 
     /// Error communicating with the database backend.
-    #[error("error communicating with the server: {0}")]
+    #[error("error communicating with database: {0}")]
     Io(#[from] io::Error),
 
     /// Error occurred while attempting to establish a TLS connection.
@@ -104,6 +104,8 @@ pub enum Error {
     #[error("{0}")]
     Migrate(#[source] Box<crate::migrate::MigrateError>),
 }
+
+impl StdError for Box<dyn DatabaseError> {}
 
 impl Error {
     pub fn into_database_error(self) -> Option<Box<dyn DatabaseError + 'static>> {

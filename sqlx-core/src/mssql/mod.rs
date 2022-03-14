@@ -1,5 +1,7 @@
 //! Microsoft SQL (MSSQL) database driver.
 
+use crate::executor::Executor;
+
 mod arguments;
 mod column;
 mod connection;
@@ -31,6 +33,10 @@ pub use value::{MssqlValue, MssqlValueRef};
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for MSSQL.
 pub type MssqlPool = crate::pool::Pool<Mssql>;
+
+/// An alias for [`Executor<'_, Database = Mssql>`][Executor].
+pub trait MssqlExecutor<'c>: Executor<'c, Database = Mssql> {}
+impl<'c, T: Executor<'c, Database = Mssql>> MssqlExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 impl_into_arguments_for_arguments!(MssqlArguments);

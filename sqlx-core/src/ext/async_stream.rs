@@ -62,9 +62,9 @@ macro_rules! try_stream {
     ($($block:tt)*) => {
         crate::ext::async_stream::TryAsyncStream::new(move |mut sender| async move {
             macro_rules! r#yield {
-                ($v:expr) => {
+                ($v:expr) => {{
                     let _ = futures_util::sink::SinkExt::send(&mut sender, Ok($v)).await;
-                }
+                }}
             }
 
             $($block)*
