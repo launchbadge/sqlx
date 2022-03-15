@@ -96,8 +96,13 @@ impl Iterator for ExecuteIter<'_> {
             Ok(false) => {
                 let last_insert_rowid = self.handle.last_insert_rowid();
 
+                let changes = statement.handle.changes();
+                for _ in 0..changes {
+                    self.logger.increment_rows();
+                }
+
                 let done = SqliteQueryResult {
-                    changes: statement.handle.changes(),
+                    changes: changes,
                     last_insert_rowid,
                 };
 
