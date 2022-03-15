@@ -22,6 +22,10 @@ impl<'q> QueryLogger<'q> {
         self.rows += 1;
     }
 
+    pub(crate) fn increment_rows_by(&mut self, n: usize) {
+        self.rows += n;
+    }
+
     pub(crate) fn finish(&self) {
         let elapsed = self.start.elapsed();
 
