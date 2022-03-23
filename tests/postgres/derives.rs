@@ -10,6 +10,20 @@ use std::ops::Bound;
 #[sqlx(transparent)]
 struct Transparent(i32);
 
+#[sqlx_macros::test]
+async fn test_transparent_slice_to_array() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    let values = vec![Transparent(1), Transparent(2), Transparent(3)];
+
+    sqlx::query("SELECT 2 = ANY($1);")
+        .bind(&values)
+        .fetch_one(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
 // "Weak" enums map to an integer type indicated by #[repr]
 #[derive(PartialEq, Copy, Clone, Debug, sqlx::Type)]
 #[repr(i32)]
