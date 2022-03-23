@@ -14,7 +14,7 @@ use crate::query::{query, query_statement, query_statement_with, query_with, Que
 use crate::types::Type;
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
-/// Returned from [`query_as`].
+/// Returned from [`query_as`][crate::query_as::query_as].
 #[must_use = "query must be executed to affect database"]
 pub struct QueryAs<'q, DB: Database, O, A> {
     pub(crate) inner: Query<'q, DB, A>,
