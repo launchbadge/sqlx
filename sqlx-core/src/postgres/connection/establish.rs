@@ -32,9 +32,11 @@ impl PgConnection {
             // Sets the time zone for displaying and interpreting time stamps.
             ("TimeZone", "UTC"),
             // Adjust postgres to return precise values for floats
-            ("extra_float_digits", options.extra_float_digits.to_string().as_str()),
+            (
+                "extra_float_digits",
+                options.extra_float_digits.as_str(),
+            ),
         ];
-
 
         if let Some(ref application_name) = options.application_name {
             params.push(("application_name", application_name));

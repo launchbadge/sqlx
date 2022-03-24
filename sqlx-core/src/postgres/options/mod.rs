@@ -88,7 +88,7 @@ pub struct PgConnectOptions {
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
     pub(crate) options: Option<String>,
-    pub(crate) extra_float_digits: i32,
+    pub(crate) extra_float_digits: String,
 }
 
 impl Default for PgConnectOptions {
@@ -151,7 +151,7 @@ impl PgConnectOptions {
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
             // NOTE: This is default in postgres 12+
-            extra_float_digits: 3
+            extra_float_digits: "3".to_owned(),
         }
     }
 
@@ -380,6 +380,20 @@ impl PgConnectOptions {
             }
             _ => None,
         }
+    }
+
+    /// Sets the extra float digits. Defaults to 3
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .extra_float_digits("2");
+    /// ```
+    pub fn extra_float_digits(mut self, extra_float_digits: &str) -> Self {
+        self.extra_float_digits = extra_float_digits.to_owned();
+        self
     }
 }
 
