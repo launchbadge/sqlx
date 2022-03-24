@@ -14,7 +14,7 @@
 //! | `&str`, [`String`]                    | VARCHAR, CHAR(N), TEXT, NAME                         |
 //! | `&[u8]`, `Vec<u8>`                    | BYTEA                                                |
 //! | [`PgInterval`]                        | INTERVAL                                             |
-//! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZTRANGE, DATERANGE, NUMRANGE |
+//! | [`PgRange<T>`](PgRange)               | INT8RANGE, INT4RANGE, TSRANGE, TSTZRANGE, DATERANGE, NUMRANGE |
 //! | [`PgMoney`]                           | MONEY                                                |
 //!
 //!
