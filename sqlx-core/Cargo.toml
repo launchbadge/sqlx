@@ -33,6 +33,7 @@ postgres = [
     "json",
     "dirs",
     "whoami",
+    "hkdf"
 ]
 mysql = [
     "sha-1",
@@ -168,6 +169,7 @@ hashlink = "0.7.0"
 # NOTE: *must* remain below 1.7.0 to allow users to avoid the `ahash` cyclic dependency problem by pinning the version
 # https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
 indexmap = "1.6.0"
+hkdf = { version = "0.11.0", optional = true }
 
 [dev-dependencies]
 sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite"] }
