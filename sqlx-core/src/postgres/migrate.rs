@@ -156,6 +156,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
     fn lock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
         Box::pin(async move {
+            if database_version(self).await?.contains("CockroachDB") {
+                return Ok(());
+            }
+
             let database_name = current_database(self).await?;
             let lock_id = generate_lock_id(&database_name);
 
@@ -177,6 +181,10 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
     fn unlock(&mut self) -> BoxFuture<'_, Result<(), MigrateError>> {
         Box::pin(async move {
+            if database_version(self).await?.contains("CockroachDB") {
+                return Ok(());
+            }
+
             let database_name = current_database(self).await?;
             let lock_id = generate_lock_id(&database_name);
 
@@ -276,6 +284,11 @@ async fn current_database(conn: &mut PgConnection) -> Result<String, MigrateErro
     Ok(query_scalar("SELECT current_database()")
         .fetch_one(conn)
         .await?)
+}
+
+async fn database_version(conn: &mut PgConnection) -> Result<String, MigrateError> {
+    // language=SQL
+    Ok(query_scalar("SELECT version()").fetch_one(conn).await?)
 }
 
 // inspired from rails: https://github.com/rails/rails/blob/6e49cc77ab3d16c06e12f93158eaf3e507d4120e/activerecord/lib/active_record/migration.rb#L1308
