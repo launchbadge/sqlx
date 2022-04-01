@@ -3,9 +3,9 @@
 SQLx's associated command-line utility for managing databases, migrations, and enabling "offline"
 mode with `sqlx::query!()` and friends.
 
-### Install
+## Install
 
-#### With Rust toolchain
+### With Rust toolchain
 
 ```bash
 # supports all databases supported by SQLx
@@ -40,20 +40,35 @@ sqlx database create
 sqlx database drop
 ```
 
+---
+
 #### Create and run migrations
 
 ```bash
-$ sqlx migrate add <name>
+sqlx migrate add <name>
 ```
+
 Creates a new file in `migrations/<timestamp>-<name>.sql`. Add your database schema changes to
 this new file.
 
 ---
+
 ```bash
-$ sqlx migrate run
+sqlx migrate run
 ```
+
 Compares the migration history of the running database against the `migrations/` folder and runs
 any scripts that are still pending.
+
+---
+
+Users can provide the directory for the migration scripts to `sqlx migrate` subcommands with the `--source` flag.
+
+```bash
+sqlx migrate info --source ../relative/migrations
+```
+
+---
 
 #### Reverting Migrations
 
@@ -133,6 +148,7 @@ In order for sqlx to be able to find queries behind certain feature flags you ne
 on by passing arguments to rustc.
 
 This is how you would turn all targets and features on.
+
 ```bash
 cargo sqlx prepare -- --all-targets --all-features
 ```
