@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::env::var;
 use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
@@ -87,6 +88,7 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) extra_float_digits: Option<Cow<'static, str>>,
     pub(crate) options: Option<String>,
 }
 
@@ -147,6 +149,7 @@ impl PgConnectOptions {
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
+            extra_float_digits: Some("3".into()),
             log_settings: Default::default(),
             options: var("PGOPTIONS").ok(),
         }
@@ -333,6 +336,59 @@ impl PgConnectOptions {
     /// ```
     pub fn application_name(mut self, application_name: &str) -> Self {
         self.application_name = Some(application_name.to_owned());
+        self
+    }
+
+    /// Sets or removes the `extra_float_digits` connection option.
+    ///
+    /// This changes the default precision of floating-point values returned in text mode (when
+    /// not using prepared statements such as calling methods of [`Executor`] directly).
+    ///
+    /// Historically, Postgres would by default round floating-point values to 6 and 15 digits
+    /// for `float4`/`REAL` (`f32`) and `float8`/`DOUBLE` (`f64`), respectively, which would mean
+    /// that the returned value may not be exactly the same as its representation in Postgres.
+    ///
+    /// The nominal range for this value is `-15` to `3`, where negative values for this option
+    /// cause floating-points to be rounded to that many fewer digits than normal (`-1` causes
+    /// `float4` to be rounded to 5 digits instead of six, or 14 instead of 15 for `float8`),
+    /// positive values cause Postgres to emit that many extra digits of precision over default
+    /// (or simply use maximum precision in Postgres 12 and later),
+    /// and 0 means keep the default behavior (or the "old" behavior described above
+    /// as of Postgres 12).
+    ///
+    /// SQLx sets this value to 3 by default, which tells Postgres to return floating-point values
+    /// at their maximum precision in the hope that the parsed value will be identical to its
+    /// counterpart in Postgres. This is also the default in Postgres 12 and later anyway.
+    ///
+    /// However, older versions of Postgres and alternative implementations that talk the Postgres
+    /// protocol may not support this option, or the full range of values.
+    ///
+    /// If you get an error like "unknown option `extra_float_digits`" when connecting, try
+    /// setting this to `None` or consult the manual of your database for the allowed range
+    /// of values.
+    ///
+    /// For more information, see:
+    /// * [Postgres manual, 20.11.2: Client Connection Defaults; Locale and Formatting][20.11.2]
+    /// * [Postgres manual, 8.1.3: Numeric Types; Floating-point Types][8.1.3]
+    ///
+    /// [`Executor`]: crate::executor::Executor
+    /// [20.11.2]: https://www.postgresql.org/docs/current/runtime-config-client.html#RUNTIME-CONFIG-CLIENT-FORMAT
+    /// [8.1.3]: https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-FLOAT
+    ///
+    /// ### Examples
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    ///
+    /// let mut options = PgConnectOptions::new()
+    ///     // for Redshift and Postgres 10
+    ///     .extra_float_digits(2);
+    ///
+    /// let mut options = PgConnectOptions::new()
+    ///     // don't send the option at all (Postgres 9 and older)
+    ///     .extra_float_digits(None);
+    /// ```
+    pub fn extra_float_digits(mut self, extra_float_digits: impl Into<Option<i8>>) -> Self {
+        self.extra_float_digits = extra_float_digits.into().map(|it| it.to_string().into());
         self
     }
 
