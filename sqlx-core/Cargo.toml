@@ -170,6 +170,8 @@ hashlink = "0.7.0"
 # https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
 indexmap = "1.6.0"
 hkdf = { version = "0.11.0", optional = true }
+event-listener = "2.5.2"
 
 [dev-dependencies]
 sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite"] }
+tokio = { version = "1", features = ["rt"] }
