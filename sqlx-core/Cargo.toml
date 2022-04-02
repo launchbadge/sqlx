@@ -33,6 +33,7 @@ postgres = [
     "json",
     "dirs",
     "whoami",
+    "hkdf"
 ]
 mysql = [
     "sha-1",
@@ -131,7 +132,7 @@ itoa = "1.0.1"
 ipnetwork = { version = "0.17.0", default-features = false, optional = true }
 mac_address = { version = "1.1.2", default-features = false, optional = true }
 libc = "0.2.112"
-libsqlite3-sys = { version = "0.23.2", optional = true, default-features = false, features = [
+libsqlite3-sys = { version = "0.24.1", optional = true, default-features = false, features = [
     "pkg-config",
     "vcpkg",
     "bundled",
@@ -168,6 +169,7 @@ hashlink = "0.7.0"
 # NOTE: *must* remain below 1.7.0 to allow users to avoid the `ahash` cyclic dependency problem by pinning the version
 # https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
 indexmap = "1.6.0"
+hkdf = { version = "0.11.0", optional = true }
 
 [dev-dependencies]
 sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite"] }

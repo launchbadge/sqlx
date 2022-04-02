@@ -5,7 +5,7 @@ use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::rpc::StatusFlags;
 use crate::types::Type;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MssqlArguments {
     // next ordinal to be used when formatting a positional parameter name
     pub(crate) ordinal: usize,

@@ -15,35 +15,58 @@ pub async fn run(opt: Opt) -> Result<()> {
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add {
+                source,
                 description,
                 reversible,
-            } => migrate::add(&migrate.source, &description, reversible).await?,
+            } => migrate::add(source.resolve(&migrate.source), &description, reversible).await?,
             MigrateCommand::Run {
+                source,
                 dry_run,
                 ignore_missing,
                 database_url,
-            } => migrate::run(&migrate.source, &database_url, dry_run, ignore_missing).await?,
-            MigrateCommand::Revert {
-                dry_run,
-                ignore_missing,
-                database_url,
-            } => migrate::revert(&migrate.source, &database_url, dry_run, ignore_missing).await?,
-            MigrateCommand::Info { database_url } => {
-                migrate::info(&migrate.source, &database_url).await?
+            } => {
+                migrate::run(
+                    source.resolve(&migrate.source),
+                    &database_url,
+                    dry_run,
+                    *ignore_missing,
+                )
+                .await?
             }
-            MigrateCommand::BuildScript { force } => migrate::build_script(&migrate.source, force)?,
+            MigrateCommand::Revert {
+                source,
+                dry_run,
+                ignore_missing,
+                database_url,
+            } => {
+                migrate::revert(
+                    source.resolve(&migrate.source),
+                    &database_url,
+                    dry_run,
+                    *ignore_missing,
+                )
+                .await?
+            }
+            MigrateCommand::Info {
+                source,
+                database_url,
+            } => migrate::info(source.resolve(&migrate.source), &database_url).await?,
+            MigrateCommand::BuildScript { source, force } => {
+                migrate::build_script(source.resolve(&migrate.source), force)?
+            }
         },
 
         Command::Database(database) => match database.command {
             DatabaseCommand::Create { database_url } => database::create(&database_url).await?,
-            DatabaseCommand::Drop { yes, database_url } => {
-                database::drop(&database_url, !yes).await?
-            }
+            DatabaseCommand::Drop {
+                confirmation,
+                database_url,
+            } => database::drop(&database_url, !confirmation).await?,
             DatabaseCommand::Reset {
-                yes,
+                confirmation,
                 source,
                 database_url,
-            } => database::reset(&source, &database_url, !yes).await?,
+            } => database::reset(&source, &database_url, !confirmation).await?,
             DatabaseCommand::Setup {
                 source,
                 database_url,
