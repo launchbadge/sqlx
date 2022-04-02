@@ -1,11 +1,12 @@
 use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::{
-    PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
 };
 use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[sqlx_macros::test]
@@ -1442,6 +1443,69 @@ CREATE TABLE issue_1254 (id INT4 PRIMARY KEY, pairs PAIR[]);
         .execute(&mut conn)
         .await?;
     assert_eq!(result.rows_affected(), 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_advisory_locks() -> anyhow::Result<()> {
+    let pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect(&dotenv::var("DATABASE_URL")?)
+        .await?;
+
+    let lock1 = Arc::new(PgAdvisoryLock::new("sqlx-postgres-tests-1"));
+    let lock2 = Arc::new(PgAdvisoryLock::new("sqlx-postgres-tests-2"));
+
+    let conn1 = pool.acquire().await?;
+    let mut conn1_lock1 = lock1.acquire(conn1).await?;
+
+    // try acquiring a recursive lock through a mutable reference then dropping
+    drop(lock1.acquire(&mut conn1_lock1).await?);
+
+    let conn2 = pool.acquire().await?;
+    // leak so we can take it across the task boundary
+    let conn2_lock2 = lock2.acquire(conn2).await?.leak();
+
+    sqlx_rt::spawn({
+        let lock1 = lock1.clone();
+        let lock2 = lock2.clone();
+
+        async move {
+            let conn2_lock2 = lock1.try_acquire(conn2_lock2).await?.right_or_else(|_| {
+                panic!(
+                    "acquired lock but wasn't supposed to! Key: {:?}",
+                    lock1.key()
+                )
+            });
+
+            let (conn2, released) = lock2.force_release(conn2_lock2).await?;
+            assert!(released);
+
+            // acquire both locks but let the pool release them
+            let conn2_lock1 = lock1.acquire(conn2).await?;
+            let _conn2_lock1and2 = lock2.acquire(conn2_lock1).await?;
+
+            anyhow::Ok(())
+        }
+    });
+
+    // acquire lock2 on conn1, we leak the lock1 guard so we can manually release it before lock2
+    let conn1_lock1and2 = lock2.acquire(conn1_lock1.leak()).await?;
+
+    // release lock1 while holding lock2
+    let (conn1_lock2, released) = lock1.force_release(conn1_lock1and2).await?;
+    assert!(released);
+
+    let conn1 = conn1_lock2.release_now().await?;
+
+    // acquire both locks to be sure they were released
+    {
+        let conn1_lock1 = lock1.acquire(conn1).await?;
+        let _conn1_lock1and2 = lock2.acquire(conn1_lock1).await?;
+    }
+
+    pool.close().await;
 
     Ok(())
 }

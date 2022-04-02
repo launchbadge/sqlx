@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.11 - 2021-02-17
+[20 pull requests][0.5.11-prs] were merged this release cycle.
+
+### Added
+* [[#1610]]: Allow converting `AnyConnectOptions` to a specific `ConnectOptions` [[@05storm26]]
+* [[#1652]]: Implement `From` for `AnyConnection` [[@genusistimelord]]
+* [[#1658]]: Handle `SQLITE_LOCKED` [[@madadam]]
+* [[#1665]]: Document offline mode usage with feature flags [[@sedrik]]
+* [[#1680]]: Show checksum mismatches in `sqlx migrate info` [[@ifn3]]
+* [[#1685]]: Add tip for setting `opt-level` for `sqlx-macros` [[@LovecraftianHorror]]
+* [[#1687]]: Docs: `Acquire` examples and alternative [[@stoically]]
+* [[#1696]]: Postgres: support for `ltree` [[@cemoktra]]
+* [[#1710]]: Postgres: support for `lquery` [[@cemoktra]]
+
+### Changed
+* [[#1605]]: Remove unused dependencies [[@paolobarbolini]]
+* [[#1606]]: Add target context to Postgres `NOTICE` logs [[@dbeckwith]]
+* [[#1684]]: Macros: Cache parsed `sqlx-data.json` instead of reparsing [[@LovecraftianHorror]]
+
+### Fixed
+* [[#1608]]: Drop worker shared state in shutdown (SQLite) [[@andrewwhitehead]]
+* [[#1619]]: Docs(macros): remove sentences banning usage of `as _` [[@k-jun]]
+* [[#1626]]: Simplify `cargo-sqlx` command-line definition [[@tranzystorek-io]]
+* [[#1636]]: Fix and extend Postgres transaction example [[@taladar]]
+* [[#1657]]: Fix typo in macro docs [[@p9s]]
+* [[#1661]]: Fix binding `Option<T>` for `Any` driver [[@ArGGu]]
+* [[#1667]]: MySQL: Avoid panicking if packet is empty [[@nappa85]]
+* [[#1692]]: Postgres: Fix power calculation when encoding `BigDecimal` into `NUMERIC` [[@VersBinarii]]
+
+Additionally, we have introduced two mitigations for [the issue of the cyclic dependency on `ahash`][aHash#95]: 
+
+* We re-downgraded our version requirement on `indexmap` from `1.7.0` back to `1.6.2` so users can pin it to that
+  version [as recommended in aHash#95][ahash-fix]. 
+  * [This was regressed accidentally during a sweeping dependency upgrade before the last release][indexmap-regression],
+    sorry about that.
+* Thanks to the work of [@LovecraftianHorror] in [#1684], we no longer require the `preserve_order` feature of
+  `serde_json` which gives users another place to break the cycle by simply not enabling that feature. 
+  * This may introduce extra churn in Git diffs for `sqlx-data.json`, however. If this is an issue for you but 
+    the dependency cycle isn't, you can re-enable the `preserve_order` feature:
+  ```toml
+  [dependencies]
+  serde_json = { version = "1", features = ["preserve_order"] }
+  ```
+
+[aHash#95]: https://github.com/tkaitchuck/aHash/issues/95
+[ahash-fix]: https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
+[indexmap-regression]: https://github.com/launchbadge/sqlx/pull/1603#issuecomment-1010827637
+
+[#1605]: https://github.com/launchbadge/sqlx/pull/1605
+[#1606]: https://github.com/launchbadge/sqlx/pull/1606
+[#1608]: https://github.com/launchbadge/sqlx/pull/1608
+[#1610]: https://github.com/launchbadge/sqlx/pull/1610
+[#1619]: https://github.com/launchbadge/sqlx/pull/1619
+[#1626]: https://github.com/launchbadge/sqlx/pull/1626
+[#1636]: https://github.com/launchbadge/sqlx/pull/1636
+[#1652]: https://github.com/launchbadge/sqlx/pull/1652
+[#1657]: https://github.com/launchbadge/sqlx/pull/1657
+[#1658]: https://github.com/launchbadge/sqlx/pull/1658
+[#1661]: https://github.com/launchbadge/sqlx/pull/1661
+[#1665]: https://github.com/launchbadge/sqlx/pull/1665
+[#1667]: https://github.com/launchbadge/sqlx/pull/1667
+[#1680]: https://github.com/launchbadge/sqlx/pull/1680
+[#1684]: https://github.com/launchbadge/sqlx/pull/1684
+[#1685]: https://github.com/launchbadge/sqlx/pull/1685
+[#1687]: https://github.com/launchbadge/sqlx/pull/1687
+[#1692]: https://github.com/launchbadge/sqlx/pull/1692
+[#1696]: https://github.com/launchbadge/sqlx/pull/1696
+[#1710]: https://github.com/launchbadge/sqlx/pull/1710
+
+[0.5.11-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2021-12-30..2022-02-17
+
 ## 0.5.10 - 2021-12-29
 [A whopping 31 pull requests][0.5.10-prs] were merged this release cycle!
 
@@ -1094,3 +1165,17 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@parazyd]: https://github.com/parazyd
 [@kunjee17]: https://github.com/kunjee17
 [@05storm26]: https://github.com/05storm26
+[@dbeckwith]: https://github.com/dbeckwith
+[@k-jun]: https://github.com/k-jun
+[@tranzystorek-io]: https://github.com/tranzystorek-io
+[@taladar]: https://github.com/taladar
+[@genusistimelord]: https://github.com/genusistimelord
+[@p9s]: https://github.com/p9s
+[@ArGGu]: https://github.com/ArGGu
+[@sedrik]: https://github.com/sedrik
+[@nappa85]: https://github.com/nappa85
+[@ifn3]: https://github.com/ifn3
+[@LovecraftianHorror]: https://github.com/LovecraftianHorror
+[@stoically]: https://github.com/stoically
+[@VersBinarii]: https://github.com/VersBinarii
+[@cemoktra]: https://github.com/cemoktra

@@ -662,3 +662,60 @@ async fn issue_1467() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn concurrent_read_and_write() {
+    let pool: SqlitePool = SqlitePoolOptions::new()
+        .min_connections(2)
+        .connect(":memory:")
+        .await
+        .unwrap();
+
+    sqlx::query("CREATE TABLE kv (k PRIMARY KEY, v)")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let n = 100;
+
+    let read = sqlx_rt::spawn({
+        let mut conn = pool.acquire().await.unwrap();
+
+        async move {
+            for i in 0u32..n {
+                sqlx::query("SELECT v FROM kv")
+                    .bind(i)
+                    .fetch_all(&mut conn)
+                    .await
+                    .unwrap();
+            }
+        }
+    });
+
+    let write = sqlx_rt::spawn({
+        let mut conn = pool.acquire().await.unwrap();
+
+        async move {
+            for i in 0u32..n {
+                sqlx::query("INSERT INTO kv (k, v) VALUES (?, ?)")
+                    .bind(i)
+                    .bind(i * i)
+                    .execute(&mut conn)
+                    .await
+                    .unwrap();
+            }
+        }
+    });
+
+    #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
+    {
+        read.await.unwrap();
+        write.await.unwrap();
+    }
+
+    #[cfg(feature = "_rt-async-std")]
+    {
+        read.await;
+        write.await;
+    }
+}

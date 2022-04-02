@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-rt"
-version = "0.5.10"
+version = "0.5.11"
 repository = "https://github.com/launchbadge/sqlx"
 license = "MIT OR Apache-2.0"
 description = "Runtime abstraction used by SQLx, the Rust SQL toolkit. Not intended to be used directly."
