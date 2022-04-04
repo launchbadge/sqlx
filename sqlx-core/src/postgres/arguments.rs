@@ -116,6 +116,10 @@ impl<'q> Arguments<'q> for PgArguments {
     {
         self.add(value)
     }
+
+    fn place_holder(&self, argument_count: u16) -> String {
+        format!("${}", argument_count)
+    }
 }
 
 impl PgArgumentBuffer {

@@ -16,6 +16,10 @@ pub trait Arguments<'q>: Send + Sized + Default {
     fn add<T>(&mut self, value: T)
     where
         T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
+
+    fn place_holder(&self, _argument_count: u16) -> String {
+        "?".to_string()
+    }
 }
 
 pub trait IntoArguments<'q, DB: HasArguments<'q>>: Sized + Send {
