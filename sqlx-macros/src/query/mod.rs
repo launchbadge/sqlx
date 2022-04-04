@@ -158,6 +158,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 }
 
+#[derive(Debug)]
 enum ConnectionCacheItem {
     #[cfg(feature = "postgres")]
     Postgres(sqlx_core::postgres::PgConnection),
@@ -231,7 +232,7 @@ static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<Url, ConnectionCacheItem>>> =
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
     let db_url = Url::parse(db_url)?;
 
-    let data = block_on(async {
+    let maybe_expanded: crate::Result<TokenStream> = block_on(async {
         let mut cache = CONNECTION_CACHE.lock().await;
 
         if !cache.contains_key(&db_url) {
@@ -242,17 +243,34 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         let conn_item = cache.get_mut(&db_url).expect("Item was just inserted");
         match conn_item {
             #[cfg(feature = "postgres")]
-            ConnectionCacheItem::Postgres(conn) => QueryData::from_db(conn, &input.sql).await,
+            ConnectionCacheItem::Postgres(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
             #[cfg(feature = "mssql")]
-            ConnectionCacheItem::MsSql(conn) => QueryData::from_db(conn, &input.sql).await,
+            ConnectionCacheItem::MsSql(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
             #[cfg(feature = "mysql")]
-            ConnectionCacheItem::MySql(conn) => QueryData::from_db(conn, &input.sql).await,
+            ConnectionCacheItem::MySql(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
             #[cfg(feature = "sqlite")]
-            ConnectionCacheItem::Sqlite(conn) => QueryData::from_db(conn, &input.sql).await,
+            ConnectionCacheItem::Sqlite(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
+            // Variants depend on feature flags
+            #[allow(unreachable_patterns)]
+            item => {
+                return Err(format!("Missing expansion needed for: {:?}", item).into());
+            }
         }
-    })?;
+    });
 
-    expand_with_data(input, data, false)
+    maybe_expanded.map_err(Into::into)
 }
 
 #[cfg(feature = "offline")]
