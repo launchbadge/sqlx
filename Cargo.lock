@@ -808,9 +808,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "2.5.1"
+version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
+checksum = "77f3309417938f28bf8228fcff79a4a37103981e3e186d2ccd19c74b38f4eb71"
 
 [[package]]
 name = "fastrand"
@@ -2439,6 +2439,7 @@ dependencies = [
  "dirs",
  "either",
  "encoding_rs",
+ "event-listener",
  "flume",
  "futures-channel",
  "futures-core",
@@ -2480,6 +2481,7 @@ dependencies = [
  "stringprep",
  "thiserror",
  "time 0.2.27",
+ "tokio",
  "tokio-stream",
  "url",
  "uuid",

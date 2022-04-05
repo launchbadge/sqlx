@@ -61,9 +61,14 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::Transaction;
+use event_listener::EventListener;
+use futures_core::FusedFuture;
+use futures_util::FutureExt;
 use std::fmt;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 #[macro_use]
@@ -229,6 +234,13 @@ pub use self::options::PoolOptions;
 /// well and queries will generally benefit from these caches being "warm" (populated with data).
 pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
 
+/// A future that resolves when the pool is closed.
+///
+/// See [`Pool::close_event()`] for details.
+pub struct CloseEvent {
+    listener: Option<EventListener>,
+}
+
 impl<DB: Database> Pool<DB> {
     /// Creates a new connection pool with a default pool configuration and
     /// the given connection URI; and, immediately establishes one connection.
@@ -324,6 +336,84 @@ impl<DB: Database> Pool<DB> {
         self.0.is_closed()
     }
 
+    /// Get a future that resolves when [`Pool::close()`] is called.
+    ///
+    /// If the pool is already closed, the future resolves immediately.
+    ///
+    /// This can be used to cancel long-running operations that hold onto a [`PoolConnection`]
+    /// so they don't prevent the pool from closing (which would otherwise wait until all
+    /// connections are returned).
+    ///
+    /// Examples
+    /// ========
+    /// These examples use Postgres and Tokio, but should suffice to demonstrate the concept.
+    ///
+    /// Do something when the pool is closed:
+    /// ```rust,no_run
+    /// # #[cfg(feature = "postgres")]
+    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// use sqlx::PgPool;
+    ///
+    /// let pool = PgPool::connect("postgresql://...").await?;
+    ///
+    /// let pool2 = pool.clone();
+    ///
+    /// tokio::spawn(async move {
+    ///     // Demonstrates that `CloseEvent` is itself a `Future` you can wait on.
+    ///     // This lets you implement any kind of on-close event that you like.
+    ///     pool2.close_event().await;
+    ///
+    ///     println!("Pool is closing!");
+    ///
+    ///     // Imagine maybe recording application statistics or logging a report, etc.
+    /// });
+    ///
+    /// // The rest of the application executes normally...
+    ///
+    /// // Close the pool before the application exits...
+    /// pool.close().await;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Cancel a long-running operation:
+    /// ```rust,no_run
+    /// # #[cfg(feature = "postgres")]
+    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// use sqlx::{Executor, PgPool};
+    ///
+    /// let pool = PgPool::connect("postgresql://...").await?;
+    ///
+    /// let pool2 = pool.clone();
+    ///
+    /// tokio::spawn(async move {
+    ///     pool2.close_event().do_until(async {
+    ///         // This statement normally won't return for 30 days!
+    ///         // (Assuming the connection doesn't time out first, of course.)
+    ///         pool2.execute("SELECT pg_sleep('30 days')").await;
+    ///
+    ///         // If the pool is closed before the statement completes, this won't be printed.
+    ///         // This is because `.do_until()` cancels the future it's given if the
+    ///         // pool is closed first.
+    ///         println!("Waited!");
+    ///     }).await;
+    /// });
+    ///
+    /// // This normally wouldn't return until the above statement completed and the connection
+    /// // was returned to the pool. However, thanks to `.do_until()`, the operation was
+    /// // cancelled as soon as we called `.close().await`.
+    /// pool.close().await;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn close_event(&self) -> CloseEvent {
+        CloseEvent {
+            listener: (!self.is_closed()).then(|| self.0.on_closed.listen()),
+        }
+    }
+
     /// Returns the number of connections currently active. This includes idle connections.
     pub fn size(&self) -> u32 {
         self.0.size()
@@ -365,6 +455,65 @@ impl<DB: Database> fmt::Debug for Pool<DB> {
             .field("is_closed", &self.0.is_closed())
             .field("options", &self.0.options)
             .finish()
+    }
+}
+
+impl CloseEvent {
+    /// Execute the given future until it returns or the pool is closed.
+    ///
+    /// Cancels the future and returns `Err(PoolClosed)` if/when the pool is closed.
+    /// If the pool was already closed, the future is never run.
+    pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output, Error> {
+        // Check that the pool wasn't closed already.
+        //
+        // We use `poll_immediate()` as it will use the correct waker instead of
+        // a no-op one like `.now_or_never()`, but it won't actually suspend execution here.
+        futures_util::future::poll_immediate(&mut *self)
+            .await
+            .map_or(Ok(()), |_| Err(Error::PoolClosed))?;
+
+        futures_util::pin_mut!(fut);
+
+        // I find that this is clearer in intent than `futures_util::future::select()`
+        // or `futures_util::select_biased!{}` (which isn't enabled anyway).
+        futures_util::future::poll_fn(|cx| {
+            // Poll `fut` first as the wakeup event is more likely for it than `self`.
+            if let Poll::Ready(ret) = fut.as_mut().poll(cx) {
+                return Poll::Ready(Ok(ret));
+            }
+
+            // Can't really factor out mapping to `Err(Error::PoolClosed)` though it seems like
+            // we should because that results in a different `Ok` type each time.
+            //
+            // Ideally we'd map to something like `Result<!, Error>` but using `!` as a type
+            // is not allowed on stable Rust yet.
+            self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
+        })
+        .await
+    }
+}
+
+impl Future for CloseEvent {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if let Some(listener) = &mut self.listener {
+            futures_core::ready!(listener.poll_unpin(cx));
+        }
+
+        // `EventListener` doesn't like being polled after it yields, and even if it did it
+        // would probably just wait for the next event, neither of which we want.
+        //
+        // So this way, once we get our close event, we fuse this future to immediately return.
+        self.listener = None;
+
+        Poll::Ready(())
+    }
+}
+
+impl FusedFuture for CloseEvent {
+    fn is_terminated(&self) -> bool {
+        self.listener.is_none()
     }
 }
 
