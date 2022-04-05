@@ -33,7 +33,9 @@ mod executor;
 pub struct AnyConnection(pub(super) AnyConnectionKind);
 
 #[derive(Debug)]
-pub(crate) enum AnyConnectionKind {
+// Used internally in `sqlx-macros`
+#[doc(hidden)]
+pub enum AnyConnectionKind {
     #[cfg(feature = "postgres")]
     Postgres(postgres::PgConnection),
 
@@ -68,6 +70,12 @@ impl AnyConnectionKind {
 impl AnyConnection {
     pub fn kind(&self) -> AnyKind {
         self.0.kind()
+    }
+
+    // Used internally in `sqlx-macros`
+    #[doc(hidden)]
+    pub fn private_get_mut(&mut self) -> &mut AnyConnectionKind {
+        &mut self.0
     }
 }
 

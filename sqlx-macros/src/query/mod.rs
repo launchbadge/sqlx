@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
-use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
+use sqlx_core::any::{AnyConnection, AnyConnectionKind};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
@@ -158,107 +158,38 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 }
 
-#[derive(Debug)]
-enum ConnectionCacheItem {
-    #[cfg(feature = "postgres")]
-    Postgres(sqlx_core::postgres::PgConnection),
-    #[cfg(feature = "mssql")]
-    MsSql(sqlx_core::mssql::MssqlConnection),
-    #[cfg(feature = "mysql")]
-    MySql(sqlx_core::mysql::MySqlConnection),
-    #[cfg(feature = "sqlite")]
-    Sqlite(sqlx_core::sqlite::SqliteConnection),
-}
-
-impl ConnectionCacheItem {
-    async fn new(db_url: &Url) -> crate::Result<Self> {
-        // FIXME: Introduce [sqlx::any::AnyConnection] and [sqlx::any::AnyDatabase] to support
-        //        runtime determinism here
-        match db_url.scheme() {
-            #[cfg(feature = "postgres")]
-            "postgres" | "postgresql" => {
-                let conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
-                Ok(Self::Postgres(conn))
-            }
-            #[cfg(not(feature = "postgres"))]
-            "postgres" | "postgresql" => Err(
-                "database URL has the scheme of a PostgreSQL database but the `postgres` feature \
-                is not enabled"
-                    .into(),
-            ),
-            #[cfg(feature = "mssql")]
-            "mssql" | "sqlserver" => {
-                let conn = sqlx_core::mssql::MssqlConnection::connect(db_url.as_str()).await?;
-                Ok(Self::MsSql(conn))
-            }
-            #[cfg(not(feature = "mssql"))]
-            "mssql" | "sqlserver" => Err(
-                "database URL has the scheme of a MSSQL database but the `mssql` feature is not \
-                enabled"
-                    .into(),
-            ),
-            #[cfg(feature = "mysql")]
-            "mysql" | "mariadb" => {
-                let conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
-                Ok(Self::MySql(conn))
-            }
-            #[cfg(not(feature = "mysql"))]
-            "mysql" | "mariadb" => Err(
-                "database URL has the scheme of a MySQL/MariaDB database but the `mysql` feature \
-                is not enabled"
-                    .into(),
-            ),
-            #[cfg(feature = "sqlite")]
-            "sqlite" => {
-                let conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
-                Ok(Self::Sqlite(conn))
-            }
-            #[cfg(not(feature = "sqlite"))]
-            "sqlite" => Err(
-                "database URL has the scheme of a SQLite database but the `sqlite` feature is not \
-                enabled"
-                    .into(),
-            ),
-            scheme => Err(format!("unknown database URL scheme {:?}", scheme).into()),
-        }
-    }
-}
-
-// TODO: `AnyConnection` would likely make this a lot cleaner, but it's behind a feature flag
-static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<Url, ConnectionCacheItem>>> =
+static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
     Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
 
 #[allow(unused_variables)]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
-    let db_url = Url::parse(db_url)?;
-
     let maybe_expanded: crate::Result<TokenStream> = block_on(async {
         let mut cache = CONNECTION_CACHE.lock().await;
 
-        if !cache.contains_key(&db_url) {
-            let conn = ConnectionCacheItem::new(&db_url).await?;
-            let _ = cache.insert(db_url.clone(), conn);
+        if !cache.contains_key(db_url) {
+            let conn = AnyConnection::connect(db_url).await?;
+            let _ = cache.insert(db_url.to_owned(), conn);
         }
 
-        let conn_item = cache.get_mut(&db_url).expect("Item was just inserted");
-        match conn_item {
+        let conn_item = cache.get_mut(db_url).expect("Item was just inserted");
+        match conn_item.private_get_mut() {
             #[cfg(feature = "postgres")]
-            ConnectionCacheItem::Postgres(conn) => {
+            AnyConnectionKind::Postgres(conn) => {
                 let data = QueryData::from_db(conn, &input.sql).await?;
                 expand_with_data(input, data, false)
             }
             #[cfg(feature = "mssql")]
-            ConnectionCacheItem::MsSql(conn) => {
+            AnyConnectionKind::MsSql(conn) => {
                 let data = QueryData::from_db(conn, &input.sql).await?;
                 expand_with_data(input, data, false)
             }
             #[cfg(feature = "mysql")]
-            ConnectionCacheItem::MySql(conn) => {
+            AnyConnectionKind::MySql(conn) => {
                 let data = QueryData::from_db(conn, &input.sql).await?;
                 expand_with_data(input, data, false)
             }
             #[cfg(feature = "sqlite")]
-            ConnectionCacheItem::Sqlite(conn) => {
+            AnyConnectionKind::Sqlite(conn) => {
                 let data = QueryData::from_db(conn, &input.sql).await?;
                 expand_with_data(input, data, false)
             }
