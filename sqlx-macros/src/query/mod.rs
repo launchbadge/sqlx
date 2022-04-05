@@ -179,7 +179,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 expand_with_data(input, data, false)
             }
             #[cfg(feature = "mssql")]
-            AnyConnectionKind::MsSql(conn) => {
+            AnyConnectionKind::Mssql(conn) => {
                 let data = QueryData::from_db(conn, &input.sql).await?;
                 expand_with_data(input, data, false)
             }
