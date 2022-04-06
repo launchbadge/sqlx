@@ -28,6 +28,7 @@ pub(crate) struct SharedPool<DB: Database> {
     pub(super) semaphore: Semaphore,
     pub(super) size: AtomicU32,
     is_closed: AtomicBool,
+    pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
 }
 
@@ -50,6 +51,7 @@ impl<DB: Database> SharedPool<DB> {
             semaphore: Semaphore::new(options.fair, capacity),
             size: AtomicU32::new(0),
             is_closed: AtomicBool::new(false),
+            on_closed: event_listener::Event::new(),
             options,
         };
 
@@ -81,6 +83,7 @@ impl<DB: Database> SharedPool<DB> {
             // we can't just do `usize::MAX` because that would overflow
             // and we can't do this more than once cause that would _also_ overflow
             self.semaphore.release(WAKE_ALL_PERMITS);
+            self.on_closed.notify(usize::MAX);
         }
 
         // wait for all permits to be released
