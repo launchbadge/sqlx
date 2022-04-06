@@ -181,7 +181,6 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                         // Connections in `CONNECTION_CACHE` won't get dropped so disable journaling
                         // to avoid `.db-wal` and `.db-shm` files from lingering around
                         .journal_mode(SqliteJournalMode::Off)
-                        .read_only(true)
                         .connect()
                         .await?;
                     AnyConnection::from(sqlite_conn)
