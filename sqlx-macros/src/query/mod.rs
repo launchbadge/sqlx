@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
+use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
@@ -167,7 +168,27 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         let mut cache = CONNECTION_CACHE.lock().await;
 
         if !cache.contains_key(db_url) {
-            let conn = AnyConnection::connect(db_url).await?;
+            let parsed_db_url = Url::parse(db_url)?;
+
+            let conn = match parsed_db_url.scheme() {
+                #[cfg(feature = "sqlite")]
+                "sqlite" => {
+                    use sqlx_core::connection::ConnectOptions;
+                    use sqlx_core::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+                    use std::str::FromStr;
+
+                    let sqlite_conn = SqliteConnectOptions::from_str(db_url)?
+                        // Connections in `CONNECTION_CACHE` won't get dropped so disable journaling
+                        // to avoid `.db-wal` and `.db-shm` files from lingering around
+                        .journal_mode(SqliteJournalMode::Off)
+                        .read_only(true)
+                        .connect()
+                        .await?;
+                    AnyConnection::from(sqlite_conn)
+                }
+                _ => AnyConnection::connect(db_url).await?,
+            };
+
             let _ = cache.insert(db_url.to_owned(), conn);
         }
 
