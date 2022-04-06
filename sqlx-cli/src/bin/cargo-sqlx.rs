@@ -1,22 +1,21 @@
-use clap::{crate_version, AppSettings, FromArgMatches, IntoApp};
+use clap::Parser;
 use console::style;
 use dotenv::dotenv;
 use sqlx_cli::Opt;
-use std::{env, process};
+use std::process;
+
+// cargo invokes this binary as `cargo-sqlx sqlx <args>`
+// so the parser below is defined with that in mind
+#[derive(Parser, Debug)]
+#[clap(bin_name = "cargo")]
+enum Cli {
+    Sqlx(Opt),
+}
 
 #[tokio::main]
 async fn main() {
-    // when invoked as `cargo sqlx [...]` the args we see are `[...]/sqlx-cli sqlx prepare`
-    // so we want to notch out that superfluous "sqlx"
-    let args = env::args_os().skip(2);
-
     dotenv().ok();
-    let matches = Opt::into_app()
-        .bin_name("cargo sqlx")
-        .setting(AppSettings::NoBinaryName)
-        .get_matches_from(args);
-
-    let opt = Opt::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let Cli::Sqlx(opt) = Cli::parse();
 
     if let Err(error) = sqlx_cli::run(opt).await {
         println!("{} {}", style("error:").bold().red(), error);

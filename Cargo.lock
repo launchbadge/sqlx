@@ -419,9 +419,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.0.0-rc.9"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7843ae7a539bef687e018bf9edf7e87728024b29d02b0f8409726be8880ae1a"
+checksum = "e5f1fea81f183005ced9e59cdb01737ef2423956dac5a6d731b06b2ecfaa3467"
 dependencies = [
  "atty",
  "bitflags",
@@ -436,11 +436,11 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "3.0.0-rc.9"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cae3cc2f259ea636871f5da15b0ac033f1821d7a5506c3d1bfbdde201f14c803"
+checksum = "5fd1122e63869df2cb309f449da1ad54a7c6dfeb7c7e6ccd8e0825d9eb93bb72"
 dependencies = [
- "heck",
+ "heck 0.4.0",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -790,9 +790,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "2.5.1"
+version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7531096570974c3a9dcf9e4b8e1cede1ec26cf5046219fb3b9d897503b9be59"
+checksum = "77f3309417938f28bf8228fcff79a4a37103981e3e186d2ccd19c74b38f4eb71"
 
 [[package]]
 name = "fastrand"
@@ -1057,6 +1057,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "heck"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1070,6 +1079,16 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hkdf"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01706d578d5c281058480e673ae4086a9f4710d8df1ad80a5b03e39ece5f886b"
+dependencies = [
+ "digest",
+ "hmac",
+]
 
 [[package]]
 name = "hmac"
@@ -1230,9 +1249,9 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.23.2"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2cafc7c74096c336d9d27145f7ebd4f4b6f95ba16aa5a282387267e6925cb58"
+checksum = "cb644c388dfaefa18035c12614156d285364769e818893da0dda9030c80ad2ba"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1945,9 +1964,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+checksum = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2181,7 +2200,6 @@ version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcbd0344bc6533bc7ec56df11d42fb70f1b912351c0825ccb7211b59d8af7cf5"
 dependencies = [
- "indexmap",
  "itoa 1.0.1",
  "ryu",
  "serde",
@@ -2291,7 +2309,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2327,12 +2345,12 @@ dependencies = [
 
 [[package]]
 name = "sqlx-cli"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "clap 3.0.0-rc.9",
+ "clap 3.1.0",
  "console",
  "dotenv",
  "futures",
@@ -2349,7 +2367,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "ahash",
  "atoi",
@@ -2367,6 +2385,7 @@ dependencies = [
  "dirs",
  "either",
  "encoding_rs",
+ "event-listener",
  "flume",
  "futures-channel",
  "futures-core",
@@ -2377,6 +2396,7 @@ dependencies = [
  "git2",
  "hashlink",
  "hex",
+ "hkdf",
  "hmac",
  "indexmap",
  "ipnetwork",
@@ -2389,6 +2409,7 @@ dependencies = [
  "memchr",
  "num-bigint",
  "once_cell",
+ "paste",
  "percent-encoding",
  "rand",
  "regex",
@@ -2401,10 +2422,12 @@ dependencies = [
  "sha2",
  "smallvec",
  "sqlformat",
+ "sqlx",
  "sqlx-rt",
  "stringprep",
  "thiserror",
  "time 0.3.5",
+ "tokio",
  "tokio-stream",
  "url",
  "uuid",
@@ -2485,11 +2508,11 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "dotenv",
  "either",
- "heck",
+ "heck 0.4.0",
  "hex",
  "once_cell",
  "proc-macro2",
@@ -2505,7 +2528,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.5.10"
+version = "0.5.11"
 dependencies = [
  "actix-rt",
  "async-native-tls",
@@ -2570,7 +2593,7 @@ version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb5ae327f9cc13b68763b5749770cb9e048a99bd9dfdfa58d0cf05d5f64afe0"
 dependencies = [
- "heck",
+ "heck 0.3.3",
  "proc-macro-error",
  "proc-macro2",
  "quote",

@@ -3,9 +3,10 @@ use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
 use sqlx::{AnyConnection, Connection};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 use std::fs::{self, File};
-use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
@@ -30,7 +31,7 @@ fn create_file(
 
     let mut file = File::create(&path).context("Failed to create migration file")?;
 
-    file.write_all(migration_type.file_content().as_bytes())?;
+    std::io::Write::write_all(&mut file, migration_type.file_content().as_bytes())?;
 
     Ok(())
 }
@@ -107,6 +108,14 @@ See: https://docs.rs/sqlx/0.5/sqlx/macro.migrate.html
     Ok(())
 }
 
+fn short_checksum(checksum: &[u8]) -> String {
+    let mut s = String::with_capacity(checksum.len() * 2);
+    for b in checksum {
+        write!(&mut s, "{:02x?}", b).expect("should not fail to write to str");
+    }
+    s
+}
+
 pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
     let mut conn = AnyConnection::connect(uri).await?;
@@ -121,16 +130,39 @@ pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
         .collect();
 
     for migration in migrator.iter() {
+        let applied = applied_migrations.get(&migration.version);
+
+        let (status_msg, mismatched_checksum) = if let Some(applied) = applied {
+            if applied.checksum != migration.checksum {
+                (style("installed (different checksum)").red(), true)
+            } else {
+                (style("installed").green(), false)
+            }
+        } else {
+            (style("pending").yellow(), false)
+        };
+
         println!(
             "{}/{} {}",
             style(migration.version).cyan(),
-            if applied_migrations.contains_key(&migration.version) {
-                style("installed").green()
-            } else {
-                style("pending").yellow()
-            },
-            migration.description,
+            status_msg,
+            migration.description
         );
+
+        if mismatched_checksum {
+            println!(
+                "applied migration had checksum {}",
+                short_checksum(
+                    &applied
+                        .map(|a| a.checksum.clone())
+                        .unwrap_or_else(|| Cow::Owned(vec![]))
+                ),
+            );
+            println!(
+                "local migration has checksum   {}",
+                short_checksum(&migration.checksum)
+            )
+        }
     }
 
     Ok(())

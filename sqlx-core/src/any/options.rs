@@ -3,6 +3,7 @@ use crate::connection::ConnectOptions;
 use crate::error::Error;
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::convert::TryFrom;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -26,7 +27,7 @@ use crate::mssql::MssqlConnectOptions;
 /// postgres://postgres:password@localhost/database
 /// mysql://root:password@localhost/database
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnyConnectOptions(pub(crate) AnyConnectOptionsKind);
 
 impl AnyConnectOptions {
@@ -47,7 +48,68 @@ impl AnyConnectOptions {
     }
 }
 
-#[derive(Debug)]
+macro_rules! try_from_any_connect_options_to {
+    ($to:ty, $kind:path, $name:expr) => {
+        impl TryFrom<AnyConnectOptions> for $to {
+            type Error = Error;
+
+            fn try_from(value: AnyConnectOptions) -> Result<Self, Self::Error> {
+                #[allow(irrefutable_let_patterns)]
+                if let $kind(connect_options) = value.0 {
+                    Ok(connect_options)
+                } else {
+                    Err(Error::Configuration(
+                        format!("Not {} typed AnyConnectOptions", $name).into(),
+                    ))
+                }
+            }
+        }
+
+        impl AnyConnectOptions {
+            paste::item! {
+                pub fn [< as_ $name >] (&self) -> Option<&$to> {
+                    #[allow(irrefutable_let_patterns)]
+                    if let $kind(ref connect_options) = self.0 {
+                        Some(connect_options)
+                    } else {
+                        None
+                    }
+                }
+
+                pub fn [< as_ $name _mut >] (&mut self) -> Option<&mut $to> {
+                    #[allow(irrefutable_let_patterns)]
+                    if let $kind(ref mut connect_options) = self.0 {
+                        Some(connect_options)
+                    } else {
+                        None
+                    }
+                }
+            }
+        }
+    };
+}
+
+#[cfg(feature = "postgres")]
+try_from_any_connect_options_to!(
+    PgConnectOptions,
+    AnyConnectOptionsKind::Postgres,
+    "postgres"
+);
+
+#[cfg(feature = "mysql")]
+try_from_any_connect_options_to!(MySqlConnectOptions, AnyConnectOptionsKind::MySql, "mysql");
+
+#[cfg(feature = "sqlite")]
+try_from_any_connect_options_to!(
+    SqliteConnectOptions,
+    AnyConnectOptionsKind::Sqlite,
+    "sqlite"
+);
+
+#[cfg(feature = "mssql")]
+try_from_any_connect_options_to!(MssqlConnectOptions, AnyConnectOptionsKind::Mssql, "mssql");
+
+#[derive(Debug, Clone)]
 pub(crate) enum AnyConnectOptionsKind {
     #[cfg(feature = "postgres")]
     Postgres(PgConnectOptions),

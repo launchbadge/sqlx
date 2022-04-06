@@ -53,6 +53,16 @@ impl<'r> Decode<'r, Sqlite> for String {
     }
 }
 
+impl Type<Sqlite> for Cow<'_, str> {
+    fn type_info() -> SqliteTypeInfo {
+        <&str as Type<Sqlite>>::type_info()
+    }
+
+    fn compatible(ty: &SqliteTypeInfo) -> bool {
+        <&str as Type<Sqlite>>::compatible(ty)
+    }
+}
+
 impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
     fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
         args.push(SqliteArgumentValue::Text(self));

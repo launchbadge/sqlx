@@ -59,6 +59,18 @@ impl<DB: Database> DerefMut for PoolConnection<DB> {
     }
 }
 
+impl<DB: Database> AsRef<DB::Connection> for PoolConnection<DB> {
+    fn as_ref(&self) -> &DB::Connection {
+        self
+    }
+}
+
+impl<DB: Database> AsMut<DB::Connection> for PoolConnection<DB> {
+    fn as_mut(&mut self) -> &mut DB::Connection {
+        self
+    }
+}
+
 impl<DB: Database> PoolConnection<DB> {
     /// Explicitly release a connection from the pool
     #[deprecated = "renamed to `.detach()` for clarity"]
