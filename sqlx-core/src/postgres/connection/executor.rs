@@ -301,7 +301,7 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
-                        logger.increment_rows();
+                        logger.increment_returned_rows();
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

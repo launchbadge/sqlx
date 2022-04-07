@@ -92,7 +92,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                         let columns = Arc::clone(&self.stream.columns);
                         let column_names = Arc::clone(&self.stream.column_names);
 
-                        logger.increment_rows();
+                        logger.increment_returned_rows();
 
                         r#yield!(Either::Right(MssqlRow { row, column_names, columns }));
                     }

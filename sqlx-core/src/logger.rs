@@ -3,7 +3,8 @@ use std::time::Instant;
 
 pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
-    rows: usize,
+    returned_rows: usize,
+    affected_rows: usize,
     start: Instant,
     settings: LogSettings,
 }
@@ -12,18 +13,19 @@ impl<'q> QueryLogger<'q> {
     pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
         Self {
             sql,
-            rows: 0,
+            returned_rows: 0,
+            affected_rows: 0,
             start: Instant::now(),
             settings,
         }
     }
 
-    pub(crate) fn increment_rows(&mut self) {
-        self.rows += 1;
+    pub(crate) fn increment_returned_rows(&mut self) {
+        self.returned_rows += 1;
     }
 
-    pub(crate) fn increment_rows_by(&mut self, n: usize) {
-        self.rows += n;
+    pub(crate) fn increment_affected_rows_by(&mut self, n: usize) {
+        self.affected_rows += n;
     }
 
     pub(crate) fn finish(&self) {
@@ -55,13 +57,11 @@ impl<'q> QueryLogger<'q> {
                 String::new()
             };
 
-            let rows = self.rows;
-
             log::logger().log(
                 &log::Record::builder()
                     .args(format_args!(
-                        "{}; rows: {}, elapsed: {:.3?}{}",
-                        summary, rows, elapsed, sql
+                        "{}; affected rows: {}, returned rows: {}, elapsed: {:.3?}{}",
+                        summary, self.affected_rows, self.returned_rows, elapsed, sql
                     ))
                     .level(lvl)
                     .module_path_static(Some("sqlx::query"))

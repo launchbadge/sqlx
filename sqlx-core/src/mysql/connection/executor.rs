@@ -199,7 +199,7 @@ impl MySqlConnection {
                         column_names: Arc::clone(&column_names),
                     });
 
-                    logger.increment_rows();
+                    logger.increment_returned_rows();
 
                     r#yield!(v);
                 }
