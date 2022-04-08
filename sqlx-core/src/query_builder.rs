@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::fmt::Write;
 
 use crate::arguments::Arguments;
 use crate::database::{Database, HasArguments};
@@ -31,7 +32,7 @@ where
     }
 
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
-        self.query.push_str(&format!(" {}", sql));
+        write!(self.query, "{}", sql).expect("error formatting `sql`");
 
         self
     }
@@ -81,7 +82,7 @@ mod test {
     #[test]
     fn test_push() {
         let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT * FROM users");
-        let second_line = "WHERE last_name LIKE '[A-N]%;";
+        let second_line = " WHERE last_name LIKE '[A-N]%;";
         qb.push(second_line);
 
         assert_eq!(
@@ -96,7 +97,7 @@ mod test {
             QueryBuilder::new("SELECT * FROM users WHERE id = ");
 
         qb.push_bind(42i32)
-            .push("OR membership_level = ")
+            .push(" OR membership_level = ")
             .push_bind(3i32);
 
         assert_eq!(
@@ -106,27 +107,10 @@ mod test {
     }
 
     #[test]
-    fn test_push_bind_handles_strings() {
-        let mut qb: QueryBuilder<'_, Postgres> =
-            QueryBuilder::new("SELECT * FROM users WHERE id = ");
-
-        qb.push_bind(42i32)
-            .push("OR last_name = ")
-            .push_bind("'Doe'")
-            .push("AND membership_level = ")
-            .push_bind(3i32);
-
-        assert_eq!(
-            qb.query,
-            "SELECT * FROM users WHERE id = $1 OR last_name = $2 AND membership_level = $3"
-        );
-    }
-
-    #[test]
     fn test_build() {
         let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT * FROM users");
 
-        qb.push("WHERE id = ").push_bind(42i32);
+        qb.push(" WHERE id = ").push_bind(42i32);
         let query = qb.build();
 
         assert_eq!(
