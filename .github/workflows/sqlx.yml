@@ -170,16 +170,47 @@ jobs:
             target
           key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # Create data dir for offline mode
+      - run: mkdir .sqlx
+
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: >
             --no-default-features
-            --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,macros,migrate,sqlite,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
             --
             --test-threads=1
         env:
           DATABASE_URL: sqlite://tests/sqlite/sqlite.db
+
+      # Remove test artifacts
+      - run: cargo clean -p sqlx
+
+      # Build the macros-test in offline mode (omit DATABASE_URL)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --no-default-features
+            --test sqlite-macros
+            --features any,macros,migrate,sqlite,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          SQLX_OFFLINE: true
+
+      # Test macros in offline mode (still needs DATABASE_URL to run)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --test sqlite-macros
+            --features any,macros,migrate,sqlite,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --
+            --test-threads=1
+        env:
+          DATABASE_URL: sqlite://tests/sqlite/sqlite.db
+          SQLX_OFFLINE: true
 
   postgres:
     name: Postgres
@@ -207,6 +238,9 @@ jobs:
             target
           key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # Create data dir for offline mode
+      - run: mkdir .sqlx
+
       - uses: actions-rs/cargo@v1
         env:
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
@@ -226,7 +260,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,postgres,macros,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
@@ -238,9 +272,41 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,postgres,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+
+      # Remove test artifacts
+      - run: cargo clean -p sqlx
+
+      # Build the macros-test in offline mode (omit DATABASE_URL)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --no-default-features
+            --test postgres-macros
+            --features any,postgres,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          SQLX_OFFLINE: true
+          # FIXME: needed to disable `ltree` tests in Postgres 9.6
+          # but `PgLTree` should just fall back to text format
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
+
+      # Test macros in offline mode (still needs DATABASE_URL to run)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --test postgres-macros
+            --features any,postgres,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
+          SQLX_OFFLINE: true
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
           RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
@@ -271,6 +337,9 @@ jobs:
             target
           key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # Create data dir for offline mode
+      - run: mkdir .sqlx
+
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -285,9 +354,35 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+
+      # Remove test artifacts
+      - run: cargo clean -p sqlx
+
+      # Build the macros-test in offline mode (omit DATABASE_URL)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --no-default-features
+            --test mysql-macros
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          SQLX_OFFLINE: true
+
+      # Test macros in offline mode (still needs DATABASE_URL to run)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --test mysql-macros
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+          SQLX_OFFLINE: true
 
   mariadb:
     name: MariaDB
@@ -316,6 +411,9 @@ jobs:
             target
           key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # Create data dir for offline mode
+      - run: mkdir .sqlx
+
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -330,9 +428,35 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+
+      # Remove test artifacts
+      - run: cargo clean -p sqlx
+
+      # Build the macros-test in offline mode (omit DATABASE_URL)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --no-default-features
+            --test mysql-macros
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          SQLX_OFFLINE: true
+
+      # Test macros in offline mode (still needs DATABASE_URL to run)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --test mysql-macros
+            --features any,mysql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: mysql://root:password@localhost:3306/sqlx
+          SQLX_OFFLINE: true
 
   mssql:
     name: MSSQL
@@ -360,6 +484,9 @@ jobs:
             target
           key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # Create data dir for offline mode
+      - run: mkdir .sqlx
+
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -374,6 +501,32 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mssql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mssql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
         env:
           DATABASE_URL: mssql://sa:Password123!@localhost/sqlx
+
+      # Remove test artifacts
+      - run: cargo clean -p sqlx
+
+      # Build the macros-test in offline mode (omit DATABASE_URL)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: >
+            --no-default-features
+            --test mssql-macros
+            --features any,mssql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          SQLX_OFFLINE: true
+
+      # Test macros in offline mode (still needs DATABASE_URL to run)
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: >
+            --no-default-features
+            --test mssql-macros
+            --features any,mssql,macros,migrate,all-types,offline,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+        env:
+          DATABASE_URL: mssql://sa:Password123!@localhost/sqlx
+          SQLX_OFFLINE: true
