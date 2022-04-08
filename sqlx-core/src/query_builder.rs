@@ -32,6 +32,10 @@ where
     }
 
     pub fn push(&mut self, sql: impl Display) -> &mut Self {
+        if self.arguments.is_none() {
+            panic!("QueryBuilder must be reset before reuse")
+        }
+
         write!(self.query, "{}", sql).expect("error formatting `sql`");
 
         self
@@ -66,6 +70,13 @@ where
             persistent: true,
         }
     }
+
+    pub fn reset(&mut self) -> &mut Self {
+        self.query.clear();
+        self.arguments = Some(Default::default());
+
+        self
+    }
 }
 
 #[cfg(test)]
@@ -89,6 +100,15 @@ mod test {
             qb.query,
             "SELECT * FROM users WHERE last_name LIKE '[A-N]%;".to_string(),
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_push_panics_when_no_arguments() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("SELECT * FROM users;");
+        qb.arguments = None;
+
+        qb.push("SELECT * FROM users;");
     }
 
     #[test]
@@ -118,5 +138,38 @@ mod test {
             "SELECT * FROM users WHERE id = $1"
         );
         assert_eq!(query.persistent, true);
+    }
+
+    #[test]
+    fn test_reset() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
+
+        let _query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+
+        qb.reset();
+
+        assert_eq!(qb.query, "");
+    }
+
+    #[test]
+    fn test_query_builder_reuse() {
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new("");
+
+        let _query = qb
+            .push("SELECT * FROM users WHERE id = ")
+            .push_bind(42i32)
+            .build();
+
+        qb.reset();
+
+        let query = qb.push("SELECT * FROM users WHERE id = 99").build();
+
+        assert_eq!(
+            query.statement.unwrap_left(),
+            "SELECT * FROM users WHERE id = 99"
+        );
     }
 }
