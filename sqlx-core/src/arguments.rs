@@ -3,6 +3,7 @@
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
 use crate::types::Type;
+use std::fmt::{self, Write};
 
 /// A tuple of arguments to be sent to the database.
 pub trait Arguments<'q>: Send + Sized + Default {
@@ -17,8 +18,8 @@ pub trait Arguments<'q>: Send + Sized + Default {
     where
         T: 'q + Send + Encode<'q, Self::Database> + Type<Self::Database>;
 
-    fn place_holder(&self, _argument_count: u16) -> String {
-        "?".to_string()
+    fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
+        writer.write_str("?")
     }
 }
 

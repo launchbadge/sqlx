@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use std::fmt::{self, Write};
 
 use crate::arguments::Arguments;
 use crate::encode::{Encode, IsNull};
@@ -117,8 +118,8 @@ impl<'q> Arguments<'q> for PgArguments {
         self.add(value)
     }
 
-    fn place_holder(&self, argument_count: u16) -> String {
-        format!("${}", argument_count)
+    fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
+        write!(writer, "${}", self.buffer.count)
     }
 }
 

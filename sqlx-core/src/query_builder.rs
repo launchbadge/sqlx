@@ -14,7 +14,6 @@ where
 {
     query: String,
     arguments: Option<<DB as HasArguments<'a>>::Arguments>,
-    variable_count: u16,
 }
 
 impl<'a, DB: Database> QueryBuilder<'a, DB>
@@ -28,7 +27,6 @@ where
         QueryBuilder {
             query: init.into(),
             arguments: Some(Default::default()),
-            variable_count: 0,
         }
     }
 
@@ -45,9 +43,10 @@ where
         match self.arguments {
             Some(ref mut arguments) => {
                 arguments.add(value);
-                self.variable_count += 1;
-                self.query
-                    .push_str(&arguments.place_holder(self.variable_count));
+
+                arguments
+                    .format_placeholder(&mut self.query)
+                    .expect("error in format_placeholder");
             }
             None => panic!("Arguments taken already"),
         }
@@ -104,7 +103,6 @@ mod test {
             qb.query,
             "SELECT * FROM users WHERE id = $1 OR membership_level = $2"
         );
-        assert_eq!(qb.variable_count, 2);
     }
 
     #[test]
@@ -122,7 +120,6 @@ mod test {
             qb.query,
             "SELECT * FROM users WHERE id = $1 OR last_name = $2 AND membership_level = $3"
         );
-        assert_eq!(qb.variable_count, 3);
     }
 
     #[test]
