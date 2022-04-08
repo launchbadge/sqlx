@@ -3,8 +3,8 @@ use std::time::Instant;
 
 pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
-    returned_rows: usize,
-    affected_rows: usize,
+    rows_returned: u64,
+    rows_affected: u64,
     start: Instant,
     settings: LogSettings,
 }
@@ -13,19 +13,19 @@ impl<'q> QueryLogger<'q> {
     pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
         Self {
             sql,
-            returned_rows: 0,
-            affected_rows: 0,
+            rows_returned: 0,
+            rows_affected: 0,
             start: Instant::now(),
             settings,
         }
     }
 
-    pub(crate) fn increment_returned_rows(&mut self) {
-        self.returned_rows += 1;
+    pub(crate) fn increment_rows_returned(&mut self) {
+        self.rows_returned += 1;
     }
 
-    pub(crate) fn increment_affected_rows_by(&mut self, n: usize) {
-        self.affected_rows += n;
+    pub(crate) fn increase_rows_affected(&mut self, n: u64) {
+        self.rows_affected += n;
     }
 
     pub(crate) fn finish(&self) {
@@ -60,8 +60,8 @@ impl<'q> QueryLogger<'q> {
             log::logger().log(
                 &log::Record::builder()
                     .args(format_args!(
-                        "{}; affected rows: {}, returned rows: {}, elapsed: {:.3?}{}",
-                        summary, self.affected_rows, self.returned_rows, elapsed, sql
+                        "{}; rows affected: {}, rows returned: {}, elapsed: {:.3?}{}",
+                        summary, self.rows_affected, self.rows_returned, elapsed, sql
                     ))
                     .level(lvl)
                     .module_path_static(Some("sqlx::query"))
