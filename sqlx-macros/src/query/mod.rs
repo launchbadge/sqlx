@@ -10,7 +10,6 @@ use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
-use sqlx_core::any::{AnyConnection, AnyConnectionKind};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
@@ -119,6 +118,28 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
 pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     match &*METADATA {
+        #[cfg(not(any(
+            feature = "postgres",
+            feature = "mysql",
+            feature = "mssql",
+            feature = "sqlite"
+        )))]
+        Metadata {
+            offline: false,
+            database_url: Some(db_url),
+            ..
+        } => Err(
+            "At least one of the features ['postgres', 'mysql', 'mssql', 'sqlite'] must be enabled \
+            to get information directly from a database"
+            .into(),
+        ),
+
+        #[cfg(any(
+            feature = "postgres",
+            feature = "mysql",
+            feature = "mssql",
+            feature = "sqlite"
+        ))]
         Metadata {
             offline: false,
             database_url: Some(db_url),
@@ -159,11 +180,18 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 }
 
-static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
-    Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
-
-#[allow(unused_variables)]
+#[cfg(any(
+    feature = "postgres",
+    feature = "mysql",
+    feature = "mssql",
+    feature = "sqlite"
+))]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
+    use sqlx_core::any::{AnyConnection, AnyConnectionKind};
+
+    static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
+        Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
+
     let maybe_expanded: crate::Result<TokenStream> = block_on(async {
         let mut cache = CONNECTION_CACHE.lock().await;
 

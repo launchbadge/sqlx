@@ -55,7 +55,15 @@
 //! [`Pool::begin`].
 
 use self::inner::SharedPool;
-#[cfg(feature = "any")]
+#[cfg(all(
+    any(
+        feature = "postgres",
+        feature = "mysql",
+        feature = "mssql",
+        feature = "sqlite"
+    ),
+    feature = "any"
+))]
 use crate::any::{Any, AnyKind};
 use crate::connection::Connection;
 use crate::database::Database;
@@ -339,12 +347,19 @@ impl<DB: Database> Pool<DB> {
     }
 }
 
-#[cfg(feature = "any")]
+#[cfg(all(
+    any(
+        feature = "postgres",
+        feature = "mysql",
+        feature = "mssql",
+        feature = "sqlite"
+    ),
+    feature = "any"
+))]
 impl Pool<Any> {
     /// Returns the database driver currently in-use by this `Pool`.
     ///
     /// Determined by the connection URI.
-    #[cfg(feature = "any")]
     pub fn any_kind(&self) -> AnyKind {
         self.0.connect_options.kind()
     }
