@@ -59,6 +59,16 @@ fn load_password_from_file(
     let mut reader = BufReader::new(file);
     let mut line = String::new();
 
+    // https://stackoverflow.com/a/55041833
+    fn trim_newline(s: &mut String) {
+        if s.ends_with('\n') {
+            s.pop();
+            if s.ends_with('\r') {
+                s.pop();
+            }
+        }
+    }
+
     while let Ok(n) = reader.read_line(&mut line) {
         if n == 0 {
             break;
@@ -68,8 +78,8 @@ fn load_password_from_file(
             // comment, do nothing
         } else {
             // try to load password from line
-            let line = &line[..line.len() - 1]; // trim newline
-            if let Some(password) = load_password_from_line(line, host, port, username, database) {
+            trim_newline(&mut line);
+            if let Some(password) = load_password_from_line(&line, host, port, username, database) {
                 return Some(password);
             }
         }
