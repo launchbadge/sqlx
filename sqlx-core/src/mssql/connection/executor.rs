@@ -92,7 +92,7 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                         let columns = Arc::clone(&self.stream.columns);
                         let column_names = Arc::clone(&self.stream.column_names);
 
-                        logger.increment_rows();
+                        logger.increment_rows_returned();
 
                         r#yield!(Either::Right(MssqlRow { row, column_names, columns }));
                     }
@@ -103,8 +103,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
                         }
 
                         if done.status.contains(Status::DONE_COUNT) {
+                            let rows_affected = done.affected_rows;
+                            logger.increase_rows_affected(rows_affected);
                             r#yield!(Either::Left(MssqlQueryResult {
-                                rows_affected: done.affected_rows,
+                                rows_affected,
                             }));
                         }
 
@@ -115,8 +117,10 @@ impl<'c> Executor<'c> for &'c mut MssqlConnection {
 
                     Message::DoneInProc(done) => {
                         if done.status.contains(Status::DONE_COUNT) {
+                            let rows_affected = done.affected_rows;
+                            logger.increase_rows_affected(rows_affected);
                             r#yield!(Either::Left(MssqlQueryResult {
-                                rows_affected: done.affected_rows,
+                                rows_affected,
                             }));
                         }
                     }
