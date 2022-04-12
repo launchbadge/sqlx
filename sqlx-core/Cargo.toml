@@ -173,5 +173,5 @@ hkdf = { version = "0.12.0", optional = true }
 event-listener = "2.5.2"
 
 [dev-dependencies]
-sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite"] }
+sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite", "mysql"] }
 tokio = { version = "1", features = ["rt"] }
