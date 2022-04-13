@@ -129,7 +129,7 @@ generic-array = { version = "0.14.4", default-features = false, optional = true 
 hex = "0.4.3"
 hmac = { version = "0.12.0", default-features = false, optional = true }
 itoa = "1.0.1"
-ipnetwork = { version = "0.18.0", default-features = false, optional = true }
+ipnetwork = { version = "0.19.0", default-features = false, optional = true }
 mac_address = { version = "1.1.2", default-features = false, optional = true }
 libc = "0.2.112"
 libsqlite3-sys = { version = "0.24.1", optional = true, default-features = false, features = [
