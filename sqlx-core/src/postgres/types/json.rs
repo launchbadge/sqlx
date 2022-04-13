@@ -7,6 +7,8 @@ use crate::postgres::{
 };
 use crate::types::{Json, Type};
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue as JsonRawValue;
+use serde_json::Value as JsonValue;
 
 // <https://www.postgresql.org/docs/12/datatype-json.html>
 
@@ -31,6 +33,26 @@ impl<T> PgHasArrayType for Json<T> {
 
     fn array_compatible(ty: &PgTypeInfo) -> bool {
         array_compatible::<Json<T>>(ty)
+    }
+}
+
+impl PgHasArrayType for JsonValue {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::JSONB_ARRAY
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        array_compatible::<JsonValue>(ty)
+    }
+}
+
+impl PgHasArrayType for JsonRawValue {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::JSONB_ARRAY
+    }
+
+    fn array_compatible(ty: &PgTypeInfo) -> bool {
+        array_compatible::<JsonRawValue>(ty)
     }
 }
 

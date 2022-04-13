@@ -1,7 +1,10 @@
 use crate::error::Error;
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+/// Refer to [SQLite documentation] for the meaning of the database journaling mode.
+///
+/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SqliteJournalMode {
     Delete,
     Truncate,

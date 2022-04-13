@@ -45,7 +45,7 @@
 /// server with the schema that the query string will be checked against. All variants of `query!()`
 /// use [dotenv] so this can be in a `.env` file instead.
 ///
-///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode)
+///     * Or, `sqlx-data.json` must exist at the workspace root. See [Offline Mode](#offline-mode-requires-the-offline-feature)
 ///       below.
 ///
 /// * The query must be a string literal, or concatenation of string literals using `+` (useful
@@ -107,7 +107,7 @@
 ///
 /// In Postgres and MySQL you may also use `IS [NOT] DISTINCT FROM` to compare with a possibly
 /// `NULL` value. In MySQL `IS NOT DISTINCT FROM` can be shortened to `<=>`.
-/// In SQLite you can us `IS` or `IS NOT`. Note that operator precedence may be different.
+/// In SQLite you can use `IS` or `IS NOT`. Note that operator precedence may be different.
 ///
 /// ## Nullability: Output Columns
 /// In most cases, the database engine can tell us whether or not a column may be `NULL`, and
@@ -147,10 +147,9 @@
 /// sqlx::query!("select $1::int4 as id", my_int as MyInt4)
 /// ```
 ///
-/// In Rust 1.45 we can eliminate this redundancy by allowing casts using `as _` or type ascription
-/// syntax, i.e. `my_int: _` (which is unstable but can be stripped), but this requires modifying
-/// the expression which is not possible as the macros are currently implemented. Casts to `_` are
-/// forbidden for now as they produce rather nasty type errors.
+/// Using `expr as _` or `expr : _` simply signals to the macro to not type-check that bind expression,
+/// and then that syntax is stripped from the expression so as to not trigger type errors
+/// (or an unstable syntax feature in the case of the latter, which is called type ascription).
 ///
 /// ## Type Overrides: Output Columns
 /// Type overrides are also available for output columns, utilizing the SQL standard's support
