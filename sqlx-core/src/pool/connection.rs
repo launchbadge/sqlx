@@ -31,9 +31,9 @@ pub(super) struct Idle<DB: Database> {
 }
 
 /// RAII wrapper for connections being handled by functions that may drop them
-pub(super) struct Floating<'p, C> {
+pub(super) struct Floating<DB: Database, C> {
     pub(super) inner: C,
-    pub(super) guard: DecrementSizeGuard<'p>,
+    pub(super) guard: DecrementSizeGuard<DB>,
 }
 
 const DEREF_ERR: &str = "(bug) connection already released to pool";
@@ -89,7 +89,7 @@ impl<DB: Database> PoolConnection<DB> {
         self.live
             .take()
             .expect("PoolConnection double-dropped")
-            .float(&self.pool)
+            .float(self.pool.clone())
             .detach()
     }
 
@@ -106,19 +106,20 @@ impl<DB: Database> PoolConnection<DB> {
     ///
     /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
     pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
-        // we want these to happen synchronously so the drop handler doesn't try to spawn a task anyway
-        // this also makes the returned future `'static`
-        let live = self.live.take();
-        let pool = self.pool.clone();
+        // float the connection in the pool before we move into the task
+        // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
+        // https://github.com/launchbadge/sqlx/issues/1396
+        let floating = self.live.take().map(|live| live.float(self.pool.clone()));
 
         async move {
-            let mut floating = if let Some(live) = live {
-                live.float(&pool)
+            let mut floating = if let Some(floating) = floating {
+                floating
             } else {
                 return;
             };
 
-            // test the connection on-release to ensure it is still viable
+            // test the connection on-release to ensure it is still viable,
+            // and flush anything time-sensitive like transaction rollbacks
             // if an Executor future/stream is dropped during an `.await` call, the connection
             // is likely to be left in an inconsistent state, in which case it should not be
             // returned to the pool; also of course, if it was dropped due to an error
@@ -135,7 +136,7 @@ impl<DB: Database> PoolConnection<DB> {
                 drop(floating);
             } else {
                 // if the connection is still viable, release it to the pool
-                pool.release(floating);
+                floating.release();
             }
         }
     }
@@ -157,7 +158,7 @@ impl<DB: Database> Drop for PoolConnection<DB> {
 }
 
 impl<DB: Database> Live<DB> {
-    pub fn float(self, pool: &SharedPool<DB>) -> Floating<'_, Self> {
+    pub fn float(self, pool: Arc<SharedPool<DB>>) -> Floating<DB, Self> {
         Floating {
             inner: self,
             // create a new guard from a previously leaked permit
@@ -187,8 +188,8 @@ impl<DB: Database> DerefMut for Idle<DB> {
     }
 }
 
-impl<'s, DB: Database> Floating<'s, Live<DB>> {
-    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<'s>) -> Self {
+impl<DB: Database> Floating<DB, Live<DB>> {
+    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<DB>) -> Self {
         Self {
             inner: Live {
                 raw: conn,
@@ -213,6 +214,10 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
         }
     }
 
+    pub fn release(self) {
+        self.guard.pool.clone().release(self);
+    }
+
     pub async fn close(self) -> Result<(), Error> {
         // `guard` is dropped as intended
         self.inner.raw.close().await
@@ -222,7 +227,7 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
         self.inner.raw
     }
 
-    pub fn into_idle(self) -> Floating<'s, Idle<DB>> {
+    pub fn into_idle(self) -> Floating<DB, Idle<DB>> {
         Floating {
             inner: self.inner.into_idle(),
             guard: self.guard,
@@ -230,11 +235,11 @@ impl<'s, DB: Database> Floating<'s, Live<DB>> {
     }
 }
 
-impl<'s, DB: Database> Floating<'s, Idle<DB>> {
+impl<DB: Database> Floating<DB, Idle<DB>> {
     pub fn from_idle(
         idle: Idle<DB>,
-        pool: &'s SharedPool<DB>,
-        permit: SemaphoreReleaser<'s>,
+        pool: Arc<SharedPool<DB>>,
+        permit: SemaphoreReleaser<'_>,
     ) -> Self {
         Self {
             inner: idle,
@@ -246,14 +251,14 @@ impl<'s, DB: Database> Floating<'s, Idle<DB>> {
         self.live.raw.ping().await
     }
 
-    pub fn into_live(self) -> Floating<'s, Live<DB>> {
+    pub fn into_live(self) -> Floating<DB, Live<DB>> {
         Floating {
             inner: self.inner.live,
             guard: self.guard,
         }
     }
 
-    pub async fn close(self) -> DecrementSizeGuard<'s> {
+    pub async fn close(self) -> DecrementSizeGuard<DB> {
         // `guard` is dropped as intended
         if let Err(e) = self.inner.live.raw.close().await {
             log::debug!("error occurred while closing the pool connection: {}", e);
@@ -262,7 +267,7 @@ impl<'s, DB: Database> Floating<'s, Idle<DB>> {
     }
 }
 
-impl<C> Deref for Floating<'_, C> {
+impl<DB: Database, C> Deref for Floating<DB, C> {
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
@@ -270,7 +275,7 @@ impl<C> Deref for Floating<'_, C> {
     }
 }
 
-impl<C> DerefMut for Floating<'_, C> {
+impl<DB: Database, C> DerefMut for Floating<DB, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
