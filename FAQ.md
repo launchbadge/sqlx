@@ -1,6 +1,57 @@
 SQLx Frequently Asked Questions
 ===============================
 
+### What versions of Rust does SQLx support? What is SQLx's MSRV\*?
+
+Officially, we will only ever support the latest stable version of Rust. 
+It's just not something we consider to be worth keeping track of, given the current state of tooling.
+
+Cargo does support a [`rust-version`] field now in the package manifest, however that will only ensure
+that the user is using a `rustc` of that version or greater; it does not enforce that the crate's code is
+actually compatible with that version of Rust. That would need to be manually enforced and checked with CI,
+and we have enough CI passes already.
+
+In practice, we tend not to reach for language or library features that are *too* new, either because
+we don't need them or we just worked around their absence. There are language features we're waiting to be
+stabilized that we want to use (Generic Associated Types and Async Traits, to name a couple) which we will
+be utilizing when they're available, but that will be a major refactor with breaking API changes 
+which will then coincide with a major release.
+
+Thus, it is likely that a given SQLx release _will_ work with older versions of Rust. However,
+we make no guarantees about which exact versions it will work with besides the latest stable version,
+and we don't factor MSRV bumps into our semantic versioning.
+
+\*Minimum Supported Rust Version
+
+[`rust-version`]: https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-rust-version-field
+
+----------------------------------------------------------------
+### I'm getting `HandshakeFailure` or `CorruptMessage` when trying to connect to a server over TLS using RusTLS. What gives?
+
+To encourage good security practices and limit cruft, RusTLS does not support older versions of TLS or cryptographic algorithms 
+that are considered insecure. `HandshakeFailure` is a normal error returned when RusTLS and the server cannot agree on parameters for
+a secure connection. 
+
+Check the supported TLS versions for the database server version you're running. If it does not support TLS 1.2 or greater, then
+you likely will not be able to connect to it with RusTLS.
+
+The ideal solution, of course, is to upgrade your database server to a version that supports at least TLS 1.2.  
+
+* MySQL: [has supported TLS 1.2 since 5.6.46](https://dev.mysql.com/doc/refman/5.6/en/encrypted-connection-protocols-ciphers.html#encrypted-connection-supported-protocols). 
+* PostgreSQL: depends on the system OpenSSL version.
+* MSSQL: TLS is not supported yet.
+
+If you're running a third-party database that talks one of these protocols, consult its documentation for supported TLS versions.
+
+If you're stuck on an outdated version, which is unfortunate but tends to happen for one reason or another, try switching to the corresponding
+`runtime-<tokio, async-std, actix>-native-tls` feature for SQLx. That will use the system APIs for TLS which tend to have much wider support.
+See [the `native-tls` crate docs](https://docs.rs/native-tls/latest/native_tls/) for details.
+
+The `CorruptMessage` error occurs in similar situations and many users have had success with switching to `-native-tls` to get around it.
+However, if you do encounter this error, please try to capture a Wireshark or `tcpdump` trace of the TLS handshake as the RusTLS folks are interested
+in covering cases that trigger this (as it might indicate a protocol handling bug or the server is doing something non-standard): 
+https://github.com/rustls/rustls/issues/893
+
 ----------------------------------------------------------------
 ### How can I do a `SELECT ... WHERE foo IN (...)` query?
 

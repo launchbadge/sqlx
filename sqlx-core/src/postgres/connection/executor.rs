@@ -279,8 +279,10 @@ impl PgConnection {
                         // a SQL command completed normally
                         let cc: CommandComplete = message.decode()?;
 
+                        let rows_affected = cc.rows_affected();
+                        logger.increase_rows_affected(rows_affected);
                         r#yield!(Either::Left(PgQueryResult {
-                            rows_affected: cc.rows_affected(),
+                            rows_affected,
                         }));
                     }
 
@@ -302,7 +304,7 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
-                        logger.increment_rows();
+                        logger.increment_rows_returned();
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

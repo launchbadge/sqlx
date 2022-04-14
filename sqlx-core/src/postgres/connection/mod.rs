@@ -12,7 +12,7 @@ use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::message::{
-    Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Message, MessageFormat, Query, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::types::Oid;
@@ -101,6 +101,14 @@ impl PgConnection {
         self.transaction_status = ReadyForQuery::decode(message.contents)?.transaction_status;
 
         Ok(())
+    }
+
+    /// Queue a simple query (not prepared) to execute the next time this connection is used.
+    ///
+    /// Used for rolling back transactions and releasing advisory locks.
+    pub(crate) fn queue_simple_query(&mut self, query: &str) {
+        self.pending_ready_for_query_count += 1;
+        self.stream.write(Query(query));
     }
 }
 

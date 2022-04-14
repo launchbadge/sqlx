@@ -1,3 +1,4 @@
+use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut};
 
 use crate::arguments::Arguments;
@@ -115,6 +116,10 @@ impl<'q> Arguments<'q> for PgArguments {
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
         self.add(value)
+    }
+
+    fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
+        write!(writer, "${}", self.buffer.count)
     }
 }
 

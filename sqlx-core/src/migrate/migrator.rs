@@ -137,4 +137,64 @@ impl Migrator {
 
         Ok(())
     }
+
+    /// Run down migrations against the database until a specific version.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use sqlx_core::migrate::MigrateError;
+    /// # #[cfg(feature = "sqlite")]
+    /// # fn main() -> Result<(), MigrateError> {
+    /// #     sqlx_rt::block_on(async move {
+    /// # use sqlx_core::migrate::Migrator;
+    /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
+    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// m.undo(&pool, 4).await
+    /// #     })
+    /// # }
+    /// ```
+    pub async fn undo<'a, A>(&self, migrator: A, target: i64) -> Result<(), MigrateError>
+    where
+        A: Acquire<'a>,
+        <A::Connection as Deref>::Target: Migrate,
+    {
+        let mut conn = migrator.acquire().await?;
+
+        // lock the database for exclusive access by the migrator
+        conn.lock().await?;
+
+        // creates [_migrations] table only if needed
+        // eventually this will likely migrate previous versions of the table
+        conn.ensure_migrations_table().await?;
+
+        let version = conn.dirty_version().await?;
+        if let Some(version) = version {
+            return Err(MigrateError::Dirty(version));
+        }
+
+        let applied_migrations = conn.list_applied_migrations().await?;
+        validate_applied_migrations(&applied_migrations, self)?;
+
+        let applied_migrations: HashMap<_, _> = applied_migrations
+            .into_iter()
+            .map(|m| (m.version, m))
+            .collect();
+
+        for migration in self
+            .iter()
+            .rev()
+            .filter(|m| m.migration_type.is_down_migration())
+            .filter(|m| applied_migrations.contains_key(&m.version))
+            .filter(|m| m.version > target)
+        {
+            conn.revert(migration).await?;
+        }
+
+        // unlock the migrator to allow other migrators to run
+        // but do nothing as we already migrated
+        conn.unlock().await?;
+
+        Ok(())
+    }
 }

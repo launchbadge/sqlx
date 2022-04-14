@@ -31,6 +31,16 @@ impl<'q> SqliteArguments<'q> {
             self.values.push(SqliteArgumentValue::Null);
         }
     }
+
+    pub(crate) fn into_static(self) -> SqliteArguments<'static> {
+        SqliteArguments {
+            values: self
+                .values
+                .into_iter()
+                .map(SqliteArgumentValue::into_static)
+                .collect(),
+        }
+    }
 }
 
 impl<'q> Arguments<'q> for SqliteArguments<'q> {
@@ -49,7 +59,7 @@ impl<'q> Arguments<'q> for SqliteArguments<'q> {
 }
 
 impl SqliteArguments<'_> {
-    pub(super) fn bind(&self, handle: &StatementHandle, offset: usize) -> Result<usize, Error> {
+    pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
         let mut arg_i = offset;
         // for handle in &statement.handles {
 
@@ -95,7 +105,20 @@ impl SqliteArguments<'_> {
 }
 
 impl SqliteArgumentValue<'_> {
-    fn bind(&self, handle: &StatementHandle, i: usize) -> Result<(), Error> {
+    fn into_static(self) -> SqliteArgumentValue<'static> {
+        use SqliteArgumentValue::*;
+
+        match self {
+            Null => Null,
+            Text(text) => Text(text.into_owned().into()),
+            Blob(blob) => Blob(blob.into_owned().into()),
+            Int(v) => Int(v),
+            Int64(v) => Int64(v),
+            Double(v) => Double(v),
+        }
+    }
+
+    fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
         use SqliteArgumentValue::*;
 
         let status = match self {

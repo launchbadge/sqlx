@@ -1,12 +1,11 @@
 extern crate time_ as time;
 
 use std::ops::Bound;
-#[cfg(feature = "decimal")]
-use std::str::FromStr;
 
 use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
+use std::str::FromStr;
 
 test_type!(null<Option<i16>>(Postgres,
     "NULL::int2" == None::<i16>
@@ -421,6 +420,12 @@ test_type!(bigdecimal<sqlx::types::BigDecimal>(Postgres,
     "0.01234567::numeric" == "0.01234567".parse::<sqlx::types::BigDecimal>().unwrap(),
     "0.012345678::numeric" == "0.012345678".parse::<sqlx::types::BigDecimal>().unwrap(),
     "0.0123456789::numeric" == "0.0123456789".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.002::numeric" == "0.002".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.0002::numeric" == "0.0002".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.00002::numeric" == "0.00002".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.000002::numeric" == "0.000002".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.0000002::numeric" == "0.0000002".parse::<sqlx::types::BigDecimal>().unwrap(),
+    "0.00000002::numeric" == "0.00000002".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12.34::numeric" == "12.34".parse::<sqlx::types::BigDecimal>().unwrap(),
     "12345.6789::numeric" == "12345.6789".parse::<sqlx::types::BigDecimal>().unwrap(),
 ));
@@ -506,4 +511,23 @@ test_prepared_type!(money<PgMoney>(Postgres, "123.45::money" == PgMoney(12345)))
 
 test_prepared_type!(money_vec<Vec<PgMoney>>(Postgres,
     "array[123.45,420.00,666.66]::money[]" == vec![PgMoney(12345), PgMoney(42000), PgMoney(66666)],
+));
+
+// FIXME: needed to disable `ltree` tests in Postgres 9.6
+// but `PgLTree` should just fall back to text format
+#[cfg(postgres_14)]
+test_type!(ltree<sqlx::postgres::types::PgLTree>(Postgres,
+    "'Foo.Bar.Baz.Quux'::ltree" == sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+    "'Alpha.Beta.Delta.Gamma'::ltree" == sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap(),
+));
+
+// FIXME: needed to disable `ltree` tests in Postgres 9.6
+// but `PgLTree` should just fall back to text format
+#[cfg(postgres_14)]
+test_type!(ltree_vec<Vec<sqlx::postgres::types::PgLTree>>(Postgres,
+    "array['Foo.Bar.Baz.Quux', 'Alpha.Beta.Delta.Gamma']::ltree[]" ==
+        vec![
+            sqlx::postgres::types::PgLTree::from_str("Foo.Bar.Baz.Quux").unwrap(),
+            sqlx::postgres::types::PgLTree::from_iter(["Alpha", "Beta", "Delta", "Gamma"]).unwrap()
+        ]
 ));

@@ -1,7 +1,6 @@
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::sqlite::connection::establish::establish;
 use crate::sqlite::{SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
@@ -16,7 +15,7 @@ impl ConnectOptions for SqliteConnectOptions {
         Self::Connection: Sized,
     {
         Box::pin(async move {
-            let mut conn = establish(self).await?;
+            let mut conn = SqliteConnection::establish(self).await?;
 
             // send an initial sql statement comprised of options
             let mut init = String::new();
@@ -27,7 +26,7 @@ impl ConnectOptions for SqliteConnectOptions {
                 write!(init, "PRAGMA key = {}; ", pragma_key_password).ok();
             }
 
-            for (key, value) in self.pragmas.iter() {
+            for (key, value) in &self.pragmas {
                 // Since we've already written the possible `key` pragma
                 // above, we shall skip it now.
                 if key == "key" {
@@ -37,6 +36,14 @@ impl ConnectOptions for SqliteConnectOptions {
             }
 
             conn.execute(&*init).await?;
+
+            if !self.collations.is_empty() {
+                let mut locked = conn.lock_handle().await?;
+
+                for collation in &self.collations {
+                    collation.create(&mut locked.guard.handle)?;
+                }
+            }
 
             Ok(conn)
         })

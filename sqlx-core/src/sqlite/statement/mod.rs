@@ -10,11 +10,9 @@ use std::sync::Arc;
 
 mod handle;
 mod r#virtual;
-mod worker;
 
-pub(crate) use handle::{StatementHandle, StatementHandleRef};
+pub(crate) use handle::StatementHandle;
 pub(crate) use r#virtual::VirtualStatement;
-pub(crate) use worker::StatementWorker;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::rc_buffer)]

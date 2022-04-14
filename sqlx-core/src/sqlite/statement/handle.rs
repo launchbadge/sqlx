@@ -6,6 +6,7 @@ use std::ptr;
 use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
+use std::sync::{Condvar, Mutex};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
@@ -14,44 +15,29 @@ use libsqlite3_sys::{
     sqlite3_column_bytes, sqlite3_column_count, sqlite3_column_database_name,
     sqlite3_column_decltype, sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64,
     sqlite3_column_name, sqlite3_column_origin_name, sqlite3_column_table_name,
-    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_sql,
-    sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata, sqlite3_value,
-    SQLITE_MISUSE, SQLITE_OK, SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset,
+    sqlite3_sql, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata,
+    sqlite3_unlock_notify, sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE,
+    SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
-use crate::sqlite::connection::ConnectionHandleRef;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
-use std::ops::Deref;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
-
-// wrapper for `Arc<StatementHandle>` which also holds a reference to the `ConnectionHandle`
-#[derive(Clone, Debug)]
-pub(crate) struct StatementHandleRef {
-    // NOTE: the ordering of fields here determines the drop order:
-    // https://doc.rust-lang.org/reference/destructors.html#destructors
-    // the statement *must* be dropped before the connection
-    statement: Arc<StatementHandle>,
-    connection: ConnectionHandleRef,
-}
 
 // access to SQLite3 statement handles are safe to send and share between threads
 // as long as the `sqlite3_step` call is serialized.
 
 unsafe impl Send for StatementHandle {}
-unsafe impl Sync for StatementHandle {}
 
+// might use some of this later
+#[allow(dead_code)]
 impl StatementHandle {
     pub(super) fn new(ptr: NonNull<sqlite3_stmt>) -> Self {
         Self(ptr)
-    }
-
-    pub(crate) fn as_ptr(&self) -> *mut sqlite3_stmt {
-        self.0.as_ptr()
     }
 
     #[inline]
@@ -306,13 +292,36 @@ impl StatementHandle {
         unsafe { sqlite3_clear_bindings(self.0.as_ptr()) };
     }
 
-    pub(crate) fn to_ref(
-        self: &Arc<StatementHandle>,
-        conn: ConnectionHandleRef,
-    ) -> StatementHandleRef {
-        StatementHandleRef {
-            statement: Arc::clone(self),
-            connection: conn,
+    pub(crate) fn reset(&mut self) -> Result<(), SqliteError> {
+        // SAFETY: we have exclusive access to the handle
+        unsafe {
+            if sqlite3_reset(self.0.as_ptr()) != SQLITE_OK {
+                return Err(SqliteError::new(self.db_handle()));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn step(&mut self) -> Result<bool, SqliteError> {
+        // SAFETY: we have exclusive access to the handle
+        unsafe {
+            loop {
+                match sqlite3_step(self.0.as_ptr()) {
+                    SQLITE_ROW => return Ok(true),
+                    SQLITE_DONE => return Ok(false),
+                    SQLITE_MISUSE => panic!("misuse!"),
+                    SQLITE_LOCKED_SHAREDCACHE => {
+                        // The shared cache is locked by another connection. Wait for unlock
+                        // notification and try again.
+                        wait_for_unlock_notify(self.db_handle())?;
+                        // Need to reset the handle after the unlock
+                        // (https://www.sqlite.org/unlock_notify.html)
+                        sqlite3_reset(self.0.as_ptr());
+                    }
+                    _ => return Err(SqliteError::new(self.db_handle())),
+                }
+            }
         }
     }
 }
@@ -336,10 +345,54 @@ impl Drop for StatementHandle {
     }
 }
 
-impl Deref for StatementHandleRef {
-    type Target = StatementHandle;
+unsafe fn wait_for_unlock_notify(conn: *mut sqlite3) -> Result<(), SqliteError> {
+    let notify = Notify::new();
 
-    fn deref(&self) -> &Self::Target {
-        &self.statement
+    if sqlite3_unlock_notify(
+        conn,
+        Some(unlock_notify_cb),
+        &notify as *const Notify as *mut Notify as *mut _,
+    ) != SQLITE_OK
+    {
+        return Err(SqliteError::new(conn));
+    }
+
+    notify.wait();
+
+    Ok(())
+}
+
+unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
+    let ptr = ptr as *mut &Notify;
+    let slice = from_raw_parts(ptr, len as usize);
+
+    for notify in slice {
+        notify.fire();
+    }
+}
+
+struct Notify {
+    mutex: Mutex<bool>,
+    condvar: Condvar,
+}
+
+impl Notify {
+    fn new() -> Self {
+        Self {
+            mutex: Mutex::new(false),
+            condvar: Condvar::new(),
+        }
+    }
+
+    fn wait(&self) {
+        let _ = self
+            .condvar
+            .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
+            .unwrap();
+    }
+
+    fn fire(&self) {
+        *self.mutex.lock().unwrap() = true;
+        self.condvar.notify_one();
     }
 }
