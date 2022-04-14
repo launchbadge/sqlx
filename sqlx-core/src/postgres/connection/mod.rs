@@ -67,6 +67,11 @@ pub struct PgConnection {
 }
 
 impl PgConnection {
+    /// the version number of the server in `libpq` format
+    pub fn server_version_num(&self) -> Option<u32> {
+        self.stream.server_version_num
+    }
+
     // will return when the connection is ready for another query
     pub(in crate::postgres) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
@@ -185,22 +190,5 @@ impl Connection for PgConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         !self.stream.wbuf.is_empty()
-    }
-}
-
-pub trait PgConnectionInfo {
-    /// the version number of the server in `libpq` format
-    fn server_version_num(&self) -> Option<u32>;
-}
-
-impl PgConnectionInfo for PgConnection {
-    fn server_version_num(&self) -> Option<u32> {
-        self.stream.server_version_num
-    }
-}
-
-impl PgConnectionInfo for crate::pool::PoolConnection<Postgres> {
-    fn server_version_num(&self) -> Option<u32> {
-        self.stream.server_version_num
     }
 }

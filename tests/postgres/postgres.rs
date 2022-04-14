@@ -1,8 +1,8 @@
 use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
-    PgAdvisoryLock, PgConnectOptions, PgConnection, PgConnectionInfo, PgDatabaseError,
-    PgErrorPosition, PgListener, PgPoolOptions, PgRow, PgSeverity, Postgres,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
+    PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, pool, setup_if_needed};
@@ -1202,8 +1202,6 @@ VALUES
 
 #[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
-    use sqlx::postgres::PgConnectionInfo;
-
     let conn = new::<Postgres>().await?;
 
     assert!(conn.server_version_num().is_some());
