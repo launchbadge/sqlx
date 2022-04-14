@@ -5,7 +5,7 @@ use sqlx::any::{AnyConnectOptions, AnyKind};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -188,6 +188,12 @@ hint: This command only works in the manifest directory of a Cargo package."#
     Ok(data)
 }
 
+#[derive(Debug, PartialEq)]
+struct ProjectRecompileAction {
+    clean_packages: Vec<String>,
+    touch_paths: Vec<PathBuf>,
+}
+
 /// Sets up recompiling only crates that depend on `sqlx-macros`
 ///
 /// This gets a listing of all crates that depend on `sqlx-macros` (direct and transitive). The
@@ -195,6 +201,38 @@ hint: This command only works in the manifest directory of a Cargo package."#
 /// outside the workspace are selectively `cargo clean -p`ed. In this way we can trigger a
 /// recompile of crates that may be using compile-time macros without forcing a full recompile
 fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::Result<()> {
+    let ProjectRecompileAction {
+        clean_packages,
+        touch_paths,
+    } = minimal_project_recompile_action(metadata)?;
+
+    for file in touch_paths {
+        let now = filetime::FileTime::now();
+        filetime::set_file_times(&file, now, now)
+            .with_context(|| format!("Failed to update mtime for {:?}", file))?;
+    }
+    for pkg_id in clean_packages {
+        let output = Command::new(cargo)
+            .args(&["clean", "-p", &pkg_id])
+            .output()
+            .with_context(|| format!("`cargo clean -p {}` failed", pkg_id))?;
+
+        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
+        // problem
+        if !output.status.success() {
+            bail!(
+                "Failed cleaning packagage: {}\nstdout:\n{}\nstderr:{}",
+                pkg_id,
+                std::str::from_utf8(&output.stdout).unwrap_or("<invalid-utf-8>"),
+                std::str::from_utf8(&output.stderr).unwrap_or("<invalid-utf-8>"),
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn minimal_project_recompile_action(metadata: &Metadata) -> anyhow::Result<ProjectRecompileAction> {
     // Get all the packages that depend on `sqlx-macros`
     let mut sqlx_macros_dependents = BTreeSet::new();
     let sqlx_macros_ids: BTreeSet<_> = metadata
@@ -221,42 +259,24 @@ fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::
 
     // In-workspace dependents have their source file's mtime updated. Out-of-workspace get
     // `cargo clean -p <PKGID>`ed
-    let files_to_touch = in_workspace_dependents
+    let files_to_touch: Vec<_> = in_workspace_dependents
         .iter()
         .filter_map(|id| {
             metadata
                 .package(id)
                 .map(|package| package.src_paths().to_owned())
         })
-        .flatten();
-    let packages_to_clean = out_of_workspace_dependents
+        .flatten()
+        .collect();
+    let packages_to_clean: Vec<_> = out_of_workspace_dependents
         .iter()
-        .filter_map(|id| metadata.package(id).map(|package| package.id().to_string()));
+        .filter_map(|id| metadata.package(id).map(|package| package.id().to_string()))
+        .collect();
 
-    for file in files_to_touch {
-        let now = filetime::FileTime::now();
-        filetime::set_file_times(&file, now, now)
-            .with_context(|| format!("Failed to update mtime for {:?}", file))?;
-    }
-    for pkg_id in packages_to_clean {
-        let output = Command::new(cargo)
-            .args(&["clean", "-p", &pkg_id])
-            .output()
-            .with_context(|| format!("`cargo clean -p {}` failed", pkg_id))?;
-
-        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
-        // problem
-        if !output.status.success() {
-            bail!(
-                "Failed cleaning packagage: {}\nstdout:\n{}\nstderr:{}",
-                pkg_id,
-                std::str::from_utf8(&output.stdout).unwrap_or("<invalid-utf-8>"),
-                std::str::from_utf8(&output.stderr).unwrap_or("<invalid-utf-8>"),
-            );
-        }
-    }
-
-    Ok(())
+    Ok(ProjectRecompileAction {
+        clean_packages: packages_to_clean,
+        touch_paths: files_to_touch,
+    })
 }
 
 fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
@@ -330,5 +350,30 @@ mod tests {
         assert_eq!(data.len(), 2);
         assert_eq!(data.get("a"), Some(&json!({"key1": "value1"})));
         assert_eq!(data.get("z"), Some(&json!({"key2": "value2"})));
+    }
+
+    #[test]
+    fn minimal_project_recompile_action_works() -> anyhow::Result<()> {
+        let sample_metadata_path = Path::new("tests")
+            .join("assets")
+            .join("sample_metadata.json");
+        let sample_metadata = std::fs::read_to_string(sample_metadata_path)?;
+        let metadata: Metadata = sample_metadata.parse()?;
+
+        let action = minimal_project_recompile_action(&metadata)?;
+        assert_eq!(
+            action,
+            ProjectRecompileAction {
+                clean_packages: vec![
+                    "https://github.com/rust-lang/crates.io-index#sqlx:0.5.11".into()
+                ],
+                touch_paths: vec![
+                    "/home/user/problematic/workspace/b_in_workspace_lib/src/lib.rs".into(),
+                    "/home/user/problematic/workspace/c_in_workspace_bin/src/main.rs".into(),
+                ]
+            }
+        );
+
+        Ok(())
     }
 }
