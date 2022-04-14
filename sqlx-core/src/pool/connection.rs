@@ -123,7 +123,7 @@ impl<DB: Database> PoolConnection<DB> {
             // if an Executor future/stream is dropped during an `.await` call, the connection
             // is likely to be left in an inconsistent state, in which case it should not be
             // returned to the pool; also of course, if it was dropped due to an error
-            // this is simply a band-aid as SQLx-next (0.6) connections should be able
+            // this is simply a band-aid as SQLx-next connections should be able
             // to recover from cancellations
             if let Err(e) = floating.raw.ping().await {
                 log::warn!(

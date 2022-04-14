@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-core"
-version = "0.5.11"
+version = "0.5.12"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
@@ -103,7 +103,7 @@ offline = ["serde", "either/serde"]
 paste = "1.0.6"
 ahash = "0.7.6"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.5.11"}
+sqlx-rt = { path = "../sqlx-rt", version = "0.5.12"}
 base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
 bigdecimal_ = { version = "0.2.2", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.19.0", optional = true }
@@ -173,5 +173,5 @@ hkdf = { version = "0.12.0", optional = true }
 event-listener = "2.5.2"
 
 [dev-dependencies]
-sqlx = { version = "0.5.11", path = "..", features = ["postgres", "sqlite", "mysql"] }
+sqlx = { version = "0.5.12", path = "..", features = ["postgres", "sqlite", "mysql"] }
 tokio = { version = "1", features = ["rt"] }

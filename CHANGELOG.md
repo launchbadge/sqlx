@@ -5,6 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.12 - 2022-04-13
+[27 pull requests][0.5.12-prs] were merged this release cycle.
+
+### Added
+* [[#1641]]: Postgres: Convenient wrapper for advisory locks [[@abonander]]
+* [[#1675]]: Add function to undo migrations [[@jdrouet]]
+* [[#1722]]: Postgres: implement `PgHasArrayType` for `serde_json::{Value, RawValue}` [[@abreis]]
+* [[#1736]]: Derive `Clone` for `MySqlArguments` and `MssqlArguments` [[@0xdeafbeef]]
+* [[#1748]]: Derive `PgHasArrayType` for `#[sqlx(transparent)]` types [[@carols10cents]]
+* [[#1754]]: Include affected rows alongside returned rows in query logging [[@david-mcgillicuddy-moixa]]
+* [[#1757]]: Implement `Type` for `Cow<str>` for MySQL, MSSQL and SQLite [[@ipetkov]]
+* [[#1769]]: sqlx-cli: add `--source` to migration subcommands [[@pedromfedricci]]
+* [[#1774]]: Postgres: make `extra_float_digits` settable [[@abonander]]
+    * Can be set to `None` for Postgres or third-party database servers that don't support the option.
+* [[#1776]]: Implement close-event notification for Pool [[@abonander]]
+    * Also fixes `PgListener` preventing `Pool::close()` from resolving.
+* [[#1780]]: Implement query builder [[@crajcan]]
+    * See also [[#1790]]: Document and expand query builder [[@abonander]]
+* [[#1781]]: Postgres: support `NUMERIC[]` using `decimal` feature [[@tm-drtina]]
+* [[#1784]]: SQLite: add `FromStr`, `Copy`, `PartialEq`, `Eq` impls for options enums [[@andrewwhitehead]]
+
+### Changed
+* [[#1625]]: Update RustCrypto crates [[@paolobarbolini]]
+* [[#1725]]: Update `heck` to 0.4 [[@paolobarbolini]]
+* [[#1738]]: Update `regex` [[@Dylan-DPC]]
+* [[#1763]]: SQLite: update `libsqlite3-sys` [[@espindola]]
+
+
+### Fixed
+* [[#1719]]: Fix a link in `query!()` docs [[@vbmade2000]]
+* [[#1731]]: Postgres: fix option passing logic [[@liushuyu]]
+* [[#1735]]: sqlx-cli: pass `DATABASE_URL` to command spawned in `prepare` [[@LovecraftianHorror]]
+* [[#1741]]: Postgres: fix typo in `TSTZRANGE` [[@mgrachev]]
+* [[#1761]]: Fix link from `QueryAs` to `query_as()` in docs [[@mgrachev]]
+* [[#1786]]: MySQL: silence compile warnings for unused fields [[@andrewwhitehead]]
+* [[#1789]]: SQLite: fix left-joins breaking `query!()` macros [[@tyrelr]]
+* [[#1791]]: Postgres: fix newline parsing of `.pgpass` files [[@SebastienGllmt]]
+* [[#1799]]: `PoolConnection`: don't leak connection permit if drop task fails to run [[@abonander]]
+
+[#1625]: https://github.com/launchbadge/sqlx/pull/1625
+[#1641]: https://github.com/launchbadge/sqlx/pull/1641
+[#1675]: https://github.com/launchbadge/sqlx/pull/1675
+[#1719]: https://github.com/launchbadge/sqlx/pull/1719
+[#1722]: https://github.com/launchbadge/sqlx/pull/1722
+[#1725]: https://github.com/launchbadge/sqlx/pull/1725
+[#1731]: https://github.com/launchbadge/sqlx/pull/1731
+[#1735]: https://github.com/launchbadge/sqlx/pull/1735
+[#1736]: https://github.com/launchbadge/sqlx/pull/1736
+[#1738]: https://github.com/launchbadge/sqlx/pull/1738
+[#1741]: https://github.com/launchbadge/sqlx/pull/1741
+[#1748]: https://github.com/launchbadge/sqlx/pull/1748
+[#1754]: https://github.com/launchbadge/sqlx/pull/1754
+[#1757]: https://github.com/launchbadge/sqlx/pull/1757
+[#1761]: https://github.com/launchbadge/sqlx/pull/1761
+[#1763]: https://github.com/launchbadge/sqlx/pull/1763
+[#1769]: https://github.com/launchbadge/sqlx/pull/1769
+[#1774]: https://github.com/launchbadge/sqlx/pull/1774
+[#1776]: https://github.com/launchbadge/sqlx/pull/1776
+[#1780]: https://github.com/launchbadge/sqlx/pull/1780
+[#1781]: https://github.com/launchbadge/sqlx/pull/1781
+[#1784]: https://github.com/launchbadge/sqlx/pull/1784
+[#1786]: https://github.com/launchbadge/sqlx/pull/1786
+[#1789]: https://github.com/launchbadge/sqlx/pull/1789
+[#1790]: https://github.com/launchbadge/sqlx/pull/1790
+[#1791]: https://github.com/launchbadge/sqlx/pull/1791
+[#1799]: https://github.com/launchbadge/sqlx/pull/1799
+
+[0.5.12-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2022-02-19..2022-04-13
+
 ## 0.5.11 - 2022-02-17
 [20 pull requests][0.5.11-prs] were merged this release cycle.
 
@@ -1179,3 +1248,18 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@stoically]: https://github.com/stoically
 [@VersBinarii]: https://github.com/VersBinarii
 [@cemoktra]: https://github.com/cemoktra
+[@jdrouet]: https://github.com/jdrouet
+[@vbmade2000]: https://github.com/vbmade2000
+[@abreis]: https://github.com/abreis
+[@0xdeafbeef]: https://github.com/0xdeafbeef
+[@Dylan-DPC]: https://github.com/Dylan-DPC
+[@carols10cents]: https://github.com/carols10cents
+[@david-mcgillicuddy-moixa]: https://github.com/david-mcgillicuddy-moixa
+[@ipetkov]: https://github.com/ipetkov
+[@pedromfedricci]: https://github.com/pedromfedricci
+[@tm-drtina]: https://github.com/tm-drtina
+[@espindola]: https://github.com/espindola
+[@mgrachev]: https://github.com/mgrachev
+[@tyrelr]: https://github.com/tyrelr
+[@SebastienGllmt]: https://github.com/SebastienGllmt
+

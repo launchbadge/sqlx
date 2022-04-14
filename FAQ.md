@@ -56,7 +56,7 @@ https://github.com/rustls/rustls/issues/893
 ### How can I do a `SELECT ... WHERE foo IN (...)` query?
 
 
-In 0.6 SQLx will support binding arrays as a comma-separated list for every database,
+In the future SQLx will support binding arrays as a comma-separated list for every database,
 but unfortunately there's no general solution for that currently in SQLx itself.
 You would need to manually generate the query, at which point it
 cannot be used with the macros.
@@ -96,7 +96,7 @@ See also: [Postgres Manual, Section 9.24: Row and Array Comparisons](https://www
 -----
 ### How can I bind an array to a `VALUES()` clause? How can I do bulk inserts?
 
-Like the above, SQLx currently does not support this in the general case right now but will in 0.6.
+Like the above, SQLx currently does not support this in the general case right now but will in the future.
 
 However, **Postgres** also has a feature to save the day here! You can pass an array to `UNNEST()` and
 it will treat it as a temporary table:
@@ -118,7 +118,7 @@ sqlx::query!(
 
 ```rust
 // this solution currently requires each column to be its own vector
-// in 0.6 we're aiming to allow binding iterators directly as arrays
+// in the future we're aiming to allow binding iterators directly as arrays
 // so you can take a vector of structs and bind iterators mapping to each field
 let foo_texts: Vec<String> = vec![/* ... */];
 let foo_bools: Vec<bool> = vec![/* ... */];
@@ -137,7 +137,7 @@ sqlx::query!(
     .await?;
 ```
 
-Again, even with comma-expanded lists in 0.6 this will likely still be the most performant way to run bulk inserts
+Again, even with comma-expanded lists in the future this will likely still be the most performant way to run bulk inserts
 with Postgres--at least until we get around to implementing an interface for `COPY FROM STDIN`, though
 this solution with `UNNEST()` will still be more flexible as you can use it in queries that are more complex
 than just inserting into a table.
