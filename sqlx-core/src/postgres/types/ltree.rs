@@ -29,7 +29,7 @@ pub struct PgLTreeLabel(String);
 impl PgLTreeLabel {
     pub fn new<S>(label: S) -> Result<Self, PgLTreeParseError>
     where
-        S: Into<String>,
+        String: From<S>,
     {
         let label = String::from(label);
         if label.len() <= 256
