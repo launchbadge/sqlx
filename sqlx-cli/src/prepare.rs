@@ -106,6 +106,8 @@ hint: This command only works in the manifest directory of a Cargo package."#
     let _ = remove_dir_all(metadata.target_directory().join("sqlx"));
 
     let check_status = if merge {
+        // Try only triggering a recompile on crates that use `sqlx-macros` falling back to a full
+        // clean on error
         match setup_minimal_project_recompile(&cargo, &metadata) {
             Ok(()) => {}
             Err(err) => {
@@ -186,6 +188,12 @@ hint: This command only works in the manifest directory of a Cargo package."#
     Ok(data)
 }
 
+/// Sets up recompiling only crates that depend on `sqlx-macros`
+///
+/// This gets a listing of all crates that depend on `sqlx-macros` (direct and transitive). The
+/// crates within the current workspace have their source file's mtimes updated while crates
+/// outside the workspace are selectively `cargo clean -p`ed. In this way we can trigger a
+/// recompile of crates that may be using compile-time macros without forcing a full recompile
 fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::Result<()> {
     // Get all the packages that depend on `sqlx-macros`
     let mut sqlx_macros_dependents = BTreeSet::new();
@@ -211,7 +219,7 @@ fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::
         }
     }
 
-    // In workspace dependents have their source file's mtime updated. Out of workspace get
+    // In-workspace dependents have their source file's mtime updated. Out-of-workspace get
     // `cargo clean -p <PKGID>`ed
     let files_to_touch = in_workspace_dependents
         .iter()
@@ -231,13 +239,13 @@ fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::
             .with_context(|| format!("Failed to update mtime for {:?}", file))?;
     }
     for pkg_id in packages_to_clean {
-        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
-        // problem
         let output = Command::new(cargo)
             .args(&["clean", "-p", &pkg_id])
             .output()
             .with_context(|| format!("`cargo clean -p {}` failed", pkg_id))?;
 
+        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
+        // problem
         if !output.status.success() {
             bail!(
                 "Failed cleaning packagage: {}\nstdout:\n{}\nstderr:{}",

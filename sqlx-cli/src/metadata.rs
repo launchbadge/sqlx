@@ -10,6 +10,10 @@ use std::{
     str::FromStr,
 };
 
+/// The minimal amount of package information we care about
+///
+/// The package's `pkg_id` is used to `cargo clean -p` specific files while the `src_paths` are
+/// are used to trigger recompiles of packages within the workspace
 #[derive(Debug)]
 pub struct Package {
     pkg_id: PkgId,
@@ -43,6 +47,9 @@ impl From<&MetadataPackage> for Package {
     }
 }
 
+/// pkgid package specification information that we can reliably obtain
+///
+/// See `cargo help pkgid` for more information on the package specification
 #[derive(Debug, Clone)]
 pub struct PkgId {
     url: Option<&'static str>,
@@ -93,10 +100,19 @@ impl fmt::Display for PkgId {
     }
 }
 
+/// Contains metadata for the current project
 pub struct Metadata {
+    /// Maps packages metadata id to the package
+    ///
+    /// Currently `MetadataId` is used over `PkgId` because pkgid is not a UUID
     packages: BTreeMap<MetadataId, Package>,
+    /// All of the crates in the current workspace
     workspace_members: Vec<MetadataId>,
+    /// Maps each dependency to its set of dependents
     reverse_deps: BTreeMap<MetadataId, BTreeSet<MetadataId>>,
+    /// The target directory of the project
+    ///
+    /// Typically `target` at the workspace root, but can be overridden
     target_directory: PathBuf,
 }
 
@@ -117,6 +133,7 @@ impl Metadata {
         &self.target_directory
     }
 
+    /// Gets all dependents (direct and transitive) of `id`
     pub fn all_dependents_of(&self, id: &MetadataId) -> BTreeSet<&MetadataId> {
         let mut dependents = BTreeSet::new();
         self.all_dependents_of_helper(id, &mut dependents);
