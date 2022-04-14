@@ -552,6 +552,12 @@ macro_rules! query_as (
     });
     ($out_struct:path, $query:expr, $($args:tt)*) => ( {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args)*])
+    });
+    ($out_struct:ty, $query:expr) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query)
+    });
+    ($out_struct:ty, $query:expr, $($args:tt)*) => ( {
+        $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, args = [$($args)*])
     })
 );
 
