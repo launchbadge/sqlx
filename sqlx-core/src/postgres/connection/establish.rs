@@ -7,6 +7,7 @@ use crate::postgres::connection::{sasl, stream::PgStream, tls};
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
+use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
@@ -143,7 +144,7 @@ impl PgConnection {
             transaction_status,
             transaction_depth: 0,
             pending_ready_for_query_count: 0,
-            next_statement_id: 1,
+            next_statement_id: Oid(1),
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),

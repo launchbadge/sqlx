@@ -96,7 +96,7 @@ impl PgArguments {
 
         for (offset, name) in type_holes {
             let oid = conn.fetch_type_id_by_name(&*name).await?;
-            buffer[*offset..(*offset + 4)].copy_from_slice(&oid.to_be_bytes());
+            buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
 
         Ok(())

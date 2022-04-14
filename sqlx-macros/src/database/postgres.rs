@@ -8,11 +8,12 @@ impl_database_ext! {
         i8,
         i16,
         i32,
-        u32,
         i64,
         f32,
         f64,
         Vec<u8> | &[u8],
+
+        sqlx::postgres::types::Oid,
 
         sqlx::postgres::types::PgInterval,
 
@@ -81,10 +82,10 @@ impl_database_ext! {
         Vec<i8> | &[i8],
         Vec<i16> | &[i16],
         Vec<i32> | &[i32],
-        Vec<u32> | &[u32],
         Vec<i64> | &[i64],
         Vec<f32> | &[f32],
         Vec<f64> | &[f64],
+        Vec<sqlx::postgres::types::Oid> | &[sqlx::postgres::types::Oid],
         Vec<sqlx::postgres::types::PgMoney> | &[sqlx::postgres::types::PgMoney],
 
         #[cfg(feature = "uuid")]

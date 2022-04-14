@@ -2,7 +2,7 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 use std::str::FromStr;
@@ -70,7 +70,7 @@ test_type!(i8(
     "120::\"char\"" == 120_i8,
 ));
 
-test_type!(u32(Postgres, "325235::oid" == 325235_u32,));
+test_type!(Oid(Postgres, "325235::oid" == Oid(325235),));
 
 test_type!(i16(
     Postgres,

@@ -1,9 +1,9 @@
 use futures::{StreamExt, TryStreamExt};
+use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
-    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
-    PgSeverity,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgConnectionInfo, PgDatabaseError,
+    PgErrorPosition, PgListener, PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
-use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
@@ -662,14 +662,14 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     for i in 0..2 {
         let row = sqlx::query("SELECT $1 AS val")
-            .bind(i)
+            .bind(Oid(i))
             .persistent(true)
             .fetch_one(&mut conn)
             .await?;
 
-        let val: u32 = row.get("val");
+        let val: Oid = row.get("val");
 
-        assert_eq!(i, val);
+        assert_eq!(Oid(i), val);
     }
 
     assert_eq!(1, conn.cached_statements_size());
@@ -678,14 +678,14 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     for i in 0..2 {
         let row = sqlx::query("SELECT $1 AS val")
-            .bind(i)
+            .bind(Oid(i))
             .persistent(false)
             .fetch_one(&mut conn)
             .await?;
 
-        let val: u32 = row.get("val");
+        let val: Oid = row.get("val");
 
-        assert_eq!(i, val);
+        assert_eq!(Oid(i), val);
     }
 
     assert_eq!(0, conn.cached_statements_size());
