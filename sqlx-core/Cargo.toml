@@ -164,7 +164,7 @@ webpki-roots = { version = "0.21.1", optional = true }
 whoami = { version = "1.2.1", optional = true }
 stringprep = "0.1.2"
 bstr = { version = "0.2.17", default-features = false, features = ["std"], optional = true }
-git2 = { version = "0.13.25", default-features = false, optional = true }
+git2 = { version = "0.14", default-features = false, optional = true }
 hashlink = "0.7.0"
 # NOTE: *must* remain below 1.7.0 to allow users to avoid the `ahash` cyclic dependency problem by pinning the version
 # https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
