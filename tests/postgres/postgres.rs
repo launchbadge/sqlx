@@ -1,10 +1,9 @@
 use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
-    PgAdvisoryLock, PgConnectOptions, PgConnection, PgConnectionInfo, PgDatabaseError,
-    PgErrorPosition, PgListener, PgPoolOptions, PgRow, PgSeverity, Postgres,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
+    PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
-use sqlx::postgres::{PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
