@@ -1,16 +1,17 @@
 use anyhow::{bail, Context};
 use console::style;
 use remove_dir_all::remove_dir_all;
-use serde::Deserialize;
 use sqlx::any::{AnyConnectOptions, AnyKind};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
+
+use crate::metadata::Metadata;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -96,30 +97,30 @@ hint: This command only works in the manifest directory of a Cargo package."#
         .output()
         .context("Could not fetch metadata")?;
 
-    #[derive(Deserialize)]
-    struct Metadata {
-        target_directory: PathBuf,
-    }
-
-    let metadata: Metadata =
-        serde_json::from_slice(&output.stdout).context("Invalid `cargo metadata` output")?;
+    let output_str =
+        std::str::from_utf8(&output.stdout).context("Invalid `cargo metadata` output")?;
+    let metadata: Metadata = output_str.parse()?;
 
     // try removing the target/sqlx directory before running, as stale files
     // have repeatedly caused issues in the past.
-    let _ = remove_dir_all(metadata.target_directory.join("sqlx"));
+    let _ = remove_dir_all(metadata.target_directory().join("sqlx"));
 
     let check_status = if merge {
-        let check_status = Command::new(&cargo).arg("clean").status()?;
+        match setup_minimal_project_recompile(&cargo, &metadata) {
+            Ok(()) => {}
+            Err(err) => {
+                println!(
+                    "Failed minimal recompile setup. Cleaning entire project. Err: {}",
+                    err
+                );
+                let clean_status = Command::new(&cargo).arg("clean").status()?;
+                if !clean_status.success() {
+                    bail!("`cargo clean` failed with status: {}", clean_status);
+                }
+            }
+        };
 
-        if !check_status.success() {
-            bail!("`cargo clean` failed with status: {}", check_status);
-        }
-
-        let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
-        rustflags.push_str(&format!(
-            " --cfg __sqlx_recompile_trigger=\"{}\"",
-            SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
-        ));
+        let rustflags = env::var("RUSTFLAGS").unwrap_or_default();
 
         Command::new(&cargo)
             .arg("check")
@@ -150,7 +151,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
         bail!("`cargo check` failed with status: {}", check_status);
     }
 
-    let pattern = metadata.target_directory.join("sqlx/query-*.json");
+    let pattern = metadata.target_directory().join("sqlx/query-*.json");
 
     let mut data = BTreeMap::new();
 
@@ -183,6 +184,71 @@ hint: This command only works in the manifest directory of a Cargo package."#
     }
 
     Ok(data)
+}
+
+fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::Result<()> {
+    // Get all the packages that depend on `sqlx-macros`
+    let mut sqlx_macros_dependents = BTreeSet::new();
+    let sqlx_macros_ids: BTreeSet<_> = metadata
+        .entries()
+        // We match just by name instead of name and url because some people may have it installed
+        // through different means like vendoring
+        .filter(|(_, package)| package.name() == "sqlx-macros")
+        .map(|(id, _)| id)
+        .collect();
+    for sqlx_macros_id in sqlx_macros_ids {
+        sqlx_macros_dependents.extend(metadata.all_dependents_of(sqlx_macros_id));
+    }
+
+    // Figure out which `sqlx-macros` dependents are in the workspace vs out
+    let mut in_workspace_dependents = Vec::new();
+    let mut out_of_workspace_dependents = Vec::new();
+    for dependent in sqlx_macros_dependents {
+        if metadata.workspace_members().contains(&dependent) {
+            in_workspace_dependents.push(dependent);
+        } else {
+            out_of_workspace_dependents.push(dependent);
+        }
+    }
+
+    // In workspace dependents have their source file's mtime updated. Out of workspace get
+    // `cargo clean -p <PKGID>`ed
+    let files_to_touch = in_workspace_dependents
+        .iter()
+        .filter_map(|id| {
+            metadata
+                .package(id)
+                .map(|package| package.src_paths().to_owned())
+        })
+        .flatten();
+    let packages_to_clean = out_of_workspace_dependents
+        .iter()
+        .filter_map(|id| metadata.package(id).map(|package| package.id().to_string()));
+
+    for file in files_to_touch {
+        let now = filetime::FileTime::now();
+        filetime::set_file_times(&file, now, now)
+            .with_context(|| format!("Failed to update mtime for {:?}", file))?;
+    }
+    for pkg_id in packages_to_clean {
+        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
+        // problem
+        let output = Command::new(cargo)
+            .args(&["clean", "-p", &pkg_id])
+            .output()
+            .with_context(|| format!("`cargo clean -p {}` failed", pkg_id))?;
+
+        if !output.status.success() {
+            bail!(
+                "Failed cleaning packagage: {}\nstdout:\n{}\nstderr:{}",
+                pkg_id,
+                std::str::from_utf8(&output.stdout).unwrap_or("<invalid-utf-8>"),
+                std::str::from_utf8(&output.stderr).unwrap_or("<invalid-utf-8>"),
+            );
+        }
+    }
+
+    Ok(())
 }
 
 fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {

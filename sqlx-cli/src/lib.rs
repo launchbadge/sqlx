@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::opt::{Command, DatabaseCommand, MigrateCommand};
 
 mod database;
+mod metadata;
 // mod migration;
 // mod migrator;
 mod migrate;
