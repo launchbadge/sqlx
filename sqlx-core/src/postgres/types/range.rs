@@ -8,7 +8,9 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgTypeKind;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 
 // https://github.com/postgres/postgres/blob/2f48ede080f42b97b594fb14102c82ca1001b80c/src/include/utils/rangetypes.h#L35-L44
@@ -142,6 +144,17 @@ impl Type<Postgres> for PgRange<bigdecimal::BigDecimal> {
     }
 }
 
+#[cfg(feature = "decimal")]
+impl Type<Postgres> for PgRange<rust_decimal::Decimal> {
+    fn type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        range_compatible::<rust_decimal::Decimal>(ty)
+    }
+}
+
 #[cfg(feature = "chrono")]
 impl Type<Postgres> for PgRange<chrono::NaiveDate> {
     fn type_info() -> PgTypeInfo {
@@ -208,124 +221,70 @@ impl Type<Postgres> for PgRange<time::OffsetDateTime> {
     }
 }
 
-impl Type<Postgres> for [PgRange<i32>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<i32> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT4_RANGE_ARRAY
     }
 }
 
-impl Type<Postgres> for [PgRange<i64>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<i64> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::INT8_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "bigdecimal")]
-impl Type<Postgres> for [PgRange<bigdecimal::BigDecimal>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<bigdecimal::BigDecimal> {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::NUM_RANGE_ARRAY
+    }
+}
+
+#[cfg(feature = "decimal")]
+impl PgHasArrayType for PgRange<rust_decimal::Decimal> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::NUM_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "chrono")]
-impl Type<Postgres> for [PgRange<chrono::NaiveDate>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<chrono::NaiveDate> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::DATE_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "chrono")]
-impl Type<Postgres> for [PgRange<chrono::NaiveDateTime>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<chrono::NaiveDateTime> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TS_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "chrono")]
-impl<Tz: chrono::TimeZone> Type<Postgres> for [PgRange<chrono::DateTime<Tz>>] {
-    fn type_info() -> PgTypeInfo {
+impl<Tz: chrono::TimeZone> PgHasArrayType for PgRange<chrono::DateTime<Tz>> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TSTZ_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "time")]
-impl Type<Postgres> for [PgRange<time::Date>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<time::Date> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::DATE_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "time")]
-impl Type<Postgres> for [PgRange<time::PrimitiveDateTime>] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<time::PrimitiveDateTime> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TS_RANGE_ARRAY
     }
 }
 
 #[cfg(feature = "time")]
-impl Type<Postgres> for [PgRange<time::OffsetDateTime>] {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::TSTZ_RANGE_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<PgRange<i32>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::INT4_RANGE_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<PgRange<i64>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::INT8_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "bigdecimal")]
-impl Type<Postgres> for Vec<PgRange<bigdecimal::BigDecimal>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::NUM_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl Type<Postgres> for Vec<PgRange<chrono::NaiveDate>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::DATE_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl Type<Postgres> for Vec<PgRange<chrono::NaiveDateTime>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::TS_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "chrono")]
-impl<Tz: chrono::TimeZone> Type<Postgres> for Vec<PgRange<chrono::DateTime<Tz>>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::TSTZ_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "time")]
-impl Type<Postgres> for Vec<PgRange<time::Date>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::DATE_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "time")]
-impl Type<Postgres> for Vec<PgRange<time::PrimitiveDateTime>> {
-    fn type_info() -> PgTypeInfo {
-        PgTypeInfo::TS_RANGE_ARRAY
-    }
-}
-
-#[cfg(feature = "time")]
-impl Type<Postgres> for Vec<PgRange<time::OffsetDateTime>> {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgRange<time::OffsetDateTime> {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TSTZ_RANGE_ARRAY
     }
 }

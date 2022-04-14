@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::env::var;
+use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
 
 mod connect;
@@ -33,6 +35,7 @@ pub use ssl_mode::PgSslMode;
 /// | `password` | `None` | Password to be used if the server demands password authentication. |
 /// | `port` | `5432` | Port number to connect to at the server host, or socket file name extension for Unix-domain connections. |
 /// | `dbname` | `None` | The database name. |
+/// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
 /// The URI scheme designator can be either `postgresql://` or `postgres://`.
 /// Each of the URI parts is optional.
@@ -85,11 +88,13 @@ pub struct PgConnectOptions {
     pub(crate) statement_cache_capacity: usize,
     pub(crate) application_name: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) extra_float_digits: Option<Cow<'static, str>>,
+    pub(crate) options: Option<String>,
 }
 
 impl Default for PgConnectOptions {
     fn default() -> Self {
-        Self::new()
+        Self::new_without_pgpass().apply_pgpass()
     }
 }
 
@@ -115,6 +120,10 @@ impl PgConnectOptions {
     /// let options = PgConnectOptions::new();
     /// ```
     pub fn new() -> Self {
+        Self::new_without_pgpass().apply_pgpass()
+    }
+
+    pub fn new_without_pgpass() -> Self {
         let port = var("PGPORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -126,16 +135,12 @@ impl PgConnectOptions {
 
         let database = var("PGDATABASE").ok();
 
-        let password = var("PGPASSWORD")
-            .ok()
-            .or_else(|| pgpass::load_password(&host, port, &username, database.as_deref()));
-
         PgConnectOptions {
             port,
             host,
             socket: None,
             username,
-            password,
+            password: var("PGPASSWORD").ok(),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
@@ -144,8 +149,23 @@ impl PgConnectOptions {
                 .unwrap_or_default(),
             statement_cache_capacity: 100,
             application_name: var("PGAPPNAME").ok(),
+            extra_float_digits: Some("3".into()),
             log_settings: Default::default(),
+            options: var("PGOPTIONS").ok(),
         }
+    }
+
+    pub(crate) fn apply_pgpass(mut self) -> Self {
+        if self.password.is_none() {
+            self.password = pgpass::load_password(
+                &self.host,
+                self.port,
+                &self.username,
+                self.database.as_deref(),
+            );
+        }
+
+        self
     }
 
     /// Sets the name of the host to connect to.
@@ -319,6 +339,86 @@ impl PgConnectOptions {
         self
     }
 
+    /// Sets or removes the `extra_float_digits` connection option.
+    ///
+    /// This changes the default precision of floating-point values returned in text mode (when
+    /// not using prepared statements such as calling methods of [`Executor`] directly).
+    ///
+    /// Historically, Postgres would by default round floating-point values to 6 and 15 digits
+    /// for `float4`/`REAL` (`f32`) and `float8`/`DOUBLE` (`f64`), respectively, which would mean
+    /// that the returned value may not be exactly the same as its representation in Postgres.
+    ///
+    /// The nominal range for this value is `-15` to `3`, where negative values for this option
+    /// cause floating-points to be rounded to that many fewer digits than normal (`-1` causes
+    /// `float4` to be rounded to 5 digits instead of six, or 14 instead of 15 for `float8`),
+    /// positive values cause Postgres to emit that many extra digits of precision over default
+    /// (or simply use maximum precision in Postgres 12 and later),
+    /// and 0 means keep the default behavior (or the "old" behavior described above
+    /// as of Postgres 12).
+    ///
+    /// SQLx sets this value to 3 by default, which tells Postgres to return floating-point values
+    /// at their maximum precision in the hope that the parsed value will be identical to its
+    /// counterpart in Postgres. This is also the default in Postgres 12 and later anyway.
+    ///
+    /// However, older versions of Postgres and alternative implementations that talk the Postgres
+    /// protocol may not support this option, or the full range of values.
+    ///
+    /// If you get an error like "unknown option `extra_float_digits`" when connecting, try
+    /// setting this to `None` or consult the manual of your database for the allowed range
+    /// of values.
+    ///
+    /// For more information, see:
+    /// * [Postgres manual, 20.11.2: Client Connection Defaults; Locale and Formatting][20.11.2]
+    /// * [Postgres manual, 8.1.3: Numeric Types; Floating-point Types][8.1.3]
+    ///
+    /// [`Executor`]: crate::executor::Executor
+    /// [20.11.2]: https://www.postgresql.org/docs/current/runtime-config-client.html#RUNTIME-CONFIG-CLIENT-FORMAT
+    /// [8.1.3]: https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-FLOAT
+    ///
+    /// ### Examples
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    ///
+    /// let mut options = PgConnectOptions::new()
+    ///     // for Redshift and Postgres 10
+    ///     .extra_float_digits(2);
+    ///
+    /// let mut options = PgConnectOptions::new()
+    ///     // don't send the option at all (Postgres 9 and older)
+    ///     .extra_float_digits(None);
+    /// ```
+    pub fn extra_float_digits(mut self, extra_float_digits: impl Into<Option<i8>>) -> Self {
+        self.extra_float_digits = extra_float_digits.into().map(|it| it.to_string().into());
+        self
+    }
+
+    /// Set additional startup options for the connection as a list of key-value pairs.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use sqlx_core::postgres::PgConnectOptions;
+    /// let options = PgConnectOptions::new()
+    ///     .options([("geqo", "off"), ("statement_timeout", "5min")]);
+    /// ```
+    pub fn options<K, V, I>(mut self, options: I) -> Self
+    where
+        K: Display,
+        V: Display,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        // Do this in here so `options_str` is only set if we have an option to insert
+        let options_str = self.options.get_or_insert_with(String::new);
+        for (k, v) in options {
+            if !options_str.is_empty() {
+                options_str.push(' ');
+            }
+
+            write!(options_str, "-c {}={}", k, v).expect("failed to write an option to the string");
+        }
+        self
+    }
+
     /// We try using a socket if hostname starts with `/` or if socket parameter
     /// is specified.
     pub(crate) fn fetch_socket(&self) -> Option<String> {
@@ -353,4 +453,22 @@ fn default_host(port: u16) -> String {
 
     // fallback to localhost if no socket was found
     "localhost".to_owned()
+}
+
+#[test]
+fn test_options_formatting() {
+    let options = PgConnectOptions::new().options([("geqo", "off")]);
+    assert_eq!(options.options, Some("-c geqo=off".to_string()));
+    let options = options.options([("search_path", "sqlx")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c search_path=sqlx".to_string())
+    );
+    let options = PgConnectOptions::new().options([("geqo", "off"), ("statement_timeout", "5min")]);
+    assert_eq!(
+        options.options,
+        Some("-c geqo=off -c statement_timeout=5min".to_string())
+    );
+    let options = PgConnectOptions::new();
+    assert_eq!(options.options, None);
 }

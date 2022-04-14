@@ -1,6 +1,6 @@
 use futures_core::future::BoxFuture;
 
-use crate::any::{Any, AnyConnectOptions};
+use crate::any::{Any, AnyConnectOptions, AnyKind};
 use crate::connection::Connection;
 use crate::error::Error;
 
@@ -45,6 +45,30 @@ pub(crate) enum AnyConnectionKind {
 
     #[cfg(feature = "sqlite")]
     Sqlite(sqlite::SqliteConnection),
+}
+
+impl AnyConnectionKind {
+    pub fn kind(&self) -> AnyKind {
+        match self {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(_) => AnyKind::Postgres,
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(_) => AnyKind::MySql,
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(_) => AnyKind::Sqlite,
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(_) => AnyKind::Mssql,
+        }
+    }
+}
+
+impl AnyConnection {
+    pub fn kind(&self) -> AnyKind {
+        self.0.kind()
+    }
 }
 
 macro_rules! delegate_to {
@@ -157,5 +181,33 @@ impl Connection for AnyConnection {
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
         delegate_to!(self.should_flush())
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl From<postgres::PgConnection> for AnyConnection {
+    fn from(conn: postgres::PgConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Postgres(conn))
+    }
+}
+
+#[cfg(feature = "mssql")]
+impl From<mssql::MssqlConnection> for AnyConnection {
+    fn from(conn: mssql::MssqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Mssql(conn))
+    }
+}
+
+#[cfg(feature = "mysql")]
+impl From<mysql::MySqlConnection> for AnyConnection {
+    fn from(conn: mysql::MySqlConnection) -> Self {
+        AnyConnection(AnyConnectionKind::MySql(conn))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl From<sqlite::SqliteConnection> for AnyConnection {
+    fn from(conn: sqlite::SqliteConnection) -> Self {
+        AnyConnection(AnyConnectionKind::Sqlite(conn))
     }
 }

@@ -1,10 +1,10 @@
 use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::sqlite::connection::establish::establish;
 use crate::sqlite::{SqliteConnectOptions, SqliteConnection};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
+use std::fmt::Write;
 use std::time::Duration;
 
 impl ConnectOptions for SqliteConnectOptions {
@@ -15,25 +15,35 @@ impl ConnectOptions for SqliteConnectOptions {
         Self::Connection: Sized,
     {
         Box::pin(async move {
-            let mut conn = establish(self).await?;
+            let mut conn = SqliteConnection::establish(self).await?;
 
             // send an initial sql statement comprised of options
-            //
-            // page_size must be set before any other action on the database.
-            //
-            // Note that locking_mode should be set before journal_mode; see
-            // https://www.sqlite.org/wal.html#use_of_wal_without_shared_memory .
-            let init = format!(
-                "PRAGMA page_size = {}; PRAGMA locking_mode = {}; PRAGMA journal_mode = {}; PRAGMA foreign_keys = {}; PRAGMA synchronous = {}; PRAGMA auto_vacuum = {}",
-                self.page_size,
-                self.locking_mode.as_str(),
-                self.journal_mode.as_str(),
-                if self.foreign_keys { "ON" } else { "OFF" },
-                self.synchronous.as_str(),
-                self.auto_vacuum.as_str(),
-            );
+            let mut init = String::new();
+
+            // This is a special case for sqlcipher. When the `key` pragma
+            // is set, we have to make sure it's executed first in order.
+            if let Some(pragma_key_password) = self.pragmas.get("key") {
+                write!(init, "PRAGMA key = {}; ", pragma_key_password).ok();
+            }
+
+            for (key, value) in &self.pragmas {
+                // Since we've already written the possible `key` pragma
+                // above, we shall skip it now.
+                if key == "key" {
+                    continue;
+                }
+                write!(init, "PRAGMA {} = {}; ", key, value).ok();
+            }
 
             conn.execute(&*init).await?;
+
+            if !self.collations.is_empty() {
+                let mut locked = conn.lock_handle().await?;
+
+                for collation in &self.collations {
+                    collation.create(&mut locked.guard.handle)?;
+                }
+            }
 
             Ok(conn)
         })

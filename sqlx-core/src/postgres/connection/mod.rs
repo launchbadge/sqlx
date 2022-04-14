@@ -11,13 +11,15 @@ use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
-use crate::postgres::connection::stream::PgStream;
 use crate::postgres::message::{
-    Close, Message, MessageFormat, ReadyForQuery, Terminate, TransactionStatus,
+    Close, Message, MessageFormat, Query, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
+use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
+
+pub use self::stream::PgStream;
 
 pub(crate) mod describe;
 mod establish;
@@ -45,14 +47,14 @@ pub struct PgConnection {
 
     // sequence of statement IDs for use in preparing statements
     // in PostgreSQL, the statement is prepared to a user-supplied identifier
-    next_statement_id: u32,
+    next_statement_id: Oid,
 
     // cache statement by query string to the id and columns
-    cache_statement: StatementCache<(u32, Arc<PgStatementMetadata>)>,
+    cache_statement: StatementCache<(Oid, Arc<PgStatementMetadata>)>,
 
     // cache user-defined types by id <-> info
-    cache_type_info: HashMap<u32, PgTypeInfo>,
-    cache_type_oid: HashMap<UStr, u32>,
+    cache_type_info: HashMap<Oid, PgTypeInfo>,
+    cache_type_oid: HashMap<UStr, Oid>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,
@@ -71,7 +73,7 @@ impl PgConnection {
     }
 
     // will return when the connection is ready for another query
-    async fn wait_until_ready(&mut self) -> Result<(), Error> {
+    pub(in crate::postgres) async fn wait_until_ready(&mut self) -> Result<(), Error> {
         if !self.stream.wbuf.is_empty() {
             self.stream.flush().await?;
         }
@@ -104,6 +106,14 @@ impl PgConnection {
         self.transaction_status = ReadyForQuery::decode(message.contents)?.transaction_status;
 
         Ok(())
+    }
+
+    /// Queue a simple query (not prepared) to execute the next time this connection is used.
+    ///
+    /// Used for rolling back transactions and releasing advisory locks.
+    pub(crate) fn queue_simple_query(&mut self, query: &str) {
+        self.pending_ready_for_query_count += 1;
+        self.stream.write(Query(query));
     }
 }
 

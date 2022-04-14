@@ -152,7 +152,7 @@ impl LogSettings {
     }
 }
 
-pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug {
+pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug + Clone {
     type Connection: Connection + ?Sized;
 
     /// Establish a new database connection with the options specified by `self`.

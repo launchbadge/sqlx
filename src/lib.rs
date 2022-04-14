@@ -23,6 +23,7 @@ pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
+pub use sqlx_core::query_builder::{self, QueryBuilder};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::Row;
 pub use sqlx_core::statement::Statement;
@@ -30,6 +31,7 @@ pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;
 pub use sqlx_core::types::Type;
 pub use sqlx_core::value::{Value, ValueRef};
+pub use sqlx_core::Either;
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
@@ -46,23 +48,23 @@ pub use sqlx_core::migrate;
     ),
     feature = "any"
 ))]
-pub use sqlx_core::any::{self, Any, AnyConnection, AnyPool};
+pub use sqlx_core::any::{self, Any, AnyConnection, AnyExecutor, AnyPool};
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlPool};
+pub use sqlx_core::mysql::{self, MySql, MySqlConnection, MySqlExecutor, MySqlPool};
 
 #[cfg(feature = "mssql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlPool};
+pub use sqlx_core::mssql::{self, Mssql, MssqlConnection, MssqlExecutor, MssqlPool};
 
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-pub use sqlx_core::postgres::{self, PgConnection, PgPool, Postgres};
+pub use sqlx_core::postgres::{self, PgConnection, PgExecutor, PgPool, Postgres};
 
 #[cfg(feature = "sqlite")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
-pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqlitePool};
+pub use sqlx_core::sqlite::{self, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
 
 #[cfg(feature = "macros")]
 #[doc(hidden)]

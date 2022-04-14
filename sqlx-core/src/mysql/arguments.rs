@@ -4,7 +4,7 @@ use crate::mysql::{MySql, MySqlTypeInfo};
 use crate::types::Type;
 
 /// Implementation of [`Arguments`] for MySQL.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MySqlArguments {
     pub(crate) values: Vec<u8>,
     pub(crate) types: Vec<MySqlTypeInfo>,
@@ -25,6 +25,11 @@ impl MySqlArguments {
         if let IsNull::Yes = value.encode(&mut self.values) {
             self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
         }
+    }
+
+    #[doc(hidden)]
+    pub fn len(&self) -> usize {
+        self.types.len()
     }
 }
 

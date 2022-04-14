@@ -498,14 +498,14 @@ impl TypeInfo {
                 4 => "INT",
                 8 => "BIGINT",
 
-                _ => unreachable!("invalid size {} for int"),
+                n => unreachable!("invalid size {} for int", n),
             },
 
             DataType::FloatN => match self.size {
                 4 => "REAL",
                 8 => "FLOAT",
 
-                _ => unreachable!("invalid size {} for float"),
+                n => unreachable!("invalid size {} for float", n),
             },
 
             DataType::VarChar => "VARCHAR",
@@ -536,14 +536,14 @@ impl TypeInfo {
                 4 => "int",
                 8 => "bigint",
 
-                _ => unreachable!("invalid size {} for int"),
+                n => unreachable!("invalid size {} for int", n),
             }),
 
             DataType::FloatN => s.push_str(match self.size {
                 4 => "real",
                 8 => "float",
 
-                _ => unreachable!("invalid size {} for float"),
+                n => unreachable!("invalid size {} for float", n),
             }),
 
             DataType::VarChar
@@ -567,7 +567,7 @@ impl TypeInfo {
                 // size
                 if self.size < 8000 && self.size > 0 {
                     s.push_str("(");
-                    let _ = itoa::fmt(&mut *s, self.size);
+                    s.push_str(itoa::Buffer::new().format(self.size));
                     s.push_str(")");
                 } else {
                     s.push_str("(max)");

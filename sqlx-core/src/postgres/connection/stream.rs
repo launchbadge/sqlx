@@ -146,12 +146,13 @@ impl PgStream {
                         PgSeverity::Log => Level::Trace,
                     };
 
-                    if lvl <= log::STATIC_MAX_LEVEL && lvl <= log::max_level() {
+                    if log::log_enabled!(target: "sqlx::postgres::notice", lvl) {
                         log::logger().log(
                             &log::Record::builder()
                                 .args(format_args!("{}", notice.message()))
                                 .level(lvl)
                                 .module_path_static(Some("sqlx::postgres::notice"))
+                                .target("sqlx::postgres::notice")
                                 .file_static(Some(file!()))
                                 .line(Some(line!()))
                                 .build(),

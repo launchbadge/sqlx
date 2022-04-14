@@ -2,11 +2,15 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::types::time::PG_EPOCH;
-use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
+use crate::postgres::{
+    PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres,
+};
 use crate::types::Type;
 use std::borrow::Cow;
 use std::mem;
-use time::{offset, Duration, OffsetDateTime, PrimitiveDateTime};
+use time::macros::format_description;
+use time::macros::offset;
+use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 impl Type<Postgres> for PrimitiveDateTime {
     fn type_info() -> PgTypeInfo {
@@ -20,27 +24,15 @@ impl Type<Postgres> for OffsetDateTime {
     }
 }
 
-impl Type<Postgres> for [PrimitiveDateTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PrimitiveDateTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMP_ARRAY
     }
 }
 
-impl Type<Postgres> for [OffsetDateTime] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for OffsetDateTime {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::TIMESTAMPTZ_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<PrimitiveDateTime> {
-    fn type_info() -> PgTypeInfo {
-        <[PrimitiveDateTime] as Type<Postgres>>::type_info()
-    }
-}
-
-impl Type<Postgres> for Vec<OffsetDateTime> {
-    fn type_info() -> PgTypeInfo {
-        <[OffsetDateTime] as Type<Postgres>>::type_info()
     }
 }
 
@@ -66,35 +58,28 @@ impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
             }
 
             PgValueFormat::Text => {
-                // If there are less than 9 digits after the decimal point
-                // We need to zero-pad
-
-                // TODO: De-duplicate with MySQL
-                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
-
                 let s = value.as_str()?;
 
-                let s = if let Some(plus) = s.rfind('+') {
-                    let mut big = String::from(&s[..plus]);
-
-                    while big.len() < 31 {
-                        big.push('0');
-                    }
-
-                    big.push_str(&s[plus..]);
-
-                    Cow::Owned(big)
-                } else if s.len() < 31 {
-                    if s.contains('.') {
-                        Cow::Owned(format!("{:0<30}", s))
-                    } else {
-                        Cow::Owned(format!("{}.000000000", s))
-                    }
-                } else {
+                // If there is no decimal point we need to add one.
+                let s = if s.contains('.') {
                     Cow::Borrowed(s)
+                } else {
+                    Cow::Owned(format!("{}.0", s))
                 };
 
-                PrimitiveDateTime::parse(&*s, "%Y-%m-%d %H:%M:%S.%N")?
+                // Contains a time-zone specifier
+                // This is given for timestamptz for some reason
+                // Postgres already guarantees this to always be UTC
+                if s.contains('+') {
+                    PrimitiveDateTime::parse(&*s, &format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour]"))?
+                } else {
+                    PrimitiveDateTime::parse(
+                        &*s,
+                        &format_description!(
+                            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+                        ),
+                    )?
+                }
             }
         })
     }

@@ -4,7 +4,7 @@ use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::ext::ustr::UStr;
 use crate::logger::QueryLogger;
-use crate::mysql::connection::stream::Busy;
+use crate::mysql::connection::stream::Waiting;
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::Status;
 use crate::mysql::protocol::statement::{
@@ -93,7 +93,7 @@ impl MySqlConnection {
         let mut logger = QueryLogger::new(sql, self.log_settings.clone());
 
         self.stream.wait_until_ready().await?;
-        self.stream.busy = Busy::Result;
+        self.stream.waiting.push_back(Waiting::Result);
 
         Ok(Box::pin(try_stream! {
             // make a slot for the shared column data
@@ -134,8 +134,10 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
+                    let rows_affected = ok.affected_rows;
+                    logger.increase_rows_affected(rows_affected);
                     let done = MySqlQueryResult {
-                        rows_affected: ok.affected_rows,
+                        rows_affected,
                         last_insert_id: ok.last_insert_id,
                     };
 
@@ -146,12 +148,12 @@ impl MySqlConnection {
                         continue;
                     }
 
-                    self.stream.busy = Busy::NotBusy;
+                    self.stream.waiting.pop_front();
                     return Ok(());
                 }
 
                 // otherwise, this first packet is the start of the result-set metadata,
-                self.stream.busy = Busy::Row;
+                *self.stream.waiting.front_mut().unwrap() = Waiting::Row;
 
                 let num_columns = packet.get_uint_lenenc() as usize; // column count
 
@@ -179,11 +181,11 @@ impl MySqlConnection {
 
                         if eof.status.contains(Status::SERVER_MORE_RESULTS_EXISTS) {
                             // more result sets exist, continue to the next one
-                            self.stream.busy = Busy::Result;
+                            *self.stream.waiting.front_mut().unwrap() = Waiting::Result;
                             break;
                         }
 
-                        self.stream.busy = Busy::NotBusy;
+                        self.stream.waiting.pop_front();
                         return Ok(());
                     }
 
@@ -199,7 +201,7 @@ impl MySqlConnection {
                         column_names: Arc::clone(&column_names),
                     });
 
-                    logger.increment_rows();
+                    logger.increment_rows_returned();
 
                     r#yield!(v);
                 }

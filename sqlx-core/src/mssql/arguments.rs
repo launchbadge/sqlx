@@ -5,7 +5,7 @@ use crate::mssql::io::MssqlBufMutExt;
 use crate::mssql::protocol::rpc::StatusFlags;
 use crate::types::Type;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MssqlArguments {
     // next ordinal to be used when formatting a positional parameter name
     pub(crate) ordinal: usize,
@@ -72,7 +72,7 @@ impl MssqlArguments {
         self.name.push_str("@p");
 
         self.ordinal += 1;
-        let _ = itoa::fmt(&mut self.name, self.ordinal);
+        self.name.push_str(itoa::Buffer::new().format(self.ordinal));
 
         let MssqlArguments {
             ref name,

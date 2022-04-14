@@ -37,7 +37,7 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
-    net::TcpStream, task::spawn, task::yield_now, time::sleep, time::timeout,
+    net::TcpStream, runtime::Handle, task::spawn, task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -193,4 +193,4 @@ pub use async_native_tls::{TlsConnector, TlsStream};
         feature = "_rt-actix"
     )),
 ))]
-pub use async_rustls::{client::TlsStream, TlsConnector};
+pub use futures_rustls::{client::TlsStream, TlsConnector};

@@ -7,6 +7,7 @@ use crate::postgres::connection::{sasl, stream::PgStream, tls};
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
+use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgConnection};
 
 // https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.3
@@ -31,13 +32,18 @@ impl PgConnection {
             ("client_encoding", "UTF8"),
             // Sets the time zone for displaying and interpreting time stamps.
             ("TimeZone", "UTC"),
-            // Adjust postgres to return precise values for floats
-            // NOTE: This is default in postgres 12+
-            ("extra_float_digits", "3"),
         ];
+
+        if let Some(ref extra_float_digits) = options.extra_float_digits {
+            params.push(("extra_float_digits", extra_float_digits));
+        }
 
         if let Some(ref application_name) = options.application_name {
             params.push(("application_name", application_name));
+        }
+
+        if let Some(ref options) = options.options {
+            params.push(("options", options));
         }
 
         stream
@@ -138,7 +144,7 @@ impl PgConnection {
             transaction_status,
             transaction_depth: 0,
             pending_ready_for_query_count: 0,
-            next_statement_id: 1,
+            next_statement_id: Oid(1),
             cache_statement: StatementCache::new(options.statement_cache_capacity),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),

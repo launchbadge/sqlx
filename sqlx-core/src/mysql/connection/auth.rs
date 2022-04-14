@@ -1,9 +1,9 @@
 use bytes::buf::Chain;
 use bytes::Bytes;
-use digest::{Digest, FixedOutput};
+use digest::{Digest, OutputSizeUser};
 use generic_array::GenericArray;
 use rand::thread_rng;
-use rsa::{PaddingScheme, PublicKey, RSAPublicKey};
+use rsa::{pkcs8::DecodePublicKey, PaddingScheme, PublicKey, RsaPublicKey};
 use sha1::Sha1;
 use sha2::Sha256;
 
@@ -71,7 +71,7 @@ impl AuthPlugin {
 fn scramble_sha1(
     password: &str,
     nonce: &Chain<Bytes, Bytes>,
-) -> GenericArray<u8, <Sha1 as FixedOutput>::OutputSize> {
+) -> GenericArray<u8, <Sha1 as OutputSizeUser>::OutputSize> {
     // SHA1( password ) ^ SHA1( seed + SHA1( SHA1( password ) ) )
     // https://mariadb.com/kb/en/connection/#mysql_native_password-plugin
 
@@ -99,7 +99,7 @@ fn scramble_sha1(
 fn scramble_sha256(
     password: &str,
     nonce: &Chain<Bytes, Bytes>,
-) -> GenericArray<u8, <Sha256 as FixedOutput>::OutputSize> {
+) -> GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize> {
     // XOR(SHA256(password), SHA256(seed, SHA256(SHA256(password))))
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/#sha-2-encrypted-password
     let mut ctx = Sha256::new();
@@ -180,22 +180,12 @@ fn to_asciz(s: &str) -> Vec<u8> {
 }
 
 // https://docs.rs/rsa/0.3.0/rsa/struct.RSAPublicKey.html?search=#example-1
-fn parse_rsa_pub_key(key: &[u8]) -> Result<RSAPublicKey, Error> {
-    let key = std::str::from_utf8(key).map_err(Error::protocol)?;
+fn parse_rsa_pub_key(key: &[u8]) -> Result<RsaPublicKey, Error> {
+    let pem = std::str::from_utf8(key).map_err(Error::protocol)?;
 
     // This takes advantage of the knowledge that we know
     // we are receiving a PKCS#8 RSA Public Key at all
     // times from MySQL
 
-    let encoded =
-        key.lines()
-            .filter(|line| !line.starts_with("-"))
-            .fold(String::new(), |mut data, line| {
-                data.push_str(&line);
-                data
-            });
-
-    let der = base64::decode(&encoded).map_err(Error::protocol)?;
-
-    RSAPublicKey::from_pkcs8(&der).map_err(Error::protocol)
+    RsaPublicKey::from_public_key_pem(&pem).map_err(Error::protocol)
 }

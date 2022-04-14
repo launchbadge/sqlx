@@ -11,6 +11,7 @@ pub(crate) struct PrepareOk {
     pub(crate) statement_id: u32,
     pub(crate) columns: u16,
     pub(crate) params: u16,
+    #[allow(unused)]
     pub(crate) warnings: u16,
 }
 

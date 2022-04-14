@@ -2,7 +2,7 @@ use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
-    postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres},
+    postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueFormat, PgValueRef, Postgres},
     types::Type,
 };
 use byteorder::{BigEndian, ByteOrder};
@@ -151,15 +151,9 @@ impl Type<Postgres> for PgMoney {
     }
 }
 
-impl Type<Postgres> for [PgMoney] {
-    fn type_info() -> PgTypeInfo {
+impl PgHasArrayType for PgMoney {
+    fn array_type_info() -> PgTypeInfo {
         PgTypeInfo::MONEY_ARRAY
-    }
-}
-
-impl Type<Postgres> for Vec<PgMoney> {
-    fn type_info() -> PgTypeInfo {
-        <[PgMoney] as Type<Postgres>>::type_info()
     }
 }
 

@@ -1,5 +1,5 @@
 use sqlx::Sqlite;
-use sqlx_test::{new, test_type};
+use sqlx_test::test_type;
 
 #[derive(Debug, PartialEq, sqlx::Type)]
 #[repr(u32)]

@@ -133,7 +133,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 #### Cargo Feature Flags
 
--   `runtime-async-std-native-tls` (on by default): Use the `async-std` runtime and `native-tls` TLS backend.
+-   `runtime-async-std-native-tls`: Use the `async-std` runtime and `native-tls` TLS backend.
 
 -   `runtime-async-std-rustls`: Use the `async-std` runtime and `rustls` TLS backend.
 
@@ -179,6 +179,11 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
 
 -   `tls`: Add support for TLS connections.
 
+-   `offline`: Enables building the macros in offline mode when a live database is not available (such as CI). 
+    -   Requires `sqlx-cli` installed to use. See [sqlx-cli/README.md][readme-offline].
+
+[readme-offline]: sqlx-cli/README.md#enable-building-in-offline-mode-with-query
+
 ## SQLx is not an ORM!
 
 SQLx supports **compile-time checked queries**. It does not, however, do this by providing a Rust
@@ -192,19 +197,31 @@ some info on) your SQL queries. This has some potentially surprising implication
 - Due to the different amount of information databases let you retrieve about queries, the extent of
   SQL verification you get from the query macros depends on the database
 
-**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`], which is built on top
+**If you are looking for an (asynchronous) ORM,** you can check out [`ormx`] or [`SeaORM`], which is built on top
 of SQLx.
 
 [`ormx`]: https://crates.io/crates/ormx
-
+[`SeaORM`]: https://github.com/SeaQL/sea-orm
 ## Usage
+
+See the `examples/` folder for more in-depth usage.
 
 ### Quickstart
 
 ```toml
 [dependencies]
-sqlx = { version = "0.4.1", features = [ "postgres" ] }
-async-std = { version = "1.6", features = [ "attributes" ] }
+# PICK ONE:
+# Async-std:
+sqlx = { version = "0.5", features = [  "runtime-async-std-native-tls", "postgres" ] }
+async-std = { version = "1", features = [ "attributes" ] }
+
+# Tokio:
+sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
+tokio = { version = "1", features = ["full"] }
+
+# Actix-web:
+sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
+actix-web = "3"
 ```
 
 ```rust
@@ -214,6 +231,7 @@ use sqlx::postgres::PgPoolOptions;
 
 #[async_std::main]
 // or #[tokio::main]
+// or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
     //  for MySQL, use MySqlPoolOptions::new()
@@ -223,7 +241,7 @@ async fn main() -> Result<(), sqlx::Error> {
         .max_connections(5)
         .connect("postgres://postgres:password@localhost/test").await?;
 
-    // Make a simple query to return the given parameter
+    // Make a simple query to return the given parameter (use a question mark `?` instead of `$1` for MySQL)
     let row: (i64,) = sqlx::query_as("SELECT $1")
         .bind(150_i64)
         .fetch_one(&pool).await?;
@@ -358,11 +376,13 @@ Differences from `query()`:
     queries against; the database does not have to contain any data but must be the same
     kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
 
-    For convenience, you can use a .env file to set DATABASE_URL so that you don't have to pass it every time:
+    For convenience, you can use [a `.env` file][dotenv] to set DATABASE_URL so that you don't have to pass it every time:
 
     ```
     DATABASE_URL=mysql://localhost/my_database
     ```
+
+[dotenv]: https://github.com/dotenv-rs/dotenv#examples
 
 The biggest downside to `query!()` is that the output type cannot be named (due to Rust not
 officially supporting anonymous records). To address that, there is a `query_as!()` macro that is 
@@ -392,6 +412,16 @@ To avoid the need of having a development database around to compile the project
 modifications (to the database-accessing parts of the code) are done, you can enable "offline mode"
 to cache the results of the SQL query analysis using the `sqlx` command-line tool. See
 [sqlx-cli/README.md](./sqlx-cli/README.md#enable-building-in-offline-mode-with-query).
+
+Compile time verified queries do quite a bit of work at compile time. Incremental actions like
+`cargo check` and `cargo build` can be significantly faster when using an optimized build by
+putting the following in your `Cargo.toml` (More information in the
+[Profiles section](https://doc.rust-lang.org/cargo/reference/profiles.html) of The Cargo Book)
+
+```toml
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+```
 
 ## Safety
 

@@ -60,6 +60,8 @@ fn expand_derive_has_sql_type_transparent(
 
     if attr.transparent {
         let mut generics = generics.clone();
+        let mut array_generics = generics.clone();
+
         generics
             .params
             .insert(0, parse_quote!(DB: ::sqlx::Database));
@@ -67,8 +69,13 @@ fn expand_derive_has_sql_type_transparent(
             .make_where_clause()
             .predicates
             .push(parse_quote!(#ty: ::sqlx::Type<DB>));
-
         let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+        array_generics
+            .make_where_clause()
+            .predicates
+            .push(parse_quote!(#ty: ::sqlx::postgres::PgHasArrayType));
+        let (array_impl_generics, _, array_where_clause) = array_generics.split_for_impl();
 
         return Ok(quote!(
             #[automatically_derived]
@@ -79,6 +86,14 @@ fn expand_derive_has_sql_type_transparent(
 
                 fn compatible(ty: &DB::TypeInfo) -> ::std::primitive::bool {
                     <#ty as ::sqlx::Type<DB>>::compatible(ty)
+                }
+            }
+            #[automatically_derived]
+            #[cfg(feature = "postgres")]
+            impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics
+            #array_where_clause {
+                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                    <#ty as ::sqlx::postgres::PgHasArrayType>::array_type_info()
                 }
             }
         ));

@@ -1,7 +1,6 @@
+use anyhow::Result;
+
 use crate::opt::{Command, DatabaseCommand, MigrateCommand};
-use anyhow::anyhow;
-use dotenv::dotenv;
-use std::env;
 
 mod database;
 // mod migration;
@@ -12,52 +11,80 @@ mod prepare;
 
 pub use crate::opt::Opt;
 
-pub async fn run(opt: Opt) -> anyhow::Result<()> {
-    dotenv().ok();
-
-    let database_url = match opt.database_url {
-        Some(db_url) => db_url,
-        None => env::var("DATABASE_URL")
-            .map_err(|_| anyhow!("The DATABASE_URL environment variable must be set"))?,
-    };
-
+pub async fn run(opt: Opt) -> Result<()> {
     match opt.command {
         Command::Migrate(migrate) => match migrate.command {
             MigrateCommand::Add {
+                source,
                 description,
                 reversible,
-            } => migrate::add(&migrate.source, &description, reversible).await?,
+            } => migrate::add(source.resolve(&migrate.source), &description, reversible).await?,
             MigrateCommand::Run {
+                source,
                 dry_run,
                 ignore_missing,
-            } => migrate::run(&migrate.source, &database_url, dry_run, ignore_missing).await?,
+                database_url,
+            } => {
+                migrate::run(
+                    source.resolve(&migrate.source),
+                    &database_url,
+                    dry_run,
+                    *ignore_missing,
+                )
+                .await?
+            }
             MigrateCommand::Revert {
+                source,
                 dry_run,
                 ignore_missing,
-            } => migrate::revert(&migrate.source, &database_url, dry_run, ignore_missing).await?,
-            MigrateCommand::Info => migrate::info(&migrate.source, &database_url).await?,
-            MigrateCommand::BuildScript { force } => migrate::build_script(&migrate.source, force)?,
+                database_url,
+            } => {
+                migrate::revert(
+                    source.resolve(&migrate.source),
+                    &database_url,
+                    dry_run,
+                    *ignore_missing,
+                )
+                .await?
+            }
+            MigrateCommand::Info {
+                source,
+                database_url,
+            } => migrate::info(source.resolve(&migrate.source), &database_url).await?,
+            MigrateCommand::BuildScript { source, force } => {
+                migrate::build_script(source.resolve(&migrate.source), force)?
+            }
         },
 
         Command::Database(database) => match database.command {
-            DatabaseCommand::Create => database::create(&database_url).await?,
-            DatabaseCommand::Drop { yes } => database::drop(&database_url, !yes).await?,
-            DatabaseCommand::Reset { yes, source } => {
-                database::reset(&source, &database_url, !yes).await?
-            }
-            DatabaseCommand::Setup { source } => database::setup(&source, &database_url).await?,
+            DatabaseCommand::Create { database_url } => database::create(&database_url).await?,
+            DatabaseCommand::Drop {
+                confirmation,
+                database_url,
+            } => database::drop(&database_url, !confirmation).await?,
+            DatabaseCommand::Reset {
+                confirmation,
+                source,
+                database_url,
+            } => database::reset(&source, &database_url, !confirmation).await?,
+            DatabaseCommand::Setup {
+                source,
+                database_url,
+            } => database::setup(&source, &database_url).await?,
         },
 
         Command::Prepare {
             check: false,
             merged,
             args,
+            database_url,
         } => prepare::run(&database_url, merged, args)?,
 
         Command::Prepare {
             check: true,
             merged,
             args,
+            database_url,
         } => prepare::check(&database_url, merged, args)?,
     };
 
