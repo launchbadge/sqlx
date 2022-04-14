@@ -1,8 +1,8 @@
-use std::borrow::Cow;
 use std::convert::TryFrom;
 
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Buf;
+use time::macros::format_description;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 use crate::decode::Decode;
@@ -87,7 +87,7 @@ impl<'r> Decode<'r, MySql> for Time {
                 // are 0 then the length is 0 and no further data is send
                 // https://dev.mysql.com/doc/internals/en/binary-protocol-value.html
                 if len == 0 {
-                    return Ok(Time::try_from_hms_micro(0, 0, 0, 0).unwrap());
+                    return Ok(Time::MIDNIGHT);
                 }
 
                 // is negative : int<1>
@@ -101,21 +101,11 @@ impl<'r> Decode<'r, MySql> for Time {
                 decode_time(len - 5, buf)
             }
 
-            MySqlValueFormat::Text => {
-                let s = value.as_str()?;
-
-                // If there are less than 9 digits after the decimal point
-                // We need to zero-pad
-                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
-
-                let s = if s.len() < 20 {
-                    Cow::Owned(format!("{:0<19}", s))
-                } else {
-                    Cow::Borrowed(s)
-                };
-
-                Time::parse(&*s, "%H:%M:%S.%N").map_err(Into::into)
-            }
+            MySqlValueFormat::Text => Time::parse(
+                value.as_str()?,
+                &format_description!("[hour]:[minute]:[second].[subsecond]"),
+            )
+            .map_err(Into::into),
         }
     }
 }
@@ -148,7 +138,7 @@ impl<'r> Decode<'r, MySql> for Date {
             }
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
-                Date::parse(s, "%Y-%m-%d").map_err(Into::into)
+                Date::parse(s, &format_description!("[year]-[month]-[day]")).map_err(Into::into)
             }
         }
     }
@@ -211,21 +201,22 @@ impl<'r> Decode<'r, MySql> for PrimitiveDateTime {
             MySqlValueFormat::Text => {
                 let s = value.as_str()?;
 
-                // If there are less than 9 digits after the decimal point
-                // We need to zero-pad
-                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
-
-                let s = if s.len() < 31 {
-                    if s.contains('.') {
-                        Cow::Owned(format!("{:0<30}", s))
-                    } else {
-                        Cow::Owned(format!("{}.000000000", s))
-                    }
+                // If there are no nanoseconds parse without them
+                if s.contains('.') {
+                    PrimitiveDateTime::parse(
+                        s,
+                        &format_description!(
+                            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+                        ),
+                    )
+                    .map_err(Into::into)
                 } else {
-                    Cow::Borrowed(s)
-                };
-
-                PrimitiveDateTime::parse(&*s, "%Y-%m-%d %H:%M:%S.%N").map_err(Into::into)
+                    PrimitiveDateTime::parse(
+                        s,
+                        &format_description!("[year]-[month]-[day] [hour]:[minute]:[second]"),
+                    )
+                    .map_err(Into::into)
+                }
             }
         }
     }
@@ -237,7 +228,7 @@ fn encode_date(date: &Date, buf: &mut Vec<u8>) {
         .unwrap_or_else(|_| panic!("Date out of range for Mysql: {}", date));
 
     buf.extend_from_slice(&year.to_le_bytes());
-    buf.push(date.month());
+    buf.push(date.month().into());
     buf.push(date.day());
 }
 
@@ -247,9 +238,9 @@ fn decode_date(buf: &[u8]) -> Result<Option<Date>, BoxDynError> {
         return Ok(None);
     }
 
-    Date::try_from_ymd(
+    Date::from_calendar_date(
         LittleEndian::read_u16(buf) as i32,
-        buf[2] as u8,
+        time::Month::try_from(buf[2] as u8)?,
         buf[3] as u8,
     )
     .map_err(Into::into)
@@ -278,6 +269,6 @@ fn decode_time(len: u8, mut buf: &[u8]) -> Result<Time, BoxDynError> {
         0
     };
 
-    Time::try_from_hms_micro(hour, minute, seconds, micros as u32)
+    Time::from_hms_micro(hour, minute, seconds, micros as u32)
         .map_err(|e| format!("Time out of range for MySQL: {}", e).into())
 }

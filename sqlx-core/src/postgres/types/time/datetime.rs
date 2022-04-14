@@ -8,7 +8,9 @@ use crate::postgres::{
 use crate::types::Type;
 use std::borrow::Cow;
 use std::mem;
-use time::{offset, Duration, OffsetDateTime, PrimitiveDateTime};
+use time::macros::format_description;
+use time::macros::offset;
+use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 impl Type<Postgres> for PrimitiveDateTime {
     fn type_info() -> PgTypeInfo {
@@ -56,35 +58,28 @@ impl<'r> Decode<'r, Postgres> for PrimitiveDateTime {
             }
 
             PgValueFormat::Text => {
-                // If there are less than 9 digits after the decimal point
-                // We need to zero-pad
-
-                // TODO: De-duplicate with MySQL
-                // TODO: Ask [time] to add a parse % for less-than-fixed-9 nanos
-
                 let s = value.as_str()?;
 
-                let s = if let Some(plus) = s.rfind('+') {
-                    let mut big = String::from(&s[..plus]);
-
-                    while big.len() < 31 {
-                        big.push('0');
-                    }
-
-                    big.push_str(&s[plus..]);
-
-                    Cow::Owned(big)
-                } else if s.len() < 31 {
-                    if s.contains('.') {
-                        Cow::Owned(format!("{:0<30}", s))
-                    } else {
-                        Cow::Owned(format!("{}.000000000", s))
-                    }
-                } else {
+                // If there is no decimal point we need to add one.
+                let s = if s.contains('.') {
                     Cow::Borrowed(s)
+                } else {
+                    Cow::Owned(format!("{}.0", s))
                 };
 
-                PrimitiveDateTime::parse(&*s, "%Y-%m-%d %H:%M:%S.%N")?
+                // Contains a time-zone specifier
+                // This is given for timestamptz for some reason
+                // Postgres already guarantees this to always be UTC
+                if s.contains('+') {
+                    PrimitiveDateTime::parse(&*s, &format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour]"))?
+                } else {
+                    PrimitiveDateTime::parse(
+                        &*s,
+                        &format_description!(
+                            "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+                        ),
+                    )?
+                }
             }
         })
     }

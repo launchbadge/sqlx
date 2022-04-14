@@ -155,7 +155,7 @@ sha-1 = { version = "0.10.0", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 sqlformat = "0.1.8"
 thiserror = "1.0.30"
-time = { version = "0.2.27", optional = true }
+time = { version = "0.3.2", features = ["macros", "formatting", "parsing"], optional = true }
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 smallvec = "1.7.0"
 url = { version = "2.2.2", default-features = false }
