@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - release/0.5
 
 jobs:
   format:
