@@ -13,4 +13,4 @@ sqlx = { path = "../../../", features = ["postgres", "offline", "runtime-async-s
 structopt = { version = "0.3", features = ["paw"] }
 dotenv = "0.15.0"
 async-trait = "0.1.41"
-mockall = "0.8.3"
+mockall = "0.11"
