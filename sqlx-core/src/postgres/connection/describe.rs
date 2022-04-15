@@ -10,7 +10,6 @@ use crate::query_scalar::{query_scalar, query_scalar_with};
 use crate::types::Json;
 use crate::HashMap;
 use futures_core::future::BoxFuture;
-use std::convert::TryFrom;
 use std::fmt::Write;
 use std::sync::Arc;
 

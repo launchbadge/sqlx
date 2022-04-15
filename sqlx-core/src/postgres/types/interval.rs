@@ -1,4 +1,3 @@
-use std::convert::{TryFrom, TryInto};
 use std::mem;
 
 use byteorder::{NetworkEndian, ReadBytesExt};

@@ -2,7 +2,7 @@
 name = "sqlx-bench"
 version = "0.1.0"
 authors = ["Austin Bonander <austin@launchbadge.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
 
 [features]

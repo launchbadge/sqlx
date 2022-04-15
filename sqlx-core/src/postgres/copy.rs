@@ -10,7 +10,6 @@ use bytes::{BufMut, Bytes};
 use futures_core::stream::BoxStream;
 use smallvec::alloc::borrow::Cow;
 use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
 
 impl PgConnection {

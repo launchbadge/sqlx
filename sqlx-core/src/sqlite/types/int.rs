@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;

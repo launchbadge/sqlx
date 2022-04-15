@@ -4,7 +4,7 @@ version = "0.5.12"
 repository = "https://github.com/launchbadge/sqlx"
 license = "MIT OR Apache-2.0"
 description = "Runtime abstraction used by SQLx, the Rust SQL toolkit. Not intended to be used directly."
-edition = "2018"
+edition = "2021"
 authors = [
     "Ryan Leckey <leckey.ryan@gmail.com>",
     "Austin Bonander <austin.bonander@gmail.com>",
