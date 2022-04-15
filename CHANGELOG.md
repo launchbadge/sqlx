@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.5.12 - 2022-04-13
+## 0.5.13 - 2022-04-15
+
+This is a hotfix that reverts [#1748] as that was an accidental breaking change:  
+the generated `PgHasArrayType` impl conflicts with manual impls of the trait.  
+This change will have to wait for 0.6.0.
+
+## 0.5.12 - 2022-04-13 (Yanked; use 0.5.13)
 [27 pull requests][0.5.12-prs] were merged this release cycle.
 
 ### Added

@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use byteorder::{ByteOrder, LittleEndian};
 use bytes::Buf;
 use time::macros::format_description;
