@@ -12,21 +12,17 @@ use std::{
 
 /// The minimal amount of package information we care about
 ///
-/// The package's `pkg_id` is used to `cargo clean -p` specific files while the `src_paths` are
+/// The package's `name` is used to `cargo clean -p` specific crates while the `src_paths` are
 /// are used to trigger recompiles of packages within the workspace
 #[derive(Debug)]
 pub struct Package {
-    pkg_id: PkgId,
+    name: String,
     src_paths: Vec<PathBuf>,
 }
 
 impl Package {
-    pub fn id(&self) -> &PkgId {
-        &self.pkg_id
-    }
-
     pub fn name(&self) -> &str {
-        self.pkg_id.name()
+        &self.name
     }
 
     pub fn src_paths(&self) -> &[PathBuf] {
@@ -36,67 +32,14 @@ impl Package {
 
 impl From<&MetadataPackage> for Package {
     fn from(package: &MetadataPackage) -> Self {
-        let pkg_id = PkgId::from(package);
+        let name = package.name.clone();
         let src_paths = package
             .targets
             .iter()
             .map(|target| target.src_path.clone().into_std_path_buf())
             .collect();
 
-        Self { pkg_id, src_paths }
-    }
-}
-
-/// pkgid package specification information that we can reliably obtain
-///
-/// See `cargo help pkgid` for more information on the package specification
-#[derive(Debug, Clone)]
-pub struct PkgId {
-    url: Option<&'static str>,
-    name: String,
-    version: Version,
-}
-
-impl PkgId {
-    fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl From<&MetadataPackage> for PkgId {
-    fn from(package: &MetadataPackage) -> Self {
-        // NOTE: Trying to get the `url` from `source` is rather problematic:
-        // - Local files don't have this set
-        //   - It only appears to be set within `id` which would need to be parsed
-        // - `ssh` urls (from using git repos) have can include fragments and queries that pkgid
-        //   does not expect
-        // A separate issue is that `pkgid`s don't seem to be entirely unique (two git urls on
-        // different commits with the same version and name get normalized to the same pkgid)
-        //
-        // Due to all of this we:
-        // - Only allow crates.io as the source url
-        // - Can't use PkgId as a UUID, instead we need to use the metadata `id` still
-        // - May recompile more packages then required due to ambiguity
-        let url = package.source.as_ref().and_then(|source| {
-            if source.repr == "registry+https://github.com/rust-lang/crates.io-index" {
-                Some("https://github.com/rust-lang/crates.io-index")
-            } else {
-                None
-            }
-        });
-        let name = package.name.to_owned();
-        let version = package.version.to_owned();
-
-        Self { url, name, version }
-    }
-}
-
-impl fmt::Display for PkgId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.url {
-            Some(url) => write!(f, "{}#{}:{}", url, self.name, self.version),
-            None => write!(f, "{}:{}", self.name, self.version),
-        }
+        Self { name, src_paths }
     }
 }
 

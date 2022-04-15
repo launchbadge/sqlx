@@ -11,7 +11,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
 
-use crate::metadata::Metadata;
+use crate::metadata::{Metadata, Package};
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -196,6 +196,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
 
 #[derive(Debug, PartialEq)]
 struct ProjectRecompileAction {
+    // The names of the packages
     clean_packages: Vec<String>,
     touch_paths: Vec<PathBuf>,
 }
@@ -217,21 +218,14 @@ fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::
         filetime::set_file_times(&file, now, now)
             .with_context(|| format!("Failed to update mtime for {:?}", file))?;
     }
-    for pkg_id in clean_packages {
-        let output = Command::new(cargo)
-            .args(&["clean", "-p", &pkg_id])
-            .output()
-            .with_context(|| format!("`cargo clean -p {}` failed", pkg_id))?;
 
-        // `cargo clean -p <SPEC>` can be pretty noisey. Avoid showing output unless there was a
-        // problem
-        if !output.status.success() {
-            bail!(
-                "Failed cleaning packagage: {}\nstdout:\n{}\nstderr:{}",
-                pkg_id,
-                std::str::from_utf8(&output.stdout).unwrap_or("<invalid-utf-8>"),
-                std::str::from_utf8(&output.stderr).unwrap_or("<invalid-utf-8>"),
-            );
+    for pkg_id in &clean_packages {
+        let clean_status = Command::new(cargo)
+            .args(&["clean", "-p", pkg_id])
+            .status()?;
+
+        if !clean_status.success() {
+            bail!("`cargo clean -p {}` failed", pkg_id);
         }
     }
 
@@ -276,7 +270,11 @@ fn minimal_project_recompile_action(metadata: &Metadata) -> anyhow::Result<Proje
         .collect();
     let packages_to_clean: Vec<_> = out_of_workspace_dependents
         .iter()
-        .filter_map(|id| metadata.package(id).map(|package| package.id().to_string()))
+        .filter_map(|id| {
+            metadata
+                .package(id)
+                .map(|package| package.name().to_owned())
+        })
         .collect();
 
     Ok(ProjectRecompileAction {
@@ -370,9 +368,7 @@ mod tests {
         assert_eq!(
             action,
             ProjectRecompileAction {
-                clean_packages: vec![
-                    "https://github.com/rust-lang/crates.io-index#sqlx:0.5.11".into()
-                ],
+                clean_packages: vec!["sqlx".into()],
                 touch_paths: vec![
                     "/home/user/problematic/workspace/b_in_workspace_lib/src/lib.rs".into(),
                     "/home/user/problematic/workspace/c_in_workspace_bin/src/main.rs".into(),
