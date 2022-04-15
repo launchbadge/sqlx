@@ -1,11 +1,10 @@
 use anyhow::{Context, Result};
 use cargo_metadata::{
-    Metadata as CargoMetadata, Package as MetadataPackage, PackageId as MetadataId, Version,
+    Metadata as CargoMetadata, Package as MetadataPackage, PackageId as MetadataId,
 };
 
 use std::{
     collections::{btree_map, BTreeMap, BTreeSet},
-    fmt,
     path::{Path, PathBuf},
     str::FromStr,
 };

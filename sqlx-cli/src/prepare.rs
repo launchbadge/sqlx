@@ -11,7 +11,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
 
-use crate::metadata::{Metadata, Package};
+use crate::metadata::Metadata;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
