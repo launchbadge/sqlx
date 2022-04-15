@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use byteorder::{ByteOrder, LittleEndian};
 
 use crate::decode::Decode;

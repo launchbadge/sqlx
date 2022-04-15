@@ -4,7 +4,7 @@ version = "0.5.12"
 repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 authors = [
     "Ryan Leckey <leckey.ryan@gmail.com>",
     "Austin Bonander <austin.bonander@gmail.com>",
@@ -67,27 +67,41 @@ json = ["serde", "serde_json"]
 # runtimes
 runtime-actix-native-tls = [
     "sqlx-rt/runtime-actix-native-tls",
+    "sqlx/runtime-actix-native-tls",
     "_tls-native-tls",
     "_rt-actix",
 ]
 runtime-async-std-native-tls = [
     "sqlx-rt/runtime-async-std-native-tls",
+    "sqlx/runtime-async-std-native-tls",
     "_tls-native-tls",
     "_rt-async-std",
 ]
 runtime-tokio-native-tls = [
     "sqlx-rt/runtime-tokio-native-tls",
+    "sqlx/runtime-tokio-native-tls",
     "_tls-native-tls",
     "_rt-tokio",
 ]
 
-runtime-actix-rustls = ["sqlx-rt/runtime-actix-rustls", "_tls-rustls", "_rt-actix"]
+runtime-actix-rustls = [
+    "sqlx-rt/runtime-actix-rustls",
+    "sqlx/runtime-actix-rustls",
+    "_tls-rustls",
+    "_rt-actix"
+]
 runtime-async-std-rustls = [
     "sqlx-rt/runtime-async-std-rustls",
+    "sqlx/runtime-async-std-rustls",
     "_tls-rustls",
     "_rt-async-std",
 ]
-runtime-tokio-rustls = ["sqlx-rt/runtime-tokio-rustls", "_tls-rustls", "_rt-tokio"]
+runtime-tokio-rustls = [
+    "sqlx-rt/runtime-tokio-rustls",
+    "sqlx/runtime-tokio-rustls",
+    "_tls-rustls",
+    "_rt-tokio"
+]
 
 # for conditional compilation
 _rt-actix = ["tokio-stream"]
@@ -103,7 +117,7 @@ offline = ["serde", "either/serde"]
 paste = "1.0.6"
 ahash = "0.7.6"
 atoi = "0.4.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.5.12"}
+sqlx-rt = { path = "../sqlx-rt", version = "0.5.12" }
 base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
 bigdecimal_ = { version = "0.3.0", optional = true, package = "bigdecimal" }
 rust_decimal = { version = "1.19.0", optional = true }

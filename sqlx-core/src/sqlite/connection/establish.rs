@@ -10,12 +10,9 @@ use libsqlite3_sys::{
 };
 use std::ffi::CString;
 use std::io;
+use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use std::{
-    convert::TryFrom,
-    ptr::{null, null_mut},
-};
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
