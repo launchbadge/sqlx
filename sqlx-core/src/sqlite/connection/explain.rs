@@ -56,6 +56,7 @@ const OP_DIVIDE: &str = "Divide";
 const OP_REMAINDER: &str = "Remainder";
 const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
+const OP_HALT: &str = "Halt";
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum RegDataType {
@@ -188,7 +189,8 @@ pub(super) fn explain(
     while state.program_i < program_size {
         if state.visited[state.program_i] {
             state.program_i += 1;
-            continue;
+            //avoid (infinite) loops by breaking if we ever hit the same instruction twice
+            break;
         }
         let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
 
@@ -402,6 +404,10 @@ pub(super) fn explain(
 
                 // output = r[p1 .. p1 + p2]
                 state.result = Some(p1..p1 + p2);
+            }
+
+            OP_HALT => {
+                break;
             }
 
             _ => {
