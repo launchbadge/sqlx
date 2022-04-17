@@ -141,73 +141,86 @@ fn root_block_columns(
     return Ok(row_info);
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct QueryState {
+    pub visited: Vec<bool>,
+    // Registers
+    pub r: HashMap<i64, RegDataType>,
+    // Map between pointer and register
+    pub r_cursor: HashMap<i64, Vec<i64>>,
+    // Rows that pointers point to
+    pub p: HashMap<i64, HashMap<i64, DataType>>,
+    // Nullable columns
+    pub n: HashMap<i64, bool>,
+    // Next instruction to execute
+    pub program_i: usize,
+    // Results published by the execution
+    pub result: Option<std::ops::Range<i64>>,
+}
+
 // Opcode Reference: https://sqlite.org/opcode.html
 pub(super) fn explain(
     conn: &mut ConnectionState,
     query: &str,
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
-    // Registers
-    let mut r = HashMap::<i64, RegDataType>::with_capacity(6);
-    // Map between pointer and register
-    let mut r_cursor = HashMap::<i64, Vec<i64>>::with_capacity(6);
-    // Rows that pointers point to
-    let mut p = HashMap::<i64, HashMap<i64, DataType>>::with_capacity(6);
-
-    // Nullable columns
-    let mut n = HashMap::<i64, bool>::with_capacity(6);
-
     let root_block_cols = root_block_columns(conn)?;
-
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
         execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
             .filter_map(|res| res.map(|either| either.right()).transpose())
             .map(|row| FromRow::from_row(&row?))
             .collect::<Result<Vec<_>, Error>>()?;
 
-    let mut program_i = 0;
     let program_size = program.len();
-    let mut visited = vec![false; program_size];
+
+    let mut state = QueryState {
+        visited: vec![false; program_size],
+        r: HashMap::with_capacity(6),
+        r_cursor: HashMap::with_capacity(6),
+        p: HashMap::with_capacity(6),
+        n: HashMap::with_capacity(6),
+        program_i: 0,
+        result: None,
+    };
 
     let mut output = Vec::new();
     let mut nullable = Vec::new();
 
-    let mut result = None;
-
-    while program_i < program_size {
-        if visited[program_i] {
-            program_i += 1;
+    while state.program_i < program_size {
+        if state.visited[state.program_i] {
+            state.program_i += 1;
             continue;
         }
-        let (_, ref opcode, p1, p2, p3, ref p4) = program[program_i];
+        let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
 
         match &**opcode {
             OP_INIT => {
                 // start at <p2>
-                visited[program_i] = true;
-                program_i = p2 as usize;
+                state.visited[state.program_i] = true;
+                state.program_i = p2 as usize;
                 continue;
             }
 
             OP_GOTO => {
                 // goto <p2>
-                visited[program_i] = true;
-                program_i = p2 as usize;
+                state.visited[state.program_i] = true;
+                state.program_i = p2 as usize;
                 continue;
             }
 
             OP_COLUMN => {
                 //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                if let Some(record) = p.get(&p1) {
+                if let Some(record) = state.p.get(&p1) {
                     if let Some(col) = record.get(&p2) {
                         // insert into p3 the datatype of the col
-                        r.insert(p3, RegDataType::Single(*col));
+                        state.r.insert(p3, RegDataType::Single(*col));
+
                         // map between pointer p1 and register p3
-                        r_cursor.entry(p1).or_default().push(p3);
+                        state.r_cursor.entry(p1).or_default().push(p3);
                     } else {
-                        r.insert(p3, RegDataType::Single(DataType::Null));
+                        state.r.insert(p3, RegDataType::Single(DataType::Null));
                     }
                 } else {
-                    r.insert(p3, RegDataType::Single(DataType::Null));
+                    state.r.insert(p3, RegDataType::Single(DataType::Null));
                 }
             }
 
@@ -216,17 +229,19 @@ pub(super) fn explain(
                 let mut record = Vec::with_capacity(p2 as usize);
                 for reg in p1..p1 + p2 {
                     record.push(
-                        r.get(&reg)
+                        state
+                            .r
+                            .get(&reg)
                             .map(|d| d.clone().map_to_datatype())
                             .unwrap_or(DataType::Null),
                     );
                 }
-                r.insert(p3, RegDataType::Record(record));
+                state.r.insert(p3, RegDataType::Record(record));
             }
 
             OP_INSERT | OP_IDX_INSERT => {
-                if let Some(RegDataType::Record(record)) = r.get(&p2) {
-                    if let Some(row) = p.get_mut(&p1) {
+                if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
+                    if let Some(row) = state.p.get_mut(&p1) {
                         // Insert the record into wherever pointer p1 is
                         *row = (0..).zip(record.iter().copied()).collect();
                     }
@@ -235,12 +250,10 @@ pub(super) fn explain(
             }
 
             OP_OPEN_READ | OP_OPEN_WRITE => {
-                //Create a new pointer which is referenced by p1
-
                 //Create a new pointer which is referenced by p1, take column metadata from db schema if found
                 if p3 == 0 {
                     if let Some(columns) = root_block_cols.get(&p2) {
-                        p.insert(
+                        state.p.insert(
                             p1,
                             columns
                                 .iter()
@@ -248,21 +261,22 @@ pub(super) fn explain(
                                 .collect(),
                         );
                     } else {
-                        p.insert(p1, HashMap::with_capacity(6));
+                        state.p.insert(p1, HashMap::with_capacity(6));
                     }
                 } else {
-                    p.insert(p1, HashMap::with_capacity(6));
+                    state.p.insert(p1, HashMap::with_capacity(6));
                 }
             }
 
             OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
-                p.insert(p1, HashMap::with_capacity(6));
+                //Create a new pointer which is referenced by p1
+                state.p.insert(p1, HashMap::with_capacity(6));
             }
 
             OP_VARIABLE => {
                 // r[p2] = <value of variable>
-                r.insert(p2, RegDataType::Single(DataType::Null));
-                n.insert(p3, true);
+                state.r.insert(p2, RegDataType::Single(DataType::Null));
+                state.n.insert(p3, true);
             }
 
             OP_FUNCTION => {
@@ -270,8 +284,10 @@ pub(super) fn explain(
                 match from_utf8(p4).map_err(Error::protocol)? {
                     "last_insert_rowid(0)" => {
                         // last_insert_rowid() -> INTEGER
-                        r.insert(p3, RegDataType::Single(DataType::Int64));
-                        n.insert(p3, n.get(&p3).copied().unwrap_or(false));
+                        state.r.insert(p3, RegDataType::Single(DataType::Int64));
+                        state
+                            .n
+                            .insert(p3, state.n.get(&p3).copied().unwrap_or(false));
                     }
 
                     _ => {}
@@ -280,9 +296,12 @@ pub(super) fn explain(
 
             OP_NULL_ROW => {
                 // all registers that map to cursor X are potentially nullable
-                for register in &r_cursor[&p1] {
-                    n.insert(*register, true);
+                if let &Some(registers) = &state.r_cursor.get(&p1) {
+                    for register in registers {
+                        state.n.insert(*register, true);
+                    }
                 }
+                //else we don't know about the cursor
             }
 
             OP_AGG_STEP => {
@@ -290,30 +309,32 @@ pub(super) fn explain(
 
                 if p4.starts_with("count(") {
                     // count(_) -> INTEGER
-                    r.insert(p3, RegDataType::Single(DataType::Int64));
-                    n.insert(p3, n.get(&p3).copied().unwrap_or(false));
-                } else if let Some(v) = r.get(&p2).cloned() {
+                    state.r.insert(p3, RegDataType::Single(DataType::Int64));
+                    state
+                        .n
+                        .insert(p3, state.n.get(&p3).copied().unwrap_or(false));
+                } else if let Some(v) = state.r.get(&p2).cloned() {
                     // r[p3] = AGG ( r[p2] )
-                    r.insert(p3, v);
-                    let val = n.get(&p2).copied().unwrap_or(true);
-                    n.insert(p3, val);
+                    state.r.insert(p3, v);
+                    let val = state.n.get(&p2).copied().unwrap_or(true);
+                    state.n.insert(p3, val);
                 }
             }
 
             OP_CAST => {
                 // affinity(r[p1])
-                if let Some(v) = r.get_mut(&p1) {
+                if let Some(v) = state.r.get_mut(&p1) {
                     *v = RegDataType::Single(affinity_to_type(p2 as u8));
                 }
             }
 
             OP_COPY | OP_MOVE | OP_SCOPY | OP_INT_COPY => {
                 // r[p2] = r[p1]
-                if let Some(v) = r.get(&p1).cloned() {
-                    r.insert(p2, v);
+                if let Some(v) = state.r.get(&p1).cloned() {
+                    state.r.insert(p2, v);
 
-                    if let Some(null) = n.get(&p1).copied() {
-                        n.insert(p2, null);
+                    if let Some(null) = state.n.get(&p1).copied() {
+                        state.n.insert(p2, null);
                     }
                 }
             }
@@ -321,25 +342,29 @@ pub(super) fn explain(
             OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID
             | OP_NEWROWID => {
                 // r[p2] = <value of constant>
-                r.insert(p2, RegDataType::Single(opcode_to_type(&opcode)));
-                n.insert(p2, n.get(&p2).copied().unwrap_or(false));
+                state
+                    .r
+                    .insert(p2, RegDataType::Single(opcode_to_type(&opcode)));
+                state
+                    .n
+                    .insert(p2, state.n.get(&p2).copied().unwrap_or(false));
             }
 
             OP_NOT => {
                 // r[p2] = NOT r[p1]
-                if let Some(a) = r.get(&p1).cloned() {
-                    r.insert(p2, a);
-                    let val = n.get(&p1).copied().unwrap_or(true);
-                    n.insert(p2, val);
+                if let Some(a) = state.r.get(&p1).cloned() {
+                    state.r.insert(p2, a);
+                    let val = state.n.get(&p1).copied().unwrap_or(true);
+                    state.n.insert(p2, val);
                 }
             }
 
             OP_BIT_AND | OP_BIT_OR | OP_SHIFT_LEFT | OP_SHIFT_RIGHT | OP_ADD | OP_SUBTRACT
             | OP_MULTIPLY | OP_DIVIDE | OP_REMAINDER | OP_CONCAT => {
                 // r[p3] = r[p1] + r[p2]
-                match (r.get(&p1).cloned(), r.get(&p2).cloned()) {
+                match (state.r.get(&p1).cloned(), state.r.get(&p2).cloned()) {
                     (Some(a), Some(b)) => {
-                        r.insert(
+                        state.r.insert(
                             p3,
                             if matches!(a, RegDataType::Single(DataType::Null)) {
                                 b
@@ -350,19 +375,19 @@ pub(super) fn explain(
                     }
 
                     (Some(v), None) => {
-                        r.insert(p3, v);
+                        state.r.insert(p3, v);
                     }
 
                     (None, Some(v)) => {
-                        r.insert(p3, v);
+                        state.r.insert(p3, v);
                     }
 
                     _ => {}
                 }
 
-                match (n.get(&p1).copied(), n.get(&p2).copied()) {
+                match (state.n.get(&p1).copied(), state.n.get(&p2).copied()) {
                     (Some(a), Some(b)) => {
-                        n.insert(p3, a || b);
+                        state.n.insert(p3, a || b);
                     }
 
                     _ => {}
@@ -371,15 +396,12 @@ pub(super) fn explain(
 
             OP_RESULT_ROW => {
                 // the second time we hit ResultRow we short-circuit and get out
-                if result.is_some() {
+                if state.result.is_some() {
                     break;
                 }
 
                 // output = r[p1 .. p1 + p2]
-                output.reserve(p2 as usize);
-                nullable.reserve(p2 as usize);
-
-                result = Some(p1..p1 + p2);
+                state.result = Some(p1..p1 + p2);
             }
 
             _ => {
@@ -388,18 +410,20 @@ pub(super) fn explain(
             }
         }
 
-        visited[program_i] = true;
-        program_i += 1;
+        state.visited[state.program_i] = true;
+        state.program_i += 1;
     }
 
-    if let Some(result) = result {
+    if let Some(result) = state.result {
         for i in result {
             output.push(SqliteTypeInfo(
-                r.remove(&i)
+                state
+                    .r
+                    .remove(&i)
                     .map(|d| d.map_to_datatype())
                     .unwrap_or(DataType::Null),
             ));
-            nullable.push(n.remove(&i));
+            nullable.push(state.n.remove(&i));
         }
     }
 
