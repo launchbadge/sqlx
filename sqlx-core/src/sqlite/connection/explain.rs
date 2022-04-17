@@ -17,6 +17,60 @@ const SQLITE_AFF_REAL: u8 = 0x45; /* 'E' */
 // opcodes
 const OP_INIT: &str = "Init";
 const OP_GOTO: &str = "Goto";
+const OP_DECR_JUMP_ZERO: &str = "DecrJumpZero";
+const OP_ELSE_EQ: &str = "ElseEq";
+const OP_EQ: &str = "Eq";
+const OP_END_COROUTINE: &str = "EndCoroutine";
+const OP_FILTER: &str = "Filter";
+const OP_FK_IF_ZERO: &str = "FkIfZero";
+const OP_FOUND: &str = "Found";
+const OP_GE: &str = "Ge";
+const OP_GO_SUB: &str = "Gosub";
+const OP_GT: &str = "Gt";
+const OP_IDX_GE: &str = "IdxGE";
+const OP_IDX_GT: &str = "IdxGT";
+const OP_IDX_LE: &str = "IdxLE";
+const OP_IDX_LT: &str = "IdxLT";
+const OP_IF: &str = "If";
+const OP_IF_NO_HOPE: &str = "IfNoHope";
+const OP_IF_NOT: &str = "IfNot";
+const OP_IF_NOT_OPEN: &str = "IfNotOpen";
+const OP_IF_NOT_ZERO: &str = "IfNotZero";
+const OP_IF_NULL_ROW: &str = "IfNullRow";
+const OP_IF_POS: &str = "IfPos";
+const OP_IF_SMALLER: &str = "IfSmaller";
+const OP_INCR_VACUUM: &str = "IncrVacuum";
+const OP_INIT_COROUTINE: &str = "InitCoroutine";
+const OP_IS_NULL: &str = "IsNull";
+const OP_IS_NULL_OR_TYPE: &str = "IsNullOrType";
+const OP_LAST: &str = "Last";
+const OP_LE: &str = "Le";
+const OP_LT: &str = "Lt";
+const OP_MUST_BE_INT: &str = "MustBeInt";
+const OP_NE: &str = "Ne";
+const OP_NEXT: &str = "Next";
+const OP_NO_CONFLICT: &str = "NoConflict";
+const OP_NOT_EXISTS: &str = "NotExists";
+const OP_NOT_NULL: &str = "NotNull";
+const OP_ONCE: &str = "Once";
+const OP_PREV: &str = "Prev";
+const OP_PROGRAM: &str = "Program";
+const OP_REWIND: &str = "Rewind";
+const OP_ROW_SET_READ: &str = "RowSetRead";
+const OP_ROW_SET_TEST: &str = "RowSetTest";
+const OP_SEEK_GE: &str = "SeekGE";
+const OP_SEEK_GT: &str = "SeekGT";
+const OP_SEEK_LE: &str = "SeekLE";
+const OP_SEEK_LT: &str = "SeekLT";
+const OP_SEEK_ROW_ID: &str = "SeekRowId";
+const OP_SEEK_SCAN: &str = "SeekScan";
+const OP_SEQUENCE_TEST: &str = "SequenceTest";
+const OP_SORTER_NEXT: &str = "SorterNext";
+const OP_SORTER_SORT: &str = "SorterSort";
+const OP_V_FILTER: &str = "VFilter";
+const OP_V_NEXT: &str = "VNext";
+const OP_YIELD: &str = "Yield";
+const OP_JUMP: &str = "Jump";
 const OP_COLUMN: &str = "Column";
 const OP_MAKE_RECORD: &str = "MakeRecord";
 const OP_INSERT: &str = "Insert";
@@ -253,6 +307,48 @@ pub(super) fn explain(
                     state.visited[state.program_i] = true;
                     state.program_i = p2 as usize;
                     continue;
+                }
+
+                OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FK_IF_ZERO | OP_FOUND
+                | OP_GE | OP_GO_SUB | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT
+                | OP_IF | OP_IF_NO_HOPE | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO
+                | OP_IF_NULL_ROW | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM
+                | OP_INIT_COROUTINE | OP_IS_NULL | OP_IS_NULL_OR_TYPE | OP_LE | OP_LAST | OP_LT
+                | OP_MUST_BE_INT | OP_NE | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS
+                | OP_NOT_NULL | OP_ONCE | OP_PREV | OP_PROGRAM | OP_ROW_SET_READ
+                | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE | OP_SEEK_LT
+                | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST | OP_SORTER_NEXT
+                | OP_SORTER_SORT | OP_V_FILTER | OP_V_NEXT | OP_YIELD | OP_REWIND => {
+                    // goto <p2> or next instruction (depending on actual values)
+                    state.visited[state.program_i] = true;
+
+                    let mut branch_state = state.clone();
+                    branch_state.program_i = p2 as usize;
+                    states.push(branch_state);
+
+                    state.program_i += 1;
+                    continue;
+                }
+
+                OP_END_COROUTINE => {
+                    panic!("{} not supported", &**opcode); //todo:
+                }
+
+                OP_JUMP => {
+                    // goto one of <p1>, <p2>, or <p3> based on the result of a prior compare
+                    state.visited[state.program_i] = true;
+
+                    let mut branch_state = state.clone();
+                    branch_state.program_i = p1 as usize;
+                    states.push(branch_state);
+
+                    let mut branch_state = state.clone();
+                    branch_state.program_i = p2 as usize;
+                    states.push(branch_state);
+
+                    let mut branch_state = state.clone();
+                    branch_state.program_i = p3 as usize;
+                    states.push(branch_state);
                 }
 
                 OP_COLUMN => {
