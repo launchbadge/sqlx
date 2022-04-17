@@ -310,7 +310,7 @@ where
 /// A wrapper around `QueryBuilder` for creating comma(or other token)-separated lists.
 ///
 /// See [`QueryBuilder::separated()`] for details.
-pub struct Separated<'qb, 'args: 'qb, DB, Sep>
+pub struct Separated<'qb, 'args, DB, Sep>
 where
     DB: Database,
 {
