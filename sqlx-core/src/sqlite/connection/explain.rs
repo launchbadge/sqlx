@@ -234,7 +234,7 @@ pub(super) fn explain(
                 //Noop if the register p2 isn't a record, or if pointer p1 does not exist
             }
 
-            OP_OPEN_READ | OP_OPEN_WRITE | OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
+            OP_OPEN_READ | OP_OPEN_WRITE => {
                 //Create a new pointer which is referenced by p1
 
                 //Create a new pointer which is referenced by p1, take column metadata from db schema if found
@@ -253,6 +253,10 @@ pub(super) fn explain(
                 } else {
                     p.insert(p1, HashMap::with_capacity(6));
                 }
+            }
+
+            OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
+                p.insert(p1, HashMap::with_capacity(6));
             }
 
             OP_VARIABLE => {
