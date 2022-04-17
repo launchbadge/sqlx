@@ -60,7 +60,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef'")
+        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef', null")
         .await?;
 
     let columns = d.columns();
@@ -81,6 +81,10 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     assert_eq!(columns[3].name(), "x'deadbeef'");
     assert_eq!(d.nullable(3), Some(false)); // literal constant
 
+    assert_eq!(columns[4].type_info().name(), "NULL");
+    assert_eq!(columns[4].name(), "null");
+    assert_eq!(d.nullable(4), Some(true)); // literal null
+
     Ok(())
 }
 
@@ -99,10 +103,10 @@ async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
     assert_eq!(d.nullable(0), Some(false)); // COUNT(*)
 
     assert_eq!(d.columns()[1].type_info().name(), "INTEGER");
-    assert_eq!(d.nullable(1), None); // `a + 1` is potentially nullable but we don't know for sure currently
+    assert_eq!(d.nullable(1), Some(true)); // `a+1` is nullable, because a is nullable
 
     assert_eq!(d.columns()[2].type_info().name(), "TEXT");
-    assert_eq!(d.nullable(2), Some(false)); // `name` is not nullable
+    assert_eq!(d.nullable(2), Some(true)); // `name` is not nullable, but the query can be null due to zero rows
 
     assert_eq!(d.columns()[3].type_info().name(), "REAL");
     assert_eq!(d.nullable(3), Some(false)); // literal constant
