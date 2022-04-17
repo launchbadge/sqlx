@@ -55,6 +55,7 @@ const OP_NOT_NULL: &str = "NotNull";
 const OP_ONCE: &str = "Once";
 const OP_PREV: &str = "Prev";
 const OP_PROGRAM: &str = "Program";
+const OP_RETURN: &str = "Return";
 const OP_REWIND: &str = "Rewind";
 const OP_ROW_SET_READ: &str = "RowSetRead";
 const OP_ROW_SET_TEST: &str = "RowSetTest";
@@ -142,6 +143,7 @@ impl ColumnType {
 enum RegDataType {
     Single(ColumnType),
     Record(Vec<ColumnType>),
+    Int(i64),
 }
 
 impl RegDataType {
@@ -149,12 +151,14 @@ impl RegDataType {
         match self {
             RegDataType::Single(d) => d.datatype,
             RegDataType::Record(_) => DataType::Null, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+            RegDataType::Int(_) => DataType::Int,
         }
     }
     fn map_to_nullable(&self) -> Option<bool> {
         match self {
             RegDataType::Single(d) => d.nullable,
             RegDataType::Record(_) => None, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+            RegDataType::Int(_) => Some(false),
         }
     }
     fn map_to_columntype(&self) -> ColumnType {
@@ -164,6 +168,10 @@ impl RegDataType {
                 datatype: DataType::Null,
                 nullable: None,
             }, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+            RegDataType::Int(_) => ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false),
+            },
         }
     }
 }
@@ -317,13 +325,12 @@ pub(super) fn explain(
                 OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FK_IF_ZERO | OP_FOUND
                 | OP_GE | OP_GO_SUB | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT
                 | OP_IF | OP_IF_NO_HOPE | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO
-                | OP_IF_NULL_ROW | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM
-                | OP_INIT_COROUTINE | OP_IS_NULL | OP_IS_NULL_OR_TYPE | OP_LE | OP_LAST | OP_LT
-                | OP_MUST_BE_INT | OP_NE | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS
-                | OP_NOT_NULL | OP_ONCE | OP_PREV | OP_PROGRAM | OP_ROW_SET_READ
-                | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE | OP_SEEK_LT
-                | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST | OP_SORTER_NEXT
-                | OP_SORTER_SORT | OP_V_FILTER | OP_V_NEXT | OP_YIELD | OP_REWIND => {
+                | OP_IF_NULL_ROW | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM | OP_IS_NULL
+                | OP_IS_NULL_OR_TYPE | OP_LE | OP_LAST | OP_LT | OP_MUST_BE_INT | OP_NE
+                | OP_NEXT | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_NOT_NULL | OP_ONCE | OP_PREV
+                | OP_PROGRAM | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT
+                | OP_SEEK_LE | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
+                | OP_SORTER_NEXT | OP_SORTER_SORT | OP_V_FILTER | OP_V_NEXT | OP_REWIND => {
                     // goto <p2> or next instruction (depending on actual values)
                     state.visited[state.program_i] = true;
 
@@ -335,8 +342,76 @@ pub(super) fn explain(
                     continue;
                 }
 
+                OP_INIT_COROUTINE => {
+                    // goto <p2> or next instruction (depending on actual values)
+                    state.visited[state.program_i] = true;
+                    state.r.insert(p1, RegDataType::Int(p3));
+
+                    if p2 != 0 {
+                        state.program_i = p2 as usize;
+                    } else {
+                        state.program_i += 1;
+                    }
+                    continue;
+                }
+
                 OP_END_COROUTINE => {
-                    panic!("{} not supported", &**opcode); //todo:
+                    // jump to p2 of the yield instruction pointed at by register p1
+                    state.visited[state.program_i] = true;
+                    if let Some(RegDataType::Int(yield_i)) = state.r.get(&p1) {
+                        if let Some((_, yield_op, _, yield_p2, _, _)) =
+                            program.get(*yield_i as usize)
+                        {
+                            if OP_YIELD == yield_op.as_str() {
+                                state.program_i = (*yield_p2) as usize;
+                                state.r.remove(&p1);
+                                continue;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                OP_RETURN => {
+                    // jump to the instruction after the instruction pointed at by register p1
+                    state.visited[state.program_i] = true;
+                    if let Some(RegDataType::Int(return_i)) = state.r.get(&p1) {
+                        state.program_i = (*return_i + 1) as usize;
+                        state.r.remove(&p1);
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+
+                OP_YIELD => {
+                    // jump to p2 of the yield instruction pointed at by register p1, store prior instruction in p1
+                    state.visited[state.program_i] = true;
+                    if let Some(RegDataType::Int(yield_i)) = state.r.get_mut(&p1) {
+                        let program_i: usize = state.program_i;
+
+                        //if yielding to a yield operation, go to the NEXT instruction after that instruction
+                        if program
+                            .get(*yield_i as usize)
+                            .map(|(_, yield_op, _, _, _, _)| yield_op.as_str())
+                            == Some(OP_YIELD)
+                        {
+                            state.program_i = (*yield_i + 1) as usize;
+                            *yield_i = program_i as i64;
+                            continue;
+                        } else {
+                            state.program_i = *yield_i as usize;
+                            *yield_i = program_i as i64;
+                            continue;
+                        }
+                    } else {
+                        break;
+                    }
                 }
 
                 OP_JUMP => {
@@ -512,7 +587,12 @@ pub(super) fn explain(
                     }
                 }
 
-                OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID | OP_NEWROWID => {
+                OP_INTEGER => {
+                    // r[p2] = p1
+                    state.r.insert(p2, RegDataType::Int(p1));
+                }
+
+                OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_ROWID | OP_NEWROWID => {
                     // r[p2] = <value of constant>
                     state.r.insert(
                         p2,
