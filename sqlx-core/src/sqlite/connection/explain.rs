@@ -79,6 +79,7 @@ const OP_OPEN_READ: &str = "OpenRead";
 const OP_OPEN_WRITE: &str = "OpenWrite";
 const OP_OPEN_EPHEMERAL: &str = "OpenEphemeral";
 const OP_OPEN_AUTOINDEX: &str = "OpenAutoindex";
+const OP_AGG_FINAL: &str = "AggFinal";
 const OP_AGG_STEP: &str = "AggStep";
 const OP_FUNCTION: &str = "Function";
 const OP_MOVE: &str = "Move";
@@ -259,6 +260,7 @@ struct QueryState {
     pub program_i: usize,
     // Results published by the execution
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
+    pub history: Vec<(i64, String, i64, i64, i64, Vec<u8>)>,
 }
 
 // Opcode Reference: https://sqlite.org/opcode.html
@@ -281,6 +283,7 @@ pub(super) fn explain(
         p: HashMap::with_capacity(6),
         program_i: 0,
         result: None,
+        history: Vec::new(),
     }];
 
     let mut result_states = Vec::new();
@@ -293,6 +296,8 @@ pub(super) fn explain(
                 break;
             }
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
+
+            state.history.push(program[state.program_i].clone());
 
             match &**opcode {
                 OP_INIT => {
@@ -454,12 +459,31 @@ pub(super) fn explain(
                 }
 
                 OP_AGG_STEP => {
+                    //assume that AGG_FINAL will be called
                     let p4 = from_utf8(p4).map_err(Error::protocol)?;
 
                     if p4.starts_with("count(") {
                         // count(_) -> INTEGER
                         state.r.insert(
                             p3,
+                            RegDataType::Single(ColumnType {
+                                datatype: DataType::Int64,
+                                nullable: Some(false),
+                            }),
+                        );
+                    } else if let Some(v) = state.r.get(&p2).cloned() {
+                        // r[p3] = AGG ( r[p2] )
+                        state.r.insert(p3, v);
+                    }
+                }
+
+                OP_AGG_FINAL => {
+                    let p4 = from_utf8(p4).map_err(Error::protocol)?;
+
+                    if p4.starts_with("count(") {
+                        // count(_) -> INTEGER
+                        state.r.insert(
+                            p1,
                             RegDataType::Single(ColumnType {
                                 datatype: DataType::Int64,
                                 nullable: Some(false),
