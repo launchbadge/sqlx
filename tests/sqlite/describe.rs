@@ -342,3 +342,36 @@ async fn it_describes_table_subquery() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_union() -> anyhow::Result<()> {
+    async fn assert_union_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+
+        assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.column(1).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(1), Some(true), "{}", query);
+        assert_eq!(info.column(2).type_info().name(), "INTEGER", "{}", query);
+        assert_eq!(info.nullable(2), Some(true), "{}", query);
+        //TODO: mixed type columns not handled correctly
+        //assert_eq!(info.column(3).type_info().name(), "NULL", "{}", query);
+        //assert_eq!(info.nullable(3), Some(false), "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_union_described(
+        &mut conn,
+        "SELECT 'txt','a',null,'b' UNION ALL SELECT 'int',NULL,1,2 ",
+    )
+    .await?;
+    //TODO: insert into temp-table not merging datatype/nullable of all operations - currently keeping last-writer
+    //assert_union_described(&mut conn, "SELECT 'txt','a',null,'b' UNION     SELECT 'int',NULL,1,2 ").await?;
+
+    Ok(())
+}

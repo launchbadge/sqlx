@@ -169,7 +169,7 @@ impl RegDataType {
                 nullable: None,
             }, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
             RegDataType::Int(_) => ColumnType {
-                datatype: DataType::Int64,
+                datatype: DataType::Int,
                 nullable: Some(false),
             },
         }
@@ -611,21 +611,7 @@ pub(super) fn explain(
                     let idx_range = if p2 < p3 { p2..=p3 } else { p2..=p2 };
 
                     for idx in idx_range {
-                        match state.r.get(&idx).cloned() {
-                            Some(a) => {
-                                state.r.insert(
-                                    idx,
-                                    RegDataType::Single(ColumnType {
-                                        datatype: a.map_to_datatype(),
-                                        nullable: Some(true),
-                                    }),
-                                );
-                            }
-
-                            None => {
-                                state.r.insert(idx, RegDataType::Single(ColumnType::null()));
-                            }
-                        }
+                        state.r.insert(idx, RegDataType::Single(ColumnType::null()));
                     }
                 }
 
@@ -723,12 +709,9 @@ pub(super) fn explain(
                 if output.len() == idx {
                     output.push(this_type);
                 } else if output[idx].is_none()
-                //|| matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
+                    || matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
                 {
                     output[idx] = this_type;
-                } else if output[idx] != this_type {
-                    //found inconsistent result types, so we can't claim which type it will be
-                    output[idx] = Some(SqliteTypeInfo(DataType::Null))
                 }
 
                 if nullable.len() == idx {
