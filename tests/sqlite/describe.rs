@@ -44,13 +44,13 @@ async fn it_describes_variables() -> anyhow::Result<()> {
     let info = conn.describe("SELECT ?1").await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "NULL");
-    assert_eq!(info.nullable(0), None); // unknown
+    assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
 
     // context can be provided by using CAST(_ as _)
     let info = conn.describe("SELECT CAST(?1 AS REAL)").await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "REAL");
-    assert_eq!(info.nullable(0), None); // unknown
+    assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
 
     Ok(())
 }
