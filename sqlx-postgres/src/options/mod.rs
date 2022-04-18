@@ -347,8 +347,8 @@ impl PgConnectOptions {
     ///     .ssl_mode(PgSslMode::VerifyCa)
     ///     .ssl_client_key("./client.key");
     /// ```
-    pub fn ssl_client_key(mut self, cert: impl AsRef<Path>) -> Self {
-        self.ssl_client_key = Some(CertificateInput::File(cert.as_ref().to_path_buf()));
+    pub fn ssl_client_key(mut self, key: impl AsRef<Path>) -> Self {
+        self.ssl_client_key = Some(CertificateInput::File(key.as_ref().to_path_buf()));
         self
     }
 
