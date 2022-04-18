@@ -268,7 +268,6 @@ struct QueryState {
     pub program_i: usize,
     // Results published by the execution
     pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
-    pub history: Vec<(i64, String, i64, i64, i64, Vec<u8>)>,
 }
 
 // Opcode Reference: https://sqlite.org/opcode.html
@@ -291,7 +290,6 @@ pub(super) fn explain(
         p: HashMap::with_capacity(6),
         program_i: 0,
         result: None,
-        history: Vec::new(),
     }];
 
     let mut result_states = Vec::new();
@@ -304,8 +302,6 @@ pub(super) fn explain(
                 break;
             }
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
-
-            state.history.push(program[state.program_i].clone());
 
             match &**opcode {
                 OP_INIT => {
