@@ -256,3 +256,85 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_literal_subquery() -> anyhow::Result<()> {
+    async fn assert_literal_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+
+        assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.column(1).type_info().name(), "NULL", "{}", query);
+        assert_eq!(info.nullable(1), Some(true), "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_literal_described(&mut conn, "SELECT 'a', NULL").await?;
+    assert_literal_described(&mut conn, "SELECT * FROM (SELECT 'a', NULL)").await?;
+    assert_literal_described(
+        &mut conn,
+        "WITH cte AS (SELECT 'a', NULL) SELECT * FROM cte",
+    )
+    .await?;
+    assert_literal_described(
+        &mut conn,
+        "WITH cte AS MATERIALIZED (SELECT 'a', NULL) SELECT * FROM cte",
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_table_subquery() -> anyhow::Result<()> {
+    async fn assert_tweet_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+        let columns = info.columns();
+
+        assert_eq!(columns[0].name(), "id", "{}", query);
+        assert_eq!(columns[1].name(), "text", "{}", query);
+        assert_eq!(columns[2].name(), "is_sent", "{}", query);
+        assert_eq!(columns[3].name(), "owner_id", "{}", query);
+
+        assert_eq!(columns[0].ordinal(), 0, "{}", query);
+        assert_eq!(columns[1].ordinal(), 1, "{}", query);
+        assert_eq!(columns[2].ordinal(), 2, "{}", query);
+        assert_eq!(columns[3].ordinal(), 3, "{}", query);
+
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.nullable(1), Some(false), "{}", query);
+        assert_eq!(info.nullable(2), Some(false), "{}", query);
+        assert_eq!(info.nullable(3), Some(true), "{}", query);
+
+        assert_eq!(columns[0].type_info().name(), "INTEGER", "{}", query);
+        assert_eq!(columns[1].type_info().name(), "TEXT", "{}", query);
+        assert_eq!(columns[2].type_info().name(), "BOOLEAN", "{}", query);
+        assert_eq!(columns[3].type_info().name(), "INTEGER", "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_tweet_described(&mut conn, "SELECT * FROM tweet").await?;
+    assert_tweet_described(&mut conn, "SELECT * FROM (SELECT * FROM tweet)").await?;
+    assert_tweet_described(
+        &mut conn,
+        "WITH cte AS (SELECT * FROM tweet) SELECT * FROM cte",
+    )
+    .await?;
+    assert_tweet_described(
+        &mut conn,
+        "WITH cte AS MATERIALIZED (SELECT * FROM tweet) SELECT * FROM cte",
+    )
+    .await?;
+
+    Ok(())
+}
