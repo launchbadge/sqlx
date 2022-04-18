@@ -30,6 +30,7 @@ const OP_FUNCTION: &str = "Function";
 const OP_MOVE: &str = "Move";
 const OP_COPY: &str = "Copy";
 const OP_SCOPY: &str = "SCopy";
+const OP_NULL: &str = "Null";
 const OP_NULL_ROW: &str = "NullRow";
 const OP_INT_COPY: &str = "IntCopy";
 const OP_CAST: &str = "Cast";
@@ -58,17 +59,56 @@ const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 const OP_HALT: &str = "Halt";
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct ColumnType {
+    pub datatype: DataType,
+    pub nullable: Option<bool>,
+}
+
+impl Default for ColumnType {
+    fn default() -> Self {
+        Self {
+            datatype: DataType::Null,
+            nullable: None,
+        }
+    }
+}
+
+impl ColumnType {
+    fn null() -> Self {
+        Self {
+            datatype: DataType::Null,
+            nullable: Some(true),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum RegDataType {
-    Single(DataType),
-    Record(Vec<DataType>),
+    Single(ColumnType),
+    Record(Vec<ColumnType>),
 }
 
 impl RegDataType {
-    fn map_to_datatype(self) -> DataType {
+    fn map_to_datatype(&self) -> DataType {
         match self {
-            RegDataType::Single(d) => d,
+            RegDataType::Single(d) => d.datatype,
             RegDataType::Record(_) => DataType::Null, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+        }
+    }
+    fn map_to_nullable(&self) -> Option<bool> {
+        match self {
+            RegDataType::Single(d) => d.nullable,
+            RegDataType::Record(_) => None, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+        }
+    }
+    fn map_to_columntype(&self) -> ColumnType {
+        match self {
+            RegDataType::Single(d) => *d,
+            RegDataType::Record(_) => ColumnType {
+                datatype: DataType::Null,
+                nullable: None,
+            }, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
         }
     }
 }
@@ -100,11 +140,11 @@ fn opcode_to_type(op: &str) -> DataType {
 
 fn root_block_columns(
     conn: &mut ConnectionState,
-) -> Result<HashMap<i64, HashMap<i64, DataType>>, Error> {
-    let table_block_columns: Vec<(i64, i64, String)> = execute::iter(
+) -> Result<HashMap<i64, HashMap<i64, ColumnType>>, Error> {
+    let table_block_columns: Vec<(i64, i64, String, bool)> = execute::iter(
         conn,
-        "SELECT s.rootpage, col.cid as colnum, col.type
-         FROM sqlite_schema s
+        "SELECT s.rootpage, col.cid as colnum, col.type, col.\"notnull\"
+         FROM (select * from sqlite_temp_schema UNION select * from sqlite_schema) s
          JOIN pragma_table_info(s.name) AS col
          WHERE s.type = 'table'",
         None,
@@ -114,10 +154,10 @@ fn root_block_columns(
     .map(|row| FromRow::from_row(&row?))
     .collect::<Result<Vec<_>, Error>>()?;
 
-    let index_block_columns: Vec<(i64, i64, String)> = execute::iter(
+    let index_block_columns: Vec<(i64, i64, String, bool)> = execute::iter(
         conn,
-        "SELECT s.rootpage, idx.seqno as colnum, col.type
-         FROM sqlite_schema s
+        "SELECT s.rootpage, idx.seqno as colnum, col.type, col.\"notnull\"
+         FROM (select * from sqlite_temp_schema UNION select * from sqlite_schema) s
          JOIN pragma_index_info(s.name) AS idx
          LEFT JOIN pragma_table_info(s.tbl_name) as col
            ON col.cid = idx.cid
@@ -129,14 +169,26 @@ fn root_block_columns(
     .map(|row| FromRow::from_row(&row?))
     .collect::<Result<Vec<_>, Error>>()?;
 
-    let mut row_info: HashMap<i64, HashMap<i64, DataType>> = HashMap::new();
-    for (block, colnum, datatype) in table_block_columns {
+    let mut row_info: HashMap<i64, HashMap<i64, ColumnType>> = HashMap::new();
+    for (block, colnum, datatype, notnull) in table_block_columns {
         let row_info = row_info.entry(block).or_default();
-        row_info.insert(colnum, datatype.parse().unwrap_or(DataType::Null));
+        row_info.insert(
+            colnum,
+            ColumnType {
+                datatype: datatype.parse().unwrap_or(DataType::Null),
+                nullable: Some(!notnull),
+            },
+        );
     }
-    for (block, colnum, datatype) in index_block_columns {
+    for (block, colnum, datatype, notnull) in index_block_columns {
         let row_info = row_info.entry(block).or_default();
-        row_info.insert(colnum, datatype.parse().unwrap_or(DataType::Null));
+        row_info.insert(
+            colnum,
+            ColumnType {
+                datatype: datatype.parse().unwrap_or(DataType::Null),
+                nullable: Some(!notnull),
+            },
+        );
     }
 
     return Ok(row_info);
@@ -147,16 +199,12 @@ struct QueryState {
     pub visited: Vec<bool>,
     // Registers
     pub r: HashMap<i64, RegDataType>,
-    // Map between pointer and register
-    pub r_cursor: HashMap<i64, Vec<i64>>,
     // Rows that pointers point to
-    pub p: HashMap<i64, HashMap<i64, DataType>>,
-    // Nullable columns
-    pub n: HashMap<i64, bool>,
+    pub p: HashMap<i64, HashMap<i64, ColumnType>>,
     // Next instruction to execute
     pub program_i: usize,
     // Results published by the execution
-    pub result: Option<std::ops::Range<i64>>,
+    pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
 }
 
 // Opcode Reference: https://sqlite.org/opcode.html
@@ -173,265 +221,339 @@ pub(super) fn explain(
 
     let program_size = program.len();
 
-    let mut state = QueryState {
+    let mut states = vec![QueryState {
         visited: vec![false; program_size],
         r: HashMap::with_capacity(6),
-        r_cursor: HashMap::with_capacity(6),
         p: HashMap::with_capacity(6),
-        n: HashMap::with_capacity(6),
         program_i: 0,
         result: None,
-    };
+    }];
 
-    let mut output = Vec::new();
-    let mut nullable = Vec::new();
+    let mut result_states = Vec::new();
 
-    while state.program_i < program_size {
-        if state.visited[state.program_i] {
-            state.program_i += 1;
-            //avoid (infinite) loops by breaking if we ever hit the same instruction twice
-            break;
-        }
-        let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
-
-        match &**opcode {
-            OP_INIT => {
-                // start at <p2>
-                state.visited[state.program_i] = true;
-                state.program_i = p2 as usize;
-                continue;
+    while let Some(mut state) = states.pop() {
+        while state.program_i < program_size {
+            if state.visited[state.program_i] {
+                state.program_i += 1;
+                //avoid (infinite) loops by breaking if we ever hit the same instruction twice
+                break;
             }
+            let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
 
-            OP_GOTO => {
-                // goto <p2>
-                state.visited[state.program_i] = true;
-                state.program_i = p2 as usize;
-                continue;
-            }
-
-            OP_COLUMN => {
-                //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                if let Some(record) = state.p.get(&p1) {
-                    if let Some(col) = record.get(&p2) {
-                        // insert into p3 the datatype of the col
-                        state.r.insert(p3, RegDataType::Single(*col));
-
-                        // map between pointer p1 and register p3
-                        state.r_cursor.entry(p1).or_default().push(p3);
-                    } else {
-                        state.r.insert(p3, RegDataType::Single(DataType::Null));
-                    }
-                } else {
-                    state.r.insert(p3, RegDataType::Single(DataType::Null));
+            match &**opcode {
+                OP_INIT => {
+                    // start at <p2>
+                    state.visited[state.program_i] = true;
+                    state.program_i = p2 as usize;
+                    continue;
                 }
-            }
 
-            OP_MAKE_RECORD => {
-                // p3 = Record([p1 .. p1 + p2])
-                let mut record = Vec::with_capacity(p2 as usize);
-                for reg in p1..p1 + p2 {
-                    record.push(
+                OP_GOTO => {
+                    // goto <p2>
+                    state.visited[state.program_i] = true;
+                    state.program_i = p2 as usize;
+                    continue;
+                }
+
+                OP_COLUMN => {
+                    //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
+                    if let Some(record) = state.p.get(&p1) {
+                        if let Some(col) = record.get(&p2) {
+                            // insert into p3 the datatype of the col
+                            state.r.insert(p3, RegDataType::Single(*col));
+                        } else {
+                            state
+                                .r
+                                .insert(p3, RegDataType::Single(ColumnType::default()));
+                        }
+                    } else {
                         state
                             .r
-                            .get(&reg)
-                            .map(|d| d.clone().map_to_datatype())
-                            .unwrap_or(DataType::Null),
-                    );
-                }
-                state.r.insert(p3, RegDataType::Record(record));
-            }
-
-            OP_INSERT | OP_IDX_INSERT => {
-                if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
-                    if let Some(row) = state.p.get_mut(&p1) {
-                        // Insert the record into wherever pointer p1 is
-                        *row = (0..).zip(record.iter().copied()).collect();
+                            .insert(p3, RegDataType::Single(ColumnType::default()));
                     }
                 }
-                //Noop if the register p2 isn't a record, or if pointer p1 does not exist
-            }
 
-            OP_OPEN_READ | OP_OPEN_WRITE => {
-                //Create a new pointer which is referenced by p1, take column metadata from db schema if found
-                if p3 == 0 {
-                    if let Some(columns) = root_block_cols.get(&p2) {
-                        state.p.insert(
-                            p1,
-                            columns
-                                .iter()
-                                .map(|(&colnum, &datatype)| (colnum, datatype))
-                                .collect(),
+                OP_MAKE_RECORD => {
+                    // p3 = Record([p1 .. p1 + p2])
+                    let mut record = Vec::with_capacity(p2 as usize);
+                    for reg in p1..p1 + p2 {
+                        record.push(
+                            state
+                                .r
+                                .get(&reg)
+                                .map(|d| d.clone().map_to_columntype())
+                                .unwrap_or(ColumnType::default()),
                         );
+                    }
+                    state.r.insert(p3, RegDataType::Record(record));
+                }
+
+                OP_INSERT | OP_IDX_INSERT => {
+                    if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
+                        if let Some(row) = state.p.get_mut(&p1) {
+                            // Insert the record into wherever pointer p1 is
+                            *row = (0..).zip(record.iter().copied()).collect();
+                        }
+                    }
+                    //Noop if the register p2 isn't a record, or if pointer p1 does not exist
+                }
+
+                OP_OPEN_READ | OP_OPEN_WRITE => {
+                    //Create a new pointer which is referenced by p1, take column metadata from db schema if found
+                    if p3 == 0 {
+                        if let Some(columns) = root_block_cols.get(&p2) {
+                            state.p.insert(
+                                p1,
+                                columns
+                                    .iter()
+                                    .map(|(&colnum, &datatype)| (colnum, datatype))
+                                    .collect(),
+                            );
+                        } else {
+                            state.p.insert(p1, HashMap::with_capacity(6));
+                        }
                     } else {
                         state.p.insert(p1, HashMap::with_capacity(6));
                     }
-                } else {
-                    state.p.insert(p1, HashMap::with_capacity(6));
                 }
-            }
 
-            OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
-                //Create a new pointer which is referenced by p1
-                state.p.insert(p1, HashMap::with_capacity(6));
-            }
-
-            OP_VARIABLE => {
-                // r[p2] = <value of variable>
-                state.r.insert(p2, RegDataType::Single(DataType::Null));
-                state.n.insert(p3, true);
-            }
-
-            OP_FUNCTION => {
-                // r[p1] = func( _ )
-                match from_utf8(p4).map_err(Error::protocol)? {
-                    "last_insert_rowid(0)" => {
-                        // last_insert_rowid() -> INTEGER
-                        state.r.insert(p3, RegDataType::Single(DataType::Int64));
-                        state
-                            .n
-                            .insert(p3, state.n.get(&p3).copied().unwrap_or(false));
-                    }
-
-                    _ => {}
-                }
-            }
-
-            OP_NULL_ROW => {
-                // all registers that map to cursor X are potentially nullable
-                if let &Some(registers) = &state.r_cursor.get(&p1) {
-                    for register in registers {
-                        state.n.insert(*register, true);
-                    }
-                }
-                //else we don't know about the cursor
-            }
-
-            OP_AGG_STEP => {
-                let p4 = from_utf8(p4).map_err(Error::protocol)?;
-
-                if p4.starts_with("count(") {
-                    // count(_) -> INTEGER
-                    state.r.insert(p3, RegDataType::Single(DataType::Int64));
+                OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
+                    //Create a new pointer which is referenced by p1
                     state
-                        .n
-                        .insert(p3, state.n.get(&p3).copied().unwrap_or(false));
-                } else if let Some(v) = state.r.get(&p2).cloned() {
-                    // r[p3] = AGG ( r[p2] )
-                    state.r.insert(p3, v);
-                    let val = state.n.get(&p2).copied().unwrap_or(true);
-                    state.n.insert(p3, val);
+                        .p
+                        .insert(p1, (0..p2).map(|i| (i, ColumnType::null())).collect());
                 }
-            }
 
-            OP_CAST => {
-                // affinity(r[p1])
-                if let Some(v) = state.r.get_mut(&p1) {
-                    *v = RegDataType::Single(affinity_to_type(p2 as u8));
+                OP_VARIABLE => {
+                    // r[p2] = <value of variable>
+                    state.r.insert(p2, RegDataType::Single(ColumnType::null()));
                 }
-            }
 
-            OP_COPY | OP_MOVE | OP_SCOPY | OP_INT_COPY => {
-                // r[p2] = r[p1]
-                if let Some(v) = state.r.get(&p1).cloned() {
-                    state.r.insert(p2, v);
+                OP_FUNCTION => {
+                    // r[p1] = func( _ )
+                    match from_utf8(p4).map_err(Error::protocol)? {
+                        "last_insert_rowid(0)" => {
+                            // last_insert_rowid() -> INTEGER
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType {
+                                    datatype: DataType::Int64,
+                                    nullable: Some(false),
+                                }),
+                            );
+                        }
 
-                    if let Some(null) = state.n.get(&p1).copied() {
-                        state.n.insert(p2, null);
+                        _ => {}
                     }
                 }
-            }
 
-            OP_OR | OP_AND | OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID
-            | OP_NEWROWID => {
-                // r[p2] = <value of constant>
-                state
-                    .r
-                    .insert(p2, RegDataType::Single(opcode_to_type(&opcode)));
-                state
-                    .n
-                    .insert(p2, state.n.get(&p2).copied().unwrap_or(false));
-            }
-
-            OP_NOT => {
-                // r[p2] = NOT r[p1]
-                if let Some(a) = state.r.get(&p1).cloned() {
-                    state.r.insert(p2, a);
-                    let val = state.n.get(&p1).copied().unwrap_or(true);
-                    state.n.insert(p2, val);
+                OP_NULL_ROW => {
+                    // all columns in cursor X are potentially nullable
+                    if let Some(ref mut cursor) = state.p.get_mut(&p1) {
+                        for ref mut col in cursor.values_mut() {
+                            col.nullable = Some(true);
+                        }
+                    }
+                    //else we don't know about the cursor
                 }
-            }
 
-            OP_BIT_AND | OP_BIT_OR | OP_SHIFT_LEFT | OP_SHIFT_RIGHT | OP_ADD | OP_SUBTRACT
-            | OP_MULTIPLY | OP_DIVIDE | OP_REMAINDER | OP_CONCAT => {
-                // r[p3] = r[p1] + r[p2]
-                match (state.r.get(&p1).cloned(), state.r.get(&p2).cloned()) {
-                    (Some(a), Some(b)) => {
+                OP_AGG_STEP => {
+                    let p4 = from_utf8(p4).map_err(Error::protocol)?;
+
+                    if p4.starts_with("count(") {
+                        // count(_) -> INTEGER
                         state.r.insert(
                             p3,
-                            if matches!(a, RegDataType::Single(DataType::Null)) {
-                                b
-                            } else {
-                                a
-                            },
+                            RegDataType::Single(ColumnType {
+                                datatype: DataType::Int64,
+                                nullable: Some(false),
+                            }),
                         );
-                    }
-
-                    (Some(v), None) => {
+                    } else if let Some(v) = state.r.get(&p2).cloned() {
+                        // r[p3] = AGG ( r[p2] )
                         state.r.insert(p3, v);
                     }
-
-                    (None, Some(v)) => {
-                        state.r.insert(p3, v);
-                    }
-
-                    _ => {}
                 }
 
-                match (state.n.get(&p1).copied(), state.n.get(&p2).copied()) {
-                    (Some(a), Some(b)) => {
-                        state.n.insert(p3, a || b);
+                OP_CAST => {
+                    // affinity(r[p1])
+                    if let Some(v) = state.r.get_mut(&p1) {
+                        *v = RegDataType::Single(ColumnType {
+                            datatype: affinity_to_type(p2 as u8),
+                            nullable: v.map_to_nullable(),
+                        });
                     }
-
-                    _ => {}
                 }
-            }
 
-            OP_RESULT_ROW => {
-                // the second time we hit ResultRow we short-circuit and get out
-                if state.result.is_some() {
+                OP_COPY | OP_MOVE | OP_SCOPY | OP_INT_COPY => {
+                    // r[p2] = r[p1]
+                    if let Some(v) = state.r.get(&p1).cloned() {
+                        state.r.insert(p2, v);
+                    }
+                }
+
+                OP_BLOB | OP_COUNT | OP_REAL | OP_STRING8 | OP_INTEGER | OP_ROWID | OP_NEWROWID => {
+                    // r[p2] = <value of constant>
+                    state.r.insert(
+                        p2,
+                        RegDataType::Single(ColumnType {
+                            datatype: opcode_to_type(&opcode),
+                            nullable: Some(false),
+                        }),
+                    );
+                }
+
+                OP_NOT => {
+                    // r[p2] = NOT r[p1]
+                    if let Some(a) = state.r.get(&p1).cloned() {
+                        state.r.insert(p2, a);
+                    }
+                }
+
+                OP_NULL => {
+                    // r[p2..p3] = null
+                    let idx_range = if p2 < p3 { p2..=p3 } else { p2..=p2 };
+
+                    for idx in idx_range {
+                        match state.r.get(&idx).cloned() {
+                            Some(a) => {
+                                state.r.insert(
+                                    idx,
+                                    RegDataType::Single(ColumnType {
+                                        datatype: a.map_to_datatype(),
+                                        nullable: Some(true),
+                                    }),
+                                );
+                            }
+
+                            None => {
+                                state.r.insert(idx, RegDataType::Single(ColumnType::null()));
+                            }
+                        }
+                    }
+                }
+
+                OP_OR | OP_AND | OP_BIT_AND | OP_BIT_OR | OP_SHIFT_LEFT | OP_SHIFT_RIGHT
+                | OP_ADD | OP_SUBTRACT | OP_MULTIPLY | OP_DIVIDE | OP_REMAINDER | OP_CONCAT => {
+                    // r[p3] = r[p1] + r[p2]
+                    match (state.r.get(&p1).cloned(), state.r.get(&p2).cloned()) {
+                        (Some(a), Some(b)) => {
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType {
+                                    datatype: if matches!(a.map_to_datatype(), DataType::Null) {
+                                        b.map_to_datatype()
+                                    } else {
+                                        a.map_to_datatype()
+                                    },
+                                    nullable: match (a.map_to_nullable(), b.map_to_nullable()) {
+                                        (Some(a_n), Some(b_n)) => Some(a_n | b_n),
+                                        (Some(a_n), None) => Some(a_n),
+                                        (None, Some(b_n)) => Some(b_n),
+                                        (None, None) => None,
+                                    },
+                                }),
+                            );
+                        }
+
+                        (Some(v), None) => {
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType {
+                                    datatype: v.map_to_datatype(),
+                                    nullable: None,
+                                }),
+                            );
+                        }
+
+                        (None, Some(v)) => {
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType {
+                                    datatype: v.map_to_datatype(),
+                                    nullable: None,
+                                }),
+                            );
+                        }
+
+                        _ => {}
+                    }
+                }
+
+                OP_RESULT_ROW => {
+                    // output = r[p1 .. p1 + p2]
+                    state.visited[state.program_i] = true;
+                    state.result = Some(
+                        (p1..p1 + p2)
+                            .map(|i| {
+                                let coltype = state.r.get(&i);
+
+                                let sqltype =
+                                    coltype.map(|d| d.map_to_datatype()).map(SqliteTypeInfo);
+                                let nullable =
+                                    coltype.map(|d| d.map_to_nullable()).unwrap_or_default();
+
+                                (sqltype, nullable)
+                            })
+                            .collect(),
+                    );
+
+                    result_states.push(state.clone());
+                }
+
+                OP_HALT => {
                     break;
                 }
 
-                // output = r[p1 .. p1 + p2]
-                state.result = Some(p1..p1 + p2);
+                _ => {
+                    // ignore unsupported operations
+                    // if we fail to find an r later, we just give up
+                }
             }
 
-            OP_HALT => {
-                break;
-            }
-
-            _ => {
-                // ignore unsupported operations
-                // if we fail to find an r later, we just give up
-            }
-        }
-
-        state.visited[state.program_i] = true;
-        state.program_i += 1;
-    }
-
-    if let Some(result) = state.result {
-        for i in result {
-            output.push(SqliteTypeInfo(
-                state
-                    .r
-                    .remove(&i)
-                    .map(|d| d.map_to_datatype())
-                    .unwrap_or(DataType::Null),
-            ));
-            nullable.push(state.n.remove(&i));
+            state.visited[state.program_i] = true;
+            state.program_i += 1;
         }
     }
+
+    let mut output: Vec<Option<SqliteTypeInfo>> = Vec::new();
+    let mut nullable: Vec<Option<bool>> = Vec::new();
+
+    while let Some(state) = result_states.pop() {
+        // find the datatype info from each ResultRow execution
+        if let Some(result) = state.result {
+            let mut idx = 0;
+            for (this_type, this_nullable) in result {
+                if output.len() == idx {
+                    output.push(this_type);
+                } else if output[idx].is_none()
+                //|| matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
+                {
+                    output[idx] = this_type;
+                } else if output[idx] != this_type {
+                    //found inconsistent result types, so we can't claim which type it will be
+                    output[idx] = Some(SqliteTypeInfo(DataType::Null))
+                }
+
+                if nullable.len() == idx {
+                    nullable.push(this_nullable);
+                } else if let Some(ref mut null) = nullable[idx] {
+                    //if any ResultRow's column is nullable, the final result is nullable
+                    if let Some(this_null) = this_nullable {
+                        *null |= this_null;
+                    }
+                } else {
+                    nullable[idx] = this_nullable;
+                }
+                idx += 1;
+            }
+        }
+    }
+
+    let output = output
+        .into_iter()
+        .map(|o| o.unwrap_or(SqliteTypeInfo(DataType::Null)))
+        .collect();
 
     Ok((output, nullable))
 }
@@ -522,39 +644,123 @@ fn test_root_block_columns_has_types() {
     //prove that each block has the correct information
     {
         let blocknum = table_block_nums["t"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Text), root_block_cols[&blocknum][&1]);
-        assert_eq!((DataType::Text), root_block_cols[&blocknum][&2]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Text,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Text,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&2]
+        );
     }
 
     {
         let blocknum = table_block_nums["i1"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Text), root_block_cols[&blocknum][&1]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Text,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
     }
 
     {
         let blocknum = table_block_nums["i2"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Text), root_block_cols[&blocknum][&1]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Text,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
     }
 
     {
         let blocknum = table_block_nums["t2"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Null), root_block_cols[&blocknum][&1]);
-        assert_eq!((DataType::Null), root_block_cols[&blocknum][&2]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Null,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Null,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&2]
+        );
     }
 
     {
         let blocknum = table_block_nums["t2i1"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Null), root_block_cols[&blocknum][&1]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Null,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
     }
 
     {
         let blocknum = table_block_nums["t2i2"];
-        assert_eq!((DataType::Int64), root_block_cols[&blocknum][&0]);
-        assert_eq!((DataType::Null), root_block_cols[&blocknum][&1]);
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Int64,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType {
+                datatype: DataType::Null,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&1]
+        );
     }
 }
