@@ -773,7 +773,7 @@ fn test_root_block_columns_has_types() {
     .is_some());
     assert!(execute::iter(
         &mut conn,
-        r"CREATE TABLE t2(a INTEGER, b_null NUMERIC NULL, b NUMERIC NOT NULL);",
+        r"CREATE TABLE t2(a INTEGER NOT NULL, b_null NUMERIC NULL, b NUMERIC NOT NULL);",
         None,
         false
     )
@@ -826,7 +826,7 @@ fn test_root_block_columns_has_types() {
         assert_eq!(
             ColumnType {
                 datatype: DataType::Int64,
-                nullable: Some(false)
+                nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
@@ -851,7 +851,7 @@ fn test_root_block_columns_has_types() {
         assert_eq!(
             ColumnType {
                 datatype: DataType::Int64,
-                nullable: Some(false)
+                nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
@@ -869,7 +869,7 @@ fn test_root_block_columns_has_types() {
         assert_eq!(
             ColumnType {
                 datatype: DataType::Int64,
-                nullable: Some(false)
+                nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
@@ -937,7 +937,7 @@ fn test_root_block_columns_has_types() {
         assert_eq!(
             ColumnType {
                 datatype: DataType::Null,
-                nullable: Some(true)
+                nullable: Some(false)
             },
             root_block_cols[&blocknum][&1]
         );
