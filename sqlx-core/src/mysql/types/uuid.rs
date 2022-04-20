@@ -1,4 +1,4 @@
-use uuid::{adapter::Hyphenated, Uuid};
+use uuid::{fmt::Hyphenated, Uuid};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -61,6 +61,6 @@ impl Decode<'_, MySql> for Hyphenated {
         // parse a UUID from the text
         Uuid::parse_str(text)
             .map_err(Into::into)
-            .map(|u| u.to_hyphenated())
+            .map(|u| u.hyphenated())
     }
 }
