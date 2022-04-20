@@ -205,6 +205,9 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+#[cfg(feature = "ipnetwork")]
+mod ipaddr;
+
 #[cfg(feature = "mac_address")]
 mod mac_address;
 
