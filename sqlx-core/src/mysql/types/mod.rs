@@ -62,7 +62,7 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
-//! | `uuid::adapter::Hyphenated`           | CHAR(36)                                             |
+//! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
 //!
 //! ### [`json`](https://crates.io/crates/json)
 //!

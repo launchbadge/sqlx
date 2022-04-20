@@ -51,11 +51,11 @@ test_type!(uuid<sqlx::types::Uuid>(MySql,
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid_hyphenated<sqlx::types::uuid::adapter::Hyphenated>(MySql,
+test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(MySql,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().to_hyphenated(),
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().to_hyphenated()
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
 #[cfg(feature = "chrono")]
