@@ -488,16 +488,16 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     }
 
     let mut conn1 = new::<MySql>().await?;
-    let mut conn2 = new::<MySql>().await?;
-
-    assert_eq!(check_in_transaction(&mut conn1).await?, false);
-    assert_eq!(check_read_only(&mut conn1).await?, false);
     conn1
         .execute(
             "CREATE TABLE IF NOT EXISTS _sqlx_txn_test (id INTEGER PRIMARY KEY);\
             TRUNCATE _sqlx_txn_test",
         )
         .await?;
+    assert_eq!(check_in_transaction(&mut conn1).await?, false);
+    assert_eq!(check_read_only(&mut conn1).await?, false);
+
+    let mut conn2 = new::<MySql>().await?;
 
     // Verify read-uncommitted transaction
 
