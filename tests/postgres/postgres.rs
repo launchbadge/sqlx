@@ -1,8 +1,8 @@
 use futures::{StreamExt, TryStreamExt};
 use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
-    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
-    PgPoolOptions, PgRow, PgSeverity, Postgres,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition,
+    PgIsolationLevel, PgListener, PgPoolOptions, PgRow, PgSeverity, PgTransactionOptions, Postgres,
 };
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, pool, setup_if_needed};
@@ -498,6 +498,71 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
 
         assert_eq!(count, 0);
     }
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_use_transaction_options() -> anyhow::Result<()> {
+    async fn check_deferrable(conn: &mut PgConnection) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar("SHOW transaction_deferrable")
+            .fetch_one(conn)
+            .await
+            .map(|s: String| s == "on")
+    }
+
+    async fn check_isolation_level(conn: &mut PgConnection) -> Result<String, sqlx::Error> {
+        sqlx::query_scalar("SHOW transaction_isolation")
+            .fetch_one(conn)
+            .await
+    }
+
+    async fn check_read_only(conn: &mut PgConnection) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar("SHOW transaction_read_only")
+            .fetch_one(conn)
+            .await
+            .map(|s: String| s == "on")
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    let mut txn = conn
+        .begin_with(PgIsolationLevel::ReadCommitted.into())
+        .await?;
+    assert_eq!(check_isolation_level(&mut *txn).await?, "read committed");
+    assert_eq!(check_read_only(&mut *txn).await?, false);
+    drop(txn);
+
+    let mut txn = conn
+        .begin_with(PgIsolationLevel::ReadUncommitted.into())
+        .await?;
+    assert_eq!(check_isolation_level(&mut *txn).await?, "read uncommitted");
+    drop(txn);
+
+    let mut txn = conn
+        .begin_with(PgIsolationLevel::RepeatableRead.into())
+        .await?;
+    assert_eq!(check_isolation_level(&mut *txn).await?, "repeatable read");
+    drop(txn);
+
+    let mut txn = conn
+        .begin_with(PgIsolationLevel::Serializable.into())
+        .await?;
+    assert_eq!(check_isolation_level(&mut *txn).await?, "serializable");
+    drop(txn);
+
+    let mut txn = conn
+        .begin_with(PgTransactionOptions::default().read_only())
+        .await?;
+    assert_eq!(check_read_only(&mut *txn).await?, true);
+    drop(txn);
+
+    let mut txn = conn
+        .begin_with(PgTransactionOptions::default().read_only().deferrable())
+        .await?;
+    assert_eq!(check_read_only(&mut *txn).await?, true);
+    assert_eq!(check_deferrable(&mut *txn).await?, true);
+    drop(txn);
 
     Ok(())
 }

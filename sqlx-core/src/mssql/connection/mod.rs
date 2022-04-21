@@ -60,11 +60,11 @@ impl Connection for MssqlConnection {
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin_with(&mut self, options: ()) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin_with(self, options)
     }
 
     #[doc(hidden)]

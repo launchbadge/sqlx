@@ -1,5 +1,8 @@
 use futures::TryStreamExt;
-use sqlx::mysql::{MySql, MySqlConnection, MySqlPool, MySqlPoolOptions, MySqlRow};
+use sqlx::mysql::{
+    MySql, MySqlConnection, MySqlIsolationLevel, MySqlPool, MySqlPoolOptions, MySqlRow,
+    MySqlTransactionOptions,
+};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
 use sqlx_test::{new, setup_if_needed};
 use std::env;
@@ -443,6 +446,141 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
         .fetch_one(&mut conn)
         .await?;
     assert_eq!(count, 1);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_use_transaction_options() -> anyhow::Result<()> {
+    async fn check_in_transaction(conn: &mut MySqlConnection) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar("SELECT @@in_transaction")
+            .fetch_one(conn)
+            .await
+    }
+
+    async fn check_read_only(conn: &mut MySqlConnection) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query("UPDATE _sqlx_txn_test SET id=id LIMIT 1")
+            .execute(&mut *conn)
+            .await;
+        if let Err(e) = result {
+            if e.to_string().contains("READ ONLY transaction") {
+                Ok(true)
+            } else {
+                Err(e)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn check_row_count(conn: &mut MySqlConnection) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_txn_test")
+            .fetch_one(conn)
+            .await
+    }
+
+    async fn insert_row(conn: &mut MySqlConnection, index: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("INSERT INTO _sqlx_txn_test (id) VALUES (?)")
+            .bind(index)
+            .execute(conn)
+            .await?;
+        Ok(())
+    }
+
+    let mut conn1 = new::<MySql>().await?;
+    let mut conn2 = new::<MySql>().await?;
+
+    assert_eq!(check_in_transaction(&mut conn1).await?, false);
+    assert_eq!(check_read_only(&mut conn1).await?, false);
+    conn1
+        .execute(
+            "CREATE TABLE IF NOT EXISTS _sqlx_txn_test (id INTEGER PRIMARY KEY);\
+            TRUNCATE _sqlx_txn_test",
+        )
+        .await?;
+
+    // Verify read-uncommitted transaction
+
+    let mut txn1 = conn1
+        .begin_with(MySqlIsolationLevel::ReadUncommitted.into())
+        .await?;
+    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
+    assert_eq!(check_read_only(&mut *txn1).await?, false);
+
+    let mut txn2 = conn2.begin().await?;
+    insert_row(&mut *txn2, 1).await?;
+    assert_eq!(check_row_count(&mut *txn2).await?, 1);
+    // At read-uncommitted level, the newly-committed row should be found
+    assert_eq!(check_row_count(&mut *txn1).await?, 1);
+    txn2.commit().await?;
+    drop(txn1);
+
+    // Verify read-committed transaction
+
+    let mut txn1 = conn1
+        .begin_with(MySqlIsolationLevel::ReadCommitted.into())
+        .await?;
+    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
+    assert_eq!(check_read_only(&mut *txn1).await?, false);
+
+    let mut txn2 = conn2.begin().await?;
+    insert_row(&mut *txn2, 2).await?;
+    assert_eq!(check_row_count(&mut *txn2).await?, 2);
+    // At read-committed level, the uncommitted row should not be found
+    assert_eq!(check_row_count(&mut *txn1).await?, 1);
+    txn2.commit().await?;
+    // At read-committed level, the newly-committed row should be found
+    assert_eq!(check_row_count(&mut *txn1).await?, 2);
+    drop(txn1);
+
+    // Verify repeatable-read transaction
+
+    let mut txn1 = conn1
+        .begin_with(MySqlIsolationLevel::RepeatableRead.into())
+        .await?;
+    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
+    assert_eq!(check_read_only(&mut *txn1).await?, false);
+
+    let mut txn2 = conn2.begin().await?;
+    insert_row(&mut *txn2, 3).await?;
+    assert_eq!(check_row_count(&mut *txn2).await?, 3);
+    // At repeatable-read level, the uncommitted row should not be found
+    assert_eq!(check_row_count(&mut *txn1).await?, 2);
+    txn2.commit().await?;
+    // At repeatable-read level, the newly-committed row should not be found
+    assert_eq!(check_row_count(&mut *txn1).await?, 2);
+    drop(txn1);
+
+    // Verify serializable transaction
+    // At this level SELECT is equivalent to SELECT LOCK IN SHARE MODE
+
+    let mut txn1 = conn1
+        .begin_with(MySqlIsolationLevel::Serializable.into())
+        .await?;
+    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
+    assert_eq!(check_read_only(&mut *txn1).await?, false);
+    // This will lock the first row
+    let _row = sqlx::query("SELECT * FROM _sqlx_txn_test WHERE id=1")
+        .fetch_one(&mut *txn1)
+        .await?;
+
+    let mut txn2 = conn2.begin().await?;
+    let lock_err = sqlx::query("SELECT * FROM _sqlx_txn_test WHERE id=1 FOR UPDATE NOWAIT")
+        .fetch_one(&mut *txn2)
+        .await
+        .unwrap_err();
+    assert!(lock_err.to_string().contains("timeout exceeded"));
+    drop(txn2);
+    drop(txn1);
+
+    // Verify read-only transaction
+
+    let mut txn1 = conn1
+        .begin_with(MySqlTransactionOptions::default().read_only())
+        .await?;
+    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
+    assert_eq!(check_read_only(&mut *txn1).await?, true);
+    drop(txn1);
 
     Ok(())
 }

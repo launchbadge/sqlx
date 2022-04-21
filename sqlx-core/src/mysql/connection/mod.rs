@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::mysql::protocol::statement::StmtClose;
 use crate::mysql::protocol::text::{Ping, Quit};
 use crate::mysql::statement::MySqlStatementMetadata;
+use crate::mysql::transaction::MySqlTransactionOptions;
 use crate::mysql::{MySql, MySqlConnectOptions};
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
@@ -94,10 +95,13 @@ impl Connection for MySqlConnection {
         !self.stream.wbuf.is_empty()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin_with(
+        &mut self,
+        options: MySqlTransactionOptions,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin_with(self, options)
     }
 }

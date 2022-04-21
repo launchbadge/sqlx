@@ -1,6 +1,6 @@
 use crate::database::{Database, HasStatementCache};
 use crate::error::Error;
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
 use std::fmt::Debug;
@@ -27,6 +27,19 @@ pub trait Connection: Send {
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Self::begin_with(self, Default::default())
+    }
+
+    /// Begin a new transaction or establish a savepoint within the active transaction.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    fn begin_with(
+        &mut self,
+        options: <<Self::Database as Database>::TransactionManager as TransactionManager>::Options,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized;
 

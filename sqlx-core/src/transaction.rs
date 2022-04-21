@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
@@ -8,16 +7,22 @@ use crate::database::Database;
 use crate::error::Error;
 use crate::pool::MaybePoolConnection;
 
+pub static BEGIN_ANSI_TRANSACTION: &str = "BEGIN";
+pub static COMMIT_ANSI_TRANSACTION: &str = "COMMIT";
+pub static ROLLBACK_ANSI_TRANSACTION: &str = "ROLLBACK";
+
 /// Generic management of database transactions.
 ///
 /// This trait should not be used, except when implementing [`Connection`].
 #[doc(hidden)]
 pub trait TransactionManager {
     type Database: Database;
+    type Options: Default + Send;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(
+    fn begin_with(
         conn: &mut <Self::Database as Database>::Connection,
+        options: Self::Options,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
@@ -62,13 +67,14 @@ impl<'c, DB> Transaction<'c, DB>
 where
     DB: Database,
 {
-    pub(crate) fn begin(
+    pub(crate) fn begin_with(
         conn: impl Into<MaybePoolConnection<'c, DB>>,
+        options: <DB::TransactionManager as TransactionManager>::Options,
     ) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            DB::TransactionManager::begin(&mut conn).await?;
+            DB::TransactionManager::begin_with(&mut conn, options).await?;
 
             Ok(Self {
                 connection: conn,
@@ -215,31 +221,16 @@ where
 }
 
 #[allow(dead_code)]
-pub(crate) fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
-    if depth == 0 {
-        Cow::Borrowed("BEGIN")
-    } else {
-        Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", depth))
-    }
+pub(crate) fn begin_savepoint_sql(depth: usize) -> String {
+    format!("SAVEPOINT _sqlx_savepoint_{}", depth)
 }
 
 #[allow(dead_code)]
-pub(crate) fn commit_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
-    if depth == 1 {
-        Cow::Borrowed("COMMIT")
-    } else {
-        Cow::Owned(format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1))
-    }
+pub(crate) fn commit_savepoint_sql(depth: usize) -> String {
+    format!("RELEASE SAVEPOINT _sqlx_savepoint_{}", depth - 1)
 }
 
 #[allow(dead_code)]
-pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
-    if depth == 1 {
-        Cow::Borrowed("ROLLBACK")
-    } else {
-        Cow::Owned(format!(
-            "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
-            depth - 1
-        ))
-    }
+pub(crate) fn rollback_savepoint_sql(depth: usize) -> String {
+    format!("ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}", depth - 1)
 }

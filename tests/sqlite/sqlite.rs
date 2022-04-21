@@ -1,7 +1,9 @@
 use futures::TryStreamExt;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqlitePoolOptions, SqliteTransactionBehavior, SqliteTransactionState,
+};
 use sqlx::{
     query, sqlite::Sqlite, sqlite::SqliteRow, Column, ConnectOptions, Connection, Executor, Row,
     SqliteConnection, SqlitePool, Statement, TypeInfo,
@@ -501,6 +503,66 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_can_use_transaction_options() -> anyhow::Result<()> {
+    async fn check_txn_state(
+        conn: &mut SqliteConnection,
+    ) -> Result<SqliteTransactionState, sqlx::Error> {
+        conn.lock_handle().await?.transaction_state()
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    assert_eq!(
+        check_txn_state(&mut conn).await?,
+        SqliteTransactionState::None
+    );
+
+    let mut tx = conn
+        .begin_with(SqliteTransactionBehavior::Deferred.into())
+        .await?;
+    assert_eq!(
+        check_txn_state(&mut *tx).await?,
+        SqliteTransactionState::None
+    );
+    let _ = sqlx::query("SELECT COUNT(*) FROM tweet")
+        .fetch_one(&mut tx)
+        .await?;
+    assert_eq!(
+        check_txn_state(&mut *tx).await?,
+        SqliteTransactionState::Read
+    );
+    let _ = sqlx::query("INSERT INTO tweet ( id, text ) VALUES ( 2, 'Hello, World' )")
+        .execute(&mut tx)
+        .await?;
+    assert_eq!(
+        check_txn_state(&mut *tx).await?,
+        SqliteTransactionState::Write
+    );
+    drop(tx);
+
+    let mut tx = conn
+        .begin_with(SqliteTransactionBehavior::Immediate.into())
+        .await?;
+    assert_eq!(
+        check_txn_state(&mut *tx).await?,
+        SqliteTransactionState::Write
+    );
+    drop(tx);
+
+    // Note: may result in database locked errors if tests are run in parallel
+    let mut tx = conn
+        .begin_with(SqliteTransactionBehavior::Exclusive.into())
+        .await?;
+    assert_eq!(
+        check_txn_state(&mut *tx).await?,
+        SqliteTransactionState::Write
+    );
+    drop(tx);
 
     Ok(())
 }

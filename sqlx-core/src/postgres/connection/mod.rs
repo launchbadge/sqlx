@@ -21,6 +21,8 @@ use crate::transaction::Transaction;
 
 pub use self::stream::PgStream;
 
+use super::transaction::PgTransactionOptions;
+
 pub(crate) mod describe;
 mod establish;
 mod executor;
@@ -148,11 +150,14 @@ impl Connection for PgConnection {
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin_with(
+        &mut self,
+        options: PgTransactionOptions,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin_with(self, options)
     }
 
     fn cached_statements_size(&self) -> usize {

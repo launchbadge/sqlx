@@ -60,7 +60,7 @@ use crate::any::{Any, AnyKind};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use event_listener::EventListener;
 use futures_core::FusedFuture;
 use futures_util::FutureExt;
@@ -289,16 +289,53 @@ impl<DB: Database> Pool<DB> {
 
     /// Retrieves a new connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
-        Ok(Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await?)
+        Ok(Transaction::begin_with(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            Default::default(),
+        )
+        .await?)
+    }
+
+    /// Retrieves a new connection and immediately begins a new transaction with the
+    /// given transaction options.
+    pub async fn begin_with(
+        &self,
+        options: <DB::TransactionManager as TransactionManager>::Options,
+    ) -> Result<Transaction<'static, DB>, Error> {
+        Ok(Transaction::begin_with(
+            MaybePoolConnection::PoolConnection(self.acquire().await?),
+            options,
+        )
+        .await?)
     }
 
     /// Attempts to retrieve a new connection and immediately begins a new transaction if there
     /// is one available.
     pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
-            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
-                .await
-                .map(Some),
+            Some(conn) => Transaction::begin_with(
+                MaybePoolConnection::PoolConnection(conn),
+                Default::default(),
+            )
+            .await
+            .map(Some),
+
+            None => Ok(None),
+        }
+    }
+
+    /// Attempts to retrieve a new connection and immediately begins a new transaction with the
+    /// given transaction options if there is a connection available.
+    pub async fn try_begin_with(
+        &self,
+        options: <DB::TransactionManager as TransactionManager>::Options,
+    ) -> Result<Option<Transaction<'static, DB>>, Error> {
+        match self.try_acquire() {
+            Some(conn) => {
+                Transaction::begin_with(MaybePoolConnection::PoolConnection(conn), options)
+                    .await
+                    .map(Some)
+            }
 
             None => Ok(None),
         }

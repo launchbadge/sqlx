@@ -15,9 +15,13 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::ConnectionState;
 use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
+use crate::sqlite::{
+    Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement,
+    SqliteTransactionOptions,
+};
 use crate::transaction::{
-    begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
+    begin_savepoint_sql, commit_savepoint_sql, rollback_savepoint_sql, COMMIT_ANSI_TRANSACTION,
+    ROLLBACK_ANSI_TRANSACTION,
 };
 
 // Each SQLite connection has a dedicated thread.
@@ -56,6 +60,7 @@ enum Command {
     },
     Begin {
         tx: oneshot::Sender<Result<(), Error>>,
+        options: SqliteTransactionOptions,
     },
     Commit {
         tx: oneshot::Sender<Result<(), Error>>,
@@ -154,26 +159,30 @@ impl ConnectionWorker {
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                         }
-                        Command::Begin { tx } => {
+                        Command::Begin { tx, options } => {
                             let depth = conn.transaction_depth;
-                            let res =
-                                conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth += 1;
-                                    });
+                            let stmt = if depth == 0 {
+                                options.behavior.sql().to_string()
+                            } else {
+                                begin_savepoint_sql(depth)
+                            };
+                            let res = conn.handle.exec(stmt).map(|_| {
+                                conn.transaction_depth += 1;
+                            });
 
                             tx.send(res).ok();
                         }
                         Command::Commit { tx } => {
                             let depth = conn.transaction_depth;
-
                             let res = if depth > 0 {
-                                conn.handle
-                                    .exec(commit_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth -= 1;
-                                    })
+                                let stmt = if depth == 1 {
+                                    COMMIT_ANSI_TRANSACTION.to_string()
+                                } else {
+                                    commit_savepoint_sql(depth)
+                                };
+                                conn.handle.exec(stmt).map(|_| {
+                                    conn.transaction_depth -= 1;
+                                })
                             } else {
                                 Ok(())
                             };
@@ -182,13 +191,15 @@ impl ConnectionWorker {
                         }
                         Command::Rollback { tx } => {
                             let depth = conn.transaction_depth;
-
                             let res = if depth > 0 {
-                                conn.handle
-                                    .exec(rollback_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth -= 1;
-                                    })
+                                let stmt = if depth == 1 {
+                                    ROLLBACK_ANSI_TRANSACTION.to_string()
+                                } else {
+                                    rollback_savepoint_sql(depth)
+                                };
+                                conn.handle.exec(stmt).map(|_| {
+                                    conn.transaction_depth -= 1;
+                                })
                             } else {
                                 Ok(())
                             };
@@ -267,8 +278,9 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<(), Error> {
-        self.oneshot_cmd(|tx| Command::Begin { tx }).await?
+    pub(crate) async fn begin(&mut self, options: SqliteTransactionOptions) -> Result<(), Error> {
+        self.oneshot_cmd(|tx| Command::Begin { tx, options })
+            .await?
     }
 
     pub(crate) async fn commit(&mut self) -> Result<(), Error> {
