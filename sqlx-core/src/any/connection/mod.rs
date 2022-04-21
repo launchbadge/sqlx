@@ -132,11 +132,14 @@ impl Connection for AnyConnection {
         delegate_to_mut!(self.ping())
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin_with(
+        &mut self,
+        options: (),
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin_with(self, options)
     }
 
     fn cached_statements_size(&self) -> usize {
