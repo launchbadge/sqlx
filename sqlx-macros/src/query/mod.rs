@@ -46,7 +46,7 @@ impl Metadata {
             let cargo = env("CARGO").expect("`CARGO` must be set");
 
             let output = Command::new(&cargo)
-                .args(&["metadata", "--format-version=1"])
+                .args(&["metadata", "--format-version=1", "--no-deps"])
                 .current_dir(&self.manifest_dir)
                 .env_remove("__CARGO_FIX_PLZ")
                 .output()
