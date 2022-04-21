@@ -31,7 +31,7 @@ pub use options::{MySqlConnectOptions, MySqlSslMode};
 pub use query_result::MySqlQueryResult;
 pub use row::MySqlRow;
 pub use statement::MySqlStatement;
-pub use transaction::MySqlTransactionManager;
+pub use transaction::{MySqlIsolationLevel, MySqlTransactionManager, MySqlTransactionOptions};
 pub use type_info::MySqlTypeInfo;
 pub use value::{MySqlValue, MySqlValueFormat, MySqlValueRef};
 

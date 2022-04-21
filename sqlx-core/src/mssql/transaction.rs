@@ -14,8 +14,9 @@ pub struct MssqlTransactionManager;
 
 impl TransactionManager for MssqlTransactionManager {
     type Database = Mssql;
+    type Options = ();
 
-    fn begin(conn: &mut MssqlConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin_with(conn: &mut MssqlConnection, options: ()) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             let depth = conn.stream.transaction_depth;
 

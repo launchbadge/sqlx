@@ -37,7 +37,7 @@ pub use options::{PgConnectOptions, PgSslMode};
 pub use query_result::PgQueryResult;
 pub use row::PgRow;
 pub use statement::PgStatement;
-pub use transaction::PgTransactionManager;
+pub use transaction::{PgIsolationLevel, PgTransactionManager, PgTransactionOptions};
 pub use type_info::{PgTypeInfo, PgTypeKind};
 pub use types::PgHasArrayType;
 pub use value::{PgValue, PgValueFormat, PgValueRef};

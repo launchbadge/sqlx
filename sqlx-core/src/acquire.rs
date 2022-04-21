@@ -1,7 +1,7 @@
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{MaybePoolConnection, Pool, PoolConnection};
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, TransactionManager};
 use futures_core::future::BoxFuture;
 use std::ops::{Deref, DerefMut};
 
@@ -77,6 +77,11 @@ pub trait Acquire<'c> {
     fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>>;
 
     fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
+
+    fn begin_with(
+        self,
+        options: <<Self::Database as Database>::TransactionManager as TransactionManager>::Options,
+    ) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
 }
 
 impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
@@ -92,7 +97,22 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
         let conn = self.acquire();
 
         Box::pin(async move {
-            Transaction::begin(MaybePoolConnection::PoolConnection(conn.await?)).await
+            Transaction::begin_with(
+                MaybePoolConnection::PoolConnection(conn.await?),
+                Default::default(),
+            )
+            .await
+        })
+    }
+
+    fn begin_with(
+        self,
+        options: <<Self::Database as Database>::TransactionManager as TransactionManager>::Options,
+    ) -> BoxFuture<'static, Result<Transaction<'a, DB>, Error>> {
+        let conn = self.acquire();
+
+        Box::pin(async move {
+            Transaction::begin_with(MaybePoolConnection::PoolConnection(conn.await?), options).await
         })
     }
 }
@@ -120,7 +140,18 @@ macro_rules! impl_acquire {
                 'c,
                 Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
             > {
-                crate::transaction::Transaction::begin(self)
+                crate::transaction::Transaction::begin_with(self, Default::default())
+            }
+
+            #[inline]
+            fn begin_with(
+                self,
+                options: <<Self::Database as crate::database::Database>::TransactionManager as crate::transaction::TransactionManager>::Options,
+            ) -> futures_core::future::BoxFuture<
+                'c,
+                Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
+            > {
+                crate::transaction::Transaction::begin_with(self, options)
             }
         }
 
@@ -144,7 +175,18 @@ macro_rules! impl_acquire {
                 'c,
                 Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
             > {
-                crate::transaction::Transaction::begin(&mut **self)
+                crate::transaction::Transaction::begin_with(&mut **self, Default::default())
+            }
+
+            #[inline]
+            fn begin_with(
+                self,
+                options: <<Self::Database as crate::database::Database>::TransactionManager as crate::transaction::TransactionManager>::Options,
+            ) -> futures_core::future::BoxFuture<
+                'c,
+                Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
+            > {
+                crate::transaction::Transaction::begin_with(&mut **self, options)
             }
         }
 
@@ -170,7 +212,18 @@ macro_rules! impl_acquire {
                 't,
                 Result<crate::transaction::Transaction<'t, $DB>, crate::error::Error>,
             > {
-                crate::transaction::Transaction::begin(&mut **self)
+                crate::transaction::Transaction::begin_with(&mut **self, Default::default())
+            }
+
+            #[inline]
+            fn begin_with(
+                self,
+                options: <<Self::Database as crate::database::Database>::TransactionManager as crate::transaction::TransactionManager>::Options,
+            ) -> futures_core::future::BoxFuture<
+                't,
+                Result<crate::transaction::Transaction<'t, $DB>, crate::error::Error>,
+            > {
+                crate::transaction::Transaction::begin_with(&mut **self, options)
             }
         }
     };

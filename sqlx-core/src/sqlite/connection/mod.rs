@@ -5,7 +5,9 @@ use std::ptr::NonNull;
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
-use libsqlite3_sys::sqlite3;
+use libsqlite3_sys::{
+    sqlite3, sqlite3_txn_state, SQLITE_TXN_NONE, SQLITE_TXN_READ, SQLITE_TXN_WRITE,
+};
 
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
 
@@ -15,6 +17,7 @@ use crate::error::Error;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::worker::ConnectionWorker;
 use crate::sqlite::statement::VirtualStatement;
+use crate::sqlite::transaction::{SqliteTransactionOptions, SqliteTransactionState};
 use crate::sqlite::{Sqlite, SqliteConnectOptions};
 use crate::transaction::Transaction;
 
@@ -167,11 +170,14 @@ impl Connection for SqliteConnection {
         Box::pin(self.worker.ping())
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    fn begin_with(
+        &mut self,
+        options: SqliteTransactionOptions,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        Transaction::begin_with(self, options)
     }
 
     fn cached_statements_size(&self) -> usize {
@@ -221,6 +227,18 @@ impl LockedSqliteHandle<'_> {
         compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
     ) -> Result<(), Error> {
         collation::create_collation(&mut self.guard.handle, name, compare)
+    }
+
+    /// Fetch the current transaction state of the connection.
+    pub fn transaction_state(&mut self) -> Result<SqliteTransactionState, Error> {
+        let state =
+            match unsafe { sqlite3_txn_state(self.as_raw_handle().as_ptr(), std::ptr::null()) } {
+                SQLITE_TXN_NONE => SqliteTransactionState::None,
+                SQLITE_TXN_READ => SqliteTransactionState::Read,
+                SQLITE_TXN_WRITE => SqliteTransactionState::Write,
+                _ => return Err(Error::Protocol("Invalid transaction state".into())),
+            };
+        Ok(state)
     }
 }
 

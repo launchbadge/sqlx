@@ -17,7 +17,10 @@ pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
 pub use statement::SqliteStatement;
 use std::sync::atomic::AtomicBool;
-pub use transaction::SqliteTransactionManager;
+pub use transaction::{
+    SqliteTransactionBehavior, SqliteTransactionManager, SqliteTransactionOptions,
+    SqliteTransactionState,
+};
 pub use type_info::SqliteTypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
 
