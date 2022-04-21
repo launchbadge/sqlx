@@ -10,27 +10,40 @@ pub struct AnyTransactionManager;
 
 impl TransactionManager for AnyTransactionManager {
     type Database = Any;
+    type Options = ();
 
-    fn begin(conn: &mut AnyConnection) -> BoxFuture<'_, Result<(), Error>> {
+    fn begin_with(conn: &mut AnyConnection, _options: ()) -> BoxFuture<'_, Result<(), Error>> {
         match &mut conn.0 {
             #[cfg(feature = "postgres")]
             AnyConnectionKind::Postgres(conn) => {
-                <crate::postgres::Postgres as Database>::TransactionManager::begin(conn)
+                <crate::postgres::Postgres as Database>::TransactionManager::begin_with(
+                    conn,
+                    Default::default(),
+                )
             }
 
             #[cfg(feature = "mysql")]
             AnyConnectionKind::MySql(conn) => {
-                <crate::mysql::MySql as Database>::TransactionManager::begin(conn)
+                <crate::mysql::MySql as Database>::TransactionManager::begin_with(
+                    conn,
+                    Default::default(),
+                )
             }
 
             #[cfg(feature = "sqlite")]
             AnyConnectionKind::Sqlite(conn) => {
-                <crate::sqlite::Sqlite as Database>::TransactionManager::begin(conn)
+                <crate::sqlite::Sqlite as Database>::TransactionManager::begin_with(
+                    conn,
+                    Default::default(),
+                )
             }
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => {
-                <crate::mssql::Mssql as Database>::TransactionManager::begin(conn)
+                <crate::mssql::Mssql as Database>::TransactionManager::begin_with(
+                    conn,
+                    Default::default(),
+                )
             }
         }
     }
