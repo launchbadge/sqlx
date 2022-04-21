@@ -452,12 +452,6 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_use_transaction_options() -> anyhow::Result<()> {
-    async fn check_in_transaction(conn: &mut MySqlConnection) -> Result<bool, sqlx::Error> {
-        sqlx::query_scalar("SELECT @@in_transaction")
-            .fetch_one(conn)
-            .await
-    }
-
     async fn check_read_only(conn: &mut MySqlConnection) -> Result<bool, sqlx::Error> {
         let result = sqlx::query("UPDATE _sqlx_txn_test SET id=id LIMIT 1")
             .execute(&mut *conn)
@@ -494,7 +488,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
             TRUNCATE _sqlx_txn_test",
         )
         .await?;
-    assert_eq!(check_in_transaction(&mut conn1).await?, false);
     assert_eq!(check_read_only(&mut conn1).await?, false);
 
     let mut conn2 = new::<MySql>().await?;
@@ -504,7 +497,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     let mut txn1 = conn1
         .begin_with(MySqlIsolationLevel::ReadUncommitted.into())
         .await?;
-    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
     assert_eq!(check_read_only(&mut *txn1).await?, false);
 
     let mut txn2 = conn2.begin().await?;
@@ -520,7 +512,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     let mut txn1 = conn1
         .begin_with(MySqlIsolationLevel::ReadCommitted.into())
         .await?;
-    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
     assert_eq!(check_read_only(&mut *txn1).await?, false);
 
     let mut txn2 = conn2.begin().await?;
@@ -538,7 +529,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     let mut txn1 = conn1
         .begin_with(MySqlIsolationLevel::RepeatableRead.into())
         .await?;
-    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
     assert_eq!(check_read_only(&mut *txn1).await?, false);
 
     let mut txn2 = conn2.begin().await?;
@@ -557,7 +547,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     let mut txn1 = conn1
         .begin_with(MySqlIsolationLevel::Serializable.into())
         .await?;
-    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
     assert_eq!(check_read_only(&mut *txn1).await?, false);
     // This will lock the first row
     let _row = sqlx::query("SELECT * FROM _sqlx_txn_test WHERE id=1")
@@ -565,11 +554,15 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
         .await?;
 
     let mut txn2 = conn2.begin().await?;
-    let lock_err = sqlx::query("SELECT * FROM _sqlx_txn_test WHERE id=1 FOR UPDATE NOWAIT")
+    // cannot use NOWAIT before mariadb 10.3
+    sqlx::query("SET innodb_lock_wait_timeout = 1")
+        .execute(&mut *txn2)
+        .await?;
+    let lock_err = sqlx::query("SELECT * FROM _sqlx_txn_test WHERE id=1 FOR UPDATE")
         .fetch_one(&mut *txn2)
         .await
         .unwrap_err();
-    assert!(lock_err.to_string().contains("timeout exceeded"));
+    assert!(lock_err.to_string().contains("timeout"));
     drop(txn2);
     drop(txn1);
 
@@ -578,7 +571,6 @@ async fn it_can_use_transaction_options() -> anyhow::Result<()> {
     let mut txn1 = conn1
         .begin_with(MySqlTransactionOptions::default().read_only())
         .await?;
-    assert_eq!(check_in_transaction(&mut *txn1).await?, true);
     assert_eq!(check_read_only(&mut *txn1).await?, true);
     drop(txn1);
 
