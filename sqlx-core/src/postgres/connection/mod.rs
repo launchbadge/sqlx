@@ -15,6 +15,7 @@ use crate::postgres::message::{
     Close, Message, MessageFormat, Query, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
+use crate::postgres::type_registry::PgTypeRegistry;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
@@ -51,6 +52,10 @@ pub struct PgConnection {
 
     // cache statement by query string to the id and columns
     cache_statement: StatementCache<(Oid, Arc<PgStatementMetadata>)>,
+
+    // keep track of resolved types
+    #[allow(dead_code)]
+    type_registry: PgTypeRegistry,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<Oid, PgTypeInfo>,

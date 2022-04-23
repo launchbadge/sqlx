@@ -18,6 +18,8 @@ mod row;
 mod statement;
 mod transaction;
 mod type_info;
+mod type_info2;
+mod type_registry;
 pub mod types;
 mod value;
 
