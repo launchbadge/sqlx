@@ -1,6 +1,7 @@
 use byteorder::{BigEndian, ByteOrder};
 #[cfg(feature = "serde")]
 use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
+use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
@@ -14,15 +15,32 @@ use crate::types::Type;
 /// used internally by PostgreSQL as primary keys for various system tables.
 ///
 /// [`OID`]: https://www.postgresql.org/docs/current/datatype-oid.html
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Oid(
     /// The raw unsigned integer value sent over the wire
     pub u32,
 );
 
 impl Oid {
+    /// Increment self by one (wrapping on overflow)
     pub(crate) fn incr_one(&mut self) {
         self.0 = self.0.wrapping_add(1);
+    }
+
+    /// Wrap a `u32` as an OID.
+    pub const fn from_u32(oid: u32) -> Self {
+        Self(oid)
+    }
+
+    /// Get the corresponding `u32` from the OID.
+    pub const fn to_u32(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Display for Oid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to_u32().fmt(f)
     }
 }
 

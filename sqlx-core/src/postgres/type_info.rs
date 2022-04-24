@@ -237,7 +237,7 @@ impl PgTypeInfo {
 impl PgType {
     /// Returns the corresponding `PgType` if the OID is a built-in type and recognized by SQLx.
     pub(crate) fn try_from_oid(oid: Oid) -> Option<Self> {
-        type_info2::PgBuiltinType::try_from_oid(oid.0).map(PgType::from)
+        type_info2::PgBuiltinType::try_from_oid(oid).map(PgType::from)
     }
 
     pub(crate) fn oid(&self) -> Oid {
@@ -249,7 +249,7 @@ impl PgType {
 
     pub(crate) fn try_oid(&self) -> Option<Oid> {
         match type_info2::PgBuiltinType::try_from_legacy_type(self) {
-            Ok(builtin) => return Some(Oid(builtin.oid())),
+            Ok(builtin) => return Some(builtin.oid()),
             Err(()) => match self {
                 PgType::Custom(ty) => Some(ty.oid),
                 PgType::DeclareWithOid(oid) => Some(*oid),

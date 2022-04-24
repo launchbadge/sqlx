@@ -16,16 +16,57 @@
 use crate::ext::ustr::UStr;
 use crate::postgres::type_info as type_info1;
 use crate::postgres::type_registry::PgTypeRef;
+use crate::postgres::types::Oid;
 use core::convert::TryFrom;
 use core::iter::Once;
 use std::fmt::Debug;
+use std::ops::Deref;
+
+/// Type alias to make it clearer when an OID actually refers to a type (a row
+/// in `pg_catalog.pg_type`, as opposed to any other kind of Postgres object).
+///
+/// We may eventually replace it with a newtype if needed/wanted.
+///
+/// See <https://www.postgresql.org/docs/current/catalog-pg-type.html>.
+pub type PgTypeOid = Oid;
+
+/// Canonical local name of a Postgres type.
+///
+/// This corresponds to values in the column `typname` from the
+/// `pg_catalog.pg_type` table.
+/// Note: `typname` is not unique. Use `PgFullTypeName` for uniqueness.
+///
+/// This is usually a valid lowercase identifier.
+///
+/// Examples:
+/// - `int8`: the `INT8` primitive type
+/// - `_int8`: array of `INT8`
+/// - `int8range`: range of `INT8`
+/// - `_int8range`: array of range of `INT8`
+///
+/// See <https://www.postgresql.org/docs/current/catalog-pg-type.html>.
+pub struct PgTypeLocalName<Str: Deref<Target = str> = UStr>(pub Str);
+
+/// Canonical full name of a Postgres type.
+///
+/// This corresponds to the pair `(typnamespace, typname)` from the
+/// `pg_catalog.pg_type` table. This pair is unique.
+///
+/// See <https://www.postgresql.org/docs/current/catalog-pg-namespace.html>.
+pub struct PgTypeFullName<Str: Deref<Target = str> = UStr> {
+    /// Namespace of the type
+    // TODO: Add actual support for namespaces!
+    namespace: (),
+    /// Local name of the type
+    name: PgTypeLocalName<Str>,
+}
 
 /// A resolved Postgres type
 ///
 /// In SQLx versions before `0.6`, it was called `PgCustomType`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct PgType<TyDep> {
-    pub(crate) oid: u32,
+    pub(crate) oid: PgTypeOid,
     pub(crate) name: UStr,
     pub(crate) kind: PgTypeKind<TyDep>,
 }
@@ -305,8 +346,8 @@ macro_rules! builtin_kind_to_legacy_kind {
 macro_rules! impl_builtin {
     ($(($ident:ident, $upper:ident, $oid:literal, $display_name:literal, $name:literal, $kind:tt $(,)?)),* $(,)?) => {
         impl PgBuiltinType {
-            pub(crate) const fn try_from_oid(oid: u32) -> Option<Self> {
-                match oid {
+            pub(crate) const fn try_from_oid(oid: PgTypeOid) -> Option<Self> {
+                match oid.to_u32() {
                     $($oid => Some(Self::$ident),)*
                     _ => None,
                 }
@@ -319,8 +360,8 @@ macro_rules! impl_builtin {
                 }
             }
 
-            pub(crate) const fn oid(self) -> u32 {
-                self.const_into::<u32>()
+            pub(crate) const fn oid(self) -> PgTypeOid {
+                self.const_into::<PgTypeOid>()
             }
 
             pub(crate) const fn display_name(self) -> &'static str {
@@ -370,9 +411,9 @@ macro_rules! impl_builtin {
                 }
             }
 
-            pub(crate) const fn into_static_pg_type_with_oid(self) -> &'static PgType<u32> {
+            pub(crate) const fn into_static_pg_type_with_oid(self) -> &'static PgType<PgTypeOid> {
                 match self {
-                    $(Self::$ident => {const PG_TYPE: &'static PgType<u32> = &PgType::$upper; PG_TYPE },)*
+                    $(Self::$ident => {const PG_TYPE: &'static PgType<PgTypeOid> = &PgType::$upper; PG_TYPE },)*
                 }
             }
         }
@@ -393,8 +434,8 @@ macro_rules! impl_builtin {
             }
         }
 
-        impl ConstFromPgBuiltinType for u32 {
-            $(const $upper: Self = $oid;)*
+        impl ConstFromPgBuiltinType for PgTypeOid {
+            $(const $upper: Self = PgTypeOid::from_u32($oid);)*
         }
 
         impl ConstFromPgBuiltinType for &'static str {
@@ -402,7 +443,7 @@ macro_rules! impl_builtin {
         }
 
         impl ConstFromPgBuiltinType for PgTypeRef {
-            $(const $upper: Self = PgTypeRef::Oid($oid);)*
+            $(const $upper: Self = PgTypeRef::Oid(PgTypeOid::from_u32($oid));)*
         }
 
         impl ConstFromPgBuiltinType for PgBuiltinType {
@@ -439,12 +480,6 @@ macro_rules! impl_builtin {
             }
         }
     };
-}
-
-const FOO: &'static PgTypeKind<u32> = &PgTypeKind::<u32>::BOOL_ARRAY;
-
-fn get_me() -> &'static PgTypeKind<u32> {
-    FOO
 }
 
 // DEVELOPER PRO TIP: find builtin type OIDs easily by grepping this file
@@ -551,7 +586,7 @@ impl_builtin![
 ];
 
 impl<TyDep> PgType<TyDep> {
-    pub(crate) fn oid(&self) -> u32 {
+    pub(crate) fn oid(&self) -> PgTypeOid {
         self.oid
     }
 
@@ -591,7 +626,7 @@ impl PgType<PgTypeRef> {
             .map_dependencies(|builtin| PgTypeRef::Oid(builtin.oid()))
     }
 
-    pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
+    pub(crate) fn try_from_oid(oid: PgTypeOid) -> Option<Self> {
         PgBuiltinType::try_from_oid(oid).map(Self::from_builtin)
     }
 

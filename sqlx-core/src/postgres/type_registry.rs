@@ -2,6 +2,8 @@
 //!
 //! # Definitions
 //!
+//! TODO: Redundant with registry definitions.
+//!
 //! ## Postgres type
 //!
 //! A description for the semantics, serialization and contraints of a group of
@@ -44,8 +46,8 @@
 //! its dependencies.
 
 use crate::ext::ustr::UStr;
-use crate::postgres::type_info2::PgBuiltinType;
 use crate::postgres::type_info2::PgType;
+use crate::postgres::type_info2::{PgBuiltinType, PgTypeOid};
 use crate::HashMap;
 use ahash::AHashSet;
 use std::fmt;
@@ -61,6 +63,18 @@ use thiserror::Error;
 /// types such as arrays or records. Besides the builtin types, users may also
 /// define their own custom types. SQLx needs to resolve information about
 /// these type to properly process data (encode/decode).
+///
+/// # Definitions
+///
+/// The registry uses the following vocabulary to represents its level of
+/// knowledge about a type:
+/// - Declared: The Rust programm has a type reference (name or oid), but we
+///   don't know anything more about the type. The reference may even be invalid.
+/// - Missing: We queried the database and there was no type for the
+///   corresponding reference.
+/// - Fetched: We queried the database and know the oid, name and kind.
+///   There is no guarantee about the dependencies.
+/// - Resolved: The type and all its dependencies are fetched.
 ///
 /// # Assumptions
 ///
@@ -111,14 +125,31 @@ use thiserror::Error;
 ///   dependencies.
 /// - `resolve` returns types checked to be deeply resolved (any reachable type
 ///   dependency is present in the registry).
+///
+/// # Limitations
+///
+/// The current implementation of the registry has two main limitations:
+/// 1. You can't serialize/deserialize the registry. This prevents you from
+///    resolving the registry and storing it in a file. The reason for this is
+///    that it heavily uses OID values to identify types but they are not stable
+///    across database resets.
+/// 2. There is no support for mutations. If you change already fetched types
+///    in the database, you must fully clear the registry.
+/// 3. No namespace support. Two types with the same local name but in different
+///    namespaces are not supported currently.
+///
+/// Solving issues 1/2 would probably require a more advanced model for
+/// caching and incremental updates. Solving issue 3 requires to figure out
+/// how to best represent namespaces (and make sure it's compatible with builtin
+/// types).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PgTypeRegistry {
     /// Type name -> Type oid
     name_to_oid: HashMap<UStr, RegistryOid>,
     /// Type oid -> Type info (None if declared but unresolved yet)
-    oid_to_type: HashMap<u32, RegistryType>,
+    oid_to_type: HashMap<PgTypeOid, PgTypeState>,
     /// Map from dependency OID to corresponding resolutions waiting on it to resume
-    pending_resolutions: HashMap<u32, Vec<(u32, PendingTypeResolution)>>,
+    pending_resolutions: HashMap<PgTypeOid, Vec<(PgTypeOid, PendingTypeResolution)>>,
 }
 
 /// Current oid information for a given name.
@@ -131,7 +162,7 @@ enum RegistryOid {
     /// The DB was queried, but no oid was found for this name.
     NotInDatabase,
     /// The DB was queried: the value of the oid is now resolved.
-    Resolved(u32),
+    Resolved(PgTypeOid),
 }
 
 impl Default for RegistryOid {
@@ -142,24 +173,24 @@ impl Default for RegistryOid {
 
 /// Current type information for a given oid.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum RegistryType {
+enum PgTypeState {
     /// OID declared to exist by the Rust code, but the type is not known yet
     ///
     /// (never queried from the DB)
     Declared,
     /// The DB was queried, but no type was found for this oid.
-    NotInDatabase,
+    Missing,
     /// The DB was queried, and the type was resolved for the corresponding name
-    Resolved {
+    Fetched {
         /// Shallow type definition for this OID. Dependencies are not
         /// guaranteed to be present.
-        ty: PgType<u32>,
+        ty: PgType<PgTypeOid>,
         /// Details about the
         state: ResolutionState,
     },
 }
 
-impl Default for RegistryType {
+impl Default for PgTypeState {
     fn default() -> Self {
         Self::Declared
     }
@@ -172,12 +203,12 @@ pub(crate) enum ResolutionState {
     ///
     /// The associated `oid` corresponds to the current dependency preventing
     /// type resolution from moving forward.
-    Partial(u32),
+    Partial(PgTypeOid),
     /// The type is fully resolved, including all its transitive dependencies.
     Full(DependencyGraphDepth),
     /// This type will _never_ be resolved: one its transitive is missing from
     /// the database. The argument the OID of the missing type.
-    DependencyNotInDatabase(u32),
+    DependencyNotInDatabase(PgTypeOid),
 }
 
 /// Depth of a dependency graph.
@@ -217,11 +248,11 @@ impl PgTypeRegistry {
         self.name_to_oid.entry(UStr::Static(name)).or_default();
     }
 
-    pub(crate) fn declare_oid(&mut self, oid: u32) {
+    pub(crate) fn declare_oid(&mut self, oid: PgTypeOid) {
         self.oid_to_type.entry(oid).or_default();
     }
 
-    pub(crate) fn name_to_oid(&self, name: &str) -> Option<u32> {
+    pub(crate) fn name_to_oid(&self, name: &str) -> Option<PgTypeOid> {
         if let Some(RegistryOid::Resolved(oid)) = self.name_to_oid.get(name).copied() {
             Some(oid)
         } else {
@@ -229,11 +260,11 @@ impl PgTypeRegistry {
         }
     }
 
-    pub(crate) fn set_oid_for_name(&mut self, name: UStr, oid: u32) {
+    pub(crate) fn set_oid_for_name(&mut self, name: UStr, oid: PgTypeOid) {
         self.name_to_oid.insert(name, RegistryOid::Resolved(oid));
     }
 
-    pub(crate) fn insert_type(&mut self, ty: PgType<u32>) {
+    pub(crate) fn insert_type(&mut self, ty: PgType<PgTypeOid>) {
         for ty_dep in ty.type_dependencies() {
             self.declare_oid(*ty_dep);
         }
@@ -241,7 +272,7 @@ impl PgTypeRegistry {
         let name = ty.name();
         self.oid_to_type.insert(
             oid,
-            RegistryType::Resolved {
+            PgTypeState::Fetched {
                 ty,
                 state: ResolutionState::Partial(oid),
             },
@@ -255,13 +286,13 @@ impl PgTypeRegistry {
         self.advance_resolutions(oid);
     }
 
-    pub(crate) fn advance_resolutions(&mut self, initial: u32) {
-        let mut resolved: Vec<u32> = vec![initial];
-        while let Some(dep) = resolved.pop() {
+    pub(crate) fn advance_resolutions(&mut self, initial: PgTypeOid) {
+        let mut active: Vec<PgTypeOid> = vec![initial];
+        while let Some(dep) = active.pop() {
             debug_assert!(
                 matches!(
                     self.oid_to_type.get(&dep),
-                    Some(RegistryType::Resolved { .. })
+                    Some(PgTypeState::Fetched { .. })
                 ),
                 "freshly resolved dependency with oid {} is in the registry",
                 dep
@@ -282,7 +313,7 @@ impl PgTypeRegistry {
                     }
                     GeneratorState::Complete(res) => {
                         // This oid is now fully resolved, add it to the active list
-                        resolved.push(oid);
+                        active.push(oid);
                         match res {
                             Ok(depth) => ResolutionState::Full(depth),
                             Err(dep) => ResolutionState::DependencyNotInDatabase(dep),
@@ -290,7 +321,7 @@ impl PgTypeRegistry {
                     }
                 };
                 let state: &mut ResolutionState = match self.oid_to_type.get_mut(&oid) {
-                    Some(RegistryType::Resolved { state, .. }) => state,
+                    Some(PgTypeState::Fetched { state, .. }) => state,
                     _ => unreachable!("(BUG) Type resolution progressed but type is missing from the registry [oid={}]", oid),
                 };
                 debug_assert_eq!(
@@ -321,8 +352,8 @@ impl PgTypeRegistry {
     /// Internal method to retrieve a type with its resolution state.
     pub(crate) fn get_by_oid_with_resolution(
         &self,
-        oid: u32,
-    ) -> Result<(&PgType<u32>, ResolutionState), GetPgTypeError> {
+        oid: PgTypeOid,
+    ) -> Result<(&PgType<PgTypeOid>, ResolutionState), GetPgTypeError> {
         if let Some(builtin) = PgBuiltinType::try_from_oid(oid) {
             return Ok((
                 builtin.into_static_pg_type_with_oid(),
@@ -332,19 +363,19 @@ impl PgTypeRegistry {
 
         match self.oid_to_type.get(&oid) {
             None => Err(GetPgTypeError::Undeclared),
-            Some(RegistryType::Declared) => Err(GetPgTypeError::Unresolved),
-            Some(RegistryType::NotInDatabase) => Err(GetPgTypeError::NotInDatabase),
-            Some(RegistryType::Resolved { ty, state }) => Ok((ty, *state)),
+            Some(PgTypeState::Declared) => Err(GetPgTypeError::Unresolved),
+            Some(PgTypeState::Missing) => Err(GetPgTypeError::NotInDatabase),
+            Some(PgTypeState::Fetched { ty, state }) => Ok((ty, *state)),
         }
     }
 
     /// Get a shallowly-resolved type from the local registry, by type oid.
-    pub(crate) fn get_by_oid(&self, oid: u32) -> Result<&PgType<u32>, GetPgTypeError> {
+    pub(crate) fn get_by_oid(&self, oid: PgTypeOid) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
         self.get_by_oid_with_resolution(oid).map(|(ty, _)| ty)
     }
 
     /// Get a shallowly-resolved type from the local registry, by name.
-    pub(crate) fn get_by_name(&self, name: &str) -> Result<&PgType<u32>, GetPgTypeError> {
+    pub(crate) fn get_by_name(&self, name: &str) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
         if let Some(builtin) = PgBuiltinType::try_from_name(name) {
             return Ok(builtin.into_static_pg_type_with_oid());
         }
@@ -358,7 +389,10 @@ impl PgTypeRegistry {
     }
 
     /// Get a shallowly-resolved type from the local registry
-    pub(crate) fn get(&self, oid_or_name: &PgTypeRef) -> Result<&PgType<u32>, GetPgTypeError> {
+    pub(crate) fn get(
+        &self,
+        oid_or_name: &PgTypeRef,
+    ) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
         match oid_or_name {
             PgTypeRef::Oid(oid) => self.get_by_oid(*oid),
             PgTypeRef::Name(name) => self.get_by_name(name),
@@ -382,7 +416,7 @@ impl PgTypeRegistry {
     /// Get a deeply-resolved type from the local registry.
     pub(crate) fn resolve(
         &self,
-        oid: u32,
+        oid: PgTypeOid,
     ) -> Result<PgType<PgLiveTypeRef<'_>>, ResolvePgTypeError> {
         match self.get_by_oid_with_resolution(oid) {
             Ok((ty, state)) => match state {
@@ -435,21 +469,21 @@ impl PgTypeRegistry {
 pub(crate) enum PendingTypeResolution {
     /// Going through the Depth First Search of the type dependency graph.
     Search {
-        visited: AHashSet<u32>,
+        visited: AHashSet<PgTypeOid>,
         // Vec<(parent_oid, node_oid)>
-        stack: Vec<(Option<u32>, u32)>,
+        stack: Vec<(Option<PgTypeOid>, PgTypeOid)>,
         max_depth: DependencyGraphDepth,
     },
     /// Traversal is complete:
     /// - On success, store the depth of the dependency chain
     /// - On error, store of oid of the transitive dependency missing from the
     ///   database.
-    Complete(Result<DependencyGraphDepth, u32>),
+    Complete(Result<DependencyGraphDepth, PgTypeOid>),
 }
 
 impl PendingTypeResolution {
     /// Create a new resolution starting at the type with the provided oid.
-    pub(crate) fn new(oid: u32) -> Self {
+    pub(crate) fn new(oid: PgTypeOid) -> Self {
         Self::Search {
             visited: AHashSet::new(),
             stack: vec![(None, oid)],
@@ -468,7 +502,7 @@ impl PendingTypeResolution {
     pub(crate) fn resume(
         &mut self,
         registry: &PgTypeRegistry,
-    ) -> GeneratorState<u32, Result<DependencyGraphDepth, u32>> {
+    ) -> GeneratorState<PgTypeOid, Result<DependencyGraphDepth, PgTypeOid>> {
         'generator: loop {
             match self {
                 Self::Search {
@@ -543,13 +577,13 @@ pub enum GeneratorState<Y, R> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum PgTypeRef {
     /// Internal type OID.
-    Oid(u32),
+    Oid(PgTypeOid),
     /// Type name.
     Name(UStr),
     /// Internal type OID and type name.
     ///
     /// When retrieving a type through this variant, both values must match.
-    OidAndName(u32, UStr),
+    OidAndName(PgTypeOid, UStr),
 }
 
 /// A fully-resolved Postgres type reference attached to a local type registry.
@@ -595,7 +629,7 @@ pub(crate) struct ResolvedPgCompositeKind<'reg> {
     /// Registry containing the resolved dependencies
     registry: &'reg PgTypeRegistry,
     /// Field list
-    fields: &'reg [(String, u32)],
+    fields: &'reg [(String, PgTypeOid)],
 }
 
 impl<'reg> ResolvedPgCompositeKind<'reg> {
@@ -616,7 +650,9 @@ impl<'reg> ResolvedPgCompositeKind<'reg> {
 
 #[cfg(test)]
 mod test {
-    use crate::postgres::type_info2::{ConstFromPgBuiltinType, PgBuiltinType, PgType, PgTypeKind};
+    use crate::postgres::type_info2::{
+        ConstFromPgBuiltinType, PgBuiltinType, PgType, PgTypeKind, PgTypeOid,
+    };
     use crate::postgres::type_registry::{
         GetPgTypeError, PgLiveTypeRef, PgTypeRef, PgTypeRegistry, ResolvePgTypeError,
     };
@@ -637,7 +673,7 @@ mod test {
     #[test]
     fn test_custom_simple_type() {
         let mut registry = PgTypeRegistry::new();
-        let oid: u32 = 10000;
+        let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
             name: "custom".into(),
@@ -673,7 +709,7 @@ mod test {
     #[test]
     fn test_int4_domain_type() {
         let mut registry = PgTypeRegistry::new();
-        let oid: u32 = 10000;
+        let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
             name: "myint".into(),
@@ -712,7 +748,7 @@ mod test {
     #[test]
     fn test_linked_list_of_int4_by_uuid() {
         let mut registry = PgTypeRegistry::new();
-        let oid: u32 = 10000;
+        let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
             name: "node".into(),
@@ -766,13 +802,13 @@ mod test {
     #[test]
     fn test_linked_list_of_domain_by_uuid() {
         let mut registry = PgTypeRegistry::new();
-        let domain_oid: u32 = 10000;
+        let domain_oid = PgTypeOid::from_u32(10000);
         let domain_typ = PgType {
             oid: domain_oid,
             name: "myint".into(),
             kind: PgTypeKind::Domain(PgBuiltinType::Int4.oid()),
         };
-        let node_oid: u32 = 10001;
+        let node_oid = PgTypeOid::from_u32(10001);
         let node_typ = PgType {
             oid: node_oid,
             name: "node".into(),
@@ -843,7 +879,7 @@ mod test {
     #[test]
     fn test_linked_list_of_int4_by_self() {
         let mut registry = PgTypeRegistry::new();
-        let oid: u32 = 10000;
+        let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
             name: "node".into(),
