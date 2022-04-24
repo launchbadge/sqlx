@@ -53,11 +53,18 @@ use ahash::AHashSet;
 use std::fmt;
 use thiserror::Error;
 
-/// Local registry of Postgres type information.
+/// Local state of the Postgres catalog.
 ///
-/// The goal of the type registry is to track information about Postgres
-/// types between the local Rust program and the remote Postgres database.
-/// It enables caching and synchronization.
+/// This objects is the central point for synchronization between the Rust
+/// program and remote database for objects in the `pg_catalog` namespace.
+/// It acts as a cache with a high level API to retrieve information about the
+/// data queried from the database.
+///
+/// It is used in particular to support namespaces and custom types.
+/// (Actually it does not support namespaces yet, but it should get this feature
+/// at some point before SQLx 1.0).
+///
+/// # Types
 ///
 /// Postgres supports an advanced type system with primitives and composite
 /// types such as arrays or records. Besides the builtin types, users may also
@@ -143,7 +150,7 @@ use thiserror::Error;
 /// how to best represent namespaces (and make sure it's compatible with builtin
 /// types).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PgTypeRegistry {
+pub(crate) struct LocalPgCatalog {
     /// Type name -> Type oid
     name_to_oid: HashMap<UStr, RegistryOid>,
     /// Type oid -> Type info (None if declared but unresolved yet)
@@ -231,7 +238,7 @@ impl DependencyGraphDepth {
     }
 }
 
-impl PgTypeRegistry {
+impl LocalPgCatalog {
     /// Create a new local type registry.
     ///
     /// The new registry contains all [builtin types](PgBuiltinType) (it is not
@@ -348,7 +355,7 @@ pub(crate) enum GetPgTypeError {
     NotInDatabase,
 }
 
-impl PgTypeRegistry {
+impl LocalPgCatalog {
     /// Internal method to retrieve a type with its resolution state.
     pub(crate) fn get_by_oid_with_resolution(
         &self,
@@ -412,7 +419,7 @@ pub(crate) struct ResolvePgTypeError {
     error: GetPgTypeError,
 }
 
-impl PgTypeRegistry {
+impl LocalPgCatalog {
     /// Get a deeply-resolved type from the local registry.
     pub(crate) fn resolve(
         &self,
@@ -501,7 +508,7 @@ impl PendingTypeResolution {
     ///   database.
     pub(crate) fn resume(
         &mut self,
-        registry: &PgTypeRegistry,
+        registry: &LocalPgCatalog,
     ) -> GeneratorState<PgTypeOid, Result<DependencyGraphDepth, PgTypeOid>> {
         'generator: loop {
             match self {
@@ -593,7 +600,7 @@ pub(crate) enum PgTypeRef {
 /// to use this type.
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct PgLiveTypeRef<'reg> {
-    registry: &'reg PgTypeRegistry,
+    registry: &'reg LocalPgCatalog,
     type_ref: PgTypeRef,
 }
 
@@ -627,7 +634,7 @@ impl<'reg> fmt::Debug for PgLiveTypeRef<'reg> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResolvedPgCompositeKind<'reg> {
     /// Registry containing the resolved dependencies
-    registry: &'reg PgTypeRegistry,
+    registry: &'reg LocalPgCatalog,
     /// Field list
     fields: &'reg [(String, PgTypeOid)],
 }
@@ -650,16 +657,16 @@ impl<'reg> ResolvedPgCompositeKind<'reg> {
 
 #[cfg(test)]
 mod test {
+    use crate::postgres::catalog::{
+        GetPgTypeError, LocalPgCatalog, PgLiveTypeRef, PgTypeRef, ResolvePgTypeError,
+    };
     use crate::postgres::type_info2::{
         ConstFromPgBuiltinType, PgBuiltinType, PgType, PgTypeKind, PgTypeOid,
-    };
-    use crate::postgres::type_registry::{
-        GetPgTypeError, PgLiveTypeRef, PgTypeRef, PgTypeRegistry, ResolvePgTypeError,
     };
 
     #[test]
     fn test_empty_registry_has_builtin_types() {
-        let registry = PgTypeRegistry::new();
+        let registry = LocalPgCatalog::new();
         {
             let actual = registry.get_by_oid(PgBuiltinType::Bool.oid());
             assert_eq!(actual, Ok(&PgType::BOOL));
@@ -672,7 +679,7 @@ mod test {
 
     #[test]
     fn test_custom_simple_type() {
-        let mut registry = PgTypeRegistry::new();
+        let mut registry = LocalPgCatalog::new();
         let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
@@ -708,7 +715,7 @@ mod test {
 
     #[test]
     fn test_int4_domain_type() {
-        let mut registry = PgTypeRegistry::new();
+        let mut registry = LocalPgCatalog::new();
         let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
@@ -747,7 +754,7 @@ mod test {
 
     #[test]
     fn test_linked_list_of_int4_by_uuid() {
-        let mut registry = PgTypeRegistry::new();
+        let mut registry = LocalPgCatalog::new();
         let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,
@@ -801,7 +808,7 @@ mod test {
 
     #[test]
     fn test_linked_list_of_domain_by_uuid() {
-        let mut registry = PgTypeRegistry::new();
+        let mut registry = LocalPgCatalog::new();
         let domain_oid = PgTypeOid::from_u32(10000);
         let domain_typ = PgType {
             oid: domain_oid,
@@ -878,7 +885,7 @@ mod test {
 
     #[test]
     fn test_linked_list_of_int4_by_self() {
-        let mut registry = PgTypeRegistry::new();
+        let mut registry = LocalPgCatalog::new();
         let oid = PgTypeOid::from_u32(10000);
         let typ = PgType {
             oid,

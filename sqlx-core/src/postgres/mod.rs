@@ -4,6 +4,7 @@ use crate::executor::Executor;
 
 mod advisory_lock;
 mod arguments;
+mod catalog;
 mod column;
 mod connection;
 mod copy;
@@ -19,7 +20,6 @@ mod statement;
 mod transaction;
 mod type_info;
 mod type_info2;
-mod type_registry;
 pub mod types;
 mod value;
 

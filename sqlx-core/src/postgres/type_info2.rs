@@ -14,8 +14,8 @@
 //! - `LazyPgType`
 
 use crate::ext::ustr::UStr;
+use crate::postgres::catalog::PgTypeRef;
 use crate::postgres::type_info as type_info1;
-use crate::postgres::type_registry::PgTypeRef;
 use crate::postgres::types::Oid;
 use core::convert::TryFrom;
 use core::iter::Once;

@@ -11,11 +11,11 @@ use crate::error::Error;
 use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
+use crate::postgres::catalog::LocalPgCatalog;
 use crate::postgres::message::{
     Close, Message, MessageFormat, Query, ReadyForQuery, Terminate, TransactionStatus,
 };
 use crate::postgres::statement::PgStatementMetadata;
-use crate::postgres::type_registry::PgTypeRegistry;
 use crate::postgres::types::Oid;
 use crate::postgres::{PgConnectOptions, PgTypeInfo, Postgres};
 use crate::transaction::Transaction;
@@ -55,7 +55,7 @@ pub struct PgConnection {
 
     // keep track of resolved types
     #[allow(dead_code)]
-    type_registry: PgTypeRegistry,
+    type_registry: LocalPgCatalog,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<Oid, PgTypeInfo>,
