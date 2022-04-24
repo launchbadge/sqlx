@@ -169,6 +169,7 @@ impl<TyDep> PgTypeKind<TyDep> {
 /// Iterator over the direct type dependencies of of a `PgTypeKind` (or `PgType`).
 ///
 /// This iterator is guaranteed to be finite, but it may yield duplicates.
+#[derive(Debug, Clone)]
 pub(crate) enum PgTypeDeps<'a, TyDep> {
     Zero,
     One(Once<&'a TyDep>),
@@ -480,6 +481,22 @@ macro_rules! impl_builtin {
             }
         }
     };
+}
+
+impl PgBuiltinType {
+    pub(crate) fn try_from_ref(ty_ref: &PgTypeRef) -> Option<Self> {
+        match ty_ref {
+            PgTypeRef::Oid(oid) => PgBuiltinType::try_from_oid(*oid),
+            PgTypeRef::Name(name) => PgBuiltinType::try_from_name(name),
+            PgTypeRef::OidAndName(oid, name) => match (
+                PgBuiltinType::try_from_oid(*oid),
+                PgBuiltinType::try_from_name(name),
+            ) {
+                (Some(a), Some(b)) if a == b => Some(a),
+                _ => None,
+            },
+        }
+    }
 }
 
 // DEVELOPER PRO TIP: find builtin type OIDs easily by grepping this file

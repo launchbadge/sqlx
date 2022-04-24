@@ -109,6 +109,22 @@ use thiserror::Error;
 ///
 /// # Model
 ///
+/// The catalog works in 3 steps:
+/// 1. References: The Rust program declares objects it wishes to use using
+///    references. For types, this corresponds to `PgTypeRef`. A reference
+///    acts as **the input to DB queries**. The local registry keeps track of
+///    references and their state: merely declared, or already retrieved from
+///    the database.
+///
+/// 2. Cache: Queries are handled outside of the catalog. Once the result is
+///    known, it may be inserted.
+///
+/// 3. Analysis: The local catalog also maintains some higher-level analysis
+///    about the stored objects. In particular, it analyses type dependencies
+///    to check if types are fully resolved.
+///
+///
+///
 /// The registry uses the same representation as Postgres: types may depend on
 /// each other; as such, they form a potentially cyclic dependency graph.
 ///
@@ -151,12 +167,62 @@ use thiserror::Error;
 /// types).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LocalPgCatalog {
-    /// Type name -> Type oid
-    name_to_oid: HashMap<UStr, RegistryOid>,
+    /// Map from type references to their value in the cache.
+    ///
+    /// See `ObjectRefState` for details.
+    ///
+    /// Part of the "reference" step.
+    type_refs: HashMap<PgTypeRef, ObjectRefState<PgTypeCacheKey>>,
+
+    /// Fetched type information
+    ///
+    /// This may be seen as a local counterpart to the `pg_catalog.pg_type`
+    /// table, using the `oid` column as the cache key.
+    /// SQLx only keeps track of the oid, full name and kind. The kind is
+    /// enum describing the type, including its dependencies.
+    ///
+    /// Part of the "cache" step.
+    pg_type_cache: HashMap<PgTypeCacheKey, PgType<PgTypeOid>>,
+    // TODO: Keep track of namespaces
+    // /// Fetched namespace information.
+    // ///
+    // /// This may be seen as a local counterpart to the
+    // /// `pg_catalog.pg_namespace` table, using the `oid` column as the cache
+    // /// key.
+    // ///
+    // /// Part of the "cache" step.
+    // pg_namespace_cache: HashMap<PgNamespaceOid, ???>,
+    type_resolutions: HashMap<PgTypeCacheKey, ResolutionState>,
+
     /// Type oid -> Type info (None if declared but unresolved yet)
     oid_to_type: HashMap<PgTypeOid, PgTypeState>,
     /// Map from dependency OID to corresponding resolutions waiting on it to resume
     pending_resolutions: HashMap<PgTypeOid, Vec<(PgTypeOid, PendingTypeResolution)>>,
+}
+
+/// Key used for cached postgres types.
+///
+/// This is currently defined as a mere alias over `PgTypeOid`, but when used
+/// this way it should be treated as an opaque pointer into the catalog cache.
+/// Avoiding indirection by an artificial cache key helps with troubleshooting.
+/// We may consider using a fully opaque type / newtype wrapper if this proves
+/// confusing.
+/// Using an opaque cache key would unlock caching/serialization.
+pub type PgTypeCacheKey = PgTypeOid;
+
+/// A response from the database about an object in `LocalPgCatalog`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ObjectRefState<CacheKey> {
+    /// The local program thinks that this object exists, but it was never
+    /// queried from the database. No assumption can be made about the object.
+    Declared,
+    /// The object is NOT in the database.
+    ///
+    /// The database was queried and the object was not found.
+    Missing,
+    /// The object was successfully fetched from the database. The result is
+    /// available in the `LocalPgCatalog` using the corresponding cache key.
+    Fetched(CacheKey),
 }
 
 /// Current oid information for a given name.
@@ -245,47 +311,53 @@ impl LocalPgCatalog {
     /// empty).
     pub(crate) fn new() -> Self {
         Self {
+            type_refs: HashMap::new(),
+            pg_type_cache: HashMap::new(),
             oid_to_type: HashMap::new(),
-            name_to_oid: HashMap::new(),
             pending_resolutions: HashMap::new(),
+            type_resolutions: HashMap::new(),
         }
     }
 
-    pub(crate) fn declare_name(&mut self, name: &'static str) {
-        self.name_to_oid.entry(UStr::Static(name)).or_default();
-    }
-
-    pub(crate) fn declare_oid(&mut self, oid: PgTypeOid) {
-        self.oid_to_type.entry(oid).or_default();
-    }
-
-    pub(crate) fn name_to_oid(&self, name: &str) -> Option<PgTypeOid> {
-        if let Some(RegistryOid::Resolved(oid)) = self.name_to_oid.get(name).copied() {
-            Some(oid)
-        } else {
-            None
+    pub(crate) fn declare_type(&mut self, type_ref: PgTypeRef) {
+        if let PgTypeRef::Oid(oid) = &type_ref {
+            self.oid_to_type
+                .entry(*oid)
+                .or_insert(PgTypeState::Declared);
         }
+
+        self.type_refs
+            .entry(type_ref)
+            .or_insert(ObjectRefState::Declared);
     }
 
-    pub(crate) fn set_oid_for_name(&mut self, name: UStr, oid: PgTypeOid) {
-        self.name_to_oid.insert(name, RegistryOid::Resolved(oid));
-    }
-
+    // TODO: Check for conflicts, return `Result`
     pub(crate) fn insert_type(&mut self, ty: PgType<PgTypeOid>) {
         for ty_dep in ty.type_dependencies() {
-            self.declare_oid(*ty_dep);
+            self.declare_type(PgTypeRef::Oid(*ty_dep));
         }
         let oid = ty.oid();
-        let name = ty.name();
+        let cache_key: PgTypeCacheKey = oid;
+
+        let fetched = ObjectRefState::Fetched(cache_key);
+        self.type_refs.insert(PgTypeRef::Oid(ty.oid()), fetched);
+        self.type_refs.insert(PgTypeRef::Name(ty.name()), fetched);
+        self.type_refs
+            .insert(PgTypeRef::OidAndName(ty.oid(), ty.name()), fetched);
+
+        if &*ty.name() == "node2" {
+            dbg!(&self);
+        }
+
         self.oid_to_type.insert(
-            oid,
+            cache_key,
             PgTypeState::Fetched {
-                ty,
+                ty: ty.clone(),
                 state: ResolutionState::Partial(oid),
             },
         );
-        self.name_to_oid
-            .insert(name.into(), RegistryOid::Resolved(oid));
+        self.pg_type_cache.insert(cache_key, ty);
+
         self.pending_resolutions
             .entry(oid)
             .or_default()
@@ -350,9 +422,9 @@ pub(crate) enum GetPgTypeError {
     #[error(
         "never resolved from the database (despite being declared in the local type registry)"
     )]
-    Unresolved,
+    Unfetched,
     #[error("missing from the database (despite being declared in the local type registry)")]
-    NotInDatabase,
+    Missing,
 }
 
 impl LocalPgCatalog {
@@ -370,40 +442,32 @@ impl LocalPgCatalog {
 
         match self.oid_to_type.get(&oid) {
             None => Err(GetPgTypeError::Undeclared),
-            Some(PgTypeState::Declared) => Err(GetPgTypeError::Unresolved),
-            Some(PgTypeState::Missing) => Err(GetPgTypeError::NotInDatabase),
+            Some(PgTypeState::Declared) => Err(GetPgTypeError::Unfetched),
+            Some(PgTypeState::Missing) => Err(GetPgTypeError::Missing),
             Some(PgTypeState::Fetched { ty, state }) => Ok((ty, *state)),
         }
     }
 
-    /// Get a shallowly-resolved type from the local registry, by type oid.
-    pub(crate) fn get_by_oid(&self, oid: PgTypeOid) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
-        self.get_by_oid_with_resolution(oid).map(|(ty, _)| ty)
-    }
-
-    /// Get a shallowly-resolved type from the local registry, by name.
-    pub(crate) fn get_by_name(&self, name: &str) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
-        if let Some(builtin) = PgBuiltinType::try_from_name(name) {
+    /// Get a shallowly-resolved type from the local registry
+    pub(crate) fn get_type(
+        &self,
+        ty_ref: &PgTypeRef,
+    ) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
+        if let Some(builtin) = PgBuiltinType::try_from_ref(ty_ref) {
             return Ok(builtin.into_static_pg_type_with_oid());
         }
 
-        match self.name_to_oid.get(name) {
+        match self.type_refs.get(ty_ref) {
             None => Err(GetPgTypeError::Undeclared),
-            Some(RegistryOid::Declared) => Err(GetPgTypeError::Unresolved),
-            Some(RegistryOid::NotInDatabase) => Err(GetPgTypeError::NotInDatabase),
-            Some(RegistryOid::Resolved(oid)) => self.get_by_oid(*oid),
-        }
-    }
-
-    /// Get a shallowly-resolved type from the local registry
-    pub(crate) fn get(
-        &self,
-        oid_or_name: &PgTypeRef,
-    ) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
-        match oid_or_name {
-            PgTypeRef::Oid(oid) => self.get_by_oid(*oid),
-            PgTypeRef::Name(name) => self.get_by_name(name),
-            PgTypeRef::OidAndName(_oid, _name) => todo!(),
+            Some(ObjectRefState::Declared) => Err(GetPgTypeError::Unfetched),
+            Some(ObjectRefState::Missing) => Err(GetPgTypeError::Missing),
+            Some(ObjectRefState::Fetched(cache_key)) => match self.pg_type_cache.get(cache_key) {
+                None => unreachable!(
+                    "(BUG) {:?} is fetched but the value is missing from the cache",
+                    ty_ref
+                ),
+                Some(cached) => Ok(cached),
+            },
         }
     }
 }
@@ -436,13 +500,13 @@ impl LocalPgCatalog {
                 ResolutionState::Partial(blocker) => {
                     return Err(ResolvePgTypeError {
                         typ: PgTypeRef::Oid(blocker),
-                        error: GetPgTypeError::Unresolved,
+                        error: GetPgTypeError::Unfetched,
                     })
                 }
                 ResolutionState::DependencyNotInDatabase(missing) => {
                     return Err(ResolvePgTypeError {
                         typ: PgTypeRef::Oid(missing),
-                        error: GetPgTypeError::NotInDatabase,
+                        error: GetPgTypeError::Missing,
                     })
                 }
             },
@@ -529,13 +593,13 @@ impl PendingTypeResolution {
                             Err(GetPgTypeError::Undeclared) => {
                                 unreachable!("(BUG) Expected type dependencies to be declared in the registry, but [oid={}] is missing", top);
                             }
-                            Err(GetPgTypeError::Unresolved) => {
+                            Err(GetPgTypeError::Unfetched) => {
                                 // Revert changes in this iteration and suspend the resolution
                                 visited.remove(&top);
                                 stack.push((parent, top));
                                 return GeneratorState::Yielded(top);
                             }
-                            Err(GetPgTypeError::NotInDatabase) => {
+                            Err(GetPgTypeError::Missing) => {
                                 *self = Self::Complete(Err(top));
                                 continue 'generator;
                             }
@@ -606,7 +670,7 @@ pub(crate) struct PgLiveTypeRef<'reg> {
 
 impl<'reg> PgLiveTypeRef<'reg> {
     fn resolve(&self) -> PgType<PgLiveTypeRef<'_>> {
-        let t = match self.registry.get(&self.type_ref) {
+        let t = match self.registry.get_type(&self.type_ref) {
             Ok(t) => t,
             Err(e) => unreachable!(
                 "(bug) PgLiveRef should always point to a resolved type [type_ref = {:?}]: {}",
@@ -668,11 +732,11 @@ mod test {
     fn test_empty_registry_has_builtin_types() {
         let registry = LocalPgCatalog::new();
         {
-            let actual = registry.get_by_oid(PgBuiltinType::Bool.oid());
+            let actual = registry.get_type(&PgTypeRef::Oid(PgBuiltinType::Bool.oid()));
             assert_eq!(actual, Ok(&PgType::BOOL));
         }
         {
-            let actual = registry.get_by_oid(PgBuiltinType::BoolArray.oid());
+            let actual = registry.get_type(&PgTypeRef::Oid(PgBuiltinType::BoolArray.oid()));
             assert_eq!(actual, Ok(&PgType::BOOL_ARRAY));
         }
     }
@@ -687,17 +751,17 @@ mod test {
             kind: PgTypeKind::Simple,
         };
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
         }
-        registry.declare_oid(oid);
+        registry.declare_type(PgTypeRef::Oid(oid));
         {
-            let actual = registry.get_by_oid(oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
         }
         registry.insert_type(typ.clone());
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Ok(&typ));
         }
         {
@@ -723,17 +787,17 @@ mod test {
             kind: PgTypeKind::Domain(PgBuiltinType::Int4.oid()),
         };
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
         }
-        registry.declare_oid(oid);
+        registry.declare_type(PgTypeRef::Oid(oid));
         {
-            let actual = registry.get_by_oid(oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
         }
         registry.insert_type(typ.clone());
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Ok(&typ));
         }
         {
@@ -765,17 +829,17 @@ mod test {
             ]),
         };
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
         }
-        registry.declare_oid(oid);
+        registry.declare_type(PgTypeRef::Oid(oid));
         {
-            let actual = registry.get_by_oid(oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
         }
         registry.insert_type(typ.clone());
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Ok(&typ));
         }
         {
@@ -825,23 +889,23 @@ mod test {
             ]),
         };
         {
-            let actual = registry.get_by_oid(domain_oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(domain_oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
-            let actual = registry.get_by_oid(node_oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(node_oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
         }
-        registry.declare_oid(node_oid);
+        registry.declare_type(PgTypeRef::Oid(node_oid));
         {
-            let actual = registry.get_by_oid(domain_oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(domain_oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
-            let actual = registry.get_by_oid(node_oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
+            let actual = registry.get_type(&PgTypeRef::Oid(node_oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
         }
         registry.insert_type(node_typ.clone());
         {
-            let actual = registry.get_by_oid(domain_oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
-            let actual = registry.get_by_oid(node_oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(domain_oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
+            let actual = registry.get_type(&PgTypeRef::Oid(node_oid));
             assert_eq!(actual, Ok(&node_typ));
         }
         {
@@ -850,7 +914,7 @@ mod test {
                 actual,
                 Err(ResolvePgTypeError {
                     typ: PgTypeRef::Oid(domain_oid),
-                    error: GetPgTypeError::Unresolved
+                    error: GetPgTypeError::Unfetched
                 })
             );
         }
@@ -896,17 +960,17 @@ mod test {
             ]),
         };
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Err(GetPgTypeError::Undeclared));
         }
-        registry.declare_oid(oid);
+        registry.declare_type(PgTypeRef::Oid(oid));
         {
-            let actual = registry.get_by_oid(oid);
-            assert_eq!(actual, Err(GetPgTypeError::Unresolved));
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
+            assert_eq!(actual, Err(GetPgTypeError::Unfetched));
         }
         registry.insert_type(typ.clone());
         {
-            let actual = registry.get_by_oid(oid);
+            let actual = registry.get_type(&PgTypeRef::Oid(oid));
             assert_eq!(actual, Ok(&typ));
         }
         {
