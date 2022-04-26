@@ -183,6 +183,7 @@ pub(crate) struct LocalPgCatalog {
     ///
     /// Part of the "cache" step.
     pg_type_cache: HashMap<PgTypeCacheKey, PgType<PgTypeOid>>,
+
     // TODO: Keep track of namespaces
     // /// Fetched namespace information.
     // ///
@@ -192,23 +193,34 @@ pub(crate) struct LocalPgCatalog {
     // ///
     // /// Part of the "cache" step.
     // pg_namespace_cache: HashMap<PgNamespaceOid, ???>,
+    /// Current type resolution information for cached types.
+    ///
+    /// Part of the "analysis" step.
     type_resolutions: HashMap<PgTypeCacheKey, ResolutionState>,
 
-    /// Type oid -> Type info (None if declared but unresolved yet)
-    oid_to_type: HashMap<PgTypeOid, PgTypeState>,
-    /// Map from dependency OID to corresponding resolutions waiting on it to resume
+    /// List of (root_type, type_resolution_generator) for pending type resolutions,
+    /// partitioned by type oid they are currently stuck on.
+    ///
+    /// Part of the "analysis" step.
     pending_resolutions: HashMap<PgTypeOid, Vec<(PgTypeOid, PendingTypeResolution)>>,
 }
 
 /// Key used for cached postgres types.
 ///
-/// This is currently defined as a mere alias over `PgTypeOid`, but when used
-/// this way it should be treated as an opaque pointer into the catalog cache.
-/// Avoiding indirection by an artificial cache key helps with troubleshooting.
-/// We may consider using a fully opaque type / newtype wrapper if this proves
-/// confusing.
-/// Using an opaque cache key would unlock caching/serialization.
-pub type PgTypeCacheKey = PgTypeOid;
+/// This an opaque key into the type cache inside `LocalPgCatalog`. This
+/// identifies a fetched type from the database.
+///
+/// This key has no particular meaning. It is not related to the OID or name.
+/// This is a deliberate choice to enable serialization of the local cache
+/// without relying on the stability of the names and OIDs. The main issue when
+/// using OIDs as cache keys is that custom type OIDs change change across DB
+/// resets.
+// The documentation clearly mentions that the key is opaque. But in practice
+// we still use the OID for now as we don't support offline caches so the
+// stability issue is not a concern.
+// This is a private implementation detail and may change at any time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PgTypeCacheKey(PgTypeOid);
 
 /// A response from the database about an object in `LocalPgCatalog`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -304,65 +316,147 @@ impl DependencyGraphDepth {
     }
 }
 
+#[derive(Debug, Error)]
+pub(crate) enum InsertTypeError {
+    /// Conflict detected when inserting the type `new` relative to the reference `ty_ref`.
+    ///
+    /// `old` and `new` are different, but both match `ty_ref`.
+    #[error("Inserting the type {new:?} into the local catalog conflicts, the referemce {ty_ref:?} is already associated with the different type {old:?}")]
+    Conflict {
+        /// Type reference matching both types
+        ty_ref: PgTypeRef,
+        /// Old cached value for `ty_ref`.
+        ///
+        /// `None` means that it is explicitly missing from the database. It is
+        /// a conflict to try to insert it afterwards without clearing the cache.
+        old: Option<PgType<PgTypeOid>>,
+        /// New type we are trying to insert into the cache.
+        ///
+        /// Invariant: `Some(self.new) != self.old`
+        new: PgType<PgTypeOid>,
+    },
+}
+
 impl LocalPgCatalog {
     /// Create a new local type registry.
     ///
     /// The new registry contains all [builtin types](PgBuiltinType) (it is not
     /// empty).
     pub(crate) fn new() -> Self {
-        Self {
+        use crate::postgres::type_info2::ConstFromPgBuiltinType;
+        let mut catalog = Self {
             type_refs: HashMap::new(),
             pg_type_cache: HashMap::new(),
-            oid_to_type: HashMap::new(),
             pending_resolutions: HashMap::new(),
             type_resolutions: HashMap::new(),
+        };
+        for ty in PgBuiltinType::iter() {
+            catalog
+                .insert_type(ty.into_static_pg_type_with_oid().clone())
+                .expect("builtin type insertion should always succeed");
         }
+        catalog
     }
 
     pub(crate) fn declare_type(&mut self, type_ref: PgTypeRef) {
-        if let PgTypeRef::Oid(oid) = &type_ref {
-            self.oid_to_type
-                .entry(*oid)
-                .or_insert(PgTypeState::Declared);
-        }
-
         self.type_refs
             .entry(type_ref)
             .or_insert(ObjectRefState::Declared);
     }
 
-    // TODO: Check for conflicts, return `Result`
-    pub(crate) fn insert_type(&mut self, ty: PgType<PgTypeOid>) {
+    /// Insert a new type in the local catalog
+    ///
+    /// This will cache the type and update type resolution information.
+    ///
+    /// This function checks for conflicts with previous operations. There are
+    /// two situations for a conflict:
+    /// 1. A reference was explicitly set as missing, but the new type matches it
+    /// 2. The cache already contains a different type matching a reference
+    ///    (e.g. same oid but different kind)
+    /// On conflict, no change is applied.
+    ///
+    /// It is safe to insert exact duplicates.
+    pub(crate) fn insert_type(&mut self, ty: PgType<PgTypeOid>) -> Result<(), InsertTypeError> {
+        let refs = [
+            PgTypeRef::Oid(ty.oid()),
+            PgTypeRef::Name(ty.name()),
+            PgTypeRef::OidAndName(ty.oid(), ty.name()),
+        ];
+
+        // Step 1: Check for conflicts
+        let mut old_refs = refs
+            .as_slice()
+            .into_iter()
+            .filter_map(|r| self.type_refs.get(r).map(|s| (r, s)));
+        let mut old_ty_key: Option<PgTypeCacheKey> = None;
+        let mut old_ty_key_matches: usize = 0;
+        for (old_ref, state) in old_refs {
+            match state {
+                ObjectRefState::Declared => {
+                    // The type was declared, it will be inserted now: no problem there
+                }
+                ObjectRefState::Missing => {
+                    // Conflict: Previous query responded that the type is missing, but now it says it exists.
+                    return Err(InsertTypeError::Conflict {
+                        ty_ref: old_ref.clone(),
+                        old: None,
+                        new: ty,
+                    });
+                }
+                ObjectRefState::Fetched(old_key) => {
+                    let old_ty = self
+                        .pg_type_cache
+                        .get(old_key)
+                        .expect("fetched type must exist in the cache");
+                    if *old_ty != ty {
+                        // The ref (id or name or both) was already in the cache, but the new value
+                        // and old value are different: the type changed!
+                        return Err(InsertTypeError::Conflict {
+                            ty_ref: old_ref.clone(),
+                            old: Some(old_ty.clone()),
+                            new: ty,
+                        });
+                    }
+                    if let Some(prev_old_key) = old_ty_key {
+                        if prev_old_key != *old_key {
+                            unreachable!("(BUG) Inconsistent type cache when inserting `ty`: `cache[key1] == ty` and `cache[key2] == ty` but `key1` != `key2`. {:?}", (prev_old_key, old_key, ty));
+                        }
+                    }
+                    old_ty_key = Some(*old_key);
+                    old_ty_key_matches += 1;
+                }
+            }
+        }
+
+        // Step 2: Early exit to avoid duplicate insertion
+        if let Some(old_ty_key) = old_ty_key {
+            // If any duplicate is found, it MUST match over all references.
+            if old_ty_key_matches != refs.len() {
+                unreachable!("(BUG) Inconsistent type cache when inserting `ty`: found duplicate, but only part of the references were matched. {:?}", (old_ty_key, ty));
+            }
+            return Ok(());
+        }
+
+        // Step 3: Insert the type in the cache
+        let oid = ty.oid();
+        let cache_key = PgTypeCacheKey(oid);
         for ty_dep in ty.type_dependencies() {
             self.declare_type(PgTypeRef::Oid(*ty_dep));
         }
-        let oid = ty.oid();
-        let cache_key: PgTypeCacheKey = oid;
-
-        let fetched = ObjectRefState::Fetched(cache_key);
-        self.type_refs.insert(PgTypeRef::Oid(ty.oid()), fetched);
-        self.type_refs.insert(PgTypeRef::Name(ty.name()), fetched);
-        self.type_refs
-            .insert(PgTypeRef::OidAndName(ty.oid(), ty.name()), fetched);
-
-        if &*ty.name() == "node2" {
-            dbg!(&self);
+        for r in refs {
+            self.type_refs.insert(r, ObjectRefState::Fetched(cache_key));
         }
-
-        self.oid_to_type.insert(
-            cache_key,
-            PgTypeState::Fetched {
-                ty: ty.clone(),
-                state: ResolutionState::Partial(oid),
-            },
-        );
         self.pg_type_cache.insert(cache_key, ty);
+        self.type_resolutions
+            .insert(cache_key, ResolutionState::Partial(oid));
 
+        // Step 4: Advance analysis
         self.pending_resolutions
             .entry(oid)
             .or_default()
             .push((oid, PendingTypeResolution::new(oid)));
         self.advance_resolutions(oid);
+        Ok(())
     }
 
     pub(crate) fn advance_resolutions(&mut self, initial: PgTypeOid) {
@@ -370,10 +464,10 @@ impl LocalPgCatalog {
         while let Some(dep) = active.pop() {
             debug_assert!(
                 matches!(
-                    self.oid_to_type.get(&dep),
-                    Some(PgTypeState::Fetched { .. })
+                    self.type_refs.get(&PgTypeRef::Oid(dep)),
+                    Some(ObjectRefState::Fetched(_))
                 ),
-                "freshly resolved dependency with oid {} is in the registry",
+                "freshly resolved dependency with oid {} should be in the local catalog cache",
                 dep
             );
             let pending = match self.pending_resolutions.remove(&dep) {
@@ -383,7 +477,7 @@ impl LocalPgCatalog {
             for (oid, mut resolution) in pending {
                 let new_state: ResolutionState = match resolution.resume(&self) {
                     GeneratorState::Yielded(new_dep) => {
-                        debug_assert_ne!(new_dep, dep, "type resolution has moved forward");
+                        debug_assert_ne!(new_dep, dep, "type resolution should move forward");
                         self.pending_resolutions
                             .entry(new_dep)
                             .or_default()
@@ -399,9 +493,16 @@ impl LocalPgCatalog {
                         }
                     }
                 };
-                let state: &mut ResolutionState = match self.oid_to_type.get_mut(&oid) {
-                    Some(PgTypeState::Fetched { state, .. }) => state,
+                let cache_key = match self.type_refs.get(&PgTypeRef::Oid(oid)) {
+                    Some(ObjectRefState::Fetched(cache_key)) => cache_key,
                     _ => unreachable!("(BUG) Type resolution progressed but type is missing from the registry [oid={}]", oid),
+                };
+                let state = match self.type_resolutions.get_mut(cache_key) {
+                    Some(s) => s,
+                    _ => unreachable!(
+                        "(BUG) Missing type resolution state for existing cache key {:?}",
+                        cache_key
+                    ),
                 };
                 debug_assert_eq!(
                     *state,
@@ -431,20 +532,29 @@ impl LocalPgCatalog {
     /// Internal method to retrieve a type with its resolution state.
     pub(crate) fn get_by_oid_with_resolution(
         &self,
-        oid: PgTypeOid,
+        ty_ref: &PgTypeRef,
     ) -> Result<(&PgType<PgTypeOid>, ResolutionState), GetPgTypeError> {
-        if let Some(builtin) = PgBuiltinType::try_from_oid(oid) {
-            return Ok((
-                builtin.into_static_pg_type_with_oid(),
-                ResolutionState::Full(DependencyGraphDepth::Finite(0)),
-            ));
-        }
-
-        match self.oid_to_type.get(&oid) {
+        match self.type_refs.get(ty_ref) {
             None => Err(GetPgTypeError::Undeclared),
-            Some(PgTypeState::Declared) => Err(GetPgTypeError::Unfetched),
-            Some(PgTypeState::Missing) => Err(GetPgTypeError::Missing),
-            Some(PgTypeState::Fetched { ty, state }) => Ok((ty, *state)),
+            Some(ObjectRefState::Declared) => Err(GetPgTypeError::Unfetched),
+            Some(ObjectRefState::Missing) => Err(GetPgTypeError::Missing),
+            Some(ObjectRefState::Fetched(cache_key)) => {
+                let ty = match self.pg_type_cache.get(cache_key) {
+                    None => unreachable!(
+                        "(BUG) {:?} is fetched but the value is missing from the cache",
+                        ty_ref
+                    ),
+                    Some(cached) => cached,
+                };
+                let resolution = match self.type_resolutions.get(cache_key) {
+                    None => unreachable!(
+                        "(BUG) {:?} is fetched but the resolution is missing from the catalog",
+                        ty_ref
+                    ),
+                    Some(r) => *r,
+                };
+                Ok((ty, resolution))
+            }
         }
     }
 
@@ -453,10 +563,6 @@ impl LocalPgCatalog {
         &self,
         ty_ref: &PgTypeRef,
     ) -> Result<&PgType<PgTypeOid>, GetPgTypeError> {
-        if let Some(builtin) = PgBuiltinType::try_from_ref(ty_ref) {
-            return Ok(builtin.into_static_pg_type_with_oid());
-        }
-
         match self.type_refs.get(ty_ref) {
             None => Err(GetPgTypeError::Undeclared),
             Some(ObjectRefState::Declared) => Err(GetPgTypeError::Unfetched),
@@ -489,7 +595,7 @@ impl LocalPgCatalog {
         &self,
         oid: PgTypeOid,
     ) -> Result<PgType<PgLiveTypeRef<'_>>, ResolvePgTypeError> {
-        match self.get_by_oid_with_resolution(oid) {
+        match self.get_by_oid_with_resolution(&PgTypeRef::Oid(oid)) {
             Ok((ty, state)) => match state {
                 ResolutionState::Full(_) => {
                     Ok(ty.clone().map_dependencies(|ty_dep| PgLiveTypeRef {
@@ -589,7 +695,7 @@ impl PendingTypeResolution {
                             // duplicates in `PgType::type_dependencies`
                             continue;
                         }
-                        match registry.get_by_oid_with_resolution(top) {
+                        match registry.get_by_oid_with_resolution(&PgTypeRef::Oid(top)) {
                             Err(GetPgTypeError::Undeclared) => {
                                 unreachable!("(BUG) Expected type dependencies to be declared in the registry, but [oid={}] is missing", top);
                             }

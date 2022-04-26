@@ -417,6 +417,12 @@ macro_rules! impl_builtin {
                     $(Self::$ident => {const PG_TYPE: &'static PgType<PgTypeOid> = &PgType::$upper; PG_TYPE },)*
                 }
             }
+
+            pub(crate) fn iter() -> std::array::IntoIter<Self, 92> {
+                [
+                    $(Self::$ident,)*
+                ].into_iter()
+            }
         }
 
         pub(crate) trait ConstFromPgBuiltinType {
@@ -457,8 +463,8 @@ macro_rules! impl_builtin {
 
         impl<TyDep: ConstFromPgBuiltinType> ConstFromPgBuiltinType for PgType<TyDep> {
             $(const $upper: Self = Self {
-                oid: PgBuiltinType::Bool.oid(),
-                name: UStr::Static(PgBuiltinType::Bool.name()),
+                oid: PgBuiltinType::$upper.oid(),
+                name: UStr::Static(PgBuiltinType::$upper.name()),
                 kind: PgTypeKind::<TyDep>::$upper,
             };)*
         }
