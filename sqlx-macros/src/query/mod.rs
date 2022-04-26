@@ -168,7 +168,9 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "postgres" | "postgresql" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
+                let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
+                Ok::<_, crate::Error>(data)
             })?;
 
             expand_with_data(input, data, false)
@@ -181,7 +183,9 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "mssql" | "sqlserver" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::mssql::MssqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
+                let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
+                Ok::<_, crate::Error>(data)
             })?;
 
             expand_with_data(input, data, false)
@@ -194,7 +198,9 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "mysql" | "mariadb" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
+                let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
+                Ok::<_, crate::Error>(data)
             })?;
 
             expand_with_data(input, data, false)
@@ -207,7 +213,9 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         "sqlite" => {
             let data = block_on(async {
                 let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
+                let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
+                Ok::<_, crate::Error>(data)
             })?;
 
             expand_with_data(input, data, false)
