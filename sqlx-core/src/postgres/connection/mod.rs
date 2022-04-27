@@ -54,8 +54,7 @@ pub struct PgConnection {
     cache_statement: StatementCache<(Oid, Arc<PgStatementMetadata>)>,
 
     // keep track of resolved types
-    #[allow(dead_code)]
-    type_registry: LocalPgCatalog,
+    local_catalog: LocalPgCatalog,
 
     // cache user-defined types by id <-> info
     cache_type_info: HashMap<Oid, PgTypeInfo>,

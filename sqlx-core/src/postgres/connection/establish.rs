@@ -147,7 +147,7 @@ impl PgConnection {
             pending_ready_for_query_count: 0,
             next_statement_id: Oid(1),
             cache_statement: StatementCache::new(options.statement_cache_capacity),
-            type_registry: LocalPgCatalog::new(),
+            local_catalog: LocalPgCatalog::new(),
             cache_type_oid: HashMap::new(),
             cache_type_info: HashMap::new(),
             log_settings: options.log_settings.clone(),

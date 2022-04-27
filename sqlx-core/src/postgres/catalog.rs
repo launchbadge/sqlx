@@ -46,8 +46,9 @@
 //! its dependencies.
 
 use crate::ext::ustr::UStr;
-use crate::postgres::type_info2::PgType;
-use crate::postgres::type_info2::{PgBuiltinType, PgTypeOid};
+use crate::postgres::type_info as type_info1;
+use crate::postgres::type_info2::{OwningPgCompositeKind, PgBuiltinType, PgTypeOid};
+use crate::postgres::type_info2::{PgType, PgTypeKind};
 use crate::HashMap;
 use ahash::AHashSet;
 use std::fmt;
@@ -237,50 +238,6 @@ enum ObjectRefState<CacheKey> {
     Fetched(CacheKey),
 }
 
-/// Current oid information for a given name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum RegistryOid {
-    /// Name declared to exist by the Rust code, but the oid value is not known yet
-    ///
-    /// (never queried from the DB)
-    Declared,
-    /// The DB was queried, but no oid was found for this name.
-    NotInDatabase,
-    /// The DB was queried: the value of the oid is now resolved.
-    Resolved(PgTypeOid),
-}
-
-impl Default for RegistryOid {
-    fn default() -> Self {
-        Self::Declared
-    }
-}
-
-/// Current type information for a given oid.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum PgTypeState {
-    /// OID declared to exist by the Rust code, but the type is not known yet
-    ///
-    /// (never queried from the DB)
-    Declared,
-    /// The DB was queried, but no type was found for this oid.
-    Missing,
-    /// The DB was queried, and the type was resolved for the corresponding name
-    Fetched {
-        /// Shallow type definition for this OID. Dependencies are not
-        /// guaranteed to be present.
-        ty: PgType<PgTypeOid>,
-        /// Details about the
-        state: ResolutionState,
-    },
-}
-
-impl Default for PgTypeState {
-    fn default() -> Self {
-        Self::Declared
-    }
-}
-
 /// For a type in the registry, current resolution state of its dependencies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ResolutionState {
@@ -316,41 +273,6 @@ impl DependencyGraphDepth {
     }
 }
 
-#[derive(Debug, Error)]
-pub(crate) enum FlagTypeAsMissingError {
-    /// Conflict detected when marking the reference `ty_ref` as missing.
-    ///
-    /// `old` matches `ty_ref`.
-    #[error("marking the reference {ty_ref:?} as missing conflicts with the already cached type {old:?}")]
-    Conflict {
-        /// Type reference we are trying to mark as missing
-        ty_ref: PgTypeRef,
-        /// Old cached value for `ty_ref`.
-        old: PgType<PgTypeOid>,
-    },
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum InsertTypeError {
-    /// Conflict detected when inserting the type `new` relative to the reference `ty_ref`.
-    ///
-    /// `old` and `new` are different, but both match `ty_ref`.
-    #[error("inserting the type {new:?} into the local catalog conflicts with cached data, the reference {ty_ref:?} is already associated with the different type {old:?}")]
-    Conflict {
-        /// Type reference matching both types
-        ty_ref: PgTypeRef,
-        /// Old cached value for `ty_ref`.
-        ///
-        /// `None` means that it is explicitly missing from the database. It is
-        /// a conflict to try to insert it afterwards without clearing the cache.
-        old: Option<PgType<PgTypeOid>>,
-        /// New type we are trying to insert into the cache.
-        ///
-        /// Invariant: `Some(self.new) != self.old`
-        new: PgType<PgTypeOid>,
-    },
-}
-
 impl LocalPgCatalog {
     /// Create a new local catalog, populated with [builtin types](PgBuiltinType).
     ///
@@ -376,7 +298,44 @@ impl LocalPgCatalog {
             type_resolutions: HashMap::new(),
         }
     }
+}
 
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub(crate) enum FlagTypeAsMissingError {
+    /// Conflict detected when marking the reference `ty_ref` as missing.
+    ///
+    /// `old` matches `ty_ref`.
+    #[error("marking the reference {ty_ref:?} as missing conflicts with the already cached type {old:?}")]
+    Conflict {
+        /// Type reference we are trying to mark as missing
+        ty_ref: PgTypeRef,
+        /// Old cached value for `ty_ref`.
+        old: PgType<PgTypeOid>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub(crate) enum InsertTypeError {
+    /// Conflict detected when inserting the type `new` relative to the reference `ty_ref`.
+    ///
+    /// `old` and `new` are different, but both match `ty_ref`.
+    #[error("inserting the type {new:?} into the local catalog conflicts with cached data, the reference {ty_ref:?} is already associated with the different type {old:?}")]
+    Conflict {
+        /// Type reference matching both types
+        ty_ref: PgTypeRef,
+        /// Old cached value for `ty_ref`.
+        ///
+        /// `None` means that it is explicitly missing from the database. It is
+        /// a conflict to try to insert it afterwards without clearing the cache.
+        old: Option<PgType<PgTypeOid>>,
+        /// New type we are trying to insert into the cache.
+        ///
+        /// Invariant: `Some(self.new) != self.old`
+        new: PgType<PgTypeOid>,
+    },
+}
+
+impl LocalPgCatalog {
     /// Mark a type reference as expected to exist in the remote database.
     ///
     /// If the type reference was already queried from the database, this has
@@ -403,7 +362,7 @@ impl LocalPgCatalog {
         ty_ref: PgTypeRef,
     ) -> Result<(), FlagTypeAsMissingError> {
         match self.type_refs.get(&ty_ref) {
-            Some(ObjectRefState::Fetched(cache_key)) => {
+            Some(ObjectRefState::Fetched(old_key)) => {
                 // Conflict: Already cached and pointing to an existing type
                 let old_ty = self
                     .pg_type_cache
@@ -420,7 +379,11 @@ impl LocalPgCatalog {
             }
             Some(ObjectRefState::Declared) | None => {
                 // Declared or unknown, mark explicitly as missing
-                self.type_refs.insert(type_ref, ObjectRefState::Missing);
+                let oid = ty_ref.as_oid();
+                self.type_refs.insert(ty_ref, ObjectRefState::Missing);
+                if let Some(oid) = oid {
+                    self.advance_resolutions(oid);
+                }
                 Ok(())
             }
         }
@@ -446,7 +409,7 @@ impl LocalPgCatalog {
         ];
 
         // Step 1: Check for conflicts
-        let mut old_refs = refs
+        let old_refs = refs
             .as_slice()
             .into_iter()
             .filter_map(|r| self.type_refs.get(r).map(|s| (r, s)));
@@ -518,6 +481,158 @@ impl LocalPgCatalog {
             .or_default()
             .push((oid, PendingTypeResolution::new(oid)));
         self.advance_resolutions(oid);
+        Ok(())
+    }
+
+    pub(crate) fn insert_legacy_type(
+        &mut self,
+        ty: &type_info1::PgTypeInfo,
+    ) -> Result<(), InsertTypeError> {
+        let mut stack: Vec<&type_info1::PgTypeInfo> = vec![ty];
+        let mut visited: AHashSet<PgTypeOid> = AHashSet::new();
+        while let Some(ty) = stack.pop() {
+            let first_visit = visited.insert(ty.oid());
+            if !first_visit {
+                continue;
+            }
+
+            #[rustfmt::skip]
+            let res = match &ty.0 {
+                type_info1::PgType::Bool => self.insert_type(PgBuiltinType::Bool.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Bytea => self.insert_type(PgBuiltinType::Bytea.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Char => self.insert_type(PgBuiltinType::Char.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Name => self.insert_type(PgBuiltinType::Name.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int8 => self.insert_type(PgBuiltinType::Int8.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int2 => self.insert_type(PgBuiltinType::Int2.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int4 => self.insert_type(PgBuiltinType::Int4.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Text => self.insert_type(PgBuiltinType::Text.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Oid => self.insert_type(PgBuiltinType::Oid.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Json => self.insert_type(PgBuiltinType::Json.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::JsonArray => self.insert_type(PgBuiltinType::JsonArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Point => self.insert_type(PgBuiltinType::Point.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Lseg => self.insert_type(PgBuiltinType::Lseg.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Path => self.insert_type(PgBuiltinType::Path.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Box => self.insert_type(PgBuiltinType::Box.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Polygon => self.insert_type(PgBuiltinType::Polygon.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Line => self.insert_type(PgBuiltinType::Line.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::LineArray => self.insert_type(PgBuiltinType::LineArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Cidr => self.insert_type(PgBuiltinType::Cidr.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::CidrArray => self.insert_type(PgBuiltinType::CidrArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Float4 => self.insert_type(PgBuiltinType::Float4.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Float8 => self.insert_type(PgBuiltinType::Float8.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Unknown => self.insert_type(PgBuiltinType::Unknown.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Circle => self.insert_type(PgBuiltinType::Circle.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::CircleArray => self.insert_type(PgBuiltinType::CircleArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Macaddr8 => self.insert_type(PgBuiltinType::Macaddr8.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Macaddr8Array => self.insert_type(PgBuiltinType::Macaddr8Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Macaddr => self.insert_type(PgBuiltinType::Macaddr.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Inet => self.insert_type(PgBuiltinType::Inet.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::BoolArray => self.insert_type(PgBuiltinType::BoolArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::ByteaArray => self.insert_type(PgBuiltinType::ByteaArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::CharArray => self.insert_type(PgBuiltinType::CharArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::NameArray => self.insert_type(PgBuiltinType::NameArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int2Array => self.insert_type(PgBuiltinType::Int2Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int4Array => self.insert_type(PgBuiltinType::Int4Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TextArray => self.insert_type(PgBuiltinType::TextArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::BpcharArray => self.insert_type(PgBuiltinType::BpcharArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::VarcharArray => self.insert_type(PgBuiltinType::VarcharArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int8Array => self.insert_type(PgBuiltinType::Int8Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::PointArray => self.insert_type(PgBuiltinType::PointArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::LsegArray => self.insert_type(PgBuiltinType::LsegArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::PathArray => self.insert_type(PgBuiltinType::PathArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::BoxArray => self.insert_type(PgBuiltinType::BoxArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Float4Array => self.insert_type(PgBuiltinType::Float4Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Float8Array => self.insert_type(PgBuiltinType::Float8Array.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::PolygonArray => self.insert_type(PgBuiltinType::PolygonArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::OidArray => self.insert_type(PgBuiltinType::OidArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::MacaddrArray => self.insert_type(PgBuiltinType::MacaddrArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::InetArray => self.insert_type(PgBuiltinType::InetArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Bpchar => self.insert_type(PgBuiltinType::Bpchar.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Varchar => self.insert_type(PgBuiltinType::Varchar.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Date => self.insert_type(PgBuiltinType::Date.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Time => self.insert_type(PgBuiltinType::Time.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Timestamp => self.insert_type(PgBuiltinType::Timestamp.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TimestampArray => self.insert_type(PgBuiltinType::TimestampArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::DateArray => self.insert_type(PgBuiltinType::DateArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TimeArray => self.insert_type(PgBuiltinType::TimeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Timestamptz => self.insert_type(PgBuiltinType::Timestamptz.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TimestamptzArray => self.insert_type(PgBuiltinType::TimestamptzArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Interval => self.insert_type(PgBuiltinType::Interval.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::IntervalArray => self.insert_type(PgBuiltinType::IntervalArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::NumericArray => self.insert_type(PgBuiltinType::NumericArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Timetz => self.insert_type(PgBuiltinType::Timetz.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TimetzArray => self.insert_type(PgBuiltinType::TimetzArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Bit => self.insert_type(PgBuiltinType::Bit.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::BitArray => self.insert_type(PgBuiltinType::BitArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Varbit => self.insert_type(PgBuiltinType::Varbit.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::VarbitArray => self.insert_type(PgBuiltinType::VarbitArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Numeric => self.insert_type(PgBuiltinType::Numeric.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Record => self.insert_type(PgBuiltinType::Record.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::RecordArray => self.insert_type(PgBuiltinType::RecordArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Uuid => self.insert_type(PgBuiltinType::Uuid.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::UuidArray => self.insert_type(PgBuiltinType::UuidArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Jsonb => self.insert_type(PgBuiltinType::Jsonb.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::JsonbArray => self.insert_type(PgBuiltinType::JsonbArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int4Range => self.insert_type(PgBuiltinType::Int4Range.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int4RangeArray => self.insert_type(PgBuiltinType::Int4RangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::NumRange => self.insert_type(PgBuiltinType::NumRange.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::NumRangeArray => self.insert_type(PgBuiltinType::NumRangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TsRange => self.insert_type(PgBuiltinType::TsRange.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TsRangeArray => self.insert_type(PgBuiltinType::TsRangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TstzRange => self.insert_type(PgBuiltinType::TstzRange.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::TstzRangeArray => self.insert_type(PgBuiltinType::TstzRangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::DateRange => self.insert_type(PgBuiltinType::DateRange.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::DateRangeArray => self.insert_type(PgBuiltinType::DateRangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int8Range => self.insert_type(PgBuiltinType::Int8Range.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Int8RangeArray => self.insert_type(PgBuiltinType::Int8RangeArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Jsonpath => self.insert_type(PgBuiltinType::Jsonpath.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::JsonpathArray => self.insert_type(PgBuiltinType::JsonpathArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Money => self.insert_type(PgBuiltinType::Money.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::MoneyArray => self.insert_type(PgBuiltinType::MoneyArray.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Void => self.insert_type(PgBuiltinType::Void.into_static_pg_type_with_oid().clone()),
+                type_info1::PgType::Custom(ty) => {
+                    let oid = ty.oid;
+                    let name = ty.name.clone();
+                    let kind = match &ty.kind {
+                        type_info1::PgTypeKind::Simple => PgTypeKind::Simple,
+                        type_info1::PgTypeKind::Pseudo => PgTypeKind::Pseudo,
+                        type_info1::PgTypeKind::Domain(ty) => {
+                            stack.push(ty);
+                            PgTypeKind::Domain(ty.oid())
+                        },
+                        type_info1::PgTypeKind::Composite(legacy_fields) => {
+                            let mut fields: Vec<(String, PgTypeOid)> = Vec::with_capacity(legacy_fields.len());
+                            for (key, ty) in legacy_fields.iter() {
+                                stack.push(ty);
+                                fields.push((key.clone(), ty.oid()));
+                            }
+                            PgTypeKind::Composite(OwningPgCompositeKind { fields: fields.into() })
+                        }
+                        type_info1::PgTypeKind::Array(ty) => {
+                            stack.push(ty);
+                            PgTypeKind::Array(ty.oid())
+                        }
+                        type_info1::PgTypeKind::Enum(variants) =>
+                            PgTypeKind::Enum(variants.iter().cloned().collect::<Vec<_>>().into_boxed_slice()),
+
+                        type_info1::PgTypeKind::Range(ty) => {
+                            stack.push(ty);
+                            PgTypeKind::Array(ty.oid())
+                        }
+                    };
+                    self.insert_type(PgType {
+                        oid,
+                        name,
+                        kind,
+                    })
+                }
+                type_info1::PgType::DeclareWithName(name) => unreachable!("(bug) use of unresolved type declaration [name={}]", &name),
+                type_info1::PgType::DeclareWithOid(oid) => unreachable!("(bug) use of unresolved type declaration [oid={}]", oid),
+            };
+            if let Err(e) = res {
+                return Err(e);
+            }
+        }
         Ok(())
     }
 
@@ -825,6 +940,16 @@ pub(crate) enum PgTypeRef {
     OidAndName(PgTypeOid, UStr),
 }
 
+impl PgTypeRef {
+    pub(crate) fn as_oid(&self) -> Option<PgTypeOid> {
+        match self {
+            Self::Oid(oid) => Some(*oid),
+            Self::Name(_) => None,
+            Self::OidAndName(oid, _) => Some(*oid),
+        }
+    }
+}
+
 /// A fully-resolved Postgres type reference attached to a local type registry.
 ///
 /// Any type reachable from it through the registry is guaranteed to be fully
@@ -889,8 +1014,10 @@ impl<'reg> ResolvedPgCompositeKind<'reg> {
 
 #[cfg(test)]
 mod test {
+    use crate::ext::ustr::UStr;
     use crate::postgres::catalog::{
-        GetPgTypeError, LocalPgCatalog, PgLiveTypeRef, PgTypeRef, ResolvePgTypeError,
+        FlagTypeAsMissingError, GetPgTypeError, LocalPgCatalog, PgLiveTypeRef, PgTypeRef,
+        ResolvePgTypeError,
     };
     use crate::postgres::type_info2::{
         ConstFromPgBuiltinType, PgBuiltinType, PgType, PgTypeKind, PgTypeOid,
@@ -941,6 +1068,54 @@ mod test {
                     name: "custom".into(),
                     kind: PgTypeKind::Simple,
                 })
+            );
+        }
+    }
+
+    #[test]
+    fn test_flag_type_as_missing() {
+        let mut registry = LocalPgCatalog::new();
+        {
+            let actual = registry.flag_type_as_missing(PgTypeRef::Name(UStr::Static("custom")));
+            let expected = Ok(());
+            assert_eq!(actual, expected);
+        }
+        {
+            let actual = registry.flag_type_as_missing(PgTypeRef::Name(UStr::Static("custom")));
+            let expected = Ok(());
+            assert_eq!(actual, expected, "flagging as missing twice should succeed");
+        }
+        {
+            let actual = registry.flag_type_as_missing(PgTypeRef::Name(UStr::Static("int4")));
+            let expected = Err(FlagTypeAsMissingError::Conflict {
+                ty_ref: PgTypeRef::Name(UStr::Static("int4")),
+                old: PgBuiltinType::Int4.into_static_pg_type_with_oid().clone(),
+            });
+            assert_eq!(
+                actual, expected,
+                "conflicts with existing builtins should be detected"
+            );
+        }
+        registry
+            .insert_type(PgType {
+                oid: PgTypeOid::from_u32(10000),
+                name: "myint".into(),
+                kind: PgTypeKind::Domain(PgBuiltinType::Int4.oid()),
+            })
+            .unwrap();
+        {
+            let actual = registry.flag_type_as_missing(PgTypeRef::Name(UStr::Static("myint")));
+            let expected = Err(FlagTypeAsMissingError::Conflict {
+                ty_ref: PgTypeRef::Name(UStr::Static("myint")),
+                old: PgType {
+                    oid: PgTypeOid::from_u32(10000),
+                    name: "myint".into(),
+                    kind: PgTypeKind::Domain(PgBuiltinType::Int4.oid()),
+                },
+            });
+            assert_eq!(
+                actual, expected,
+                "conflicts with existing custom types should be detected"
             );
         }
     }

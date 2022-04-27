@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::ext::ustr::UStr;
+use crate::postgres::catalog::PgTypeRef;
 use crate::postgres::message::{ParameterDescription, RowDescription};
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
@@ -167,6 +168,7 @@ impl PgConnection {
 
             // cache the type name <-> oid relationship in a paired hashmap
             // so we don't come down this road again
+            self.local_catalog.insert_legacy_type(&info);
             self.cache_type_info.insert(oid, info.clone());
             self.cache_type_oid
                 .insert(info.0.name().to_string().into(), oid);
@@ -185,12 +187,23 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
+            type Row = (String, i8, i8, Oid, Oid, Oid);
+            let row: Option<Row> = query_as(
                 "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
             )
             .bind(oid)
-            .fetch_one(&mut *self)
+            .fetch_optional(&mut *self)
             .await?;
+
+            let row = match row {
+                Some(r) => r,
+                None => {
+                    self.local_catalog.flag_type_as_missing(PgTypeRef::Oid(oid));
+                    return Err(Error::RowNotFound);
+                }
+            };
+
+            let (name, typ_type, category, relation_id, element, base_type) = row;
 
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);

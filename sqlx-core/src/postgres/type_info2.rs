@@ -118,7 +118,7 @@ impl<TyDep> PgTypeKind<TyDep> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct OwningPgCompositeKind<TyDep> {
     /// Field list
-    fields: Box<[(String, TyDep)]>,
+    pub(crate) fields: Box<[(String, TyDep)]>,
 }
 
 impl<TyDep> OwningPgCompositeKind<TyDep> {
