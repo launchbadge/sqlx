@@ -317,11 +317,25 @@ impl DependencyGraphDepth {
 }
 
 #[derive(Debug, Error)]
+pub(crate) enum FlagTypeAsMissingError {
+    /// Conflict detected when marking the reference `ty_ref` as missing.
+    ///
+    /// `old` matches `ty_ref`.
+    #[error("marking the reference {ty_ref:?} as missing conflicts with the already cached type {old:?}")]
+    Conflict {
+        /// Type reference we are trying to mark as missing
+        ty_ref: PgTypeRef,
+        /// Old cached value for `ty_ref`.
+        old: PgType<PgTypeOid>,
+    },
+}
+
+#[derive(Debug, Error)]
 pub(crate) enum InsertTypeError {
     /// Conflict detected when inserting the type `new` relative to the reference `ty_ref`.
     ///
     /// `old` and `new` are different, but both match `ty_ref`.
-    #[error("Inserting the type {new:?} into the local catalog conflicts, the referemce {ty_ref:?} is already associated with the different type {old:?}")]
+    #[error("inserting the type {new:?} into the local catalog conflicts with cached data, the reference {ty_ref:?} is already associated with the different type {old:?}")]
     Conflict {
         /// Type reference matching both types
         ty_ref: PgTypeRef,
@@ -338,18 +352,11 @@ pub(crate) enum InsertTypeError {
 }
 
 impl LocalPgCatalog {
-    /// Create a new local type registry.
+    /// Create a new local catalog, populated with [builtin types](PgBuiltinType).
     ///
-    /// The new registry contains all [builtin types](PgBuiltinType) (it is not
-    /// empty).
+    /// Use [`empty`] to create a local catalog without any content.
     pub(crate) fn new() -> Self {
-        use crate::postgres::type_info2::ConstFromPgBuiltinType;
-        let mut catalog = Self {
-            type_refs: HashMap::new(),
-            pg_type_cache: HashMap::new(),
-            pending_resolutions: HashMap::new(),
-            type_resolutions: HashMap::new(),
-        };
+        let mut catalog = Self::empty();
         for ty in PgBuiltinType::iter() {
             catalog
                 .insert_type(ty.into_static_pg_type_with_oid().clone())
@@ -358,10 +365,65 @@ impl LocalPgCatalog {
         catalog
     }
 
-    pub(crate) fn declare_type(&mut self, type_ref: PgTypeRef) {
+    /// Create a new empty local catalog.
+    ///
+    /// Use [`new`] to create a local catalog populated with builtin types.
+    pub(crate) fn empty() -> Self {
+        Self {
+            type_refs: HashMap::new(),
+            pg_type_cache: HashMap::new(),
+            pending_resolutions: HashMap::new(),
+            type_resolutions: HashMap::new(),
+        }
+    }
+
+    /// Mark a type reference as expected to exist in the remote database.
+    ///
+    /// If the type reference was already queried from the database, this has
+    /// no effect.
+    pub(crate) fn declare_type(&mut self, ty_ref: PgTypeRef) {
         self.type_refs
-            .entry(type_ref)
+            .entry(ty_ref)
             .or_insert(ObjectRefState::Declared);
+    }
+
+    /// Mark a type reference as known to be missing from the remote database.
+    ///
+    /// This function is used to report "not found" errors back to the catalog.
+    /// It helps ensuring the consistency of the data and providing better
+    /// error messages.
+    ///
+    /// This function checks for conflicts with previous operations. A conflict
+    /// occurs when the cache already contains a type matching the reference.
+    /// On conflict, no change is applied.
+    ///
+    /// It is safe to flag the same reference as missing multiple times.
+    pub(crate) fn flag_type_as_missing(
+        &mut self,
+        ty_ref: PgTypeRef,
+    ) -> Result<(), FlagTypeAsMissingError> {
+        match self.type_refs.get(&ty_ref) {
+            Some(ObjectRefState::Fetched(cache_key)) => {
+                // Conflict: Already cached and pointing to an existing type
+                let old_ty = self
+                    .pg_type_cache
+                    .get(old_key)
+                    .expect("(BUG) fetched type must exist in the cache");
+                Err(FlagTypeAsMissingError::Conflict {
+                    ty_ref,
+                    old: old_ty.clone(),
+                })
+            }
+            Some(ObjectRefState::Missing) => {
+                // Already known as missing, nothing to do
+                Ok(())
+            }
+            Some(ObjectRefState::Declared) | None => {
+                // Declared or unknown, mark explicitly as missing
+                self.type_refs.insert(type_ref, ObjectRefState::Missing);
+                Ok(())
+            }
+        }
     }
 
     /// Insert a new type in the local catalog
@@ -407,7 +469,7 @@ impl LocalPgCatalog {
                     let old_ty = self
                         .pg_type_cache
                         .get(old_key)
-                        .expect("fetched type must exist in the cache");
+                        .expect("(BUG) fetched type must exist in the cache");
                     if *old_ty != ty {
                         // The ref (id or name or both) was already in the cache, but the new value
                         // and old value are different: the type changed!
