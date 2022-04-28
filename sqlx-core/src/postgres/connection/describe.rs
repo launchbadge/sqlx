@@ -168,7 +168,10 @@ impl PgConnection {
 
             // cache the type name <-> oid relationship in a paired hashmap
             // so we don't come down this road again
-            self.local_catalog.insert_legacy_type(&info);
+            match self.local_catalog.insert_legacy_type(&info) {
+                Ok(()) => {}
+                Err(e) => eprintln!("WARNING: insert conflict when caching the type: {}", e),
+            }
             self.cache_type_info.insert(oid, info.clone());
             self.cache_type_oid
                 .insert(info.0.name().to_string().into(), oid);

@@ -61,9 +61,13 @@ pub struct PgTypeFullName<Str: Deref<Target = str> = UStr> {
     name: PgTypeLocalName<Str>,
 }
 
-/// A resolved Postgres type
+/// An owning full Postgres type
 ///
 /// In SQLx versions before `0.6`, it was called `PgCustomType`.
+///
+/// This type by itself does not guarantee that it (or its dependencies) exist
+/// in the remote database. Use `ResolvedPgType` if you need stronger guarantees
+/// about the validity of the type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct PgType<TyDep> {
     pub(crate) oid: PgTypeOid,
@@ -78,9 +82,9 @@ pub(crate) struct PgType<TyDep> {
 /// - <https://www.postgresql.org/docs/13/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE>
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum PgTypeKind<TyDep, Composite = OwningPgCompositeKind<TyDep>> {
+pub(crate) enum PgTypeKind<TyDep> {
     /// `b` in `pg_type.typtype`.
-    // TODO: Rename to `Base` for consistency with Postgres.
+    // TODO: Rename to `Base` for consistency with Postgres?
     Simple,
     /// `p` in `pg_type.typtype`.
     Pseudo,
@@ -91,7 +95,7 @@ pub(crate) enum PgTypeKind<TyDep, Composite = OwningPgCompositeKind<TyDep>> {
     /// `c` in `pg_type.typtype`.
     ///
     /// With the list of fields.
-    Composite(Composite),
+    Composite(PgCompositeKind<TyDep>),
     /// `A` in `pg_type.typcategory` (represent arrays as a first-class kind)
     ///
     /// With the element type.
@@ -107,21 +111,28 @@ pub(crate) enum PgTypeKind<TyDep, Composite = OwningPgCompositeKind<TyDep>> {
 }
 
 impl<TyDep> PgTypeKind<TyDep> {
+    /// Create a new `PgTypeKind::Composite` with the supplied fields
     pub(crate) fn composite(fields: impl Into<Box<[(String, TyDep)]>>) -> Self {
-        Self::Composite(OwningPgCompositeKind {
-            fields: fields.into(),
-        })
+        Self::Composite(PgCompositeKind::new(fields))
     }
 }
 
 /// Postgres composite kind details, owning its fields
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct OwningPgCompositeKind<TyDep> {
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct PgCompositeKind<TyDep> {
     /// Field list
     pub(crate) fields: Box<[(String, TyDep)]>,
 }
 
-impl<TyDep> OwningPgCompositeKind<TyDep> {
+impl<TyDep> PgCompositeKind<TyDep> {
+    /// Create a new `PgCompositeKind` with the supplied fields
+    pub(crate) fn new(fields: impl Into<Box<[(String, TyDep)]>>) -> Self {
+        Self {
+            fields: fields.into(),
+        }
+    }
+
+    /// Get an iterator over the fields
     pub(crate) fn fields(
         &self,
     ) -> impl Iterator<Item = (&str, &TyDep)> + DoubleEndedIterator + ExactSizeIterator {
@@ -138,15 +149,15 @@ impl<TyDep> PgTypeKind<TyDep> {
             Self::Simple => PgTypeKind::Simple,
             Self::Pseudo => PgTypeKind::Pseudo,
             Self::Domain(wrapped) => PgTypeKind::Domain(f(wrapped)),
-            Self::Composite(composite) => PgTypeKind::Composite(OwningPgCompositeKind {
-                fields: composite
+            Self::Composite(composite) => PgTypeKind::composite(
+                composite
                     .fields
                     .into_vec()
                     .into_iter()
                     .map(|(k, t)| (k, f(t)))
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
-            }),
+            ),
             Self::Array(elem) => PgTypeKind::Array(f(elem)),
             Self::Enum(variants) => PgTypeKind::Enum(variants),
             Self::Range(item) => PgTypeKind::Range(f(item)),
@@ -613,7 +624,11 @@ impl<TyDep> PgType<TyDep> {
         self.oid
     }
 
-    pub(crate) fn name(&self) -> UStr {
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn owned_name(&self) -> UStr {
         self.name.clone()
     }
 

@@ -47,11 +47,13 @@
 
 use crate::ext::ustr::UStr;
 use crate::postgres::type_info as type_info1;
-use crate::postgres::type_info2::{OwningPgCompositeKind, PgBuiltinType, PgTypeOid};
+use crate::postgres::type_info2::{PgBuiltinType, PgCompositeKind, PgTypeOid};
 use crate::postgres::type_info2::{PgType, PgTypeKind};
 use crate::HashMap;
 use ahash::AHashSet;
 use std::fmt;
+use std::fmt::Formatter;
+use std::hash::Hasher;
 use thiserror::Error;
 
 /// Local state of the Postgres catalog.
@@ -404,8 +406,8 @@ impl LocalPgCatalog {
     pub(crate) fn insert_type(&mut self, ty: PgType<PgTypeOid>) -> Result<(), InsertTypeError> {
         let refs = [
             PgTypeRef::Oid(ty.oid()),
-            PgTypeRef::Name(ty.name()),
-            PgTypeRef::OidAndName(ty.oid(), ty.name()),
+            PgTypeRef::Name(ty.owned_name()),
+            PgTypeRef::OidAndName(ty.oid(), ty.owned_name()),
         ];
 
         // Step 1: Check for conflicts
@@ -606,7 +608,7 @@ impl LocalPgCatalog {
                                 stack.push(ty);
                                 fields.push((key.clone(), ty.oid()));
                             }
-                            PgTypeKind::Composite(OwningPgCompositeKind { fields: fields.into() })
+                            PgTypeKind::Composite(PgCompositeKind { fields: fields.into() })
                         }
                         type_info1::PgTypeKind::Array(ty) => {
                             stack.push(ty);
@@ -695,34 +697,26 @@ impl LocalPgCatalog {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Error)]
 pub(crate) enum GetPgTypeError {
-    #[error("never declared in the local type registry")]
+    #[error("never declared in the local catalog")]
     Undeclared,
-    #[error(
-        "never resolved from the database (despite being declared in the local type registry)"
-    )]
+    #[error("never fetched from the database (despite being declared in the local catalog)")]
     Unfetched,
-    #[error("missing from the database (despite being declared in the local type registry)")]
+    #[error("does not exist in the remote database")]
     Missing,
 }
 
 impl LocalPgCatalog {
     /// Internal method to retrieve a type with its resolution state.
-    pub(crate) fn get_by_oid_with_resolution(
+    pub(crate) fn get_type_complete(
         &self,
         ty_ref: &PgTypeRef,
-    ) -> Result<(&PgType<PgTypeOid>, ResolutionState), GetPgTypeError> {
+    ) -> Result<(PgTypeCacheKey, &PgType<PgTypeOid>, ResolutionState), GetPgTypeError> {
         match self.type_refs.get(ty_ref) {
             None => Err(GetPgTypeError::Undeclared),
             Some(ObjectRefState::Declared) => Err(GetPgTypeError::Unfetched),
             Some(ObjectRefState::Missing) => Err(GetPgTypeError::Missing),
             Some(ObjectRefState::Fetched(cache_key)) => {
-                let ty = match self.pg_type_cache.get(cache_key) {
-                    None => unreachable!(
-                        "(BUG) {:?} is fetched but the value is missing from the cache",
-                        ty_ref
-                    ),
-                    Some(cached) => cached,
-                };
+                let ty = self.get_type_by_cache_key(cache_key);
                 let resolution = match self.type_resolutions.get(cache_key) {
                     None => unreachable!(
                         "(BUG) {:?} is fetched but the resolution is missing from the catalog",
@@ -730,12 +724,13 @@ impl LocalPgCatalog {
                     ),
                     Some(r) => *r,
                 };
-                Ok((ty, resolution))
+                Ok((*cache_key, ty, resolution))
             }
         }
     }
 
     /// Get a shallowly-resolved type from the local registry
+    #[allow(dead_code)]
     pub(crate) fn get_type(
         &self,
         ty_ref: &PgTypeRef,
@@ -744,13 +739,23 @@ impl LocalPgCatalog {
             None => Err(GetPgTypeError::Undeclared),
             Some(ObjectRefState::Declared) => Err(GetPgTypeError::Unfetched),
             Some(ObjectRefState::Missing) => Err(GetPgTypeError::Missing),
-            Some(ObjectRefState::Fetched(cache_key)) => match self.pg_type_cache.get(cache_key) {
-                None => unreachable!(
-                    "(BUG) {:?} is fetched but the value is missing from the cache",
-                    ty_ref
-                ),
-                Some(cached) => Ok(cached),
-            },
+            Some(ObjectRefState::Fetched(cache_key)) => Ok(self.get_type_by_cache_key(cache_key)),
+        }
+    }
+
+    /// Get a shallowly-resolved type from the local registry, through the cache key
+    ///
+    /// Panic if the cache key is invalid.
+    pub(crate) fn get_type_by_cache_key(
+        &self,
+        ty_cache_key: &PgTypeCacheKey,
+    ) -> &PgType<PgTypeOid> {
+        match self.pg_type_cache.get(ty_cache_key) {
+            None => unreachable!(
+                "(BUG) cache key {:?} is fetched but the value is missing from the cache",
+                ty_cache_key
+            ),
+            Some(cached) => cached,
         }
     }
 }
@@ -767,19 +772,81 @@ pub(crate) struct ResolvePgTypeError {
 }
 
 impl LocalPgCatalog {
-    /// Get a deeply-resolved type from the local registry.
-    pub(crate) fn resolve(
+    /// Get a deeply-resolved type from the local catalog.
+    fn unchecked_resolve_type_by_cache_key(&self, cache_key: PgTypeCacheKey) -> ResolvedPgType<'_> {
+        let ty = match self.pg_type_cache.get(&cache_key) {
+            Some(ty) => ty,
+            None => unreachable!(
+                "(BUG) No fully-resolved type in the local catalog for the key {:?}",
+                cache_key
+            ),
+        };
+        let kind: ResolvedPgTypeKind<'_> = match &ty.kind {
+            PgTypeKind::Simple => ResolvedPgTypeKind::Simple,
+            PgTypeKind::Pseudo => ResolvedPgTypeKind::Pseudo,
+            PgTypeKind::Domain(inner) => {
+                ResolvedPgTypeKind::Domain(self.resolve_type_ref(*inner).unwrap())
+            }
+            PgTypeKind::Composite(kind) => ResolvedPgTypeKind::Composite(ResolvedPgCompositeKind {
+                catalog: self,
+                fields: &kind.fields,
+            }),
+            PgTypeKind::Array(elem) => {
+                ResolvedPgTypeKind::Array(self.resolve_type_ref(*elem).unwrap())
+            }
+            PgTypeKind::Enum(variants) => ResolvedPgTypeKind::Enum(&*variants),
+            PgTypeKind::Range(item) => {
+                ResolvedPgTypeKind::Range(self.resolve_type_ref(*item).unwrap())
+            }
+        };
+        ResolvedPgType {
+            oid: ty.oid,
+            name: ty.name(),
+            kind,
+        }
+    }
+
+    /// Try to get a smart reference to a deeply-resolved type from the local catalog.
+    pub(crate) fn resolve_type(
         &self,
         oid: PgTypeOid,
-    ) -> Result<PgType<PgLiveTypeRef<'_>>, ResolvePgTypeError> {
-        match self.get_by_oid_with_resolution(&PgTypeRef::Oid(oid)) {
-            Ok((ty, state)) => match state {
-                ResolutionState::Full(_) => {
-                    Ok(ty.clone().map_dependencies(|ty_dep| PgLiveTypeRef {
-                        registry: self,
-                        type_ref: PgTypeRef::Oid(ty_dep),
-                    }))
+    ) -> Result<ResolvedPgType<'_>, ResolvePgTypeError> {
+        match self.get_type_complete(&PgTypeRef::Oid(oid)) {
+            Ok((cache_key, _ty, state)) => match state {
+                ResolutionState::Full(_) => Ok(self.unchecked_resolve_type_by_cache_key(cache_key)),
+                ResolutionState::Partial(blocker) => {
+                    return Err(ResolvePgTypeError {
+                        typ: PgTypeRef::Oid(blocker),
+                        error: GetPgTypeError::Unfetched,
+                    })
                 }
+                ResolutionState::DependencyNotInDatabase(missing) => {
+                    return Err(ResolvePgTypeError {
+                        typ: PgTypeRef::Oid(missing),
+                        error: GetPgTypeError::Missing,
+                    })
+                }
+            },
+            Err(error) => {
+                return Err(ResolvePgTypeError {
+                    typ: PgTypeRef::Oid(oid),
+                    error,
+                })
+            }
+        }
+    }
+
+    /// Try to get a smart reference to a deeply-resolved type from the local catalog.
+    pub(crate) fn resolve_type_ref(
+        &self,
+        oid: PgTypeOid,
+    ) -> Result<ResolvedPgTypeRef<'_>, ResolvePgTypeError> {
+        match self.get_type_complete(&PgTypeRef::Oid(oid)) {
+            Ok((cache_key, _ty, state)) => match state {
+                ResolutionState::Full(_) => Ok(ResolvedPgTypeRef {
+                    catalog: self,
+                    cache_key,
+                }),
                 ResolutionState::Partial(blocker) => {
                     return Err(ResolvePgTypeError {
                         typ: PgTypeRef::Oid(blocker),
@@ -872,7 +939,7 @@ impl PendingTypeResolution {
                             // duplicates in `PgType::type_dependencies`
                             continue;
                         }
-                        match registry.get_by_oid_with_resolution(&PgTypeRef::Oid(top)) {
+                        match registry.get_type_complete(&PgTypeRef::Oid(top)) {
                             Err(GetPgTypeError::Undeclared) => {
                                 unreachable!("(BUG) Expected type dependencies to be declared in the registry, but [oid={}] is missing", top);
                             }
@@ -886,7 +953,7 @@ impl PendingTypeResolution {
                                 *self = Self::Complete(Err(top));
                                 continue 'generator;
                             }
-                            Ok((ty, state)) => {
+                            Ok((_cache_key, ty, state)) => {
                                 match state {
                                     ResolutionState::Full(depth) => {
                                         *max_depth = std::cmp::max(*max_depth, depth)
@@ -941,6 +1008,7 @@ pub(crate) enum PgTypeRef {
 }
 
 impl PgTypeRef {
+    /// If known, return the type OID
     pub(crate) fn as_oid(&self) -> Option<PgTypeOid> {
         match self {
             Self::Oid(oid) => Some(*oid),
@@ -950,63 +1018,113 @@ impl PgTypeRef {
     }
 }
 
-/// A fully-resolved Postgres type reference attached to a local type registry.
+/// A smart reference to a fully resolved type in the local catalog.
 ///
-/// Any type reachable from it through the registry is guaranteed to be fully
-/// resolved. In other words, all metadata was already queried from the database
-/// to use this type.
-#[derive(Clone, PartialEq, Eq)]
-pub(crate) struct PgLiveTypeRef<'reg> {
-    registry: &'reg LocalPgCatalog,
-    type_ref: PgTypeRef,
+/// Any type reachable from this reference is guaranteed to be fully resolved
+/// as well.
+///
+/// `ResolvedPgTypeRef` values are compared by identity (as opposed to value).
+#[derive(Clone, Copy, Eq)]
+pub(crate) struct ResolvedPgTypeRef<'catalog> {
+    /// Reference to the local catalog containing the type and its dependencies.
+    catalog: &'catalog LocalPgCatalog,
+    /// Key into the catalog's type cache.
+    cache_key: PgTypeCacheKey,
 }
 
-impl<'reg> PgLiveTypeRef<'reg> {
-    fn resolve(&self) -> PgType<PgLiveTypeRef<'_>> {
-        let t = match self.registry.get_type(&self.type_ref) {
-            Ok(t) => t,
-            Err(e) => unreachable!(
-                "(bug) PgLiveRef should always point to a resolved type [type_ref = {:?}]: {}",
-                &self.type_ref, e
-            ),
-        };
-        t.clone().map_dependencies(|type_ref| PgLiveTypeRef {
-            registry: self.registry,
-            type_ref: PgTypeRef::Oid(type_ref),
-        })
+impl<'catalog> ResolvedPgTypeRef<'catalog> {
+    fn resolve(&self) -> ResolvedPgType<'catalog> {
+        self.catalog
+            .unchecked_resolve_type_by_cache_key(self.cache_key)
     }
 }
 
-impl<'reg> fmt::Debug for PgLiveTypeRef<'reg> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'catalog> fmt::Debug for ResolvedPgTypeRef<'catalog> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "PgLiveTypeRef {{registry, type_ref: {:?}}}",
-            &self.type_ref
+            "ResolvedPgTypeRef{{catalog:..., cache_key:{:?}}}",
+            self.cache_key
         )
     }
 }
 
-/// Postgres composite kind details, checked to only use fully resolved dependencies
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ResolvedPgCompositeKind<'reg> {
-    /// Registry containing the resolved dependencies
-    registry: &'reg LocalPgCatalog,
-    /// Field list
-    fields: &'reg [(String, PgTypeOid)],
+impl<'catalog> PartialEq for ResolvedPgTypeRef<'catalog> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.catalog, other.catalog) && self.cache_key == other.cache_key
+    }
 }
 
-impl<'reg> ResolvedPgCompositeKind<'reg> {
+impl<'catalog> std::hash::Hash for ResolvedPgTypeRef<'catalog> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.catalog, state);
+        self.cache_key.hash(state);
+    }
+}
+
+/// A view for a resolved Postgres type
+///
+/// Similar to [`PgType`], but guaranteeing that it is fully resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ResolvedPgType<'catalog> {
+    pub(crate) oid: PgTypeOid,
+    pub(crate) name: &'catalog str,
+    pub(crate) kind: ResolvedPgTypeKind<'catalog>,
+}
+
+/// `PgTypeKind` equivalent for `ResolvedPgType`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) enum ResolvedPgTypeKind<'catalog> {
+    Simple,
+    Pseudo,
+    Domain(ResolvedPgTypeRef<'catalog>),
+    Composite(ResolvedPgCompositeKind<'catalog>),
+    Array(ResolvedPgTypeRef<'catalog>),
+    Enum(&'catalog [String]),
+    Range(ResolvedPgTypeRef<'catalog>),
+}
+
+/// Composite kind implementation for `ResolvedPgType`.
+#[derive(Clone, Copy, Eq)]
+#[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
+pub(crate) struct ResolvedPgCompositeKind<'catalog> {
+    catalog: &'catalog LocalPgCatalog,
+    fields: &'catalog [(String, PgTypeOid)],
+}
+
+impl<'catalog> fmt::Debug for ResolvedPgCompositeKind<'catalog> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "ResolvedPgCompositeKind{{catalog:..., fields:{:?}}}",
+            self.fields
+        )
+    }
+}
+
+impl<'catalog> PartialEq for ResolvedPgCompositeKind<'catalog> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.catalog, other.catalog) && self.fields == other.fields
+    }
+}
+
+impl<'catalog> std::hash::Hash for ResolvedPgCompositeKind<'catalog> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.catalog, state);
+        self.fields.hash(state);
+    }
+}
+
+impl<'catalog> ResolvedPgCompositeKind<'catalog> {
     pub(crate) fn fields(
         &self,
-    ) -> impl Iterator<Item = (&str, PgLiveTypeRef<'reg>)> + DoubleEndedIterator + ExactSizeIterator
-    {
-        let registry = &self.registry;
+    ) -> impl Iterator<Item = (&str, ResolvedPgTypeRef<'catalog>)>
+           + DoubleEndedIterator
+           + ExactSizeIterator {
+        let catalog = self.catalog;
         self.fields.iter().map(move |(name, ty)| {
-            let ty = PgLiveTypeRef {
-                registry,
-                type_ref: PgTypeRef::Oid(*ty),
-            };
+            let ty = catalog.resolve_type_ref(*ty).unwrap();
             (name.as_str(), ty)
         })
     }
@@ -1016,8 +1134,8 @@ impl<'reg> ResolvedPgCompositeKind<'reg> {
 mod test {
     use crate::ext::ustr::UStr;
     use crate::postgres::catalog::{
-        FlagTypeAsMissingError, GetPgTypeError, LocalPgCatalog, PgLiveTypeRef, PgTypeRef,
-        ResolvePgTypeError,
+        FlagTypeAsMissingError, GetPgTypeError, LocalPgCatalog, PgTypeRef, ResolvePgTypeError,
+        ResolvedPgCompositeKind, ResolvedPgType, ResolvedPgTypeKind, ResolvedPgTypeRef,
     };
     use crate::postgres::type_info2::{
         ConstFromPgBuiltinType, PgBuiltinType, PgType, PgTypeKind, PgTypeOid,
@@ -1060,13 +1178,13 @@ mod test {
             assert_eq!(actual, Ok(&typ));
         }
         {
-            let actual = registry.resolve(oid);
+            let actual = registry.resolve_type(oid);
             assert_eq!(
                 actual,
-                Ok(PgType {
+                Ok(ResolvedPgType {
                     oid,
                     name: "custom".into(),
-                    kind: PgTypeKind::Simple,
+                    kind: ResolvedPgTypeKind::Simple,
                 })
             );
         }
@@ -1144,16 +1262,17 @@ mod test {
             assert_eq!(actual, Ok(&typ));
         }
         {
-            let actual = registry.resolve(oid);
+            let actual = registry.resolve_type(oid);
             assert_eq!(
                 actual,
-                Ok(PgType {
+                Ok(ResolvedPgType {
                     oid,
                     name: "myint".into(),
-                    kind: PgTypeKind::Domain(PgLiveTypeRef {
-                        registry: &registry,
-                        type_ref: PgTypeRef::Oid(PgBuiltinType::Int4.oid())
-                    }),
+                    kind: ResolvedPgTypeKind::Domain(
+                        registry
+                            .resolve_type_ref(PgBuiltinType::Int4.oid())
+                            .unwrap()
+                    ),
                 })
             );
         }
@@ -1186,28 +1305,19 @@ mod test {
             assert_eq!(actual, Ok(&typ));
         }
         {
-            let actual = registry.resolve(oid);
+            let actual = registry.resolve_type(oid);
             assert_eq!(
                 actual,
-                Ok(PgType {
+                Ok(ResolvedPgType {
                     oid,
                     name: "node".into(),
-                    kind: PgTypeKind::composite(vec![
-                        (
-                            "value".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(PgBuiltinType::Int4.oid())
-                            }
-                        ),
-                        (
-                            "next".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(PgBuiltinType::Uuid.oid())
-                            }
-                        ),
-                    ],)
+                    kind: ResolvedPgTypeKind::Composite(ResolvedPgCompositeKind {
+                        catalog: &registry,
+                        fields: &[
+                            ("value".to_string(), PgBuiltinType::Int4.oid()),
+                            ("next".to_string(), PgBuiltinType::Uuid.oid()),
+                        ]
+                    })
                 })
             );
         }
@@ -1252,7 +1362,7 @@ mod test {
             assert_eq!(actual, Ok(&node_typ));
         }
         {
-            let actual = registry.resolve(node_oid);
+            let actual = registry.resolve_type(node_oid);
             assert_eq!(
                 actual,
                 Err(ResolvePgTypeError {
@@ -1263,28 +1373,19 @@ mod test {
         }
         registry.insert_type(domain_typ.clone());
         {
-            let actual = registry.resolve(node_oid);
+            let actual = registry.resolve_type(node_oid);
             assert_eq!(
                 actual,
-                Ok(PgType {
+                Ok(ResolvedPgType {
                     oid: node_oid,
                     name: "node".into(),
-                    kind: PgTypeKind::composite(vec![
-                        (
-                            "value".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(domain_oid)
-                            }
-                        ),
-                        (
-                            "next".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(PgBuiltinType::Uuid.oid())
-                            }
-                        ),
-                    ],)
+                    kind: ResolvedPgTypeKind::Composite(ResolvedPgCompositeKind {
+                        catalog: &registry,
+                        fields: &[
+                            ("value".to_string(), domain_oid),
+                            ("next".to_string(), PgBuiltinType::Uuid.oid()),
+                        ]
+                    })
                 })
             );
         }
@@ -1317,28 +1418,19 @@ mod test {
             assert_eq!(actual, Ok(&typ));
         }
         {
-            let actual = registry.resolve(oid);
+            let actual = registry.resolve_type(oid);
             assert_eq!(
                 actual,
-                Ok(PgType {
+                Ok(ResolvedPgType {
                     oid,
                     name: "node".into(),
-                    kind: PgTypeKind::composite(vec![
-                        (
-                            "value".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(PgBuiltinType::Int4.oid())
-                            }
-                        ),
-                        (
-                            "next".to_string(),
-                            PgLiveTypeRef {
-                                registry: &registry,
-                                type_ref: PgTypeRef::Oid(oid)
-                            }
-                        ),
-                    ],)
+                    kind: ResolvedPgTypeKind::Composite(ResolvedPgCompositeKind {
+                        catalog: &registry,
+                        fields: &[
+                            ("value".to_string(), PgBuiltinType::Int4.oid()),
+                            ("next".to_string(), oid),
+                        ]
+                    })
                 })
             );
         }
