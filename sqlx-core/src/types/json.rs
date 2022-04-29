@@ -1,8 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue as JsonRawValue;
-use serde_json::Value as JsonValue;
+pub use serde_json::value::RawValue as JsonRawValue;
+pub use serde_json::Value as JsonValue;
 
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::decode::Decode;
