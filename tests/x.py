@@ -187,6 +187,16 @@ for runtime in ["async-std", "tokio"]:
                 tag=f"postgres_{version}_ssl" if runtime == "async-std" else f"postgres_{version}_ssl_{runtime}",
             )
 
+        ## +client-ssl
+        for version in ["14_client_ssl", "13_client_ssl", "12_client_ssl", "11_client_ssl", "10_client_ssl", "9_6_client_ssl"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
+                comment=f"test postgres {version} no-password",
+                database_url_args="sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt",
+                service=f"postgres_{version}",
+                tag=f"postgres_{version}_no_password" if runtime == "async-std" else f"postgres_{version}_no_password_{runtime}",
+            )
+
         #
         # mysql
         #

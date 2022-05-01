@@ -61,7 +61,10 @@ def start_database(driver, database, cwd):
         return f"mysql://root:password@127.0.0.1:{port}/{database}"
 
     elif driver.startswith("postgres"):
-        return f"postgres://postgres:password@localhost:{port}/{database}"
+        if driver.endswith("client_ssl"):
+            return f"postgres://postgres@localhost:{port}/{database}"
+        else:
+            return f"postgres://postgres:password@localhost:{port}/{database}"
 
     elif driver.startswith("mssql"):
         return f"mssql://sa:Password123!@127.0.0.1:{port}/{database}"
