@@ -1201,6 +1201,160 @@ VALUES
 }
 
 #[sqlx_macros::test]
+async fn it_resolves_custom_types_in_anonymous_records() -> anyhow::Result<()> {
+    use sqlx_core::error::Error;
+    // This request involves nested records and array types.
+
+    // Only supported in Postgres 11+
+    let mut conn = new::<Postgres>().await?;
+    if matches!(conn.server_version_num(), Some(version) if version < 110000) {
+        return Ok(());
+    }
+
+    // language=PostgreSQL
+    conn.execute(
+        r#"
+DROP TABLE IF EXISTS repo_users;
+DROP TABLE IF EXISTS repositories;
+DROP TABLE IF EXISTS repo_memberships;
+DROP TYPE IF EXISTS repo_member;
+
+CREATE TABLE repo_users (
+  user_id INT4 NOT NULL,
+  username TEXT NOT NULL,
+  PRIMARY KEY (user_id)
+);
+CREATE TABLE repositories (
+  repo_id INT4 NOT NULL,
+  repo_name TEXT NOT NULL,
+  PRIMARY KEY (repo_id)
+);
+CREATE TABLE repo_memberships (
+  repo_id INT4 NOT NULL,
+  user_id INT4 NOT NULL,
+  permission TEXT NOT NULL,
+  PRIMARY KEY (repo_id, user_id)
+);
+CREATE TYPE repo_member AS (
+  user_id INT4,
+  permission TEXT
+);
+INSERT INTO repo_users(user_id, username)
+VALUES
+  (101, 'alice'),
+  (102, 'bob'),
+  (103, 'charlie');
+INSERT INTO repositories(repo_id, repo_name)
+VALUES
+  (201, 'rust'),
+  (202, 'sqlx'),
+  (203, 'hello-world');
+INSERT INTO repo_memberships(repo_id, user_id, permission)
+VALUES
+  (201, 101, 'admin'),
+  (201, 102, 'write'),
+  (201, 103, 'read'),
+  (202, 102, 'admin');
+"#,
+    )
+    .await?;
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct RepoMember {
+        user_id: i32,
+        permission: String,
+    }
+
+    impl sqlx::Type<Postgres> for RepoMember {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("repo_member")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for RepoMember {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+            let user_id = decoder.try_decode::<i32>()?;
+            let permission = decoder.try_decode::<String>()?;
+            Ok(Self {
+                user_id,
+                permission,
+            })
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct RepoMemberArray(Vec<RepoMember>);
+
+    impl sqlx::Type<Postgres> for RepoMemberArray {
+        fn type_info() -> sqlx::postgres::PgTypeInfo {
+            // Array type name is the name of the element type prefixed with `_`
+            sqlx::postgres::PgTypeInfo::with_name("_repo_member")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for RepoMemberArray {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+            Ok(Self(Vec::<RepoMember>::decode(value)?))
+        }
+    }
+
+    let mut conn = new::<Postgres>().await?;
+
+    #[derive(Debug, sqlx::FromRow)]
+    struct Row {
+        count: i64,
+        items: Vec<(i32, String, RepoMemberArray)>,
+    }
+    // language=PostgreSQL
+    let row: Result<Row, Error> = sqlx::query_as::<_, Row>(
+        r"
+        WITH
+          members_by_repo AS (
+            SELECT repo_id,
+              ARRAY_AGG(ROW (user_id, permission)::repo_member) AS members
+            FROM repo_memberships
+            GROUP BY repo_id
+          ),
+          repos AS (
+            SELECT repo_id, repo_name, COALESCE(members, '{}') AS members
+            FROM repositories
+              LEFT OUTER JOIN members_by_repo USING (repo_id)
+            ORDER BY repo_id
+          ),
+          repo_array AS (
+            SELECT COALESCE(ARRAY_AGG(repos.*), '{}') AS items
+            FROM repos
+          ),
+          repo_count AS (
+            SELECT COUNT(*) AS count
+            FROM repos
+          )
+        SELECT count, items
+        FROM repo_count, repo_array
+        ;
+    ",
+    )
+    .fetch_one(&mut conn)
+    .await;
+
+    // This test currently tests mitigations for `#1672` (use regular errors
+    // instead of panics). Once we fully support custom types, it should be
+    // updated accordingly.
+    match row {
+        Ok(_) => panic!("full support for custom types is not implemented yet"),
+        Err(e) => assert!(e
+            .to_string()
+            .contains("custom types in records are not fully supported yet")),
+    }
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
     let conn = new::<Postgres>().await?;
 

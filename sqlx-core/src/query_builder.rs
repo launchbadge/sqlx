@@ -224,7 +224,7 @@ where
     ///     // e.g. collect it to a `Vec` first.
     ///     b.push_bind(user.id)
     ///         .push_bind(user.username)
-    ///         .push_bind(user.email)    
+    ///         .push_bind(user.email)
     ///         .push_bind(user.password);
     /// });
     ///
@@ -310,6 +310,7 @@ where
 /// A wrapper around `QueryBuilder` for creating comma(or other token)-separated lists.
 ///
 /// See [`QueryBuilder::separated()`] for details.
+#[allow(explicit_outlives_requirements)]
 pub struct Separated<'qb, 'args: 'qb, DB, Sep>
 where
     DB: Database,
