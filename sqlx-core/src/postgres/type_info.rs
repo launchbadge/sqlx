@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::ext::ustr::UStr;
+use crate::postgres::types::Oid;
 use crate::type_info::TypeInfo;
 
 /// Type information for a PostgreSQL type.
@@ -129,14 +130,14 @@ pub enum PgType {
 
     // NOTE: Do we want to bring back type declaration by ID? It's notoriously fragile but
     //       someone may have a user for it
-    DeclareWithOid(u32),
+    DeclareWithOid(Oid),
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 pub struct PgCustomType {
     #[cfg_attr(feature = "offline", serde(skip))]
-    pub(crate) oid: u32,
+    pub(crate) oid: Oid,
     pub(crate) name: UStr,
     pub(crate) kind: PgTypeKind,
 }
@@ -155,7 +156,7 @@ pub enum PgTypeKind {
 
 impl PgTypeInfo {
     /// Returns the corresponding `PgTypeInfo` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
+    pub(crate) fn try_from_oid(oid: Oid) -> Option<Self> {
         PgType::try_from_oid(oid).map(Self)
     }
 
@@ -221,7 +222,7 @@ impl PgTypeInfo {
     /// Note that the OID for a type is very dependent on the environment. If you only ever use
     /// one database or if this is an unhandled build-in type, you should be fine. Otherwise,
     /// you will be better served using [`with_name`](Self::with_name).
-    pub const fn with_oid(oid: u32) -> Self {
+    pub const fn with_oid(oid: Oid) -> Self {
         Self(PgType::DeclareWithOid(oid))
     }
 }
@@ -234,8 +235,8 @@ impl PgTypeInfo {
 
 impl PgType {
     /// Returns the corresponding `PgType` if the OID is a built-in type and recognized by SQLx.
-    pub(crate) fn try_from_oid(oid: u32) -> Option<Self> {
-        Some(match oid {
+    pub(crate) fn try_from_oid(oid: Oid) -> Option<Self> {
+        Some(match oid.0 {
             16 => PgType::Bool,
             17 => PgType::Bytea,
             18 => PgType::Char,
@@ -335,107 +336,107 @@ impl PgType {
         })
     }
 
-    pub(crate) fn oid(&self) -> u32 {
+    pub(crate) fn oid(&self) -> Oid {
         match self.try_oid() {
             Some(oid) => oid,
             None => unreachable!("(bug) use of unresolved type declaration [oid]"),
         }
     }
 
-    pub(crate) fn try_oid(&self) -> Option<u32> {
+    pub(crate) fn try_oid(&self) -> Option<Oid> {
         Some(match self {
-            PgType::Bool => 16,
-            PgType::Bytea => 17,
-            PgType::Char => 18,
-            PgType::Name => 19,
-            PgType::Int8 => 20,
-            PgType::Int2 => 21,
-            PgType::Int4 => 23,
-            PgType::Text => 25,
-            PgType::Oid => 26,
-            PgType::Json => 114,
-            PgType::JsonArray => 199,
-            PgType::Point => 600,
-            PgType::Lseg => 601,
-            PgType::Path => 602,
-            PgType::Box => 603,
-            PgType::Polygon => 604,
-            PgType::Line => 628,
-            PgType::LineArray => 629,
-            PgType::Cidr => 650,
-            PgType::CidrArray => 651,
-            PgType::Float4 => 700,
-            PgType::Float8 => 701,
-            PgType::Unknown => 705,
-            PgType::Circle => 718,
-            PgType::CircleArray => 719,
-            PgType::Macaddr8 => 774,
-            PgType::Macaddr8Array => 775,
-            PgType::Money => 790,
-            PgType::MoneyArray => 791,
-            PgType::Macaddr => 829,
-            PgType::Inet => 869,
-            PgType::BoolArray => 1000,
-            PgType::ByteaArray => 1001,
-            PgType::CharArray => 1002,
-            PgType::NameArray => 1003,
-            PgType::Int2Array => 1005,
-            PgType::Int4Array => 1007,
-            PgType::TextArray => 1009,
-            PgType::BpcharArray => 1014,
-            PgType::VarcharArray => 1015,
-            PgType::Int8Array => 1016,
-            PgType::PointArray => 1017,
-            PgType::LsegArray => 1018,
-            PgType::PathArray => 1019,
-            PgType::BoxArray => 1020,
-            PgType::Float4Array => 1021,
-            PgType::Float8Array => 1022,
-            PgType::PolygonArray => 1027,
-            PgType::OidArray => 1028,
-            PgType::MacaddrArray => 1040,
-            PgType::InetArray => 1041,
-            PgType::Bpchar => 1042,
-            PgType::Varchar => 1043,
-            PgType::Date => 1082,
-            PgType::Time => 1083,
-            PgType::Timestamp => 1114,
-            PgType::TimestampArray => 1115,
-            PgType::DateArray => 1182,
-            PgType::TimeArray => 1183,
-            PgType::Timestamptz => 1184,
-            PgType::TimestamptzArray => 1185,
-            PgType::Interval => 1186,
-            PgType::IntervalArray => 1187,
-            PgType::NumericArray => 1231,
-            PgType::Timetz => 1266,
-            PgType::TimetzArray => 1270,
-            PgType::Bit => 1560,
-            PgType::BitArray => 1561,
-            PgType::Varbit => 1562,
-            PgType::VarbitArray => 1563,
-            PgType::Numeric => 1700,
-            PgType::Void => 2278,
-            PgType::Record => 2249,
-            PgType::RecordArray => 2287,
-            PgType::Uuid => 2950,
-            PgType::UuidArray => 2951,
-            PgType::Jsonb => 3802,
-            PgType::JsonbArray => 3807,
-            PgType::Int4Range => 3904,
-            PgType::Int4RangeArray => 3905,
-            PgType::NumRange => 3906,
-            PgType::NumRangeArray => 3907,
-            PgType::TsRange => 3908,
-            PgType::TsRangeArray => 3909,
-            PgType::TstzRange => 3910,
-            PgType::TstzRangeArray => 3911,
-            PgType::DateRange => 3912,
-            PgType::DateRangeArray => 3913,
-            PgType::Int8Range => 3926,
-            PgType::Int8RangeArray => 3927,
-            PgType::Jsonpath => 4072,
-            PgType::JsonpathArray => 4073,
+            PgType::Bool => Oid(16),
+            PgType::Bytea => Oid(17),
+            PgType::Char => Oid(18),
+            PgType::Name => Oid(19),
+            PgType::Int8 => Oid(20),
+            PgType::Int2 => Oid(21),
+            PgType::Int4 => Oid(23),
+            PgType::Text => Oid(25),
+            PgType::Oid => Oid(26),
+            PgType::Json => Oid(114),
+            PgType::JsonArray => Oid(199),
+            PgType::Point => Oid(600),
+            PgType::Lseg => Oid(601),
+            PgType::Path => Oid(602),
+            PgType::Box => Oid(603),
+            PgType::Polygon => Oid(604),
+            PgType::Line => Oid(628),
+            PgType::LineArray => Oid(629),
+            PgType::Cidr => Oid(650),
+            PgType::CidrArray => Oid(651),
+            PgType::Float4 => Oid(700),
+            PgType::Float8 => Oid(701),
+            PgType::Unknown => Oid(705),
+            PgType::Circle => Oid(718),
+            PgType::CircleArray => Oid(719),
+            PgType::Macaddr8 => Oid(774),
+            PgType::Macaddr8Array => Oid(775),
+            PgType::Money => Oid(790),
+            PgType::MoneyArray => Oid(791),
+            PgType::Macaddr => Oid(829),
+            PgType::Inet => Oid(869),
+            PgType::BoolArray => Oid(1000),
+            PgType::ByteaArray => Oid(1001),
+            PgType::CharArray => Oid(1002),
+            PgType::NameArray => Oid(1003),
+            PgType::Int2Array => Oid(1005),
+            PgType::Int4Array => Oid(1007),
+            PgType::TextArray => Oid(1009),
+            PgType::BpcharArray => Oid(1014),
+            PgType::VarcharArray => Oid(1015),
+            PgType::Int8Array => Oid(1016),
+            PgType::PointArray => Oid(1017),
+            PgType::LsegArray => Oid(1018),
+            PgType::PathArray => Oid(1019),
+            PgType::BoxArray => Oid(1020),
+            PgType::Float4Array => Oid(1021),
+            PgType::Float8Array => Oid(1022),
+            PgType::PolygonArray => Oid(1027),
+            PgType::OidArray => Oid(1028),
+            PgType::MacaddrArray => Oid(1040),
+            PgType::InetArray => Oid(1041),
+            PgType::Bpchar => Oid(1042),
+            PgType::Varchar => Oid(1043),
+            PgType::Date => Oid(1082),
+            PgType::Time => Oid(1083),
+            PgType::Timestamp => Oid(1114),
+            PgType::TimestampArray => Oid(1115),
+            PgType::DateArray => Oid(1182),
+            PgType::TimeArray => Oid(1183),
+            PgType::Timestamptz => Oid(1184),
+            PgType::TimestamptzArray => Oid(1185),
+            PgType::Interval => Oid(1186),
+            PgType::IntervalArray => Oid(1187),
+            PgType::NumericArray => Oid(1231),
+            PgType::Timetz => Oid(1266),
+            PgType::TimetzArray => Oid(1270),
+            PgType::Bit => Oid(1560),
+            PgType::BitArray => Oid(1561),
+            PgType::Varbit => Oid(1562),
+            PgType::VarbitArray => Oid(1563),
+            PgType::Numeric => Oid(1700),
+            PgType::Void => Oid(2278),
+            PgType::Record => Oid(2249),
+            PgType::RecordArray => Oid(2287),
+            PgType::Uuid => Oid(2950),
+            PgType::UuidArray => Oid(2951),
+            PgType::Jsonb => Oid(3802),
+            PgType::JsonbArray => Oid(3807),
+            PgType::Int4Range => Oid(3904),
+            PgType::Int4RangeArray => Oid(3905),
+            PgType::NumRange => Oid(3906),
+            PgType::NumRangeArray => Oid(3907),
+            PgType::TsRange => Oid(3908),
+            PgType::TsRangeArray => Oid(3909),
+            PgType::TstzRange => Oid(3910),
+            PgType::TstzRangeArray => Oid(3911),
+            PgType::DateRange => Oid(3912),
+            PgType::DateRangeArray => Oid(3913),
+            PgType::Int8Range => Oid(3926),
+            PgType::Int8RangeArray => Oid(3927),
+            PgType::Jsonpath => Oid(4072),
+            PgType::JsonpathArray => Oid(4073),
             PgType::Custom(ty) => ty.oid,
 
             PgType::DeclareWithOid(oid) => *oid,
@@ -744,7 +745,7 @@ impl PgType {
             PgType::Custom(ty) => &ty.kind,
 
             PgType::DeclareWithOid(oid) => {
-                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
+                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
             }
             PgType::DeclareWithName(name) => {
                 unreachable!("(bug) use of unresolved type declaration [name={}]", name);
@@ -863,7 +864,7 @@ impl PgType {
                 PgTypeKind::Range(_) => None,
             },
             PgType::DeclareWithOid(oid) => {
-                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid);
+                unreachable!("(bug) use of unresolved type declaration [oid={}]", oid.0);
             }
             PgType::DeclareWithName(name) => {
                 unreachable!("(bug) use of unresolved type declaration [name={}]", name);

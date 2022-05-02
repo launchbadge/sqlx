@@ -3,7 +3,6 @@ use rust_decimal::{
     prelude::{ToPrimitive, Zero},
     Decimal,
 };
-use std::convert::{TryFrom, TryInto};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};

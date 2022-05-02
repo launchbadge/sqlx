@@ -28,6 +28,7 @@ pub(crate) struct SharedPool<DB: Database> {
     pub(super) semaphore: Semaphore,
     pub(super) size: AtomicU32,
     is_closed: AtomicBool,
+    pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
 }
 
@@ -50,6 +51,7 @@ impl<DB: Database> SharedPool<DB> {
             semaphore: Semaphore::new(options.fair, capacity),
             size: AtomicU32::new(0),
             is_closed: AtomicBool::new(false),
+            on_closed: event_listener::Event::new(),
             options,
         };
 
@@ -73,7 +75,7 @@ impl<DB: Database> SharedPool<DB> {
         self.is_closed.load(Ordering::Acquire)
     }
 
-    pub(super) async fn close(&self) {
+    pub(super) async fn close(self: &Arc<Self>) {
         let already_closed = self.is_closed.swap(true, Ordering::AcqRel);
 
         if !already_closed {
@@ -81,6 +83,7 @@ impl<DB: Database> SharedPool<DB> {
             // we can't just do `usize::MAX` because that would overflow
             // and we can't do this more than once cause that would _also_ overflow
             self.semaphore.release(WAKE_ALL_PERMITS);
+            self.on_closed.notify(usize::MAX);
         }
 
         // wait for all permits to be released
@@ -90,12 +93,12 @@ impl<DB: Database> SharedPool<DB> {
             .await;
 
         while let Some(idle) = self.idle_conns.pop() {
-            let _ = idle.live.float(self).close().await;
+            let _ = idle.live.float((*self).clone()).close().await;
         }
     }
 
     #[inline]
-    pub(super) fn try_acquire(&self) -> Option<Floating<'_, Idle<DB>>> {
+    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<DB, Idle<DB>>> {
         if self.is_closed() {
             return None;
         }
@@ -105,17 +108,17 @@ impl<DB: Database> SharedPool<DB> {
     }
 
     fn pop_idle<'a>(
-        &'a self,
+        self: &'a Arc<Self>,
         permit: SemaphoreReleaser<'a>,
-    ) -> Result<Floating<'a, Idle<DB>>, SemaphoreReleaser<'a>> {
+    ) -> Result<Floating<DB, Idle<DB>>, SemaphoreReleaser<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
-            Ok(Floating::from_idle(idle, self, permit))
+            Ok(Floating::from_idle(idle, (*self).clone(), permit))
         } else {
             Err(permit)
         }
     }
 
-    pub(super) fn release(&self, mut floating: Floating<'_, Live<DB>>) {
+    pub(super) fn release(&self, mut floating: Floating<DB, Live<DB>>) {
         if let Some(test) = &self.options.after_release {
             if !test(&mut floating.raw) {
                 // drop the connection and do not return it to the pool
@@ -138,9 +141,9 @@ impl<DB: Database> SharedPool<DB> {
     ///
     /// Returns `None` if we are at max_connections or if the pool is closed.
     pub(super) fn try_increment_size<'a>(
-        &'a self,
+        self: &'a Arc<Self>,
         permit: SemaphoreReleaser<'a>,
-    ) -> Result<DecrementSizeGuard<'a>, SemaphoreReleaser<'a>> {
+    ) -> Result<DecrementSizeGuard<DB>, SemaphoreReleaser<'a>> {
         match self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -148,14 +151,14 @@ impl<DB: Database> SharedPool<DB> {
                     .filter(|size| size <= &self.options.max_connections)
             }) {
             // we successfully incremented the size
-            Ok(_) => Ok(DecrementSizeGuard::from_permit(self, permit)),
+            Ok(_) => Ok(DecrementSizeGuard::from_permit((*self).clone(), permit)),
             // the pool is at max capacity
             Err(_) => Err(permit),
         }
     }
 
     #[allow(clippy::needless_lifetimes)]
-    pub(super) async fn acquire<'s>(&'s self) -> Result<Floating<'s, Live<DB>>, Error> {
+    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<DB, Live<DB>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -203,11 +206,11 @@ impl<DB: Database> SharedPool<DB> {
             .map_err(|_| Error::PoolTimedOut)?
     }
 
-    pub(super) async fn connection<'s>(
-        &'s self,
+    pub(super) async fn connection(
+        self: &Arc<Self>,
         deadline: Instant,
-        guard: DecrementSizeGuard<'s>,
-    ) -> Result<Floating<'s, Live<DB>>, Error> {
+        guard: DecrementSizeGuard<DB>,
+    ) -> Result<Floating<DB, Live<DB>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -272,10 +275,10 @@ fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> b
         .map_or(false, |timeout| idle.since.elapsed() > timeout)
 }
 
-async fn check_conn<'s: 'p, 'p, DB: Database>(
-    mut conn: Floating<'s, Idle<DB>>,
-    options: &'p PoolOptions<DB>,
-) -> Result<Floating<'s, Live<DB>>, DecrementSizeGuard<'s>> {
+async fn check_conn<DB: Database>(
+    mut conn: Floating<DB, Idle<DB>>,
+    options: &PoolOptions<DB>,
+) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_lifetime(&conn, options) {
@@ -334,7 +337,7 @@ fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
     });
 }
 
-async fn do_reap<DB: Database>(pool: &SharedPool<DB>) {
+async fn do_reap<DB: Database>(pool: &Arc<SharedPool<DB>>) {
     // reap at most the current size minus the minimum idle
     let max_reaped = pool.size().saturating_sub(pool.options.min_connections);
 
@@ -360,39 +363,34 @@ async fn do_reap<DB: Database>(pool: &SharedPool<DB>) {
 ///
 /// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
 /// (where the pool thinks it has more connections than it does).
-pub(in crate::pool) struct DecrementSizeGuard<'a> {
-    size: &'a AtomicU32,
-    semaphore: &'a Semaphore,
+pub(in crate::pool) struct DecrementSizeGuard<DB: Database> {
+    pub(crate) pool: Arc<SharedPool<DB>>,
     dropped: bool,
 }
 
-impl<'a> DecrementSizeGuard<'a> {
+impl<DB: Database> DecrementSizeGuard<DB> {
     /// Create a new guard that will release a semaphore permit on-drop.
-    pub fn new_permit<DB: Database>(pool: &'a SharedPool<DB>) -> Self {
+    pub fn new_permit(pool: Arc<SharedPool<DB>>) -> Self {
         Self {
-            size: &pool.size,
-            semaphore: &pool.semaphore,
+            pool,
             dropped: false,
         }
     }
 
-    pub fn from_permit<DB: Database>(
-        pool: &'a SharedPool<DB>,
-        mut permit: SemaphoreReleaser<'a>,
-    ) -> Self {
+    pub fn from_permit(pool: Arc<SharedPool<DB>>, mut permit: SemaphoreReleaser<'_>) -> Self {
         // here we effectively take ownership of the permit
         permit.disarm();
         Self::new_permit(pool)
     }
 
     /// Return `true` if the internal references point to the same fields in `SharedPool`.
-    pub fn same_pool<DB: Database>(&self, pool: &'a SharedPool<DB>) -> bool {
-        ptr::eq(self.size, &pool.size)
+    pub fn same_pool(&self, pool: &SharedPool<DB>) -> bool {
+        ptr::eq(&*self.pool, pool)
     }
 
     /// Release the semaphore permit without decreasing the pool size.
     fn release_permit(self) {
-        self.semaphore.release(1);
+        self.pool.semaphore.release(1);
         self.cancel();
     }
 
@@ -401,13 +399,13 @@ impl<'a> DecrementSizeGuard<'a> {
     }
 }
 
-impl Drop for DecrementSizeGuard<'_> {
+impl<DB: Database> Drop for DecrementSizeGuard<DB> {
     fn drop(&mut self) {
         assert!(!self.dropped, "double-dropped!");
         self.dropped = true;
-        self.size.fetch_sub(1, Ordering::SeqCst);
+        self.pool.size.fetch_sub(1, Ordering::SeqCst);
 
         // and here we release the permit we got on construction
-        self.semaphore.release(1);
+        self.pool.semaphore.release(1);
     }
 }

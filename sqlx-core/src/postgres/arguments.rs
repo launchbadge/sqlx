@@ -1,3 +1,4 @@
+use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut};
 
 use crate::arguments::Arguments;
@@ -95,7 +96,7 @@ impl PgArguments {
 
         for (offset, name) in type_holes {
             let oid = conn.fetch_type_id_by_name(&*name).await?;
-            buffer[*offset..(*offset + 4)].copy_from_slice(&oid.to_be_bytes());
+            buffer[*offset..(*offset + 4)].copy_from_slice(&oid.0.to_be_bytes());
         }
 
         Ok(())
@@ -115,6 +116,10 @@ impl<'q> Arguments<'q> for PgArguments {
         T: Encode<'q, Self::Database> + Type<Self::Database>,
     {
         self.add(value)
+    }
+
+    fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
+        write!(writer, "${}", self.buffer.count)
     }
 }
 

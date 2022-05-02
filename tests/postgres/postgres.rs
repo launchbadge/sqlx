@@ -1,10 +1,11 @@
 use futures::{StreamExt, TryStreamExt};
+use sqlx::postgres::types::Oid;
 use sqlx::postgres::{
-    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgSeverity,
+    PgAdvisoryLock, PgConnectOptions, PgConnection, PgDatabaseError, PgErrorPosition, PgListener,
+    PgPoolOptions, PgRow, PgSeverity, Postgres,
 };
-use sqlx::postgres::{PgConnectionInfo, PgPoolOptions, PgRow, Postgres};
 use sqlx::{Column, Connection, Executor, Row, Statement, TypeInfo};
-use sqlx_test::{new, setup_if_needed};
+use sqlx_test::{new, pool, setup_if_needed};
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
@@ -661,14 +662,14 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     for i in 0..2 {
         let row = sqlx::query("SELECT $1 AS val")
-            .bind(i)
+            .bind(Oid(i))
             .persistent(true)
             .fetch_one(&mut conn)
             .await?;
 
-        let val: u32 = row.get("val");
+        let val: Oid = row.get("val");
 
-        assert_eq!(i, val);
+        assert_eq!(Oid(i), val);
     }
 
     assert_eq!(1, conn.cached_statements_size());
@@ -677,14 +678,14 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     for i in 0..2 {
         let row = sqlx::query("SELECT $1 AS val")
-            .bind(i)
+            .bind(Oid(i))
             .persistent(false)
             .fetch_one(&mut conn)
             .await?;
 
-        let val: u32 = row.get("val");
+        let val: Oid = row.get("val");
 
-        assert_eq!(i, val);
+        assert_eq!(Oid(i), val);
     }
 
     assert_eq!(0, conn.cached_statements_size());
@@ -968,6 +969,23 @@ async fn test_listener_cleanup() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
+    let pool = pool::<Postgres>().await?;
+
+    // acquires and holds a connection which would normally prevent the pool from closing
+    let mut listener = PgListener::connect_with(&pool).await?;
+
+    sqlx_rt::spawn(async move {
+        listener.recv().await;
+    });
+
+    // would previously hang forever since `PgListener` had no way to know the pool wanted to close
+    pool.close().await;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_supports_domain_types_in_composite_domain_types() -> anyhow::Result<()> {
     // Only supported in Postgres 11+
     let mut conn = new::<Postgres>().await?;
@@ -1184,8 +1202,6 @@ VALUES
 
 #[sqlx_macros::test]
 async fn test_pg_server_num() -> anyhow::Result<()> {
-    use sqlx::postgres::PgConnectionInfo;
-
     let conn = new::<Postgres>().await?;
 
     assert!(conn.server_version_num().is_some());

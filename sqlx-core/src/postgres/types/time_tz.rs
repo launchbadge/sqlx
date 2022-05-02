@@ -143,7 +143,7 @@ mod time {
     impl Encode<'_, Postgres> for PgTimeTz<Time, UtcOffset> {
         fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
             let _ = <Time as Encode<'_, Postgres>>::encode(self.time, buf);
-            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.as_seconds(), buf);
+            let _ = <i32 as Encode<'_, Postgres>>::encode(-self.offset.whole_seconds(), buf);
 
             IsNull::No
         }
@@ -161,14 +161,14 @@ mod time {
 
                     // TIME is encoded as the microseconds since midnight
                     let us = buf.read_i64::<BigEndian>()?;
-                    let time = Time::midnight() + Duration::microseconds(us);
+                    let time = Time::MIDNIGHT + Duration::microseconds(us);
 
                     // OFFSET is encoded as seconds from UTC
                     let seconds = buf.read_i32::<BigEndian>()?;
 
                     Ok(PgTimeTz {
                         time,
-                        offset: UtcOffset::west_seconds(seconds as u32),
+                        offset: -UtcOffset::from_whole_seconds(seconds)?,
                     })
                 }
 

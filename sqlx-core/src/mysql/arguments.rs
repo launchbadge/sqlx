@@ -26,6 +26,11 @@ impl MySqlArguments {
             self.null_bitmap[index / 8] |= (1 << (index % 8)) as u8;
         }
     }
+
+    #[doc(hidden)]
+    pub fn len(&self) -> usize {
+        self.types.len()
+    }
 }
 
 impl<'q> Arguments<'q> for MySqlArguments {

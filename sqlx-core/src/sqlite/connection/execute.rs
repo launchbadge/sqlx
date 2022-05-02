@@ -85,7 +85,7 @@ impl Iterator for ExecuteIter<'_> {
 
         match statement.handle.step() {
             Ok(true) => {
-                self.logger.increment_rows();
+                self.logger.increment_rows_returned();
 
                 Some(Ok(Either::Right(SqliteRow::current(
                     &statement.handle,
@@ -96,8 +96,11 @@ impl Iterator for ExecuteIter<'_> {
             Ok(false) => {
                 let last_insert_rowid = self.handle.last_insert_rowid();
 
+                let changes = statement.handle.changes();
+                self.logger.increase_rows_affected(changes);
+
                 let done = SqliteQueryResult {
-                    changes: statement.handle.changes(),
+                    changes,
                     last_insert_rowid,
                 };
 

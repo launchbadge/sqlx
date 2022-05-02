@@ -8,7 +8,9 @@ use crate::{
     types::Type,
 };
 use bitflags::_core::fmt::Display;
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, TimeZone, Utc};
+use chrono::{
+    DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
+};
 
 impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
     fn type_info() -> SqliteTypeInfo {
@@ -58,7 +60,7 @@ where
     Tz::Offset: Display,
 {
     fn encode_by_ref(&self, buf: &mut Vec<SqliteArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.naive_utc().format("%F %T%.f").to_string(), buf)
+        Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
     }
 }
 
@@ -115,6 +117,10 @@ fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, B
 }
 
 fn decode_datetime_from_text(value: &str) -> Option<DateTime<FixedOffset>> {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
+        return Some(dt);
+    }
+
     // Loop over common date time patterns, inspired by Diesel
     // https://github.com/diesel-rs/diesel/blob/93ab183bcb06c69c0aee4a7557b6798fd52dd0d8/diesel/src/sqlite/types/date_and_time/chrono.rs#L56-L97
     let sqlite_datetime_formats = &[

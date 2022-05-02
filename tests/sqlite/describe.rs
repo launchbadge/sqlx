@@ -242,5 +242,17 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
     assert_eq!(d.column(1).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(1), Some(false));
 
+    let d = conn
+        .describe(
+            "select tweet.id, accounts.id from accounts left join tweet on tweet.id = accounts.id",
+        )
+        .await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(true));
+
+    assert_eq!(d.column(1).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(1), Some(false));
+
     Ok(())
 }

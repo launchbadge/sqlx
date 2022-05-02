@@ -1,3 +1,12 @@
+use std::fmt::{self, Debug};
+use std::io;
+use std::str::from_utf8;
+
+use either::Either;
+use futures_channel::mpsc;
+use futures_core::future::BoxFuture;
+use futures_core::stream::{BoxStream, Stream};
+
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
@@ -5,13 +14,6 @@ use crate::pool::PoolOptions;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::message::{MessageFormat, Notification};
 use crate::postgres::{PgConnection, PgQueryResult, PgRow, PgStatement, PgTypeInfo, Postgres};
-use either::Either;
-use futures_channel::mpsc;
-use futures_core::future::BoxFuture;
-use futures_core::stream::{BoxStream, Stream};
-use std::fmt::{self, Debug};
-use std::io;
-use std::str::from_utf8;
 
 /// A stream of asynchronous notifications from Postgres.
 ///
@@ -25,6 +27,7 @@ pub struct PgListener {
     buffer_rx: mpsc::UnboundedReceiver<Notification>,
     buffer_tx: Option<mpsc::UnboundedSender<Notification>>,
     channels: Vec<String>,
+    ignore_close_event: bool,
 }
 
 /// An asynchronous notification from Postgres.
@@ -41,7 +44,11 @@ impl PgListener {
             .connect(uri)
             .await?;
 
-        Self::connect_with(&pool).await
+        let mut this = Self::connect_with(&pool).await?;
+        // We don't need to handle close events
+        this.ignore_close_event = true;
+
+        Ok(this)
     }
 
     pub async fn connect_with(pool: &Pool<Postgres>) -> Result<Self, Error> {
@@ -58,7 +65,31 @@ impl PgListener {
             buffer_rx: receiver,
             buffer_tx: None,
             channels: Vec::new(),
+            ignore_close_event: false,
         })
+    }
+
+    /// Set whether or not to ignore [`Pool::close_event()`]. Defaults to `false`.
+    ///
+    /// By default, when [`Pool::close()`] is called on the pool this listener is using
+    /// while [`Self::recv()`] or [`Self::try_recv()`] are waiting for a message, the wait is
+    /// cancelled and `Err(PoolClosed)` is returned.
+    ///
+    /// This is because `Pool::close()` will wait until _all_ connections are returned and closed,
+    /// including the one being used by this listener.
+    ///
+    /// Otherwise, `pool.close().await` would have to wait until `PgListener` encountered a
+    /// need to acquire a new connection (timeout, error, etc.) and dropped the one it was
+    /// currently holding, at which point `.recv()` or `.try_recv()` would return `Err(PoolClosed)`
+    /// on the attempt to acquire a new connection anyway.
+    ///
+    /// However, if you want `PgListener` to ignore the close event and continue waiting for a
+    /// message as long as it can, set this to `true`.
+    ///
+    /// Does nothing if this was constructed with [`PgListener::connect()`], as that creates an
+    /// internal pool just for the new instance of `PgListener` which cannot be closed manually.
+    pub fn ignore_pool_close_event(&mut self, val: bool) {
+        self.ignore_close_event = val;
     }
 
     /// Starts listening for notifications on a channel.
@@ -202,11 +233,24 @@ impl PgListener {
             return Ok(Some(PgNotification(notification)));
         }
 
+        // Fetch our `CloseEvent` listener, if applicable.
+        let mut close_event = (!self.ignore_close_event).then(|| self.pool.close_event());
+
         loop {
             // Ensure we have an active connection to work with.
             self.connect_if_needed().await?;
 
-            let message = match self.connection().stream.recv_unchecked().await {
+            let next_message = self.connection().stream.recv_unchecked();
+
+            let res = if let Some(ref mut close_event) = close_event {
+                // cancels the wait and returns `Err(PoolClosed)` if the pool is closed
+                // before `next_message` returns, or if the pool was already closed
+                close_event.do_until(next_message).await?
+            } else {
+                next_message.await
+            };
+
+            let message = match res {
                 Ok(message) => message,
 
                 // The connection is dead, ensure that it is dropped,

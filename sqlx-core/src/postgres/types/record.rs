@@ -4,6 +4,7 @@ use crate::decode::Decode;
 use crate::encode::Encode;
 use crate::error::{mismatched_types, BoxDynError};
 use crate::postgres::type_info::{PgType, PgTypeKind};
+use crate::postgres::types::Oid;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::type_info::TypeInfo;
 use crate::types::Type;
@@ -46,7 +47,7 @@ impl<'a> PgRecordEncoder<'a> {
             self.buf.patch_type_by_name(&name);
         } else {
             // write type id
-            self.buf.extend(&ty.0.oid().to_be_bytes());
+            self.buf.extend(&ty.0.oid().0.to_be_bytes());
         }
 
         self.buf.encode(value);
@@ -101,7 +102,7 @@ impl<'r> PgRecordDecoder<'r> {
 
         match self.fmt {
             PgValueFormat::Binary => {
-                let element_type_oid = self.buf.get_u32();
+                let element_type_oid = Oid(self.buf.get_u32());
                 let element_type_opt = match self.typ.0.kind() {
                     PgTypeKind::Simple if self.typ.0 == PgType::Record => {
                         PgTypeInfo::try_from_oid(element_type_oid)
@@ -192,7 +193,7 @@ impl<'r> PgRecordDecoder<'r> {
                 T::decode(PgValueRef {
                     // NOTE: We pass `0` as the type ID because we don't have a reasonable value
                     //       we could use.
-                    type_info: PgTypeInfo::with_oid(0),
+                    type_info: PgTypeInfo::with_oid(Oid(0)),
                     format: self.fmt,
                     value: buf,
                     row: None,

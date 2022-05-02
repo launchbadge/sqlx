@@ -23,6 +23,7 @@ pub use sqlx_core::from_row::FromRow;
 pub use sqlx_core::pool::{self, Pool};
 pub use sqlx_core::query::{query, query_with};
 pub use sqlx_core::query_as::{query_as, query_as_with};
+pub use sqlx_core::query_builder::{self, QueryBuilder};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::row::Row;
 pub use sqlx_core::statement::Statement;

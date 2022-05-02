@@ -26,7 +26,7 @@ impl PgSeverity {
     }
 }
 
-impl std::convert::TryFrom<&str> for PgSeverity {
+impl TryFrom<&str> for PgSeverity {
     type Error = Error;
 
     fn try_from(s: &str) -> Result<PgSeverity, Error> {
@@ -131,7 +131,6 @@ impl Decode<'_> for Notice {
                 break;
             }
 
-            use std::convert::TryInto;
             match field {
                 b'S' => {
                     // Discard potential errors, because the message might be localized

@@ -94,16 +94,16 @@ mod chrono {
     use super::*;
     use sqlx::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
-    test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite,
-        "datetime('2019-01-02 05:10:20')" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
+    test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd(2019, 1, 2).and_hms(5, 10, 20)
     ));
 
-    test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite,
-        "datetime('1996-12-20T00:39:57+00:00')" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
+    test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'1996-12-20T00:39:57+00:00'" == Utc.ymd(1996, 12, 20).and_hms(0, 39, 57)
     ));
 
-    test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite,
-        "datetime('2016-11-08T03:50:23-05:00')" == FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23)
+    test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23))
     ));
 }
 
@@ -140,9 +140,9 @@ test_type!(uuid<sqlx::types::Uuid>(Sqlite,
 ));
 
 #[cfg(feature = "uuid")]
-test_type!(uuid_hyphenated<sqlx::types::uuid::adapter::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().to_hyphenated(),
+        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().to_hyphenated()
+        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));

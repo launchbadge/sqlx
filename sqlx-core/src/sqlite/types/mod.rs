@@ -35,7 +35,7 @@
 //! | Rust type                             | Sqlite type(s)                                       |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BLOB, TEXT                                           |
-//! | `uuid::adapter::Hyphenated`           | TEXT                                                 |
+//! | `uuid::fmt::Hyphenated`               | TEXT                                                 |
 //!
 //! # Nullable
 //!
