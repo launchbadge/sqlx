@@ -188,7 +188,7 @@ for runtime in ["async-std", "tokio"]:
             )
 
         ## +client-ssl
-        for version in ["14_client_ssl", "13_client_ssl", "12_client_ssl", "11_client_ssl", "10_client_ssl", "9_6_client_ssl"]:
+        for version in ["14_client_ssl", "13_client_ssl", "12_client_ssl", "11_client_ssl", "10_client_ssl"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,postgres,runtime-{runtime}-{tls}",
                 comment=f"test postgres {version} no-password",
@@ -209,6 +209,16 @@ for runtime in ["async-std", "tokio"]:
                 tag=f"mysql_{version}" if runtime == "async-std" else f"mysql_{version}_{runtime}",
             )
 
+        ## +client-ssl
+        for version in ["8_client_ssl", "5_7_client_ssl", "5_6_client_ssl"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
+                comment=f"test mysql {version} no-password",
+                database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
+                service=f"mysql_{version}",
+                tag=f"mysql_{version}_no_password" if runtime == "async-std" else f"mysql_{version}_no_password_{runtime}",
+            )
+
         #
         # mariadb
         #
@@ -219,6 +229,16 @@ for runtime in ["async-std", "tokio"]:
                 comment=f"test mariadb {version}",
                 service=f"mariadb_{version}",
                 tag=f"mariadb_{version}" if runtime == "async-std" else f"mariadb_{version}_{runtime}",
+            )
+
+        ## +client-ssl
+        for version in ["10_6_client_ssl", "10_5_client_ssl", "10_4_client_ssl", "10_3_client_ssl", "10_2_client_ssl"]:
+            run(
+                f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
+                comment=f"test mariadb {version} no-password",
+                database_url_args="sslmode=verify_ca&ssl-ca=.%2Ftests%2Fcerts%2Fca.crt&ssl-key=.%2Ftests%2Fkeys%2Fclient.key&ssl-cert=.%2Ftests%2Fcerts%2Fclient.crt",
+                service=f"mariadb_{version}",
+                tag=f"mariadb_{version}_no_password" if runtime == "async-std" else f"mariadb_{version}_no_password_{runtime}",
             )
 
 # TODO: Use [grcov] if available
