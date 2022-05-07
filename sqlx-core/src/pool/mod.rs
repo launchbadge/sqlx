@@ -419,6 +419,36 @@ impl<DB: Database> Pool<DB> {
         self.0.size()
     }
 
+    /// Return the [`Duration`] this pool has spent waiting on a permit for a
+    /// connection to be granted from the underlying connection pool.
+    ///
+    /// If this value is consistently increasing by a non-negligible amount, it
+    /// indicates requests are blocked waiting on a connection from the pool
+    /// (saturation of the connection pool) and more connections may be needed
+    /// to handle the workload peak.
+    ///
+    /// Reading this measurement is cheap.
+    ///
+    /// # Semantics
+    ///
+    /// This value is incremented once a connection permit is granted, and does
+    /// NOT include the time taken to perform any liveness checks on connections
+    /// or time taken to establish a connection, if needed.
+    ///
+    /// If a [connection timeout][1] expires while waiting for a connection from
+    /// the pool, the duration of time waiting for the permit is included in
+    /// this measurement.
+    ///
+    /// NOTE: this may increment by a small duration even if connection permits
+    /// are immediately available when calling [`acquire()`], as acquiring one
+    /// is not instantaneous.
+    ///
+    /// [1]: sqlx::pool::PoolOptions::connect_timeout
+    /// [`acquire()`]: Self::acquire()
+    pub fn pool_wait_duration(&self) -> Duration {
+        self.0.pool_wait_duration()
+    }
+
     /// Returns the number of connections active and idle (not in use).
     ///
     /// This will block until the number of connections stops changing for at

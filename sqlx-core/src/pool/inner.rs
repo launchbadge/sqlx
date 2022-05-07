@@ -11,8 +11,9 @@ use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
 use std::cmp;
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::{future::Future, pin::Pin, task::Poll};
 
 use std::time::{Duration, Instant};
 
@@ -30,6 +31,9 @@ pub(crate) struct SharedPool<DB: Database> {
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
+    // The number of milliseconds this pool has spent waiting to acquire a
+    // semaphore permit.
+    pool_wait_duration_ms: AtomicU64,
 }
 
 impl<DB: Database> SharedPool<DB> {
@@ -53,6 +57,7 @@ impl<DB: Database> SharedPool<DB> {
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
             options,
+            pool_wait_duration_ms: AtomicU64::new(0),
         };
 
         let pool = Arc::new(pool);
@@ -73,6 +78,12 @@ impl<DB: Database> SharedPool<DB> {
 
     pub(super) fn is_closed(&self) -> bool {
         self.is_closed.load(Ordering::Acquire)
+    }
+
+    /// Return the [`Duration`] this pool has spent waiting on a permit for a
+    /// connection.
+    pub(super) fn pool_wait_duration(&self) -> Duration {
+        Duration::from_millis(self.pool_wait_duration_ms.load(Ordering::Relaxed))
     }
 
     pub(super) async fn close(self: &Arc<Self>) {
@@ -169,7 +180,12 @@ impl<DB: Database> SharedPool<DB> {
             self.options.connect_timeout,
             async {
                 loop {
-                    let permit = self.semaphore.acquire(1).await;
+                    // Decorate the semaphore permit acquisition to record the
+                    // duration it takes to be granted (or timed out).
+                    let permit = PollWallClockRecorder::new(
+                        &self.pool_wait_duration_ms, 
+                        self.semaphore.acquire(1),
+                    ).await;
 
                     if self.is_closed() {
                         return Err(Error::PoolClosed);
@@ -407,5 +423,87 @@ impl<DB: Database> Drop for DecrementSizeGuard<DB> {
 
         // and here we release the permit we got on construction
         self.pool.semaphore.release(1);
+    }
+}
+
+use pin_project::{pin_project, pinned_drop};
+
+/// A [`PollWallClockRecorder`] measures the duration of time (in milliseconds)
+/// from first poll of `F`, to drop of this type.
+///
+/// The typical lifecycle of a future is `create -> poll -> ready -> drop`, with
+/// the drop happening an insignificant duration of time after the future
+/// returns [`Poll::Ready`].
+///
+/// Another common lifecycle path that should be instrumented is when the
+/// created future's caller times out before returning [`Poll::Ready`], with a
+/// lifecycle similar to `create -> poll -> pending -> timeout -> drop`. This
+/// results in the instrumented future being dropped an insignificant duration
+/// of time after the timeout occurs.
+///
+/// This instrumentation therefore (approximately) measures the time between
+/// first poll and yielding a value, or the future timing out and being dropped.
+#[pin_project(PinnedDrop)]
+struct PollWallClockRecorder<'a, F> {
+    // The atomic value that will have the poll duration (in milliseconds) added
+    // to it.
+    recorder: &'a AtomicU64,
+
+    // The instant of the first poll.
+    //
+    // None at construction time, Some after first poll.
+    started_at: Option<Instant>,
+
+    // The inner future that requires pinning to call poll().
+    #[pin]
+    fut: F,
+}
+
+impl<'a, F> PollWallClockRecorder<'a, F> {
+    /// Record the poll duration of `F`, adding the duration of time between
+    /// first poll and drop of `Self` in milliseconds, to `recorder`.
+    pub(crate) fn new(recorder: &'a AtomicU64, fut: F) -> Self {
+        Self {
+            recorder,
+            fut,
+            started_at: None,
+        }
+    }
+}
+
+impl<'a, F> Future for PollWallClockRecorder<'a, F>
+where
+    F: Future,
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+
+        // Initialise the `started_at` instant on the first poll.
+        //
+        // This is more accurate than initialising the Instant in the
+        // constructor of this type, which would incorrectly include the time
+        // from construction to first poll in the measurement (which also
+        // includes the time a task waits to be scheduled onto a runtime worker
+        // thread).
+        let _started_at = this.started_at.get_or_insert_with(Instant::now);
+
+        // Pass through the poll to the inner future.
+        this.fut.poll(cx)
+    }
+}
+
+#[pinned_drop]
+impl<'a, F> PinnedDrop for PollWallClockRecorder<'a, F> {
+    fn drop(self: Pin<&mut Self>) {
+        let this = self.project();
+
+        // The future could be dropped without ever being polled, so started_at
+        // may not be initialised.
+        if let Some(started_at) = this.started_at {
+            this.recorder
+                .fetch_add(started_at.elapsed().as_millis() as u64, Ordering::Relaxed);
+        }
     }
 }

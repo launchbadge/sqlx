@@ -64,3 +64,48 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
+    const DELAY_MS: u64 = 10;
+
+    let pool = Arc::new(
+        AnyPoolOptions::new()
+            .max_connections(1)
+            .connect(&dotenv::var("DATABASE_URL")?)
+            .await?,
+    );
+
+    let conn_1 = pool.acquire().await?;
+
+    // This acquire blocks for conn_1 to be returned to the pool
+    let handle = sqlx_rt::spawn({
+        let pool = Arc::clone(&pool);
+        async move {
+            let _conn_2 = pool.acquire().await?;
+            Result::<(), anyhow::Error>::Ok(())
+        }
+    });
+
+    // Wait a known duration of time and then drop conn_1, unblocking conn_2.
+    sqlx_rt::sleep(Duration::from_millis(DELAY_MS)).await;
+    drop(conn_1);
+
+    // Allow conn_2 to be acquired, and then immediately returning, joining the
+    // task handle.
+    let _ = handle.await.expect("acquire() task failed");
+
+    // At this point, conn_2 would have been acquired and immediately dropped.
+    //
+    // The duration of time conn_2 was blocked should be recorded in the pool
+    // wait metric.
+    let wait = pool.pool_wait_duration();
+    assert!(
+        wait.as_millis() as u64 >= DELAY_MS,
+        "expected at least {}, got {}",
+        DELAY_MS,
+        wait.as_millis()
+    );
+
+    Ok(())
+}
