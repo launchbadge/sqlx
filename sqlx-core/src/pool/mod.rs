@@ -87,10 +87,12 @@ mod maybe;
 
 mod connection;
 mod inner;
+mod metrics;
 mod options;
 
 pub use self::connection::PoolConnection;
 pub(crate) use self::maybe::MaybePoolConnection;
+pub use self::metrics::PoolMetricsObserver;
 pub use self::options::PoolOptions;
 
 /// An asynchronous pool of SQLx database connections.

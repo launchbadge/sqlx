@@ -3,6 +3,7 @@ use crate::database::Database;
 use crate::error::Error;
 use crate::pool::inner::SharedPool;
 use crate::pool::Pool;
+use crate::pool::PoolMetricsObserver;
 use futures_core::future::BoxFuture;
 use sqlx_rt::spawn;
 use std::cmp;
@@ -33,6 +34,7 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) fair: bool,
+    pub(crate) metric_observer: Option<Arc<dyn PoolMetricsObserver>>,
 }
 
 impl<DB: Database> Default for PoolOptions<DB> {
@@ -54,6 +56,7 @@ impl<DB: Database> PoolOptions<DB> {
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
             fair: true,
+            metric_observer: None,
         }
     }
 
@@ -225,6 +228,16 @@ impl<DB: Database> PoolOptions<DB> {
         });
 
         Pool(shared)
+    }
+
+    /// Push [`Pool`] metric / events to the specified [`PoolMetricsObserver`]
+    /// implementation.
+    pub fn metrics_observer(
+        mut self,
+        observer: impl Into<Option<Arc<dyn PoolMetricsObserver>>>,
+    ) -> Self {
+        self.metric_observer = observer.into();
+        self
     }
 }
 

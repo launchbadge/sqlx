@@ -13,6 +13,7 @@ use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::{future::Future, pin::Pin, task::Poll};
 
 use std::time::{Duration, Instant};
 
@@ -169,7 +170,19 @@ impl<DB: Database> SharedPool<DB> {
             self.options.connect_timeout,
             async {
                 loop {
-                    let permit = self.semaphore.acquire(1).await;
+                    // Decorate the semaphore permit acquisition to record the
+                    // duration it takes to be granted (or timed out).
+                    let fut = self.semaphore.acquire(1);
+                    let permit = if let Some(obs) = &self.options.metric_observer {
+                        // A metric observer is registered, so instrument the
+                        // semaphore wait.
+                        PollWallClockRecorder::new(
+                            |d| obs.permit_wait_time(d), 
+                            fut,
+                        ).await
+                    } else {
+                        fut.await
+                    };
 
                     if self.is_closed() {
                         return Err(Error::PoolClosed);
@@ -407,5 +420,95 @@ impl<DB: Database> Drop for DecrementSizeGuard<DB> {
 
         // and here we release the permit we got on construction
         self.pool.semaphore.release(1);
+    }
+}
+
+use pin_project::{pin_project, pinned_drop};
+
+/// A [`PollWallClockRecorder`] measures the duration of time (in milliseconds)
+/// from first poll of `F`, to drop of this type.
+///
+/// The typical lifecycle of a future is `create -> poll -> ready -> drop`, with
+/// the drop happening an insignificant duration of time after the future
+/// returns [`Poll::Ready`].
+///
+/// Another common lifecycle path that should be instrumented is when the
+/// created future's caller times out before returning [`Poll::Ready`], with a
+/// lifecycle similar to `create -> poll -> pending -> timeout -> drop`. This
+/// results in the instrumented future being dropped an insignificant duration
+/// of time after the timeout occurs.
+///
+/// This instrumentation therefore (approximately) measures the time between
+/// first poll and yielding a value, or the future timing out and being dropped.
+#[pin_project(PinnedDrop)]
+struct PollWallClockRecorder<F, R>
+where
+    R: Fn(Duration),
+{
+    // A closure the measurement will be called with.
+    recorder: R,
+
+    // The instant of the first poll.
+    //
+    // None at construction time, Some after first poll.
+    started_at: Option<Instant>,
+
+    // The inner future that requires pinning to call poll().
+    #[pin]
+    fut: F,
+}
+
+impl<F, R> PollWallClockRecorder<F, R>
+where
+    R: Fn(Duration),
+{
+    /// Record the poll duration of `F`, calling `recorder` with the duration of
+    /// time between first poll and drop of `Self` in milliseconds.
+    pub(crate) fn new(recorder: R, fut: F) -> Self {
+        Self {
+            recorder,
+            fut,
+            started_at: None,
+        }
+    }
+}
+
+impl<F, R> Future for PollWallClockRecorder<F, R>
+where
+    F: Future,
+    R: Fn(Duration),
+{
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+
+        // Initialise the `started_at` instant on the first poll.
+        //
+        // This is more accurate than initialising the Instant in the
+        // constructor of this type, which would incorrectly include the time
+        // from construction to first poll in the measurement (which also
+        // includes the time a task waits to be scheduled onto a runtime worker
+        // thread).
+        let _started_at = this.started_at.get_or_insert_with(Instant::now);
+
+        // Pass through the poll to the inner future.
+        this.fut.poll(cx)
+    }
+}
+
+#[pinned_drop]
+impl<F, R> PinnedDrop for PollWallClockRecorder<F, R>
+where
+    R: Fn(Duration),
+{
+    fn drop(self: Pin<&mut Self>) {
+        let this = self.project();
+
+        // The future could be dropped without ever being polled, so started_at
+        // may not be initialised.
+        if let Some(started_at) = this.started_at {
+            (this.recorder)(Duration::from_millis(started_at.elapsed().as_millis() as _));
+        }
     }
 }
