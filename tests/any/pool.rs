@@ -78,6 +78,11 @@ async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
 
     let conn_1 = pool.acquire().await?;
 
+    // Grab a timestamp before conn_2 starts waiting, and compute the duration
+    // once the task handle is joined to derive an upper bound on the pool wait
+    // time.
+    let started_at = std::time::Instant::now();
+
     // This acquire blocks for conn_1 to be returned to the pool
     let handle = sqlx_rt::spawn({
         let pool = Arc::clone(&pool);
@@ -97,6 +102,10 @@ async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
 
     // At this point, conn_2 would have been acquired and immediately dropped.
     //
+    // Now conn_2 has definitely stopped waiting (as acquire() returned and the
+    // task was joined), the upper bound on pool wait time can be derived.
+    let upper_bound = started_at.elapsed();
+
     // The duration of time conn_2 was blocked should be recorded in the pool
     // wait metric.
     let wait = pool.pool_wait_duration();
@@ -105,6 +114,13 @@ async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
         "expected at least {}, got {}",
         DELAY_MS,
         wait.as_millis()
+    );
+
+    assert!(
+        wait < upper_bound,
+        "expected at most {:?}, got {:?}",
+        upper_bound,
+        wait
     );
 
     Ok(())
