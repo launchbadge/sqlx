@@ -1,3 +1,5 @@
+extern crate time_ as time;
+
 use sqlx::sqlite::{Sqlite, SqliteRow};
 use sqlx_core::row::Row;
 use sqlx_test::new;
@@ -104,6 +106,41 @@ mod chrono {
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23))
+    ));
+}
+
+#[cfg(feature = "time")]
+mod time_tests {
+    use super::*;
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use time::macros::{date, datetime, time};
+
+    test_type!(time_offset_date_time<OffsetDateTime>(
+        Sqlite,
+        "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2015-11-19 01:01:39+01:00'" == datetime!(2015 - 11 - 19 1:01:39 +1),
+        "'2016-03-07T22:36:55.135+03:30'" == datetime!(2016 - 3 - 7 22:36:55.135 +3:30),
+    ));
+
+    test_type!(time_primitive_date_time<PrimitiveDateTime>(
+        Sqlite,
+        "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2019-01-02 05:10:20'" == datetime!(2019 - 1 - 2 5:10:20),
+        "'2017-09-21T15:22:31.927Z'" == datetime!(2017 - 9 - 21 15:22:31.927),
+    ));
+
+    test_type!(time_date<Date>(
+        Sqlite,
+        "SELECT date({0}) is date(?), {0}, ?",
+        "'2002-06-04'" == date!(2002 - 6 - 4),
+    ));
+
+    test_type!(time_time<Time>(
+        Sqlite,
+        "SELECT time({0}) is time(?), {0}, ?",
+        "'21:46:32'" == time!(21:46:32),
+        "'21:46:32.133'" == time!(21:46:32.133),
+        "'21:46'" == time!(21:46),
     ));
 }
 
