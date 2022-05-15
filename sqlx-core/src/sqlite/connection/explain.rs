@@ -115,6 +115,9 @@ const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 const OP_HALT: &str = "Halt";
 
+use crate::connection::LogSettings;
+use std::time::Instant;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct ColumnType {
     pub datatype: DataType,
@@ -275,6 +278,8 @@ pub(super) fn explain(
     conn: &mut ConnectionState,
     query: &str,
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
+    let mut logger = crate::logger::QueryPlanLogger::new(query, conn.log_settings.clone());
+
     let root_block_cols = root_block_columns(conn)?;
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
         execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
@@ -515,7 +520,7 @@ pub(super) fn explain(
                             );
                         }
 
-                        _ => {}
+                        _ => logger.add_unknown_operation(program[state.program_i].clone()),
                     }
                 }
 
@@ -679,7 +684,7 @@ pub(super) fn explain(
                             })
                             .collect(),
                     );
-
+                    logger.add_result(state.result.clone());
                     result_states.push(state.clone());
                 }
 
@@ -690,6 +695,7 @@ pub(super) fn explain(
                 _ => {
                     // ignore unsupported operations
                     // if we fail to find an r later, we just give up
+                    logger.add_unknown_operation(program[state.program_i].clone());
                 }
             }
 
