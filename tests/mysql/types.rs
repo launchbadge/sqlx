@@ -21,7 +21,16 @@ test_type!(i32(MySql, "2141512" == 2141512_i32));
 test_type!(u64(MySql, "CAST(2141512 AS UNSIGNED)" == 2141512_u64));
 test_type!(i64(MySql, "2141512" == 2141512_i64));
 
-test_type!(f64(MySql, "3.14159265e0" == 3.14159265_f64));
+test_type!(f64(MySql,
+    "3.14159265e0" == 3.14159265_f64,
+    "CAST(0 as DECIMAL(0, 0))" == f64::from_str("0").unwrap(),
+    "CAST(1 AS DECIMAL(1, 0))" == f64::from_str("1").unwrap(),
+    "CAST(10000 AS DECIMAL(5, 0))" == f64::from_str("10000").unwrap(),
+    "CAST(0.1 AS DECIMAL(2, 1))" == f64::from_str("0.1").unwrap(),
+    "CAST(0.01234 AS DECIMAL(6, 5))" == f64::from_str("0.01234").unwrap(),
+    "CAST(12.34 AS DECIMAL(4, 2))" == f64::from_str("12.34").unwrap(),
+    "CAST(12345.6789 AS DECIMAL(9, 4))" == f64::from_str("12345.6789").unwrap()
+));
 
 // NOTE: This behavior can be very surprising. MySQL implicitly widens FLOAT bind parameters
 //       to DOUBLE. This results in the weirdness you see below. MySQL generally recommends to stay
