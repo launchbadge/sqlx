@@ -6,7 +6,7 @@ use bytes::Bytes;
 use std::borrow::Cow;
 use std::str::from_utf8;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum MySqlValueFormat {
     Text,
