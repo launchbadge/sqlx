@@ -21,7 +21,8 @@ test_type!(i32(MySql, "2141512" == 2141512_i32));
 test_type!(u64(MySql, "CAST(2141512 AS UNSIGNED)" == 2141512_u64));
 test_type!(i64(MySql, "2141512" == 2141512_i64));
 
-test_type!(f64(MySql,
+test_type!(f64(
+    MySql,
     "3.14159265e0" == 3.14159265_f64,
     "CAST(0 as DECIMAL(0, 0))" == f64::from_str("0").unwrap(),
     "CAST(1 AS DECIMAL(1, 0))" == f64::from_str("1").unwrap(),

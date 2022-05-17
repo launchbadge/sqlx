@@ -8,7 +8,10 @@ use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
 fn real_compatible(ty: &MySqlTypeInfo) -> bool {
-    matches!(ty.r#type, ColumnType::Float | ColumnType::Double | ColumnType::NewDecimal)
+    matches!(
+        ty.r#type,
+        ColumnType::Float | ColumnType::Double | ColumnType::NewDecimal
+    )
 }
 
 impl Type<MySql> for f32 {
@@ -49,8 +52,12 @@ impl Encode<'_, MySql> for f64 {
 
 impl Decode<'_, MySql> for f32 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => {
+        Ok(
+            if value.format() == MySqlValueFormat::Text
+                || value.type_info.r#type == ColumnType::NewDecimal
+            {
+                value.as_str()?.parse()?
+            } else {
                 let buf = value.as_bytes()?;
 
                 if buf.len() == 8 {
@@ -60,18 +67,21 @@ impl Decode<'_, MySql> for f32 {
                 } else {
                     LittleEndian::read_f32(buf)
                 }
-            }
-
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+            },
+        )
     }
 }
 
 impl Decode<'_, MySql> for f64 {
     fn decode(value: MySqlValueRef<'_>) -> Result<Self, BoxDynError> {
-        Ok(match value.format() {
-            MySqlValueFormat::Binary => LittleEndian::read_f64(value.as_bytes()?),
-            MySqlValueFormat::Text => value.as_str()?.parse()?,
-        })
+        Ok(
+            if value.format() == MySqlValueFormat::Text
+                || value.type_info.r#type == ColumnType::NewDecimal
+            {
+                value.as_str()?.parse()?
+            } else {
+                LittleEndian::read_f64(value.as_bytes()?)
+            },
+        )
     }
 }
