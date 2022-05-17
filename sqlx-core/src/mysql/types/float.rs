@@ -8,7 +8,7 @@ use crate::mysql::{MySql, MySqlTypeInfo, MySqlValueFormat, MySqlValueRef};
 use crate::types::Type;
 
 fn real_compatible(ty: &MySqlTypeInfo) -> bool {
-    matches!(ty.r#type, ColumnType::Float | ColumnType::Double)
+    matches!(ty.r#type, ColumnType::Float | ColumnType::Double | ColumnType::NewDecimal)
 }
 
 impl Type<MySql> for f32 {
