@@ -77,6 +77,7 @@ const OP_COLUMN: &str = "Column";
 const OP_MAKE_RECORD: &str = "MakeRecord";
 const OP_INSERT: &str = "Insert";
 const OP_IDX_INSERT: &str = "IdxInsert";
+const OP_OPEN_PSEUDO: &str = "OpenPseudo";
 const OP_OPEN_READ: &str = "OpenRead";
 const OP_OPEN_WRITE: &str = "OpenWrite";
 const OP_OPEN_EPHEMERAL: &str = "OpenEphemeral";
@@ -180,6 +181,56 @@ impl RegDataType {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum CursorDataType {
+    Normal(HashMap<i64, ColumnType>),
+    Pseudo(i64),
+}
+
+impl CursorDataType {
+    fn from_sparse_record(record: &HashMap<i64, ColumnType>) -> Self {
+        Self::Normal(
+            record
+                .iter()
+                .map(|(&colnum, &datatype)| (colnum, datatype))
+                .collect(),
+        )
+    }
+
+    fn from_dense_record(record: &Vec<ColumnType>) -> Self {
+        Self::Normal((0..).zip(record.iter().copied()).collect())
+    }
+
+    fn map_to_dense_record(&self, registers: &HashMap<i64, RegDataType>) -> Vec<ColumnType> {
+        match self {
+            Self::Normal(record) => {
+                let mut rowdata = vec![ColumnType::default(); record.len()];
+                for (idx, col) in record.iter() {
+                    rowdata[*idx as usize] = col.clone();
+                }
+                rowdata
+            }
+            Self::Pseudo(i) => match registers.get(i) {
+                Some(RegDataType::Record(r)) => r.clone(),
+                _ => Vec::new(),
+            },
+        }
+    }
+
+    fn map_to_sparse_record(
+        &self,
+        registers: &HashMap<i64, RegDataType>,
+    ) -> HashMap<i64, ColumnType> {
+        match self {
+            Self::Normal(c) => c.clone(),
+            Self::Pseudo(i) => match registers.get(i) {
+                Some(RegDataType::Record(r)) => (0..).zip(r.iter().copied()).collect(),
+                _ => HashMap::new(),
+            },
+        }
+    }
+}
+
 #[allow(clippy::wildcard_in_or_patterns)]
 fn affinity_to_type(affinity: u8) -> DataType {
     match affinity {
@@ -268,7 +319,7 @@ struct QueryState {
     // Registers
     pub r: HashMap<i64, RegDataType>,
     // Rows that pointers point to
-    pub p: HashMap<i64, HashMap<i64, ColumnType>>,
+    pub p: HashMap<i64, CursorDataType>,
     // Next instruction to execute
     pub program_i: usize,
     // Results published by the execution
@@ -438,7 +489,8 @@ pub(super) fn explain(
 
                 OP_COLUMN => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
-                    if let Some(record) = state.p.get(&p1) {
+                    if let Some(record) = state.p.get(&p1).map(|c| c.map_to_sparse_record(&state.r))
+                    {
                         if let Some(col) = record.get(&p2) {
                             // insert into p3 the datatype of the col
                             state.r.insert(p3, RegDataType::Single(*col));
@@ -457,12 +509,7 @@ pub(super) fn explain(
                 OP_ROW_DATA => {
                     //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
                     if let Some(record) = state.p.get(&p1) {
-                        let mut rowdata = vec![ColumnType::default(); record.len()];
-
-                        for (idx, col) in record.iter() {
-                            rowdata[*idx as usize] = col.clone();
-                        }
-
+                        let rowdata = record.map_to_dense_record(&state.r);
                         state.r.insert(p2, RegDataType::Record(rowdata));
                     } else {
                         state.r.insert(p2, RegDataType::Record(Vec::new()));
@@ -486,7 +533,7 @@ pub(super) fn explain(
 
                 OP_INSERT | OP_IDX_INSERT => {
                     if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
-                        if let Some(row) = state.p.get_mut(&p1) {
+                        if let Some(CursorDataType::Normal(row)) = state.p.get_mut(&p1) {
                             // Insert the record into wherever pointer p1 is
                             *row = (0..).zip(record.iter().copied()).collect();
                         }
@@ -494,30 +541,35 @@ pub(super) fn explain(
                     //Noop if the register p2 isn't a record, or if pointer p1 does not exist
                 }
 
+                OP_OPEN_PSEUDO => {
+                    // Create a cursor p1 aliasing the record from register p2
+                    state.p.insert(p1, CursorDataType::Pseudo(p2));
+                }
                 OP_OPEN_READ | OP_OPEN_WRITE => {
                     //Create a new pointer which is referenced by p1, take column metadata from db schema if found
                     if p3 == 0 {
                         if let Some(columns) = root_block_cols.get(&p2) {
-                            state.p.insert(
-                                p1,
-                                columns
-                                    .iter()
-                                    .map(|(&colnum, &datatype)| (colnum, datatype))
-                                    .collect(),
-                            );
+                            state
+                                .p
+                                .insert(p1, CursorDataType::from_sparse_record(columns));
                         } else {
-                            state.p.insert(p1, HashMap::with_capacity(6));
+                            state
+                                .p
+                                .insert(p1, CursorDataType::Normal(HashMap::with_capacity(6)));
                         }
                     } else {
-                        state.p.insert(p1, HashMap::with_capacity(6));
+                        state
+                            .p
+                            .insert(p1, CursorDataType::Normal(HashMap::with_capacity(6)));
                     }
                 }
 
                 OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
                     //Create a new pointer which is referenced by p1
-                    state
-                        .p
-                        .insert(p1, (0..p2).map(|i| (i, ColumnType::null())).collect());
+                    state.p.insert(
+                        p1,
+                        CursorDataType::from_dense_record(&vec![ColumnType::null(); p2 as usize]),
+                    );
                 }
 
                 OP_VARIABLE => {
@@ -545,7 +597,7 @@ pub(super) fn explain(
 
                 OP_NULL_ROW => {
                     // all columns in cursor X are potentially nullable
-                    if let Some(ref mut cursor) = state.p.get_mut(&p1) {
+                    if let Some(CursorDataType::Normal(ref mut cursor)) = state.p.get_mut(&p1) {
                         for ref mut col in cursor.values_mut() {
                             col.nullable = Some(true);
                         }
