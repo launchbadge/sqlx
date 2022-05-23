@@ -263,6 +263,7 @@ fn root_block_columns(
 #[derive(Debug, Clone, PartialEq)]
 struct QueryState {
     pub visited: Vec<bool>,
+    pub history: Vec<usize>,
     // Registers
     pub r: HashMap<i64, RegDataType>,
     // Rows that pointers point to
@@ -286,11 +287,12 @@ pub(super) fn explain(
             .filter_map(|res| res.map(|either| either.right()).transpose())
             .map(|row| FromRow::from_row(&row?))
             .collect::<Result<Vec<_>, Error>>()?;
-
+    logger.add_program(program.clone());
     let program_size = program.len();
 
     let mut states = vec![QueryState {
         visited: vec![false; program_size],
+        history: Vec::new(),
         r: HashMap::with_capacity(6),
         p: HashMap::with_capacity(6),
         program_i: 0,
@@ -307,6 +309,7 @@ pub(super) fn explain(
                 break;
             }
             let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
+            state.history.push(state.program_i);
 
             match &**opcode {
                 OP_INIT => {
@@ -684,7 +687,10 @@ pub(super) fn explain(
                             })
                             .collect(),
                     );
-                    logger.add_result(state.result.clone());
+
+                    let program_history: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
+                        state.history.iter().map(|i| program[*i].clone()).collect();
+                    logger.add_result((program_history, state.result.clone()));
                     result_states.push(state.clone());
                 }
 

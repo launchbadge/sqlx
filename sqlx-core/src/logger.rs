@@ -81,25 +81,31 @@ impl<'q> Drop for QueryLogger<'q> {
     }
 }
 
-pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, P: Debug + Hash + Eq> {
+pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<O>,
-    results: HashSet<P>,
+    results: HashSet<R>,
+    program: Vec<P>,
     settings: LogSettings,
 }
 
-impl<'q, O: Debug + Hash + Eq, P: Debug + Hash + Eq> QueryPlanLogger<'q, O, P> {
+impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'q, O, R, P> {
     pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
         Self {
             sql,
             unknown_operations: HashSet::new(),
             results: HashSet::new(),
+            program: Vec::new(),
             settings,
         }
     }
 
-    pub(crate) fn add_result(&mut self, result: P) {
+    pub(crate) fn add_result(&mut self, result: R) {
         self.results.insert(result);
+    }
+
+    pub(crate) fn add_program(&mut self, program: Vec<P>) {
+        self.program = program;
     }
 
     pub(crate) fn add_unknown_operation(&mut self, operation: O) {
@@ -132,8 +138,8 @@ impl<'q, O: Debug + Hash + Eq, P: Debug + Hash + Eq> QueryPlanLogger<'q, O, P> {
             log::logger().log(
                 &log::Record::builder()
                     .args(format_args!(
-                        "{}; unknown_operations:{:?}, results: {:?}",
-                        summary, self.unknown_operations, self.results
+                        "{}; program:{:?}, unknown_operations:{:?}, results: {:?}",
+                        summary, self.program, self.unknown_operations, self.results
                     ))
                     .level(lvl)
                     .module_path_static(Some("sqlx::explain"))
@@ -144,7 +150,9 @@ impl<'q, O: Debug + Hash + Eq, P: Debug + Hash + Eq> QueryPlanLogger<'q, O, P> {
     }
 }
 
-impl<'q, O: Debug + Hash + Eq, P: Debug + Hash + Eq> Drop for QueryPlanLogger<'q, O, P> {
+impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> Drop
+    for QueryPlanLogger<'q, O, R, P>
+{
     fn drop(&mut self) {
         self.finish();
     }
