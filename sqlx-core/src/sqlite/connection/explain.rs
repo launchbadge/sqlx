@@ -57,6 +57,7 @@ const OP_PREV: &str = "Prev";
 const OP_PROGRAM: &str = "Program";
 const OP_RETURN: &str = "Return";
 const OP_REWIND: &str = "Rewind";
+const OP_ROW_DATA: &str = "RowData";
 const OP_ROW_SET_READ: &str = "RowSetRead";
 const OP_ROW_SET_TEST: &str = "RowSetTest";
 const OP_SEEK_GE: &str = "SeekGE";
@@ -450,6 +451,21 @@ pub(super) fn explain(
                         state
                             .r
                             .insert(p3, RegDataType::Single(ColumnType::default()));
+                    }
+                }
+
+                OP_ROW_DATA => {
+                    //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
+                    if let Some(record) = state.p.get(&p1) {
+                        let mut rowdata = vec![ColumnType::default(); record.len()];
+
+                        for (idx, col) in record.iter() {
+                            rowdata[*idx as usize] = col.clone();
+                        }
+
+                        state.r.insert(p2, RegDataType::Record(rowdata));
+                    } else {
+                        state.r.insert(p2, RegDataType::Record(Vec::new()));
                     }
                 }
 
