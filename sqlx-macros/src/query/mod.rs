@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 #[cfg(feature = "offline")]
 use std::sync::{Arc, Mutex};
@@ -12,7 +13,7 @@ use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
-use sqlx_rt::block_on;
+use sqlx_rt::{block_on, AsyncMutex};
 
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
@@ -117,6 +118,28 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
 pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     match &*METADATA {
+        #[cfg(not(any(
+            feature = "postgres",
+            feature = "mysql",
+            feature = "mssql",
+            feature = "sqlite"
+        )))]
+        Metadata {
+            offline: false,
+            database_url: Some(db_url),
+            ..
+        } => Err(
+            "At least one of the features ['postgres', 'mysql', 'mssql', 'sqlite'] must be enabled \
+            to get information directly from a database"
+            .into(),
+        ),
+
+        #[cfg(any(
+            feature = "postgres",
+            feature = "mysql",
+            feature = "mssql",
+            feature = "sqlite"
+        ))]
         Metadata {
             offline: false,
             database_url: Some(db_url),
@@ -157,67 +180,76 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     }
 }
 
-#[allow(unused_variables)]
+#[cfg(any(
+    feature = "postgres",
+    feature = "mysql",
+    feature = "mssql",
+    feature = "sqlite"
+))]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
-    // FIXME: Introduce [sqlx::any::AnyConnection] and [sqlx::any::AnyDatabase] to support
-    //        runtime determinism here
+    use sqlx_core::any::{AnyConnection, AnyConnectionKind};
 
-    let db_url = Url::parse(db_url)?;
-    match db_url.scheme() {
-        #[cfg(feature = "postgres")]
-        "postgres" | "postgresql" => {
-            let data = block_on(async {
-                let mut conn = sqlx_core::postgres::PgConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
-            })?;
+    static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
+        Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
 
-            expand_with_data(input, data, false)
-        },
+    let maybe_expanded: crate::Result<TokenStream> = block_on(async {
+        let mut cache = CONNECTION_CACHE.lock().await;
 
-        #[cfg(not(feature = "postgres"))]
-        "postgres" | "postgresql" => Err("database URL has the scheme of a PostgreSQL database but the `postgres` feature is not enabled".into()),
+        if !cache.contains_key(db_url) {
+            let parsed_db_url = Url::parse(db_url)?;
 
-        #[cfg(feature = "mssql")]
-        "mssql" | "sqlserver" => {
-            let data = block_on(async {
-                let mut conn = sqlx_core::mssql::MssqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
-            })?;
+            let conn = match parsed_db_url.scheme() {
+                #[cfg(feature = "sqlite")]
+                "sqlite" => {
+                    use sqlx_core::connection::ConnectOptions;
+                    use sqlx_core::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+                    use std::str::FromStr;
 
-            expand_with_data(input, data, false)
-        },
+                    let sqlite_conn = SqliteConnectOptions::from_str(db_url)?
+                        // Connections in `CONNECTION_CACHE` won't get dropped so disable journaling
+                        // to avoid `.db-wal` and `.db-shm` files from lingering around
+                        .journal_mode(SqliteJournalMode::Off)
+                        .connect()
+                        .await?;
+                    AnyConnection::from(sqlite_conn)
+                }
+                _ => AnyConnection::connect(db_url).await?,
+            };
 
-        #[cfg(not(feature = "mssql"))]
-        "mssql" | "sqlserver" => Err("database URL has the scheme of a MSSQL database but the `mssql` feature is not enabled".into()),
+            let _ = cache.insert(db_url.to_owned(), conn);
+        }
 
-        #[cfg(feature = "mysql")]
-        "mysql" | "mariadb" => {
-            let data = block_on(async {
-                let mut conn = sqlx_core::mysql::MySqlConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
-            })?;
+        let conn_item = cache.get_mut(db_url).expect("Item was just inserted");
+        match conn_item.private_get_mut() {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => {
+                let data = QueryData::from_db(conn, &input.sql).await?;
+                expand_with_data(input, data, false)
+            }
+            // Variants depend on feature flags
+            #[allow(unreachable_patterns)]
+            item => {
+                return Err(format!("Missing expansion needed for: {:?}", item).into());
+            }
+        }
+    });
 
-            expand_with_data(input, data, false)
-        },
-
-        #[cfg(not(feature = "mysql"))]
-        "mysql" | "mariadb" => Err("database URL has the scheme of a MySQL/MariaDB database but the `mysql` feature is not enabled".into()),
-
-        #[cfg(feature = "sqlite")]
-        "sqlite" => {
-            let data = block_on(async {
-                let mut conn = sqlx_core::sqlite::SqliteConnection::connect(db_url.as_str()).await?;
-                QueryData::from_db(&mut conn, &input.sql).await
-            })?;
-
-            expand_with_data(input, data, false)
-        },
-
-        #[cfg(not(feature = "sqlite"))]
-        "sqlite" => Err("database URL has the scheme of a SQLite database but the `sqlite` feature is not enabled".into()),
-
-        scheme => Err(format!("unknown database URL scheme {:?}", scheme).into())
-    }
+    maybe_expanded.map_err(Into::into)
 }
 
 #[cfg(feature = "offline")]
