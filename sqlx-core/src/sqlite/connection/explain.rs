@@ -507,7 +507,7 @@ pub(super) fn explain(
                 }
 
                 OP_ROW_DATA => {
-                    //Get the row stored at p1, or NULL; get the column stored at p2, or NULL
+                    //Get entire row from cursor p1, store it into register p2
                     if let Some(record) = state.p.get(&p1) {
                         let rowdata = record.map_to_dense_record(&state.r);
                         state.r.insert(p2, RegDataType::Record(rowdata));
