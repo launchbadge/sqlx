@@ -117,9 +117,6 @@ const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 const OP_HALT: &str = "Halt";
 
-use crate::connection::LogSettings;
-use std::time::Instant;
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct ColumnType {
     pub datatype: DataType,

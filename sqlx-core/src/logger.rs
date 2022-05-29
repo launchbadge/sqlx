@@ -138,8 +138,8 @@ impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'
             log::logger().log(
                 &log::Record::builder()
                     .args(format_args!(
-                        "{}; program:{:?}, unknown_operations:{:?}, results: {:?}",
-                        summary, self.program, self.unknown_operations, self.results
+                        "{}; program:{:?}, unknown_operations:{:?}, results: {:?}{}",
+                        summary, self.program, self.unknown_operations, self.results, sql
                     ))
                     .level(lvl)
                     .module_path_static(Some("sqlx::explain"))
