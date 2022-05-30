@@ -89,12 +89,13 @@ pub(crate) async fn authenticate(
         }
     };
 
+    let password = match &options.password {
+        Some(pw) => pw.password().await.unwrap(),
+        None => Default::default(),
+    };
+
     // SaltedPassword := Hi(Normalize(password), salt, i)
-    let salted_password = hi(
-        options.password.as_deref().unwrap_or_default(),
-        &cont.salt,
-        cont.iterations,
-    )?;
+    let salted_password = hi(&password, &cont.salt, cont.iterations)?;
 
     // ClientKey := HMAC(SaltedPassword, "Client Key")
     let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password).map_err(Error::protocol)?;

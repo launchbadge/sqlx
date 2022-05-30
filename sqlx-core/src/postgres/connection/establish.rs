@@ -76,11 +76,12 @@ impl PgConnection {
                         // The frontend must now send a [PasswordMessage] containing the
                         // password in clear-text form.
 
-                        stream
-                            .send(Password::Cleartext(
-                                options.password.as_deref().unwrap_or_default(),
-                            ))
-                            .await?;
+                        let password = match &options.password {
+                            Some(pw) => pw.password().await.unwrap(),
+                            None => Default::default(),
+                        };
+
+                        stream.send(Password::Cleartext(&password)).await?;
                     }
 
                     Authentication::Md5Password(body) => {
@@ -89,10 +90,15 @@ impl PgConnection {
                         // using the 4-byte random salt specified in the
                         // [AuthenticationMD5Password] message.
 
+                        let password = match &options.password {
+                            Some(pw) => pw.password().await.unwrap(),
+                            None => Default::default(),
+                        };
+
                         stream
                             .send(Password::Md5 {
                                 username: &options.username,
-                                password: options.password.as_deref().unwrap_or_default(),
+                                password: &password,
                                 salt: body.salt,
                             })
                             .await?;

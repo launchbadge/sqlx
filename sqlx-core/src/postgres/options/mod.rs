@@ -5,10 +5,15 @@ use std::path::{Path, PathBuf};
 
 mod connect;
 mod parse;
+mod password_provider;
 mod pgpass;
 mod ssl_mode;
+use crate::error::Error;
 use crate::{connection::LogSettings, net::CertificateInput};
+use futures_core::future::BoxFuture;
 pub use ssl_mode::PgSslMode;
+
+use self::password_provider::PgPassword;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
 ///
@@ -81,7 +86,7 @@ pub struct PgConnectOptions {
     pub(crate) port: u16,
     pub(crate) socket: Option<PathBuf>,
     pub(crate) username: String,
-    pub(crate) password: Option<String>,
+    pub(crate) password: Option<PgPassword>,
     pub(crate) database: Option<String>,
     pub(crate) ssl_mode: PgSslMode,
     pub(crate) ssl_root_cert: Option<CertificateInput>,
@@ -140,7 +145,7 @@ impl PgConnectOptions {
             host,
             socket: None,
             username,
-            password: var("PGPASSWORD").ok(),
+            password: var("PGPASSWORD").ok().map(|pw| PgPassword::Static(pw)),
             database,
             ssl_root_cert: var("PGSSLROOTCERT").ok().map(CertificateInput::from),
             ssl_mode: var("PGSSLMODE")
@@ -162,7 +167,8 @@ impl PgConnectOptions {
                 self.port,
                 &self.username,
                 self.database.as_deref(),
-            );
+            )
+            .map(|pw| PgPassword::Static(pw));
         }
 
         self
@@ -242,7 +248,15 @@ impl PgConnectOptions {
     ///     .password("safe-and-secure");
     /// ```
     pub fn password(mut self, password: &str) -> Self {
-        self.password = Some(password.to_owned());
+        self.password = Some(PgPassword::Static(password.to_owned()));
+        self
+    }
+
+    pub fn dynamic_password<F>(mut self, closure: F) -> Self
+    where
+        F: Fn() -> BoxFuture<'static, Result<String, Error>> + Send + Sync + 'static,
+    {
+        self.password = Some(PgPassword::Dynamic(std::sync::Arc::new(closure)));
         self
     }
 
