@@ -134,7 +134,12 @@ where
                 let element_type_oid = Oid(buf.get_u32());
                 let element_type_info: PgTypeInfo = PgTypeInfo::try_from_oid(element_type_oid)
                     .or_else(|| value.type_info.try_array_element().map(Cow::into_owned))
-                    .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
+                    .ok_or_else(|| {
+                        BoxDynError::from(format!(
+                            "failed to resolve array element type for oid {}",
+                            element_type_oid.0
+                        ))
+                    })?;
 
                 // length of the array axis
                 let len = buf.get_i32();

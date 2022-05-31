@@ -125,8 +125,6 @@ impl<'r> PgRecordDecoder<'r> {
                     }
                 };
 
-                self.ind += 1;
-
                 if let Some(ty) = &element_type_opt {
                     if !ty.is_null() && !T::compatible(ty) {
                         return Err(mismatched_types::<Postgres, T>(ty));
@@ -134,7 +132,10 @@ impl<'r> PgRecordDecoder<'r> {
                 }
 
                 let element_type =
-                    element_type_opt.unwrap_or_else(|| PgTypeInfo::with_oid(element_type_oid));
+                    element_type_opt
+                        .ok_or_else(|| BoxDynError::from(format!("custom types in records are not fully supported yet: failed to retrieve type info for field {} with type oid {}", self.ind, element_type_oid.0)))?;
+
+                self.ind += 1;
 
                 T::decode(PgValueRef::get(&mut self.buf, self.fmt, element_type))
             }
