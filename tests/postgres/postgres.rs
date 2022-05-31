@@ -976,7 +976,7 @@ async fn test_pg_listener_allows_pool_to_close() -> anyhow::Result<()> {
     let mut listener = PgListener::connect_with(&pool).await?;
 
     sqlx_rt::spawn(async move {
-        listener.recv().await;
+        listener.recv().await.unwrap();
     });
 
     // would previously hang forever since `PgListener` had no way to know the pool wanted to close
