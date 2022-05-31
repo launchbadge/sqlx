@@ -106,16 +106,24 @@ error: cannot mix reversible migrations with simple migrations. All migrations s
 
 #### Enable building in "offline mode" with `query!()`
 
-Note: must be run as `cargo sqlx`.
+There are 3 steps to building with "offline mode":
+
+1. Enable the SQLx's Cargo feature `offline`
+    - E.g. in your `Cargo.toml`, `sqlx = { features = [ "offline", ... ] }`
+2. Save query metadata for offline usage
+    - `cargo sqlx prepare`
+3. Build
+
+Note: Saving query metadata must be run as `cargo sqlx`.
 
 ```bash
 cargo sqlx prepare
 ```
 
-Saves query metadata to `sqlx-data.json` in the current directory; check this file into version
+Invoking `prepare` saves query metadata to `sqlx-data.json` in the current directory; check this file into version
 control and an active database connection will no longer be needed to build your project.
 
-Has no effect unless the `offline` feature of `sqlx` is enabled in your project. Omitting that
+Has no effect unless the `offline` Cargo feature of `sqlx` is enabled in your project. Omitting that
 feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
 
 ```json
@@ -135,7 +143,7 @@ database schema and queries in the project. Intended for use in Continuous Integ
 
 #### Force building in offline mode
 
-To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
+The presence of a `DATABASE_URL` environment variable will take precedence over the presence of `sqlx-data.json`, meaning SQLx will default to building against a database if it can. To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
 variable to `true`.
 
