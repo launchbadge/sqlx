@@ -57,7 +57,11 @@ async fn it_does_not_stop_stream_after_decoding_error() -> anyhow::Result<()> {
         }
     }
 
-    let rows = sqlx::query_as("SELECT 0; SELECT 1; SELECT 2;").fetch(&pool).map(|r| r.ok()).collect::<Vec<_>>().await;
+    let rows = sqlx::query_as("SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2")
+        .fetch(&pool)
+        .map(|r| r.ok())
+        .collect::<Vec<_>>()
+        .await;
 
     assert_eq!(rows, vec![Some(MyType), None, Some(MyType)]);
     Ok(())
