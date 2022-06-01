@@ -841,8 +841,8 @@ async fn test_describe_outer_join_nullable() -> anyhow::Result<()> {
     let describe = conn
         .describe(
             "select tweet.id
-from (values (null)) vals(val)
-         inner join tweet on false",
+    from tweet
+    inner join products on products.name = tweet.text",
         )
         .await?;
 
