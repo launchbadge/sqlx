@@ -37,7 +37,8 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
-    net::TcpStream, runtime::Handle, task::spawn, task::yield_now, time::sleep, time::timeout,
+    net::TcpStream, runtime::Handle, sync::Mutex as AsyncMutex, task::spawn, task::yield_now,
+    time::sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -142,7 +143,7 @@ macro_rules! blocking {
 pub use async_std::{
     self, fs, future::timeout, io::prelude::ReadExt as AsyncReadExt,
     io::prelude::WriteExt as AsyncWriteExt, io::Read as AsyncRead, io::Write as AsyncWrite,
-    net::TcpStream, task::sleep, task::spawn, task::yield_now,
+    net::TcpStream, sync::Mutex as AsyncMutex, task::sleep, task::spawn, task::yield_now,
 };
 
 #[cfg(all(

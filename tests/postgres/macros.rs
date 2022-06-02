@@ -130,6 +130,7 @@ async fn test_query_as() -> anyhow::Result<()> {
     .fetch_one(&mut conn)
     .await?;
 
+    assert_eq!(1, account.id);
     assert_eq!(None, account.name);
 
     println!("{:?}", account);
@@ -301,6 +302,7 @@ async fn query_by_bigdecimal() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_nullable_err() -> anyhow::Result<()> {
+    #[allow(dead_code)]
     #[derive(Debug)]
     struct Account {
         id: i32,

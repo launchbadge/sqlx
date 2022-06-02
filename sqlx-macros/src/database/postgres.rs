@@ -69,7 +69,7 @@ impl_database_ext! {
         sqlx::types::mac_address::MacAddress,
 
         #[cfg(feature = "json")]
-        serde_json::Value,
+        sqlx::types::JsonValue,
 
         #[cfg(feature = "bit-vec")]
         sqlx::types::BitVec,
@@ -128,7 +128,7 @@ impl_database_ext! {
         Vec<sqlx::types::mac_address::MacAddress> | &[sqlx::types::mac_address::MacAddress],
 
         #[cfg(feature = "json")]
-        Vec<serde_json::Value> | &[serde_json::Value],
+        Vec<sqlx::types::JsonValue> | &[sqlx::types::JsonValue],
 
         // Ranges
 

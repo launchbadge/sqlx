@@ -83,7 +83,7 @@ pub mod mac_address {
 }
 
 #[cfg(feature = "json")]
-pub use json::Json;
+pub use json::{Json, JsonRawValue, JsonValue};
 
 /// Indicates that a SQL type is supported for a database.
 ///

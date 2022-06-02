@@ -148,7 +148,11 @@ impl MySqlStream {
         // TODO: packet compression
         // TODO: packet joining
 
-        if payload[0] == 0xff {
+        if payload
+            .get(0)
+            .ok_or(err_protocol!("Packet empty"))?
+            .eq(&0xff)
+        {
             self.waiting.pop_front();
 
             // instead of letting this packet be looked at everywhere, we check here

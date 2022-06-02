@@ -12,6 +12,7 @@ const COLLATE_UTF8_UNICODE_CI: u16 = 192;
 const COLLATE_UTF8MB4_UNICODE_CI: u16 = 224;
 const COLLATE_UTF8MB4_BIN: u16 = 46;
 const COLLATE_UTF8MB4_GENERAL_CI: u16 = 45;
+const COLLATE_UTF8MB4_0900_AI_CI: u16 = 255;
 
 impl Type<MySql> for str {
     fn type_info() -> MySqlTypeInfo {
@@ -42,6 +43,7 @@ impl Type<MySql> for str {
                 | COLLATE_UTF8_GENERAL_CI
                 | COLLATE_UTF8MB4_BIN
                 | COLLATE_UTF8MB4_GENERAL_CI
+                | COLLATE_UTF8MB4_0900_AI_CI
         )
     }
 }
