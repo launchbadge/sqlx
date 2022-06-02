@@ -110,18 +110,14 @@ where
         O: 'e,
         A: 'e,
     {
-        Box::pin(try_stream! {
-            let mut s = executor.fetch_many(self.inner);
-
-            while let Some(v) = s.try_next().await? {
-                r#yield!(match v {
-                    Either::Left(v) => Either::Left(v),
-                    Either::Right(row) => Either::Right(O::from_row(&row)?),
-                });
-            }
-
-            Ok(())
-        })
+        executor
+            .fetch_many(self.inner)
+            .map(|v| match v {
+                Ok(Either::Right(row)) => O::from_row(&row).map(Either::Right),
+                Ok(Either::Left(v)) => Ok(Either::Left(v)),
+                Err(e) => Err(e),
+            })
+            .boxed()
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
