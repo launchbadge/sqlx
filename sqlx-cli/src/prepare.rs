@@ -1,8 +1,10 @@
+use crate::opt::ConnectOpts;
 use anyhow::{bail, Context};
 use console::style;
 use remove_dir_all::remove_dir_all;
 use serde::Deserialize;
 use sqlx::any::{AnyConnectOptions, AnyKind};
+use sqlx::Connection;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -22,7 +24,16 @@ struct DataFile {
     data: QueryData,
 }
 
-pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
+pub async fn run(
+    connect_opts: &ConnectOpts,
+    merge: bool,
+    cargo_args: Vec<String>,
+) -> anyhow::Result<()> {
+    // Ensure the database server is available.
+    crate::connect(connect_opts).await?.close().await?;
+
+    let url = &connect_opts.database_url;
+
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(url, merge, cargo_args)?;
 
@@ -52,7 +63,16 @@ pub fn run(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()
     Ok(())
 }
 
-pub fn check(url: &str, merge: bool, cargo_args: Vec<String>) -> anyhow::Result<()> {
+pub async fn check(
+    connect_opts: &ConnectOpts,
+    merge: bool,
+    cargo_args: Vec<String>,
+) -> anyhow::Result<()> {
+    // Ensure the database server is available.
+    crate::connect(connect_opts).await?.close().await?;
+
+    let url = &connect_opts.database_url;
+
     let db_kind = get_db_kind(url)?;
     let data = run_prepare_step(url, merge, cargo_args)?;
 

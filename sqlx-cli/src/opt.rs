@@ -38,7 +38,7 @@ pub enum Command {
         args: Vec<String>,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     #[clap(alias = "mig")]
@@ -57,7 +57,7 @@ pub enum DatabaseCommand {
     /// Creates the database specified in your DATABASE_URL.
     Create {
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// Drops the database specified in your DATABASE_URL.
@@ -66,7 +66,7 @@ pub enum DatabaseCommand {
         confirmation: Confirmation,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// Drops the database specified in your DATABASE_URL, re-creates it, and runs any pending migrations.
@@ -78,7 +78,7 @@ pub enum DatabaseCommand {
         source: Source,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// Creates the database specified in your DATABASE_URL and runs any pending migrations.
@@ -87,7 +87,7 @@ pub enum DatabaseCommand {
         source: Source,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 }
 
@@ -132,7 +132,7 @@ pub enum MigrateCommand {
         ignore_missing: IgnoreMissing,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// Revert the latest migration with a down file.
@@ -148,7 +148,7 @@ pub enum MigrateCommand {
         ignore_missing: IgnoreMissing,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// List all available migrations.
@@ -157,7 +157,7 @@ pub enum MigrateCommand {
         source: SourceOverride,
 
         #[clap(flatten)]
-        database_url: DatabaseUrl,
+        connect_opts: ConnectOpts,
     },
 
     /// Generate a `build.rs` to trigger recompilation when a new migration is added.
@@ -212,43 +212,24 @@ impl SourceOverride {
 
 /// Argument for the database URL.
 #[derive(Args, Debug)]
-pub struct DatabaseUrl {
+pub struct ConnectOpts {
     /// Location of the DB, by default will be read from the DATABASE_URL env var
     #[clap(long, short = 'D', env)]
-    database_url: String,
+    pub database_url: String,
+
+    /// The maximum time, in seconds, to try connecting to the database server before
+    /// returning an error.
+    #[clap(long, default_value = "10")]
+    pub connect_timeout: u64,
 }
 
-impl Deref for DatabaseUrl {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.database_url
-    }
-}
-
-/// Argument for automatic confirmantion.
+/// Argument for automatic confirmation.
 #[derive(Args, Copy, Clone, Debug)]
 pub struct Confirmation {
     /// Automatic confirmation. Without this option, you will be prompted before dropping
     /// your database.
     #[clap(short)]
-    yes: bool,
-}
-
-impl Deref for Confirmation {
-    type Target = bool;
-
-    fn deref(&self) -> &Self::Target {
-        &self.yes
-    }
-}
-
-impl Not for Confirmation {
-    type Output = bool;
-
-    fn not(self) -> Self::Output {
-        !self.yes
-    }
+    pub yes: bool,
 }
 
 /// Argument for ignoring applied migrations that were not resolved.
