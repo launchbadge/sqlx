@@ -4,7 +4,9 @@ use bytes::{Buf, Bytes};
 use crate::error::Error;
 use crate::mssql::io::MssqlBufExt;
 use crate::mssql::protocol::col_meta_data::Flags;
-use crate::mssql::protocol::type_info::{DataType, TypeInfo};
+#[cfg(test)]
+use crate::mssql::protocol::type_info::DataType;
+use crate::mssql::protocol::type_info::TypeInfo;
 
 #[allow(dead_code)]
 #[derive(Debug)]
