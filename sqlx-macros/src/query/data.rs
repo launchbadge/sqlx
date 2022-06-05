@@ -119,7 +119,7 @@ pub mod offline {
 
                 if query != query_data.query {
                     return Err(format!(
-                        "hash collision for stored queryies:\n{:?}\n{:?}",
+                        "hash collision for stored queries:\n{:?}\n{:?}",
                         query, query_data.query
                     )
                     .into());

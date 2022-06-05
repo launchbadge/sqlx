@@ -150,7 +150,7 @@ variable to `true`.
 If you want to make this the default, just add it to your `.env` file. `cargo sqlx prepare` will
 still do the right thing and connect to the database.
 
-### Include queries behind feature flags (such as queryies inside of tests)
+### Include queries behind feature flags (such as queries inside of tests)
 
 In order for sqlx to be able to find queries behind certain feature flags you need to turn them
 on by passing arguments to rustc.
