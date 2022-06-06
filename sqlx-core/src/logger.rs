@@ -1,6 +1,9 @@
 use crate::connection::LogSettings;
+#[cfg(feature = "sqlite")]
 use std::collections::HashSet;
+#[cfg(feature = "sqlite")]
 use std::fmt::Debug;
+#[cfg(feature = "sqlite")]
 use std::hash::Hash;
 use std::time::Instant;
 
@@ -81,6 +84,7 @@ impl<'q> Drop for QueryLogger<'q> {
     }
 }
 
+#[cfg(feature = "sqlite")]
 pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<O>,
@@ -89,6 +93,7 @@ pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq
     settings: LogSettings,
 }
 
+#[cfg(feature = "sqlite")]
 impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'q, O, R, P> {
     pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
         Self {
@@ -150,6 +155,7 @@ impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'
     }
 }
 
+#[cfg(feature = "sqlite")]
 impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> Drop
     for QueryPlanLogger<'q, O, R, P>
 {
