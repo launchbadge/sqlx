@@ -137,7 +137,7 @@ impl SqliteConnectOptions {
         self
     }
 
-    /// Set the enforcement of [foreign key constriants](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
+    /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
     /// By default, this is enabled.
     pub fn foreign_keys(mut self, on: bool) -> Self {

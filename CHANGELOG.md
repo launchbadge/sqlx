@@ -723,7 +723,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 
 -   [[#256]] Add `query_unchecked!` and `query_file_unchecked!` with similar semantics to `query_as_unchecked!` [[@meh]]
 
--   [[#252]] [[#297]] Derive serveral traits for the `Json<T>` wrapper type [[@meh]]
+-   [[#252]] [[#297]] Derive several traits for the `Json<T>` wrapper type [[@meh]]
 
 -   [[#261]] Add support for `#[sqlx(rename_all = "snake_case")]` to `#[derive(Type)]` [[@shssoichiro]]
 
@@ -1033,7 +1033,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
     included refactoring to make the pool internals less brittle (using RAII instead of manual
     work is one example) and to help any future contributors when changing the pool internals.
 
--   Passwords are now being precent decoding before being presented to the server [[@repnop]]
+-   Passwords are now being percent-decoded before being presented to the server [[@repnop]]
 
 -   [@100] Fix `FLOAT` and `DOUBLE` decoding in MySQL
 

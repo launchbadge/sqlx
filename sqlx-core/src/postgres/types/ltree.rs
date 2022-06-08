@@ -15,7 +15,7 @@ use std::str::FromStr;
 #[non_exhaustive]
 pub enum PgLTreeParseError {
     /// LTree labels can only contain [A-Za-z0-9_]
-    #[error("ltree label cotains invalid characters")]
+    #[error("ltree label contains invalid characters")]
     InvalidLtreeLabel,
 
     /// LTree version not supported

@@ -259,7 +259,7 @@ impl<DB: Database> SharedPool<DB> {
     }
 }
 
-// NOTE: Function names here are bizzare. Helpful help would be appreciated.
+// NOTE: Function names here are bizarre. Helpful help would be appreciated.
 
 fn is_beyond_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
     // check if connection was within max lifetime (or not set)
