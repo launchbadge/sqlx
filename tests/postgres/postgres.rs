@@ -1037,7 +1037,7 @@ CREATE TABLE heating_bills (
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
         ) -> sqlx::encode::IsNull {
-            self.0.encode(buf)
+            <i16 as sqlx::Encode<Postgres>>::encode(self.0, buf)
         }
     }
 
