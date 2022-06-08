@@ -660,3 +660,14 @@ impl Collation {
         buf.push(self.sort);
     }
 }
+
+#[test]
+fn test_get() {
+    #[rustfmt::skip]
+    let mut buf = Bytes::from_static(&[
+        0x26, 4, 4, 1, 0, 0, 0, 0xfe, 0, 0, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ]);
+
+    let type_info = TypeInfo::get(&mut buf).unwrap();
+    assert_eq!(type_info, TypeInfo::new(DataType::IntN, 4));
+}
