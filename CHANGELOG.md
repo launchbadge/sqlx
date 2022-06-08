@@ -1033,7 +1033,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
     included refactoring to make the pool internals less brittle (using RAII instead of manual
     work is one example) and to help any future contributors when changing the pool internals.
 
--   Passwords are now being prescient decoding before being presented to the server [[@repnop]]
+-   Passwords are now being percent-decoded before being presented to the server [[@repnop]]
 
 -   [@100] Fix `FLOAT` and `DOUBLE` decoding in MySQL
 
