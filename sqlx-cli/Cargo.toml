@@ -47,6 +47,8 @@ openssl = { version = "0.10.38", optional = true }
 # workaround for https://github.com/rust-lang/rust/issues/29497
 remove_dir_all = "0.7.0"
 
+backoff = { version = "0.4.0", features = ["futures", "tokio"] }
+
 [features]
 default = ["postgres", "sqlite", "mysql", "native-tls"]
 rustls = ["sqlx/runtime-tokio-rustls"]
