@@ -5,6 +5,7 @@
 //! | Rust type                             | SQL type(s)                                          |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `bool`                                | BOOLEAN                                              |
+//! | `i16`                                 | SMALLINT                                             |
 //! | `i32`                                 | INT                                                  |
 //! | `i64`                                 | BIGINT                                               |
 //! | `f32`                                 | FLOAT                                                |
@@ -21,6 +22,7 @@
 
 impl_any_type!(bool);
 
+impl_any_type!(i16);
 impl_any_type!(i32);
 impl_any_type!(i64);
 
@@ -34,6 +36,7 @@ impl_any_type!(String);
 
 impl_any_encode!(bool);
 
+impl_any_encode!(i16);
 impl_any_encode!(i32);
 impl_any_encode!(i64);
 
@@ -47,6 +50,7 @@ impl_any_encode!(String);
 
 impl_any_decode!(bool);
 
+impl_any_decode!(i16);
 impl_any_decode!(i32);
 impl_any_decode!(i64);
 

@@ -334,7 +334,7 @@ async fn it_can_query_scalar() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
-/// This is seperate from `it_can_query_scalar` because while implementing it I ran into a
+/// This is separate from `it_can_query_scalar` because while implementing it I ran into a
 /// bug which that prevented `Vec<i32>` from compiling but allowed Vec<Option<i32>>.
 async fn it_can_query_all_scalar() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
@@ -1037,7 +1037,7 @@ CREATE TABLE heating_bills (
             &self,
             buf: &mut sqlx::postgres::PgArgumentBuffer,
         ) -> sqlx::encode::IsNull {
-            self.0.encode(buf)
+            <i16 as sqlx::Encode<Postgres>>::encode(self.0, buf)
         }
     }
 

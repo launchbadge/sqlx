@@ -44,13 +44,13 @@ async fn it_describes_variables() -> anyhow::Result<()> {
     let info = conn.describe("SELECT ?1").await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "NULL");
-    assert_eq!(info.nullable(0), None); // unknown
+    assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
 
     // context can be provided by using CAST(_ as _)
     let info = conn.describe("SELECT CAST(?1 AS REAL)").await?;
 
     assert_eq!(info.columns()[0].type_info().name(), "REAL");
-    assert_eq!(info.nullable(0), None); // unknown
+    assert_eq!(info.nullable(0), Some(true)); // nothing prevents the value from being bound to null
 
     Ok(())
 }
@@ -60,7 +60,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let d = conn
-        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef'")
+        .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef', null")
         .await?;
 
     let columns = d.columns();
@@ -81,6 +81,10 @@ async fn it_describes_expression() -> anyhow::Result<()> {
     assert_eq!(columns[3].name(), "x'deadbeef'");
     assert_eq!(d.nullable(3), Some(false)); // literal constant
 
+    assert_eq!(columns[4].type_info().name(), "NULL");
+    assert_eq!(columns[4].name(), "null");
+    assert_eq!(d.nullable(4), Some(true)); // literal null
+
     Ok(())
 }
 
@@ -99,10 +103,10 @@ async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
     assert_eq!(d.nullable(0), Some(false)); // COUNT(*)
 
     assert_eq!(d.columns()[1].type_info().name(), "INTEGER");
-    assert_eq!(d.nullable(1), None); // `a + 1` is potentially nullable but we don't know for sure currently
+    assert_eq!(d.nullable(1), Some(true)); // `a+1` is nullable, because a is nullable
 
     assert_eq!(d.columns()[2].type_info().name(), "TEXT");
-    assert_eq!(d.nullable(2), Some(false)); // `name` is not nullable
+    assert_eq!(d.nullable(2), Some(true)); // `name` is not nullable, but the query can be null due to zero rows
 
     assert_eq!(d.columns()[3].type_info().name(), "REAL");
     assert_eq!(d.nullable(3), Some(false)); // literal constant
@@ -253,6 +257,126 @@ async fn it_describes_left_join() -> anyhow::Result<()> {
 
     assert_eq!(d.column(1).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(1), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_literal_subquery() -> anyhow::Result<()> {
+    async fn assert_literal_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+
+        assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.column(1).type_info().name(), "NULL", "{}", query);
+        assert_eq!(info.nullable(1), Some(true), "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_literal_described(&mut conn, "SELECT 'a', NULL").await?;
+    assert_literal_described(&mut conn, "SELECT * FROM (SELECT 'a', NULL)").await?;
+    assert_literal_described(
+        &mut conn,
+        "WITH cte AS (SELECT 'a', NULL) SELECT * FROM cte",
+    )
+    .await?;
+    assert_literal_described(
+        &mut conn,
+        "WITH cte AS MATERIALIZED (SELECT 'a', NULL) SELECT * FROM cte",
+    )
+    .await?;
+    assert_literal_described(
+        &mut conn,
+        "WITH RECURSIVE cte(a,b) AS (SELECT 'a', NULL UNION ALL SELECT a||a, NULL FROM cte WHERE length(a)<3) SELECT * FROM cte",
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_table_subquery() -> anyhow::Result<()> {
+    async fn assert_tweet_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+        let columns = info.columns();
+
+        assert_eq!(columns[0].name(), "id", "{}", query);
+        assert_eq!(columns[1].name(), "text", "{}", query);
+        assert_eq!(columns[2].name(), "is_sent", "{}", query);
+        assert_eq!(columns[3].name(), "owner_id", "{}", query);
+
+        assert_eq!(columns[0].ordinal(), 0, "{}", query);
+        assert_eq!(columns[1].ordinal(), 1, "{}", query);
+        assert_eq!(columns[2].ordinal(), 2, "{}", query);
+        assert_eq!(columns[3].ordinal(), 3, "{}", query);
+
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.nullable(1), Some(false), "{}", query);
+        assert_eq!(info.nullable(2), Some(false), "{}", query);
+        assert_eq!(info.nullable(3), Some(true), "{}", query);
+
+        assert_eq!(columns[0].type_info().name(), "INTEGER", "{}", query);
+        assert_eq!(columns[1].type_info().name(), "TEXT", "{}", query);
+        assert_eq!(columns[2].type_info().name(), "BOOLEAN", "{}", query);
+        assert_eq!(columns[3].type_info().name(), "INTEGER", "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_tweet_described(&mut conn, "SELECT * FROM tweet").await?;
+    assert_tweet_described(&mut conn, "SELECT * FROM (SELECT * FROM tweet)").await?;
+    assert_tweet_described(
+        &mut conn,
+        "WITH cte AS (SELECT * FROM tweet) SELECT * FROM cte",
+    )
+    .await?;
+    assert_tweet_described(
+        &mut conn,
+        "WITH cte AS MATERIALIZED (SELECT * FROM tweet) SELECT * FROM cte",
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_union() -> anyhow::Result<()> {
+    async fn assert_union_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+
+        assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
+        assert_eq!(info.column(1).type_info().name(), "TEXT", "{}", query);
+        assert_eq!(info.nullable(1), Some(true), "{}", query);
+        assert_eq!(info.column(2).type_info().name(), "INTEGER", "{}", query);
+        assert_eq!(info.nullable(2), Some(true), "{}", query);
+        //TODO: mixed type columns not handled correctly
+        //assert_eq!(info.column(3).type_info().name(), "NULL", "{}", query);
+        //assert_eq!(info.nullable(3), Some(false), "{}", query);
+
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+    assert_union_described(
+        &mut conn,
+        "SELECT 'txt','a',null,'b' UNION ALL SELECT 'int',NULL,1,2 ",
+    )
+    .await?;
+    //TODO: insert into temp-table not merging datatype/nullable of all operations - currently keeping last-writer
+    //assert_union_described(&mut conn, "SELECT 'txt','a',null,'b' UNION     SELECT 'int',NULL,1,2 ").await?;
 
     Ok(())
 }
