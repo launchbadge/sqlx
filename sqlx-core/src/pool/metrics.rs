@@ -42,7 +42,7 @@ use std::{ops::Deref, sync::Arc, time::Duration};
 /// ```
 ///
 /// [`Pool`]: crate::pool::Pool
-pub trait PoolMetricsObserver: Send + Sync {
+pub trait PoolMetricsObserver: Send + Sync + 'static {
     /// Called with the [`Duration`] spent waiting on a permit for a connection
     /// to be granted from the underlying connection pool, each time a permit
     /// acquisition attempt completes (successfully or not).
@@ -73,6 +73,15 @@ pub trait PoolMetricsObserver: Send + Sync {
     fn permit_wait_time(&self, time: Duration) {
         let _ = time;
     }
+
+    #[doc(hidden)]
+    fn __into_dyn_arc(self) -> Arc<dyn PoolMetricsObserver>
+    where
+        Self: Sized + 'static,
+    {
+        // There's no need for end users to implement this.
+        Arc::new(self)
+    }
 }
 
 impl<T> PoolMetricsObserver for Arc<T>
@@ -82,6 +91,13 @@ where
     fn permit_wait_time(&self, time: Duration) {
         self.deref().permit_wait_time(time)
     }
+
+    fn __into_dyn_arc(self) -> Arc<dyn PoolMetricsObserver>
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 impl PoolMetricsObserver for Option<Arc<dyn PoolMetricsObserver>> {
@@ -89,5 +105,12 @@ impl PoolMetricsObserver for Option<Arc<dyn PoolMetricsObserver>> {
         if let Some(v) = self {
             v.permit_wait_time(time)
         }
+    }
+
+    fn __into_dyn_arc(self) -> Arc<dyn PoolMetricsObserver>
+    where
+        Self: Sized,
+    {
+        panic!("Option<Arc<_>> should not be wrapped in another Arc");
     }
 }

@@ -70,7 +70,7 @@ async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
     const DELAY_MS: u64 = 10;
 
     let recorder_state = Arc::new(Mutex::new(Vec::with_capacity(2)));
-    let metrics: Arc<dyn PoolMetricsObserver> = Arc::new(MetricRecorder {
+    let metrics = Arc::new(MetricRecorder {
         wait: Arc::clone(&recorder_state),
     });
 
@@ -148,7 +148,19 @@ async fn pool_wait_duration_counter_increases() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Default)]
+// Static asserts that various types are accepted.
+#[sqlx_macros::test]
+fn assert_metric_types() {
+    let metrics = MetricRecorder {
+        wait: Default::default(),
+    };
+
+    AnyPoolOptions::new()
+        .metrics_observer(metrics.clone())
+        .metrics_observer(Arc::new(metrics));
+}
+
+#[derive(Debug, Default, Clone)]
 struct MetricRecorder {
     wait: Arc<Mutex<Vec<Duration>>>,
 }

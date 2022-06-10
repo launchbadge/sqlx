@@ -232,11 +232,8 @@ impl<DB: Database> PoolOptions<DB> {
 
     /// Push [`Pool`] metric / events to the specified [`PoolMetricsObserver`]
     /// implementation.
-    pub fn metrics_observer(
-        mut self,
-        observer: impl Into<Option<Arc<dyn PoolMetricsObserver>>>,
-    ) -> Self {
-        self.metric_observer = observer.into();
+    pub fn metrics_observer(mut self, observer: impl PoolMetricsObserver) -> Self {
+        self.metric_observer = Some(observer.__into_dyn_arc());
         self
     }
 }
