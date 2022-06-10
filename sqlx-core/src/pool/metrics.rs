@@ -83,3 +83,11 @@ where
         self.deref().permit_wait_time(time)
     }
 }
+
+impl PoolMetricsObserver for Option<Arc<dyn PoolMetricsObserver>> {
+    fn permit_wait_time(&self, time: Duration) {
+        if let Some(v) = self {
+            v.permit_wait_time(time)
+        }
+    }
+}
