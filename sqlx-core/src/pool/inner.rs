@@ -1,4 +1,7 @@
-use super::{connection::{Floating, Idle, Live}, PoolMetricsObserver};
+use super::{
+    connection::{Floating, Idle, Live},
+    PoolMetricsObserver,
+};
 use crate::connection::ConnectOptions;
 use crate::connection::Connection;
 use crate::database::Database;
@@ -173,7 +176,7 @@ impl<DB: Database> SharedPool<DB> {
                     // Decorate the semaphore permit acquisition to record the
                     // duration it takes to be granted (or timed out).
                     let permit = PollWallClockRecorder::new(
-                        |d| self.options.metric_observer.permit_wait_time(d), 
+                        |d| self.options.metric_observer.permit_wait_time(d),
                         self.semaphore.acquire(1),
                     ).await;
 
