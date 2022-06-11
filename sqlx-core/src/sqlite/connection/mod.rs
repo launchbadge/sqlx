@@ -155,6 +155,13 @@ impl Connection for SqliteConnection {
         })
     }
 
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            drop(self);
+            Ok(())
+        })
+    }
+
     /// Ensure the background worker thread is alive and accepting commands.
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(self.worker.ping())

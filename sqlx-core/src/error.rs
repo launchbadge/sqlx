@@ -165,6 +165,11 @@ pub trait DatabaseError: 'static + Send + Sync + StdError {
     #[doc(hidden)]
     fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static>;
 
+    #[doc(hidden)]
+    fn is_transient_in_connect_phase(&self) -> bool {
+        false
+    }
+
     /// Returns the name of the constraint that triggered the error, if applicable.
     /// If the error was caused by a conflict of a unique index, this will be the index name.
     ///

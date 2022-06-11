@@ -3,36 +3,37 @@ use crate::connection::ConnectOptions;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::pool::{deadline_as_timeout, PoolOptions};
+use crate::pool::{deadline_as_timeout, CloseEvent, PoolOptions};
 use crossbeam_queue::ArrayQueue;
 
 use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
 
 use std::cmp;
-use std::mem;
-use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::future::Future;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use crate::pool::options::PoolConnectionMetadata;
 use std::time::{Duration, Instant};
 
-/// Ihe number of permits to release to wake all waiters, such as on `SharedPool::close()`.
+/// Ihe number of permits to release to wake all waiters, such as on `PoolInner::close()`.
 ///
 /// This should be large enough to realistically wake all tasks waiting on the pool without
 /// potentially overflowing the permits count in the semaphore itself.
 const WAKE_ALL_PERMITS: usize = usize::MAX / 2;
 
-pub(crate) struct SharedPool<DB: Database> {
+pub(crate) struct PoolInner<DB: Database> {
     pub(super) connect_options: <DB::Connection as Connection>::Options,
     pub(super) idle_conns: ArrayQueue<Idle<DB>>,
     pub(super) semaphore: Semaphore,
     pub(super) size: AtomicU32,
+    pub(super) num_idle: AtomicUsize,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
     pub(super) options: PoolOptions<DB>,
 }
 
-impl<DB: Database> SharedPool<DB> {
+impl<DB: Database> PoolInner<DB> {
     pub(super) fn new_arc(
         options: PoolOptions<DB>,
         connect_options: <DB::Connection as Connection>::Options,
@@ -50,6 +51,7 @@ impl<DB: Database> SharedPool<DB> {
             idle_conns: ArrayQueue::new(capacity),
             semaphore: Semaphore::new(options.fair, capacity),
             size: AtomicU32::new(0),
+            num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
             options,
@@ -57,7 +59,7 @@ impl<DB: Database> SharedPool<DB> {
 
         let pool = Arc::new(pool);
 
-        spawn_reaper(&pool);
+        spawn_maintenance_tasks(&pool);
 
         pool
     }
@@ -67,15 +69,19 @@ impl<DB: Database> SharedPool<DB> {
     }
 
     pub(super) fn num_idle(&self) -> usize {
-        // NOTE: This is very expensive
-        self.idle_conns.len()
+        // We don't use `self.idle_conns.len()` as it waits for the internal
+        // head and tail pointers to stop changing for a moment before calculating the length,
+        // which may take a long time at high levels of churn.
+        //
+        // By maintaining our own atomic count, we avoid that issue entirely.
+        self.num_idle.load(Ordering::Acquire)
     }
 
     pub(super) fn is_closed(&self) -> bool {
         self.is_closed.load(Ordering::Acquire)
     }
 
-    pub(super) async fn close(self: &Arc<Self>) {
+    pub(super) fn close<'a>(self: &'a Arc<Self>) -> impl Future<Output = ()> + 'a {
         let already_closed = self.is_closed.swap(true, Ordering::AcqRel);
 
         if !already_closed {
@@ -86,14 +92,28 @@ impl<DB: Database> SharedPool<DB> {
             self.on_closed.notify(usize::MAX);
         }
 
-        // wait for all permits to be released
-        let _permits = self
-            .semaphore
-            .acquire(WAKE_ALL_PERMITS + (self.options.max_connections as usize))
-            .await;
+        async move {
+            // Close any currently idle connections in the pool.
+            while let Some(idle) = self.idle_conns.pop() {
+                let _ = idle.live.float((*self).clone()).close().await;
+            }
 
-        while let Some(idle) = self.idle_conns.pop() {
-            let _ = idle.live.float((*self).clone()).close().await;
+            // Wait for all permits to be released.
+            let _permits = self
+                .semaphore
+                .acquire(WAKE_ALL_PERMITS + (self.options.max_connections as usize))
+                .await;
+
+            // Clean up any remaining connections.
+            while let Some(idle) = self.idle_conns.pop() {
+                let _ = idle.live.float((*self).clone()).close().await;
+            }
+        }
+    }
+
+    pub(crate) fn close_event(&self) -> CloseEvent {
+        CloseEvent {
+            listener: (!self.is_closed()).then(|| self.on_closed.listen()),
         }
     }
 
@@ -112,19 +132,15 @@ impl<DB: Database> SharedPool<DB> {
         permit: SemaphoreReleaser<'a>,
     ) -> Result<Floating<DB, Idle<DB>>, SemaphoreReleaser<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
+            self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(idle, (*self).clone(), permit))
         } else {
             Err(permit)
         }
     }
 
-    pub(super) fn release(&self, mut floating: Floating<DB, Live<DB>>) {
-        if let Some(test) = &self.options.after_release {
-            if !test(&mut floating.raw) {
-                // drop the connection and do not return it to the pool
-                return;
-            }
-        }
+    pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
+        // `options.after_release` is invoked by `PoolConnection::release_to_pool()`.
 
         let Floating { inner: idle, guard } = floating.into_idle();
 
@@ -135,11 +151,11 @@ impl<DB: Database> SharedPool<DB> {
         // NOTE: we need to make sure we drop the permit *after* we push to the idle queue
         // don't decrease the size
         guard.release_permit();
+
+        self.num_idle.fetch_add(1, Ordering::AcqRel);
     }
 
     /// Try to atomically increment the pool size for a new connection.
-    ///
-    /// Returns `None` if we are at max_connections or if the pool is closed.
     pub(super) fn try_increment_size<'a>(
         self: &'a Arc<Self>,
         permit: SemaphoreReleaser<'a>,
@@ -157,16 +173,15 @@ impl<DB: Database> SharedPool<DB> {
         }
     }
 
-    #[allow(clippy::needless_lifetimes)]
     pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<DB, Live<DB>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
 
-        let deadline = Instant::now() + self.options.connect_timeout;
+        let deadline = Instant::now() + self.options.acquire_timeout;
 
         sqlx_rt::timeout(
-            self.options.connect_timeout,
+            self.options.acquire_timeout,
             async {
                 loop {
                     let permit = self.semaphore.acquire(1).await;
@@ -179,7 +194,7 @@ impl<DB: Database> SharedPool<DB> {
                     let guard = match self.pop_idle(permit) {
 
                         // Then, check that we can use it...
-                        Ok(conn) => match check_conn(conn, &self.options).await {
+                        Ok(conn) => match check_idle_conn(conn, &self.options).await {
 
                             // All good!
                             Ok(live) => return Ok(live),
@@ -198,7 +213,7 @@ impl<DB: Database> SharedPool<DB> {
                     };
 
                     // Attempt to connect...
-                    return self.connection(deadline, guard).await;
+                    return self.connect(deadline, guard).await;
                 }
             }
         )
@@ -206,7 +221,7 @@ impl<DB: Database> SharedPool<DB> {
             .map_err(|_| Error::PoolTimedOut)?
     }
 
-    pub(super) async fn connection(
+    pub(super) async fn connect(
         self: &Arc<Self>,
         deadline: Instant,
         guard: DecrementSizeGuard<DB>,
@@ -226,21 +241,35 @@ impl<DB: Database> SharedPool<DB> {
             match sqlx_rt::timeout(timeout, self.connect_options.connect()).await {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
-                    if let Some(callback) = &self.options.after_connect {
-                        callback(&mut raw).await?;
-                    }
+                    // See comment on `PoolOptions::after_connect`
+                    let meta = PoolConnectionMetadata {
+                        age: Duration::ZERO,
+                        idle_for: Duration::ZERO,
+                    };
 
-                    return Ok(Floating::new_live(raw, guard));
+                    let res = if let Some(callback) = &self.options.after_connect {
+                        callback(&mut raw, meta).await
+                    } else {
+                        Ok(())
+                    };
+
+                    match res {
+                        Ok(()) => return Ok(Floating::new_live(raw, guard)),
+                        Err(e) => {
+                            log::error!("error returned from after_connect: {:?}", e);
+                            // The connection is broken, don't try to close nicely.
+                            let _ = raw.close_hard().await;
+
+                            // Fall through to the backoff.
+                        }
+                    }
                 }
 
                 // an IO error while connecting is assumed to be the system starting up
                 Ok(Err(Error::Io(e))) if e.kind() == std::io::ErrorKind::ConnectionRefused => (),
 
-                // TODO: Handle other database "boot period"s
-
-                // [postgres] the database system is starting up
-                // TODO: Make this check actually check if this is postgres
-                Ok(Err(Error::Database(error))) if error.code().as_deref() == Some("57P03") => (),
+                // We got a transient database error, retry.
+                Ok(Err(Error::Database(error))) if error.is_transient_in_connect_phase() => (),
 
                 // Any other error while connection should immediately
                 // terminate and bubble the error up
@@ -250,42 +279,86 @@ impl<DB: Database> SharedPool<DB> {
                 Err(_) => return Err(Error::PoolTimedOut),
             }
 
-            // If the connection is refused wait in exponentially
+            // If the connection is refused, wait in exponentially
             // increasing steps for the server to come up,
             // capped by a factor of the remaining time until the deadline
             sqlx_rt::sleep(backoff).await;
             backoff = cmp::min(backoff * 2, max_backoff);
         }
     }
+
+    /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
+    pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
+        macro_rules! unwrap_or_return {
+            ($expr:expr) => {
+                match $expr {
+                    Some(val) => val,
+                    None => return Ok(()),
+                }
+            };
+        }
+
+        while self.size() < self.options.min_connections {
+            // Don't wait for a semaphore permit.
+            //
+            // If no extra permits are available then we shouldn't be trying to spin up
+            // connections anyway.
+            let permit = unwrap_or_return!(self.semaphore.try_acquire(1));
+
+            // We must always obey `max_connections`.
+            let guard = unwrap_or_return!(self.try_increment_size(permit).ok());
+
+            // We skip `after_release` since the connection was never provided to user code
+            // besides `after_connect`, if they set it.
+            self.release(self.connect(deadline, guard).await?);
+        }
+
+        Ok(())
+    }
+
+    /// Attempt to maintain `min_connections`, logging if unable.
+    pub async fn min_connections_maintenance(self: &Arc<Self>, deadline: Option<Instant>) {
+        let deadline = deadline.unwrap_or_else(|| {
+            // Arbitrary default deadline if the caller doesn't care.
+            Instant::now() + Duration::from_secs(300)
+        });
+
+        match self.try_min_connections(deadline).await {
+            Ok(()) => (),
+            Err(Error::PoolClosed) => (),
+            Err(Error::PoolTimedOut) => {
+                log::debug!("unable to complete `min_connections` maintenance before deadline")
+            }
+            Err(e) => log::debug!("error while maintaining min_connections: {:?}", e),
+        }
+    }
 }
 
-// NOTE: Function names here are bizarre. Helpful help would be appreciated.
-
-fn is_beyond_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
-    // check if connection was within max lifetime (or not set)
+/// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
+fn is_beyond_max_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
     options
         .max_lifetime
-        .map_or(false, |max| live.created.elapsed() > max)
+        .map_or(false, |max| live.created_at.elapsed() > max)
 }
 
-fn is_beyond_idle<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> bool {
-    // if connection wasn't idle too long (or not set)
+/// Returns `true` if the connection has exceeded `options.idle_timeout` if set, `false` otherwise.
+fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> bool {
     options
         .idle_timeout
-        .map_or(false, |timeout| idle.since.elapsed() > timeout)
+        .map_or(false, |timeout| idle.idle_since.elapsed() > timeout)
 }
 
-async fn check_conn<DB: Database>(
+async fn check_idle_conn<DB: Database>(
     mut conn: Floating<DB, Idle<DB>>,
     options: &PoolOptions<DB>,
 ) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
-    if is_beyond_lifetime(&conn, options) {
-        // we're closing the connection either way
-        // close the connection but don't really care about the result
+    if is_beyond_max_lifetime(&conn, options) {
         return Err(conn.close().await);
-    } else if options.test_before_acquire {
+    }
+
+    if options.test_before_acquire {
         // Check that the connection is still live
         if let Err(e) = conn.ping().await {
             // an error here means the other end has hung up or we lost connectivity
@@ -293,18 +366,22 @@ async fn check_conn<DB: Database>(
             // the error itself here isn't necessarily unexpected so WARN is too strong
             log::info!("ping on idle connection returned error: {}", e);
             // connection is broken so don't try to close nicely
-            return Err(conn.close().await);
+            return Err(conn.close_hard().await);
         }
-    } else if let Some(test) = &options.before_acquire {
-        match test(&mut conn.live.raw).await {
+    }
+
+    if let Some(test) = &options.before_acquire {
+        let meta = conn.metadata();
+        match test(&mut conn.live.raw, meta).await {
             Ok(false) => {
-                // connection was rejected by user-defined hook
+                // connection was rejected by user-defined hook, close nicely
                 return Err(conn.close().await);
             }
 
             Err(error) => {
-                log::info!("in `before_acquire`: {}", error);
-                return Err(conn.close().await);
+                log::warn!("error from `before_acquire`: {}", error);
+                // connection is broken so don't try to close nicely
+                return Err(conn.close_hard().await);
             }
 
             Ok(true) => {}
@@ -315,29 +392,53 @@ async fn check_conn<DB: Database>(
     Ok(conn.into_live())
 }
 
-/// if `max_lifetime` or `idle_timeout` is set, spawn a task that reaps senescent connections
-fn spawn_reaper<DB: Database>(pool: &Arc<SharedPool<DB>>) {
+fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
+    let pool = Arc::clone(&pool);
+
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,
 
         (Some(a), Some(b)) => cmp::min(a, b),
 
-        (None, None) => return,
+        (None, None) => {
+            if pool.options.min_connections > 0 {
+                sqlx_rt::spawn(async move {
+                    pool.min_connections_maintenance(None).await;
+                });
+            }
+
+            return;
+        }
     };
 
-    let pool = Arc::clone(&pool);
-
     sqlx_rt::spawn(async move {
-        while !pool.is_closed() {
-            if !pool.idle_conns.is_empty() {
-                do_reap(&pool).await;
-            }
-            sqlx_rt::sleep(period).await;
-        }
+        // Immediately cancel this task if the pool is closed.
+        let _ = pool
+            .close_event()
+            .do_until(async {
+                while !pool.is_closed() {
+                    let next_run = Instant::now() + period;
+
+                    pool.min_connections_maintenance(Some(next_run)).await;
+
+                    if let Some(duration) = next_run.checked_duration_since(Instant::now()) {
+                        // `async-std` doesn't have a `sleep_until()`
+                        sqlx_rt::sleep(duration).await;
+                    } else {
+                        sqlx_rt::yield_now().await;
+                    }
+
+                    // Don't run the reaper right away.
+                    if !pool.idle_conns.is_empty() {
+                        do_reap(&pool).await;
+                    }
+                }
+            })
+            .await;
     });
 }
 
-async fn do_reap<DB: Database>(pool: &Arc<SharedPool<DB>>) {
+async fn do_reap<DB: Database>(pool: &Arc<PoolInner<DB>>) {
     // reap at most the current size minus the minimum idle
     let max_reaped = pool.size().saturating_sub(pool.options.min_connections);
 
@@ -346,7 +447,8 @@ async fn do_reap<DB: Database>(pool: &Arc<SharedPool<DB>>) {
         // only connections waiting in the queue
         .filter_map(|_| pool.try_acquire())
         .partition::<Vec<_>, _>(|conn| {
-            is_beyond_idle(conn, &pool.options) || is_beyond_lifetime(conn, &pool.options)
+            is_beyond_idle_timeout(conn, &pool.options)
+                || is_beyond_max_lifetime(conn, &pool.options)
         });
 
     for conn in keep {
@@ -364,28 +466,23 @@ async fn do_reap<DB: Database>(pool: &Arc<SharedPool<DB>>) {
 /// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
 /// (where the pool thinks it has more connections than it does).
 pub(in crate::pool) struct DecrementSizeGuard<DB: Database> {
-    pub(crate) pool: Arc<SharedPool<DB>>,
-    dropped: bool,
+    pub(crate) pool: Arc<PoolInner<DB>>,
+    cancelled: bool,
 }
 
 impl<DB: Database> DecrementSizeGuard<DB> {
     /// Create a new guard that will release a semaphore permit on-drop.
-    pub fn new_permit(pool: Arc<SharedPool<DB>>) -> Self {
+    pub fn new_permit(pool: Arc<PoolInner<DB>>) -> Self {
         Self {
             pool,
-            dropped: false,
+            cancelled: false,
         }
     }
 
-    pub fn from_permit(pool: Arc<SharedPool<DB>>, mut permit: SemaphoreReleaser<'_>) -> Self {
+    pub fn from_permit(pool: Arc<PoolInner<DB>>, mut permit: SemaphoreReleaser<'_>) -> Self {
         // here we effectively take ownership of the permit
         permit.disarm();
         Self::new_permit(pool)
-    }
-
-    /// Return `true` if the internal references point to the same fields in `SharedPool`.
-    pub fn same_pool(&self, pool: &SharedPool<DB>) -> bool {
-        ptr::eq(&*self.pool, pool)
     }
 
     /// Release the semaphore permit without decreasing the pool size.
@@ -394,18 +491,18 @@ impl<DB: Database> DecrementSizeGuard<DB> {
         self.cancel();
     }
 
-    pub fn cancel(self) {
-        mem::forget(self);
+    pub fn cancel(mut self) {
+        self.cancelled = true;
     }
 }
 
 impl<DB: Database> Drop for DecrementSizeGuard<DB> {
     fn drop(&mut self) {
-        assert!(!self.dropped, "double-dropped!");
-        self.dropped = true;
-        self.pool.size.fetch_sub(1, Ordering::SeqCst);
+        if !self.cancelled {
+            self.pool.size.fetch_sub(1, Ordering::AcqRel);
 
-        // and here we release the permit we got on construction
-        self.pool.semaphore.release(1);
+            // and here we release the permit we got on construction
+            self.pool.semaphore.release(1);
+        }
     }
 }

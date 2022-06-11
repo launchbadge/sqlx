@@ -185,6 +185,20 @@ impl DatabaseError for PgDatabaseError {
         self
     }
 
+    fn is_transient_in_connect_phase(&self) -> bool {
+        // https://www.postgresql.org/docs/current/errcodes-appendix.html
+        [
+            // too_many_connections
+            // This may be returned if we just un-gracefully closed a connection,
+            // give the database a chance to notice it and clean it up.
+            "53300",
+            // cannot_connect_now
+            // Returned if the database is still starting up.
+            "57P03",
+        ]
+        .contains(&self.code())
+    }
+
     fn constraint(&self) -> Option<&str> {
         self.constraint()
     }

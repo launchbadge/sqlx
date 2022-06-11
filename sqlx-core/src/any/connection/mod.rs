@@ -136,6 +136,22 @@ impl Connection for AnyConnection {
         }
     }
 
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        match self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.close_hard(),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(conn) => conn.close_hard(),
+        }
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         delegate_to_mut!(self.ping())
     }
