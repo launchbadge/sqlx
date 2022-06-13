@@ -6,7 +6,7 @@ use crate::{
     sqlite::{type_info::DataType, Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef},
     types::Type,
 };
-use time::format_description::well_known::Rfc3339;
+use time::format_description::{well_known::Rfc3339, FormatItem};
 use time::macros::format_description as fd;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -102,18 +102,14 @@ impl<'r> Decode<'r, Sqlite> for Time {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         let value = value.text()?;
 
-        // Loop over common time patterns
-        let sqlite_time_formats = &[
-            // Chosen first since it matches Sqlite time() function
-            fd!("[hour]:[minute]:[second]"),
-            fd!("[hour]:[minute]:[second].[subsecond]"),
-            fd!("[hour]:[minute]"),
-        ];
+        let second = FormatItem::Optional(&FormatItem::Compound(fd!(":[second]")));
+        let subsecond = FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]")));
+        let full_description = [fd!("[hour]:[minute]"), &[second], &[subsecond]].concat();
+        let format = [FormatItem::Compound(&full_description[..])];
 
-        for format in sqlite_time_formats {
-            if let Ok(dt) = Time::parse(value, &format) {
-                return Ok(dt);
-            }
+        let result = Time::parse(value, &FormatItem::First(&format));
+        if let Ok(time) = result {
+            return Ok(time);
         }
 
         Err(format!("invalid time: {}", value).into())
@@ -142,20 +138,30 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
         return Some(dt);
     }
 
-    // Loop over common date time patterns
-    #[rustfmt::skip] // don't like how rustfmt mangles the comments
-    let sqlite_datetime_formats = &[
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"),
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond][offset_hour sign:mandatory]:[offset_minute]"),
-        fd!("[year]-[month]-[day] [hour]:[minute][offset_hour sign:mandatory]:[offset_minute]"),
-        // Further "T" variants with seconds are covered by parsing with Rfc3339 above
-        fd!("[year]-[month]-[day]T[hour]:[minute][offset_hour sign:mandatory]:[offset_minute]"),
+    // Support for other SQLite supported formats not served by Rfc3339
+    let ymd = fd!("[year]-[month]-[day]");
+    let hm = fd!("[hour]:[minute]");
+    let t_variant_base = [ymd, &[FormatItem::Literal(b"T")], hm].concat();
+    let space_variant_base = [ymd, &[FormatItem::Literal(b" ")], hm].concat();
+
+    let optionals = [
+        FormatItem::Optional(&FormatItem::Compound(fd!(":[second]"))),
+        FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]"))),
+        FormatItem::Optional(&FormatItem::Compound(fd!(
+            "[offset_hour sign:mandatory]:[offset_minute]"
+        ))),
     ];
 
-    for format in sqlite_datetime_formats {
-        if let Ok(dt) = OffsetDateTime::parse(value, &format) {
-            return Some(dt);
-        }
+    let t_variant_full = [&t_variant_base[..], &optionals[..]].concat();
+    let space_variant_full = [&space_variant_base[..], &optionals[..]].concat();
+
+    let formats = [
+        FormatItem::Compound(&space_variant_full),
+        FormatItem::Compound(&t_variant_full),
+    ];
+
+    if let Ok(dt) = OffsetDateTime::parse(value, &FormatItem::First(&formats)) {
+        return Some(dt);
     }
 
     None
@@ -180,28 +186,27 @@ fn decode_datetime(value: SqliteValueRef<'_>) -> Result<PrimitiveDateTime, BoxDy
 }
 
 fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
-    // Loop over common date time patterns
-    #[rustfmt::skip] // don't like how rustfmt mangles the comments
-    let sqlite_datetime_formats = &[
-        // Chosen first because it matches Sqlite's datetime() function
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second]"),
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"),
-        fd!("[year]-[month]-[day] [hour]:[minute]"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]"),
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second]Z"),
-        fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]Z"),
-        fd!("[year]-[month]-[day] [hour]:[minute]Z"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]:[second]Z"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"),
-        fd!("[year]-[month]-[day]T[hour]:[minute]Z"),
+    let ymd = fd!("[year]-[month]-[day]");
+    let hm = fd!("[hour]:[minute]");
+    let t_variant_base = [ymd, &[FormatItem::Literal(b"T")], hm].concat();
+    let space_variant_base = [ymd, &[FormatItem::Literal(b" ")], hm].concat();
+
+    let optionals = [
+        FormatItem::Optional(&FormatItem::Compound(fd!(":[second]"))),
+        FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]"))),
+        FormatItem::Optional(&FormatItem::Literal(b"Z")),
     ];
 
-    for format in sqlite_datetime_formats {
-        if let Ok(dt) = PrimitiveDateTime::parse(value, &format) {
-            return Some(dt);
-        }
+    let t_variant_full = [&t_variant_base[..], &optionals[..]].concat();
+    let space_variant_full = [&space_variant_base[..], &optionals[..]].concat();
+
+    let formats = [
+        FormatItem::Compound(&space_variant_full),
+        FormatItem::Compound(&t_variant_full),
+    ];
+
+    if let Ok(dt) = PrimitiveDateTime::parse(value, &FormatItem::First(&formats)) {
+        return Some(dt);
     }
 
     None
