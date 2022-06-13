@@ -130,6 +130,11 @@ pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow:
         .collect();
 
     for migration in migrator.iter() {
+        if migration.migration_type.is_down_migration() {
+            // Skipping down migrations
+            continue;
+        }
+
         let applied = applied_migrations.get(&migration.version);
 
         let (status_msg, mismatched_checksum) = if let Some(applied) = applied {
