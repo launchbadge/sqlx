@@ -107,8 +107,7 @@ impl<'r> Decode<'r, Sqlite> for Time {
         let full_description = [fd!("[hour]:[minute]"), &[second], &[subsecond]].concat();
         let format = [FormatItem::Compound(&full_description[..])];
 
-        let result = Time::parse(value, &FormatItem::First(&format));
-        if let Ok(time) = result {
+        if let Ok(time) = Time::parse(value, &FormatItem::First(&format)) {
             return Ok(time);
         }
 
