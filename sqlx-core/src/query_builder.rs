@@ -139,6 +139,25 @@ where
     /// [`.push_bind()`][Separated::push_bind] methods which push `separator` to the query
     /// before their normal behavior. [`.push_unseparated()`][Separated::push_unseparated] is also
     /// provided to push a SQL fragment without the separator.
+    ///
+    /// ```rust
+    /// use sqlx::{Execute, MySql, QueryBuilder};
+    /// let foods = vec!["pizza".to_string(), "chips".to_string()];
+    /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
+    ///     "SELECT * from food where name in ("
+    /// );
+    /// // One element vector is handled correctly but an empty vector
+    /// // would cause a sql syntax error
+    /// let mut separated = query_builder.separated(", ");
+    /// for value_type in filtered_types.iter() {
+    ///   separated.push_bind(value_type);
+    /// }
+    /// separated.push_unseparated(") ");
+    ///
+    /// let mut query = query_builder.build();
+    /// let sql = query.sql();
+    /// assert!(sql.ends_with("in (?, ?) "));
+
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
     where
         'args: 'qb,
