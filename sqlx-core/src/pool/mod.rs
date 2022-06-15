@@ -251,9 +251,9 @@ pub struct CloseEvent {
 
 impl<DB: Database> Pool<DB> {
     /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URI; and, immediately establishes one connection.
-    pub async fn connect(uri: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect(uri).await
+    /// the given connection URL; and, immediately establishes one connection.
+    pub async fn connect(url: &str) -> Result<Self, Error> {
+        PoolOptions::<DB>::new().connect(url).await
     }
 
     /// Creates a new connection pool with a default pool configuration and
@@ -265,10 +265,10 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URI; and, will establish a connections as the pool
+    /// the given connection URL; and, will establish a connections as the pool
     /// starts to be used.
-    pub fn connect_lazy(uri: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect_lazy(uri)
+    pub fn connect_lazy(url: &str) -> Result<Self, Error> {
+        PoolOptions::<DB>::new().connect_lazy(url)
     }
 
     /// Creates a new connection pool with a default pool configuration and
@@ -449,7 +449,7 @@ impl<DB: Database> Pool<DB> {
 impl Pool<Any> {
     /// Returns the database driver currently in-use by this `Pool`.
     ///
-    /// Determined by the connection URI.
+    /// Determined by the connection URL.
     pub fn any_kind(&self) -> AnyKind {
         self.0.connect_options.kind()
     }

@@ -108,7 +108,7 @@ with C, those interactions are `unsafe`.
 
 -   Nested transactions with support for save points.
 
--   `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URI scheme.
+-   `Any` database driver for changing the database driver at runtime. An `AnyPool` connects to the driver indicated by the URL scheme.
 
 ## Install
 

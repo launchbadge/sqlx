@@ -13,8 +13,8 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::time::Instant;
 
-fn parse_for_maintenance(uri: &str) -> Result<(MySqlConnectOptions, String), Error> {
-    let mut options = MySqlConnectOptions::from_str(uri)?;
+fn parse_for_maintenance(url: &str) -> Result<(MySqlConnectOptions, String), Error> {
+    let mut options = MySqlConnectOptions::from_str(url)?;
 
     let database = if let Some(database) = &options.database {
         database.to_owned()
@@ -31,9 +31,9 @@ fn parse_for_maintenance(uri: &str) -> Result<(MySqlConnectOptions, String), Err
 }
 
 impl MigrateDatabase for MySql {
-    fn create_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let (options, database) = parse_for_maintenance(uri)?;
+            let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
 
             let _ = conn
@@ -44,9 +44,9 @@ impl MigrateDatabase for MySql {
         })
     }
 
-    fn database_exists(uri: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
         Box::pin(async move {
-            let (options, database) = parse_for_maintenance(uri)?;
+            let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
 
             let exists: bool = query_scalar(
@@ -60,9 +60,9 @@ impl MigrateDatabase for MySql {
         })
     }
 
-    fn drop_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let (options, database) = parse_for_maintenance(uri)?;
+            let (options, database) = parse_for_maintenance(url)?;
             let mut conn = options.connect().await?;
 
             let _ = conn

@@ -20,7 +20,7 @@ use crate::any::kind::AnyKind;
 use crate::mssql::MssqlConnectOptions;
 
 /// Opaque options for connecting to a database. These may only be constructed by parsing from
-/// a connection uri.
+/// a connection url.
 ///
 /// ```text
 /// postgres://postgres:password@localhost/database

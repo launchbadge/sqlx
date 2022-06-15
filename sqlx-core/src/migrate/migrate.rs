@@ -4,17 +4,17 @@ use futures_core::future::BoxFuture;
 use std::time::Duration;
 
 pub trait MigrateDatabase {
-    // create database in uri
+    // create database in url
     // uses a maintenance database depending on driver
-    fn create_database(uri: &str) -> BoxFuture<'_, Result<(), Error>>;
+    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
 
-    // check if the database in uri exists
+    // check if the database in url exists
     // uses a maintenance database depending on driver
-    fn database_exists(uri: &str) -> BoxFuture<'_, Result<bool, Error>>;
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>>;
 
-    // drop database in uri
+    // drop database in url
     // uses a maintenance database depending on driver
-    fn drop_database(uri: &str) -> BoxFuture<'_, Result<(), Error>>;
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>>;
 }
 
 // 'e = Executor

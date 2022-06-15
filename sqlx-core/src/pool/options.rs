@@ -190,8 +190,8 @@ impl<DB: Database> PoolOptions<DB> {
     }
 
     /// Creates a new pool from this configuration and immediately establishes one connection.
-    pub async fn connect(self, uri: &str) -> Result<Pool<DB>, Error> {
-        self.connect_with(uri.parse()?).await
+    pub async fn connect(self, url: &str) -> Result<Pool<DB>, Error> {
+        self.connect_with(url.parse()?).await
     }
 
     /// Creates a new pool from this configuration and immediately establishes one connection.
@@ -208,8 +208,8 @@ impl<DB: Database> PoolOptions<DB> {
 
     /// Creates a new pool from this configuration and will establish a connections as the pool
     /// starts to be used.
-    pub fn connect_lazy(self, uri: &str) -> Result<Pool<DB>, Error> {
-        Ok(self.connect_lazy_with(uri.parse()?))
+    pub fn connect_lazy(self, url: &str) -> Result<Pool<DB>, Error> {
+        Ok(self.connect_lazy_with(url.parse()?))
     }
 
     /// Creates a new pool from this configuration and will establish a connections as the pool
