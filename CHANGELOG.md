@@ -47,6 +47,9 @@ As such, we expect the 0.6.x release series to be a shorter one.
         * Now eagerly starts the pool closing, `.await`ing is only necessary if you want to ensure a graceful shutdown.
     * Deleted `PoolConnection::release()` which was previously deprecated in favor of `PoolConnection::detach()`.
     * Fixed connections getting leaked even when calling `.close()`.
+* [[#1748]]: Derive `PgHasArrayType` for `#[sqlx(transparent)]` types [[@carols10cents]]
+    * This change was released with 0.5.12 but [we didn't realize it was a breaking change] at the time.  
+      It was reverted in 0.5.13 and postponed until this release.
 
 ### Added
 * [[#1843]]: Expose some useful methods on `PgValueRef` [[@mfreeborn]]
@@ -87,6 +90,7 @@ As such, we expect the 0.6.x release series to be a shorter one.
 [surveyed the community]: https://github.com/launchbadge/sqlx/issues/1796
 [0.6.0-prs]: https://github.com/launchbadge/sqlx/pulls?page=2&q=is%3Apr+is%3Amerged+merged%3A2022-04-14..2022-06-16
 [does not officially track an MSRV]: /FAQ.md#what-versions-of-rust-does-sqlx-support-what-is-sqlxs-msrv
+[we didn't realize it was a breaking change]: https://github.com/launchbadge/sqlx/pull/1800#issuecomment-1099898932
 
 [#1384]: https://github.com/launchbadge/sqlx/pull/1384
 [#1426]: https://github.com/launchbadge/sqlx/pull/1426
