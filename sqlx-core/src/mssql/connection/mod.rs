@@ -55,6 +55,10 @@ impl Connection for MssqlConnection {
         }
     }
 
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        self.close()
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // NOTE: we do not use `SELECT 1` as that *could* interact with any ongoing transactions
         self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()

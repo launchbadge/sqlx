@@ -56,6 +56,13 @@ impl Connection for MySqlConnection {
         })
     }
 
+    fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            self.stream.shutdown().await?;
+            Ok(())
+        })
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             self.stream.wait_until_ready().await?;
