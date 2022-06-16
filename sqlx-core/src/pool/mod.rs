@@ -435,6 +435,16 @@ impl<DB: Database> Pool<DB> {
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
     }
+
+    /// Get the connection options for this pool
+    pub fn connect_options(&self) -> &<DB::Connection as Connection>::Options {
+        &self.0.connect_options
+    }
+
+    /// Get the options for this pool
+    pub fn options(&self) -> &PoolOptions<DB> {
+        &self.0.options
+    }
 }
 
 #[cfg(all(
