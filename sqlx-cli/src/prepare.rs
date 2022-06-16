@@ -149,7 +149,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
             .env("DATABASE_URL", url)
             .status()?
     } else {
-        let exit = Command::new(&cargo)
+        Command::new(&cargo)
             .arg("rustc")
             .args(cargo_args)
             .arg("--")
@@ -163,19 +163,8 @@ hint: This command only works in the manifest directory of a Cargo package."#
             ))
             .env("SQLX_OFFLINE", "false")
             .env("DATABASE_URL", url)
-            .status()?;
-
-        // We currently seem to be unable to pass --out-dir to rustc and therefore the output is
-        // placed in the current directory. If a user has a custom CARGO_TARGET_DIR set this will
-        // cause us to miss the compiled queries.
-        //
-        // Therefore it is necessary to move the queries into the target_directory.
-        std::fs::rename(
-            Path::new("target/sqlx"),
-            metadata.target_directory.join("sqlx"),
-        )?;
-
-        exit
+            .env("CARGO_TARGET_DIR", metadata.target_directory.clone())
+            .status()?
     };
 
     if !check_status.success() {
