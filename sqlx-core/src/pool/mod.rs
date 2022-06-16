@@ -89,6 +89,8 @@ mod connection;
 mod inner;
 mod options;
 
+pub mod metrics;
+
 pub use self::connection::PoolConnection;
 pub(crate) use self::maybe::MaybePoolConnection;
 pub use self::options::{PoolConnectionMetadata, PoolOptions};

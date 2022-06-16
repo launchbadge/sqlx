@@ -13,6 +13,7 @@ use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use crate::pool::metrics::{AcquirePhase, PoolMetricsCollector};
 use crate::pool::options::PoolConnectionMetadata;
 use std::time::{Duration, Instant};
 
@@ -178,13 +179,22 @@ impl<DB: Database> PoolInner<DB> {
             return Err(Error::PoolClosed);
         }
 
-        let deadline = Instant::now() + self.options.acquire_timeout;
+        let metrics = &self.options.metrics;
 
-        sqlx_rt::timeout(
+        let acquire_start = Instant::now();
+
+        let deadline = acquire_start + self.options.acquire_timeout;
+
+        let mut phase = AcquirePhase::Waiting;
+
+        let res = sqlx_rt::timeout(
             self.options.acquire_timeout,
             async {
                 loop {
+                    phase = AcquirePhase::Waiting;
+                    let waiting_start = Instant::now();
                     let permit = self.semaphore.acquire(1).await;
+                    metrics.permit_wait_time(waiting_start.elapsed());
 
                     if self.is_closed() {
                         return Err(Error::PoolClosed);
@@ -194,7 +204,7 @@ impl<DB: Database> PoolInner<DB> {
                     let guard = match self.pop_idle(permit) {
 
                         // Then, check that we can use it...
-                        Ok(conn) => match check_idle_conn(conn, &self.options).await {
+                        Ok(conn) => match check_idle_conn(conn, &self.options, &mut phase).await {
 
                             // All good!
                             Ok(live) => return Ok(live),
@@ -207,24 +217,40 @@ impl<DB: Database> PoolInner<DB> {
                             // we can open a new connection
                             guard
                         } else {
+                            // I can't imagine this occurring unless there's a race condition where
+                            // the number of available permits can exceed the max size
+                            // without the pool being closed.
+                            //
+                            // If this does happen, the safest thing to do is return to the top
+                            // and wait for another permit.
                             log::debug!("woke but was unable to acquire idle connection or open new one; retrying");
                             continue;
                         }
                     };
 
                     // Attempt to connect...
-                    return self.connect(deadline, guard).await;
+                    return self.connect(deadline, guard, &mut phase).await;
                 }
             }
         )
             .await
-            .map_err(|_| Error::PoolTimedOut)?
+            .map_err(|_| {
+                metrics.acquire_timed_out(phase);
+                Error::PoolTimedOut
+            })?;
+
+        if res.is_ok() {
+            metrics.connection_acquired(acquire_start.elapsed());
+        }
+
+        res
     }
 
     pub(super) async fn connect(
         self: &Arc<Self>,
         deadline: Instant,
         guard: DecrementSizeGuard<DB>,
+        phase: &mut AcquirePhase,
     ) -> Result<Floating<DB, Live<DB>>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
@@ -238,16 +264,20 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
+
+            *phase = AcquirePhase::Connecting;
             match sqlx_rt::timeout(timeout, self.connect_options.connect()).await {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
-                    // See comment on `PoolOptions::after_connect`
-                    let meta = PoolConnectionMetadata {
-                        age: Duration::ZERO,
-                        idle_for: Duration::ZERO,
-                    };
-
                     let res = if let Some(callback) = &self.options.after_connect {
+                        *phase = AcquirePhase::AfterConnectCallback;
+
+                        // See comment on `PoolOptions::after_connect`
+                        let meta = PoolConnectionMetadata {
+                            age: Duration::ZERO,
+                            idle_for: Duration::ZERO,
+                        };
+
                         callback(&mut raw, meta).await
                     } else {
                         Ok(())
@@ -258,6 +288,7 @@ impl<DB: Database> PoolInner<DB> {
                         Err(e) => {
                             log::error!("error returned from after_connect: {:?}", e);
                             // The connection is broken, don't try to close nicely.
+                            *phase = AcquirePhase::ClosingInvalidConnection;
                             let _ = raw.close_hard().await;
 
                             // Fall through to the backoff.
@@ -278,6 +309,8 @@ impl<DB: Database> PoolInner<DB> {
                 // timed out
                 Err(_) => return Err(Error::PoolTimedOut),
             }
+
+            *phase = AcquirePhase::Backoff;
 
             // If the connection is refused, wait in exponentially
             // increasing steps for the server to come up,
@@ -310,7 +343,10 @@ impl<DB: Database> PoolInner<DB> {
 
             // We skip `after_release` since the connection was never provided to user code
             // besides `after_connect`, if they set it.
-            self.release(self.connect(deadline, guard).await?);
+            self.release(
+                self.connect(deadline, guard, &mut AcquirePhase::Connecting)
+                    .await?,
+            );
         }
 
         Ok(())
@@ -351,16 +387,22 @@ fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<D
 async fn check_idle_conn<DB: Database>(
     mut conn: Floating<DB, Idle<DB>>,
     options: &PoolOptions<DB>,
+    phase: &mut AcquirePhase,
 ) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_max_lifetime(&conn, options) {
+        *phase = AcquirePhase::ClosingInvalidConnection;
         return Err(conn.close().await);
     }
 
     if options.test_before_acquire {
+        *phase = AcquirePhase::TestBeforeAcquire;
+
         // Check that the connection is still live
         if let Err(e) = conn.ping().await {
+            *phase = AcquirePhase::ClosingInvalidConnection;
+
             // an error here means the other end has hung up or we lost connectivity
             // either way we're fine to just discard the connection
             // the error itself here isn't necessarily unexpected so WARN is too strong
@@ -371,16 +413,20 @@ async fn check_idle_conn<DB: Database>(
     }
 
     if let Some(test) = &options.before_acquire {
+        *phase = AcquirePhase::BeforeAcquireCallback;
+
         let meta = conn.metadata();
         match test(&mut conn.live.raw, meta).await {
             Ok(false) => {
                 // connection was rejected by user-defined hook, close nicely
+                *phase = AcquirePhase::ClosingInvalidConnection;
                 return Err(conn.close().await);
             }
 
             Err(error) => {
                 log::warn!("error from `before_acquire`: {}", error);
                 // connection is broken so don't try to close nicely
+                *phase = AcquirePhase::ClosingInvalidConnection;
                 return Err(conn.close_hard().await);
             }
 

@@ -2,6 +2,7 @@ use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::inner::PoolInner;
+use crate::pool::metrics::PoolMetricsCollector;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
 use std::fmt::{self, Debug, Formatter};
@@ -74,6 +75,7 @@ pub struct PoolOptions<DB: Database> {
                 + Sync,
         >,
     >,
+    pub(crate) metrics: Option<Arc<dyn PoolMetricsCollector>>,
     pub(crate) max_connections: u32,
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
@@ -117,6 +119,7 @@ impl<DB: Database> PoolOptions<DB> {
             after_connect: None,
             before_acquire: None,
             after_release: None,
+            metrics: None,
             test_before_acquire: true,
             // A production application will want to set a higher limit than this.
             max_connections: 10,
@@ -258,6 +261,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// This example is written for PostgreSQL but can likely be adapted to other databases.
     ///
     /// ```no_run
+    /// # #[cfg(feature = "postgres")]
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
     /// use sqlx::Executor;
     /// use sqlx::postgres::PgPoolOptions;
@@ -312,6 +316,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// This example is written for Postgres but should be trivially adaptable to other databases.
     /// ```no_run
+    /// # #[cfg(feature = "postgres")]
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
     /// use sqlx::{Connection, Executor};
     /// use sqlx::postgres::PgPoolOptions;
@@ -364,6 +369,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// which is only allowed for superusers.
     ///
     /// ```no_run
+    /// # #[cfg(feature = "postgres")]
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
     /// use sqlx::{Connection, Executor};
     /// use sqlx::postgres::PgPoolOptions;
@@ -398,6 +404,18 @@ impl<DB: Database> PoolOptions<DB> {
     {
         self.after_release = Some(Arc::new(callback));
         self
+    }
+
+    /// Hook in a custom metrics collector for the pool.
+    ///
+    /// See [`PoolMetricsCollector`] for details or [`SimplePoolMetrics`] for an easy start.
+    ///
+    /// [`SimplePoolMetrics`]: crate::pool::metrics::SimplePoolMetrics
+    pub fn metrics_collector(self, collector: Arc<dyn PoolMetricsCollector>) -> Self {
+        Self {
+            metrics: Some(collector),
+            ..self
+        }
     }
 
     /// Create a new pool from this `PoolOptions` and immediately open at least one connection.

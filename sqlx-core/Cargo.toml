@@ -62,7 +62,7 @@ all-types = [
 ]
 bigdecimal = ["bigdecimal_", "num-bigint"]
 decimal = ["rust_decimal", "num-bigint"]
-json = ["serde", "serde_json"]
+json = ["serde", "serde_json", "enum-map/serde"]
 
 # runtimes
 runtime-actix-native-tls = [
@@ -185,6 +185,7 @@ hashlink = "0.8.0"
 indexmap = "1.6.0"
 hkdf = { version = "0.12.0", optional = true }
 event-listener = "2.5.2"
+enum-map = "2.4.0"
 
 [dev-dependencies]
 sqlx = { version = "0.6.0", path = "..", features = ["postgres", "sqlite", "mysql"] }
