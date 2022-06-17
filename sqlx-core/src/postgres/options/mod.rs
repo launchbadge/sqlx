@@ -12,10 +12,10 @@ pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
 ///
-/// A value of `PgConnectOptions` can be parsed from a connection URI,
+/// A value of `PgConnectOptions` can be parsed from a connection URL,
 /// as described by [libpq](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING).
 ///
-/// The general form for a connection URI is:
+/// The general form for a connection URL is:
 ///
 /// ```text
 /// postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]
@@ -37,8 +37,8 @@ pub use ssl_mode::PgSslMode;
 /// | `dbname` | `None` | The database name. |
 /// | `options` | `None` | The runtime parameters to send to the server at connection start. |
 ///
-/// The URI scheme designator can be either `postgresql://` or `postgres://`.
-/// Each of the URI parts is optional.
+/// The URL scheme designator can be either `postgresql://` or `postgres://`.
+/// Each of the URL parts is optional.
 ///
 /// ```text
 /// postgresql://
@@ -60,7 +60,7 @@ pub use ssl_mode::PgSslMode;
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
-/// // URI connection string
+/// // URL connection string
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
 ///
 /// // Manually-constructed options

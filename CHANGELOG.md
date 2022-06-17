@@ -715,7 +715,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 
 ### Added
 
--   [[#174]] Inroduce a builder to construct connections to bypass the URI parsing
+-   [[#174]] Inroduce a builder to construct connections to bypass the URL parsing
 
     ```rust
     // MSSQL

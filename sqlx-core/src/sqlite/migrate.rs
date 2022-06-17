@@ -15,10 +15,10 @@ use std::time::Duration;
 use std::time::Instant;
 
 impl MigrateDatabase for Sqlite {
-    fn create_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             // Opening a connection to sqlite creates the database
-            let _ = SqliteConnectOptions::from_str(uri)?
+            let _ = SqliteConnectOptions::from_str(url)?
                 .create_if_missing(true)
                 .connect()
                 .await?;
@@ -27,9 +27,9 @@ impl MigrateDatabase for Sqlite {
         })
     }
 
-    fn database_exists(uri: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
         Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(uri)?;
+            let options = SqliteConnectOptions::from_str(url)?;
 
             if options.in_memory {
                 Ok(true)
@@ -39,9 +39,9 @@ impl MigrateDatabase for Sqlite {
         })
     }
 
-    fn drop_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            let options = SqliteConnectOptions::from_str(uri)?;
+            let options = SqliteConnectOptions::from_str(url)?;
 
             if !options.in_memory {
                 fs::remove_file(&*options.filename).await?;

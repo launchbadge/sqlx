@@ -5,7 +5,7 @@ use crate::any::{
 use crate::database::{Database, HasArguments, HasStatement, HasStatementCache, HasValueRef};
 
 /// Opaque database driver. Capable of being used in place of any SQLx database driver. The actual
-/// driver used will be selected at runtime, from the connection uri.
+/// driver used will be selected at runtime, from the connection url.
 #[derive(Debug)]
 pub struct Any;
 
