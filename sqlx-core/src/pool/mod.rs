@@ -250,8 +250,20 @@ pub struct CloseEvent {
 }
 
 impl<DB: Database> Pool<DB> {
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URL; and, immediately establishes one connection.
+    /// Create a new connection pool with a default pool configuration and
+    /// the given connection URL, and immediately establish one connection.
+    ///
+    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
+    ///
+    /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
+    /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]
+    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
+    /// * MSSQL: [`MssqlConnectOptions`][crate::mssql::MssqlConnectOptions]
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
     pub async fn connect(url: &str) -> Result<Self, Error> {
         PoolOptions::<DB>::new().connect(url).await
     }
@@ -264,9 +276,22 @@ impl<DB: Database> Pool<DB> {
         PoolOptions::<DB>::new().connect_with(options).await
     }
 
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URL; and, will establish a connections as the pool
-    /// starts to be used.
+    /// Create a new connection pool with a default pool configuration and
+    /// the given connection URL.
+    ///
+    /// The pool will establish connections only as needed.
+    ///
+    /// Refer to the relevant [`ConnectOptions`] impl for your database for the expected URL format:
+    ///
+    /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
+    /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]
+    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
+    /// * MSSQL: [`MssqlConnectOptions`][crate::mssql::MssqlConnectOptions]
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
     pub fn connect_lazy(url: &str) -> Result<Self, Error> {
         PoolOptions::<DB>::new().connect_lazy(url)
     }

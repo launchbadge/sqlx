@@ -189,28 +189,35 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
-    /// Creates a new pool from this configuration and immediately establishes one connection.
+    /// Create a new pool from this `PoolOptions` and immediately open at least one connection.
+    ///
+    /// This ensures the configuration is correct.
+    ///
+    /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
+    ///
+    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
+    ///
+    /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
+    /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]
+    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
+    /// * MSSQL: [`MssqlConnectOptions`][crate::mssql::MssqlConnectOptions]
     pub async fn connect(self, url: &str) -> Result<Pool<DB>, Error> {
         self.connect_with(url.parse()?).await
     }
 
-    /// Creates a new pool from this configuration and immediately establishes one connection.
+    /// Create a new pool from this `PoolOptions` and immediately open at least one connection.
+    ///
+    /// This ensures the configuration is correct.
+    ///
+    /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
     pub async fn connect_with(
         self,
         options: <DB::Connection as Connection>::Options,
     ) -> Result<Pool<DB>, Error> {
-        let shared = SharedPool::new_arc(self, options);
+        // Don't take longer than `acquire_timeout` starting from when this is called.
+        let deadline = Instant::now() + self.acquire_timeout;
 
-        init_min_connections(&shared).await?;
-
-        Ok(Pool(shared))
-    }
-
-    /// Creates a new pool from this configuration and will establish a connections as the pool
-    /// starts to be used.
-    pub fn connect_lazy(self, url: &str) -> Result<Pool<DB>, Error> {
-        Ok(self.connect_lazy_with(url.parse()?))
-    }
+        let inner = PoolInner::new_arc(self, options);
 
     /// Creates a new pool from this configuration and will establish a connections as the pool
     /// starts to be used.

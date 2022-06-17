@@ -78,7 +78,7 @@ impl FromStr for MySqlConnectOptions {
 
 #[test]
 fn it_parses_username_with_at_sign_correctly() {
-    let uri = "mysql://user@hostname:password@hostname:5432/database";
+    let url = "mysql://user@hostname:password@hostname:5432/database";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
     assert_eq!("user@hostname", &opts.username);
@@ -86,7 +86,7 @@ fn it_parses_username_with_at_sign_correctly() {
 
 #[test]
 fn it_parses_password_with_non_ascii_chars_correctly() {
-    let uri = "mysql://username:p@ssw0rd@hostname:5432/database";
+    let url = "mysql://username:p@ssw0rd@hostname:5432/database";
     let opts = MySqlConnectOptions::from_str(url).unwrap();
 
     assert_eq!(Some("p@ssw0rd".into()), opts.password);
