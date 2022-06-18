@@ -1,4 +1,4 @@
-use sqlx::any::AnyPoolOptions;
+use sqlx::any::{AnyConnectOptions, AnyKind, AnyPoolOptions};
 use sqlx::Executor;
 use std::sync::atomic::AtomicI32;
 use std::sync::{
@@ -69,13 +69,27 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn test_pool_callbacks() -> anyhow::Result<()> {
-    sqlx_test::setup_if_needed();
-
     #[derive(sqlx::FromRow, Debug, PartialEq, Eq)]
     struct ConnStats {
         id: i32,
         before_acquire_calls: i32,
         after_release_calls: i32,
+    }
+
+    sqlx_test::setup_if_needed();
+
+    let conn_options: AnyConnectOptions = std::env::var("DATABASE_URL")?.parse()?;
+
+    #[cfg(feature = "mssql")]
+    if conn_options.kind() == AnyKind::Mssql {
+        // MSSQL doesn't support `CREATE TEMPORARY TABLE`,
+        // because why follow conventions when you can subvert them?
+        // Instead, you prepend `#` to the table name for a session-local temporary table
+        // which you also have to do when referencing it.
+
+        // Since that affects basically every query here,
+        // it's just easier to have a separate MSSQL-specific test case.
+        return Ok(());
     }
 
     let current_id = AtomicI32::new(0);
@@ -158,7 +172,7 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
             })
         })
         // Don't establish a connection yet.
-        .connect_lazy(&dotenv::var("DATABASE_URL")?)?;
+        .connect_lazy_with(conn_options);
 
     // Expected pattern of (id, before_acquire_calls, after_release_calls)
     let pattern = [
