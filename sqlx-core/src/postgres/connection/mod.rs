@@ -3,12 +3,11 @@ use std::sync::Arc;
 
 use crate::HashMap;
 use futures_core::future::BoxFuture;
-use futures_util::{FutureExt, TryFutureExt};
+use futures_util::FutureExt;
 
 use crate::common::StatementCache;
 use crate::connection::{Connection, LogSettings};
 use crate::error::Error;
-use crate::executor::Executor;
 use crate::ext::ustr::UStr;
 use crate::io::Decode;
 use crate::postgres::message::{
@@ -143,9 +142,24 @@ impl Connection for PgConnection {
         })
     }
 
+    fn close_hard(mut self) -> BoxFuture<'static, Result<(), Error>> {
+        Box::pin(async move {
+            self.stream.shutdown().await?;
+
+            Ok(())
+        })
+    }
+
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+        // Users were complaining about this showing up in query statistics on the server.
         // By sending a comment we avoid an error if the connection was in the middle of a rowset
-        self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+        // self.execute("/* SQLx ping */").map_ok(|_| ()).boxed()
+
+        Box::pin(async move {
+            // The simplest call-and-response that's possible.
+            self.write_sync();
+            self.wait_until_ready().await
+        })
     }
 
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>

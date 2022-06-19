@@ -8,17 +8,17 @@ use std::str::FromStr;
 use std::time::Duration;
 
 impl MigrateDatabase for Any {
-    fn create_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn create_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            match AnyKind::from_str(uri)? {
+            match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
-                AnyKind::Postgres => crate::postgres::Postgres::create_database(uri).await,
+                AnyKind::Postgres => crate::postgres::Postgres::create_database(url).await,
 
                 #[cfg(feature = "sqlite")]
-                AnyKind::Sqlite => crate::sqlite::Sqlite::create_database(uri).await,
+                AnyKind::Sqlite => crate::sqlite::Sqlite::create_database(url).await,
 
                 #[cfg(feature = "mysql")]
-                AnyKind::MySql => crate::mysql::MySql::create_database(uri).await,
+                AnyKind::MySql => crate::mysql::MySql::create_database(url).await,
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),
@@ -26,17 +26,17 @@ impl MigrateDatabase for Any {
         })
     }
 
-    fn database_exists(uri: &str) -> BoxFuture<'_, Result<bool, Error>> {
+    fn database_exists(url: &str) -> BoxFuture<'_, Result<bool, Error>> {
         Box::pin(async move {
-            match AnyKind::from_str(uri)? {
+            match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
-                AnyKind::Postgres => crate::postgres::Postgres::database_exists(uri).await,
+                AnyKind::Postgres => crate::postgres::Postgres::database_exists(url).await,
 
                 #[cfg(feature = "sqlite")]
-                AnyKind::Sqlite => crate::sqlite::Sqlite::database_exists(uri).await,
+                AnyKind::Sqlite => crate::sqlite::Sqlite::database_exists(url).await,
 
                 #[cfg(feature = "mysql")]
-                AnyKind::MySql => crate::mysql::MySql::database_exists(uri).await,
+                AnyKind::MySql => crate::mysql::MySql::database_exists(url).await,
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),
@@ -44,17 +44,17 @@ impl MigrateDatabase for Any {
         })
     }
 
-    fn drop_database(uri: &str) -> BoxFuture<'_, Result<(), Error>> {
+    fn drop_database(url: &str) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            match AnyKind::from_str(uri)? {
+            match AnyKind::from_str(url)? {
                 #[cfg(feature = "postgres")]
-                AnyKind::Postgres => crate::postgres::Postgres::drop_database(uri).await,
+                AnyKind::Postgres => crate::postgres::Postgres::drop_database(url).await,
 
                 #[cfg(feature = "sqlite")]
-                AnyKind::Sqlite => crate::sqlite::Sqlite::drop_database(uri).await,
+                AnyKind::Sqlite => crate::sqlite::Sqlite::drop_database(url).await,
 
                 #[cfg(feature = "mysql")]
-                AnyKind::MySql => crate::mysql::MySql::drop_database(uri).await,
+                AnyKind::MySql => crate::mysql::MySql::drop_database(url).await,
 
                 #[cfg(feature = "mssql")]
                 AnyKind::Mssql => unimplemented!(),

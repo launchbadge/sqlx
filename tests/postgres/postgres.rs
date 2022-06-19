@@ -46,6 +46,39 @@ async fn it_pings() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_pings_after_suspended_query() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+
+    conn.execute("create temporary table processed_row(val int4 primary key)")
+        .await?;
+
+    // This query wants to return 50 rows but we only read the first one.
+    // This will return a `SuspendedPortal` that the driver currently ignores.
+    let _: i32 = sqlx::query_scalar(
+        r#"
+            insert into processed_row(val)
+            select * from generate_series(1, 50)
+            returning val
+        "#,
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    // `Sync` closes the current autocommit transaction which presumably includes closing any
+    // suspended portals.
+    conn.ping().await?;
+
+    // Make sure that all the values got inserted even though we only read the first one back.
+    let count: i64 = sqlx::query_scalar("select count(*) from processed_row")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(count, 50);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_maths() -> anyhow::Result<()> {
     let mut conn = new::<Postgres>().await?;
 
@@ -511,7 +544,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
     eprintln!("starting pool");
 
     let pool = PgPoolOptions::new()
-        .connect_timeout(Duration::from_secs(5))
+        .acquire_timeout(Duration::from_secs(5))
         .min_connections(1)
         .max_connections(1)
         .connect(&dotenv::var("DATABASE_URL")?)
@@ -1306,6 +1339,7 @@ VALUES
     let mut conn = new::<Postgres>().await?;
 
     #[derive(Debug, sqlx::FromRow)]
+    #[allow(dead_code)] // We don't actually read these fields.
     struct Row {
         count: i64,
         items: Vec<(i32, String, RepoMemberArray)>,

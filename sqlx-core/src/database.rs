@@ -49,7 +49,7 @@
 //! let conn = AnyConnection::connect("sqlite://file.db").await?;
 //!
 //! // connect to Postgres, no code change
-//! // required, decided by the scheme of the URI
+//! // required, decided by the scheme of the URL
 //! let conn = AnyConnection::connect("postgres://localhost/sqlx").await?;
 //! ```
 
