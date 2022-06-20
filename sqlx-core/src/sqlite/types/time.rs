@@ -247,7 +247,7 @@ mod formats {
         value
     }));
 
-    pub(crate) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
+    pub(super) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -269,7 +269,7 @@ mod formats {
         ]
     };
 
-    pub(crate) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
@@ -288,7 +288,7 @@ mod formats {
         ]
     };
 
-    pub(crate) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
+    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
