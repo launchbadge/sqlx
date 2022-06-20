@@ -82,13 +82,13 @@ impl Encode<'_, Sqlite> for Time {
 
 impl<'r> Decode<'r, Sqlite> for OffsetDateTime {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(decode_offset_datetime(value)?)
+        decode_offset_datetime(value)
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for PrimitiveDateTime {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
-        Ok(decode_datetime(value)?)
+        decode_datetime(value)
     }
 }
 
@@ -102,13 +102,16 @@ impl<'r> Decode<'r, Sqlite> for Time {
     fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
         let value = value.text()?;
 
-        let second = FormatItem::Optional(&FormatItem::Compound(fd!(":[second]")));
-        let subsecond = FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]")));
-        let full_description = [fd!("[hour]:[minute]"), &[second], &[subsecond]].concat();
-        let format = [FormatItem::Compound(&full_description[..])];
+        let sqlite_time_formats = &[
+            fd!("[hour]:[minute]:[second].[subsecond]"),
+            fd!("[hour]:[minute]:[second]"),
+            fd!("[hour]:[minute]"),
+        ];
 
-        if let Ok(time) = Time::parse(value, &FormatItem::First(&format)) {
-            return Ok(time);
+        for format in sqlite_time_formats {
+            if let Ok(dt) = Time::parse(value, &format) {
+                return Ok(dt);
+            }
         }
 
         Err(format!("invalid time: {}", value).into())
@@ -137,26 +140,9 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
         return Some(dt);
     }
 
-    // Support for other SQLite supported formats not served by Rfc3339
-    let ymd = fd!("[year]-[month]-[day]");
-    let hm = fd!("[hour]:[minute]");
-    let t_variant_base = [ymd, &[FormatItem::Literal(b"T")], hm].concat();
-    let space_variant_base = [ymd, &[FormatItem::Literal(b" ")], hm].concat();
-
-    let optionals = [
-        FormatItem::Optional(&FormatItem::Compound(fd!(":[second]"))),
-        FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]"))),
-        FormatItem::Optional(&FormatItem::Compound(fd!(
-            "[offset_hour sign:mandatory]:[offset_minute]"
-        ))),
-    ];
-
-    let t_variant_full = [&t_variant_base[..], &optionals[..]].concat();
-    let space_variant_full = [&space_variant_base[..], &optionals[..]].concat();
-
     let formats = [
-        FormatItem::Compound(&space_variant_full),
-        FormatItem::Compound(&t_variant_full),
+        FormatItem::Compound(formats::OFFSET_DATE_TIME_SPACE_SEPARATED),
+        FormatItem::Compound(formats::OFFSET_DATE_TIME_T_SEPARATED),
     ];
 
     if let Ok(dt) = OffsetDateTime::parse(value, &FormatItem::First(&formats)) {
@@ -185,23 +171,14 @@ fn decode_datetime(value: SqliteValueRef<'_>) -> Result<PrimitiveDateTime, BoxDy
 }
 
 fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
-    let ymd = fd!("[year]-[month]-[day]");
-    let hm = fd!("[hour]:[minute]");
-    let t_variant_base = [ymd, &[FormatItem::Literal(b"T")], hm].concat();
-    let space_variant_base = [ymd, &[FormatItem::Literal(b" ")], hm].concat();
-
-    let optionals = [
-        FormatItem::Optional(&FormatItem::Compound(fd!(":[second]"))),
-        FormatItem::Optional(&FormatItem::Compound(fd!(".[subsecond]"))),
-        FormatItem::Optional(&FormatItem::Literal(b"Z")),
-    ];
-
-    let t_variant_full = [&t_variant_base[..], &optionals[..]].concat();
-    let space_variant_full = [&space_variant_base[..], &optionals[..]].concat();
+    let default_format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
+    if let Ok(dt) = PrimitiveDateTime::parse(value, &default_format) {
+        return Some(dt);
+    }
 
     let formats = [
-        FormatItem::Compound(&space_variant_full),
-        FormatItem::Compound(&t_variant_full),
+        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
+        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
     ];
 
     if let Ok(dt) = PrimitiveDateTime::parse(value, &FormatItem::First(&formats)) {
@@ -209,4 +186,149 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
     }
 
     None
+}
+
+mod formats {
+    use time::format_description::{modifier, Component::*, FormatItem, FormatItem::*};
+
+    const YEAR: FormatItem<'_> = Component(Year({
+        let mut value = modifier::Year::default();
+        value.padding = modifier::Padding::Zero;
+        value.repr = modifier::YearRepr::Full;
+        value.iso_week_based = false;
+        value.sign_is_mandatory = false;
+        value
+    }));
+
+    const MONTH: FormatItem<'_> = Component(Month({
+        let mut value = modifier::Month::default();
+        value.padding = modifier::Padding::Zero;
+        value.repr = modifier::MonthRepr::Numerical;
+        value.case_sensitive = true;
+        value
+    }));
+
+    const DAY: FormatItem<'_> = Component(Day({
+        let mut value = modifier::Day::default();
+        value.padding = modifier::Padding::Zero;
+        value
+    }));
+
+    const HOUR: FormatItem<'_> = Component(Hour({
+        let mut value = modifier::Hour::default();
+        value.padding = modifier::Padding::Zero;
+        value.is_12_hour_clock = false;
+        value
+    }));
+
+    const MINUTE: FormatItem<'_> = Component(Minute({
+        let mut value = modifier::Minute::default();
+        value.padding = modifier::Padding::Zero;
+        value
+    }));
+
+    const SECOND: FormatItem<'_> = Component(Second({
+        let mut value = modifier::Second::default();
+        value.padding = modifier::Padding::Zero;
+        value
+    }));
+
+    const SUBSECOND: FormatItem<'_> = Component(Subsecond({
+        let mut value = modifier::Subsecond::default();
+        value.digits = modifier::SubsecondDigits::OneOrMore;
+        value
+    }));
+
+    const OFFSET_HOUR: FormatItem<'_> = Component(OffsetHour({
+        let mut value = modifier::OffsetHour::default();
+        value.sign_is_mandatory = true;
+        value.padding = modifier::Padding::Zero;
+        value
+    }));
+
+    const OFFSET_MINUTE: FormatItem<'_> = Component(OffsetMinute({
+        let mut value = modifier::OffsetMinute::default();
+        value.padding = modifier::Padding::Zero;
+        value
+    }));
+
+    pub(crate) const OFFSET_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+        &[
+            YEAR,
+            Literal(b"-"),
+            MONTH,
+            Literal(b"-"),
+            DAY,
+            Literal(b" "),
+            HOUR,
+            Literal(b":"),
+            MINUTE,
+            Optional(&Literal(b":")),
+            Optional(&SECOND),
+            Optional(&Literal(b".")),
+            Optional(&SUBSECOND),
+            Optional(&OFFSET_HOUR),
+            Optional(&Literal(b":")),
+            Optional(&OFFSET_MINUTE),
+        ]
+    };
+
+    pub(crate) const OFFSET_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
+        &[
+            YEAR,
+            Literal(b"-"),
+            MONTH,
+            Literal(b"-"),
+            DAY,
+            Literal(b"T"),
+            HOUR,
+            Literal(b":"),
+            MINUTE,
+            Optional(&Literal(b":")),
+            Optional(&SECOND),
+            Optional(&Literal(b".")),
+            Optional(&SUBSECOND),
+            Optional(&OFFSET_HOUR),
+            Optional(&Literal(b":")),
+            Optional(&OFFSET_MINUTE),
+        ]
+    };
+
+    pub(crate) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+        &[
+            YEAR,
+            Literal(b"-"),
+            MONTH,
+            Literal(b"-"),
+            DAY,
+            Literal(b" "),
+            HOUR,
+            Literal(b":"),
+            MINUTE,
+            Optional(&Literal(b":")),
+            Optional(&SECOND),
+            Optional(&Literal(b".")),
+            Optional(&SUBSECOND),
+            Optional(&Literal(b"Z")),
+        ]
+    };
+
+    pub(crate) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
+        &[
+            YEAR,
+            Literal(b"-"),
+            MONTH,
+            Literal(b"-"),
+            DAY,
+            Literal(b"T"),
+            HOUR,
+            Literal(b":"),
+            MINUTE,
+            Optional(&Literal(b":")),
+            Optional(&SECOND),
+            Optional(&Literal(b".")),
+            Optional(&SUBSECOND),
+            Optional(&Literal(b"Z")),
+        ]
+    };
 }
