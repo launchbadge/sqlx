@@ -140,12 +140,7 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
         return Some(dt);
     }
 
-    let formats = [
-        FormatItem::Compound(formats::OFFSET_DATE_TIME_SPACE_SEPARATED),
-        FormatItem::Compound(formats::OFFSET_DATE_TIME_T_SEPARATED),
-    ];
-
-    if let Ok(dt) = OffsetDateTime::parse(value, &FormatItem::First(&formats)) {
+    if let Ok(dt) = OffsetDateTime::parse(value, formats::OFFSET_DATE_TIME) {
         return Some(dt);
     }
 
@@ -252,35 +247,15 @@ mod formats {
         value
     }));
 
-    pub(crate) const OFFSET_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
+    pub(crate) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
         &[
             YEAR,
             Literal(b"-"),
             MONTH,
             Literal(b"-"),
             DAY,
-            Literal(b" "),
-            HOUR,
-            Literal(b":"),
-            MINUTE,
-            Optional(&Literal(b":")),
-            Optional(&SECOND),
-            Optional(&Literal(b".")),
-            Optional(&SUBSECOND),
-            Optional(&OFFSET_HOUR),
-            Optional(&Literal(b":")),
-            Optional(&OFFSET_MINUTE),
-        ]
-    };
-
-    pub(crate) const OFFSET_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
-        &[
-            YEAR,
-            Literal(b"-"),
-            MONTH,
-            Literal(b"-"),
-            DAY,
-            Literal(b"T"),
+            Optional(&Literal(b" ")),
+            Optional(&Literal(b"T")),
             HOUR,
             Literal(b":"),
             MINUTE,
