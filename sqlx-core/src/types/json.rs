@@ -1,3 +1,24 @@
+//! Json for json and jsonb fields
+//! 
+//! Will attempt to cast to type passed in as the generic.
+//! ```
+//! #[derive(FromRow)]
+//! struct Author {
+//!   name: String,
+//!   books: types::Json<Book>
+//! }
+//! ```
+//! 
+//! Can also be used to turn the json/jsonb into a hashmap
+//! ```
+//! #[derive(FromRow)]
+//! struct FooStruct {
+//!   id: String,
+//!   properties: types::Json<HashMap<String, BarStruct >>
+//! }
+//! ```
+//! 
+
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
