@@ -1410,3 +1410,4 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@kianmeng]: https://github.com/kianmeng
 [@EthanYuan]: https://github.com/EthanYuan
 [@Nukesor]: https://github.com/Nukesor
+[@smonv]: https://github.com/smonv
