@@ -46,6 +46,10 @@ pub mod chrono {
     };
 }
 
+#[cfg(feature = "compact_str")]
+#[cfg_attr(docsrs, doc(cfg(feature = "compact_str")))]
+pub mod compact_str;
+
 #[cfg(feature = "bit-vec")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bit-vec")))]
 #[doc(no_inline)]

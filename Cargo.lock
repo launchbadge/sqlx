@@ -356,6 +356,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "castaway"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a17ed5635fc8536268e5d4de1e22e81ac34419e5f052d4d51f4e01dcc263fcc"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -446,6 +455,17 @@ dependencies = [
  "error-code",
  "str-buf",
  "winapi",
+]
+
+[[package]]
+name = "compact_str"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e464ece9cd4026f2fb9a2b97af84f7181109a84d877c8324385926206b0bd056"
+dependencies = [
+ "castaway",
+ "itoa 1.0.2",
+ "ryu",
 ]
 
 [[package]]
@@ -2157,6 +2177,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0a5f7c728f5d284929a1cccb5bc19884422bfe6ef4d6c409da2c41838983fcf"
+
+[[package]]
 name = "rustyline"
 version = "9.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2463,6 +2489,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "chrono",
+ "compact_str",
  "crc",
  "crossbeam-queue",
  "digest",
