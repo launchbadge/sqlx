@@ -325,8 +325,10 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
         let now = Instant::now();
 
         PoolConnectionMetadata {
-            age: self.created_at.duration_since(now),
-            idle_for: self.idle_since.duration_since(now),
+            // NOTE: the receiver is the later `Instant` and the arg is the earlier
+            // https://github.com/launchbadge/sqlx/issues/1912
+            age: now.saturating_duration_since(self.created_at),
+            idle_for: now.saturating_duration_since(self.idle_since),
         }
     }
 }
