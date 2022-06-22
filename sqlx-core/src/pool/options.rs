@@ -5,6 +5,7 @@ use crate::pool::inner::PoolInner;
 use crate::pool::Pool;
 use futures_core::future::BoxFuture;
 use std::fmt::{self, Debug, Formatter};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Configuration options for [`Pool`][super::Pool].
@@ -40,10 +41,11 @@ use std::time::{Duration, Instant};
 /// parameter everywhere, and `Box` is in the prelude so it doesn't need to be manually imported,
 /// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
 /// the perspectives of both API designer and consumer.
+#[derive(Clone)]
 pub struct PoolOptions<DB: Database> {
     pub(crate) test_before_acquire: bool,
     pub(crate) after_connect: Option<
-        Box<
+        Arc<
             dyn Fn(&mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
                 + 'static
                 + Send
@@ -51,7 +53,7 @@ pub struct PoolOptions<DB: Database> {
         >,
     >,
     pub(crate) before_acquire: Option<
-        Box<
+        Arc<
             dyn Fn(
                     &mut DB::Connection,
                     PoolConnectionMetadata,
@@ -62,7 +64,7 @@ pub struct PoolOptions<DB: Database> {
         >,
     >,
     pub(crate) after_release: Option<
-        Box<
+        Arc<
             dyn Fn(
                     &mut DB::Connection,
                     PoolConnectionMetadata,
@@ -268,7 +270,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///             .await?;
     ///
     ///         Ok(())
-    ///     }))    
+    ///     }))
     ///     .connect("postgres:// …").await?;
     /// # Ok(())
     /// # }
@@ -284,7 +286,7 @@ impl<DB: Database> PoolOptions<DB> {
             + Send
             + Sync,
     {
-        self.after_connect = Some(Box::new(callback));
+        self.after_connect = Some(Arc::new(callback));
         self
     }
 
@@ -337,7 +339,7 @@ impl<DB: Database> PoolOptions<DB> {
             + Send
             + Sync,
     {
-        self.before_acquire = Some(Box::new(callback));
+        self.before_acquire = Some(Arc::new(callback));
         self
     }
 
@@ -394,7 +396,7 @@ impl<DB: Database> PoolOptions<DB> {
             + Send
             + Sync,
     {
-        self.after_release = Some(Box::new(callback));
+        self.after_release = Some(Arc::new(callback));
         self
     }
 
