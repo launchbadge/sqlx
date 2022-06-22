@@ -23,6 +23,9 @@ impl_database_ext! {
 
         sqlx::postgres::types::PgLQuery,
 
+        #[cfg(feature = "compact_str")]
+        sqlx::types::compact_str::CompactString,
+
         #[cfg(feature = "uuid")]
         sqlx::types::Uuid,
 

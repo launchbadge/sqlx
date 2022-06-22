@@ -131,7 +131,7 @@ time = ["sqlx-core/time", "sqlx-macros/time"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros/bit-vec"]
 bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
-compact_str = ["sqlx-core/compact_str"]
+compact_str = ["sqlx-core/compact_str", "sqlx-macros/compact_str"]
 
 [dependencies]
 sqlx-core = { version = "0.6.0", path = "sqlx-core", default-features = false }

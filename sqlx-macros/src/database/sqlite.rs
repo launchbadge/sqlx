@@ -12,6 +12,9 @@ impl_database_ext! {
         String,
         Vec<u8>,
 
+        #[cfg(feature = "compact_str")]
+        sqlx::types::compact_str::CompactString,
+
         #[cfg(feature = "chrono")]
         sqlx::types::chrono::NaiveDateTime,
 

@@ -15,6 +15,9 @@ impl_database_ext! {
 
         // ordering is important here as otherwise we might infer strings to be binary
         // CHAR, VAR_CHAR, TEXT
+        #[cfg(feature = "compact_str")]
+        sqlx::types::compact_str::CompactString,
+
         String,
 
         // BINARY, VAR_BINARY, BLOB
