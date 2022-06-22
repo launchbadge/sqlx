@@ -1,6 +1,6 @@
 use futures_core::future::BoxFuture;
 
-use crate::any::{Any, AnyConnectOptions, AnyKind};
+use crate::any::{Any, AnyConnectOptions, AnyKind, AnyTransactionOptions};
 use crate::connection::Connection;
 use crate::error::Error;
 
@@ -158,7 +158,7 @@ impl Connection for AnyConnection {
 
     fn begin_with(
         &mut self,
-        options: (),
+        options: AnyTransactionOptions,
     ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
     where
         Self: Sized,

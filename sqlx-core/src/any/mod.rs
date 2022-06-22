@@ -43,7 +43,7 @@ pub use options::AnyConnectOptions;
 pub use query_result::AnyQueryResult;
 pub use row::AnyRow;
 pub use statement::AnyStatement;
-pub use transaction::AnyTransactionManager;
+pub use transaction::{AnyTransactionManager, AnyTransactionOptions};
 pub use type_info::AnyTypeInfo;
 pub use value::{AnyValue, AnyValueRef};
 
