@@ -9,3 +9,7 @@ target/
 
 # Environment
 .env
+
+# Shared-memory and WAL files created by SQLite.
+*-shm
+*-wal
