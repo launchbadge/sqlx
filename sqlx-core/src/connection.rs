@@ -166,7 +166,27 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
     where
         Self::Connection: Sized;
 
-    /// Log executed statements with the specified `level`
+    /// Log executed statements with the specified `level` using [LevelFilter]
+    ///
+    /// # Example (with Postgres)
+    ///
+    /// ```rust
+    /// use sqlx::{Pool, Postgres, postgres::PgConnectOptions, ConnectOptions};
+    /// 
+    /// // First, you need to create ConnectOptions
+    /// let mut options = PgConnectOptions::new()
+    ///     .host("localhost").port("5432")
+    ///     .username("myuser").password("somesecretpassword")
+    ///     .database("mydb");
+    /// 
+    /// // Now it's possible to change the log level of log statements
+    /// options.log_statements(LevelFilter::Trace);
+    /// 
+    /// // Finally, connect to the DB using a single connection...
+    /// let conn = options.connect().await.unwrap();
+    /// // ... or a pool
+    /// let pool = Pool::<Postgres>::connect_with(options).await.unwrap();
+    /// ```
     fn log_statements(&mut self, level: LevelFilter) -> &mut Self;
 
     /// Log executed statements with a duration above the specified `duration`
