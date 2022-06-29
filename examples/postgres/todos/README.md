@@ -8,7 +8,7 @@
     export DATABASE_URL="postgres://postgres:password@localhost/todos"
     ```
 
-2. Create the database.
+2. Setup the database.
 
     ```
     $ sqlx db setup
