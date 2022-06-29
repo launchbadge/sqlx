@@ -11,7 +11,7 @@
 2. Create the database.
 
     ```
-    $ sqlx db create
+    $ sqlx db setup
     ```
 
 3. Run sql migrations
