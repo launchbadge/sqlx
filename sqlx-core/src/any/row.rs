@@ -79,19 +79,14 @@ impl Row for AnyRow {
         T: Decode<'r, Self::Database> + Type<Self::Database>,
     {
         let value = self.try_get_raw(&index)?;
+        let ty = value.type_info();
 
-        if !value.is_null() {
-            let ty = value.type_info();
-
-            if !ty.is_null() && !T::compatible(&ty) {
-                return Err(Error::ColumnDecode {
-                    index: format!("{:?}", index),
-                    source: mismatched_types::<T>(&ty),
-                });
-            }
+        if !value.is_null() && !ty.is_null() && !T::compatible(&ty) {
+            Err(mismatched_types::<T>(&ty))
+        } else {
+            T::decode(value)
         }
-
-        T::decode(value).map_err(|source| Error::ColumnDecode {
+        .map_err(|source| Error::ColumnDecode {
             index: format!("{:?}", index),
             source,
         })
