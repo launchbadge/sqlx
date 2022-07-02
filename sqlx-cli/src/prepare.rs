@@ -129,25 +129,27 @@ hint: This command only works in the manifest directory of a Cargo package."#
     let _ = remove_dir_all(metadata.target_directory.join("sqlx"));
 
     let check_status = if merge {
-        let check_status = Command::new(&cargo).arg("clean").status()?;
+        let clean_status = Command::new(&cargo).arg("clean").status()?;
 
-        if !check_status.success() {
-            bail!("`cargo clean` failed with status: {}", check_status);
+        if !clean_status.success() {
+            bail!("`cargo clean` failed with status: {}", clean_status);
         }
 
-        let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
-        rustflags.push_str(&format!(
-            " --cfg __sqlx_recompile_trigger=\"{}\"",
-            SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
-        ));
-
-        Command::new(&cargo)
+        let mut check_command = Command::new(&cargo);
+        check_command
             .arg("check")
             .args(cargo_args)
-            .env("RUSTFLAGS", rustflags)
             .env("SQLX_OFFLINE", "false")
-            .env("DATABASE_URL", url)
-            .status()?
+            .env("DATABASE_URL", url);
+
+        // `cargo check` recompiles on changed rust flags which can be set either via the env var
+        // or through the `rustflags` field in `$CARGO_HOME/config` when the env var isn't set.
+        // Because of this we only pass in `$RUSTFLAGS` when present
+        if let Ok(rustflags) = env::var("RUSTFLAGS") {
+            check_command.env("RUSTFLAGS", rustflags);
+        }
+
+        check_command.status()?
     } else {
         Command::new(&cargo)
             .arg("rustc")
