@@ -1713,3 +1713,16 @@ async fn test_advisory_locks() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn test_postgres_bytea_hex_deserialization_errors() -> anyhow::Result<()> {
+    let mut conn = new::<Postgres>().await?;
+    conn.execute("SET bytea_output = 'escape';").await?;
+    for value in ["", "DEADBEEF"] {
+        let query = format!("SELECT '\\x{}'::bytea", value);
+        let res: sqlx::Result<Vec<u8>> = conn.fetch_one(query.as_str()).await?.try_get(0usize);
+        // Deserialization only supports hex format so this should error and definitely not panic.
+        res.unwrap_err();
+    }
+    Ok(())
+}

@@ -55,7 +55,11 @@ impl Decode<'_, Postgres> for Vec<u8> {
             PgValueFormat::Binary => value.as_bytes()?.to_owned(),
             PgValueFormat::Text => {
                 // BYTEA is formatted as \x followed by hex characters
-                hex::decode(&value.as_str()?[2..])?
+                let text = value
+                    .as_bytes()?
+                    .strip_prefix(b"\\x")
+                    .ok_or("text does not start with \\x")?;
+                hex::decode(text)?
             }
         })
     }
