@@ -22,11 +22,24 @@
 //!
 //! Requires the `chrono` Cargo feature flag.
 //!
-//! | Rust type                             | Sqlite type(s)                                        |
+//! | Rust type                             | Sqlite type(s)                                       |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `chrono::NaiveDateTime`               | DATETIME                                             |
 //! | `chrono::DateTime<Utc>`               | DATETIME                                             |
 //! | `chrono::DateTime<Local>`             | DATETIME                                             |
+//! | `chrono::NaiveDate`                   | DATE                                                 |
+//! | `chrono::NaiveTime`                   | TIME                                                 |
+//!
+//! ### [`time`](https://crates.io/crates/time)
+//!
+//! Requires the `time` Cargo feature flag.
+//!
+//! | Rust type                             | Sqlite type(s)                                       |
+//! |---------------------------------------|------------------------------------------------------|
+//! | `time::PrimitiveDateTime`             | DATETIME                                             |
+//! | `time::OffsetDateTime`                | DATETIME                                             |
+//! | `time::Date`                          | DATE                                                 |
+//! | `time::Time`                          | TIME                                                 |
 //!
 //! ### [`uuid`](https://crates.io/crates/uuid)
 //!
@@ -36,6 +49,16 @@
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BLOB, TEXT                                           |
 //! | `uuid::fmt::Hyphenated`               | TEXT                                                 |
+//!
+//! ### [`json`](https://crates.io/crates/serde_json)
+//!
+//! Requires the `json` Cargo feature flag.
+//!
+//! | Rust type                             | Sqlite type(s)                                       |
+//! |---------------------------------------|------------------------------------------------------|
+//! | [`Json<T>`]                           | TEXT                                                 |
+//! | `serde_json::JsonValue`               | TEXT                                                 |
+//! | `&serde_json::value::RawValue`        | TEXT                                                 |
 //!
 //! # Nullable
 //!
@@ -52,6 +75,8 @@ mod int;
 #[cfg(feature = "json")]
 mod json;
 mod str;
+#[cfg(feature = "time")]
+mod time;
 mod uint;
 #[cfg(feature = "uuid")]
 mod uuid;
