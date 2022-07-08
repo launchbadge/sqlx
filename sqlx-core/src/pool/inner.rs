@@ -6,7 +6,7 @@ use crate::error::Error;
 use crate::pool::{deadline_as_timeout, CloseEvent, PoolOptions};
 use crossbeam_queue::ArrayQueue;
 
-use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
+use sqlx_rt::{Semaphore, SemaphorePermit};
 
 use std::cmp;
 use std::future::Future;
@@ -49,7 +49,7 @@ impl<DB: Database> PoolInner<DB> {
         let pool = Self {
             connect_options,
             idle_conns: ArrayQueue::new(capacity),
-            semaphore: Semaphore::new(options.fair, capacity),
+            semaphore: Semaphore::new(capacity),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
@@ -88,7 +88,7 @@ impl<DB: Database> PoolInner<DB> {
             // if we were the one to mark this closed, release enough permits to wake all waiters
             // we can't just do `usize::MAX` because that would overflow
             // and we can't do this more than once cause that would _also_ overflow
-            self.semaphore.release(WAKE_ALL_PERMITS);
+            self.semaphore.close();
             self.on_closed.notify(usize::MAX);
         }
 
@@ -97,12 +97,6 @@ impl<DB: Database> PoolInner<DB> {
             while let Some(idle) = self.idle_conns.pop() {
                 let _ = idle.live.float((*self).clone()).close().await;
             }
-
-            // Wait for all permits to be released.
-            let _permits = self
-                .semaphore
-                .acquire(WAKE_ALL_PERMITS + (self.options.max_connections as usize))
-                .await;
 
             // Clean up any remaining connections.
             while let Some(idle) = self.idle_conns.pop() {
@@ -123,14 +117,14 @@ impl<DB: Database> PoolInner<DB> {
             return None;
         }
 
-        let permit = self.semaphore.try_acquire(1)?;
+        let permit = self.semaphore.try_acquire().ok()?;
         self.pop_idle(permit).ok()
     }
 
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
-        permit: SemaphoreReleaser<'a>,
-    ) -> Result<Floating<DB, Idle<DB>>, SemaphoreReleaser<'a>> {
+        permit: SemaphorePermit<'a>,
+    ) -> Result<Floating<DB, Idle<DB>>, SemaphorePermit<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(idle, (*self).clone(), permit))
@@ -158,8 +152,8 @@ impl<DB: Database> PoolInner<DB> {
     /// Try to atomically increment the pool size for a new connection.
     pub(super) fn try_increment_size<'a>(
         self: &'a Arc<Self>,
-        permit: SemaphoreReleaser<'a>,
-    ) -> Result<DecrementSizeGuard<DB>, SemaphoreReleaser<'a>> {
+        permit: SemaphorePermit<'a>,
+    ) -> Result<DecrementSizeGuard<DB>, SemaphorePermit<'a>> {
         match self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -184,7 +178,7 @@ impl<DB: Database> PoolInner<DB> {
             self.options.acquire_timeout,
             async {
                 loop {
-                    let permit = self.semaphore.acquire(1).await;
+                    let permit = self.semaphore.acquire().await.map_err(|_| Error::PoolClosed)?;
 
                     if self.is_closed() {
                         return Err(Error::PoolClosed);
@@ -303,7 +297,7 @@ impl<DB: Database> PoolInner<DB> {
             //
             // If no extra permits are available then we shouldn't be trying to spin up
             // connections anyway.
-            let permit = unwrap_or_return!(self.semaphore.try_acquire(1));
+            let permit = unwrap_or_return!(self.semaphore.try_acquire().ok());
 
             // We must always obey `max_connections`.
             let guard = unwrap_or_return!(self.try_increment_size(permit).ok());
@@ -479,15 +473,16 @@ impl<DB: Database> DecrementSizeGuard<DB> {
         }
     }
 
-    pub fn from_permit(pool: Arc<PoolInner<DB>>, mut permit: SemaphoreReleaser<'_>) -> Self {
+    #[cfg_attr(not(feature = "_rt-async-std"), allow(unused_mut))]
+    pub fn from_permit(pool: Arc<PoolInner<DB>>, mut permit: SemaphorePermit<'_>) -> Self {
         // here we effectively take ownership of the permit
-        permit.disarm();
+        permit.forget();
         Self::new_permit(pool)
     }
 
     /// Release the semaphore permit without decreasing the pool size.
     fn release_permit(self) {
-        self.pool.semaphore.release(1);
+        self.pool.semaphore.add_permits(1);
         self.cancel();
     }
 
@@ -502,7 +497,7 @@ impl<DB: Database> Drop for DecrementSizeGuard<DB> {
             self.pool.size.fetch_sub(1, Ordering::AcqRel);
 
             // and here we release the permit we got on construction
-            self.pool.semaphore.release(1);
+            self.pool.semaphore.add_permits(1);
         }
     }
 }

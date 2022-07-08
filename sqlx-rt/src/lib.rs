@@ -37,8 +37,9 @@ pub use native_tls;
 ))]
 pub use tokio::{
     self, fs, io::AsyncRead, io::AsyncReadExt, io::AsyncWrite, io::AsyncWriteExt, io::ReadBuf,
-    net::TcpStream, runtime::Handle, sync::Mutex as AsyncMutex,sync::MutexGuard as AsyncMutexGuard, task::spawn, task::yield_now,
-    time::sleep, time::timeout,
+    net::TcpStream, runtime::Handle, sync::Mutex as AsyncMutex,
+    sync::MutexGuard as AsyncMutexGuard, sync::Semaphore, sync::SemaphorePermit, task::spawn,
+    task::yield_now, time::sleep, time::timeout,
 };
 
 #[cfg(all(
@@ -143,7 +144,8 @@ macro_rules! blocking {
 pub use async_std::{
     self, fs, future::timeout, io::prelude::ReadExt as AsyncReadExt,
     io::prelude::WriteExt as AsyncWriteExt, io::Read as AsyncRead, io::Write as AsyncWrite,
-    net::TcpStream, sync::Mutex as AsyncMutex,sync::MutexGuard as AsyncMutexGuard, task::sleep, task::spawn, task::yield_now,
+    net::TcpStream, sync::Mutex as AsyncMutex, sync::MutexGuard as AsyncMutexGuard, task::sleep,
+    task::spawn, task::yield_now,
 };
 
 #[cfg(all(
@@ -195,3 +197,59 @@ pub use async_native_tls::{TlsConnector, TlsStream};
     )),
 ))]
 pub use futures_rustls::{client::TlsStream, TlsConnector};
+
+#[cfg(all(
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
+))]
+pub struct Semaphore(futures_intrusive::sync::Semaphore);
+
+#[cfg(all(
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
+))]
+impl Semaphore {
+    pub fn new(permits: usize) -> Self {
+        Self(futures_intrusive::sync::Semaphore::new(true, permits))
+    }
+
+    pub fn add_permits(&self, n: usize) {
+        self.0.release(n);
+    }
+
+    pub async fn acquire(&self) -> Result<SemaphorePermit<'_>, ()> {
+        let releaser = self.0.acquire(1).await;
+        Ok(SemaphorePermit(releaser))
+    }
+
+    pub fn try_acquire(&self) -> Result<SemaphorePermit<'_>, ()> {
+        let releaser = self.0.try_acquire(1).ok_or(())?;
+        Ok(SemaphorePermit(releaser))
+    }
+
+    pub fn close(&self) {
+        /// Ihe number of permits to release to wake all waiters, such as on `PoolInner::close()`.
+        ///
+        /// This should be large enough to realistically wake all tasks waiting on the pool without
+        /// potentially overflowing the permits count in the semaphore itself.
+        const WAKE_ALL_PERMITS: usize = usize::MAX / 2;
+
+        self.0.release(WAKE_ALL_PERMITS);
+    }
+}
+
+#[cfg(all(
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
+))]
+pub struct SemaphorePermit<'a>(futures_intrusive::sync::SemaphoreReleaser<'a>);
+
+#[cfg(all(
+    feature = "_rt-async-std",
+    not(any(feature = "_rt-actix", feature = "_rt-tokio")),
+))]
+impl<'a> SemaphorePermit<'a> {
+    pub fn forget(&mut self) {
+        self.0.disarm();
+    }
+}

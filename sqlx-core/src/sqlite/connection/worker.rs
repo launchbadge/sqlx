@@ -325,7 +325,9 @@ impl ConnectionWorker {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
 
-    pub(crate) async fn unlock_db(&mut self) -> Result<AsyncMutexGuard<'_, ConnectionState>, Error> {
+    pub(crate) async fn unlock_db(
+        &mut self,
+    ) -> Result<AsyncMutexGuard<'_, ConnectionState>, Error> {
         let (guard, res) = futures_util::future::join(
             // we need to join the wait queue for the lock before we send the message
             self.shared.conn.lock(),

@@ -8,21 +8,17 @@ fn bench_pgpool_acquire(c: &mut Criterion) {
     let mut group = c.benchmark_group("bench_pgpool_acquire");
 
     for &concurrent in [5u32, 10, 50, 100, 500, 1000, 5000 /*, 10_000, 50_000*/].iter() {
-        for &fair in [false, true].iter() {
-            let fairness = if fair { "(fair)" } else { "(unfair)" };
-
-            group.bench_with_input(
-                format!("{} concurrent {}", concurrent, fairness),
-                &(concurrent, fair),
-                |b, &(concurrent, fair)| do_bench_acquire(b, concurrent, fair),
-            );
-        }
+        group.bench_with_input(
+            format!("{} concurrent {}", concurrent, fairness),
+            &(concurrent),
+            |b, &(concurrent)| do_bench_acquire(b, concurrent),
+        );
     }
 
     group.finish();
 }
 
-fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
+fn do_bench_acquire(b: &mut Bencher, concurrent: u32) {
     let pool = sqlx_rt::block_on(
         PgPoolOptions::new()
             // we don't want timeouts because we want to see how the pool degrades
@@ -32,7 +28,6 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
             .max_connections(50)
             // we're not benchmarking `ping()`
             .test_before_acquire(false)
-            .__fair(fair)
             .connect(
                 &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
             ),
