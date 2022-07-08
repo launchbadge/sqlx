@@ -55,12 +55,35 @@ where
     }
 }
 
+impl<T, const N: usize> Type<Postgres> for [T; N]
+where
+    T: PgHasArrayType,
+{
+    fn type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
 impl<'q, T> Encode<'q, Postgres> for Vec<T>
 where
     for<'a> &'a [T]: Encode<'q, Postgres>,
     T: Encode<'q, Postgres>,
 {
     #[inline]
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        self.as_slice().encode_by_ref(buf)
+    }
+}
+
+impl<'q, T, const N: usize> Encode<'q, Postgres> for [T; N]
+where
+    for<'a> &'a [T]: Encode<'q, Postgres>,
+    T: Encode<'q, Postgres>,
+{
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         self.as_slice().encode_by_ref(buf)
     }
@@ -97,6 +120,19 @@ where
         }
 
         IsNull::No
+    }
+}
+
+impl<'r, T, const N: usize> Decode<'r, Postgres> for [T; N]
+where
+    T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
+{
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        // This could be done more efficiently by refactoring the Vec decoding below so that it can
+        // be used for arrays and Vec.
+        let vec: Vec<T> = Decode::decode(value)?;
+        let array: [T; N] = vec.try_into().map_err(|_| "wrong number of elements")?;
+        Ok(array)
     }
 }
 
