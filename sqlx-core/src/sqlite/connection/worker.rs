@@ -6,7 +6,7 @@ use std::thread;
 
 use either::Either;
 use futures_channel::oneshot;
-use futures_intrusive::sync::{Mutex, MutexGuard};
+use sqlx_rt::{AsyncMutex, AsyncMutexGuard};
 
 use crate::describe::Describe;
 use crate::error::Error;
@@ -36,7 +36,7 @@ pub(crate) struct ConnectionWorker {
 
 pub(crate) struct WorkerSharedState {
     pub(crate) cached_statements_size: AtomicUsize,
-    pub(crate) conn: Mutex<ConnectionState>,
+    pub(crate) conn: AsyncMutex<ConnectionState>,
 }
 
 enum Command {
@@ -101,7 +101,7 @@ impl ConnectionWorker {
                     // note: must be fair because in `Command::UnlockDb` we unlock the mutex
                     // and then immediately try to relock it; an unfair mutex would immediately
                     // grant us the lock even if another task is waiting.
-                    conn: Mutex::new(conn, true),
+                    conn: AsyncMutex::new(conn),
                 });
                 let mut conn = shared.conn.try_lock().unwrap();
 
@@ -325,7 +325,7 @@ impl ConnectionWorker {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
 
-    pub(crate) async fn unlock_db(&mut self) -> Result<MutexGuard<'_, ConnectionState>, Error> {
+    pub(crate) async fn unlock_db(&mut self) -> Result<AsyncMutexGuard<'_, ConnectionState>, Error> {
         let (guard, res) = futures_util::future::join(
             // we need to join the wait queue for the lock before we send the message
             self.shared.conn.lock(),
