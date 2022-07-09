@@ -207,6 +207,7 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
 
                 let mut conn = SqliteConnectOptions::from_str(db_url)?.connect().await?;
                 let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
                 expand_with_data(input, data, false)
             }
             _ => {
