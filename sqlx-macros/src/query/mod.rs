@@ -187,64 +187,63 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
     feature = "sqlite"
 ))]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
-    use sqlx_core::any::{AnyConnection, AnyConnectionKind};
-
-    static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
-        Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
+    use sqlx_core::any::AnyConnection;
 
     let maybe_expanded: crate::Result<TokenStream> = block_on(async {
-        let mut cache = CONNECTION_CACHE.lock().await;
+        let parsed_db_url = Url::parse(db_url)?;
 
-        if !cache.contains_key(db_url) {
-            let parsed_db_url = Url::parse(db_url)?;
-
-            let conn = match parsed_db_url.scheme() {
-                #[cfg(feature = "sqlite")]
-                "sqlite" => {
-                    use sqlx_core::connection::ConnectOptions;
-                    use sqlx_core::sqlite::{SqliteConnectOptions, SqliteJournalMode};
-                    use std::str::FromStr;
-
-                    let sqlite_conn = SqliteConnectOptions::from_str(db_url)?
-                        // Connections in `CONNECTION_CACHE` won't get dropped so disable journaling
-                        // to avoid `.db-wal` and `.db-shm` files from lingering around
-                        .journal_mode(SqliteJournalMode::Off)
-                        .connect()
-                        .await?;
-                    AnyConnection::from(sqlite_conn)
-                }
-                _ => AnyConnection::connect(db_url).await?,
-            };
-
-            let _ = cache.insert(db_url.to_owned(), conn);
-        }
-
-        let conn_item = cache.get_mut(db_url).expect("Item was just inserted");
-        match conn_item.private_get_mut() {
-            #[cfg(feature = "postgres")]
-            AnyConnectionKind::Postgres(conn) => {
-                let data = QueryData::from_db(conn, &input.sql).await?;
-                expand_with_data(input, data, false)
-            }
-            #[cfg(feature = "mssql")]
-            AnyConnectionKind::Mssql(conn) => {
-                let data = QueryData::from_db(conn, &input.sql).await?;
-                expand_with_data(input, data, false)
-            }
-            #[cfg(feature = "mysql")]
-            AnyConnectionKind::MySql(conn) => {
-                let data = QueryData::from_db(conn, &input.sql).await?;
-                expand_with_data(input, data, false)
-            }
+        match parsed_db_url.scheme() {
+            // SQLite is not used in the connection cache due to issues with newly created
+            // databases seemingly being locked for several seconds when journaling is off. This
+            // isn't a huge issue since the intent of the connection cache was to make connections
+            // to remote databases much faster. Relevant links:
+            // - https://github.com/launchbadge/sqlx/pull/1782#issuecomment-1089226716
+            // - https://github.com/launchbadge/sqlx/issues/1929
             #[cfg(feature = "sqlite")]
-            AnyConnectionKind::Sqlite(conn) => {
-                let data = QueryData::from_db(conn, &input.sql).await?;
+            "sqlite" => {
+                use sqlx_core::connection::ConnectOptions;
+                use sqlx_core::sqlite::SqliteConnectOptions;
+                use std::str::FromStr;
+
+                let mut conn = SqliteConnectOptions::from_str(db_url)?.connect().await?;
+                let data = QueryData::from_db(&mut conn, &input.sql).await?;
+                conn.close().await?;
                 expand_with_data(input, data, false)
             }
-            // Variants depend on feature flags
-            #[allow(unreachable_patterns)]
-            item => {
-                return Err(format!("Missing expansion needed for: {:?}", item).into());
+            _ => {
+                static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
+                    Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
+
+                let mut cache = CONNECTION_CACHE.lock().await;
+
+                if !cache.contains_key(db_url) {
+                    let conn = AnyConnection::connect(db_url).await?;
+                    let _ = cache.insert(db_url.to_owned(), conn);
+                }
+
+                let conn_item = cache.get_mut(db_url).expect("Item was just inserted");
+                match conn_item.private_get_mut() {
+                    #[cfg(feature = "postgres")]
+                    sqlx_core::any::AnyConnectionKind::Postgres(conn) => {
+                        let data = QueryData::from_db(conn, &input.sql).await?;
+                        expand_with_data(input, data, false)
+                    }
+                    #[cfg(feature = "mssql")]
+                    sqlx_core::any::AnyConnectionKind::Mssql(conn) => {
+                        let data = QueryData::from_db(conn, &input.sql).await?;
+                        expand_with_data(input, data, false)
+                    }
+                    #[cfg(feature = "mysql")]
+                    sqlx_core::any::AnyConnectionKind::MySql(conn) => {
+                        let data = QueryData::from_db(conn, &input.sql).await?;
+                        expand_with_data(input, data, false)
+                    }
+                    // Variants depend on feature flags
+                    #[allow(unreachable_patterns)]
+                    item => {
+                        return Err(format!("Missing expansion needed for: {:?}", item).into());
+                    }
+                }
             }
         }
     });
