@@ -12,11 +12,24 @@
 //! | `u8`                                  | INTEGER                                              |
 //! | `u16`                                 | INTEGER                                              |
 //! | `u32`                                 | INTEGER                                              |
-//! | `u64`                                 | BIGINT, INT8                                         |
 //! | `f32`                                 | REAL                                                 |
 //! | `f64`                                 | REAL                                                 |
 //! | `&str`, [`String`]                    | TEXT                                                 |
 //! | `&[u8]`, `Vec<u8>`                    | BLOB                                                 |
+//!
+//! #### Note: Unsigned Integers
+//! The unsigned integer types `u8`, `u16` and `u32` are implemented by zero-extending to the
+//! next-larger signed type. So `u8` becomes `i16`, `u16` becomes `i32`, and `u32` becomes `i64`
+//! while still retaining their semantic values.
+//!
+//! Similarly, decoding performs a checked truncation to ensure that overflow does not occur.
+//!
+//! SQLite stores integers in a variable-width encoding and always handles them in memory as 64-bit
+//! signed values, so no space is wasted by this implicit widening.
+//!
+//! However, there is no corresponding larger type for `u64` in SQLite (it would require a `i128`),
+//! and so it is not supported. Bit-casting it to `i64` or storing it as `REAL`, `BLOB` or `TEXT`
+//! would change the semantics of the value in SQL and so violates the principle of least surprise.
 //!
 //! ### [`chrono`](https://crates.io/crates/chrono)
 //!
