@@ -185,7 +185,47 @@ async fn it_describes_insert_with_returning() -> anyhow::Result<()> {
 
     assert_eq!(d.columns().len(), 4);
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
     assert_eq!(d.column(1).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(1), Some(false));
+
+    let d = conn
+        .describe("INSERT INTO accounts (name, is_active) VALUES ('a', true) RETURNING id")
+        .await?;
+
+    assert_eq!(d.columns().len(), 1);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_update_with_returning() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe("UPDATE accounts SET is_active=true WHERE name=?1 RETURNING id")
+        .await?;
+
+    assert_eq!(d.columns().len(), 1);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_delete_with_returning() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe("DELETE FROM accounts WHERE name=?1 RETURNING id")
+        .await?;
+
+    assert_eq!(d.columns().len(), 1);
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
 
     Ok(())
 }
