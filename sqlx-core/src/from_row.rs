@@ -92,6 +92,36 @@ use crate::row::Row;
 /// will set the value of the field `location` to the default value of `Option<String>`,
 /// which is `None`.
 ///
+/// ### `flatten`
+///
+/// If you want to handle a field that implements [`FromRow`],
+/// you can use the `flatten` attribute to specify that you want
+/// it to use [`FromRow`] for parsing rather than the usual method.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct Address {
+///     country: String,
+///     city: String,
+///     road: String,
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(flatten)]
+///     address: Address,
+/// }
+/// ```
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name, country, city, road FROM users;
+/// ```
+///
+/// This field is compatible with the `default` attribute.
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
