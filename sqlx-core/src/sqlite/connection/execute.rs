@@ -53,6 +53,16 @@ fn bind(
     Ok(n)
 }
 
+impl ExecuteIter<'_> {
+    pub fn finish(&mut self) -> Result<(), Error> {
+        for res in self {
+            let _ = res?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Iterator for ExecuteIter<'_> {
     type Item = Result<Either<SqliteQueryResult, SqliteRow>, Error>;
 
