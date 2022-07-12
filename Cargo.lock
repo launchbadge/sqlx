@@ -876,6 +876,12 @@ dependencies = [
 [[package]]
 name = "files"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "dotenv",
+ "sqlx",
+]
 
 [[package]]
 name = "filetime"
