@@ -2,10 +2,9 @@ use crate::opt::ConnectOpts;
 use anyhow::{bail, Context};
 use console::style;
 use remove_dir_all::remove_dir_all;
-use serde::Deserialize;
 use sqlx::any::{AnyConnectOptions, AnyKind};
 use sqlx::Connection;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
@@ -13,6 +12,8 @@ use std::process::Command;
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{env, fs};
+
+use crate::metadata::Metadata;
 
 type QueryData = BTreeMap<String, serde_json::Value>;
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -116,38 +117,46 @@ hint: This command only works in the manifest directory of a Cargo package."#
         .output()
         .context("Could not fetch metadata")?;
 
-    #[derive(Deserialize)]
-    struct Metadata {
-        target_directory: PathBuf,
-    }
-
-    let metadata: Metadata =
-        serde_json::from_slice(&output.stdout).context("Invalid `cargo metadata` output")?;
+    let output_str =
+        std::str::from_utf8(&output.stdout).context("Invalid `cargo metadata` output")?;
+    let metadata: Metadata = output_str.parse()?;
 
     // try removing the target/sqlx directory before running, as stale files
     // have repeatedly caused issues in the past.
-    let _ = remove_dir_all(metadata.target_directory.join("sqlx"));
+    let _ = remove_dir_all(metadata.target_directory().join("sqlx"));
 
     let check_status = if merge {
-        let check_status = Command::new(&cargo).arg("clean").status()?;
+        // Try only triggering a recompile on crates that use `sqlx-macros` falling back to a full
+        // clean on error
+        match setup_minimal_project_recompile(&cargo, &metadata) {
+            Ok(()) => {}
+            Err(err) => {
+                println!(
+                    "Failed minimal recompile setup. Cleaning entire project. Err: {}",
+                    err
+                );
+                let clean_status = Command::new(&cargo).arg("clean").status()?;
+                if !clean_status.success() {
+                    bail!("`cargo clean` failed with status: {}", clean_status);
+                }
+            }
+        };
 
-        if !check_status.success() {
-            bail!("`cargo clean` failed with status: {}", check_status);
-        }
-
-        let mut rustflags = env::var("RUSTFLAGS").unwrap_or_default();
-        rustflags.push_str(&format!(
-            " --cfg __sqlx_recompile_trigger=\"{}\"",
-            SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
-        ));
-
-        Command::new(&cargo)
+        let mut check_command = Command::new(&cargo);
+        check_command
             .arg("check")
             .args(cargo_args)
-            .env("RUSTFLAGS", rustflags)
             .env("SQLX_OFFLINE", "false")
-            .env("DATABASE_URL", url)
-            .status()?
+            .env("DATABASE_URL", url);
+
+        // `cargo check` recompiles on changed rust flags which can be set either via the env var
+        // or through the `rustflags` field in `$CARGO_HOME/config` when the env var isn't set.
+        // Because of this we only pass in `$RUSTFLAGS` when present
+        if let Ok(rustflags) = env::var("RUSTFLAGS") {
+            check_command.env("RUSTFLAGS", rustflags);
+        }
+
+        check_command.status()?
     } else {
         Command::new(&cargo)
             .arg("rustc")
@@ -170,7 +179,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
         bail!("`cargo check` failed with status: {}", check_status);
     }
 
-    let pattern = metadata.target_directory.join("sqlx/query-*.json");
+    let pattern = metadata.target_directory().join("sqlx/query-*.json");
 
     let mut data = BTreeMap::new();
 
@@ -203,6 +212,95 @@ hint: This command only works in the manifest directory of a Cargo package."#
     }
 
     Ok(data)
+}
+
+#[derive(Debug, PartialEq)]
+struct ProjectRecompileAction {
+    // The names of the packages
+    clean_packages: Vec<String>,
+    touch_paths: Vec<PathBuf>,
+}
+
+/// Sets up recompiling only crates that depend on `sqlx-macros`
+///
+/// This gets a listing of all crates that depend on `sqlx-macros` (direct and transitive). The
+/// crates within the current workspace have their source file's mtimes updated while crates
+/// outside the workspace are selectively `cargo clean -p`ed. In this way we can trigger a
+/// recompile of crates that may be using compile-time macros without forcing a full recompile
+fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::Result<()> {
+    let ProjectRecompileAction {
+        clean_packages,
+        touch_paths,
+    } = minimal_project_recompile_action(metadata)?;
+
+    for file in touch_paths {
+        let now = filetime::FileTime::now();
+        filetime::set_file_times(&file, now, now)
+            .with_context(|| format!("Failed to update mtime for {:?}", file))?;
+    }
+
+    for pkg_id in &clean_packages {
+        let clean_status = Command::new(cargo)
+            .args(&["clean", "-p", pkg_id])
+            .status()?;
+
+        if !clean_status.success() {
+            bail!("`cargo clean -p {}` failed", pkg_id);
+        }
+    }
+
+    Ok(())
+}
+
+fn minimal_project_recompile_action(metadata: &Metadata) -> anyhow::Result<ProjectRecompileAction> {
+    // Get all the packages that depend on `sqlx-macros`
+    let mut sqlx_macros_dependents = BTreeSet::new();
+    let sqlx_macros_ids: BTreeSet<_> = metadata
+        .entries()
+        // We match just by name instead of name and url because some people may have it installed
+        // through different means like vendoring
+        .filter(|(_, package)| package.name() == "sqlx-macros")
+        .map(|(id, _)| id)
+        .collect();
+    for sqlx_macros_id in sqlx_macros_ids {
+        sqlx_macros_dependents.extend(metadata.all_dependents_of(sqlx_macros_id));
+    }
+
+    // Figure out which `sqlx-macros` dependents are in the workspace vs out
+    let mut in_workspace_dependents = Vec::new();
+    let mut out_of_workspace_dependents = Vec::new();
+    for dependent in sqlx_macros_dependents {
+        if metadata.workspace_members().contains(&dependent) {
+            in_workspace_dependents.push(dependent);
+        } else {
+            out_of_workspace_dependents.push(dependent);
+        }
+    }
+
+    // In-workspace dependents have their source file's mtime updated. Out-of-workspace get
+    // `cargo clean -p <PKGID>`ed
+    let files_to_touch: Vec<_> = in_workspace_dependents
+        .iter()
+        .filter_map(|id| {
+            metadata
+                .package(id)
+                .map(|package| package.src_paths().to_owned())
+        })
+        .flatten()
+        .collect();
+    let packages_to_clean: Vec<_> = out_of_workspace_dependents
+        .iter()
+        .filter_map(|id| {
+            metadata
+                .package(id)
+                .map(|package| package.name().to_owned())
+        })
+        .collect();
+
+    Ok(ProjectRecompileAction {
+        clean_packages: packages_to_clean,
+        touch_paths: files_to_touch,
+    })
 }
 
 fn get_db_kind(url: &str) -> anyhow::Result<&'static str> {
@@ -276,5 +374,28 @@ mod tests {
         assert_eq!(data.len(), 2);
         assert_eq!(data.get("a"), Some(&json!({"key1": "value1"})));
         assert_eq!(data.get("z"), Some(&json!({"key2": "value2"})));
+    }
+
+    #[test]
+    fn minimal_project_recompile_action_works() -> anyhow::Result<()> {
+        let sample_metadata_path = Path::new("tests")
+            .join("assets")
+            .join("sample_metadata.json");
+        let sample_metadata = std::fs::read_to_string(sample_metadata_path)?;
+        let metadata: Metadata = sample_metadata.parse()?;
+
+        let action = minimal_project_recompile_action(&metadata)?;
+        assert_eq!(
+            action,
+            ProjectRecompileAction {
+                clean_packages: vec!["sqlx".into()],
+                touch_paths: vec![
+                    "/home/user/problematic/workspace/b_in_workspace_lib/src/lib.rs".into(),
+                    "/home/user/problematic/workspace/c_in_workspace_bin/src/main.rs".into(),
+                ]
+            }
+        );
+
+        Ok(())
     }
 }
