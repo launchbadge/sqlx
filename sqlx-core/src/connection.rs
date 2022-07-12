@@ -20,6 +20,12 @@ pub trait Connection: Send {
     /// will be faster at cleaning up resources.
     fn close(self) -> BoxFuture<'static, Result<(), Error>>;
 
+    /// Immediately close the connection without sending a graceful shutdown.
+    ///
+    /// This should still at least send a TCP `FIN` frame to let the server know we're dying.
+    #[doc(hidden)]
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>>;
+
     /// Checks if a connection to the database is still valid.
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>>;
 
@@ -152,7 +158,7 @@ impl LogSettings {
     }
 }
 
-pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug {
+pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug + Clone {
     type Connection: Connection + ?Sized;
 
     /// Establish a new database connection with the options specified by `self`.

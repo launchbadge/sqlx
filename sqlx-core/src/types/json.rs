@@ -1,8 +1,8 @@
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue as JsonRawValue;
-use serde_json::Value as JsonValue;
+pub use serde_json::value::RawValue as JsonRawValue;
+pub use serde_json::Value as JsonValue;
 
 use crate::database::{Database, HasArguments, HasValueRef};
 use crate::decode::Decode;
@@ -10,6 +10,47 @@ use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::types::Type;
 
+/// Json for json and jsonb fields
+///
+/// Will attempt to cast to type passed in as the generic.
+///
+/// ```toml
+/// [dependencies]
+/// serde_json = { version = "1.0", features = ["raw_value"] }
+///
+/// ```
+///
+/// # Example
+///
+/// ```
+/// # use serde::Deserialize;
+/// #[derive(Deserialize)]
+/// struct Book {
+///   name: String
+/// }
+///
+/// #[derive(sqlx::FromRow)]
+/// struct Author {
+///   name: String,
+///   books: sqlx::types::Json<Book>
+/// }
+/// ```
+///
+/// Can also be used to turn the json/jsonb into a hashmap
+/// ```
+/// use std::collections::HashMap;
+/// use serde::Deserialize;
+///
+/// #[derive(Deserialize)]
+/// struct Book {
+///   name: String
+/// }
+/// #[derive(sqlx::FromRow)]
+/// struct Library {
+///   id: String,
+///   dewey_decimal: sqlx::types::Json<HashMap<String, Book>>
+/// }
+/// ```
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
 )]

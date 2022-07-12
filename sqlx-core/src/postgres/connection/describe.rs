@@ -3,13 +3,13 @@ use crate::ext::ustr::UStr;
 use crate::postgres::message::{ParameterDescription, RowDescription};
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::{PgCustomType, PgType, PgTypeKind};
+use crate::postgres::types::Oid;
 use crate::postgres::{PgArguments, PgColumn, PgConnection, PgTypeInfo};
 use crate::query_as::query_as;
 use crate::query_scalar::{query_scalar, query_scalar_with};
 use crate::types::Json;
 use crate::HashMap;
 use futures_core::future::BoxFuture;
-use std::convert::TryFrom;
 use std::fmt::Write;
 use std::sync::Arc;
 
@@ -147,7 +147,7 @@ impl PgConnection {
 
     async fn maybe_fetch_type_info_by_oid(
         &mut self,
-        oid: u32,
+        oid: Oid,
         should_fetch: bool,
     ) -> Result<PgTypeInfo, Error> {
         // first we check if this is a built-in type
@@ -183,9 +183,9 @@ impl PgConnection {
         }
     }
 
-    fn fetch_type_by_oid(&mut self, oid: u32) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
+    fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, u32, u32, u32) = query_as(
+            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
                 "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
             )
             .bind(oid)
@@ -237,7 +237,7 @@ impl PgConnection {
         })
     }
 
-    async fn fetch_enum_by_oid(&mut self, oid: u32, name: String) -> Result<PgTypeInfo, Error> {
+    async fn fetch_enum_by_oid(&mut self, oid: Oid, name: String) -> Result<PgTypeInfo, Error> {
         let variants: Vec<String> = query_scalar(
             r#"
 SELECT enumlabel
@@ -259,12 +259,12 @@ ORDER BY enumsortorder
 
     fn fetch_composite_by_oid(
         &mut self,
-        oid: u32,
-        relation_id: u32,
+        oid: Oid,
+        relation_id: Oid,
         name: String,
     ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let raw_fields: Vec<(String, u32)> = query_as(
+            let raw_fields: Vec<(String, Oid)> = query_as(
                 r#"
 SELECT attname, atttypid
 FROM pg_catalog.pg_attribute
@@ -296,8 +296,8 @@ ORDER BY attnum
 
     fn fetch_domain_by_oid(
         &mut self,
-        oid: u32,
-        base_type: u32,
+        oid: Oid,
+        base_type: Oid,
         name: String,
     ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
@@ -313,11 +313,11 @@ ORDER BY attnum
 
     fn fetch_range_by_oid(
         &mut self,
-        oid: u32,
+        oid: Oid,
         name: String,
     ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let element_oid: u32 = query_scalar(
+            let element_oid: Oid = query_scalar(
                 r#"
 SELECT rngsubtype
 FROM pg_catalog.pg_range
@@ -338,13 +338,13 @@ WHERE rngtypid = $1
         })
     }
 
-    pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<u32, Error> {
+    pub(crate) async fn fetch_type_id_by_name(&mut self, name: &str) -> Result<Oid, Error> {
         if let Some(oid) = self.cache_type_oid.get(name) {
             return Ok(*oid);
         }
 
         // language=SQL
-        let (oid,): (u32,) = query_as(
+        let (oid,): (Oid,) = query_as(
             "
 SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                 ",
@@ -362,7 +362,7 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
 
     pub(crate) async fn get_nullable_for_columns(
         &mut self,
-        stmt_id: u32,
+        stmt_id: Oid,
         meta: &PgStatementMetadata,
     ) -> Result<Vec<Option<bool>>, Error> {
         if meta.columns.is_empty() {
@@ -424,10 +424,13 @@ SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
     /// and returns `None` for all others.
     async fn nullables_from_explain(
         &mut self,
-        stmt_id: u32,
+        stmt_id: Oid,
         params_len: usize,
     ) -> Result<Vec<Option<bool>>, Error> {
-        let mut explain = format!("EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}", stmt_id);
+        let mut explain = format!(
+            "EXPLAIN (VERBOSE, FORMAT JSON) EXECUTE sqlx_s_{}",
+            stmt_id.0
+        );
         let mut comma = false;
 
         if params_len > 0 {
@@ -463,10 +466,8 @@ fn visit_plan(plan: &Plan, outputs: &[String], nullables: &mut Vec<Option<bool>>
     if let Some(plan_outputs) = &plan.output {
         // all outputs of a Full Join must be marked nullable
         // otherwise, all outputs of the inner half of an outer join must be marked nullable
-        if let Some("Full") | Some("Inner") = plan
-            .join_type
-            .as_deref()
-            .or(plan.parent_relation.as_deref())
+        if plan.join_type.as_deref() == Some("Full")
+            || plan.parent_relation.as_deref() == Some("Inner")
         {
             for output in plan_outputs {
                 if let Some(i) = outputs.iter().position(|o| o == output) {

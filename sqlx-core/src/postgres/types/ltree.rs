@@ -15,7 +15,7 @@ use std::str::FromStr;
 #[non_exhaustive]
 pub enum PgLTreeParseError {
     /// LTree labels can only contain [A-Za-z0-9_]
-    #[error("ltree label cotains invalid characters")]
+    #[error("ltree label contains invalid characters")]
     InvalidLtreeLabel,
 
     /// LTree version not supported
@@ -27,13 +27,17 @@ pub enum PgLTreeParseError {
 pub struct PgLTreeLabel(String);
 
 impl PgLTreeLabel {
-    pub fn new(label: &str) -> Result<Self, PgLTreeParseError> {
+    pub fn new<S>(label: S) -> Result<Self, PgLTreeParseError>
+    where
+        String: From<S>,
+    {
+        let label = String::from(label);
         if label.len() <= 256
             && label
                 .bytes()
                 .all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == b'_')
         {
-            Ok(Self(label.to_owned()))
+            Ok(Self(label))
         } else {
             Err(PgLTreeParseError::InvalidLtreeLabel)
         }
@@ -101,20 +105,19 @@ impl PgLTree {
     /// creates ltree from an iterator with checking labels
     pub fn from_iter<I, S>(labels: I) -> Result<Self, PgLTreeParseError>
     where
-        S: Into<String>,
+        String: From<S>,
         I: IntoIterator<Item = S>,
     {
         let mut ltree = Self::default();
         for label in labels {
-            ltree.push(&label.into())?;
+            ltree.push(PgLTreeLabel::new(label)?);
         }
         Ok(ltree)
     }
 
     /// push a label to ltree
-    pub fn push(&mut self, label: &str) -> Result<(), PgLTreeParseError> {
-        self.labels.push(PgLTreeLabel::new(label)?);
-        Ok(())
+    pub fn push(&mut self, label: PgLTreeLabel) {
+        self.labels.push(label);
     }
 
     /// pop a label from ltree

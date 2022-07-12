@@ -5,6 +5,7 @@ use crate::decode::Decode;
 use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::postgres::type_info::PgType;
+use crate::postgres::types::Oid;
 use crate::postgres::{PgArgumentBuffer, PgTypeInfo, PgValueFormat, PgValueRef, Postgres};
 use crate::types::Type;
 
@@ -54,12 +55,35 @@ where
     }
 }
 
+impl<T, const N: usize> Type<Postgres> for [T; N]
+where
+    T: PgHasArrayType,
+{
+    fn type_info() -> PgTypeInfo {
+        T::array_type_info()
+    }
+
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        T::array_compatible(ty)
+    }
+}
+
 impl<'q, T> Encode<'q, Postgres> for Vec<T>
 where
     for<'a> &'a [T]: Encode<'q, Postgres>,
     T: Encode<'q, Postgres>,
 {
     #[inline]
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
+        self.as_slice().encode_by_ref(buf)
+    }
+}
+
+impl<'q, T, const N: usize> Encode<'q, Postgres> for [T; N]
+where
+    for<'a> &'a [T]: Encode<'q, Postgres>,
+    T: Encode<'q, Postgres>,
+{
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> IsNull {
         self.as_slice().encode_by_ref(buf)
     }
@@ -84,7 +108,7 @@ where
             PgType::DeclareWithName(name) => buf.patch_type_by_name(&name),
 
             ty => {
-                buf.extend(&ty.oid().to_be_bytes());
+                buf.extend(&ty.oid().0.to_be_bytes());
             }
         }
 
@@ -96,6 +120,19 @@ where
         }
 
         IsNull::No
+    }
+}
+
+impl<'r, T, const N: usize> Decode<'r, Postgres> for [T; N]
+where
+    T: for<'a> Decode<'a, Postgres> + Type<Postgres>,
+{
+    fn decode(value: PgValueRef<'r>) -> Result<Self, BoxDynError> {
+        // This could be done more efficiently by refactoring the Vec decoding below so that it can
+        // be used for arrays and Vec.
+        let vec: Vec<T> = Decode::decode(value)?;
+        let array: [T; N] = vec.try_into().map_err(|_| "wrong number of elements")?;
+        Ok(array)
     }
 }
 
@@ -130,10 +167,15 @@ where
                 let _flags = buf.get_i32();
 
                 // the OID of the element
-                let element_type_oid = buf.get_u32();
+                let element_type_oid = Oid(buf.get_u32());
                 let element_type_info: PgTypeInfo = PgTypeInfo::try_from_oid(element_type_oid)
                     .or_else(|| value.type_info.try_array_element().map(Cow::into_owned))
-                    .unwrap_or_else(|| PgTypeInfo(PgType::DeclareWithOid(element_type_oid)));
+                    .ok_or_else(|| {
+                        BoxDynError::from(format!(
+                            "failed to resolve array element type for oid {}",
+                            element_type_oid.0
+                        ))
+                    })?;
 
                 // length of the array axis
                 let len = buf.get_i32();

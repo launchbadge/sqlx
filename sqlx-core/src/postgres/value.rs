@@ -50,18 +50,18 @@ impl<'r> PgValueRef<'r> {
         }
     }
 
-    pub(crate) fn format(&self) -> PgValueFormat {
+    pub fn format(&self) -> PgValueFormat {
         self.format
     }
 
-    pub(crate) fn as_bytes(&self) -> Result<&'r [u8], BoxDynError> {
+    pub fn as_bytes(&self) -> Result<&'r [u8], BoxDynError> {
         match &self.value {
             Some(v) => Ok(v),
             None => Err(UnexpectedNullError.into()),
         }
     }
 
-    pub(crate) fn as_str(&self) -> Result<&'r str, BoxDynError> {
+    pub fn as_str(&self) -> Result<&'r str, BoxDynError> {
         Ok(from_utf8(self.as_bytes()?)?)
     }
 }

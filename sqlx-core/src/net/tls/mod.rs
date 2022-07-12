@@ -104,7 +104,7 @@ where
         };
 
         #[cfg(feature = "_tls-rustls")]
-        let host = webpki::DNSNameRef::try_from_ascii_str(host)?;
+        let host = ::rustls::ServerName::try_from(host).map_err(|err| Error::Tls(err.into()))?;
 
         *self = MaybeTlsStream::Tls(connector.connect(host, stream).await?);
 

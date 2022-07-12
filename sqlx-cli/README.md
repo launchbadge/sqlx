@@ -21,7 +21,7 @@ $ cargo install sqlx-cli --features openssl-vendored
 $ cargo install sqlx-cli --no-default-features --features rustls
 ```
 
-### Usage
+## Usage
 
 All commands require that a database url is provided. This can be done either with the `--database-url` command line option or by setting `DATABASE_URL`, either in the environment or in a `.env` file
 in the current working directory.
@@ -33,7 +33,7 @@ For more details, run `sqlx <command> --help`.
 DATABASE_URL=postgres://postgres@localhost/my_database
 ```
 
-#### Create/drop the database at `DATABASE_URL`
+### Create/drop the database at `DATABASE_URL`
 
 ```bash
 sqlx database create
@@ -42,7 +42,7 @@ sqlx database drop
 
 ---
 
-#### Create and run migrations
+### Create and run migrations
 
 ```bash
 sqlx migrate add <name>
@@ -70,7 +70,7 @@ sqlx migrate info --source ../relative/migrations
 
 ---
 
-#### Reverting Migrations
+### Reverting Migrations
 
 If you would like to create _reversible_ migrations with corresponding "up" and "down" scripts, you use the `-r` flag when creating new migrations:
 
@@ -104,18 +104,26 @@ $ sqlx migrate add -r <name2>
 error: cannot mix reversible migrations with simple migrations. All migrations should be reversible or simple migrations
 ```
 
-#### Enable building in "offline mode" with `query!()`
+### Enable building in "offline mode" with `query!()`
 
-Note: must be run as `cargo sqlx`.
+There are 3 steps to building with "offline mode":
+
+1. Enable the SQLx's Cargo feature `offline`
+    - E.g. in your `Cargo.toml`, `sqlx = { features = [ "offline", ... ] }`
+2. Save query metadata for offline usage
+    - `cargo sqlx prepare`
+3. Build
+
+Note: Saving query metadata must be run as `cargo sqlx`.
 
 ```bash
 cargo sqlx prepare
 ```
 
-Saves query metadata to `sqlx-data.json` in the current directory; check this file into version
+Invoking `prepare` saves query metadata to `sqlx-data.json` in the current directory; check this file into version
 control and an active database connection will no longer be needed to build your project.
 
-Has no effect unless the `offline` feature of `sqlx` is enabled in your project. Omitting that
+Has no effect unless the `offline` Cargo feature of `sqlx` is enabled in your project. Omitting that
 feature is the most likely cause if you get a `sqlx-data.json` file that looks like this:
 
 ```json
@@ -133,16 +141,16 @@ cargo sqlx prepare --check
 Exits with a nonzero exit status if the data in `sqlx-data.json` is out of date with the current
 database schema and queries in the project. Intended for use in Continuous Integration.
 
-#### Force building in offline mode
+### Force building in offline mode
 
-To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
+The presence of a `DATABASE_URL` environment variable will take precedence over the presence of `sqlx-data.json`, meaning SQLx will default to building against a database if it can. To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not
 result in `cargo build` (trying to) access the database, you can set the `SQLX_OFFLINE` environment
 variable to `true`.
 
 If you want to make this the default, just add it to your `.env` file. `cargo sqlx prepare` will
 still do the right thing and connect to the database.
 
-#### Include queries behind feature flags (such as queryies inside of tests)
+### Include queries behind feature flags (such as queries inside of tests)
 
 In order for sqlx to be able to find queries behind certain feature flags you need to turn them
 on by passing arguments to rustc.

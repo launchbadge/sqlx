@@ -5,7 +5,209 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.5.11 - 2021-02-17
+## 0.6.0 - 2022-06-16
+
+This release marks the end of the 0.5.x series of releases and contains a number of breaking changes,
+mainly to do with backwards-incompatible dependency upgrades. 
+
+As we foresee many more of these in the future, we [surveyed the community] on how to handle this;
+the consensus appears to be "just release breaking changes more often." 
+
+As such, we expect the 0.6.x release series to be a shorter one.
+
+[39 pull requests(!)][0.6.0-prs] (not counting "prepare 0.5.12 release", of course) were merged this release cycle.
+
+### Breaking
+* [[#1384]]: (Postgres) Move `server_version_num` from trait to inherent impl [[@AtkinsChang]]
+* [[#1426]]: Bump `ipnetwork` to 0.19 [[@paolobarbolini]]
+* [[#1455]]: Upgrade `time` to 0.3 [[@paolobarbolini]]
+* [[#1505]]: Upgrade `rustls` to 0.20 [[@paolobarbolini]]
+    * Fortunately, future upgrades should not be breaking as `webpki` is no longer exposed in the API.
+* [[#1529]]: Upgrade `bigdecimal` to 0.3 [[@e00E]]
+* [[#1602]]: postgres: use `Oid` everywhere instead of `u32` [[@paolobarbolini]]
+    * This drops the `Type`, `Decode`, `Encode` impls for `u32` for Postgres as it was misleading.
+      Postgres doesn't support unsigned ints without using an extension. These impls were decoding Postgres `OID`s
+      as bare `u32`s without any context (and trying to bind a `u32` to a query would produce an `OID` value in SQL).
+      This changes that to use a newtype instead, for clarity.
+* [[#1612]]: Make all `ConnectOptions` types cloneable [[@05storm26]]
+* [[#1618]]: SQLite `chrono::DateTime<FixedOffset>` timezone fix [[@05storm26]]
+    * `DateTime<FixedOffset>` will be stored in SQLite with the correct timezone instead of always in UTC.
+      This was flagged as a "potentially breaking change" since it changes how dates are sent to SQLite.
+* [[#1733]]: Update `git2` to 0.14 [[@joshtriplett]]
+* [[#1734]]: Make `PgLTree::push()` infallible and take `PgLTreeLabel` directly [[@sebpuetz]]
+* [[#1785]]: Fix Rust type for SQLite `REAL` [[@pruthvikar]]
+    * Makes the macros always map a `REAL` column to `f64` instead of `f32` as SQLite uses **only** 64-bit floats.
+* [[#1816]]: Improve SQLite support for sub-queries and CTEs [[@tyrelr]]
+    * This likely will change the generated code for some invocations `sqlx::query!()` with SQLite.
+* [[#1821]]: Update `uuid` crate to v1 [[@paolobarbolini]]
+* [[#1901]]: Pool fixes and breaking changes [[@abonander]]
+    * Renamed `PoolOptions::connect_timeout` to `acquire_timeout` for clarity.
+    * Changed the expected signatures for `PoolOptions::after_connect`, `before_acquire`, `after_release`
+    * Changed the signature for `Pool::close()` slightly
+        * Now eagerly starts the pool closing, `.await`ing is only necessary if you want to ensure a graceful shutdown.
+    * Deleted `PoolConnection::release()` which was previously deprecated in favor of `PoolConnection::detach()`.
+    * Fixed connections getting leaked even when calling `.close()`.
+* [[#1748]]: Derive `PgHasArrayType` for `#[sqlx(transparent)]` types [[@carols10cents]]
+    * This change was released with 0.5.12 but [we didn't realize it was a breaking change] at the time.  
+      It was reverted in 0.5.13 and postponed until this release.
+
+### Added
+* [[#1843]]: Expose some useful methods on `PgValueRef` [[@mfreeborn]]
+* [[#1889]]: SQLx-CLI: add `--connect-timeout` [[@abonander]]
+    * Adds a default 10 second connection timeout to all commands.
+* [[#1890]]: Added test for mssql LoginAck [[@walf443]]
+* [[#1891]]: Added test for mssql ProtocolInfo [[@walf443]]
+* [[#1892]]: Added test for mssql ReturnValue [[@walf443]]
+* [[#1895]]: Add support for `i16` to `Any` driver [[@EthanYuan]]
+* [[#1897]]: Expose `ConnectOptions` and `PoolOptions` on `Pool` and database name on `PgConnectOptions` [[@Nukesor]]
+
+### Changed
+* [[#1782]]: Reuse a cached DB connection instead of always opening a new one for `sqlx-macros` [[@LovecraftianHorror]]
+* [[#1807]]: Bump remaining dependencies [[@paolobarbolini]]
+* [[#1808]]: Update to edition 2021 [[@paolobarbolini]]
+    * Note that while SQLx [does not officially track an MSRV] and only officially supports the latest stable Rust, 
+      this effectively places a lower bound of 1.56.0 on the range of versions it may work with.
+* [[#1823]]: (sqlx-macros) Ignore deps when getting metadata for workspace root [[@LovecraftianHorror]]
+* [[#1831]]: Update `crc` to 3.0 [[@djc]]
+* [[#1887]]: query_as: don't stop stream after decoding error [[@lovasoa]]
+
+### Fixed
+* [[#1814]]: SQLx-cli README: move `Usage` to the same level as `Install` [[@tobymurray]]
+* [[#1815]]: SQLx-cli README: reword "building in offline mode" [[@tobymurray]]
+* [[#1818]]: Trim `[]` from host string before passing to TcpStream [[@smonv]]
+    * This fixes handling of database URLs with IPv6 hosts.
+* [[#1842]]: Fix usage of `serde_json` in macros [[@mfreeborn]]
+* [[#1855]]: Postgres: fix panics on unknown type OID when decoding [[@demurgos]] 
+* [[#1856]]: MySQL: support COLLATE_UTF8MB4_0900_AI_CI [[@scottwey]]
+    * Fixes the MySQL driver thinking text columns are bytestring columns when querying against a Planetscale DB.
+* [[#1861]]: MySQL: avoid panic when streaming packets are empty [[@e-rhodes]]
+* [[#1863]]: Fix nullability check for inner joins in Postgres [[@OskarPersson]]
+* [[#1881]]: Fix `field is never read` warnings on Postgres test [[@walf443]]
+* [[#1882]]: Fix `unused result must be used` warnings [[@walf443]]
+* [[#1888]]: Fix migration checksum comparison during `sqlx migrate info` [[@mdtusz]]
+* [[#1894]]: Fix typos [[@kianmeng]]
+
+[surveyed the community]: https://github.com/launchbadge/sqlx/issues/1796
+[0.6.0-prs]: https://github.com/launchbadge/sqlx/pulls?page=2&q=is%3Apr+is%3Amerged+merged%3A2022-04-14..2022-06-16
+[does not officially track an MSRV]: /FAQ.md#what-versions-of-rust-does-sqlx-support-what-is-sqlxs-msrv
+[we didn't realize it was a breaking change]: https://github.com/launchbadge/sqlx/pull/1800#issuecomment-1099898932
+
+[#1384]: https://github.com/launchbadge/sqlx/pull/1384
+[#1426]: https://github.com/launchbadge/sqlx/pull/1426
+[#1455]: https://github.com/launchbadge/sqlx/pull/1455
+[#1505]: https://github.com/launchbadge/sqlx/pull/1505
+[#1529]: https://github.com/launchbadge/sqlx/pull/1529
+[#1602]: https://github.com/launchbadge/sqlx/pull/1602
+[#1612]: https://github.com/launchbadge/sqlx/pull/1612
+[#1618]: https://github.com/launchbadge/sqlx/pull/1618
+[#1733]: https://github.com/launchbadge/sqlx/pull/1733
+[#1734]: https://github.com/launchbadge/sqlx/pull/1734
+[#1782]: https://github.com/launchbadge/sqlx/pull/1782
+[#1785]: https://github.com/launchbadge/sqlx/pull/1785
+[#1807]: https://github.com/launchbadge/sqlx/pull/1807
+[#1808]: https://github.com/launchbadge/sqlx/pull/1808
+[#1814]: https://github.com/launchbadge/sqlx/pull/1814
+[#1815]: https://github.com/launchbadge/sqlx/pull/1815
+[#1816]: https://github.com/launchbadge/sqlx/pull/1816
+[#1818]: https://github.com/launchbadge/sqlx/pull/1818
+[#1821]: https://github.com/launchbadge/sqlx/pull/1821
+[#1823]: https://github.com/launchbadge/sqlx/pull/1823
+[#1831]: https://github.com/launchbadge/sqlx/pull/1831
+[#1842]: https://github.com/launchbadge/sqlx/pull/1842
+[#1843]: https://github.com/launchbadge/sqlx/pull/1843
+[#1855]: https://github.com/launchbadge/sqlx/pull/1855
+[#1856]: https://github.com/launchbadge/sqlx/pull/1856
+[#1861]: https://github.com/launchbadge/sqlx/pull/1861
+[#1863]: https://github.com/launchbadge/sqlx/pull/1863
+[#1881]: https://github.com/launchbadge/sqlx/pull/1881
+[#1882]: https://github.com/launchbadge/sqlx/pull/1882
+[#1887]: https://github.com/launchbadge/sqlx/pull/1887
+[#1888]: https://github.com/launchbadge/sqlx/pull/1888
+[#1889]: https://github.com/launchbadge/sqlx/pull/1889
+[#1890]: https://github.com/launchbadge/sqlx/pull/1890
+[#1891]: https://github.com/launchbadge/sqlx/pull/1891
+[#1892]: https://github.com/launchbadge/sqlx/pull/1892
+[#1894]: https://github.com/launchbadge/sqlx/pull/1894
+[#1895]: https://github.com/launchbadge/sqlx/pull/1895
+[#1897]: https://github.com/launchbadge/sqlx/pull/1897
+[#1901]: https://github.com/launchbadge/sqlx/pull/1901
+
+## 0.5.13 - 2022-04-15
+
+This is a hotfix that reverts [#1748] as that was an accidental breaking change:  
+the generated `PgHasArrayType` impl conflicts with manual impls of the trait.  
+This change will have to wait for 0.6.0.
+
+## 0.5.12 - 2022-04-13 (Yanked; use 0.5.13)
+[27 pull requests][0.5.12-prs] were merged this release cycle.
+
+### Added
+* [[#1641]]: Postgres: Convenient wrapper for advisory locks [[@abonander]]
+* [[#1675]]: Add function to undo migrations [[@jdrouet]]
+* [[#1722]]: Postgres: implement `PgHasArrayType` for `serde_json::{Value, RawValue}` [[@abreis]]
+* [[#1736]]: Derive `Clone` for `MySqlArguments` and `MssqlArguments` [[@0xdeafbeef]]
+* [[#1748]]: Derive `PgHasArrayType` for `#[sqlx(transparent)]` types [[@carols10cents]]
+* [[#1754]]: Include affected rows alongside returned rows in query logging [[@david-mcgillicuddy-moixa]]
+* [[#1757]]: Implement `Type` for `Cow<str>` for MySQL, MSSQL and SQLite [[@ipetkov]]
+* [[#1769]]: sqlx-cli: add `--source` to migration subcommands [[@pedromfedricci]]
+* [[#1774]]: Postgres: make `extra_float_digits` settable [[@abonander]]
+    * Can be set to `None` for Postgres or third-party database servers that don't support the option.
+* [[#1776]]: Implement close-event notification for Pool [[@abonander]]
+    * Also fixes `PgListener` preventing `Pool::close()` from resolving.
+* [[#1780]]: Implement query builder [[@crajcan]]
+    * See also [[#1790]]: Document and expand query builder [[@abonander]]
+* [[#1781]]: Postgres: support `NUMERIC[]` using `decimal` feature [[@tm-drtina]]
+* [[#1784]]: SQLite: add `FromStr`, `Copy`, `PartialEq`, `Eq` impls for options enums [[@andrewwhitehead]]
+
+### Changed
+* [[#1625]]: Update RustCrypto crates [[@paolobarbolini]]
+* [[#1725]]: Update `heck` to 0.4 [[@paolobarbolini]]
+* [[#1738]]: Update `regex` [[@Dylan-DPC]]
+* [[#1763]]: SQLite: update `libsqlite3-sys` [[@espindola]]
+
+
+### Fixed
+* [[#1719]]: Fix a link in `query!()` docs [[@vbmade2000]]
+* [[#1731]]: Postgres: fix option passing logic [[@liushuyu]]
+* [[#1735]]: sqlx-cli: pass `DATABASE_URL` to command spawned in `prepare` [[@LovecraftianHorror]]
+* [[#1741]]: Postgres: fix typo in `TSTZRANGE` [[@mgrachev]]
+* [[#1761]]: Fix link from `QueryAs` to `query_as()` in docs [[@mgrachev]]
+* [[#1786]]: MySQL: silence compile warnings for unused fields [[@andrewwhitehead]]
+* [[#1789]]: SQLite: fix left-joins breaking `query!()` macros [[@tyrelr]]
+* [[#1791]]: Postgres: fix newline parsing of `.pgpass` files [[@SebastienGllmt]]
+* [[#1799]]: `PoolConnection`: don't leak connection permit if drop task fails to run [[@abonander]]
+
+[#1625]: https://github.com/launchbadge/sqlx/pull/1625
+[#1641]: https://github.com/launchbadge/sqlx/pull/1641
+[#1675]: https://github.com/launchbadge/sqlx/pull/1675
+[#1719]: https://github.com/launchbadge/sqlx/pull/1719
+[#1722]: https://github.com/launchbadge/sqlx/pull/1722
+[#1725]: https://github.com/launchbadge/sqlx/pull/1725
+[#1731]: https://github.com/launchbadge/sqlx/pull/1731
+[#1735]: https://github.com/launchbadge/sqlx/pull/1735
+[#1736]: https://github.com/launchbadge/sqlx/pull/1736
+[#1738]: https://github.com/launchbadge/sqlx/pull/1738
+[#1741]: https://github.com/launchbadge/sqlx/pull/1741
+[#1748]: https://github.com/launchbadge/sqlx/pull/1748
+[#1754]: https://github.com/launchbadge/sqlx/pull/1754
+[#1757]: https://github.com/launchbadge/sqlx/pull/1757
+[#1761]: https://github.com/launchbadge/sqlx/pull/1761
+[#1763]: https://github.com/launchbadge/sqlx/pull/1763
+[#1769]: https://github.com/launchbadge/sqlx/pull/1769
+[#1774]: https://github.com/launchbadge/sqlx/pull/1774
+[#1776]: https://github.com/launchbadge/sqlx/pull/1776
+[#1780]: https://github.com/launchbadge/sqlx/pull/1780
+[#1781]: https://github.com/launchbadge/sqlx/pull/1781
+[#1784]: https://github.com/launchbadge/sqlx/pull/1784
+[#1786]: https://github.com/launchbadge/sqlx/pull/1786
+[#1789]: https://github.com/launchbadge/sqlx/pull/1789
+[#1790]: https://github.com/launchbadge/sqlx/pull/1790
+[#1791]: https://github.com/launchbadge/sqlx/pull/1791
+[#1799]: https://github.com/launchbadge/sqlx/pull/1799
+
+[0.5.12-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Amerged+merged%3A2022-02-19..2022-04-13
+
+## 0.5.11 - 2022-02-17
 [20 pull requests][0.5.11-prs] were merged this release cycle.
 
 ### Added
@@ -513,7 +715,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 
 ### Added
 
--   [[#174]] Inroduce a builder to construct connections to bypass the URI parsing
+-   [[#174]] Inroduce a builder to construct connections to bypass the URL parsing
 
     ```rust
     // MSSQL
@@ -648,7 +850,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 
 -   [[#256]] Add `query_unchecked!` and `query_file_unchecked!` with similar semantics to `query_as_unchecked!` [[@meh]]
 
--   [[#252]] [[#297]] Derive serveral traits for the `Json<T>` wrapper type [[@meh]]
+-   [[#252]] [[#297]] Derive several traits for the `Json<T>` wrapper type [[@meh]]
 
 -   [[#261]] Add support for `#[sqlx(rename_all = "snake_case")]` to `#[derive(Type)]` [[@shssoichiro]]
 
@@ -958,7 +1160,7 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
     included refactoring to make the pool internals less brittle (using RAII instead of manual
     work is one example) and to help any future contributors when changing the pool internals.
 
--   Passwords are now being precent decoding before being presented to the server [[@repnop]]
+-   Passwords are now being percent-decoded before being presented to the server [[@repnop]]
 
 -   [@100] Fix `FLOAT` and `DOUBLE` decoding in MySQL
 
@@ -1179,3 +1381,33 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@stoically]: https://github.com/stoically
 [@VersBinarii]: https://github.com/VersBinarii
 [@cemoktra]: https://github.com/cemoktra
+[@jdrouet]: https://github.com/jdrouet
+[@vbmade2000]: https://github.com/vbmade2000
+[@abreis]: https://github.com/abreis
+[@0xdeafbeef]: https://github.com/0xdeafbeef
+[@Dylan-DPC]: https://github.com/Dylan-DPC
+[@carols10cents]: https://github.com/carols10cents
+[@david-mcgillicuddy-moixa]: https://github.com/david-mcgillicuddy-moixa
+[@ipetkov]: https://github.com/ipetkov
+[@pedromfedricci]: https://github.com/pedromfedricci
+[@tm-drtina]: https://github.com/tm-drtina
+[@espindola]: https://github.com/espindola
+[@mgrachev]: https://github.com/mgrachev
+[@tyrelr]: https://github.com/tyrelr
+[@SebastienGllmt]: https://github.com/SebastienGllmt
+[@e00E]: https://github.com/e00E
+[@sebpuetz]: https://github.com/sebpuetz
+[@pruthvikar]: https://github.com/pruthvikar
+[@tobymurray]: https://github.com/tobymurray
+[@djc]: https://github.com/djc
+[@mfreeborn]: https://github.com/mfreeborn
+[@scottwey]: https://github.com/scottwey
+[@e-rhodes]: https://github.com/e-rhodes
+[@OskarPersson]: https://github.com/OskarPersson
+[@walf443]: https://github.com/walf443
+[@lovasoa]: https://github.com/lovasoa
+[@mdtusz]: https://github.com/mdtusz
+[@kianmeng]: https://github.com/kianmeng
+[@EthanYuan]: https://github.com/EthanYuan
+[@Nukesor]: https://github.com/Nukesor
+[@smonv]: https://github.com/smonv

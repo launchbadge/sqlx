@@ -62,15 +62,17 @@
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
 //! | `uuid::Uuid`                          | BYTE(16), VARCHAR, CHAR, TEXT                        |
-//! | `uuid::adapter::Hyphenated`           | CHAR(36)                                             |
+//! | `uuid::fmt::Hyphenated`               | CHAR(36)                                             |
 //!
-//! ### [`json`](https://crates.io/crates/json)
+//! ### [`json`](https://crates.io/crates/serde_json)
 //!
 //! Requires the `json` Cargo feature flag.
 //!
 //! | Rust type                             | MySQL type(s)                                        |
 //! |---------------------------------------|------------------------------------------------------|
-//! | `json::JsonValue`             | JSON
+//! | [`Json<T>`]                           | JSON                                                 |
+//! | `serde_json::JsonValue`               | JSON                                                 |
+//! | `&serde_json::value::RawValue`        | JSON                                                 |
 //!
 //! # Nullable
 //!

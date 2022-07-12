@@ -2,7 +2,7 @@ extern crate time_ as time;
 
 use std::ops::Bound;
 
-use sqlx::postgres::types::{PgInterval, PgMoney, PgRange};
+use sqlx::postgres::types::{Oid, PgInterval, PgMoney, PgRange};
 use sqlx::postgres::Postgres;
 use sqlx_test::{test_decode_type, test_prepared_type, test_type};
 use std::str::FromStr;
@@ -15,12 +15,20 @@ test_type!(null_vec<Vec<Option<i16>>>(Postgres,
     "array[10,NULL,50]::int2[]" == vec![Some(10_i16), None, Some(50)],
 ));
 
+test_type!(null_array<[Option<i16>; 3]>(Postgres,
+    "array[10,NULL,50]::int2[]" == vec![Some(10_i16), None, Some(50)],
+));
+
 test_type!(bool<bool>(Postgres,
     "false::boolean" == false,
     "true::boolean" == true
 ));
 
 test_type!(bool_vec<Vec<bool>>(Postgres,
+    "array[true,false,true]::bool[]" == vec![true, false, true],
+));
+
+test_type!(bool_array<[bool; 3]>(Postgres,
     "array[true,false,true]::bool[]" == vec![true, false, true],
 ));
 
@@ -39,6 +47,14 @@ test_prepared_type!(byte_slice<&[u8]>(Postgres,
         == &[0xDE_u8, 0xAD, 0xBE, 0xEF][..],
     "E'\\\\x0000000052'::bytea"
         == &[0_u8, 0, 0, 0, 0x52][..]
+));
+
+test_type!(byte_array_empty<[u8; 0]>(Postgres,
+    "E'\\\\x'::bytea" == [0_u8; 0],
+));
+
+test_type!(byte_array<[u8; 4]>(Postgres,
+    "E'\\\\xDEADBEEF'::bytea" == [0xDE_u8, 0xAD, 0xBE, 0xEF],
 ));
 
 test_type!(str<&str>(Postgres,
@@ -64,13 +80,17 @@ test_type!(string_vec<Vec<String>>(Postgres,
         == vec!["Hello, World", "", "Goodbye"]
 ));
 
+test_type!(string_array<[String; 3]>(Postgres,
+    "array['one','two','three']::text[]" == ["one","two","three"],
+));
+
 test_type!(i8(
     Postgres,
     "0::\"char\"" == 0_i8,
     "120::\"char\"" == 120_i8,
 ));
 
-test_type!(u32(Postgres, "325235::oid" == 325235_u32,));
+test_type!(Oid(Postgres, "325235::oid" == Oid(325235),));
 
 test_type!(i16(
     Postgres,
@@ -89,6 +109,14 @@ test_type!(i32_vec<Vec<i32>>(Postgres,
     "'{1050}'::int[]" == vec![1050_i32],
     "'{}'::int[]" == Vec::<i32>::new(),
     "'{1,3,-5}'::int[]" == vec![1_i32, 3, -5]
+));
+
+test_type!(i32_array_empty<[i32; 0]>(Postgres,
+    "'{}'::int[]" == [0_i32; 0],
+));
+
+test_type!(i32_array<[i32; 4]>(Postgres,
+    "'{5,10,50,100}'::int[]" == [5_i32, 10, 50, 100],
 ));
 
 test_type!(i64(Postgres, "9358295312::bigint" == 9358295312_i64));
@@ -279,7 +307,7 @@ mod chrono {
 mod time_tests {
     use super::*;
     use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-    use time::{date, time};
+    use time::macros::{date, time};
 
     type PgTimeTz = sqlx::postgres::types::PgTimeTz<Time, UtcOffset>;
 
@@ -297,8 +325,7 @@ mod time_tests {
     test_type!(time_date_time<PrimitiveDateTime>(
         Postgres,
         "TIMESTAMP '2019-01-02 05:10:20'" == date!(2019 - 1 - 2).with_time(time!(5:10:20)),
-        "TIMESTAMP '2019-01-02 05:10:20.115100'"
-            == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
+        "TIMESTAMP '2019-01-02 05:10:20.1151'" == date!(2019 - 1 - 2).with_time(time!(5:10:20.115100))
     ));
 
     test_type!(time_timestamp<OffsetDateTime>(
@@ -310,10 +337,11 @@ mod time_tests {
     ));
 
     test_prepared_type!(time_time_tz<PgTimeTz>(Postgres,
-        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(0) },
-        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::east_seconds(60 * 60 * 6 + 1800) },
-        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::west_seconds(60 * 60 * 5) },
-        "TIMETZ '05:10:20+02'" == PgTimeTz { time: time!(5:10:20), offset: UtcOffset::east_seconds(60 * 60 * 2 )}
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(0).unwrap() },
+        "TIMETZ '05:10:20.115100+00'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(0).unwrap() },
+        "TIMETZ '05:10:20.115100+06:30'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(60 * 60 * 6 + 1800).unwrap() },
+        "TIMETZ '05:10:20.115100-05'" == PgTimeTz { time: time!(5:10:20.115100), offset: UtcOffset::from_whole_seconds(-(60 * 60 * 5)).unwrap() },
+        "TIMETZ '05:10:20+02'" == PgTimeTz { time: time!(5:10:20), offset: UtcOffset::from_whole_seconds(60 * 60 * 2 ).unwrap() }
     ));
 }
 
@@ -339,10 +367,16 @@ mod json {
         "'[\"Hello\", \"World!\"]'::json" == json!(["Hello", "World!"])
     ));
 
-    test_type!(json_array<Vec<JsonValue>>(
+    test_type!(json_vec<Vec<JsonValue>>(
         Postgres,
         "SELECT ({0}::jsonb[] is not distinct from $1::jsonb[])::int4, {0} as _2, $2 as _3",
         "array['\"😎\"'::json, '\"🙋‍♀️\"'::json]::json[]" == vec![json!("😎"), json!("🙋‍♀️")],
+    ));
+
+    test_type!(json_array<[JsonValue; 2]>(
+        Postgres,
+        "SELECT ({0}::jsonb[] is not distinct from $1::jsonb[])::int4, {0} as _2, $2 as _3",
+        "array['\"😎\"'::json, '\"🙋‍♀️\"'::json]::json[]" == [json!("😎"), json!("🙋‍♀️")],
     ));
 
     test_type!(jsonb<JsonValue>(

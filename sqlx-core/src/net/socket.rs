@@ -17,7 +17,10 @@ pub enum Socket {
 
 impl Socket {
     pub async fn connect_tcp(host: &str, port: u16) -> io::Result<Self> {
-        TcpStream::connect((host, port)).await.map(Socket::Tcp)
+        // Trim square brackets from host if it's an IPv6 address as the `url` crate doesn't do that.
+        TcpStream::connect((host.trim_matches(|c| c == '[' || c == ']'), port))
+            .await
+            .map(Socket::Tcp)
     }
 
     #[cfg(unix)]

@@ -47,16 +47,16 @@ impl FromStr for MssqlConnectOptions {
 
 #[test]
 fn it_parses_username_with_at_sign_correctly() {
-    let uri = "mysql://user@hostname:password@hostname:5432/database";
-    let opts = MssqlConnectOptions::from_str(uri).unwrap();
+    let url = "mysql://user@hostname:password@hostname:5432/database";
+    let opts = MssqlConnectOptions::from_str(url).unwrap();
 
     assert_eq!("user@hostname", &opts.username);
 }
 
 #[test]
 fn it_parses_password_with_non_ascii_chars_correctly() {
-    let uri = "mysql://username:p@ssw0rd@hostname:5432/database";
-    let opts = MssqlConnectOptions::from_str(uri).unwrap();
+    let url = "mysql://username:p@ssw0rd@hostname:5432/database";
+    let opts = MssqlConnectOptions::from_str(url).unwrap();
 
     assert_eq!(Some("p@ssw0rd".into()), opts.password);
 }

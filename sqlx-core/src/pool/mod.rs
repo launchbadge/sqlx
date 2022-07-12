@@ -54,16 +54,29 @@
 //! [`Pool::acquire`] or
 //! [`Pool::begin`].
 
-use self::inner::SharedPool;
-#[cfg(feature = "any")]
+use self::inner::PoolInner;
+#[cfg(all(
+    any(
+        feature = "postgres",
+        feature = "mysql",
+        feature = "mssql",
+        feature = "sqlite"
+    ),
+    feature = "any"
+))]
 use crate::any::{Any, AnyKind};
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
 use crate::transaction::Transaction;
+use event_listener::EventListener;
+use futures_core::FusedFuture;
+use futures_util::FutureExt;
 use std::fmt;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 #[macro_use]
@@ -78,7 +91,7 @@ mod options;
 
 pub use self::connection::PoolConnection;
 pub(crate) use self::maybe::MaybePoolConnection;
-pub use self::options::PoolOptions;
+pub use self::options::{PoolConnectionMetadata, PoolOptions};
 
 /// An asynchronous pool of SQLx database connections.
 ///
@@ -163,14 +176,15 @@ pub use self::options::PoolOptions;
 /// does not _automatically_ save you from the overhead of creating a new connection.
 ///
 /// However, because this pool by design enforces _reuse_ of connections, this overhead cost
-/// is not paid each and every time you need a connection. In fact you set the `min_connections`
-/// option in [PoolOptions], the pool will create that many connections up-front so that they are
-/// ready to go when a request comes in.
+/// is not paid each and every time you need a connection. In fact, if you set
+/// [the `min_connections` option in PoolOptions][PoolOptions::min_connections], the pool will
+/// create that many connections up-front so that they are ready to go when a request comes in,
+/// and maintain that number on a best-effort basis for consistent performance.
 ///
 /// ##### 2. Connection Limits (MySQL, MSSQL, Postgres)
-/// Database servers usually place hard limits on the number of connections that it allows open at
+/// Database servers usually place hard limits on the number of connections that are allowed open at
 /// any given time, to maintain performance targets and prevent excessive allocation of resources,
-/// namely RAM.
+/// such as RAM, journal files, disk caches, etc.
 ///
 /// These limits have different defaults per database flavor, and may vary between different
 /// distributions of the same database, but are typically configurable on server start;
@@ -227,61 +241,122 @@ pub use self::options::PoolOptions;
 ///
 /// Depending on the database server, a connection will have caches for all kinds of other data as
 /// well and queries will generally benefit from these caches being "warm" (populated with data).
-pub struct Pool<DB: Database>(pub(crate) Arc<SharedPool<DB>>);
+pub struct Pool<DB: Database>(pub(crate) Arc<PoolInner<DB>>);
+
+/// A future that resolves when the pool is closed.
+///
+/// See [`Pool::close_event()`] for details.
+pub struct CloseEvent {
+    listener: Option<EventListener>,
+}
 
 impl<DB: Database> Pool<DB> {
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URI; and, immediately establishes one connection.
-    pub async fn connect(uri: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect(uri).await
+    /// Create a new connection pool with a default pool configuration and
+    /// the given connection URL, and immediately establish one connection.
+    ///
+    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
+    ///
+    /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
+    /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]
+    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
+    /// * MSSQL: [`MssqlConnectOptions`][crate::mssql::MssqlConnectOptions]
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
+    pub async fn connect(url: &str) -> Result<Self, Error> {
+        PoolOptions::<DB>::new().connect(url).await
     }
 
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection options; and, immediately establishes one connection.
+    /// Create a new connection pool with a default pool configuration and
+    /// the given `ConnectOptions`, and immediately establish one connection.
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
     pub async fn connect_with(
         options: <DB::Connection as Connection>::Options,
     ) -> Result<Self, Error> {
         PoolOptions::<DB>::new().connect_with(options).await
     }
 
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection URI; and, will establish a connections as the pool
-    /// starts to be used.
-    pub fn connect_lazy(uri: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect_lazy(uri)
+    /// Create a new connection pool with a default pool configuration and
+    /// the given connection URL.
+    ///
+    /// The pool will establish connections only as needed.
+    ///
+    /// Refer to the relevant [`ConnectOptions`] impl for your database for the expected URL format:
+    ///
+    /// * Postgres: [`PgConnectOptions`][crate::postgres::PgConnectOptions]
+    /// * MySQL: [`MySqlConnectOptions`][crate::mysql::MySqlConnectOptions]
+    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
+    /// * MSSQL: [`MssqlConnectOptions`][crate::mssql::MssqlConnectOptions]
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
+    pub fn connect_lazy(url: &str) -> Result<Self, Error> {
+        PoolOptions::<DB>::new().connect_lazy(url)
     }
 
-    /// Creates a new connection pool with a default pool configuration and
-    /// the given connection options; and, will establish a connections as the pool
-    /// starts to be used.
+    /// Create a new connection pool with a default pool configuration and
+    /// the given `ConnectOptions`.
+    ///
+    /// The pool will establish connections only as needed.
+    ///
+    /// The default configuration is mainly suited for testing and light-duty applications.
+    /// For production applications, you'll likely want to make at least few tweaks.
+    ///
+    /// See [`PoolOptions::new()`] for details.
     pub fn connect_lazy_with(options: <DB::Connection as Connection>::Options) -> Self {
         PoolOptions::<DB>::new().connect_lazy_with(options)
     }
 
     /// Retrieves a connection from the pool.
     ///
-    /// Waits for at most the configured connection timeout before returning an error.
+    /// The total time this method is allowed to execute is capped by
+    /// [`PoolOptions::acquire_timeout`].
+    /// If that timeout elapses, this will return [`Error::PoolClosed`].
+    ///
+    /// ### Note: Cancellation/Timeout May Drop Connections
+    /// If `acquire` is cancelled or times out after it acquires a connection from the idle queue or
+    /// opens a new one, it will drop that connection because we don't want to assume it
+    /// is safe to return to the pool, and testing it to see if it's safe to release could introduce
+    /// subtle bugs if not implemented correctly. To avoid that entirely, we've decided to not
+    /// gracefully handle cancellation here.
+    ///
+    /// However, if your workload is sensitive to dropped connections such as using an in-memory
+    /// SQLite database with a pool size of 1, you can pretty easily ensure that a cancelled
+    /// `acquire()` call will never drop connections by tweaking your [`PoolOptions`]:
+    ///
+    /// * Set [`test_before_acquire(false)`][PoolOptions::test_before_acquire]
+    /// * Never set [`before_acquire`][PoolOptions::before_acquire] or
+    ///   [`after_connect`][PoolOptions::after_connect].
+    ///
+    /// This should eliminate any potential `.await` points between acquiring a connection and
+    /// returning it.
     pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
         let shared = self.0.clone();
-        async move { shared.acquire().await.map(|conn| conn.attach(&shared)) }
+        async move { shared.acquire().await.map(|conn| conn.reattach()) }
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
     ///
-    /// Returns `None` immediately if there are no idle connections available in the pool.
+    /// Returns `None` immediately if there are no idle connections available in the pool
+    /// or there are tasks waiting for a connection which have yet to wake.
     pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
-        self.0
-            .try_acquire()
-            .map(|conn| conn.into_live().attach(&self.0))
+        self.0.try_acquire().map(|conn| conn.into_live().reattach())
     }
 
-    /// Retrieves a new connection and immediately begins a new transaction.
+    /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
         Ok(Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await?)
     }
 
-    /// Attempts to retrieve a new connection and immediately begins a new transaction if there
-    /// is one available.
+    /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
     pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
@@ -292,36 +367,110 @@ impl<DB: Database> Pool<DB> {
         }
     }
 
-    /// Shut down the connection pool, waiting for all connections to be gracefully closed.
+    /// Shut down the connection pool, immediately waking all tasks waiting for a connection.
     ///
-    /// Upon `.await`ing this call, any currently waiting or subsequent calls to [Pool::acquire] and
-    /// the like will immediately return [Error::PoolClosed] and no new connections will be opened.
+    /// Upon calling this method, any currently waiting or subsequent calls to [`Pool::acquire`] and
+    /// the like will immediately return [`Error::PoolClosed`] and no new connections will be opened.
+    /// Checked-out connections are unaffected, but will be gracefully closed on-drop
+    /// rather than being returned to the pool.
     ///
-    /// Any connections currently idle in the pool will be immediately closed, including sending
-    /// a graceful shutdown message to the database server, if applicable.
+    /// Returns a `Future` which can be `.await`ed to ensure all connections are
+    /// gracefully closed. It will first close any idle connections currently waiting in the pool,
+    /// then wait for all checked-out connections to be returned or closed.
     ///
-    /// Checked-out connections are unaffected, but will be closed in the same manner when they are
-    /// returned to the pool.
+    /// Waiting for connections to be gracefully closed is optional, but will allow the database
+    /// server to clean up the resources sooner rather than later. This is especially important
+    /// for tests that create a new pool every time, otherwise you may see errors about connection
+    /// limits being exhausted even when running tests in a single thread.
     ///
-    /// Does not resolve until all connections are returned to the pool and gracefully closed.
+    /// If the returned `Future` is not run to completion, any remaining connections will be dropped
+    /// when the last handle for the given pool instance is dropped, which could happen in a task
+    /// spawned by `Pool` internally and so may be unpredictable otherwise.
     ///
-    /// ### Note: `async fn`
-    /// Because this is an `async fn`, the pool will *not* be marked as closed unless the
-    /// returned future is polled at least once.
-    ///
-    /// If you want to close the pool but don't want to wait for all connections to be gracefully
-    /// closed, you can do `pool.close().now_or_never()`, which polls the future exactly once
-    /// with a no-op waker.
-    // TODO: I don't want to change the signature right now in case it turns out to be a
-    // breaking change, but this probably should eagerly mark the pool as closed and then the
-    // returned future only needs to be awaited to gracefully close the connections.
-    pub async fn close(&self) {
-        self.0.close().await;
+    /// `.close()` may be safely called and `.await`ed on multiple handles concurrently.
+    pub fn close(&self) -> impl Future<Output = ()> + '_ {
+        self.0.close()
     }
 
     /// Returns `true` if [`.close()`][Pool::close] has been called on the pool, `false` otherwise.
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
+    }
+
+    /// Get a future that resolves when [`Pool::close()`] is called.
+    ///
+    /// If the pool is already closed, the future resolves immediately.
+    ///
+    /// This can be used to cancel long-running operations that hold onto a [`PoolConnection`]
+    /// so they don't prevent the pool from closing (which would otherwise wait until all
+    /// connections are returned).
+    ///
+    /// Examples
+    /// ========
+    /// These examples use Postgres and Tokio, but should suffice to demonstrate the concept.
+    ///
+    /// Do something when the pool is closed:
+    /// ```rust,no_run
+    /// # #[cfg(feature = "postgres")]
+    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// use sqlx::PgPool;
+    ///
+    /// let pool = PgPool::connect("postgresql://...").await?;
+    ///
+    /// let pool2 = pool.clone();
+    ///
+    /// tokio::spawn(async move {
+    ///     // Demonstrates that `CloseEvent` is itself a `Future` you can wait on.
+    ///     // This lets you implement any kind of on-close event that you like.
+    ///     pool2.close_event().await;
+    ///
+    ///     println!("Pool is closing!");
+    ///
+    ///     // Imagine maybe recording application statistics or logging a report, etc.
+    /// });
+    ///
+    /// // The rest of the application executes normally...
+    ///
+    /// // Close the pool before the application exits...
+    /// pool.close().await;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Cancel a long-running operation:
+    /// ```rust,no_run
+    /// # #[cfg(feature = "postgres")]
+    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// use sqlx::{Executor, PgPool};
+    ///
+    /// let pool = PgPool::connect("postgresql://...").await?;
+    ///
+    /// let pool2 = pool.clone();
+    ///
+    /// tokio::spawn(async move {
+    ///     pool2.close_event().do_until(async {
+    ///         // This statement normally won't return for 30 days!
+    ///         // (Assuming the connection doesn't time out first, of course.)
+    ///         pool2.execute("SELECT pg_sleep('30 days')").await;
+    ///
+    ///         // If the pool is closed before the statement completes, this won't be printed.
+    ///         // This is because `.do_until()` cancels the future it's given if the
+    ///         // pool is closed first.
+    ///         println!("Waited!");
+    ///     }).await;
+    /// });
+    ///
+    /// // This normally wouldn't return until the above statement completed and the connection
+    /// // was returned to the pool. However, thanks to `.do_until()`, the operation was
+    /// // cancelled as soon as we called `.close().await`.
+    /// pool.close().await;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn close_event(&self) -> CloseEvent {
+        self.0.close_event()
     }
 
     /// Returns the number of connections currently active. This includes idle connections.
@@ -331,20 +480,39 @@ impl<DB: Database> Pool<DB> {
 
     /// Returns the number of connections active and idle (not in use).
     ///
-    /// This will block until the number of connections stops changing for at
-    /// least 2 atomic accesses in a row. If the number of idle connections is
-    /// changing rapidly, this may run indefinitely.
+    /// As of 0.6.0, this has been fixed to use a separate atomic counter and so should be fine to
+    /// call even at high load.
+    ///
+    /// This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and
+    /// tail pointers to be in a consistent state, which may never happen at high levels of churn.
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
     }
+
+    /// Get the connection options for this pool
+    pub fn connect_options(&self) -> &<DB::Connection as Connection>::Options {
+        &self.0.connect_options
+    }
+
+    /// Get the options for this pool
+    pub fn options(&self) -> &PoolOptions<DB> {
+        &self.0.options
+    }
 }
 
-#[cfg(feature = "any")]
+#[cfg(all(
+    any(
+        feature = "postgres",
+        feature = "mysql",
+        feature = "mssql",
+        feature = "sqlite"
+    ),
+    feature = "any"
+))]
 impl Pool<Any> {
     /// Returns the database driver currently in-use by this `Pool`.
     ///
-    /// Determined by the connection URI.
-    #[cfg(feature = "any")]
+    /// Determined by the connection URL.
     pub fn any_kind(&self) -> AnyKind {
         self.0.connect_options.kind()
     }
@@ -365,6 +533,65 @@ impl<DB: Database> fmt::Debug for Pool<DB> {
             .field("is_closed", &self.0.is_closed())
             .field("options", &self.0.options)
             .finish()
+    }
+}
+
+impl CloseEvent {
+    /// Execute the given future until it returns or the pool is closed.
+    ///
+    /// Cancels the future and returns `Err(PoolClosed)` if/when the pool is closed.
+    /// If the pool was already closed, the future is never run.
+    pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output, Error> {
+        // Check that the pool wasn't closed already.
+        //
+        // We use `poll_immediate()` as it will use the correct waker instead of
+        // a no-op one like `.now_or_never()`, but it won't actually suspend execution here.
+        futures_util::future::poll_immediate(&mut *self)
+            .await
+            .map_or(Ok(()), |_| Err(Error::PoolClosed))?;
+
+        futures_util::pin_mut!(fut);
+
+        // I find that this is clearer in intent than `futures_util::future::select()`
+        // or `futures_util::select_biased!{}` (which isn't enabled anyway).
+        futures_util::future::poll_fn(|cx| {
+            // Poll `fut` first as the wakeup event is more likely for it than `self`.
+            if let Poll::Ready(ret) = fut.as_mut().poll(cx) {
+                return Poll::Ready(Ok(ret));
+            }
+
+            // Can't really factor out mapping to `Err(Error::PoolClosed)` though it seems like
+            // we should because that results in a different `Ok` type each time.
+            //
+            // Ideally we'd map to something like `Result<!, Error>` but using `!` as a type
+            // is not allowed on stable Rust yet.
+            self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
+        })
+        .await
+    }
+}
+
+impl Future for CloseEvent {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if let Some(listener) = &mut self.listener {
+            futures_core::ready!(listener.poll_unpin(cx));
+        }
+
+        // `EventListener` doesn't like being polled after it yields, and even if it did it
+        // would probably just wait for the next event, neither of which we want.
+        //
+        // So this way, once we get our close event, we fuse this future to immediately return.
+        self.listener = None;
+
+        Poll::Ready(())
+    }
+}
+
+impl FusedFuture for CloseEvent {
+    fn is_terminated(&self) -> bool {
+        self.listener.is_none()
     }
 }
 

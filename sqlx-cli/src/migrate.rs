@@ -1,8 +1,8 @@
+use crate::opt::ConnectOpts;
 use anyhow::{bail, Context};
 use chrono::Utc;
 use console::style;
 use sqlx::migrate::{AppliedMigration, Migrate, MigrateError, MigrationType, Migrator};
-use sqlx::{AnyConnection, Connection};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -116,9 +116,9 @@ fn short_checksum(checksum: &[u8]) -> String {
     s
 }
 
-pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
+pub async fn info(migration_source: &str, connect_opts: &ConnectOpts) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    let mut conn = AnyConnection::connect(uri).await?;
+    let mut conn = crate::connect(&connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
 
@@ -130,6 +130,11 @@ pub async fn info(migration_source: &str, uri: &str) -> anyhow::Result<()> {
         .collect();
 
     for migration in migrator.iter() {
+        if migration.migration_type.is_down_migration() {
+            // Skipping down migrations
+            continue;
+        }
+
         let applied = applied_migrations.get(&migration.version);
 
         let (status_msg, mismatched_checksum) = if let Some(applied) = applied {
@@ -190,12 +195,12 @@ fn validate_applied_migrations(
 
 pub async fn run(
     migration_source: &str,
-    uri: &str,
+    connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    let mut conn = AnyConnection::connect(uri).await?;
+    let mut conn = crate::connect(connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
 
@@ -249,12 +254,12 @@ pub async fn run(
 
 pub async fn revert(
     migration_source: &str,
-    uri: &str,
+    connect_opts: &ConnectOpts,
     dry_run: bool,
     ignore_missing: bool,
 ) -> anyhow::Result<()> {
     let migrator = Migrator::new(Path::new(migration_source)).await?;
-    let mut conn = AnyConnection::connect(uri).await?;
+    let mut conn = crate::connect(&connect_opts).await?;
 
     conn.ensure_migrations_table().await?;
 

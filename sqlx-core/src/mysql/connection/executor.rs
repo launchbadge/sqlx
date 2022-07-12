@@ -134,8 +134,10 @@ impl MySqlConnection {
                     // this indicates either a successful query with no rows at all or a failed query
                     let ok = packet.ok()?;
 
+                    let rows_affected = ok.affected_rows;
+                    logger.increase_rows_affected(rows_affected);
                     let done = MySqlQueryResult {
-                        rows_affected: ok.affected_rows,
+                        rows_affected,
                         last_insert_id: ok.last_insert_id,
                     };
 
@@ -199,7 +201,7 @@ impl MySqlConnection {
                         column_names: Arc::clone(&column_names),
                     });
 
-                    logger.increment_rows();
+                    logger.increment_rows_returned();
 
                     r#yield!(v);
                 }

@@ -105,7 +105,7 @@ macro_rules! test_unprepared_type {
                     let row = s.try_next().await?.unwrap();
                     let rec = row.try_get::<$ty, _>(0)?;
 
-                    assert!($value == rec);
+                    assert_eq!($value, rec);
 
                     drop(s);
                 )+
@@ -136,7 +136,7 @@ macro_rules! __test_prepared_decode_type {
 
                     let rec: $ty = row.try_get(0)?;
 
-                    assert!($value == rec);
+                    assert_eq!($value, rec);
                 )+
 
                 Ok(())

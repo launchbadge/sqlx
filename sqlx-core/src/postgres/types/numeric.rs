@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use bytes::Buf;
 
 use crate::error::BoxDynError;

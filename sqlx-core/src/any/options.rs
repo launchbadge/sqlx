@@ -3,7 +3,6 @@ use crate::connection::ConnectOptions;
 use crate::error::Error;
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
-use std::convert::TryFrom;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -21,7 +20,7 @@ use crate::any::kind::AnyKind;
 use crate::mssql::MssqlConnectOptions;
 
 /// Opaque options for connecting to a database. These may only be constructed by parsing from
-/// a connection uri.
+/// a connection url.
 ///
 /// ```text
 /// postgres://postgres:password@localhost/database

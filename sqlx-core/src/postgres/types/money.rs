@@ -96,8 +96,6 @@ impl PgMoney {
     /// [`Decimal`]: crate::types::Decimal
     #[cfg(feature = "decimal")]
     pub fn from_decimal(mut decimal: rust_decimal::Decimal, locale_frac_digits: u32) -> Self {
-        use std::convert::TryFrom;
-
         // this is all we need to convert to our expected locale's `frac_digits`
         decimal.rescale(locale_frac_digits);
 

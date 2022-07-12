@@ -9,7 +9,7 @@ pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
 ///
-/// A value of `MySqlConnectOptions` can be parsed from a connection URI,
+/// A value of `MySqlConnectOptions` can be parsed from a connection URL,
 /// as described by [MySQL](https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-jdbc-url-format.html).
 ///
 /// The generic format of the connection URL:
@@ -37,7 +37,7 @@ pub use ssl_mode::MySqlSslMode;
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
 /// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
-/// // URI connection string
+/// // URL connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
 /// // Manually-constructed options

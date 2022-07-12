@@ -1,11 +1,13 @@
+use crate::postgres::types::Oid;
+
 pub trait PgBufMutExt {
     fn put_length_prefixed<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Vec<u8>);
 
-    fn put_statement_name(&mut self, id: u32);
+    fn put_statement_name(&mut self, id: Oid);
 
-    fn put_portal_name(&mut self, id: Option<u32>);
+    fn put_portal_name(&mut self, id: Option<Oid>);
 }
 
 impl PgBufMutExt for Vec<u8> {
@@ -29,22 +31,22 @@ impl PgBufMutExt for Vec<u8> {
 
     // writes a statement name by ID
     #[inline]
-    fn put_statement_name(&mut self, id: u32) {
+    fn put_statement_name(&mut self, id: Oid) {
         // N.B. if you change this don't forget to update it in ../describe.rs
         self.extend(b"sqlx_s_");
 
-        self.extend(itoa::Buffer::new().format(id).as_bytes());
+        self.extend(itoa::Buffer::new().format(id.0).as_bytes());
 
         self.push(0);
     }
 
     // writes a portal name by ID
     #[inline]
-    fn put_portal_name(&mut self, id: Option<u32>) {
+    fn put_portal_name(&mut self, id: Option<Oid>) {
         if let Some(id) = id {
             self.extend(b"sqlx_p_");
 
-            self.extend(itoa::Buffer::new().format(id).as_bytes());
+            self.extend(itoa::Buffer::new().format(id.0).as_bytes());
         }
 
         self.push(0);

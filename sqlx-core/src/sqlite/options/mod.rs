@@ -22,10 +22,10 @@ use indexmap::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
-/// A value of `SqliteConnectOptions` can be parsed from a connection URI,
+/// A value of `SqliteConnectOptions` can be parsed from a connection URL,
 /// as described by [SQLite](https://www.sqlite.org/uri.html).
 ///
-/// | URI | Description |
+/// | URL | Description |
 /// | -- | -- |
 /// `sqlite::memory:` | Open an in-memory database. |
 /// `sqlite:data.db` | Open the file `data.db` in the current directory. |
@@ -137,7 +137,7 @@ impl SqliteConnectOptions {
         self
     }
 
-    /// Set the enforcement of [foreign key constriants](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
+    /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
     /// By default, this is enabled.
     pub fn foreign_keys(mut self, on: bool) -> Self {

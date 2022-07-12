@@ -88,7 +88,7 @@ pub async fn list() -> anyhow::Result<()> {
         .await?
     {
         let applied_migrations = migrator.get_migrations().await.unwrap_or_else(|_| {
-            println!("Could not retrive data from migration table");
+            println!("Could not retrieve data from migration table");
             Vec::new()
         });
 

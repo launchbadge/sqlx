@@ -456,7 +456,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     assert_eq!(0, conn.cached_statements_size());
 
     // `Query` is not persistent if `.persistent(false)` is used
-    // explicity.
+    // explicitly.
     let mut conn = new::<Sqlite>().await?;
     for i in 0..2 {
         let row = sqlx::query("SELECT ? AS val")

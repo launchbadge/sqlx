@@ -33,7 +33,9 @@ mod executor;
 pub struct AnyConnection(pub(super) AnyConnectionKind);
 
 #[derive(Debug)]
-pub(crate) enum AnyConnectionKind {
+// Used internally in `sqlx-macros`
+#[doc(hidden)]
+pub enum AnyConnectionKind {
     #[cfg(feature = "postgres")]
     Postgres(postgres::PgConnection),
 
@@ -68,6 +70,12 @@ impl AnyConnectionKind {
 impl AnyConnection {
     pub fn kind(&self) -> AnyKind {
         self.0.kind()
+    }
+
+    // Used internally in `sqlx-macros`
+    #[doc(hidden)]
+    pub fn private_get_mut(&mut self) -> &mut AnyConnectionKind {
+        &mut self.0
     }
 }
 
@@ -125,6 +133,22 @@ impl Connection for AnyConnection {
 
             #[cfg(feature = "mssql")]
             AnyConnectionKind::Mssql(conn) => conn.close(),
+        }
+    }
+
+    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+        match self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.close_hard(),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.close_hard(),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(conn) => conn.close_hard(),
         }
     }
 

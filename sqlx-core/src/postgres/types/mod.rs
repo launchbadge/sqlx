@@ -171,6 +171,7 @@ mod interval;
 mod lquery;
 mod ltree;
 mod money;
+mod oid;
 mod range;
 mod record;
 mod str;
@@ -204,6 +205,9 @@ mod json;
 #[cfg(feature = "ipnetwork")]
 mod ipnetwork;
 
+#[cfg(feature = "ipnetwork")]
+mod ipaddr;
+
 #[cfg(feature = "mac_address")]
 mod mac_address;
 
@@ -220,6 +224,7 @@ pub use ltree::PgLTree;
 pub use ltree::PgLTreeLabel;
 pub use ltree::PgLTreeParseError;
 pub use money::PgMoney;
+pub use oid::Oid;
 pub use range::PgRange;
 
 #[cfg(any(feature = "chrono", feature = "time"))]
