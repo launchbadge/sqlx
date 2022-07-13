@@ -127,7 +127,7 @@ let foo_ints: Vec<i64> = vec![/* ... */];
 sqlx::query!(
     "
         INSERT INTO foo(text_column, bool_column, int_column) 
-        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[]])
+        SELECT * FROM UNNEST($1::text[], $2::bool[], $3::int8[])
     ",
     &foo_texts[..],
     &foo_bools[..],

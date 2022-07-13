@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::opt::{Command, ConnectOpts, DatabaseCommand, MigrateCommand};
 
 mod database;
+mod metadata;
 // mod migration;
 // mod migrator;
 mod migrate;

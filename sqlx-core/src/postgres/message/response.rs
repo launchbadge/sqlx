@@ -133,19 +133,21 @@ impl Decode<'_> for Notice {
 
             match field {
                 b'S' => {
-                    // Discard potential errors, because the message might be localized
                     severity_s = from_utf8(&buf[v.0 as usize..v.1 as usize])
-                        .unwrap()
+                        // If the error string is not UTF-8, we have no hope of interpreting it,
+                        // localized or not. The `V` field would likely fail to parse as well.
+                        .map_err(|_| notice_protocol_err())?
                         .try_into()
+                        // If we couldn't parse the severity here, it might just be localized.
                         .ok();
                 }
 
                 b'V' => {
-                    // Propagate errors here, because V is not localized and thus we are missing a possible
-                    // variant.
+                    // Propagate errors here, because V is not localized and
+                    // thus we are missing a possible variant.
                     severity_v = Some(
                         from_utf8(&buf[v.0 as usize..v.1 as usize])
-                            .unwrap()
+                            .map_err(|_| notice_protocol_err())?
                             .try_into()?,
                     );
                 }
@@ -197,6 +199,17 @@ impl<'a> Iterator for Fields<'a> {
 
         Some((ty, (offset + 1, offset + nul + 1)))
     }
+}
+
+fn notice_protocol_err() -> Error {
+    // https://github.com/launchbadge/sqlx/issues/1144
+    Error::Protocol(
+        "Postgres returned a non-UTF-8 string for its error message. \
+         This is most likely due to an error that occurred during authentication and \
+         the default lc_messages locale is not binary-compatible with UTF-8. \
+         See the server logs for the error details."
+            .into(),
+    )
 }
 
 #[test]

@@ -221,6 +221,18 @@ pub struct ConnectOpts {
     /// returning an error.
     #[clap(long, default_value = "10")]
     pub connect_timeout: u64,
+
+    /// Set whether or not to create SQLite databases in Write-Ahead Log (WAL) mode:
+    /// https://www.sqlite.org/wal.html
+    ///
+    /// WAL mode is enabled by default for SQLite databases created by `sqlx-cli`.
+    ///
+    /// However, if your application sets a `journal_mode` on `SqliteConnectOptions` to something
+    /// other than `Wal`, then it will have to take the database file out of WAL mode on connecting,
+    /// which requires an exclusive lock and may return a `database is locked` (`SQLITE_BUSY`) error.
+    #[cfg(feature = "sqlite")]
+    #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
+    pub sqlite_create_db_wal: bool,
 }
 
 /// Argument for automatic confirmation.

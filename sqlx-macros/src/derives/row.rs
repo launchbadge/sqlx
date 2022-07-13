@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Field,
+    parse_quote, punctuated::Punctuated, token::Comma, Data, DataStruct, DeriveInput, Expr, Field,
     Fields, FieldsNamed, FieldsUnnamed, Lifetime, Stmt,
 };
 
@@ -63,46 +63,49 @@ fn expand_derive_from_row_struct(
 
     predicates.push(parse_quote!(&#lifetime ::std::primitive::str: ::sqlx::ColumnIndex<R>));
 
-    for field in fields {
-        let ty = &field.ty;
-
-        predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
-        predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
-    }
-
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
-
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
-    let reads = fields.iter().filter_map(|field| -> Option<Stmt> {
-        let id = &field.ident.as_ref()?;
-        let attributes = parse_child_attributes(&field.attrs).unwrap();
-        let id_s = attributes
-            .rename
-            .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-            .map(|s| match container_attributes.rename_all {
-                Some(pattern) => rename_all(&s, pattern),
-                None => s,
-            })
-            .unwrap();
+    let reads: Vec<Stmt> = fields
+        .iter()
+        .filter_map(|field| -> Option<Stmt> {
+            let id = &field.ident.as_ref()?;
+            let attributes = parse_child_attributes(&field.attrs).unwrap();
+            let ty = &field.ty;
 
-        let ty = &field.ty;
+            let expr: Expr = if attributes.flatten {
+                predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
+                parse_quote!(#ty::from_row(row))
+            } else {
+                predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
 
-        if attributes.default {
-            Some(
-                parse_quote!(let #id: #ty = row.try_get(#id_s).or_else(|e| match e {
+                let id_s = attributes
+                    .rename
+                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                    .map(|s| match container_attributes.rename_all {
+                        Some(pattern) => rename_all(&s, pattern),
+                        None => s,
+                    })
+                    .unwrap();
+                parse_quote!(row.try_get(#id_s))
+            };
+
+            if attributes.default {
+                Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
                 ::sqlx::Error::ColumnNotFound(_) => {
                     ::std::result::Result::Ok(Default::default())
                 },
                 e => ::std::result::Result::Err(e)
-            })?;),
-            )
-        } else {
-            Some(parse_quote!(
-                let #id: #ty = row.try_get(#id_s)?;
-            ))
-        }
-    });
+            })?;))
+            } else {
+                Some(parse_quote!(
+                    let #id: #ty = #expr?;
+                ))
+            }
+        })
+        .collect();
+
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let names = fields.iter().map(|field| &field.ident);
 

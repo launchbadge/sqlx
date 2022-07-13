@@ -70,6 +70,7 @@ pub struct SqlxContainerAttributes {
 pub struct SqlxChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
+    pub flatten: bool,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -177,6 +178,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
 pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttributes> {
     let mut rename = None;
     let mut default = false;
+    let mut flatten = false;
 
     for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
         let meta = attr
@@ -193,6 +195,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                             ..
                         }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
                         Meta::Path(path) if path.is_ident("default") => default = true,
+                        Meta::Path(path) if path.is_ident("flatten") => flatten = true,
                         u => fail!(u, "unexpected attribute"),
                     },
                     u => fail!(u, "unexpected attribute"),
@@ -201,7 +204,11 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         }
     }
 
-    Ok(SqlxChildAttributes { rename, default })
+    Ok(SqlxChildAttributes {
+        rename,
+        default,
+        flatten,
+    })
 }
 
 pub fn check_transparent_attributes(
