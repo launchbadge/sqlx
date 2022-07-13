@@ -172,6 +172,7 @@ hint: This command only works in the manifest directory of a Cargo package."#
             ))
             .env("SQLX_OFFLINE", "false")
             .env("DATABASE_URL", url)
+            .env("CARGO_TARGET_DIR", metadata.target_directory.clone())
             .status()?
     };
 
