@@ -272,11 +272,14 @@ where
         separated.query_builder
     }
 
-    // Most of the `QueryBuilder` API is purposefully very low-level but this was a commonly
-    // requested use-case so it made sense to support.
-    /// Push a `VALUES` clause where each item in `tuples` represents a tuple/row in the clause.
+    /// Creates `((a, b), (..)` statements, from `tuples`.
     ///
-    /// This can be used to construct a bulk `SELECT` statement, although keep in mind that all
+    /// This can be used to construct a bulk `SELECT` statement like this:
+    /// ```sql
+    /// SELECT * FROM users WHERE (id, username) IN ((1, "test_user_1"), (2, "test_user_2"))
+    /// ```
+    ///
+    /// Although keep in mind that all
     /// databases have some practical limit on the number of bind arguments in a single query.
     /// See [`.push_bind()`][Self::push_bind] for details.
     ///
@@ -289,20 +292,6 @@ where
     /// If `tuples` is empty, this will likely produce a syntactically invalid query as `VALUES`
     /// generally expects to be followed by at least 1 tuple.
     ///
-    /// If `tuples` can have many different lengths, you may want to call
-    /// [`.persistent(false)`][Query::persistent] after [`.build()`][Self::build] to avoid
-    /// filling up the connection's prepared statement cache.
-    ///
-    /// Because the `Arguments` API has a lifetime that must live longer than `Self`, you cannot
-    /// bind by-reference from an iterator unless that iterator yields references that live
-    /// longer than `Self`, even if the specific `Arguments` implementation doesn't actually
-    /// borrow the values (like `MySqlArguments` and `PgArguments` immediately encode the arguments
-    /// and don't borrow them past the `.add()` call).
-    ///
-    /// So basically, if you want to bind by-reference you need an iterator that yields references,
-    /// e.g. if you have values in a `Vec` you can do `.iter()` instead of `.into_iter()`. The
-    /// example below uses an iterator that creates values on the fly
-    /// and so cannot bind by-reference.
     ///
     /// ### Example (MySQL)
     ///
@@ -367,7 +356,7 @@ where
     /// // 65535 / 4 = 16383 (rounded down)
     /// // 16383 * 4 = 65532
     /// assert_eq!(arguments.len(), 65532);
-    /// # }
+    ///  }
     pub fn push_tuples<I, F>(&mut self, tuples: I, mut push_tuple: F) -> &mut Self
     where
         I: IntoIterator,
