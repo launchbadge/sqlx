@@ -157,6 +157,7 @@ where
     /// let mut query = query_builder.build();
     /// let sql = query.sql();
     /// assert!(sql.ends_with("in (?, ?) "));
+    /// ```
 
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
     where
@@ -268,6 +269,7 @@ where
     /// // 16383 * 4 = 65532
     /// assert_eq!(arguments.len(), 65532);
     /// # }
+    /// ```
     pub fn push_values<I, F>(&mut self, tuples: I, mut push_tuple: F) -> &mut Self
     where
         I: IntoIterator,
