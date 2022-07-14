@@ -160,7 +160,6 @@ where
     /// assert!(sql.ends_with("in (?, ?) "));
     /// # }
     /// ```
-    /// ```
 
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
     where
