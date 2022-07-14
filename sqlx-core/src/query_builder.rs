@@ -141,6 +141,7 @@ where
     /// provided to push a SQL fragment without the separator.
     ///
     /// ```rust
+    /// # #[cfg(feature = "mysql")] {
     /// use sqlx::{Execute, MySql, QueryBuilder};
     /// let foods = vec!["pizza".to_string(), "chips".to_string()];
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
@@ -157,6 +158,8 @@ where
     /// let mut query = query_builder.build();
     /// let sql = query.sql();
     /// assert!(sql.ends_with("in (?, ?) "));
+    /// # }
+    /// ```
     /// ```
 
     pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
