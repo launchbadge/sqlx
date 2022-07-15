@@ -234,7 +234,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
     let err = res.unwrap_err().to_string();
 
     assert_eq!(
-        "error returned from database: near \"SEELCT\": syntax error",
+        "error returned from database: (code: 1) near \"SEELCT\": syntax error",
         err
     );
 

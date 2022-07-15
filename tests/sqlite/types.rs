@@ -1,3 +1,5 @@
+extern crate time_ as time;
+
 use sqlx::sqlite::{Sqlite, SqliteRow};
 use sqlx_core::row::Row;
 use sqlx_test::new;
@@ -104,6 +106,54 @@ mod chrono {
 
     test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west(5 * 3600).ymd(2016, 11, 08).and_hms(3, 50, 23))
+    ));
+}
+
+#[cfg(feature = "time")]
+mod time_tests {
+    use super::*;
+    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use time::macros::{date, datetime, time};
+
+    test_type!(time_offset_date_time<OffsetDateTime>(
+        Sqlite,
+        "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2015-11-19 01:01:39+01:00'" == datetime!(2015 - 11 - 19 1:01:39 +1),
+        "'2014-10-18 00:00:38.697+00:00'" == datetime!(2014 - 10 - 18 00:00:38.697 +0),
+        "'2013-09-17 23:59-01:00'" == datetime!(2013 - 9 - 17 23:59 -1),
+        "'2016-03-07T22:36:55.135+03:30'" == datetime!(2016 - 3 - 7 22:36:55.135 +3:30),
+        "'2017-04-11T14:35+02:00'" == datetime!(2017 - 4 - 11 14:35 +2),
+    ));
+
+    test_type!(time_primitive_date_time<PrimitiveDateTime>(
+        Sqlite,
+        "SELECT datetime({0}) is datetime(?), {0}, ?",
+        "'2019-01-02 05:10:20'" == datetime!(2019 - 1 - 2 5:10:20),
+        "'2018-12-01 04:09:19.543'" == datetime!(2018 - 12 - 1 4:09:19.543),
+        "'2017-11-30 03:08'" == datetime!(2017 - 11 - 30 3:08),
+        "'2016-10-29T02:07:17'" == datetime!(2016 - 10 - 29 2:07:17),
+        "'2015-09-28T01:06:16.432'" == datetime!(2015 - 9 - 28 1:06:16.432),
+        "'2014-08-27T00:05'" == datetime!(2014 - 8 - 27 0:05),
+        "'2013-07-26 23:04:14Z'" == datetime!(2013 - 7 - 26 23:04:14),
+        "'2012-06-25 22:03:13.321Z'" == datetime!(2012 - 6 - 25 22:03:13.321),
+        "'2011-05-24 21:02Z'" == datetime!(2011 - 5 - 24 21:02),
+        "'2010-04-23T20:01:11Z'" == datetime!(2010 - 4 - 23 20:01:11),
+        "'2009-03-22T19:00:10.21Z'" == datetime!(2009 - 3 - 22 19:00:10.21),
+        "'2008-02-21T18:59Z'" == datetime!(2008 - 2 - 21 18:59:00),
+    ));
+
+    test_type!(time_date<Date>(
+        Sqlite,
+        "SELECT date({0}) is date(?), {0}, ?",
+        "'2002-06-04'" == date!(2002 - 6 - 4),
+    ));
+
+    test_type!(time_time<Time>(
+        Sqlite,
+        "SELECT time({0}) is time(?), {0}, ?",
+        "'21:46:32'" == time!(21:46:32),
+        "'20:45:31.133'" == time!(20:45:31.133),
+        "'19:44'" == time!(19:44),
     ));
 }
 

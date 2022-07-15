@@ -43,14 +43,10 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
-
+          key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}
+          
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -82,13 +78,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-test
 
       - uses: actions-rs/cargo@v1
         with:
@@ -127,13 +119,9 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cli-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cli
 
       - uses: actions-rs/cargo@v1
         with:
@@ -162,13 +150,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-sqlite-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -199,13 +183,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-postgres-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         env:
@@ -263,13 +243,9 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -307,14 +283,9 @@ jobs:
           toolchain: stable
           override: true
 
-      # same Cargo features as MySQL so the same cache can be used
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mysql-${{ matrix.runtime }}-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
@@ -352,12 +323,8 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions/cache@v2
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
           key: ${{ runner.os }}-mssql-${{ matrix.runtime }}-${{ matrix.tls }}-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/cargo@v1
