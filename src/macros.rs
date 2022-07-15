@@ -399,10 +399,13 @@ macro_rules! query_file_unchecked (
 ///
 /// This lets you return the struct from a function or add your own trait implementations.
 ///
-/// **No trait implementations are required**; the macro maps rows using a struct literal
-/// where the names of columns in the query are expected to be the same as the fields of the struct
-/// (but the order does not need to be the same). The types of the columns are based on the
-/// query and not the corresponding fields of the struct, so this is type-safe as well.
+/// **This macro does not use [`FromRow`][crate::FromRow]**; in fact, no trait implementations are
+/// required at all, though this may change in future versions.
+///
+/// The macro maps rows using a struct literal where the names of columns in the query are expected
+/// to be the same as the fields of the struct (but the order does not need to be the same).
+/// The types of the columns are based on the query and not the corresponding fields of the struct,
+/// so this is type-safe as well.
 ///
 /// This enforces a few things:
 /// * The query must output at least one column.
