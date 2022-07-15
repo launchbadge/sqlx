@@ -150,7 +150,7 @@ where
     /// // One element vector is handled correctly but an empty vector
     /// // would cause a sql syntax error
     /// let mut separated = query_builder.separated(", ");
-    /// for value_type in filtered_types.iter() {
+    /// for value_type in foods.iter() {
     ///   separated.push_bind(value_type);
     /// }
     /// separated.push_unseparated(") ");
