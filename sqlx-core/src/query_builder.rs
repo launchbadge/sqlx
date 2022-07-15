@@ -289,9 +289,7 @@ where
     ///
     /// ### Notes
     ///
-    /// If `tuples` is empty, this will likely produce a syntactically invalid query as `VALUES`
-    /// generally expects to be followed by at least 1 tuple.
-    ///
+    /// If `tuples` is empty, this will likely produce a syntactically invalid query
     ///
     /// ### Example (MySQL)
     ///
