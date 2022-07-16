@@ -130,7 +130,7 @@ use crate::row::Row;
 ///
 ///
 /// ```rust,ignore
-/// use sqlx::{FromRow, Result, sqlite::SqliteRow, sqlx::Row};
+/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
 /// struct MyCustomType {
 ///     custom: String,
 /// }
@@ -140,7 +140,7 @@ use crate::row::Row;
 /// }
 ///
 /// impl FromRow<'_, SqliteRow> for Foo {
-///     fn from_row(row: &SqliteRow) -> Result<Self> {
+///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
 ///         Ok(Self {
 ///             bar: MyCustomType {
 ///                 custom: row.try_get("custom")?
