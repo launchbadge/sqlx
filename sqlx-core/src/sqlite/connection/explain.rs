@@ -68,7 +68,10 @@ const OP_SEEK_ROW_ID: &str = "SeekRowId";
 const OP_SEEK_SCAN: &str = "SeekScan";
 const OP_SEQUENCE_TEST: &str = "SequenceTest";
 const OP_SORT: &str = "Sort";
+const OP_SORTER_DATA: &str = "SorterData";
+const OP_SORTER_INSERT: &str = "SorterInsert";
 const OP_SORTER_NEXT: &str = "SorterNext";
+const OP_SORTER_OPEN: &str = "SorterOpen";
 const OP_SORTER_SORT: &str = "SorterSort";
 const OP_V_FILTER: &str = "VFilter";
 const OP_V_NEXT: &str = "VNext";
@@ -547,7 +550,7 @@ pub(super) fn explain(
                     }
                 }
 
-                OP_ROW_DATA => {
+                OP_ROW_DATA | OP_SORTER_DATA => {
                     //Get entire row from cursor p1, store it into register p2
                     if let Some(record) = state.p.get(&p1) {
                         let rowdata = record.map_to_dense_record(&state.r);
@@ -572,7 +575,7 @@ pub(super) fn explain(
                     state.r.insert(p3, RegDataType::Record(record));
                 }
 
-                OP_INSERT | OP_IDX_INSERT => {
+                OP_INSERT | OP_IDX_INSERT | OP_SORTER_INSERT => {
                     if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
                         if let Some(CursorDataType::Normal { cols, is_empty }) =
                             state.p.get_mut(&p1)
@@ -616,7 +619,7 @@ pub(super) fn explain(
                     }
                 }
 
-                OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX => {
+                OP_OPEN_EPHEMERAL | OP_OPEN_AUTOINDEX | OP_SORTER_OPEN => {
                     //Create a new pointer which is referenced by p1
                     state.p.insert(
                         p1,
