@@ -137,7 +137,7 @@ where
     ///
     /// The returned type exposes identical [`.push()`][Separated::push] and
     /// [`.push_bind()`][Separated::push_bind] methods which push `separator` to the query
-    /// before their normal behavior. [`.push_unseparated()`][Separated::push_unseparated] is also
+    /// before their normal behavior. [`.push_unseparated()`][Separated::push_unseparated] and [`.push_bind_unseparated()`][Separated::push_bind_unseparated] are also
     /// provided to push a SQL fragment without the separator.
     ///
     /// ```rust
@@ -492,6 +492,18 @@ where
         self.query_builder.push_bind(value);
         self.push_separator = true;
 
+        self
+    }
+
+    /// Push a bind argument placeholder (`?` or `$N` for Postgres) and bind a value to it
+    /// without a separator.
+    ///
+    /// Simply calls [`QueryBuilder::push_bind()`] directly.
+    pub fn push_bind_unseparated<T>(&mut self, value: T) -> &mut Self
+    where
+        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+    {
+        self.query_builder.push_bind(value);
         self
     }
 }
