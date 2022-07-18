@@ -711,10 +711,37 @@ pub(super) fn explain(
                     }
                 }
 
-                OP_COPY | OP_MOVE | OP_SCOPY | OP_INT_COPY => {
+                OP_SCOPY | OP_INT_COPY => {
                     // r[p2] = r[p1]
                     if let Some(v) = state.r.get(&p1).cloned() {
                         state.r.insert(p2, v);
+                    }
+                }
+
+                OP_COPY => {
+                    // r[p2..p2+p3] = r[p1..p1+p3]
+                    if p3 > 0 {
+                        for i in 0..p3 {
+                            let src = p1 + i;
+                            let dst = p2 + i;
+                            if let Some(v) = state.r.get(&src).cloned() {
+                                state.r.insert(dst, v);
+                            }
+                        }
+                    }
+                }
+
+                OP_MOVE => {
+                    // r[p2..p2+p3] = r[p1..p1+p3]; r[p1..p1+p3] = null
+                    if p3 > 0 {
+                        for i in 0..p3 {
+                            let src = p1 + i;
+                            let dst = p2 + i;
+                            if let Some(v) = state.r.get(&src).cloned() {
+                                state.r.insert(dst, v);
+                                state.r.insert(src, RegDataType::Single(ColumnType::null()));
+                            }
+                        }
                     }
                 }
 
