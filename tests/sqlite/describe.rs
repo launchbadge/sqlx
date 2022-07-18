@@ -435,6 +435,8 @@ async fn it_describes_union() -> anyhow::Result<()> {
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
+        dbg!(&info);
+
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
         assert_eq!(info.nullable(0), Some(false), "{}", query);
         assert_eq!(info.column(1).type_info().name(), "TEXT", "{}", query);
@@ -454,8 +456,20 @@ async fn it_describes_union() -> anyhow::Result<()> {
         "SELECT 'txt','a',null,'b' UNION ALL SELECT 'int',NULL,1,2 ",
     )
     .await?;
+
     //TODO: insert into temp-table not merging datatype/nullable of all operations - currently keeping last-writer
-    //assert_union_described(&mut conn, "SELECT 'txt','a',null,'b' UNION     SELECT 'int',NULL,1,2 ").await?;
+    //assert_union_described(&mut conn, "SELECT 'txt','a',null,'b' UNION SELECT 'int',NULL,1,2 ").await?;
+
+    assert_union_described(
+        &mut conn,
+        "SELECT 'tweet',text,owner_id id,null from tweet
+        UNION SELECT 'account',name,id,is_active from accounts
+        UNION SELECT 'account',name,id,is_active from accounts_view
+        UNION SELECT 'dummy',null,null,null
+        ORDER BY id
+        ",
+    )
+    .await?;
 
     Ok(())
 }
