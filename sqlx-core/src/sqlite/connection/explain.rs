@@ -732,7 +732,7 @@ pub(super) fn explain(
                     //assume that AGG_FINAL will be called
                     let p4 = from_utf8(p4).map_err(Error::protocol)?;
 
-                    if p4.starts_with("count(") || p4.starts_with("row_number(") {
+                    if p4.starts_with("count(") || p4.starts_with("row_number(") || p4.starts_with("rank(") || p4.starts_with("dense_rank(") || p4.starts_with("ntile("){
                         // count(_) -> INTEGER
                         state.r.insert(
                             p3,
@@ -750,7 +750,7 @@ pub(super) fn explain(
                 OP_AGG_FINAL => {
                     let p4 = from_utf8(p4).map_err(Error::protocol)?;
 
-                    if p4.starts_with("count(") || p4.starts_with("row_number(") {
+                    if p4.starts_with("count(") || p4.starts_with("row_number(") || p4.starts_with("rank(") || p4.starts_with("dense_rank(") || p4.starts_with("ntile(") {
                         // count(_) -> INTEGER
                         state.r.insert(
                             p1,
