@@ -249,7 +249,7 @@ jobs:
           DATABASE_URL: postgres://postgres@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt&sslkey=.%2Ftests%2Fkeys%2Fclient.key&sslcert=.%2Ftests%2Fcerts%2Fclient.crt
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
           # but `PgLTree` should just fall back to text format
-          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}_client_ssl
+          RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
 
   mysql:
     name: MySQL
