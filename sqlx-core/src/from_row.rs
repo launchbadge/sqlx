@@ -122,6 +122,33 @@ use crate::row::Row;
 /// ```
 ///
 /// This field is compatible with the `default` attribute.
+///
+/// ## Manual implementation
+///
+/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
+/// have a struct with a field that needs manuel decoding:
+///
+///
+/// ```rust,ignore
+/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
+/// struct MyCustomType {
+///     custom: String,
+/// }
+///
+/// struct Foo {
+///     bar: MyCustomType,
+/// }
+///
+/// impl FromRow<'_, SqliteRow> for Foo {
+///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+///         Ok(Self {
+///             bar: MyCustomType {
+///                 custom: row.try_get("custom")?
+///             }
+///         })
+///     }
+/// }
+/// ```
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
