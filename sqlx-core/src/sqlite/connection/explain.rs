@@ -719,9 +719,9 @@ pub(super) fn explain(
                 }
 
                 OP_COPY => {
-                    // r[p2..p2+p3] = r[p1..p1+p3]
-                    if p3 > 0 {
-                        for i in 0..p3 {
+                    // r[p2..=p2+p3] = r[p1..=p1+p3]
+                    if p3 >= 0 {
+                        for i in 0..=p3 {
                             let src = p1 + i;
                             let dst = p2 + i;
                             if let Some(v) = state.r.get(&src).cloned() {
@@ -733,7 +733,7 @@ pub(super) fn explain(
 
                 OP_MOVE => {
                     // r[p2..p2+p3] = r[p1..p1+p3]; r[p1..p1+p3] = null
-                    if p3 > 0 {
+                    if p3 >= 1 {
                         for i in 0..p3 {
                             let src = p1 + i;
                             let dst = p2 + i;
