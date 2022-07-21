@@ -43,6 +43,9 @@ mod value;
 #[cfg(feature = "migrate")]
 mod migrate;
 
+#[cfg(feature = "migrate")]
+mod testing;
+
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
 pub type SqlitePool = crate::pool::Pool<Sqlite>;
 

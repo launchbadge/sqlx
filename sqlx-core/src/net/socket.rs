@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::io;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -28,6 +29,14 @@ impl Socket {
         sqlx_rt::UnixStream::connect(path.as_ref())
             .await
             .map(Socket::Unix)
+    }
+
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        match self {
+            Self::Tcp(tcp) => tcp.local_addr().ok(),
+            #[cfg(unix)]
+            Self::Unix(_) => None,
+        }
     }
 
     #[cfg(not(unix))]

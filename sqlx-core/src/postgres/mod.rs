@@ -24,6 +24,9 @@ mod value;
 #[cfg(feature = "migrate")]
 mod migrate;
 
+#[cfg(feature = "migrate")]
+mod testing;
+
 pub use advisory_lock::{PgAdvisoryLock, PgAdvisoryLockGuard, PgAdvisoryLockKey};
 pub use arguments::{PgArgumentBuffer, PgArguments};
 pub use column::PgColumn;

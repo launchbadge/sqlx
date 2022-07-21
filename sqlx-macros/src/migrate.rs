@@ -3,6 +3,7 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha384};
 use sqlx_core::migrate::MigrationType;
 use std::fs;
+use std::path::Path;
 use syn::LitStr;
 
 pub struct QuotedMigrationType(MigrationType);
@@ -56,8 +57,20 @@ impl ToTokens for QuotedMigration {
 }
 
 // mostly copied from sqlx-core/src/migrate/source.rs
-pub(crate) fn expand_migrator_from_dir(dir: LitStr) -> crate::Result<TokenStream> {
-    let path = crate::common::resolve_path(&dir.value(), dir.span())?;
+pub(crate) fn expand_migrator_from_lit_dir(dir: LitStr) -> crate::Result<TokenStream> {
+    expand_migrator_from_dir(&dir.value(), dir.span())
+}
+
+pub(crate) fn expand_migrator_from_dir(
+    dir: &str,
+    err_span: proc_macro2::Span,
+) -> crate::Result<TokenStream> {
+    let path = crate::common::resolve_path(dir, err_span)?;
+
+    expand_migrator(&path)
+}
+
+pub(crate) fn expand_migrator(path: &Path) -> crate::Result<TokenStream> {
     let mut migrations = Vec::new();
 
     for entry in fs::read_dir(&path)? {

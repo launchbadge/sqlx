@@ -2,7 +2,7 @@ version: "3"
 
 services:
     #
-    # MySQL 8.x, 5.7.x, 5.6.x
+    # MySQL 8.x, 5.7.x
     # https://www.mysql.com/support/supportedplatforms/database.html
     #
 
@@ -29,20 +29,8 @@ services:
             MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
-
-    mysql_5_6:
-        image: mysql:5.6
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
-        ports:
-            - 3306
-        environment:
-            MYSQL_ROOT_HOST: '%'
-            MYSQL_ROOT_PASSWORD: password
-            MYSQL_DATABASE: sqlx
-
     #
-    # MariaDB 10.6, 10.5, 10.4, 10.3, 10.2
+    # MariaDB 10.6, 10.5, 10.4, 10.3
     # https://mariadb.org/about/#maintenance-policy
     #
 
@@ -86,18 +74,8 @@ services:
             MYSQL_ROOT_PASSWORD: password
             MYSQL_DATABASE: sqlx
 
-    mariadb_10_2:
-        image: mariadb:10.2
-        volumes:
-            - "./mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
-        ports:
-            - 3306
-        environment:
-            MYSQL_ROOT_PASSWORD: password
-            MYSQL_DATABASE: sqlx
-
     #
-    # PostgreSQL 14.x, 13.x, 12.x, 11.x 10.x, 9.6.x
+    # PostgreSQL 14.x, 13.x, 12.x, 11.x 10.x
     # https://www.postgresql.org/support/versioning/
     #
 
@@ -195,25 +173,6 @@ services:
             - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
         command: >
             -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-
-    postgres_9_6:
-        build:
-            context: .
-            dockerfile: postgres/Dockerfile
-            args:
-                VERSION: 9.6
-        ports:
-          - 5432
-        environment:
-            POSTGRES_DB: sqlx
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: password
-            POSTGRES_HOST_AUTH_METHOD: md5
-        volumes:
-            - "./postgres/setup.sql:/docker-entrypoint-initdb.d/setup.sql"
-        command: >
-            -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
-
     #
     # Microsoft SQL Server (MSSQL)
     # https://hub.docker.com/_/microsoft-mssql-server

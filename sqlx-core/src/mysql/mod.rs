@@ -22,6 +22,9 @@ mod value;
 #[cfg(feature = "migrate")]
 mod migrate;
 
+#[cfg(feature = "migrate")]
+mod testing;
+
 pub use arguments::MySqlArguments;
 pub use column::MySqlColumn;
 pub use connection::MySqlConnection;
