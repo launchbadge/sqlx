@@ -272,20 +272,22 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
             let _ = tx.execute(&*migration.sql).await?;
 
-            tx.commit().await?;
-
-            let elapsed = start.elapsed();
-
             // language=SQL
             let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
                 .bind(migration.version)
-                .execute(self)
+                .execute(&mut tx)
                 .await?;
+
+            tx.commit().await?;
+
+            let elapsed = start.elapsed();
 
             Ok(elapsed)
         })
