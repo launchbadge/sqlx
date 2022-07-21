@@ -12,6 +12,7 @@ async fn same_output() -> anyhow::Result<()> {
     for (e, r) in EMBEDDED.iter().zip(runtime.iter()) {
         assert_eq!(e.version, r.version);
         assert_eq!(e.description, r.description);
+        assert_eq!(e.migration_type, r.migration_type);
         assert_eq!(e.sql, r.sql);
         assert_eq!(e.checksum, r.checksum);
     }
