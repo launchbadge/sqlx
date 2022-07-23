@@ -124,9 +124,9 @@ SQLx is compatible with the [`async-std`], [`tokio`] and [`actix`] runtimes; and
 # Cargo.toml
 [dependencies]
 # tokio + rustls
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-rustls" ] }
 # async-std + native-tls
-sqlx = { version = "0.5", features = [ "runtime-async-std-native-tls" ] }
+sqlx = { version = "0.6", features = [ "runtime-async-std-native-tls" ] }
 ```
 
 <small><small>The runtime and TLS backend not being separate feature sets to select is a workaround for a [Cargo issue](https://github.com/rust-lang/cargo/issues/3494).</small></small>
@@ -212,16 +212,16 @@ See the `examples/` folder for more in-depth usage.
 [dependencies]
 # PICK ONE:
 # Async-std:
-sqlx = { version = "0.5", features = [  "runtime-async-std-native-tls", "postgres" ] }
+sqlx = { version = "0.6", features = [  "runtime-async-std-native-tls", "postgres" ] }
 async-std = { version = "1", features = [ "attributes" ] }
 
 # Tokio:
-sqlx = { version = "0.5", features = [ "runtime-tokio-native-tls" , "postgres" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-native-tls" , "postgres" ] }
 tokio = { version = "1", features = ["full"] }
 
 # Actix-web:
-sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres" ] }
-actix-web = "3"
+sqlx = { version = "0.6", features = [ "runtime-actix-native-tls" , "postgres" ] }
+actix-web = "4"
 ```
 
 ```rust
