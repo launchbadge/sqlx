@@ -367,9 +367,9 @@ jobs:
       # client SSL authentication
 
       - run: |
-          docker-compose -f tests/docker-compose.yml stop mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml rm mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}_client_ssl
+          docker-compose -f tests/docker-compose.yml stop mariadb_${{ matrix.mariadb }}
+          docker-compose -f tests/docker-compose.yml rm mariadb_${{ matrix.mariadb }}
+          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
       - uses: actions-rs/cargo@v1
