@@ -1,6 +1,7 @@
 use sqlx::pool::PoolOptions;
 use sqlx::{Connection, Database, Pool};
 use std::env;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub fn setup_if_needed() {
     let _ = dotenvy::dotenv();
@@ -222,4 +223,32 @@ macro_rules! Postgres_query_for_test_prepared_type {
     () => {
         "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
     };
+}
+
+/// Global lock that prevents multiple tests in this module to be executed at the same time.
+static GLOBAL_LOCK: AtomicBool = AtomicBool::new(false);
+
+/// Simple lock guard that should not be used in production but that is `Send` (i.e. can easily be used with tokio).
+///
+/// This may be helpful for tests that modify the database state, e.g. migrations.
+pub struct SimpleLockGuard;
+
+impl SimpleLockGuard {
+    /// Acquire global lock.
+    pub fn acquire() -> Self {
+        loop {
+            let was_locked = GLOBAL_LOCK.fetch_or(true, Ordering::SeqCst);
+            if !was_locked {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        Self
+    }
+}
+
+impl Drop for SimpleLockGuard {
+    fn drop(&mut self) {
+        GLOBAL_LOCK.store(false, Ordering::SeqCst);
+    }
 }
