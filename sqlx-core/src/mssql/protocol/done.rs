@@ -9,6 +9,7 @@ pub(crate) struct Done {
 
     // The token of the current SQL statement. The token value is provided and controlled by the
     // application layer, which utilizes TDS. The TDS layer does not evaluate the value.
+    #[allow(dead_code)]
     cursor_command: u16,
 
     // The count of rows that were affected by the SQL statement. The value of DoneRowCount is

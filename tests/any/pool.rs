@@ -1,4 +1,4 @@
-use sqlx::any::{AnyConnectOptions, AnyKind, AnyPoolOptions};
+use sqlx::any::{AnyConnectOptions, AnyPoolOptions};
 use sqlx::Executor;
 use std::sync::atomic::AtomicI32;
 use std::sync::{
@@ -23,7 +23,7 @@ async fn pool_should_invoke_after_connect() -> anyhow::Result<()> {
                 })
             }
         })
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let _ = pool.acquire().await?;
@@ -44,7 +44,7 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
     let pool = AnyPoolOptions::new()
         .max_connections(2)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let query = "blah blah";
@@ -81,7 +81,7 @@ async fn test_pool_callbacks() -> anyhow::Result<()> {
     let conn_options: AnyConnectOptions = std::env::var("DATABASE_URL")?.parse()?;
 
     #[cfg(feature = "mssql")]
-    if conn_options.kind() == AnyKind::Mssql {
+    if conn_options.kind() == sqlx::any::AnyKind::Mssql {
         // MSSQL doesn't support `CREATE TEMPORARY TABLE`,
         // because why follow conventions when you can subvert them?
         // Instead, you prepend `#` to the table name for a session-local temporary table

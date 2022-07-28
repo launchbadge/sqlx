@@ -28,7 +28,7 @@ impl Display for PostWithAuthorQuery {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
+    let pool = PgPool::connect(&dotenvy::var("DATABASE_URL")?).await?;
 
     // we can use a tranditional wrapper around the `query!()` macro using files
     query_file!("queries/insert_seed_data.sql")

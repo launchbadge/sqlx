@@ -27,8 +27,7 @@ impl MigrateDatabase for Sqlite {
             }
 
             // Opening a connection to sqlite creates the database
-            let _ = SqliteConnectOptions::from_str(url)?
-                .create_if_missing(true)
+            let _ = opts
                 .connect()
                 .await?
                 // Ensure WAL mode tempfiles are cleaned up

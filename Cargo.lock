@@ -768,10 +768,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
+name = "dotenvy"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+checksum = "7e851a83c30366fd01d75b913588e95e74a1705c1ecc5d58b1f8e1a6d556525f"
+dependencies = [
+ "dirs",
+]
 
 [[package]]
 name = "downcast"
@@ -884,7 +887,7 @@ name = "files"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "dotenv",
+ "dotenvy",
  "sqlx",
  "tokio",
 ]
@@ -1298,7 +1301,7 @@ name = "json"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "dotenv",
+ "dotenvy",
  "futures",
  "serde",
  "serde_json",
@@ -2424,7 +2427,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-std",
- "dotenv",
+ "dotenvy",
  "env_logger",
  "futures",
  "hex",
@@ -2449,7 +2452,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "criterion",
- "dotenv",
+ "dotenvy",
  "once_cell",
  "sqlx",
  "sqlx-rt",
@@ -2466,7 +2469,7 @@ dependencies = [
  "chrono",
  "clap 3.2.10",
  "console",
- "dotenv",
+ "dotenvy",
  "filetime",
  "futures",
  "glob",
@@ -2577,7 +2580,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "dotenv",
+ "dotenvy",
  "futures",
  "mockall",
  "sqlx",
@@ -2590,7 +2593,7 @@ name = "sqlx-example-postgres-todos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "dotenv",
+ "dotenvy",
  "futures",
  "sqlx",
  "structopt",
@@ -2621,7 +2624,7 @@ dependencies = [
 name = "sqlx-macros"
 version = "0.6.0"
 dependencies = [
- "dotenv",
+ "dotenvy",
  "either",
  "heck 0.4.0",
  "hex",
@@ -2658,7 +2661,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-std",
- "dotenv",
+ "dotenvy",
  "env_logger",
  "sqlx",
  "tokio",

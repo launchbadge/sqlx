@@ -1,6 +1,5 @@
 use clap::Parser;
 use console::style;
-use dotenv::dotenv;
 use sqlx_cli::Opt;
 use std::process;
 
@@ -14,7 +13,7 @@ enum Cli {
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    dotenvy::dotenv().ok();
     let Cli::Sqlx(opt) = Cli::parse();
 
     if let Err(error) = sqlx_cli::run(opt).await {

@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
-use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
@@ -84,14 +83,14 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
     let env_path = if env_path.exists() {
-        let res = dotenv::from_path(&env_path);
+        let res = dotenvy::from_path(&env_path);
         if let Err(e) = res {
             panic!("failed to load environment from {:?}, {}", env_path, e);
         }
 
         Some(env_path)
     } else {
-        dotenv::dotenv().ok()
+        dotenvy::dotenv().ok()
     };
 
     // tell the compiler to watch the `.env` for changes, if applicable
@@ -189,7 +188,6 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 ))]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
     use sqlx_core::any::{AnyConnectOptions, AnyConnection};
-    use std::str::FromStr;
 
     let connect_opts = AnyConnectOptions::from_str(db_url)?;
 

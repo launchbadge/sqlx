@@ -3,12 +3,12 @@ use sqlx::{Connection, Database, Pool};
 use std::env;
 
 pub fn setup_if_needed() {
-    let _ = dotenv::dotenv();
+    let _ = dotenvy::dotenv();
     let _ = env_logger::builder().is_test(true).try_init();
 }
 
 // Make a new connection
-// Ensure [dotenv] and [env_logger] have been setup
+// Ensure [dotenvy] and [env_logger] have been setup
 pub async fn new<DB>() -> anyhow::Result<DB::Connection>
 where
     DB: Database,
@@ -19,7 +19,7 @@ where
 }
 
 // Make a new pool
-// Ensure [dotenv] and [env_logger] have been setup
+// Ensure [dotenvy] and [env_logger] have been setup
 pub async fn pool<DB>() -> anyhow::Result<Pool<DB>>
 where
     DB: Database,

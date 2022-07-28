@@ -143,7 +143,7 @@ futures = "0.3.19"
 env_logger = "0.9.0"
 async-std = { version = "1.10.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
-dotenv = "0.15.0"
+dotenvy = "0.15.0"
 trybuild = "1.0.53"
 sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }

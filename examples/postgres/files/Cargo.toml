@@ -9,4 +9,4 @@ edition = "2021"
 anyhow = "1.0"
 sqlx = { path = "../../../", features = ["postgres", "offline", "runtime-tokio-native-tls"] }
 tokio = { version = "1.20.0", features = ["macros"]}
-dotenv = "0.15.0"
+dotenvy = "0.15.0"

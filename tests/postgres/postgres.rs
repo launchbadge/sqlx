@@ -547,7 +547,7 @@ async fn pool_smoke_test() -> anyhow::Result<()> {
         .acquire_timeout(Duration::from_secs(5))
         .min_connections(1)
         .max_connections(1)
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     // spin up more tasks than connections available, and ensure we don't deadlock
@@ -1655,7 +1655,7 @@ CREATE TABLE issue_1254 (id INT4 PRIMARY KEY, pairs PAIR[]);
 async fn test_advisory_locks() -> anyhow::Result<()> {
     let pool = PgPoolOptions::new()
         .max_connections(2)
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let lock1 = Arc::new(PgAdvisoryLock::new("sqlx-postgres-tests-1"));
