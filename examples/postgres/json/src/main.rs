@@ -30,9 +30,9 @@ struct Row {
     person: Json<Person>,
 }
 
-#[async_std::main]
-#[paw::main]
-async fn main(args: Args) -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::from_args_safe()?;
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
 
     match args.cmd {

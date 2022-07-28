@@ -884,9 +884,9 @@ name = "files"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "dotenv",
  "sqlx",
+ "tokio",
 ]
 
 [[package]]
@@ -1298,14 +1298,13 @@ name = "json"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "dotenv",
  "futures",
- "paw",
  "serde",
  "serde_json",
  "sqlx",
  "structopt",
+ "tokio",
 ]
 
 [[package]]
@@ -1750,33 +1749,6 @@ name = "paste"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c520e05135d6e763148b6426a837e239041653ba7becd2e538c076c738025fc"
-
-[[package]]
-name = "paw"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c0fc9b564dbc3dc2ed7c92c0c144f4de340aa94514ce2b446065417c4084e9"
-dependencies = [
- "paw-attributes",
- "paw-raw",
-]
-
-[[package]]
-name = "paw-attributes"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f35583365be5d148e959284f42526841917b7bfa09e2d1a7ad5dde2cf0eaa39"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "paw-raw"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f0b59668fe80c5afe998f0c0bf93322bf2cd66cafeeb80581f291716f3467f2"
 
 [[package]]
 name = "pem-rfc7468"
@@ -2584,20 +2556,19 @@ name = "sqlx-example-mysql-todos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "futures",
- "paw",
  "sqlx",
  "structopt",
+ "tokio",
 ]
 
 [[package]]
 name = "sqlx-example-postgres-listen"
 version = "0.1.0"
 dependencies = [
- "async-std",
  "futures",
  "sqlx",
+ "tokio",
 ]
 
 [[package]]
@@ -2605,14 +2576,13 @@ name = "sqlx-example-postgres-mockable-todos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "async-trait",
  "dotenv",
  "futures",
  "mockall",
- "paw",
  "sqlx",
  "structopt",
+ "tokio",
 ]
 
 [[package]]
@@ -2620,21 +2590,20 @@ name = "sqlx-example-postgres-todos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "dotenv",
  "futures",
- "paw",
  "sqlx",
  "structopt",
+ "tokio",
 ]
 
 [[package]]
 name = "sqlx-example-postgres-transaction"
 version = "0.1.0"
 dependencies = [
- "async-std",
  "futures",
  "sqlx",
+ "tokio",
 ]
 
 [[package]]
@@ -2642,11 +2611,10 @@ name = "sqlx-example-sqlite-todos"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-std",
  "futures",
- "paw",
  "sqlx",
  "structopt",
+ "tokio",
 ]
 
 [[package]]
@@ -2732,7 +2700,6 @@ checksum = "0c6b5c64445ba8094a6ab0c3cd2ad323e07171012d9c98b0b15651daf1787a10"
 dependencies = [
  "clap 2.34.0",
  "lazy_static",
- "paw",
  "structopt-derive",
 ]
 
@@ -2896,10 +2863,11 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.19.2"
+version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51a52ed6686dd62c320f9b89299e9dfb46f730c7a48e635c19f21d116cb1439"
+checksum = "57aec3cfa4c296db7255446efb4928a6be304b431a806216105542a67b6ca82e"
 dependencies = [
+ "autocfg",
  "bytes",
  "libc",
  "memchr",

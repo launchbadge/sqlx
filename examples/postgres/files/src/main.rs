@@ -26,7 +26,7 @@ impl Display for PostWithAuthorQuery {
     }
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
 

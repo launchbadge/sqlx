@@ -14,9 +14,9 @@ enum Command {
     Done { id: u64 },
 }
 
-#[async_std::main]
-#[paw::main]
-async fn main(args: Args) -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let args = Args::from_args_safe()?;
     let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
 
     match args.cmd {
