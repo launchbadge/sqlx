@@ -23,7 +23,7 @@ async fn pool_should_invoke_after_connect() -> anyhow::Result<()> {
                 })
             }
         })
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let _ = pool.acquire().await?;
@@ -44,7 +44,7 @@ async fn pool_should_be_returned_failed_transactions() -> anyhow::Result<()> {
     let pool = AnyPoolOptions::new()
         .max_connections(2)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(&dotenv::var("DATABASE_URL")?)
+        .connect(&dotenvy::var("DATABASE_URL")?)
         .await?;
 
     let query = "blah blah";

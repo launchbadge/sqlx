@@ -43,7 +43,7 @@ async fn it_can_select_expression_by_name() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_can_fail_to_connect() -> anyhow::Result<()> {
-    let mut url = dotenv::var("DATABASE_URL")?;
+    let mut url = dotenvy::var("DATABASE_URL")?;
     url = url.replace("Password", "NotPassword");
 
     let res = MssqlConnection::connect(&url).await;

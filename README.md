@@ -376,7 +376,7 @@ Differences from `query()`:
     queries against; the database does not have to contain any data but must be the same
     kind (MySQL, Postgres, etc.) and have the same schema as the database you will be connecting to at runtime.
 
-    For convenience, you can use [a `.env` file][dotenv] to set DATABASE_URL so that you don't have to pass it every time:
+    For convenience, you can use [a `.env` file][dotenv]<sup>1</sup> to set DATABASE_URL so that you don't have to pass it every time:
 
     ```
     DATABASE_URL=mysql://localhost/my_database
@@ -422,6 +422,9 @@ putting the following in your `Cargo.toml` (More information in the
 [profile.dev.package.sqlx-macros]
 opt-level = 3
 ```
+
+<sup>1</sup> The `dotenv` crate itself appears abandoned as of [December 2021](https://github.com/dotenv-rs/dotenv/issues/74)
+so we now use the `dotenvy` crate instead. The file format is the same.
 
 ## Safety
 

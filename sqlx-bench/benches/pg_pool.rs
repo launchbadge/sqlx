@@ -34,7 +34,7 @@ fn do_bench_acquire(b: &mut Bencher, concurrent: u32, fair: bool) {
             .test_before_acquire(false)
             .__fair(fair)
             .connect(
-                &dotenv::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
+                &dotenvy::var("DATABASE_URL").expect("DATABASE_URL must be set to run benchmarks"),
             ),
     )
     .expect("failed to open PgPool");

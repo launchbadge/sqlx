@@ -84,14 +84,14 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     #[cfg_attr(not(procmacro2_semver_exempt), allow(unused_variables))]
     let env_path = if env_path.exists() {
-        let res = dotenv::from_path(&env_path);
+        let res = dotenvy::from_path(&env_path);
         if let Err(e) = res {
             panic!("failed to load environment from {:?}, {}", env_path, e);
         }
 
         Some(env_path)
     } else {
-        dotenv::dotenv().ok()
+        dotenvy::dotenv().ok()
     };
 
     // tell the compiler to watch the `.env` for changes, if applicable

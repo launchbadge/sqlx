@@ -78,7 +78,7 @@ bit-vec = ["sqlx-core/bit-vec"]
 json = ["sqlx-core/json", "serde_json"]
 
 [dependencies]
-dotenv = { version = "0.15.0", default-features = false }
+dotenvy = { version = "0.15.0", default-features = false }
 hex = { version = "0.4.3", optional = true }
 heck = { version = "0.4", features = ["unicode"] }
 either = "1.6.1"

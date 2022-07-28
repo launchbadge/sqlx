@@ -25,7 +25,7 @@ name = "cargo-sqlx"
 path = "src/bin/cargo-sqlx.rs"
 
 [dependencies]
-dotenv = "0.15.0"
+dotenvy = "0.15.0"
 tokio = { version = "1.15.0", features = ["macros", "rt", "rt-multi-thread"] }
 sqlx = { version = "0.6.0", path = "..", default-features = false, features = [
     "migrate",

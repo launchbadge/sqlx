@@ -32,7 +32,7 @@ fn ui_tests() {
     }
 
     if cfg!(feature = "sqlite") {
-        if dotenv::var("DATABASE_URL").map_or(true, |v| {
+        if dotenvy::var("DATABASE_URL").map_or(true, |v| {
             Path::is_relative(v.trim_start_matches("sqlite://").as_ref())
         }) {
             // this isn't `Trybuild`'s fault: https://github.com/dtolnay/trybuild/issues/69#issuecomment-620329526
