@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use proc_macro2::TokenStream;
 use syn::Type;
-use url::Url;
 
 pub use input::QueryMacroInput;
 use quote::{format_ident, quote};
@@ -189,7 +188,6 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 ))]
 fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenStream> {
     use sqlx_core::any::{AnyConnectOptions, AnyConnection};
-    use std::str::FromStr;
 
     let connect_opts = AnyConnectOptions::from_str(db_url)?;
 

@@ -154,7 +154,7 @@ impl SqliteConnectOptions {
     ///
     /// SQLx chooses to enable this by default so that foreign keys function as expected,
     /// compared to other database flavors.
-    pub fn foreign_keys(mut self, on: bool) -> Self {
+    pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
     }
 
@@ -187,14 +187,14 @@ impl SqliteConnectOptions {
     ///
     /// For consistency, any commands in `sqlx-cli` which create a SQLite database will create it
     /// in WAL mode.
-    pub fn journal_mode(mut self, mode: SqliteJournalMode) -> Self {
+    pub fn journal_mode(self, mode: SqliteJournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
     }
 
     /// Sets the [locking mode](https://www.sqlite.org/pragma.html#pragma_locking_mode) for the database connection.
     ///
     /// The default locking mode is NORMAL.
-    pub fn locking_mode(mut self, mode: SqliteLockingMode) -> Self {
+    pub fn locking_mode(self, mode: SqliteLockingMode) -> Self {
         self.pragma("locking_mode", mode.as_str())
     }
 
@@ -238,7 +238,7 @@ impl SqliteConnectOptions {
     ///
     /// The default synchronous settings is FULL. However, if durability is not a concern,
     /// then NORMAL is normally all one needs in WAL mode.
-    pub fn synchronous(mut self, synchronous: SqliteSynchronous) -> Self {
+    pub fn synchronous(self, synchronous: SqliteSynchronous) -> Self {
         self.pragma("synchronous", synchronous.as_str())
     }
 
@@ -248,7 +248,7 @@ impl SqliteConnectOptions {
     ///
     /// For existing databases, a change to this value does not take effect unless a
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
-    pub fn auto_vacuum(mut self, auto_vacuum: SqliteAutoVacuum) -> Self {
+    pub fn auto_vacuum(self, auto_vacuum: SqliteAutoVacuum) -> Self {
         self.pragma("auto_vacuum", auto_vacuum.as_str())
     }
 
@@ -259,7 +259,7 @@ impl SqliteConnectOptions {
     /// For existing databases, a change to this value does not take effect unless a
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
     /// However, it cannot be changed in WAL mode.
-    pub fn page_size(mut self, page_size: u32) -> Self {
+    pub fn page_size(self, page_size: u32) -> Self {
         self.pragma("page_size", page_size.to_string())
     }
 
