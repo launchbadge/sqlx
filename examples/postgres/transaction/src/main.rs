@@ -60,7 +60,7 @@ async fn commit_example(
     Ok(())
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn_str =
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
