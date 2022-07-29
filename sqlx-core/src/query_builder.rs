@@ -7,7 +7,9 @@ use std::marker::PhantomData;
 use crate::arguments::Arguments;
 use crate::database::{Database, HasArguments};
 use crate::encode::Encode;
+use crate::from_row::FromRow;
 use crate::query::Query;
+use crate::query_as::QueryAs;
 use crate::types::Type;
 use crate::Either;
 
@@ -392,7 +394,6 @@ where
         for tuple in tuples {
             separated.push("(");
 
-            // use a `Separated` with a separate (hah) internal state
             push_tuple(separated.query_builder.separated(", "), tuple);
 
             separated.push_unseparated(")");
@@ -425,6 +426,27 @@ where
         }
     }
 
+    /// Produce an executable query from this builder.
+    ///
+    /// ### Note: Query is not Checked
+    /// It is your responsibility to ensure that you produce a syntactically correct query here,
+    /// this API has no way to check it for you.
+    ///
+    /// ### Note: Reuse
+    /// You can reuse this builder afterwards to amortize the allocation overhead of the query
+    /// string, however you must call [`.reset()`][Self::reset] first, which returns `Self`
+    /// to the state it was in immediately after [`new()`][Self::new].
+    ///
+    /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
+    pub fn build_query_as<'q, T: FromRow<'q, DB::Row>>(
+        &'q mut self,
+    ) -> QueryAs<'q, DB, T, <DB as HasArguments<'args>>::Arguments> {
+        QueryAs {
+            inner: self.build(),
+            output: PhantomData,
+        }
+    }
+
     /// Reset this `QueryBuilder` back to its initial state.
     ///
     /// The query is truncated to the initial fragment provided to [`new()`][Self::new] and
@@ -434,6 +456,16 @@ where
         self.arguments = Some(Default::default());
 
         self
+    }
+
+    /// Get the current build SQL; **note**: may not be syntactically correct.
+    pub fn sql(&self) -> &str {
+        &self.query
+    }
+
+    /// Deconstruct this `QueryBuilder`, returning the built SQL. May not be syntactically correct.
+    pub fn into_sql(self) -> String {
+        self.query
     }
 }
 
