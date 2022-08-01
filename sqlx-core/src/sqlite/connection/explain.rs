@@ -179,7 +179,7 @@ impl RegDataType {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, )]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum CursorDataType {
     Normal(HashMap<i64, ColumnType>),
     Pseudo(i64),
