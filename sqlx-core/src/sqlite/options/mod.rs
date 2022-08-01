@@ -6,6 +6,7 @@ mod journal_mode;
 mod locking_mode;
 mod parse;
 mod synchronous;
+mod vfs;
 
 use crate::connection::LogSettings;
 pub use auto_vacuum::SqliteAutoVacuum;
@@ -15,6 +16,7 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
+pub use vfs::SqliteVfs;
 
 use crate::common::DebugFn;
 use crate::sqlite::connection::collation::Collation;
@@ -63,6 +65,7 @@ pub struct SqliteConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
+    pub(crate) vfs: Option<SqliteVfs>,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
@@ -135,6 +138,7 @@ impl SqliteConnectOptions {
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             immutable: false,
+            vfs: None,
             pragmas,
             collations: Default::default(),
             serialized: false,

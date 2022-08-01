@@ -1,3 +1,4 @@
+use super::SqliteVfs;
 use crate::error::Error;
 use crate::sqlite::SqliteConnectOptions;
 use percent_encoding::percent_decode_str;
@@ -108,6 +109,8 @@ impl FromStr for SqliteConnectOptions {
                         }
                     },
 
+                    "vfs" => options.vfs = Some(SqliteVfs::from_str(&*value)?),
+
                     _ => {
                         return Err(Error::Configuration(
                             format!(
@@ -159,6 +162,54 @@ fn test_parse_read_only() -> Result<(), Error> {
 fn test_parse_shared_in_memory() -> Result<(), Error> {
     let options: SqliteConnectOptions = "sqlite://a.db?cache=shared".parse()?;
     assert!(options.shared_cache);
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    Ok(())
+}
+
+#[test]
+#[cfg(target_family = "unix")]
+fn test_parse_vfs() -> Result<(), Error> {
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=unix".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::Unix));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=unix-dotfile".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::UnixDotfile));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=unix-excl".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::UnixExcl));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=unix-none".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::UnixNone));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=unix-namedsem".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::UnixNamedsem));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    Ok(())
+}
+
+#[test]
+#[cfg(target_family = "windows")]
+fn test_parse_vfs() -> Result<(), Error> {
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=win32".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::Win32));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=win32-longpath".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::Win32Longpath));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=win32-none".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::Win32None));
+    assert_eq!(&*options.filename.to_string_lossy(), "a.db");
+
+    let options: SqliteConnectOptions = "sqlite://a.db?vfs=win32-longpath-none".parse()?;
+    assert_eq!(options.vfs, Some(SqliteVfs::Win32LongpathNone));
     assert_eq!(&*options.filename.to_string_lossy(), "a.db");
 
     Ok(())
