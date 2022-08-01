@@ -405,8 +405,6 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
-        dbg!(&info);
-
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
         assert_eq!(info.nullable(0), Some(false), "{}", query);
         assert_eq!(info.column(1).type_info().name(), "TEXT", "{}", query);
@@ -434,8 +432,6 @@ async fn it_describes_union() -> anyhow::Result<()> {
         query: &str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
-
-        dbg!(&info);
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
         assert_eq!(info.nullable(0), Some(false), "{}", query);
