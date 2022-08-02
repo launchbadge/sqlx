@@ -65,12 +65,7 @@ decimal = ["rust_decimal", "num-bigint"]
 json = ["serde", "serde_json"]
 
 # runtimes
-runtime-actix-native-tls = [
-    "sqlx-rt/runtime-actix-native-tls",
-    "sqlx/runtime-actix-native-tls",
-    "_tls-native-tls",
-    "_rt-actix",
-]
+runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx-rt/runtime-async-std-native-tls",
     "sqlx/runtime-async-std-native-tls",
@@ -84,12 +79,7 @@ runtime-tokio-native-tls = [
     "_rt-tokio",
 ]
 
-runtime-actix-rustls = [
-    "sqlx-rt/runtime-actix-rustls",
-    "sqlx/runtime-actix-rustls",
-    "_tls-rustls",
-    "_rt-actix"
-]
+runtime-actix-rustls = ['runtime-tokio-rustls']
 runtime-async-std-rustls = [
     "sqlx-rt/runtime-async-std-rustls",
     "sqlx/runtime-async-std-rustls",
@@ -104,7 +94,6 @@ runtime-tokio-rustls = [
 ]
 
 # for conditional compilation
-_rt-actix = ["tokio-stream"]
 _rt-async-std = []
 _rt-tokio = ["tokio-stream"]
 _tls-native-tls = []

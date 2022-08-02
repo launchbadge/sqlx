@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "actix-rt"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ea16c295198e958ef31930a6ef37d0fb64e9ca3b6116e6b93a8bdae96ee1000"
-dependencies = [
- "futures-core",
- "tokio",
-]
-
-[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2644,7 +2634,6 @@ dependencies = [
 name = "sqlx-rt"
 version = "0.6.0"
 dependencies = [
- "actix-rt",
  "async-native-tls",
  "async-std",
  "futures-rustls",
