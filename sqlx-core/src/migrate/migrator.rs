@@ -93,7 +93,15 @@ impl Migrator {
         <A::Connection as Deref>::Target: Migrate,
     {
         let mut conn = migrator.acquire().await?;
+        self.run_direct(&mut *conn).await
+    }
 
+    // Getting around the annoying "implementation of `Acquire` is not general enough" error
+    #[doc(hidden)]
+    pub async fn run_direct<C>(&self, conn: &mut C) -> Result<(), MigrateError>
+    where
+        C: Migrate,
+    {
         // lock the database for exclusive access by the migrator
         conn.lock().await?;
 

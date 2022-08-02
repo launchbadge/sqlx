@@ -8,6 +8,7 @@ members = [
     "sqlx-cli",
     "sqlx-bench",
     "examples/mysql/todos",
+    "examples/postgres/axum-social-with-tests",
     "examples/postgres/files",
     "examples/postgres/json",
     "examples/postgres/listen",
@@ -197,6 +198,11 @@ name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
+[[test]]
+name = "sqlite-test-attr"
+path = "tests/sqlite/test-attr.rs"
+required-features = ["sqlite", "macros", "migrate"]
+
 #
 # MySQL
 #
@@ -220,6 +226,11 @@ required-features = ["mysql"]
 name = "mysql-macros"
 path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
+
+[[test]]
+name = "mysql-test-attr"
+path = "tests/mysql/test-attr.rs"
+required-features = ["mysql", "macros", "migrate"]
 
 #
 # PostgreSQL
@@ -249,6 +260,11 @@ required-features = ["postgres", "macros"]
 name = "postgres-derives"
 path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
+
+[[test]]
+name = "postgres-test-attr"
+path = "tests/postgres/test-attr.rs"
+required-features = ["postgres", "macros", "migrate"]
 
 #
 # Microsoft SQL Server (MSSQL)
