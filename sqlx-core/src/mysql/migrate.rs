@@ -217,11 +217,17 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let mut tx = self.begin().await?;
             let start = Instant::now();
 
+            // For MySQL we cannot really isolate migrations due to implicit commits caused by table modification, see
+            // https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+            //
+            // To somewhat try to detect this, we first insert the migration into the migration table with
+            // `success=FALSE` and later modify the flag.
+            //
             // language=MySQL
             let _ = query(
                 r#"
     INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( ?, ?, TRUE, ?, -1 )
+    VALUES ( ?, ?, FALSE, ?, -1 )
                 "#,
             )
             .bind(migration.version)
@@ -231,6 +237,18 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             .await?;
 
             let _ = tx.execute(&*migration.sql).await?;
+
+            // language=MySQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET success = TRUE
+    WHERE version = ?
+                "#,
+            )
+            .bind(migration.version)
+            .execute(&mut tx)
+            .await?;
 
             tx.commit().await?;
 
@@ -265,6 +283,24 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
             let mut tx = self.begin().await?;
             let start = Instant::now();
+
+            // For MySQL we cannot really isolate migrations due to implicit commits caused by table modification, see
+            // https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+            //
+            // To somewhat try to detect this, we first insert the migration into the migration table with
+            // `success=FALSE` and later remove the migration altogether.
+            //
+            // language=MySQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET success = FALSE
+    WHERE version = ?
+                "#,
+            )
+            .bind(migration.version)
+            .execute(&mut tx)
+            .await?;
 
             tx.execute(&*migration.sql).await?;
 
