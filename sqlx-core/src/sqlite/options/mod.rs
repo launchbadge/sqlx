@@ -374,8 +374,8 @@ impl SqliteConnectOptions {
     ///
     /// The default value is empty, and sqlite will use the default VFS object dependeing on the
     /// operating system.
-    pub fn vfs(mut self, vfs_name: impl AsRef<str>) -> Self {
-        self.vfs = Some(Cow::Owned(vfs_name.as_ref().to_string()));
+    pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
+        self.vfs = Some(vfs_name.into());
         self
     }
 }
