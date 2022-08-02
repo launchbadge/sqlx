@@ -67,8 +67,18 @@ impl EstablishParams {
             SQLITE_OPEN_PRIVATECACHE
         };
 
+        let mut query_params: Vec<String> = vec![];
+
         if options.immutable {
-            filename = format!("file:{}?immutable=true", filename);
+            query_params.push("immutable=true".into())
+        }
+
+        if let Some(vfs) = &options.vfs {
+            query_params.push(format!("vfs={}", vfs))
+        }
+
+        if !query_params.is_empty() {
+            filename = format!("file:{}?{}", filename, query_params.join("&"));
             flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
 

@@ -63,6 +63,7 @@ pub struct SqliteConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
+    pub(crate) vfs: Option<Cow<'static, str>>,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
@@ -135,6 +136,7 @@ impl SqliteConnectOptions {
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             immutable: false,
+            vfs: None,
             pragmas,
             collations: Default::default(),
             serialized: false,
@@ -365,6 +367,15 @@ impl SqliteConnectOptions {
     /// in order to limit CPU and memory usage.
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
+        self
+    }
+
+    /// Sets the [`vfs`](https://www.sqlite.org/vfs.html) parameter of the database connection.
+    ///
+    /// The default value is empty, and sqlite will use the default VFS object dependeing on the
+    /// operating system.
+    pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
+        self.vfs = Some(vfs_name.into());
         self
     }
 }
