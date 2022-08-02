@@ -73,8 +73,8 @@ impl EstablishParams {
             query_params.push("immutable=true".into())
         }
 
-        if let Some(vfs) = options.vfs {
-            query_params.push(format!("vfs={}", vfs.as_str()))
+        if let Some(vfs) = &options.vfs {
+            query_params.push(format!("vfs={}", vfs))
         }
 
         if !query_params.is_empty() {

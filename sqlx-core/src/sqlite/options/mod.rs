@@ -6,7 +6,6 @@ mod journal_mode;
 mod locking_mode;
 mod parse;
 mod synchronous;
-mod vfs;
 
 use crate::connection::LogSettings;
 pub use auto_vacuum::SqliteAutoVacuum;
@@ -16,7 +15,6 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
-pub use vfs::SqliteVfs;
 
 use crate::common::DebugFn;
 use crate::sqlite::connection::collation::Collation;
@@ -65,7 +63,7 @@ pub struct SqliteConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
-    pub(crate) vfs: Option<SqliteVfs>,
+    pub(crate) vfs: Option<Cow<'static, str>>,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
@@ -369,6 +367,15 @@ impl SqliteConnectOptions {
     /// in order to limit CPU and memory usage.
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
+        self
+    }
+
+    /// Sets the [`vfs`](https://www.sqlite.org/vfs.html) parameter of the database connection.
+    ///
+    /// The default value is empty, and sqlite will use the default VFS object dependeing on the
+    /// operating system.
+    pub fn vfs(mut self, vfs_name: impl AsRef<str>) -> Self {
+        self.vfs = Some(Cow::Owned(vfs_name.as_ref().to_string()));
         self
     }
 }
