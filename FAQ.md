@@ -1,6 +1,23 @@
 SQLx Frequently Asked Questions
 ===============================
 
+### What database versions does SQLx support?
+
+This is a difficult question to answer because it depends on which features of the databases are used and when those features were introduced. SQL databases tend to be very strongly backwards-compatible so it's likely that SQLx will work with some very old versions. 
+
+TLS support is one of the features that ages most quickly with databases, since old SSL/TLS versions are deprecated over time as they become insecure due to weaknesses being discovered; this is especially important to consider when using RusTLS, as it only supports the latest TLS version for security reasons (see the question below mentioning RusTLS for details).
+
+As a rule, however, we only officially support the range of versions for each database that are still actively maintained, and will drop support for versions as they reach their end-of-life.
+
+* Postgres has a page to track these versions and give their end-of-life dates: https://www.postgresql.org/support/versioning/
+* MariaDB has a similar list here (though it doesn't show the dates at which old versions were EOL'd): https://mariadb.com/kb/en/mariadb-server-release-dates/
+* MySQL's equivalent page is more concerned with what platforms are supported by the newest and oldest maintained versions: https://www.mysql.com/support/supportedplatforms/database.html
+    * However, its Wikipedia page helpfully tracks its versions and their announced EOL dates: https://en.wikipedia.org/wiki/MySQL#Release_history
+* SQLite is easy as only SQLite 3 is supported and the current version depends on the version of the `libsqlite3-sys` crate being used.
+
+For each database and where applicable, we test against the latest and oldest versions that we intend to support. You can see the current versions being tested against by looking at our CI config: https://github.com/launchbadge/sqlx/blob/main/.github/workflows/sqlx.yml#L168
+
+-------------------------------------------------------------------
 ### What versions of Rust does SQLx support? What is SQLx's MSRV\*?
 
 Officially, we will only ever support the latest stable version of Rust. 
