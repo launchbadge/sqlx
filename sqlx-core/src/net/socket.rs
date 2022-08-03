@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::io;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -30,6 +31,14 @@ impl Socket {
             .map(Socket::Unix)
     }
 
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        match self {
+            Self::Tcp(tcp) => tcp.local_addr().ok(),
+            #[cfg(unix)]
+            Self::Unix(_) => None,
+        }
+    }
+
     #[cfg(not(unix))]
     pub async fn connect_uds(_: impl AsRef<Path>) -> io::Result<Self> {
         Err(io::Error::new(
@@ -51,7 +60,7 @@ impl Socket {
             }
         }
 
-        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        #[cfg(feature = "_rt-tokio")]
         {
             use sqlx_rt::AsyncWriteExt;
 
@@ -103,7 +112,7 @@ impl AsyncWrite for Socket {
         }
     }
 
-    #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+    #[cfg(feature = "_rt-tokio")]
     fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             Socket::Tcp(s) => Pin::new(s).poll_shutdown(cx),

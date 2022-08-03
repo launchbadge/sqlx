@@ -3,7 +3,7 @@ use crate::connection::ConnectOptions;
 use crate::connection::Connection;
 use crate::database::Database;
 use crate::error::Error;
-use crate::pool::{deadline_as_timeout, CloseEvent, PoolOptions};
+use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
 use crossbeam_queue::ArrayQueue;
 
 use futures_intrusive::sync::{Semaphore, SemaphoreReleaser};
@@ -12,15 +12,12 @@ use std::cmp;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::task::Poll;
 
 use crate::pool::options::PoolConnectionMetadata;
+use futures_util::future::{self};
+use futures_util::FutureExt;
 use std::time::{Duration, Instant};
-
-/// Ihe number of permits to release to wake all waiters, such as on `PoolInner::close()`.
-///
-/// This should be large enough to realistically wake all tasks waiting on the pool without
-/// potentially overflowing the permits count in the semaphore itself.
-const WAKE_ALL_PERMITS: usize = usize::MAX / 2;
 
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connect_options: <DB::Connection as Connection>::Options,
@@ -40,16 +37,19 @@ impl<DB: Database> PoolInner<DB> {
     ) -> Arc<Self> {
         let capacity = options.max_connections as usize;
 
-        // ensure the permit count won't overflow if we release `WAKE_ALL_PERMITS`
-        // this assert should never fire on 64-bit targets as `max_connections` is a u32
-        let _ = capacity
-            .checked_add(WAKE_ALL_PERMITS)
-            .expect("max_connections exceeds max capacity of the pool");
+        let semaphore_capacity = if let Some(parent) = &options.parent_pool {
+            assert!(options.max_connections <= parent.options().max_connections);
+            assert_eq!(options.fair, parent.options().fair);
+            // The child pool must steal permits from the parent
+            0
+        } else {
+            capacity
+        };
 
         let pool = Self {
             connect_options,
             idle_conns: ArrayQueue::new(capacity),
-            semaphore: Semaphore::new(options.fair, capacity),
+            semaphore: Semaphore::new(options.fair, semaphore_capacity),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
@@ -82,31 +82,22 @@ impl<DB: Database> PoolInner<DB> {
     }
 
     pub(super) fn close<'a>(self: &'a Arc<Self>) -> impl Future<Output = ()> + 'a {
-        let already_closed = self.is_closed.swap(true, Ordering::AcqRel);
-
-        if !already_closed {
-            // if we were the one to mark this closed, release enough permits to wake all waiters
-            // we can't just do `usize::MAX` because that would overflow
-            // and we can't do this more than once cause that would _also_ overflow
-            self.semaphore.release(WAKE_ALL_PERMITS);
-            self.on_closed.notify(usize::MAX);
-        }
+        self.is_closed.store(true, Ordering::Release);
+        self.on_closed.notify(usize::MAX);
 
         async move {
-            // Close any currently idle connections in the pool.
-            while let Some(idle) = self.idle_conns.pop() {
-                let _ = idle.live.float((*self).clone()).close().await;
-            }
+            for permits in 1..=self.options.max_connections as usize {
+                // Close any currently idle connections in the pool.
+                while let Some(idle) = self.idle_conns.pop() {
+                    let _ = idle.live.float((*self).clone()).close().await;
+                }
 
-            // Wait for all permits to be released.
-            let _permits = self
-                .semaphore
-                .acquire(WAKE_ALL_PERMITS + (self.options.max_connections as usize))
-                .await;
+                if self.size() == 0 {
+                    break;
+                }
 
-            // Clean up any remaining connections.
-            while let Some(idle) = self.idle_conns.pop() {
-                let _ = idle.live.float((*self).clone()).close().await;
+                // Wait for all permits to be released.
+                let _permits = self.semaphore.acquire(permits).await;
             }
         }
     }
@@ -117,6 +108,67 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
+    /// Attempt to pull a permit from `self.semaphore` or steal one from the parent.
+    ///
+    /// If we steal a permit from the parent but *don't* open a connection,
+    /// it should be returned to the parent.
+    async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<SemaphoreReleaser<'a>, Error> {
+        let parent = self
+            .parent()
+            // If we're already at the max size, we shouldn't try to steal from the parent.
+            // This is just going to cause unnecessary churn in `acquire()`.
+            .filter(|_| self.size() < self.options.max_connections);
+
+        let acquire_self = self.semaphore.acquire(1).fuse();
+        let mut close_event = self.close_event();
+
+        if let Some(parent) = parent {
+            let acquire_parent = parent.0.semaphore.acquire(1);
+            let parent_close_event = parent.0.close_event();
+
+            futures_util::pin_mut!(
+                acquire_parent,
+                acquire_self,
+                close_event,
+                parent_close_event
+            );
+
+            let mut poll_parent = false;
+
+            future::poll_fn(|cx| {
+                if close_event.as_mut().poll(cx).is_ready() {
+                    return Poll::Ready(Err(Error::PoolClosed));
+                }
+
+                if parent_close_event.as_mut().poll(cx).is_ready() {
+                    // Propagate the parent's close event to the child.
+                    let _ = self.close();
+                    return Poll::Ready(Err(Error::PoolClosed));
+                }
+
+                if let Poll::Ready(permit) = acquire_self.as_mut().poll(cx) {
+                    return Poll::Ready(Ok(permit));
+                }
+
+                // Don't try the parent right away.
+                if poll_parent {
+                    acquire_parent.as_mut().poll(cx).map(Ok)
+                } else {
+                    poll_parent = true;
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            })
+            .await
+        } else {
+            close_event.do_until(acquire_self).await
+        }
+    }
+
+    fn parent(&self) -> Option<&Pool<DB>> {
+        self.options.parent_pool.as_ref()
+    }
+
     #[inline]
     pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<DB, Idle<DB>>> {
         if self.is_closed() {
@@ -124,6 +176,7 @@ impl<DB: Database> PoolInner<DB> {
         }
 
         let permit = self.semaphore.try_acquire(1)?;
+
         self.pop_idle(permit).ok()
     }
 
@@ -184,11 +237,9 @@ impl<DB: Database> PoolInner<DB> {
             self.options.acquire_timeout,
             async {
                 loop {
-                    let permit = self.semaphore.acquire(1).await;
+                    // Handles the close-event internally
+                    let permit = self.acquire_permit().await?;
 
-                    if self.is_closed() {
-                        return Err(Error::PoolClosed);
-                    }
 
                     // First attempt to pop a connection from the idle queue.
                     let guard = match self.pop_idle(permit) {
@@ -207,7 +258,12 @@ impl<DB: Database> PoolInner<DB> {
                             // we can open a new connection
                             guard
                         } else {
+                            // This can happen for a child pool that's at its connection limit.
                             log::debug!("woke but was unable to acquire idle connection or open new one; retrying");
+                            // If so, we're likely in the current-thread runtime if it's Tokio
+                            // and so we should yield to let any spawned release_to_pool() tasks
+                            // execute.
+                            sqlx_rt::yield_now().await;
                             continue;
                         }
                     };
@@ -330,6 +386,15 @@ impl<DB: Database> PoolInner<DB> {
                 log::debug!("unable to complete `min_connections` maintenance before deadline")
             }
             Err(e) => log::debug!("error while maintaining min_connections: {:?}", e),
+        }
+    }
+}
+
+impl<DB: Database> Drop for PoolInner<DB> {
+    fn drop(&mut self) {
+        if let Some(parent) = &self.options.parent_pool {
+            // Release the stolen permits.
+            parent.0.semaphore.release(self.semaphore.permits());
         }
     }
 }
@@ -486,6 +551,8 @@ impl<DB: Database> DecrementSizeGuard<DB> {
     }
 
     /// Release the semaphore permit without decreasing the pool size.
+    ///
+    /// If the permit was stolen from the pool's parent, it will be returned to the child's semaphore.
     fn release_permit(self) {
         self.pool.semaphore.release(1);
         self.cancel();

@@ -1,10 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(any(
-    feature = "runtime-actix",
-    feature = "runtime-async-std",
-    feature = "runtime-tokio"
-))]
+#[cfg(any(feature = "runtime-async-std", feature = "runtime-tokio"))]
 compile_error!(
     "the features 'runtime-actix', 'runtime-async-std' and 'runtime-tokio' have been removed in
      favor of new features 'runtime-{rt}-{tls}' where rt is one of 'actix', 'async-std' and 'tokio'
@@ -74,6 +70,18 @@ pub extern crate sqlx_macros;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
+
+// We can't do our normal facade approach with an attribute, but thankfully we can now
+// have docs out-of-line quite easily.
+#[doc = include_str!("macros/test.md")]
+pub use sqlx_macros::test;
+
+#[doc(hidden)]
+#[cfg(feature = "migrate")]
+pub use sqlx_core::testing;
+
+#[doc(hidden)]
+pub use sqlx_core::test_block_on;
 
 #[cfg(feature = "macros")]
 mod macros;

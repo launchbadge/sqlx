@@ -103,6 +103,12 @@ pub mod mysql;
 #[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
 pub mod mssql;
 
+// Implements test support with automatic DB management.
+#[cfg(feature = "migrate")]
+pub mod testing;
+
+pub use sqlx_rt::test_block_on;
+
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
 use ahash::AHashMap as HashMap;
 //type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;

@@ -203,7 +203,7 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
             loop {
                 let read = match () {
                     // Tokio lets us read into the buffer without zeroing first
-                    #[cfg(any(feature = "runtime-tokio", feature = "runtime-actix"))]
+                    #[cfg(feature = "runtime-tokio")]
                     _ if buf.len() != buf.capacity() => {
                         // in case we have some data in the buffer, which can occur
                         // if the previous write did not fill the buffer

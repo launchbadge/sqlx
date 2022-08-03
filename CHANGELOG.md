@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.1 - 2022-08-02
+
+[33 pull requests][0.6.1-prs] were merged this release cycle.
+
+### Added
+* [[#1495]]: Add example for manual implementation of the `FromRow` trait [[@Erik1000]]
+* [[#1822]]: (Postgres) Add support for `std::net::IpAddr` [[@meh]]
+    * Decoding returns an error if the `INET` value in Postgres is a prefix and not a full address
+      (`/32` for IPv4, `/128` for IPv6).
+* [[#1865]]: Add SQLite support for the `time` crate [[@johnbcodes]]
+* [[#1902]]: Add an example of how to use `QueryBuilder::separated()` [[@sbeckeriv]]
+* [[#1917]]: Added docs for `sqlx::types::Json` [[@jayy-lmao]]
+* [[#1919]]: Implement `Clone` for `PoolOptions` [[@Thomasdezeeuw]]
+* [[#1953]]: Support Rust arrays in Postgres [[@e00E]]
+* [[#1954]]: Add `push_tuples` for `QueryBuilder` [[@0xdeafbeef]]
+* [[#1959]]: Support `#[sqlx(flatten)]` attribute in `FromRow` [[@TheoOiry]]
+* [[#1967]]: Add example with external query files [[@JoeyMckenzie]]
+* [[#1985]]: Add `query_builder::Separated::push_bind_unseparated()` [[@0xdeafbeef]]
+* [[#2001]]: Implement `#[sqlx::test]` for general use
+    * Includes automatic database management, migration and fixture application.
+    * Drops support for end-of-lifed database versions, see PR for details.
+* [[#2005]]: `QueryBuilder` improvements [[@abonander]]
+    * Raw SQL getters, new method to build `QueryAs` instead of `Query`.
+* [[#2013]]: (SQLite) Allow VFS to be set as URL query parameter [[@liningpan]] 
+
+### Changed
+* [[#1679]]: refactor: alias actix-* features to their equivalent tokio-* features [[@robjtede]]
+* [[#1906]]: replaced all uses of "uri" to "url" [[@RomainStorai]]
+* [[#1965]]: SQLite improvements [[@abonander]]
+* [[#1977]]: Docs: clarify relationship between `query_as!()` and `FromRow` [[@abonander]]
+* [[#2003]]: Replace `dotenv` with `dotenvy` [[@abonander]]
+
+### Fixed
+* [[#1802]]: Try avoiding a full clean in `cargo sqlx prepare --merged` [[@LovecraftianHorror]]
+* [[#1848]]: Fix type info access in `Any` database driver [[@raviqqe]]
+* [[#1910]]: Set `CARGO_TARGET_DIR` when compiling queries [[@sedrik]]
+* [[#1915]]: Pool: fix panic when using callbacks [[@abonander]]
+* [[#1930]]: Don't cache SQLite connection for macros [[@LovecraftianHorror]]
+* [[#1948]]: Fix panic in Postgres `BYTEA` decode [[@e00E]]
+* [[#1955]]: Fix typo in FAQ [[@kenkoooo]]
+* [[#1968]]: (Postgres) don't panic if `S` or `V` notice fields are not UTF-8 [[@abonander]]
+* [[#1969]]: Fix sqlx-cli build [[@ivan]]
+* [[#1974]]: Use the `rust-cache` action for CI [[@abonander]]
+* [[#1988]]: Agree on a single default runtime for the whole workspace [[@crepererum]]
+* [[#1989]]: Fix panics in `PgListener` [[@crepererum]]
+* [[#1990]]: Switch `master` to `main` in docs [[@crepererum]]
+    * The change had already been made in the repo, the docs were out of date.
+* [[#1993]]: Update versions in quickstart examples in README [[@UramnOIL]]
+
+[0.6.1-prs]: https://github.com/launchbadge/sqlx/pulls?page=1&q=is%3Apr+is%3Aclosed+merged%3A2022-06-17..2022-08-02
+
+[#1906]: https://github.com/launchbadge/sqlx/pull/1906
+[#1495]: https://github.com/launchbadge/sqlx/pull/1495
+[#1679]: https://github.com/launchbadge/sqlx/pull/1679
+[#1802]: https://github.com/launchbadge/sqlx/pull/1802
+[#1822]: https://github.com/launchbadge/sqlx/pull/1822
+[#1848]: https://github.com/launchbadge/sqlx/pull/1848
+[#1865]: https://github.com/launchbadge/sqlx/pull/1865
+[#1902]: https://github.com/launchbadge/sqlx/pull/1902
+[#1910]: https://github.com/launchbadge/sqlx/pull/1910
+[#1915]: https://github.com/launchbadge/sqlx/pull/1915
+[#1917]: https://github.com/launchbadge/sqlx/pull/1917
+[#1919]: https://github.com/launchbadge/sqlx/pull/1919
+[#1930]: https://github.com/launchbadge/sqlx/pull/1930
+[#1948]: https://github.com/launchbadge/sqlx/pull/1948
+[#1953]: https://github.com/launchbadge/sqlx/pull/1953
+[#1954]: https://github.com/launchbadge/sqlx/pull/1954
+[#1955]: https://github.com/launchbadge/sqlx/pull/1955
+[#1959]: https://github.com/launchbadge/sqlx/pull/1959
+[#1965]: https://github.com/launchbadge/sqlx/pull/1965
+[#1967]: https://github.com/launchbadge/sqlx/pull/1967
+[#1968]: https://github.com/launchbadge/sqlx/pull/1968
+[#1969]: https://github.com/launchbadge/sqlx/pull/1969
+[#1974]: https://github.com/launchbadge/sqlx/pull/1974
+[#1977]: https://github.com/launchbadge/sqlx/pull/1977
+[#1985]: https://github.com/launchbadge/sqlx/pull/1985
+[#1988]: https://github.com/launchbadge/sqlx/pull/1988
+[#1989]: https://github.com/launchbadge/sqlx/pull/1989
+[#1990]: https://github.com/launchbadge/sqlx/pull/1990
+[#1993]: https://github.com/launchbadge/sqlx/pull/1993
+[#2001]: https://github.com/launchbadge/sqlx/pull/2001
+[#2003]: https://github.com/launchbadge/sqlx/pull/2003
+[#2005]: https://github.com/launchbadge/sqlx/pull/2005
+[#2013]: https://github.com/launchbadge/sqlx/pull/2013
+
 ## 0.6.0 - 2022-06-16
 
 This release marks the end of the 0.5.x series of releases and contains a number of breaking changes,
@@ -1411,3 +1496,17 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@EthanYuan]: https://github.com/EthanYuan
 [@Nukesor]: https://github.com/Nukesor
 [@smonv]: https://github.com/smonv
+[@Erik1000]: https://github.com/Erik1000
+[@raviqqe]: https://github.com/raviqqe
+[@johnbcodes]: https://github.com/johnbcodes
+[@sbeckeriv]: https://github.com/sbeckeriv
+[@RomainStorai]: https://github.com/RomainStorai
+[@jayy-lmao]: https://github.com/jayy-lmao
+[@Thomasdezeeuw]: https://github.com/Thomasdezeeuw
+[@kenkoooo]: https://github.com/kenkoooo
+[@TheoOiry]: https://github.com/TheoOiry
+[@JoeyMckenzie]: https://github.com/JoeyMckenzie
+[@ivan]: https://github.com/ivan
+[@crepererum]: https://github.com/crepererum
+[@UramnOIL]: https://github.com/UramnOIL
+[@liningpan]: https://github.com/liningpan

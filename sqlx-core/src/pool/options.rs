@@ -80,6 +80,8 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) fair: bool,
+
+    pub(crate) parent_pool: Option<Pool<DB>>,
 }
 
 /// Metadata for the connection being processed by a [`PoolOptions`] callback.
@@ -125,6 +127,7 @@ impl<DB: Database> PoolOptions<DB> {
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
             fair: true,
+            parent_pool: None,
         }
     }
 
@@ -397,6 +400,19 @@ impl<DB: Database> PoolOptions<DB> {
             + Sync,
     {
         self.after_release = Some(Arc::new(callback));
+        self
+    }
+
+    /// Set the parent `Pool` from which the new pool will inherit its semaphore.
+    ///
+    /// This is currently an internal-only API.
+    ///
+    /// ### Panics
+    /// If `self.max_connections` is greater than the setting the given pool was created with,
+    /// or `self.fair` differs from the setting the given pool was created with.
+    #[doc(hidden)]
+    pub fn parent(mut self, pool: Pool<DB>) -> Self {
+        self.parent_pool = Some(pool);
         self
     }
 

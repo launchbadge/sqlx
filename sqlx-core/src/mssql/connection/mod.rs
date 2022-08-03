@@ -45,7 +45,7 @@ impl Connection for MssqlConnection {
             ready(self.stream.shutdown(Shutdown::Both).map_err(Into::into)).boxed()
         }
 
-        #[cfg(any(feature = "_rt-actix", feature = "_rt-tokio"))]
+        #[cfg(feature = "_rt-tokio")]
         {
             use sqlx_rt::AsyncWriteExt;
 

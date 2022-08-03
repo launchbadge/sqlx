@@ -8,6 +8,7 @@ members = [
     "sqlx-cli",
     "sqlx-bench",
     "examples/mysql/todos",
+    "examples/postgres/axum-social-with-tests",
     "examples/postgres/files",
     "examples/postgres/json",
     "examples/postgres/listen",
@@ -19,7 +20,7 @@ members = [
 
 [package]
 name = "sqlx"
-version = "0.6.0"
+version = "0.6.1"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/launchbadge/sqlx"
@@ -75,11 +76,7 @@ runtime-async-std = []
 runtime-tokio = []
 
 # actual runtimes
-runtime-actix-native-tls = [
-    "sqlx-core/runtime-actix-native-tls",
-    "sqlx-macros/runtime-actix-native-tls",
-    "_rt-actix",
-]
+runtime-actix-native-tls = ["runtime-tokio-native-tls"]
 runtime-async-std-native-tls = [
     "sqlx-core/runtime-async-std-native-tls",
     "sqlx-macros/runtime-async-std-native-tls",
@@ -91,11 +88,7 @@ runtime-tokio-native-tls = [
     "_rt-tokio",
 ]
 
-runtime-actix-rustls = [
-    "sqlx-core/runtime-actix-rustls",
-    "sqlx-macros/runtime-actix-rustls",
-    "_rt-actix",
-]
+runtime-actix-rustls = ["runtime-tokio-rustls"]
 runtime-async-std-rustls = [
     "sqlx-core/runtime-async-std-rustls",
     "sqlx-macros/runtime-async-std-rustls",
@@ -108,7 +101,6 @@ runtime-tokio-rustls = [
 ]
 
 # for conditional compilation
-_rt-actix = []
 _rt-async-std = []
 _rt-tokio = []
 
@@ -133,8 +125,8 @@ bstr = ["sqlx-core/bstr"]
 git2 = ["sqlx-core/git2"]
 
 [dependencies]
-sqlx-core = { version = "0.6.0", path = "sqlx-core", default-features = false }
-sqlx-macros = { version = "0.6.0", path = "sqlx-macros", default-features = false, optional = true }
+sqlx-core = { version = "0.6.1", path = "sqlx-core", default-features = false }
+sqlx-macros = { version = "0.6.1", path = "sqlx-macros", default-features = false, optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
@@ -215,6 +207,11 @@ name = "sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
 required-features = ["sqlite"]
 
+[[test]]
+name = "sqlite-test-attr"
+path = "tests/sqlite/test-attr.rs"
+required-features = ["sqlite", "macros", "migrate"]
+
 #
 # MySQL
 #
@@ -238,6 +235,11 @@ required-features = ["mysql"]
 name = "mysql-macros"
 path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
+
+[[test]]
+name = "mysql-test-attr"
+path = "tests/mysql/test-attr.rs"
+required-features = ["mysql", "macros", "migrate"]
 
 #
 # PostgreSQL
@@ -267,6 +269,11 @@ required-features = ["postgres", "macros"]
 name = "postgres-derives"
 path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
+
+[[test]]
+name = "postgres-test-attr"
+path = "tests/postgres/test-attr.rs"
+required-features = ["postgres", "macros", "migrate"]
 
 #
 # Microsoft SQL Server (MSSQL)

@@ -1,0 +1,33 @@
+[package]
+name = "sqlx-example-postgres-axum-social"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Primary crates
+axum = { version = "0.5.13", features = ["macros"] }
+sqlx = { version = "0.6.1", path = "../../../", features = ["runtime-tokio-rustls", "postgres", "time", "uuid"] }
+tokio = { version = "1.20.1", features = ["rt-multi-thread", "macros"] }
+
+# Important secondary crates
+argon2 = "0.4.1"
+rand = "0.8.5"
+regex = "1.6.0"
+serde = "1.0.140"
+serde_with = { version = "2.0.0", features = ["time_0_3"] }
+time = "0.3.11"
+uuid = { version = "1.1.2", features = ["serde"] }
+validator = { version = "0.16.0", features = ["derive"] }
+
+# Auxilliary crates
+anyhow = "1.0.58"
+dotenvy = "0.15.1"
+once_cell = "1.13.0"
+thiserror = "1.0.31"
+tracing = "0.1.35"
+
+[dev-dependencies]
+serde_json = "1.0.82"
+tower = "0.4.13"

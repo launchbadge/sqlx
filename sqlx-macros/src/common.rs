@@ -2,8 +2,8 @@ use proc_macro2::Span;
 use std::env;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn resolve_path(path: &str, err_span: Span) -> syn::Result<PathBuf> {
-    let path = Path::new(path);
+pub(crate) fn resolve_path(path: impl AsRef<Path>, err_span: Span) -> syn::Result<PathBuf> {
+    let path = path.as_ref();
 
     if path.is_absolute() {
         return Err(syn::Error::new(
