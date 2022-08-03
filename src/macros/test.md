@@ -58,8 +58,8 @@ Test databases are automatically cleaned up as tests succeed, but failed tests w
 to facilitate debugging. Note that to simplify the implementation, panics are _always_ considered to be failures,
 even for `#[should_panic]` tests.
 
-If you have `sqlx-cli` installed, you can run `sqlx test-db cleanup` to delete all test databases.
-Old test databases will also be deleted the next time a test binary using `#[sqlx::test]` is run.
+To limit disk space usage, any previously created test databases will be deleted the next time a test binary using 
+`#[sqlx::test]` is run.
 
 ```rust,no_run
 # #[cfg(all(feature = "migrate", feature = "postgres"))]
