@@ -1,16 +1,12 @@
 use sqlx::migrate::Migrator;
+use sqlx::pool::PoolConnection;
 use sqlx::sqlite::{Sqlite, SqliteConnection};
 use sqlx::Executor;
 use sqlx::Row;
 use std::path::Path;
 
-use sqlx_test::{new, SimpleLockGuard};
-
-#[sqlx_macros::test]
-async fn simple() -> anyhow::Result<()> {
-    let _guard = SimpleLockGuard::acquire();
-
-    let mut conn = new::<Sqlite>().await?;
+#[sqlx::test(migrations = false)]
+async fn simple(mut conn: PoolConnection<Sqlite>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 
     let migrator = Migrator::new(Path::new("tests/sqlite/migrations_simple")).await?;
@@ -31,11 +27,8 @@ async fn simple() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
-async fn reversible() -> anyhow::Result<()> {
-    let _guard = SimpleLockGuard::acquire();
-
-    let mut conn = new::<Sqlite>().await?;
+#[sqlx::test(migrations = false)]
+async fn reversible(mut conn: PoolConnection<Sqlite>) -> anyhow::Result<()> {
     clean_up(&mut conn).await?;
 
     let migrator = Migrator::new(Path::new("tests/sqlite/migrations_reversible")).await?;
