@@ -73,7 +73,7 @@ impl PgConnection {
 
     // will return when the connection is ready for another query
     pub(in crate::postgres) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.stream.wbuf.is_empty() {
+        if !self.stream.write_buffer_mut().is_empty() {
             self.stream.flush().await?;
         }
 
@@ -203,6 +203,6 @@ impl Connection for PgConnection {
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
-        !self.stream.wbuf.is_empty()
+        !self.stream.write_buffer().is_empty()
     }
 }

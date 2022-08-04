@@ -4,7 +4,6 @@ use std::time::Duration;
 use futures_core::future::BoxFuture;
 
 pub use fixtures::FixtureSnapshot;
-use sqlx_rt::test_block_on;
 
 use crate::connection::{ConnectOptions, Connection};
 use crate::database::Database;
@@ -135,7 +134,7 @@ where
             args.fixtures.is_empty(),
             "fixtures cannot be applied for a bare function"
         );
-        test_block_on(self())
+        crate::rt::test_block_on(self())
     }
 }
 
@@ -187,7 +186,7 @@ where
 
         let res = test_fn(pool.clone()).await;
 
-        let close_timed_out = sqlx_rt::timeout(Duration::from_secs(10), pool.close())
+        let close_timed_out = crate::rt::timeout(Duration::from_secs(10), pool.close())
             .await
             .is_err();
 
@@ -208,7 +207,7 @@ where
     Fut: Future,
     Fut::Output: TestTermination,
 {
-    test_block_on(async move {
+    crate::rt::test_block_on(async move {
         let test_context = DB::test_context(&args)
             .await
             .expect("failed to connect to setup test database");

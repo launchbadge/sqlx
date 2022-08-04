@@ -3,7 +3,7 @@ use crate::HashMap;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::io::Decode;
-use crate::postgres::connection::{sasl, stream::PgStream, tls};
+use crate::postgres::connection::{sasl, stream::PgStream};
 use crate::postgres::message::{
     Authentication, BackendKeyData, MessageFormat, Password, ReadyForQuery, Startup,
 };
@@ -15,10 +15,8 @@ use crate::postgres::{PgConnectOptions, PgConnection};
 
 impl PgConnection {
     pub(crate) async fn establish(options: &PgConnectOptions) -> Result<Self, Error> {
-        let mut stream = PgStream::connect(options).await?;
-
         // Upgrade to TLS if we were asked to and the server supports it
-        tls::maybe_upgrade(&mut stream, options).await?;
+        let mut stream = PgStream::connect(options).await?;
 
         // To begin a session, a frontend opens a connection to the server
         // and sends a startup message.

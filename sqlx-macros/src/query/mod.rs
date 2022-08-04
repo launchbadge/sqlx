@@ -13,7 +13,6 @@ use quote::{format_ident, quote};
 use sqlx_core::connection::Connection;
 use sqlx_core::database::Database;
 use sqlx_core::{column::Column, describe::Describe, type_info::TypeInfo};
-use sqlx_rt::{block_on, AsyncMutex};
 
 use crate::database::DatabaseExt;
 use crate::query::data::QueryData;
@@ -135,7 +134,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
         )))]
         Metadata {
             offline: false,
-            database_url: Some(db_url),
+            database_url: Some(_db_url),
             ..
         } => Err(
             "At least one of the features ['postgres', 'mysql', 'mssql', 'sqlite'] must be enabled \
@@ -177,6 +176,7 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
 
         #[cfg(not(feature = "offline"))]
         Metadata { offline: true, .. } => {
+            drop(input);
             Err("The cargo feature `offline` has to be enabled to use `SQLX_OFFLINE`".into())
         }
 
@@ -185,7 +185,10 @@ pub fn expand_input(input: QueryMacroInput) -> crate::Result<TokenStream> {
             offline: false,
             database_url: None,
             ..
-        } => Err("`DATABASE_URL` must be set to use query macros".into()),
+        } => {
+            drop(input);
+            Err("`DATABASE_URL` must be set to use query macros".into()) 
+        },
     }
 }
 
@@ -215,7 +218,10 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
         return expand_with_data(input, data, false);
     }
 
-    block_on(async {
+    #[cfg(any(feature = "_rt-async-std", feature = "_rt-tokio"))]
+    return block_on(async {
+        use sqlx_core::sync::AsyncMutex;
+
         static CONNECTION_CACHE: Lazy<AsyncMutex<BTreeMap<String, AnyConnection>>> =
             Lazy::new(|| AsyncMutex::new(BTreeMap::new()));
 
@@ -249,7 +255,12 @@ fn expand_from_db(input: QueryMacroInput, db_url: &str) -> crate::Result<TokenSt
                 return Err(format!("Missing expansion needed for: {:?}", item).into());
             }
         }
-    })
+    });
+
+    #[cfg(not(any(feature = "_rt-async-std", feature = "_rt-tokio")))]
+    return Err(
+        "one of the `runtime-*` features of SQLx must be enabled to use the query macros".into(),
+    );
 }
 
 #[cfg(feature = "offline")]
@@ -436,4 +447,26 @@ fn env(name: &str) -> Result<String, std::env::VarError> {
     {
         std::env::var(name)
     }
+}
+
+#[cfg(all(feature = "_rt-async-std", not(feature = "tokio")))]
+use async_std::task::block_on;
+
+#[cfg(feature = "_rt-tokio")]
+fn block_on<F>(f: F) -> F::Output
+where
+    F: std::future::Future,
+{
+    use tokio::runtime::{self, Runtime};
+
+    // We need a single, persistent Tokio runtime since we're caching connections,
+    // otherwise we'll get "IO driver has terminated" errors.
+    static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
+        runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to start Tokio runtime")
+    });
+
+    TOKIO_RT.block_on(f)
 }

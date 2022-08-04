@@ -2,6 +2,10 @@ use crate::io::Encode;
 
 pub struct SslRequest;
 
+impl SslRequest {
+    pub const BYTES: &'static [u8] = b"\x00\x00\x00\x08\x04\xd2\x16/";
+}
+
 impl Encode<'_> for SslRequest {
     #[inline]
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) {
@@ -12,10 +16,8 @@ impl Encode<'_> for SslRequest {
 
 #[test]
 fn test_encode_ssl_request() {
-    const EXPECTED: &[u8] = b"\x00\x00\x00\x08\x04\xd2\x16/";
-
     let mut buf = Vec::new();
     SslRequest.encode(&mut buf);
 
-    assert_eq!(buf, EXPECTED);
+    assert_eq!(buf, SslRequest::BYTES);
 }

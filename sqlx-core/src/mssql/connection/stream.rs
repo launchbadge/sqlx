@@ -1,11 +1,11 @@
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
-use bytes::{Bytes, BytesMut};
-use sqlx_rt::TcpStream;
+use bytes::{BufMut, Bytes, BytesMut};
 
 use crate::error::Error;
 use crate::ext::ustr::UStr;
-use crate::io::{BufStream, Encode};
+use crate::io::Encode;
 use crate::mssql::protocol::col_meta_data::ColMetaData;
 use crate::mssql::protocol::done::{Done, Status as DoneStatus};
 use crate::mssql::protocol::env_change::EnvChange;
@@ -19,12 +19,11 @@ use crate::mssql::protocol::return_status::ReturnStatus;
 use crate::mssql::protocol::return_value::ReturnValue;
 use crate::mssql::protocol::row::Row;
 use crate::mssql::{MssqlColumn, MssqlConnectOptions, MssqlDatabaseError};
-use crate::net::MaybeTlsStream;
+use crate::net::{BufferedSocket, Socket, SocketIntoBox};
 use crate::HashMap;
-use std::sync::Arc;
 
 pub(crate) struct MssqlStream {
-    inner: BufStream<MaybeTlsStream<TcpStream>>,
+    inner: BufferedSocket<Box<dyn Socket>>,
 
     // how many Done (or Error) we are currently waiting for
     pub(crate) pending_done_count: usize,
@@ -45,12 +44,10 @@ pub(crate) struct MssqlStream {
 
 impl MssqlStream {
     pub(super) async fn connect(options: &MssqlConnectOptions) -> Result<Self, Error> {
-        let inner = BufStream::new(MaybeTlsStream::Raw(
-            TcpStream::connect((&*options.host, options.port)).await?,
-        ));
+        let socket = crate::net::connect_tcp(&options.host, options.port, SocketIntoBox).await?;
 
         Ok(Self {
-            inner,
+            inner: BufferedSocket::new(socket),
             columns: Default::default(),
             column_names: Default::default(),
             response: None,
@@ -68,6 +65,7 @@ impl MssqlStream {
 
         // write out the packet header, leaving room for setting the packet length later
 
+        let starting_buf_len = self.inner.write_buffer().get().len();
         let mut len_offset = 0;
 
         self.inner.write_with(
@@ -78,15 +76,18 @@ impl MssqlStream {
                 server_process_id: 0,
                 packet_id: 1,
             },
+            // updated by `PacketHeader::encode()`
             &mut len_offset,
         );
 
         // write out the payload
         self.inner.write(payload);
 
+        let buf = self.inner.write_buffer_mut().get_mut();
+
         // overwrite the packet length now that we know it
-        let len = self.inner.wbuf.len();
-        self.inner.wbuf[len_offset..(len_offset + 2)].copy_from_slice(&(len as u16).to_be_bytes());
+        let len = buf.len() - starting_buf_len;
+        (&mut buf[len_offset..(len_offset + 2)]).put_u16(len as u16);
     }
 
     // receive the next packet from the database
@@ -106,9 +107,12 @@ impl MssqlStream {
         let mut payload = BytesMut::new();
 
         loop {
-            self.inner
-                .read_raw_into(&mut payload, (header.length - 8) as usize)
+            let chunk = self
+                .inner
+                .read_buffered((header.length - 8) as usize)
                 .await?;
+
+            payload.unsplit(chunk);
 
             if header.status.contains(Status::END_OF_MESSAGE) {
                 break;
@@ -202,7 +206,7 @@ impl MssqlStream {
     }
 
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.wbuf.is_empty() {
+        if !self.write_buffer().is_empty() {
             self.flush().await?;
         }
 
@@ -222,7 +226,7 @@ impl MssqlStream {
 }
 
 impl Deref for MssqlStream {
-    type Target = BufStream<MaybeTlsStream<TcpStream>>;
+    type Target = BufferedSocket<Box<dyn Socket>>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner

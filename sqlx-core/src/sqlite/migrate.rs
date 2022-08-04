@@ -1,6 +1,7 @@
 use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
+use crate::fs;
 use crate::migrate::MigrateError;
 use crate::migrate::{AppliedMigration, Migration};
 use crate::migrate::{Migrate, MigrateDatabase};
@@ -9,7 +10,6 @@ use crate::query_as::query_as;
 use crate::query_scalar::query_scalar;
 use crate::sqlite::{Sqlite, SqliteConnectOptions, SqliteConnection, SqliteJournalMode};
 use futures_core::future::BoxFuture;
-use sqlx_rt::fs;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;

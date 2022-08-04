@@ -4,7 +4,7 @@ mod connect;
 mod parse;
 mod ssl_mode;
 
-use crate::{connection::LogSettings, net::CertificateInput};
+use crate::{connection::LogSettings, net::tls::CertificateInput};
 pub use ssl_mode::MySqlSslMode;
 
 /// Options and flags which can be used to configure a MySQL connection.
@@ -35,8 +35,8 @@ pub use ssl_mode::MySqlSslMode;
 /// # use sqlx_core::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
 /// #
 /// # fn main() {
-/// # #[cfg(feature = "_rt-async-std")]
-/// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
+/// # #[cfg(feature = "_rt")]
+/// # sqlx::__rt::test_block_on(async move {
 /// // URL connection string
 /// let conn = MySqlConnection::connect("mysql://root:password@localhost/db").await?;
 ///
@@ -47,7 +47,7 @@ pub use ssl_mode::MySqlSslMode;
 ///     .password("password")
 ///     .database("db")
 ///     .connect().await?;
-/// # Ok(())
+/// # Result::<(), Error>::Ok(())
 /// # }).unwrap();
 /// # }
 /// ```

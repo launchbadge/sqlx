@@ -88,6 +88,7 @@ pub trait Statement<'q>: Send + Sync {
         A: IntoArguments<'s, Self::Database>;
 }
 
+#[macro_export]
 macro_rules! impl_statement_query {
     ($A:ty) => {
         #[inline]

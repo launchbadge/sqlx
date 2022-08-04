@@ -355,7 +355,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
     for i in 0..3 {
         let pool = pool.clone();
 
-        handles.push(sqlx_rt::spawn(async move {
+        handles.push(sqlx_core::rt::spawn(async move {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
@@ -366,7 +366,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
 
             // (do some other work here without holding on to a connection)
             // this actually fixes the issue, depending on the timeout used
-            // sqlx_rt::sleep(Duration::from_millis(500)).await;
+            // sqlx_core::rt::sleep(Duration::from_millis(500)).await;
 
             {
                 let start = Instant::now();

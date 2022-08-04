@@ -1,39 +1,72 @@
 use crate::error::Error;
-use crate::mysql::connection::MySqlStream;
+use crate::mysql::collation::{CharSet, Collation};
+use crate::mysql::connection::{MySqlStream, Waiting};
 use crate::mysql::protocol::connect::SslRequest;
 use crate::mysql::protocol::Capabilities;
 use crate::mysql::{MySqlConnectOptions, MySqlSslMode};
+use crate::net::tls::TlsConfig;
+use crate::net::{tls, BufferedSocket, Socket, WithSocket};
+use std::collections::VecDeque;
 
-pub(super) async fn maybe_upgrade(
-    stream: &mut MySqlStream,
+struct MapStream {
+    server_version: (u16, u16, u16),
+    capabilities: Capabilities,
+    sequence_id: u8,
+    waiting: VecDeque<Waiting>,
+    charset: CharSet,
+    collation: Collation,
+}
+
+pub(super) async fn maybe_upgrade<S: Socket>(
+    mut stream: MySqlStream<S>,
     options: &MySqlConnectOptions,
-) -> Result<(), Error> {
+) -> Result<MySqlStream, Error> {
+    let server_supports_tls = stream.capabilities.contains(Capabilities::SSL);
+
+    if matches!(options.ssl_mode, MySqlSslMode::Disabled) || !tls::available() {
+        // remove the SSL capability if SSL has been explicitly disabled
+        stream.capabilities.remove(Capabilities::SSL);
+    }
+
     // https://www.postgresql.org/docs/12/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS
     match options.ssl_mode {
-        MySqlSslMode::Disabled => {}
+        MySqlSslMode::Disabled => return Ok(stream.boxed_socket()),
 
         MySqlSslMode::Preferred => {
-            // try upgrade, but its okay if we fail
-            upgrade(stream, options).await?;
+            if !tls::available() {
+                // Client doesn't support TLS
+                log::debug!("not performing TLS upgrade: TLS support not compiled in");
+                return Ok(stream.boxed_socket());
+            }
+
+            if !server_supports_tls {
+                // Server doesn't support TLS
+                log::debug!("not performing TLS upgrade: unsupported by server");
+                return Ok(stream.boxed_socket());
+            }
         }
 
         MySqlSslMode::Required | MySqlSslMode::VerifyIdentity | MySqlSslMode::VerifyCa => {
-            if !upgrade(stream, options).await? {
+            tls::error_if_unavailable()?;
+
+            if !server_supports_tls {
                 // upgrade failed, die
                 return Err(Error::Tls("server does not support TLS".into()));
             }
         }
     }
 
-    Ok(())
-}
+    let tls_config = TlsConfig {
+        accept_invalid_certs: !matches!(
+            options.ssl_mode,
+            MySqlSslMode::VerifyCa | MySqlSslMode::VerifyIdentity
+        ),
+        accept_invalid_hostnames: !matches!(options.ssl_mode, MySqlSslMode::VerifyIdentity),
+        hostname: &options.host,
+        root_cert_path: options.ssl_ca.as_ref(),
+    };
 
-async fn upgrade(stream: &mut MySqlStream, options: &MySqlConnectOptions) -> Result<bool, Error> {
-    if !stream.capabilities.contains(Capabilities::SSL) {
-        // server does not support TLS
-        return Ok(false);
-    }
-
+    // Request TLS upgrade
     stream.write_packet(SslRequest {
         max_packet_size: super::MAX_PACKET_SIZE,
         collation: stream.collation as u8,
@@ -41,20 +74,34 @@ async fn upgrade(stream: &mut MySqlStream, options: &MySqlConnectOptions) -> Res
 
     stream.flush().await?;
 
-    let accept_invalid_certs = !matches!(
-        options.ssl_mode,
-        MySqlSslMode::VerifyCa | MySqlSslMode::VerifyIdentity
-    );
-    let accept_invalid_host_names = !matches!(options.ssl_mode, MySqlSslMode::VerifyIdentity);
+    tls::handshake(
+        stream.socket.into_inner(),
+        tls_config,
+        MapStream {
+            server_version: stream.server_version,
+            capabilities: stream.capabilities,
+            sequence_id: stream.sequence_id,
+            waiting: stream.waiting,
+            charset: stream.charset,
+            collation: stream.collation,
+        },
+    )
+    .await
+}
 
-    stream
-        .upgrade(
-            &options.host,
-            accept_invalid_certs,
-            accept_invalid_host_names,
-            options.ssl_ca.as_ref(),
-        )
-        .await?;
+impl WithSocket for MapStream {
+    type Output = MySqlStream;
 
-    Ok(true)
+    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+        MySqlStream {
+            socket: BufferedSocket::new(Box::new(socket)),
+            server_version: self.server_version,
+            capabilities: self.capabilities,
+            sequence_id: self.sequence_id,
+            waiting: self.waiting,
+            charset: self.charset,
+            collation: self.collation,
+            is_tls: true,
+        }
+    }
 }

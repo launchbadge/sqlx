@@ -1,11 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-
-#[cfg(any(feature = "runtime-async-std", feature = "runtime-tokio"))]
-compile_error!(
-    "the features 'runtime-actix', 'runtime-async-std' and 'runtime-tokio' have been removed in
-     favor of new features 'runtime-{rt}-{tls}' where rt is one of 'actix', 'async-std' and 'tokio'
-     and 'tls' is one of 'native-tls' and 'rustls'."
-);
+#![doc = include_str!("lib.md")]
 
 pub use sqlx_core::acquire::Acquire;
 pub use sqlx_core::arguments::{Arguments, IntoArguments};
@@ -81,7 +75,7 @@ pub use sqlx_macros::test;
 pub use sqlx_core::testing;
 
 #[doc(hidden)]
-pub use sqlx_core::test_block_on;
+pub use sqlx_core::rt::test_block_on;
 
 #[cfg(feature = "macros")]
 mod macros;
@@ -90,6 +84,9 @@ mod macros;
 #[cfg(feature = "macros")]
 #[doc(hidden)]
 pub mod ty_match;
+
+#[doc(hidden)]
+pub use sqlx_core::rt as __rt;
 
 /// Conversions between Rust and SQL types.
 ///

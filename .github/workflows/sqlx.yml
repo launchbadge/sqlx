@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     steps:
       - uses: actions/checkout@v2
 
@@ -53,14 +53,14 @@ jobs:
           args: >
             --manifest-path sqlx-core/Cargo.toml
             --no-default-features
-            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - uses: actions-rs/cargo@v1
         with:
           command: check
           args: >
             --no-default-features
-            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }}-${{ matrix.tls }},macros
+            --features offline,all-databases,all-types,migrate,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }},macros
 
   test:
     name: Unit Test
@@ -68,7 +68,7 @@ jobs:
     strategy:
       matrix:
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     steps:
       - uses: actions/checkout@v2
 
@@ -87,7 +87,7 @@ jobs:
           command: test
           args: >
             --manifest-path sqlx-core/Cargo.toml
-            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features offline,all-databases,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
   cli:
     name: CLI Binaries
@@ -139,7 +139,6 @@ jobs:
     strategy:
       matrix:
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -161,7 +160,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,macros,migrate,sqlite,all-types,runtime-${{ matrix.runtime }}
             --
             --test-threads=1
         env:
@@ -176,7 +175,7 @@ jobs:
       matrix:
         postgres: [14, 10]
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -199,7 +198,7 @@ jobs:
         with:
           command: build
           args: >
-            --features postgres,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features postgres,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: |
           docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }} postgres_${{ matrix.postgres }}
@@ -210,7 +209,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,postgres,macros,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
@@ -218,11 +217,12 @@ jobs:
           RUSTFLAGS: --cfg postgres_${{ matrix.postgres }}
 
       - uses: actions-rs/cargo@v1
+        if: matrix.tls != 'none'
         with:
           command: test
           args: >
             --no-default-features
-            --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,postgres,macros,migrate,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: postgres://postgres:password@localhost:5432/sqlx?sslmode=verify-ca&sslrootcert=.%2Ftests%2Fcerts%2Fca.crt
           # FIXME: needed to disable `ltree` tests in Postgres 9.6
@@ -236,7 +236,7 @@ jobs:
       matrix:
         mysql: [8, 5_7]
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -255,7 +255,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mysql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features mysql,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
       - run: sleep 60
@@ -265,7 +265,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx?ssl-mode=disabled
 
@@ -276,7 +276,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
@@ -287,7 +287,7 @@ jobs:
       matrix:
         mariadb: [10_6, 10_3]
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -306,7 +306,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mysql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features mysql,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}
       - run: sleep 30
@@ -316,7 +316,7 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mysql,macros,migrate,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mysql://root:password@localhost:3306/sqlx
 
@@ -327,7 +327,7 @@ jobs:
       matrix:
         mssql: [2019, 2017]
         runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
+        tls: [native, rustls, none]
     needs: check
     steps:
       - uses: actions/checkout@v2
@@ -346,7 +346,7 @@ jobs:
         with:
           command: build
           args: >
-            --features mssql,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features mssql,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
       - run: docker-compose -f tests/docker-compose.yml run -d -p 1433:1433 mssql_${{ matrix.mssql }}
       - run: sleep 80 # MSSQL takes a "bit" to startup
@@ -356,6 +356,6 @@ jobs:
           command: test
           args: >
             --no-default-features
-            --features any,mssql,macros,migrate,all-types,runtime-${{ matrix.runtime }}-${{ matrix.tls }}
+            --features any,mssql,macros,migrate,all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
         env:
           DATABASE_URL: mssql://sa:Password123!@localhost/sqlx

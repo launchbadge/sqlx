@@ -1,26 +1,77 @@
 use bytes::buf::Buf;
 use bytes::Bytes;
+use futures_core::future::BoxFuture;
 
 use crate::common::StatementCache;
 use crate::error::Error;
+use crate::mysql::collation::{CharSet, Collation};
 use crate::mysql::connection::{tls, MySqlStream, MAX_PACKET_SIZE};
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
 use crate::mysql::protocol::Capabilities;
-use crate::mysql::{MySqlConnectOptions, MySqlConnection, MySqlSslMode};
+use crate::mysql::{MySqlConnectOptions, MySqlConnection};
+use crate::net::{Socket, WithSocket};
 
 impl MySqlConnection {
     pub(crate) async fn establish(options: &MySqlConnectOptions) -> Result<Self, Error> {
-        let mut stream: MySqlStream = MySqlStream::connect(options).await?;
+        let do_handshake = DoHandshake::new(options)?;
 
-        // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_connection_phase.html
+        let handshake = match &options.socket {
+            Some(path) => crate::net::connect_uds(path, do_handshake).await?,
+            None => crate::net::connect_tcp(&options.host, options.port, do_handshake).await?,
+        };
+
+        let stream = handshake.await?;
+
+        Ok(Self {
+            stream,
+            transaction_depth: 0,
+            cache_statement: StatementCache::new(options.statement_cache_capacity),
+            log_settings: options.log_settings.clone(),
+        })
+    }
+}
+
+struct DoHandshake<'a> {
+    options: &'a MySqlConnectOptions,
+    charset: CharSet,
+    collation: Collation,
+}
+
+impl<'a> DoHandshake<'a> {
+    fn new(options: &'a MySqlConnectOptions) -> Result<Self, Error> {
+        let charset: CharSet = options.charset.parse()?;
+        let collation: Collation = options
+            .collation
+            .as_deref()
+            .map(|collation| collation.parse())
+            .transpose()?
+            .unwrap_or_else(|| charset.default_collation());
+
+        Ok(Self {
+            options,
+            charset,
+            collation,
+        })
+    }
+
+    async fn do_handshake<S: Socket>(self, socket: S) -> Result<MySqlStream, Error> {
+        let DoHandshake {
+            options,
+            charset,
+            collation,
+        } = self;
+
+        let mut stream = MySqlStream::with_socket(charset, collation, options, socket);
+
+        // https://dev.mysql.com/doc/internals/en/connection-phase.html
         // https://mariadb.com/kb/en/connection/
 
         let handshake: Handshake = stream.recv_packet().await?.decode()?;
 
         let mut plugin = handshake.auth_plugin;
-        let mut nonce = handshake.auth_plugin_data;
+        let nonce = handshake.auth_plugin_data;
 
         // FIXME: server version parse is a bit ugly
         // expecting MAJOR.MINOR.PATCH
@@ -54,39 +105,7 @@ impl MySqlConnection {
         stream.capabilities &= handshake.server_capabilities;
         stream.capabilities |= Capabilities::PROTOCOL_41;
 
-        if matches!(options.ssl_mode, MySqlSslMode::Disabled) {
-            // remove the SSL capability if SSL has been explicitly disabled
-            stream.capabilities.remove(Capabilities::SSL);
-        }
-
-        // Upgrade to TLS if we were asked to and the server supports it
-
-        #[cfg(feature = "_tls-rustls")]
-        {
-            // To aid in debugging: https://github.com/rustls/rustls/issues/893
-
-            let local_addr = stream.local_addr();
-
-            match tls::maybe_upgrade(&mut stream, options).await {
-                Ok(()) => (),
-                #[cfg(feature = "_tls-rustls")]
-                Err(Error::Io(ioe)) => {
-                    if let Some(&rustls::Error::CorruptMessage) =
-                        ioe.get_ref().and_then(|e| e.downcast_ref())
-                    {
-                        log::trace!("got corrupt message on socket {:?}", local_addr);
-                    }
-
-                    return Err(Error::Io(ioe));
-                }
-                Err(e) => return Err(e),
-            }
-        }
-
-        #[cfg(not(feature = "_tls-rustls"))]
-        {
-            tls::maybe_upgrade(&mut stream, options).await?
-        }
+        let mut stream = tls::maybe_upgrade(stream, self.options).await?;
 
         let auth_response = if let (Some(plugin), Some(password)) = (plugin, &options.password) {
             Some(plugin.scramble(&mut stream, password, &nonce).await?)
@@ -118,7 +137,7 @@ impl MySqlConnection {
                     let switch: AuthSwitchRequest = packet.decode()?;
 
                     plugin = Some(switch.plugin);
-                    nonce = switch.data.chain(Bytes::new());
+                    let nonce = switch.data.chain(Bytes::new());
 
                     let response = switch
                         .plugin
@@ -140,7 +159,7 @@ impl MySqlConnection {
                             break;
                         }
 
-                    // plugin signaled to continue authentication
+                        // plugin signaled to continue authentication
                     } else {
                         return Err(err_protocol!(
                             "unexpected packet 0x{:02x} during authentication",
@@ -151,11 +170,14 @@ impl MySqlConnection {
             }
         }
 
-        Ok(Self {
-            stream,
-            transaction_depth: 0,
-            cache_statement: StatementCache::new(options.statement_cache_capacity),
-            log_settings: options.log_settings.clone(),
-        })
+        Ok(stream)
+    }
+}
+
+impl<'a> WithSocket for DoHandshake<'a> {
+    type Output = BoxFuture<'a, Result<MySqlStream, Error>>;
+
+    fn with_socket<S: Socket>(self, socket: S) -> Self::Output {
+        Box::pin(self.do_handshake(socket))
     }
 }

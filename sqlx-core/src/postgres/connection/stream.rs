@@ -8,8 +8,9 @@ use futures_util::SinkExt;
 use log::Level;
 
 use crate::error::Error;
-use crate::io::{BufStream, Decode, Encode};
-use crate::net::{MaybeTlsStream, Socket};
+use crate::io::{Decode, Encode};
+use crate::net::{self, BufferedSocket, Socket};
+use crate::postgres::connection::tls::MaybeUpgradeTls;
 use crate::postgres::message::{Message, MessageFormat, Notice, Notification, ParameterStatus};
 use crate::postgres::{PgConnectOptions, PgDatabaseError, PgSeverity};
 
@@ -23,7 +24,9 @@ use crate::postgres::{PgConnectOptions, PgDatabaseError, PgSeverity};
 // is fully prepared to receive queries
 
 pub struct PgStream {
-    inner: BufStream<MaybeTlsStream<Socket>>,
+    // A trait object is okay here as the buffering amortizes the overhead of both the dynamic
+    // function call as well as the syscall.
+    inner: BufferedSocket<Box<dyn Socket>>,
 
     // buffer of unreceived notification messages from `PUBLISH`
     // this is set when creating a PgListener and only written to if that listener is
@@ -37,15 +40,15 @@ pub struct PgStream {
 
 impl PgStream {
     pub(super) async fn connect(options: &PgConnectOptions) -> Result<Self, Error> {
-        let socket = match options.fetch_socket() {
-            Some(ref path) => Socket::connect_uds(path).await?,
-            None => Socket::connect_tcp(&options.host, options.port).await?,
+        let socket_future = match options.fetch_socket() {
+            Some(ref path) => net::connect_uds(path, MaybeUpgradeTls(options)).await?,
+            None => net::connect_tcp(&options.host, options.port, MaybeUpgradeTls(options)).await?,
         };
 
-        let inner = BufStream::new(MaybeTlsStream::Raw(socket));
+        let socket = socket_future.await?;
 
         Ok(Self {
-            inner,
+            inner: BufferedSocket::new(socket),
             notifications: None,
             parameter_statuses: BTreeMap::default(),
             server_version_num: None,
@@ -57,7 +60,8 @@ impl PgStream {
         T: Encode<'en>,
     {
         self.write(message);
-        self.flush().await
+        self.flush().await?;
+        Ok(())
     }
 
     // Expect a specific type and format
@@ -171,7 +175,7 @@ impl PgStream {
 }
 
 impl Deref for PgStream {
-    type Target = BufStream<MaybeTlsStream<Socket>>;
+    type Target = BufferedSocket<Box<dyn Socket>>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {

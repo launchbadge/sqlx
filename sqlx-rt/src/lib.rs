@@ -32,6 +32,8 @@ mod rt_async_std;
 #[cfg(any(feature = "_rt-tokio", feature = "_rt-actix"))]
 mod rt_tokio;
 
+mod connect;
+
 #[cfg(all(feature = "_tls-native-tls"))]
 pub use native_tls;
 

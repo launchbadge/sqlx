@@ -1,5 +1,5 @@
 //! Core of SQLx, the rust SQL toolkit.
-//! Not intended to be used directly.
+//! Not intended to be used directly; semver exempt.
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
@@ -57,19 +57,22 @@ pub mod column;
 #[macro_use]
 pub mod statement;
 
-mod common;
+pub mod common;
 pub use either::Either;
 pub mod database;
 pub mod describe;
 pub mod executor;
 pub mod from_row;
-mod io;
-mod logger;
-mod net;
+pub mod fs;
+pub mod io;
+pub mod logger;
+pub mod net;
 pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
 pub mod row;
+pub mod rt;
+pub mod sync;
 pub mod type_info;
 pub mod value;
 
@@ -107,8 +110,8 @@ pub mod mssql;
 #[cfg(feature = "migrate")]
 pub mod testing;
 
-pub use sqlx_rt::test_block_on;
+pub use error::{Error, Result};
 
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
-use ahash::AHashMap as HashMap;
+pub use ahash::AHashMap as HashMap;
 //type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;

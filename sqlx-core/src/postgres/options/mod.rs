@@ -3,12 +3,14 @@ use std::env::var;
 use std::fmt::{Display, Write};
 use std::path::{Path, PathBuf};
 
+pub use ssl_mode::PgSslMode;
+
+use crate::{connection::LogSettings, net::tls::CertificateInput};
+
 mod connect;
 mod parse;
 mod pgpass;
 mod ssl_mode;
-use crate::{connection::LogSettings, net::CertificateInput};
-pub use ssl_mode::PgSslMode;
 
 /// Options and flags which can be used to configure a PostgreSQL connection.
 ///
@@ -58,8 +60,8 @@ pub use ssl_mode::PgSslMode;
 /// # use sqlx_core::postgres::{PgConnectOptions, PgConnection, PgSslMode};
 /// #
 /// # fn main() {
-/// # #[cfg(feature = "_rt-async-std")]
-/// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
+/// # #[cfg(feature = "_rt")]
+/// # sqlx::__rt::test_block_on(async move {
 /// // URL connection string
 /// let conn = PgConnection::connect("postgres://localhost/mydb").await?;
 ///
@@ -71,7 +73,7 @@ pub use ssl_mode::PgSslMode;
 ///     .password("secret-password")
 ///     .ssl_mode(PgSslMode::Require)
 ///     .connect().await?;
-/// # Ok(())
+/// # Result::<(), Error>::Ok(())
 /// # }).unwrap();
 /// # }
 /// ```

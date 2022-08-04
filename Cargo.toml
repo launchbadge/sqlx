@@ -2,7 +2,6 @@
 members = [
     ".",
     "sqlx-core",
-    "sqlx-rt",
     "sqlx-macros",
     "sqlx-test",
     "sqlx-cli",
@@ -45,8 +44,7 @@ default = ["macros", "migrate"]
 macros = ["sqlx-macros"]
 migrate = ["sqlx-macros/migrate", "sqlx-core/migrate"]
 
-# [deprecated] TLS is not possible to disable due to it being conditional on multiple features
-#              Hopefully Cargo can handle this in the future
+# [deprecated] enabling TLS requires choosing a specific backend
 tls = []
 
 # offline building support in `sqlx-macros`
@@ -69,36 +67,28 @@ all-types = [
     "git2",
 ]
 
-# previous runtimes, available as features for error messages better than just
-# "feature doesn't exist"
-runtime-actix = []
-runtime-async-std = []
-runtime-tokio = []
+# Base runtime features without TLS
+runtime-actix = ["_rt-tokio", "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio"]
+runtime-async-std = ["_rt-async-std", "sqlx-core/runtime-async-std", "sqlx-macros/runtime-async-std"]
+runtime-tokio = ["_rt-tokio", "sqlx-core/runtime-tokio", "sqlx-macros/runtime-tokio"]
 
-# actual runtimes
+# TLS features
+# didn't call this `tls-native-tls` because of the annoying tautology
+tls-native = ["sqlx-core/tls-native", "sqlx-macros/tls-native"]
+tls-rustls = ["sqlx-core/tls-rustls", "sqlx-macros/tls-rustls"]
+
+# No-op feature used by the workflows to compile without TLS enabled. Not meant for general use.
+tls-none = []
+
+# Legacy Runtime + TLS features
 runtime-actix-native-tls = ["runtime-tokio-native-tls"]
-runtime-async-std-native-tls = [
-    "sqlx-core/runtime-async-std-native-tls",
-    "sqlx-macros/runtime-async-std-native-tls",
-    "_rt-async-std",
-]
-runtime-tokio-native-tls = [
-    "sqlx-core/runtime-tokio-native-tls",
-    "sqlx-macros/runtime-tokio-native-tls",
-    "_rt-tokio",
-]
-
 runtime-actix-rustls = ["runtime-tokio-rustls"]
-runtime-async-std-rustls = [
-    "sqlx-core/runtime-async-std-rustls",
-    "sqlx-macros/runtime-async-std-rustls",
-    "_rt-async-std",
-]
-runtime-tokio-rustls = [
-    "sqlx-core/runtime-tokio-rustls",
-    "sqlx-macros/runtime-tokio-rustls",
-    "_rt-tokio",
-]
+
+runtime-async-std-native-tls = ["runtime-async-std", "tls-native"]
+runtime-async-std-rustls = ["runtime-async-std", "tls-rustls"]
+
+runtime-tokio-native-tls = ["runtime-tokio", "tls-native"]
+runtime-tokio-rustls = ["runtime-tokio", "tls-rustls"]
 
 # for conditional compilation
 _rt-async-std = []
@@ -137,7 +127,6 @@ async-std = { version = "1.10.0", features = ["attributes"] }
 tokio = { version = "1.15.0", features = ["full"] }
 dotenvy = "0.15.0"
 trybuild = "1.0.53"
-sqlx-rt = { path = "./sqlx-rt" }
 sqlx-test = { path = "./sqlx-test" }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
@@ -203,7 +192,7 @@ path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
 
 [[test]]
-name = "sqlcipher"
+name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
 required-features = ["sqlite"]
 

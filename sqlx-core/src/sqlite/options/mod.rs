@@ -43,12 +43,12 @@ use indexmap::IndexMap;
 ///
 /// # fn main() {
 /// # #[cfg(feature = "_rt-async-std")]
-/// # sqlx_rt::async_std::task::block_on::<_, Result<(), Error>>(async move {
+/// # sqlx::__rt::test_block_on(async move {
 /// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
 ///     .journal_mode(SqliteJournalMode::Wal)
 ///     .read_only(true)
 ///     .connect().await?;
-/// # Ok(())
+/// # Result::<(), Error>::Ok(())
 /// # }).unwrap();
 /// # }
 /// ```

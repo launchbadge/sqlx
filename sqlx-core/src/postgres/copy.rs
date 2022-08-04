@@ -1,16 +1,24 @@
+use std::borrow::Cow;
+use std::ops::{Deref, DerefMut};
+
+use bytes::{BufMut, Bytes};
+use futures_core::stream::BoxStream;
+
 use crate::error::{Error, Result};
 use crate::ext::async_stream::TryAsyncStream;
+use crate::io::AsyncRead;
 use crate::pool::{Pool, PoolConnection};
 use crate::postgres::connection::PgConnection;
 use crate::postgres::message::{
     CommandComplete, CopyData, CopyDone, CopyFail, CopyResponse, MessageFormat, Query,
 };
 use crate::postgres::Postgres;
-use bytes::{BufMut, Bytes};
-use futures_core::stream::BoxStream;
-use smallvec::alloc::borrow::Cow;
-use sqlx_rt::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-use std::ops::{Deref, DerefMut};
+
+#[cfg(not(feature = "_rt-tokio"))]
+use futures_util::io::AsyncReadExt;
+
+#[cfg(feature = "_rt-tokio")]
+use tokio::io::AsyncReadExt;
 
 impl PgConnection {
     /// Issue a `COPY FROM STDIN` statement and transition the connection to streaming data
@@ -172,8 +180,16 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
     ///
     /// `source` will be read to the end.
     ///
-    /// ### Note
+    /// ### Note: Completion Step Required
     /// You must still call either [Self::finish] or [Self::abort] to complete the process.
+    ///
+    /// ### Note: Runtime Features
+    /// This method uses the `AsyncRead` trait which is re-exported from either Tokio or `async-std`
+    /// depending on which runtime feature is used.
+    ///
+    /// The runtime features _used_ to be mutually exclusive, but are no longer.
+    /// If both `runtime-async-std` and `runtime-tokio` features are enabled, the Tokio version
+    /// takes precedent.
     pub async fn read_from(&mut self, mut source: impl AsyncRead + Unpin) -> Result<&mut Self> {
         // this is a separate guard from WriteAndFlush so we can reuse the buffer without zeroing
         struct BufGuard<'s>(&'s mut Vec<u8>);
@@ -189,46 +205,34 @@ impl<C: DerefMut<Target = PgConnection>> PgCopyIn<C> {
         // flush any existing messages in the buffer and clear it
         conn.stream.flush().await?;
 
-        {
-            let buf_stream = &mut *conn.stream;
-            let stream = &mut buf_stream.stream;
+        loop {
+            let buf = conn.stream.write_buffer_mut();
 
-            // ensures the buffer isn't left in an inconsistent state
-            let mut guard = BufGuard(&mut buf_stream.wbuf);
+            // CopyData format code and reserved space for length
+            buf.put_slice(b"d\0\0\0\0");
 
-            let buf: &mut Vec<u8> = &mut guard.0;
-            buf.push(b'd'); // CopyData format code
-            buf.resize(5, 0); // reserve space for the length
+            let read = match () {
+                // Tokio lets us read into the buffer without zeroing first
+                #[cfg(feature = "_rt-tokio")]
+                _ => source.read_buf(buf.buf_mut()).await?,
+                #[cfg(not(feature = "_rt-tokio"))]
+                _ => source.read(buf.init_remaining_mut()).await?,
+            };
 
-            loop {
-                let read = match () {
-                    // Tokio lets us read into the buffer without zeroing first
-                    #[cfg(feature = "runtime-tokio")]
-                    _ if buf.len() != buf.capacity() => {
-                        // in case we have some data in the buffer, which can occur
-                        // if the previous write did not fill the buffer
-                        buf.truncate(5);
-                        source.read_buf(buf).await?
-                    }
-                    _ => {
-                        // should be a no-op unless len != capacity
-                        buf.resize(buf.capacity(), 0);
-                        source.read(&mut buf[5..]).await?
-                    }
-                };
-
-                if read == 0 {
-                    break;
-                }
-
-                let read32 = u32::try_from(read)
-                    .map_err(|_| err_protocol!("number of bytes read exceeds 2^32: {}", read))?;
-
-                (&mut buf[1..]).put_u32(read32 + 4);
-
-                stream.write_all(&buf[..read + 5]).await?;
-                stream.flush().await?;
+            if read == 0 {
+                // This will end up sending an empty `CopyData` packet but that should be fine.
+                break;
             }
+
+            buf.advance(read);
+
+            // Write the length
+            let read32 = u32::try_from(read)
+                .map_err(|_| err_protocol!("number of bytes read exceeds 2^32: {}", read))?;
+
+            (&mut buf.get_mut()[1..]).put_u32(read32 + 4);
+
+            conn.stream.flush().await?;
         }
 
         Ok(self)

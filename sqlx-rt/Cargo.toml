@@ -38,6 +38,8 @@ tokio-rustls = { version = "0.23.0", optional = true }
 native-tls = { version = "0.2.4", optional = true }
 once_cell = { version = "1.4", features = ["std"], optional = true }
 
+futures-io = "0.3.21"
+
 [dependencies.tokio]
 version = "1.0.1"
 features = ["fs", "net", "rt", "rt-multi-thread", "time", "io-util"]

@@ -4,22 +4,24 @@ use std::ops::{Deref, DerefMut};
 use bytes::{Buf, Bytes};
 
 use crate::error::Error;
-use crate::io::{BufStream, Decode, Encode};
+use crate::io::{Decode, Encode};
 use crate::mysql::collation::{CharSet, Collation};
 use crate::mysql::io::MySqlBufExt;
 use crate::mysql::protocol::response::{EofPacket, ErrPacket, OkPacket, Status};
 use crate::mysql::protocol::{Capabilities, Packet};
 use crate::mysql::{MySqlConnectOptions, MySqlDatabaseError};
-use crate::net::{MaybeTlsStream, Socket};
+use crate::net::{BufferedSocket, Socket};
 
-pub struct MySqlStream {
-    stream: BufStream<MaybeTlsStream<Socket>>,
+pub struct MySqlStream<S = Box<dyn Socket>> {
+    // Wrapping the socket in `Box` allows us to unsize in-place.
+    pub(crate) socket: BufferedSocket<S>,
     pub(crate) server_version: (u16, u16, u16),
     pub(super) capabilities: Capabilities,
     pub(crate) sequence_id: u8,
     pub(crate) waiting: VecDeque<Waiting>,
     pub(crate) charset: CharSet,
     pub(crate) collation: Collation,
+    pub(crate) is_tls: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -31,21 +33,13 @@ pub(crate) enum Waiting {
     Row,
 }
 
-impl MySqlStream {
-    pub(super) async fn connect(options: &MySqlConnectOptions) -> Result<Self, Error> {
-        let charset: CharSet = options.charset.parse()?;
-        let collation: Collation = options
-            .collation
-            .as_deref()
-            .map(|collation| collation.parse())
-            .transpose()?
-            .unwrap_or_else(|| charset.default_collation());
-
-        let socket = match options.socket {
-            Some(ref path) => Socket::connect_uds(path).await?,
-            None => Socket::connect_tcp(&options.host, options.port).await?,
-        };
-
+impl<S: Socket> MySqlStream<S> {
+    pub(crate) fn with_socket(
+        charset: CharSet,
+        collation: Collation,
+        options: &MySqlConnectOptions,
+        socket: S,
+    ) -> Self {
         let mut capabilities = Capabilities::PROTOCOL_41
             | Capabilities::IGNORE_SPACE
             | Capabilities::DEPRECATE_EOF
@@ -63,20 +57,21 @@ impl MySqlStream {
             capabilities |= Capabilities::CONNECT_WITH_DB;
         }
 
-        Ok(Self {
+        Self {
             waiting: VecDeque::new(),
             capabilities,
             server_version: (0, 0, 0),
             sequence_id: 0,
             collation,
             charset,
-            stream: BufStream::new(MaybeTlsStream::Raw(socket)),
-        })
+            socket: BufferedSocket::new(socket),
+            is_tls: false,
+        }
     }
 
     pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
-        if !self.stream.wbuf.is_empty() {
-            self.stream.flush().await?;
+        if !self.socket.write_buffer().is_empty() {
+            self.socket.flush().await?;
         }
 
         while !self.waiting.is_empty() {
@@ -119,14 +114,15 @@ impl MySqlStream {
     {
         self.sequence_id = 0;
         self.write_packet(payload);
-        self.flush().await
+        self.flush().await?;
+        Ok(())
     }
 
     pub(crate) fn write_packet<'en, T>(&mut self, payload: T)
     where
         T: Encode<'en, Capabilities>,
     {
-        self.stream
+        self.socket
             .write_with(Packet(payload), (self.capabilities, &mut self.sequence_id));
     }
 
@@ -136,14 +132,14 @@ impl MySqlStream {
         // https://dev.mysql.com/doc/dev/mysql-server/8.0.12/page_protocol_basic_packets.html
         // https://mariadb.com/kb/en/library/0-packet/#standard-packet
 
-        let mut header: Bytes = self.stream.read(4).await?;
+        let mut header: Bytes = self.socket.read(4).await?;
 
         let packet_size = header.get_uint_le(3) as usize;
         let sequence_id = header.get_u8();
 
         self.sequence_id = sequence_id.wrapping_add(1);
 
-        let payload: Bytes = self.stream.read(packet_size).await?;
+        let payload: Bytes = self.socket.read(packet_size).await?;
 
         // TODO: packet compression
         // TODO: packet joining
@@ -195,18 +191,31 @@ impl MySqlStream {
 
         Ok(())
     }
-}
 
-impl Deref for MySqlStream {
-    type Target = BufStream<MaybeTlsStream<Socket>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.stream
+    pub fn boxed_socket(self) -> MySqlStream {
+        MySqlStream {
+            socket: self.socket.boxed(),
+            server_version: self.server_version,
+            capabilities: self.capabilities,
+            sequence_id: self.sequence_id,
+            waiting: self.waiting,
+            charset: self.charset,
+            collation: self.collation,
+            is_tls: self.is_tls,
+        }
     }
 }
 
-impl DerefMut for MySqlStream {
+impl<S> Deref for MySqlStream<S> {
+    type Target = BufferedSocket<S>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.socket
+    }
+}
+
+impl<S> DerefMut for MySqlStream<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.stream
+        &mut self.socket
     }
 }

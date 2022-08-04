@@ -131,7 +131,7 @@ async fn encrypt_rsa<'s>(
 ) -> Result<Vec<u8>, Error> {
     // https://mariadb.com/kb/en/caching_sha2_password-authentication-plugin/
 
-    if stream.is_tls() {
+    if stream.is_tls {
         // If in a TLS stream, send the password directly in clear text
         return Ok(to_asciz(password));
     }

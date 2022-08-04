@@ -132,7 +132,7 @@ pub trait Connection: Send {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct LogSettings {
+pub struct LogSettings {
     pub(crate) statements_level: LevelFilter,
     pub(crate) slow_statements_level: LevelFilter,
     pub(crate) slow_statements_duration: Duration,
@@ -149,10 +149,10 @@ impl Default for LogSettings {
 }
 
 impl LogSettings {
-    pub(crate) fn log_statements(&mut self, level: LevelFilter) {
+    pub fn log_statements(&mut self, level: LevelFilter) {
         self.statements_level = level;
     }
-    pub(crate) fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) {
+    pub fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) {
         self.slow_statements_level = level;
         self.slow_statements_duration = duration;
     }

@@ -98,7 +98,7 @@ impl Connection for MySqlConnection {
 
     #[doc(hidden)]
     fn should_flush(&self) -> bool {
-        !self.stream.wbuf.is_empty()
+        !self.stream.write_buffer().is_empty()
     }
 
     fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>

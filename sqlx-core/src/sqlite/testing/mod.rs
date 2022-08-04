@@ -16,12 +16,12 @@ impl TestSupport for Sqlite {
     }
 
     fn cleanup_test(db_name: &str) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(async move { Ok(sqlx_rt::fs::remove_file(db_name).await?) })
+        Box::pin(async move { Ok(crate::fs::remove_file(db_name).await?) })
     }
 
     fn cleanup_test_dbs() -> BoxFuture<'static, Result<Option<usize>, Error>> {
         Box::pin(async move {
-            sqlx_rt::fs::remove_dir_all(BASE_PATH).await?;
+            crate::fs::remove_dir_all(BASE_PATH).await?;
             Ok(None)
         })
     }
@@ -37,13 +37,13 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Sqlite>, Error> {
     let db_path = convert_path(args.test_path);
 
     if let Some(parent_path) = Path::parent(db_path.as_ref()) {
-        sqlx_rt::fs::create_dir_all(parent_path)
+        crate::fs::create_dir_all(parent_path)
             .await
             .expect("failed to create folders");
     }
 
     if Path::exists(db_path.as_ref()) {
-        sqlx_rt::fs::remove_file(&db_path)
+        crate::fs::remove_file(&db_path)
             .await
             .expect("failed to remove database from previous test run");
     }
