@@ -146,6 +146,10 @@ url = "2.2.2"
 rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
+tempdir = "0.3.7"
+# Needed to test SQLCipher
+libsqlite3-sys = { version = "*", features = ["bundled-sqlcipher"] }
+
 #
 # Any
 #
@@ -197,6 +201,11 @@ required-features = ["sqlite", "macros"]
 name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
 required-features = ["sqlite", "macros"]
+
+[[test]]
+name = "sqlcipher"
+path = "tests/sqlite/sqlcipher.rs"
+required-features = ["sqlite"]
 
 [[test]]
 name = "sqlite-test-attr"

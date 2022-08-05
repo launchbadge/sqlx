@@ -102,6 +102,42 @@ impl SqliteConnectOptions {
         // SQLCipher special case: if the `key` pragma is set, it must be executed first.
         pragmas.insert("key".into(), None);
 
+        // Other SQLCipher pragmas that has to be after the key, but before any other operation on the database.
+        // https://www.zetetic.net/sqlcipher/sqlcipher-api/
+
+        // Bytes of the database file that is not encrypted
+        // Default for SQLCipher v4 is 0
+        // If greater than zero 'cipher_salt' pragma must be also defined
+        pragmas.insert("cipher_plaintext_header_size".into(), None);
+
+        // Allows to provide salt manually
+        // By default SQLCipher sets salt automatically, use only in conjunction with
+        // 'cipher_plaintext_header_size' pragma
+        pragmas.insert("cipher_salt".into(), None);
+
+        // Number of iterations used in PBKDF2 key derivation.
+        // Default for SQLCipher v4 is 256000
+        pragmas.insert("kdf_iter".into(), None);
+
+        // Define KDF algorithm to be used.
+        // Default for SQLCipher v4 is PBKDF2_HMAC_SHA512.
+        pragmas.insert("cipher_kdf_algorithm".into(), None);
+
+        // Enable or disable HMAC functionality.
+        // Default for SQLCipher v4 is 1.
+        pragmas.insert("cipher_use_hmac".into(), None);
+
+        // Set default encryption settings depending on the version 1,2,3, or 4.
+        pragmas.insert("cipher_compatibility".into(), None);
+
+        // Page size of encrypted database.
+        // Default for SQLCipher v4 is 4096.
+        pragmas.insert("cipher_page_size".into(), None);
+
+        // Choose algorithm used for HMAC.
+        // Default for SQLCipher v4 is HMAC_SHA512.
+        pragmas.insert("cipher_hmac_algorithm".into(), None);
+
         // Normally, page_size must be set before any other action on the database.
         // Defaults to 4096 for new databases.
         pragmas.insert("page_size".into(), None);
@@ -284,9 +320,9 @@ impl SqliteConnectOptions {
     /// Note this excerpt:
     /// > The collating function must obey the following properties for all strings A, B, and C:
     /// >
-    /// > If A==B then B==A.  
-    /// > If A==B and B==C then A==C.  
-    /// > If A\<B then B>A.  
+    /// > If A==B then B==A.
+    /// > If A==B and B==C then A==C.
+    /// > If A\<B then B>A.
     /// > If A<B and B<C then A<C.
     /// >
     /// > If a collating function fails any of the above constraints and that collating function is
@@ -328,7 +364,7 @@ impl SqliteConnectOptions {
     /// ### Note
     /// Setting this to `true` may help if you are getting access violation errors or segmentation
     /// faults, but will also incur a significant performance penalty. You should leave this
-    /// set to `false` if at all possible.    
+    /// set to `false` if at all possible.
     ///
     /// If you do end up needing to set this to `true` for some reason, please
     /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
