@@ -156,7 +156,7 @@ serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
 sha-1 = { version = "0.10.0", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
-sqlformat = "0.1.8"
+sqlformat = "0.2.0"
 thiserror = "1.0.30"
 time = { version = "0.3.2", features = ["macros", "formatting", "parsing"], optional = true }
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
