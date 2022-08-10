@@ -52,7 +52,7 @@ fn expand_simple(input: syn::ItemFn) -> TokenStream {
     let attrs = &input.attrs;
 
     quote! {
-        #[test]
+        #[::core::prelude::v1::test]
         #(#attrs)*
         fn #name() #ret {
             ::sqlx::test_block_on(async { #body })
@@ -105,7 +105,7 @@ fn expand_advanced(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Resul
     };
 
     Ok(quote! {
-        #[test]
+        #[::core::prelude::v1::test]
         #(#attrs)*
         fn #name() #ret {
             async fn inner(#inputs) #ret {
