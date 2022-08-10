@@ -65,6 +65,7 @@ pub struct MySqlConnectOptions {
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
     pub(crate) log_settings: LogSettings,
+    pub(crate) disable_pipes_as_concat: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -89,6 +90,7 @@ impl MySqlConnectOptions {
             ssl_ca: None,
             statement_cache_capacity: 100,
             log_settings: Default::default(),
+            disable_pipes_as_concat: true
         }
     }
 

@@ -42,7 +42,14 @@ impl ConnectOptions for MySqlConnectOptions {
             // https://mathiasbynens.be/notes/mysql-utf8mb4
 
             let mut options = String::new();
-            options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#);
+            
+            // Check `disable_pipes_as_concat` flag
+            // For PlanetScale connections, PIPES_AS_CONCAT must not be set
+            match self.disable_pipes_as_concat {
+                true => options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',NO_ENGINE_SUBSTITUTION')),"#),
+                false => options.push_str(r#"SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT,NO_ENGINE_SUBSTITUTION')),"#)
+            }
+
             options.push_str(r#"time_zone='+00:00',"#);
             options.push_str(&format!(
                 r#"NAMES {} COLLATE {};"#,
