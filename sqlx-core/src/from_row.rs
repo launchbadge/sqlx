@@ -126,7 +126,7 @@ use crate::row::Row;
 /// ## Manual implementation
 ///
 /// You can also implement the [`FromRow`] trait by hand. This can be useful if you
-/// have a struct with a field that needs manuel decoding:
+/// have a struct with a field that needs manual decoding:
 ///
 ///
 /// ```rust,ignore
