@@ -65,7 +65,7 @@ pub struct MySqlConnectOptions {
     pub(crate) charset: String,
     pub(crate) collation: Option<String>,
     pub(crate) log_settings: LogSettings,
-    pub(crate) disable_pipes_as_concat: bool,
+    pub(crate) pipes_as_concat: bool,
 }
 
 impl Default for MySqlConnectOptions {
@@ -90,7 +90,7 @@ impl MySqlConnectOptions {
             ssl_ca: None,
             statement_cache_capacity: 100,
             log_settings: Default::default(),
-            disable_pipes_as_concat: true
+            pipes_as_concat: true,
         }
     }
 
@@ -212,6 +212,16 @@ impl MySqlConnectOptions {
     /// the `charset`.
     pub fn collation(mut self, collation: &str) -> Self {
         self.collation = Some(collation.to_owned());
+        self
+    }
+
+    /// Sets the flag that enables or disables the `PIPES_AS_CONCAT` connection setting
+    ///
+    /// The default value is set to true, but some MySql databases such as PlanetScale
+    /// error out with this connection setting so it needs to be set false in such
+    /// instances
+    pub fn pipes_as_concat(mut self, flag_val: bool) -> Self {
+        self.pipes_as_concat = flag_val;
         self
     }
 }
