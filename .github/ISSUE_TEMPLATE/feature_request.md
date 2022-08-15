@@ -1,8 +1,8 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
+name: I have a feature request for SQLx
+about: Create a feature-request issue.
 title: ''
-labels: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
