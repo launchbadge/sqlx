@@ -6,3 +6,6 @@ contact_links:
   - name: I have a question or problem not covered in the FAQ
     url: https://github.com/launchbadge/sqlx/discussions/new?category=q-a
     about: Open a Q&A discussion.
+  - name: Join SQLx's Discord
+    url: https://discord.gg/hPm3WqA
+    about: Join our Discord server for help, discussions and release announcements.
