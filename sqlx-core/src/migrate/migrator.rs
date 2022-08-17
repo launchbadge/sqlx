@@ -59,7 +59,7 @@ impl Migrator {
         })
     }
 
-    /// Specify should ignore applied migrations that missing in the resolved migrations.
+    /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
         self
