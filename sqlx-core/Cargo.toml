@@ -25,7 +25,7 @@ postgres = [
     "md-5",
     "sha2",
     "base64",
-    "sha-1",
+    "sha1",
     "rand",
     "hmac",
     "futures-channel/sink",
@@ -36,7 +36,7 @@ postgres = [
     "hkdf"
 ]
 mysql = [
-    "sha-1",
+    "sha1",
     "sha2",
     "generic-array",
     "num-bigint",
@@ -154,7 +154,7 @@ rustls = { version = "0.20.1", features = ["dangerous_configuration"], optional 
 rustls-pemfile = { version = "1.0", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
-sha-1 = { version = "0.10.0", default-features = false, optional = true }
+sha1 = { version = "0.10.1", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 sqlformat = "0.2.0"
 thiserror = "1.0.30"
