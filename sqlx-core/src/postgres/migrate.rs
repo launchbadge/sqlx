@@ -89,8 +89,9 @@ impl Migrate for PgConnection {
         Box::pin(async move {
             // language=SQL
             self.execute(
-                r#"
-CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+                format!(
+                    r#"
+CREATE TABLE IF NOT EXISTS {} (
     version BIGINT PRIMARY KEY,
     description TEXT NOT NULL,
     installed_on TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -99,6 +100,9 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     execution_time BIGINT NOT NULL
 );
                 "#,
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
             )
             .await?;
 
@@ -110,7 +114,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         Box::pin(async move {
             // language=SQL
             let row = query_as(
-                "SELECT version, NOT success FROM _sqlx_migrations ORDER BY version DESC LIMIT 1",
+                format!(
+                    "SELECT version, NOT success FROM {} ORDER BY version DESC LIMIT 1",
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
             )
             .fetch_optional(self)
             .await?;
@@ -123,7 +131,11 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         Box::pin(async move {
             // language=SQL
             let row: Option<(i64,)> = query_as(
-                "SELECT version FROM _sqlx_migrations WHERE success = false ORDER BY version LIMIT 1",
+                format!(
+                    "SELECT version FROM {} WHERE success = false ORDER BY version LIMIT 1",
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
             )
             .fetch_optional(self)
             .await?;
@@ -137,10 +149,15 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     ) -> BoxFuture<'_, Result<Vec<AppliedMigration>, MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let rows: Vec<(i64, Vec<u8>)> =
-                query_as("SELECT version, checksum FROM _sqlx_migrations ORDER BY version")
-                    .fetch_all(self)
-                    .await?;
+            let rows: Vec<(i64, Vec<u8>)> = query_as(
+                format!(
+                    "SELECT version, checksum FROM {} ORDER BY version",
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
+            )
+            .fetch_all(self)
+            .await?;
 
             let migrations = rows
                 .into_iter()
@@ -196,11 +213,16 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
     ) -> BoxFuture<'m, Result<(), MigrateError>> {
         Box::pin(async move {
             // language=SQL
-            let checksum: Option<Vec<u8>> =
-                query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = $1")
-                    .bind(migration.version)
-                    .fetch_optional(self)
-                    .await?;
+            let checksum: Option<Vec<u8>> = query_scalar(
+                format!(
+                    "SELECT checksum FROM {} WHERE version = $1",
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
+            )
+            .bind(migration.version)
+            .fetch_optional(self)
+            .await?;
 
             if let Some(checksum) = checksum {
                 return if checksum == &*migration.checksum {
@@ -230,10 +252,14 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
 
             // language=SQL
             let _ = query(
-                r#"
-    INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
+                format!(
+                    r#"
+    INSERT INTO {} ( version, description, success, checksum, execution_time )
     VALUES ( $1, $2, TRUE, $3, $4 )
                 "#,
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
             )
             .bind(migration.version)
             .bind(&*migration.description)
@@ -261,10 +287,16 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
             let elapsed = start.elapsed();
 
             // language=SQL
-            let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = $1"#)
-                .bind(migration.version)
-                .execute(self)
-                .await?;
+            let _ = query(
+                format!(
+                    r#"DELETE FROM {} WHERE version = $1"#,
+                    self.get_migrate_table_name()
+                )
+                .as_str(),
+            )
+            .bind(migration.version)
+            .execute(self)
+            .await?;
 
             Ok(elapsed)
         })

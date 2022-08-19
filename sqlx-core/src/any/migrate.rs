@@ -229,4 +229,20 @@ impl Migrate for AnyConnection {
             }
         }
     }
+
+    fn get_migrate_table_name(&self) -> String {
+        match &self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectionKind::Postgres(conn) => conn.get_migrate_table_name(),
+
+            #[cfg(feature = "mysql")]
+            AnyConnectionKind::MySql(conn) => conn.get_migrate_table_name(),
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectionKind::Sqlite(conn) => conn.get_migrate_table_name(),
+
+            #[cfg(feature = "mssql")]
+            AnyConnectionKind::Mssql(_conn) => unimplemented!(),
+        }
+    }
 }

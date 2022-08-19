@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::migrate::{AppliedMigration, MigrateError, Migration};
 use futures_core::future::BoxFuture;
+use std::env;
 use std::time::Duration;
 
 pub trait MigrateDatabase {
@@ -69,4 +70,10 @@ pub trait Migrate {
         &'e mut self,
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>>;
+
+    // reads names for migration table form env variable MIGRATE_TABLE_NAME, if variable is not set
+    // it will default to _sqlx_migrations. This enables multiple schema/app support in one DB.
+    fn get_migrate_table_name(&self) -> String {
+        env::var("MIGRATE_TABLE_NAME").unwrap_or("_sqlx_migrations".to_string())
+    }
 }
