@@ -35,6 +35,13 @@ impl SqliteError {
             message: message.to_owned(),
         }
     }
+
+    /// For errors during extension load, the error message is supplied via a separate pointer
+    pub(crate) fn extension(handle: *mut sqlite3, error_msg: &CStr) -> Self {
+        let mut err = Self::new(handle);
+        err.message = unsafe { from_utf8_unchecked(error_msg.to_bytes()).to_owned() };
+        err
+    }
 }
 
 impl Display for SqliteError {

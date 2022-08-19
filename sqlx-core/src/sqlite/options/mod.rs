@@ -66,6 +66,11 @@ pub struct SqliteConnectOptions {
     pub(crate) vfs: Option<Cow<'static, str>>,
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
+    /// Extensions are specified as a pair of <Extension Name : Optional Entry Point>, the majority
+    /// of SQLite extensions will use the default entry points specified in the docs, these should
+    /// be added to the map with a `None` value.
+    /// <https://www.sqlite.org/loadext.html#loading_an_extension>
+    pub(crate) extensions: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
     pub(crate) command_channel_size: usize,
     pub(crate) row_channel_size: usize,
@@ -174,6 +179,7 @@ impl SqliteConnectOptions {
             immutable: false,
             vfs: None,
             pragmas,
+            extensions: Default::default(),
             collations: Default::default(),
             serialized: false,
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
@@ -412,6 +418,44 @@ impl SqliteConnectOptions {
     /// operating system.
     pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
         self.vfs = Some(vfs_name.into());
+        self
+    }
+
+    /// Load an [extension](https://www.sqlite.org/loadext.html) at run-time when the database connection
+    /// is established, using the default entry point.
+    ///
+    /// Most common SQLite extensions can be loaded using this method, for extensions where you need
+    /// to specify the entry point, use [`extension_with_entrypoint`][`Self::extension_with_entrypoint`] instead.
+    ///
+    /// Multiple extensions can be loaded by calling the method repeatedly on the options struct, they
+    /// will be loaded in the order they are added.
+    /// ```rust,no_run
+    /// # use sqlx_core::error::Error;
+    /// use std::str::FromStr;
+    /// use sqlx::sqlite::SqliteConnectOptions;
+    /// # fn options() -> Result<SqliteConnectOptions, Error> {
+    /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
+    ///     .extension("vsv")
+    ///     .extension("mod_spatialite");
+    /// # Ok(options)
+    /// # }
+    /// ```
+    pub fn extension(mut self, extension_name: impl Into<Cow<'static, str>>) -> Self {
+        self.extensions.insert(extension_name.into(), None);
+        self
+    }
+
+    /// Load an extension with a specified entry point.
+    ///
+    /// Useful when using non-standard extensions, or when developing your own, the second argument
+    /// specifies where SQLite should expect to find the extension init routine.
+    pub fn extension_with_entrypoint(
+        mut self,
+        extension_name: impl Into<Cow<'static, str>>,
+        entry_point: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.extensions
+            .insert(extension_name.into(), Some(entry_point.into()));
         self
     }
 }
