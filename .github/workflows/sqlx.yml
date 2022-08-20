@@ -235,8 +235,7 @@ jobs:
       # client SSL authentication
 
       - run: |
-          docker-compose -f tests/docker-compose.yml stop postgres_${{ matrix.postgres }}
-          docker-compose -f tests/docker-compose.yml rm postgres_${{ matrix.postgres }}
+          docker-compose -f tests/docker-compose.yml down postgres_${{ matrix.postgres }}
           docker-compose -f tests/docker-compose.yml run -d -p 5432:5432 --name postgres_${{ matrix.postgres }}_client_ssl postgres_${{ matrix.postgres }}_client_ssl
           docker exec postgres_${{ matrix.postgres }}_client_ssl bash -c "until pg_isready; do sleep 1; done"
 
@@ -308,8 +307,7 @@ jobs:
       # client SSL authentication
 
       - run: |
-          docker-compose -f tests/docker-compose.yml stop mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml rm mysql_${{ matrix.mysql }}
+          docker-compose -f tests/docker-compose.yml down mysql_${{ matrix.mysql }}
           docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
@@ -367,8 +365,7 @@ jobs:
       # client SSL authentication
 
       - run: |
-          docker-compose -f tests/docker-compose.yml stop mariadb_${{ matrix.mariadb }}
-          docker-compose -f tests/docker-compose.yml rm mariadb_${{ matrix.mariadb }}
+          docker-compose -f tests/docker-compose.yml down mariadb_${{ matrix.mariadb }}
           docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
