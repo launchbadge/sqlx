@@ -210,7 +210,7 @@ for runtime in ["async-std", "tokio"]:
             )
 
         ## +client-ssl
-        for version in ["8_client_ssl", "5_7_client_ssl", "5_6_client_ssl"]:
+        for version in ["8_client_ssl", "5_7_client_ssl"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
                 comment=f"test mysql {version} no-password",
@@ -223,7 +223,7 @@ for runtime in ["async-std", "tokio"]:
         # mariadb
         #
 
-        for version in ["10_6", "10_5", "10_4", "10_3", "10_2"]:
+        for version in ["10_6", "10_5", "10_4", "10_3"]:
             run(
                 f"cargo test --no-default-features --features macros,any,_unstable-all-types,mysql,runtime-{runtime},tls-{tls}",
                 comment=f"test mariadb {version}",
@@ -232,7 +232,7 @@ for runtime in ["async-std", "tokio"]:
             )
 
         ## +client-ssl
-        for version in ["10_6_client_ssl", "10_5_client_ssl", "10_4_client_ssl", "10_3_client_ssl", "10_2_client_ssl"]:
+        for version in ["10_6_client_ssl", "10_5_client_ssl", "10_4_client_ssl", "10_3_client_ssl"]:
             run(
                 f"cargo test --no-default-features --features macros,offline,any,all-types,mysql,runtime-{runtime}-{tls}",
                 comment=f"test mariadb {version} no-password",
