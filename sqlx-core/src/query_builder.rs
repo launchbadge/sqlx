@@ -379,7 +379,8 @@ where
     /// // 65535 / 4 = 16383 (rounded down)
     /// // 16383 * 4 = 65532
     /// assert_eq!(arguments.len(), 65532);
-    ///  }
+    /// }
+    /// ```
     pub fn push_tuples<I, F>(&mut self, tuples: I, mut push_tuple: F) -> &mut Self
     where
         I: IntoIterator,
