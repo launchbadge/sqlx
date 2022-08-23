@@ -13,6 +13,7 @@ mod io;
 mod listener;
 mod message;
 mod options;
+mod pipeline;
 mod query_result;
 mod row;
 mod statement;
@@ -37,6 +38,7 @@ pub use error::{PgDatabaseError, PgErrorPosition};
 pub use listener::{PgListener, PgNotification};
 pub use message::PgSeverity;
 pub use options::{PgConnectOptions, PgSslMode};
+pub use pipeline::PgExtendedQueryPipeline;
 pub use query_result::PgQueryResult;
 pub use row::PgRow;
 pub use statement::PgStatement;
@@ -51,6 +53,8 @@ pub type PgPool = crate::pool::Pool<Postgres>;
 /// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for Postgres.
 pub type PgPoolOptions = crate::pool::PoolOptions<Postgres>;
 
+/// An alias for [`Query`][crate::query::Query], specialized for Postgres.
+pub type PgQuery<'q> = crate::query::Query<'q, Postgres, PgArguments>;
 /// An alias for [`Executor<'_, Database = Postgres>`][Executor].
 pub trait PgExecutor<'c>: Executor<'c, Database = Postgres> {}
 impl<'c, T: Executor<'c, Database = Postgres>> PgExecutor<'c> for T {}

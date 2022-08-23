@@ -6,6 +6,7 @@ use crate::postgres::message::{
     self, Bind, Close, CommandComplete, DataRow, MessageFormat, ParameterDescription, Parse, Query,
     RowDescription,
 };
+use crate::postgres::pipeline::PgExtendedQueryPipeline;
 use crate::postgres::statement::PgStatementMetadata;
 use crate::postgres::type_info::PgType;
 use crate::postgres::types::Oid;
@@ -17,7 +18,8 @@ use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
-use futures_util::{pin_mut, TryStreamExt};
+use futures_util::{pin_mut, StreamExt, TryStreamExt};
+use smallvec::SmallVec;
 use std::{borrow::Cow, sync::Arc};
 
 async fn prepare(
@@ -126,6 +128,13 @@ async fn recv_desc_rows(conn: &mut PgConnection) -> Result<Option<RowDescription
 }
 
 impl PgConnection {
+    pub async fn fetch_pipeline<'e, 'c: 'e, 'q: 'e, const N: usize>(
+        &'c mut self,
+        pipeline: PgExtendedQueryPipeline<'q, N>,
+    ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
+        self.run_pipeline(pipeline).await
+    }
+
     // wait for CloseComplete to indicate a statement was closed
     pub(super) async fn wait_for_close_complete(&mut self, mut count: usize) -> Result<(), Error> {
         // we need to wait for the [CloseComplete] to be returned from the server
@@ -190,6 +199,41 @@ impl PgConnection {
         }
 
         Ok(statement)
+    }
+
+    async fn get_or_prepare_pipeline<'q, const N: usize>(
+        &mut self,
+        pipeline: PgExtendedQueryPipeline<'q, N>,
+    ) -> Result<SmallVec<[(Oid, PgArguments); N]>, Error> {
+        let prepared_statements = SmallVec::<[(Oid, PgArguments); N]>::new();
+
+        pipeline
+            .into_querycontext_stream()
+            .map(|v| Ok(v))
+            .try_fold(
+                (self, prepared_statements),
+                |(conn, mut prepared), (sql, maybe_arguments, persistent, maybe_metadata)| {
+                    async move {
+                        let mut arguments = maybe_arguments.unwrap_or_default();
+                        // prepare the statement if this our first time executing it
+                        // always return the statement ID here
+                        let (statement, metadata) = conn
+                            .get_or_prepare(sql, &arguments.types, persistent, maybe_metadata)
+                            .await?;
+
+                        // patch holes created during encoding
+                        arguments.apply_patches(conn, &metadata.parameters).await?;
+
+                        // apply patches use fetch_optional thaht may produce `PortalSuspended` message,
+                        // consume messages til `ReadyForQuery` before bind and execute
+                        conn.wait_until_ready().await?;
+                        prepared.push((statement, arguments));
+                        Ok((conn, prepared))
+                    }
+                },
+            )
+            .await
+            .map(|(_, prepared)| prepared)
     }
 
     async fn run<'e, 'c: 'e, 'q: 'e>(
@@ -305,6 +349,125 @@ impl PgConnection {
 
                     MessageFormat::DataRow => {
                         logger.increment_rows_returned();
+
+                        // one of the set of rows returned by a SELECT, FETCH, etc query
+                        let data: DataRow = message.decode()?;
+                        let row = PgRow {
+                            data,
+                            format,
+                            metadata: Arc::clone(&metadata),
+                        };
+
+                        r#yield!(Either::Right(row));
+                    }
+
+                    MessageFormat::ReadyForQuery => {
+                        // processing of the query string is complete
+                        self.handle_ready_for_query(message)?;
+                        break;
+                    }
+
+                    _ => {
+                        return Err(err_protocol!(
+                            "execute: unexpected message: {:?}",
+                            message.format
+                        ));
+                    }
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    async fn run_pipeline<'e, 'c: 'e, 'q: 'e, const N: usize>(
+        &'c mut self,
+        pipeline: PgExtendedQueryPipeline<'q, N>,
+    ) -> Result<impl Stream<Item = Result<Either<PgQueryResult, PgRow>, Error>> + 'e, Error> {
+        // loggers stack is in reversed query order
+        let mut loggers_stack = pipeline.query_loggers_stack(&self.log_settings);
+
+        // before we continue, wait until we are "ready" to accept more queries
+        self.wait_until_ready().await?;
+
+        let prepared_statements = self.get_or_prepare_pipeline(pipeline).await?;
+
+        prepared_statements
+            .into_iter()
+            .for_each(|(statement, arguments)| {
+                // bind to attach the arguments to the statement and create a portal
+                self.stream.write(Bind {
+                    portal: None,
+                    statement,
+                    formats: &[PgValueFormat::Binary],
+                    num_params: arguments.types.len() as i16,
+                    params: &arguments.buffer,
+                    result_formats: &[PgValueFormat::Binary],
+                });
+
+                self.stream.write(message::Execute {
+                    portal: None,
+                    // result set is expected to be small enough to buffer on client side
+                    // don't use server-side cursors
+                    limit: 0,
+                });
+            });
+
+        // finally, [Sync] asks postgres to process the messages that we sent and respond with
+        // a [ReadyForQuery] message when it's completely done.
+        self.write_sync();
+        // send all commands in batch
+        self.stream.flush().await?;
+
+        Ok(try_stream! {
+            let mut metadata = Arc::new(PgStatementMetadata::default());
+            // prepared statements are binary
+            let format = PgValueFormat::Binary;
+
+            loop {
+                let message = self.stream.recv().await?;
+
+                match message.format {
+                    MessageFormat::BindComplete
+                    | MessageFormat::ParseComplete
+                    | MessageFormat::ParameterDescription
+                    | MessageFormat::NoData => {
+                        // harmless messages to ignore
+                    }
+
+                    MessageFormat::CommandComplete => {
+                        // a SQL command completed normally
+                        let cc: CommandComplete = message.decode()?;
+
+                        let rows_affected = cc.rows_affected();
+                        loggers_stack.last_mut().expect("can't create empty pipeline").increase_rows_affected(rows_affected);
+                        // drop and finish current logger
+                        loggers_stack.pop();
+
+                        r#yield!(Either::Left(PgQueryResult {
+                            rows_affected,
+                        }));
+                    }
+
+                    MessageFormat::EmptyQueryResponse => {
+                        // empty query string passed to an unprepared execute
+                    }
+
+                    MessageFormat::RowDescription => {
+                        // indicates that a *new* set of rows are about to be returned
+                        let (columns, column_names) = self
+                            .handle_row_description(Some(message.decode()?), false)
+                            .await?;
+
+                        metadata = Arc::new(PgStatementMetadata {
+                            column_names,
+                            columns,
+                            parameters: Vec::default(),
+                        });
+                    }
+
+                    MessageFormat::DataRow => {
+                        loggers_stack.last_mut().expect("can't create empty pipeline").increment_rows_returned();
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

@@ -160,7 +160,7 @@ sqlformat = "0.2.0"
 thiserror = "1.0.30"
 time = { version = "0.3.2", features = ["macros", "formatting", "parsing"], optional = true }
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
-smallvec = "1.7.0"
+smallvec = { version = "1.7.0", features = ["const_generics"] }
 url = { version = "2.2.2", default-features = false }
 uuid = { version = "1.0", default-features = false, optional = true, features = ["std"] }
 webpki-roots = { version = "0.22.0", optional = true }
