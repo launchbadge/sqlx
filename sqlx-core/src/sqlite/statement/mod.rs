@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 mod handle;
+pub(super) mod unlock_notify;
 mod r#virtual;
 
 pub(crate) use handle::StatementHandle;

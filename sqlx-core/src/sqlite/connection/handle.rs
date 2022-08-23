@@ -3,9 +3,12 @@ use std::ptr;
 use std::ptr::NonNull;
 
 use crate::error::Error;
-use libsqlite3_sys::{sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_OK};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_LOCKED_SHAREDCACHE,
+    SQLITE_OK,
+};
 
-use crate::sqlite::SqliteError;
+use crate::sqlite::{statement::unlock_notify, SqliteError};
 
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
@@ -61,21 +64,23 @@ impl ConnectionHandle {
 
         // SAFETY: we have exclusive access to the database handle
         unsafe {
-            let status = sqlite3_exec(
-                self.as_ptr(),
-                query.as_ptr(),
-                // callback if we wanted result rows
-                None,
-                // callback data
-                ptr::null_mut(),
-                // out-pointer for the error message, we just use `SqliteError::new()`
-                ptr::null_mut(),
-            );
+            loop {
+                let status = sqlite3_exec(
+                    self.as_ptr(),
+                    query.as_ptr(),
+                    // callback if we wanted result rows
+                    None,
+                    // callback data
+                    ptr::null_mut(),
+                    // out-pointer for the error message, we just use `SqliteError::new()`
+                    ptr::null_mut(),
+                );
 
-            if status == SQLITE_OK {
-                Ok(())
-            } else {
-                Err(SqliteError::new(self.as_ptr()).into())
+                match status {
+                    SQLITE_OK => return Ok(()),
+                    SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr())?,
+                    _ => return Err(SqliteError::new(self.as_ptr()).into()),
+                }
             }
         }
     }

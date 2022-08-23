@@ -6,7 +6,6 @@ use std::ptr;
 use std::ptr::NonNull;
 use std::slice::from_raw_parts;
 use std::str::{from_utf8, from_utf8_unchecked};
-use std::sync::{Condvar, Mutex};
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
@@ -17,13 +16,15 @@ use libsqlite3_sys::{
     sqlite3_column_name, sqlite3_column_origin_name, sqlite3_column_table_name,
     sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset,
     sqlite3_sql, sqlite3_step, sqlite3_stmt, sqlite3_stmt_readonly, sqlite3_table_column_metadata,
-    sqlite3_unlock_notify, sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE,
-    SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW,
+    SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
 use crate::error::{BoxDynError, Error};
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::{SqliteError, SqliteTypeInfo};
+
+use super::unlock_notify;
 
 #[derive(Debug)]
 pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
@@ -314,7 +315,7 @@ impl StatementHandle {
                     SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
-                        wait_for_unlock_notify(self.db_handle())?;
+                        unlock_notify::wait(self.db_handle())?;
                         // Need to reset the handle after the unlock
                         // (https://www.sqlite.org/unlock_notify.html)
                         sqlite3_reset(self.0.as_ptr());
@@ -342,57 +343,5 @@ impl Drop for StatementHandle {
                 panic!("Detected sqlite3_finalize misuse.");
             }
         }
-    }
-}
-
-unsafe fn wait_for_unlock_notify(conn: *mut sqlite3) -> Result<(), SqliteError> {
-    let notify = Notify::new();
-
-    if sqlite3_unlock_notify(
-        conn,
-        Some(unlock_notify_cb),
-        &notify as *const Notify as *mut Notify as *mut _,
-    ) != SQLITE_OK
-    {
-        return Err(SqliteError::new(conn));
-    }
-
-    notify.wait();
-
-    Ok(())
-}
-
-unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
-    let ptr = ptr as *mut &Notify;
-    let slice = from_raw_parts(ptr, len as usize);
-
-    for notify in slice {
-        notify.fire();
-    }
-}
-
-struct Notify {
-    mutex: Mutex<bool>,
-    condvar: Condvar,
-}
-
-impl Notify {
-    fn new() -> Self {
-        Self {
-            mutex: Mutex::new(false),
-            condvar: Condvar::new(),
-        }
-    }
-
-    fn wait(&self) {
-        let _ = self
-            .condvar
-            .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
-            .unwrap();
-    }
-
-    fn fire(&self) {
-        *self.mutex.lock().unwrap() = true;
-        self.condvar.notify_one();
     }
 }
