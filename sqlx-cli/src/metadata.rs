@@ -107,27 +107,21 @@ impl FromStr for Metadata {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cargo_metadata: CargoMetadata = serde_json::from_str(s)?;
+
+        // Extract the package for the current working directory, important if part of a workspace.
+        let current_package: Package = cargo_metadata
+            .root_package()
+            .map(Package::from)
+            .context("Resolving the crate package for the current working directory failed")?;
+
         let CargoMetadata {
             packages: metadata_packages,
             workspace_members,
             resolve,
             target_directory,
             ..
-        } = serde_json::from_str(s)?;
-
-        // Extract the package for the current working directory, important if part of a workspace.
-        let resolve =
-            resolve.context("Resolving the dependency graph failed (old version of cargo)")?;
-        let current_package: Package = {
-            let current_package_id: MetadataId = resolve.root.context(
-                "Resolving the crate identifier for the current working directory failed",
-            )?;
-            let metadata_package: &MetadataPackage = metadata_packages
-                .iter()
-                .find(|pkg| &pkg.id == &current_package_id)
-                .context("Resolving the crate package for the current working directory failed")?;
-            Package::from(metadata_package)
-        };
+        } = cargo_metadata;
 
         let mut packages = BTreeMap::new();
         for metadata_package in metadata_packages {
@@ -136,6 +130,8 @@ impl FromStr for Metadata {
         }
 
         let mut reverse_deps: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
+        let resolve =
+            resolve.context("Resolving the dependency graph failed (old version of cargo)")?;
         for node in resolve.nodes {
             for dep in node.deps {
                 let dependent = node.id.clone();
