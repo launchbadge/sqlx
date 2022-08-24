@@ -180,7 +180,15 @@ hint: This command only works in the manifest directory of a Cargo package."#
         bail!("`cargo check` failed with status: {}", check_status);
     }
 
-    let pattern = metadata.target_directory().join("sqlx/query-*.json");
+    // Use a separate sub-directory for each crate in a workspace. This avoids a race condition
+    // where `prepare` can pull in queries from multiple crates if they happen to be generated
+    // simultaneously (e.g. Rust Analyzer building in the background).
+    let current_package_name = metadata.current_package().name();
+    let pattern = metadata
+        .target_directory()
+        .join("sqlx")
+        .join(current_package_name)
+        .join("query-*.json");
 
     let mut data = BTreeMap::new();
 

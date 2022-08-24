@@ -56,6 +56,8 @@ pub struct Metadata {
     ///
     /// Typically `target` at the workspace root, but can be overridden
     target_directory: PathBuf,
+    /// Package metadata for the crate in the current working directory.
+    current_package: Package,
 }
 
 impl Metadata {
@@ -73,6 +75,10 @@ impl Metadata {
 
     pub fn target_directory(&self) -> &Path {
         &self.target_directory
+    }
+
+    pub fn current_package(&self) -> &Package {
+        &self.current_package
     }
 
     /// Gets all dependents (direct and transitive) of `id`
@@ -109,6 +115,20 @@ impl FromStr for Metadata {
             ..
         } = serde_json::from_str(s)?;
 
+        // Extract the package for the current working directory, important if part of a workspace.
+        let resolve =
+            resolve.context("Resolving the dependency graph failed (old version of cargo)")?;
+        let current_package: Package = {
+            let current_package_id: MetadataId = resolve.root.context(
+                "Resolving the crate identifier for the current working directory failed",
+            )?;
+            let metadata_package: &MetadataPackage = metadata_packages
+                .iter()
+                .find(|pkg| &pkg.id == &current_package_id)
+                .context("Resolving the crate package for the current working directory failed")?;
+            Package::from(metadata_package)
+        };
+
         let mut packages = BTreeMap::new();
         for metadata_package in metadata_packages {
             let package = Package::from(&metadata_package);
@@ -116,8 +136,6 @@ impl FromStr for Metadata {
         }
 
         let mut reverse_deps: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
-        let resolve =
-            resolve.context("Resolving the dependency graph failed (old version of cargo)")?;
         for node in resolve.nodes {
             for dep in node.deps {
                 let dependent = node.id.clone();
@@ -136,6 +154,7 @@ impl FromStr for Metadata {
             workspace_members,
             reverse_deps,
             target_directory,
+            current_package,
         })
     }
 }

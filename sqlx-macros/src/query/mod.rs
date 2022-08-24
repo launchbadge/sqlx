@@ -78,8 +78,8 @@ static METADATA: Lazy<Metadata> = Lazy::new(|| {
 
     #[cfg(feature = "offline")]
     let package_name: String = env("CARGO_PKG_NAME")
-      .expect("`CARGO_PKG_NAME` must be set")
-      .into();
+        .expect("`CARGO_PKG_NAME` must be set")
+        .into();
 
     #[cfg(feature = "offline")]
     let target_dir = env("CARGO_TARGET_DIR").map_or_else(|_| "target".into(), |dir| dir.into());
@@ -411,10 +411,13 @@ where
     // If the build is offline, the cache is our input so it's pointless to also write data for it.
     #[cfg(feature = "offline")]
     if !offline {
-        // Use separate directories for each crate in a workspace. This avoids a race condition
-        // where `cargo sqlx prepare` can pull in queries from multiple crates if they happen to
-        // be built at the same time (e.g. Rust Analyzer building in the background).
-        let save_dir = METADATA.target_dir.join("sqlx").join(&METADATA.package_name);
+        // Use a separate sub-directory for each crate in a workspace. This avoids a race condition
+        // where `prepare` can pull in queries from multiple crates if they happen to be generated
+        // simultaneously (e.g. Rust Analyzer building in the background).
+        let save_dir = METADATA
+            .target_dir
+            .join("sqlx")
+            .join(&METADATA.package_name);
         std::fs::create_dir_all(&save_dir)?;
         data.save_in(save_dir, input.src_span)?;
     }
