@@ -92,7 +92,7 @@ impl TryFrom<u8> for TypCategory {
 }
 
 impl PgConnection {
-    pub(super) async fn handle_row_description(
+    pub(in crate::postgres) async fn handle_row_description(
         &mut self,
         desc: Option<RowDescription>,
         should_fetch: bool,

@@ -32,7 +32,7 @@ pub struct PgConnection {
     // underlying TCP or UDS stream,
     // wrapped in a potentially TLS stream,
     // wrapped in a buffered stream
-    pub(crate) stream: PgStream,
+    pub(in crate::postgres) stream: PgStream,
 
     // process id of this backend
     // used to send cancel requests
@@ -56,13 +56,13 @@ pub struct PgConnection {
     cache_type_oid: HashMap<UStr, Oid>,
 
     // number of ReadyForQuery messages that we are currently expecting
-    pub(crate) pending_ready_for_query_count: usize,
+    pub(in crate::postgres) pending_ready_for_query_count: usize,
 
     // current transaction status
     transaction_status: TransactionStatus,
-    pub(crate) transaction_depth: usize,
+    pub(in crate::postgres) transaction_depth: usize,
 
-    log_settings: LogSettings,
+    pub(in crate::postgres) log_settings: LogSettings,
 }
 
 impl PgConnection {
@@ -100,7 +100,10 @@ impl PgConnection {
         Ok(())
     }
 
-    fn handle_ready_for_query(&mut self, message: Message) -> Result<(), Error> {
+    pub(in crate::postgres) fn handle_ready_for_query(
+        &mut self,
+        message: Message,
+    ) -> Result<(), Error> {
         self.pending_ready_for_query_count -= 1;
         self.transaction_status = ReadyForQuery::decode(message.contents)?.transaction_status;
 
@@ -110,7 +113,7 @@ impl PgConnection {
     /// Queue a simple query (not prepared) to execute the next time this connection is used.
     ///
     /// Used for rolling back transactions and releasing advisory locks.
-    pub(crate) fn queue_simple_query(&mut self, query: &str) {
+    pub(in crate::postgres) fn queue_simple_query(&mut self, query: &str) {
         self.pending_ready_for_query_count += 1;
         self.stream.write(Query(query));
     }

@@ -151,6 +151,8 @@ tempdir = "0.3.7"
 libsqlite3-sys = { version = "*", features = ["bundled-sqlcipher"] }
 # Used to test PgExtendedQueryPipeline
 uuid = "1"
+futures-util = "0.3"
+either = "1.6.1"
 
 #
 # Any

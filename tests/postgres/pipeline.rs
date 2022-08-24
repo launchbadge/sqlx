@@ -1,5 +1,7 @@
 // Test PgExtendedQueryPipeline
 
+use either::Either;
+use futures_util::TryStreamExt;
 use sqlx::postgres::PgExtendedQueryPipeline;
 use sqlx::PgPool;
 use uuid::{uuid, Uuid};
@@ -58,21 +60,13 @@ async fn ensure_test_data(
     Ok(())
 }
 
-#[sqlx::test(migrations = "tests/postgres/migrations")]
-async fn it_executes_pipeline(pool: PgPool) -> sqlx::Result<()> {
-    // 0. ensure the clean state
+const EXPECTED_QUERIES_IN_PIPELINE: usize = 3;
 
-    let user_id = uuid!("6592b7c0-b531-4613-ace5-94246b7ce0c3");
-    let post_id = uuid!("252c1d98-a9b0-4f18-8298-e59058bdfe16");
-    let comment_id = uuid!("fbbbb7dc-dc6f-4649-b663-8d3636035164");
-
-    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
-    ensure_test_data(true, user_id, post_id, comment_id, &pool).await?;
-
-    // 1. construct pipeline of 3 inserts
-
-    const EXPECTED_QUERIES_IN_PIPELINE: usize = 3;
-
+fn construct_test_pipeline(
+    user_id: Uuid,
+    post_id: Uuid,
+    comment_id: Uuid,
+) -> PgExtendedQueryPipeline<'static, EXPECTED_QUERIES_IN_PIPELINE> {
     // query with parameters
     let user_insert_query = sqlx::query(
         "
@@ -111,8 +105,25 @@ async fn it_executes_pipeline(pool: PgPool) -> sqlx::Result<()> {
     .bind("test comment");
 
     pipeline.push(comment_insert_query);
+    pipeline
+}
 
-    // 2. execute pipeline and validate PgQueryResult values
+// test execute/execute_pipeline methods
+#[sqlx::test(migrations = "tests/postgres/migrations")]
+async fn it_executes_pipeline(pool: PgPool) -> sqlx::Result<()> {
+    // 0. ensure the clean state
+
+    let user_id = uuid!("6592b7c0-b531-4613-ace5-94246b7ce0c3");
+    let post_id = uuid!("252c1d98-a9b0-4f18-8298-e59058bdfe16");
+    let comment_id = uuid!("fbbbb7dc-dc6f-4649-b663-8d3636035164");
+
+    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
+    ensure_test_data(true, user_id, post_id, comment_id, &pool).await?;
+
+    // 1. construct pipeline of 3 inserts
+    let pipeline = construct_test_pipeline(user_id, post_id, comment_id);
+
+    // 2. execute pipeline via connection pool and validate PgQueryResult values
     let query_results = pipeline.execute(&pool).await?;
 
     for result in query_results {
@@ -124,6 +135,92 @@ async fn it_executes_pipeline(pool: PgPool) -> sqlx::Result<()> {
     ensure_test_data(false, user_id, post_id, comment_id, &pool).await?;
 
     // 4. cleanup
+    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
+
+    // 5. construct pipeline of 3 inserts
+    let pipeline = construct_test_pipeline(user_id, post_id, comment_id);
+
+    // 6. execute pipeline in an explicit transaction and validate PgQueryResult values
+    let mut tx = pool.begin().await?;
+
+    let query_results = tx.execute_pipeline(pipeline).await?;
+
+    tx.commit().await?;
+
+    for result in query_results {
+        // each insert created a row
+        assert_eq!(result.rows_affected(), 1);
+    }
+    // 7. assert the data was inserted
+    ensure_test_data(false, user_id, post_id, comment_id, &pool).await?;
+
+    // 8. cleanup
+    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
+
+    Ok(())
+}
+
+// test fetch_pipeline methods
+#[sqlx::test(migrations = "tests/postgres/migrations")]
+async fn it_fetches_pipeline(pool: PgPool) -> sqlx::Result<()> {
+    // 0. ensure the clean state
+
+    let user_id = uuid!("6592b7c0-b531-4613-ace5-94246b7ce0c3");
+    let post_id = uuid!("252c1d98-a9b0-4f18-8298-e59058bdfe16");
+    let comment_id = uuid!("fbbbb7dc-dc6f-4649-b663-8d3636035164");
+
+    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
+    ensure_test_data(true, user_id, post_id, comment_id, &pool).await?;
+
+    // 1. construct pipeline of 3 inserts
+    let pipeline = construct_test_pipeline(user_id, post_id, comment_id);
+
+    // 2. fetch pipeline via a pool connection and validate PgQueryResult values
+    let mut conn = pool.acquire().await?;
+    conn.fetch_pipeline(pipeline)
+        .await?
+        .try_for_each(|pg_result_or_row| async {
+            match pg_result_or_row {
+                // each insert created a row
+                Either::Left(pg_result) => assert_eq!(pg_result.rows_affected(), 1),
+                // inserts shouldn't return data rows
+                Either::Right(_) => unreachable!(),
+            }
+            Ok(())
+        })
+        .await?;
+    drop(conn);
+
+    // 3. assert the data was inserted
+    ensure_test_data(false, user_id, post_id, comment_id, &pool).await?;
+
+    // 4. cleanup
+    cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
+
+    // 5. construct pipeline of 3 inserts
+    let pipeline = construct_test_pipeline(user_id, post_id, comment_id);
+
+    // 6. fetch pipeline in an explicit transaction and validate PgQueryResult values
+
+    let mut tx = pool.begin().await?;
+    tx.fetch_pipeline(pipeline)
+        .await?
+        .try_for_each(|pg_result_or_row| async {
+            match pg_result_or_row {
+                // each insert created a row
+                Either::Left(pg_result) => assert_eq!(pg_result.rows_affected(), 1),
+                // inserts shouldn't return data rows
+                Either::Right(_) => unreachable!(),
+            }
+            Ok(())
+        })
+        .await?;
+    tx.commit().await?;
+
+    // 7. assert the data was inserted
+    ensure_test_data(false, user_id, post_id, comment_id, &pool).await?;
+
+    // 8. cleanup
     cleanup_test_data(&pool, user_id, post_id, comment_id).await?;
 
     Ok(())
