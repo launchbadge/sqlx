@@ -46,10 +46,73 @@ type QueryContext<'q> = (
 /// buffer all result sets (see
 /// https://www.cockroachlabs.com/docs/stable/transactions.html#automatic-retries).
 ///
-/// `PgExtendedQueryPipeline` has `N` type parameter that defines the expected
+/// [PgExtendedQueryPipeline] has `N` type parameter that defines the expected
 /// maximum number of pipeline queries.  This number is used for stack
 /// allocations.
+///
+#[cfg_attr(
+    feature = "_rt-tokio",
+    doc = r##"
+# Example usage
 
+```no_run
+use sqlx::postgres::PgExtendedQueryPipeline;
+use sqlx::PgPool;
+use uuid::{uuid, Uuid};
+
+#[tokio::main]
+async fn main() -> sqlx::Result<()> {
+    let pool = PgPool::connect("postgres://user@postgres/db").await?;
+
+    let user_id = uuid!("6592b7c0-b531-4613-ace5-94246b7ce0c3");
+    let post_id = uuid!("252c1d98-a9b0-4f18-8298-e59058bdfe16");
+    let comment_id = uuid!("fbbbb7dc-dc6f-4649-b663-8d3636035164");
+
+    let user_insert_query = sqlx::query(
+        "
+        INSERT INTO \"user\" (user_id, username)
+        VALUES
+        ($1, $2)
+    ",
+    )
+    .bind(user_id)
+    .bind("alice");
+
+    const EXPECTED_QUERIES_IN_PIPELINE: usize = 3;
+    let mut pipeline =
+        PgExtendedQueryPipeline::<EXPECTED_QUERIES_IN_PIPELINE>::from(user_insert_query);
+
+    // query without parameters
+    let post_insert_query = sqlx::query(
+        "
+        INSERT INTO post (post_id, user_id, content)
+        VALUES
+        ('252c1d98-a9b0-4f18-8298-e59058bdfe16', '6592b7c0-b531-4613-ace5-94246b7ce0c3', 'test post')
+    ",
+    );
+
+    pipeline.push(post_insert_query);
+
+    let comment_insert_query = sqlx::query(
+        "
+        INSERT INTO comment (comment_id, post_id, user_id, content)
+        VALUES
+        ($1, $2, $3, $4)
+    ",
+    )
+    .bind(comment_id)
+    .bind(post_id)
+    .bind(user_id)
+    .bind("test comment");
+
+    pipeline.push(comment_insert_query);
+    let _ = pipeline.execute(&pool).await?;
+    Ok(())
+}
+```
+"##
+)]
+/// # Operations
 /// There are two public operations available on pipelines:
 ///
 /// * Execute
@@ -57,7 +120,7 @@ type QueryContext<'q> = (
 ///
 /// `Execute` filters any returned data rows and returns only a vector of
 /// PgQueryResult structures.
-/// `Execute` is available as `PgExtendedQueryPipeline::execute` method and implemented as `execute_pipeline` method
+/// `Execute` is available as [PgExtendedQueryPipeline::execute] method and implemented as `execute_pipeline` method
 /// for the following:
 ///
 ///  * [`&PgPool`](super::PgPool)
@@ -65,11 +128,11 @@ type QueryContext<'q> = (
 ///
 /// `Transaction` instance proxies `execute_pipeline` method to the underlying `PgConnection`.
 
-/// `Fetch` returns a stream of either `PgQueryResult` or `PgRow` structures.
-/// PgQueryResult structures.///
+/// `Fetch` returns a stream of either [PgQueryResult] or [PgRow] structures.
+/// PgQueryResult structures.
 /// `Fetch` is implemented as `fetch_pipeline` method for [`&mut PgConnection`](super::connection::PgConnection)
 ///
-/// `Transaction` instance proxies `fetch_pipeline` method to the underlying `PgConnection`.
+/// `Transaction` instance proxies `fetch_pipeline` method to the underlying [PgConnection].
 ///
 
 // public interface section; private section is below
