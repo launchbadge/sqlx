@@ -390,6 +390,7 @@ impl PgConnection {
         // before we continue, wait until we are "ready" to accept more queries
         self.wait_until_ready().await?;
 
+        let pipeline_length = pipeline.len();
         let prepared_statements = self.get_or_prepare_pipeline(pipeline).await?;
 
         prepared_statements
@@ -440,9 +441,18 @@ impl PgConnection {
                         let cc: CommandComplete = message.decode()?;
 
                         let rows_affected = cc.rows_affected();
-                        loggers_stack.last_mut().expect("can't create empty pipeline").increase_rows_affected(rows_affected);
-                        // drop and finish current logger
-                        loggers_stack.pop();
+                        if let Some(logger) = loggers_stack.last_mut() {
+                            logger.increase_rows_affected(rows_affected);
+                            // drop and finish current logger
+                            loggers_stack.pop();
+                        }
+                        else {
+                            return Err(err_protocol!(
+                                "execute: received more CommandComplete messages than expected; expected: {}",
+                                pipeline_length
+                            ));
+
+                        }
 
                         r#yield!(Either::Left(PgQueryResult {
                             rows_affected,
@@ -467,7 +477,16 @@ impl PgConnection {
                     }
 
                     MessageFormat::DataRow => {
-                        loggers_stack.last_mut().expect("can't create empty pipeline").increment_rows_returned();
+                        if let Some(logger) = loggers_stack.last_mut() {
+                            logger.increment_rows_returned();
+                        }
+                        else {
+                            return Err(err_protocol!(
+                                "execute: received a data row after receiving the expected {} CommandComplete messages",
+                                pipeline_length
+                            ));
+
+                        }
 
                         // one of the set of rows returned by a SELECT, FETCH, etc query
                         let data: DataRow = message.decode()?;

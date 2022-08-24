@@ -75,6 +75,10 @@ impl<'q, const N: usize> PgExtendedQueryPipeline<'q, N> {
         Ok(pgresults)
     }
 
+    pub(crate) fn len(&self) -> usize {
+        self.queries.len()
+    }
+
     pub(crate) fn query_loggers_stack(
         &self,
         log_settings: &LogSettings,
