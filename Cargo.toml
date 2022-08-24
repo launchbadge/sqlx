@@ -149,6 +149,8 @@ hex = "0.4.3"
 tempdir = "0.3.7"
 # Needed to test SQLCipher
 libsqlite3-sys = { version = "*", features = ["bundled-sqlcipher"] }
+# Used to test PgExtendedQueryPipeline
+uuid = "1"
 
 #
 # Any
@@ -274,6 +276,11 @@ required-features = ["postgres", "macros"]
 name = "postgres-test-attr"
 path = "tests/postgres/test-attr.rs"
 required-features = ["postgres", "macros", "migrate"]
+
+[[test]]
+name = "postgres-pipeline"
+path = "tests/postgres/pipeline.rs"
+required-features = ["postgres", "macros", "migrate", "uuid"]
 
 #
 # Microsoft SQL Server (MSSQL)

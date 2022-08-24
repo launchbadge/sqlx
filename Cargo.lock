@@ -2738,6 +2738,7 @@ dependencies = [
  "tokio",
  "trybuild",
  "url",
+ "uuid",
 ]
 
 [[package]]
