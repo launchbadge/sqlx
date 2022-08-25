@@ -10,7 +10,6 @@ use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
-use std::time::SystemTime;
 use std::{env, fs};
 
 use crate::metadata::Metadata;
@@ -125,23 +124,24 @@ hint: This command only works in the manifest directory of a Cargo package."#
     // have repeatedly caused issues in the past.
     let _ = remove_dir_all(metadata.target_directory().join("sqlx"));
 
-    let check_status = if merge {
-        // Try only triggering a recompile on crates that use `sqlx-macros` falling back to a full
-        // clean on error
-        match setup_minimal_project_recompile(&cargo, &metadata) {
-            Ok(()) => {}
-            Err(err) => {
-                println!(
-                    "Failed minimal recompile setup. Cleaning entire project. Err: {}",
-                    err
-                );
-                let clean_status = Command::new(&cargo).arg("clean").status()?;
-                if !clean_status.success() {
-                    bail!("`cargo clean` failed with status: {}", clean_status);
-                }
+    // Try only triggering a recompile on crates that use `sqlx-macros`, falling back to a full
+    // clean on error.
+    match setup_minimal_project_recompile(&cargo, &metadata, merge) {
+        Ok(()) => {}
+        Err(err) => {
+            println!(
+                "Failed minimal recompile setup. Cleaning entire project. Err: {}",
+                err
+            );
+            let clean_status = Command::new(&cargo).arg("clean").status()?;
+            if !clean_status.success() {
+                bail!("`cargo clean` failed with status: {}", clean_status);
             }
-        };
+        }
+    };
 
+    // Compile the queries.
+    let check_status = {
         let mut check_command = Command::new(&cargo);
         check_command
             .arg("check")
@@ -151,35 +151,18 @@ hint: This command only works in the manifest directory of a Cargo package."#
 
         // `cargo check` recompiles on changed rust flags which can be set either via the env var
         // or through the `rustflags` field in `$CARGO_HOME/config` when the env var isn't set.
-        // Because of this we only pass in `$RUSTFLAGS` when present
+        // Because of this we only pass in `$RUSTFLAGS` when present.
         if let Ok(rustflags) = env::var("RUSTFLAGS") {
             check_command.env("RUSTFLAGS", rustflags);
         }
 
         check_command.status()?
-    } else {
-        Command::new(&cargo)
-            .arg("rustc")
-            .args(cargo_args)
-            .arg("--")
-            .arg("--emit")
-            .arg("dep-info,metadata")
-            // set an always-changing cfg so we can consistently trigger recompile
-            .arg("--cfg")
-            .arg(format!(
-                "__sqlx_recompile_trigger=\"{}\"",
-                SystemTime::UNIX_EPOCH.elapsed()?.as_millis()
-            ))
-            .env("SQLX_OFFLINE", "false")
-            .env("DATABASE_URL", url)
-            .env("CARGO_TARGET_DIR", metadata.target_directory().clone())
-            .status()?
     };
-
     if !check_status.success() {
         bail!("`cargo check` failed with status: {}", check_status);
     }
 
+    // Combine the queries into one file.
     let package_dir = if merge {
         // Merge queries from all workspace crates.
         "**"
@@ -243,12 +226,26 @@ struct ProjectRecompileAction {
 /// This gets a listing of all crates that depend on `sqlx-macros` (direct and transitive). The
 /// crates within the current workspace have their source file's mtimes updated while crates
 /// outside the workspace are selectively `cargo clean -p`ed. In this way we can trigger a
-/// recompile of crates that may be using compile-time macros without forcing a full recompile
-fn setup_minimal_project_recompile(cargo: &str, metadata: &Metadata) -> anyhow::Result<()> {
+/// recompile of crates that may be using compile-time macros without forcing a full recompile.
+///
+/// If `workspace` is false, only the current package will have its files' mtimes updated.
+fn setup_minimal_project_recompile(
+    cargo: &str,
+    metadata: &Metadata,
+    workspace: bool,
+) -> anyhow::Result<()> {
     let ProjectRecompileAction {
         clean_packages,
         touch_paths,
-    } = minimal_project_recompile_action(metadata)?;
+    } = if workspace {
+        minimal_project_recompile_action(metadata)?
+    } else {
+        // Only touch the current crate.
+        ProjectRecompileAction {
+            clean_packages: Vec::new(),
+            touch_paths: metadata.current_package().context("Failed to get package in current working directory, pass `--merged` if running from a workspace root")?.src_paths().to_vec(),
+        }
+    };
 
     for file in touch_paths {
         let now = filetime::FileTime::now();
