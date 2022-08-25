@@ -67,7 +67,14 @@ impl Migrator {
         self
     }
 
-    /// Specify whether to lock database during migration (recommended, incompatible with some pgwire DBs like cockroachdb - therefore the option)
+    /// Specify whether or not to lock database during migration. Defaults to `true`.
+    /// 
+    /// ### Warning
+    /// Disabling locking can lead to errors or data loss if multiple clients attempt to apply migrations simultaneously
+    /// without some sort of mutual exclusion.
+    ///
+    /// This should only be used if the database does not support locking, e.g. CockroachDB which talks the Postgres
+    /// protocol but does not support advisory locks used by SQLx's migrations support for Postgres.
     pub fn set_locking(&mut self, locking: bool) -> &Self {
         self.locking = locking;
         self
