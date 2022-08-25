@@ -56,8 +56,9 @@ pub struct Metadata {
     ///
     /// Typically `target` at the workspace root, but can be overridden
     target_directory: PathBuf,
-    /// Package metadata for the crate in the current working directory.
-    current_package: Package,
+    /// Package metadata for the crate in the current working directory, None if run from
+    /// a workspace with the `merged` flag.
+    current_package: Option<Package>,
 }
 
 impl Metadata {
@@ -77,8 +78,8 @@ impl Metadata {
         &self.target_directory
     }
 
-    pub fn current_package(&self) -> &Package {
-        &self.current_package
+    pub fn current_package(&self) -> Option<&Package> {
+        self.current_package.as_ref()
     }
 
     /// Gets all dependents (direct and transitive) of `id`
@@ -109,11 +110,9 @@ impl FromStr for Metadata {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let cargo_metadata: CargoMetadata = serde_json::from_str(s)?;
 
-        // Extract the package for the current working directory, important if part of a workspace.
-        let current_package: Package = cargo_metadata
-            .root_package()
-            .map(Package::from)
-            .context("Resolving the crate package for the current working directory failed")?;
+        // Extract the package for the current working directory, will be empty if running
+        // from a workspace root.
+        let current_package: Option<Package> = cargo_metadata.root_package().map(Package::from);
 
         let CargoMetadata {
             packages: metadata_packages,
