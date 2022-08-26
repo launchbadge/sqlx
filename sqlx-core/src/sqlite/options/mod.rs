@@ -408,7 +408,7 @@ impl SqliteConnectOptions {
 
     /// Sets the [`vfs`](https://www.sqlite.org/vfs.html) parameter of the database connection.
     ///
-    /// The default value is empty, and sqlite will use the default VFS object dependeing on the
+    /// The default value is empty, and sqlite will use the default VFS object depending on the
     /// operating system.
     pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
         self.vfs = Some(vfs_name.into());
