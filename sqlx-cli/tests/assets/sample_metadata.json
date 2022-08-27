@@ -30506,7 +30506,7 @@
         "features": []
       }
     ],
-    "root": null
+    "root": "b_in_workspace_lib 0.1.0 (path+file:///home/user/problematic/workspace/b_in_workspace_lib)"
   },
   "target_directory": "/home/user/problematic/workspace/target",
   "version": 1,

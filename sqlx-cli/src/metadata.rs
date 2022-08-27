@@ -56,6 +56,9 @@ pub struct Metadata {
     ///
     /// Typically `target` at the workspace root, but can be overridden
     target_directory: PathBuf,
+    /// Package metadata for the crate in the current working directory, None if run from
+    /// a workspace with the `merged` flag.
+    current_package: Option<Package>,
 }
 
 impl Metadata {
@@ -73,6 +76,10 @@ impl Metadata {
 
     pub fn target_directory(&self) -> &Path {
         &self.target_directory
+    }
+
+    pub fn current_package(&self) -> Option<&Package> {
+        self.current_package.as_ref()
     }
 
     /// Gets all dependents (direct and transitive) of `id`
@@ -101,13 +108,19 @@ impl FromStr for Metadata {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cargo_metadata: CargoMetadata = serde_json::from_str(s)?;
+
+        // Extract the package for the current working directory, will be empty if running
+        // from a workspace root.
+        let current_package: Option<Package> = cargo_metadata.root_package().map(Package::from);
+
         let CargoMetadata {
             packages: metadata_packages,
             workspace_members,
             resolve,
             target_directory,
             ..
-        } = serde_json::from_str(s)?;
+        } = cargo_metadata;
 
         let mut packages = BTreeMap::new();
         for metadata_package in metadata_packages {
@@ -136,6 +149,7 @@ impl FromStr for Metadata {
             workspace_members,
             reverse_deps,
             target_directory,
+            current_package,
         })
     }
 }
