@@ -9,7 +9,7 @@ use std::slice;
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
-    pub locking: bool
+    pub locking: bool,
 }
 
 fn validate_applied_migrations(
@@ -57,7 +57,7 @@ impl Migrator {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ignore_missing: false,
-            locking: true
+            locking: true,
         })
     }
 
@@ -68,7 +68,7 @@ impl Migrator {
     }
 
     /// Specify whether or not to lock database during migration. Defaults to `true`.
-    /// 
+    ///
     /// ### Warning
     /// Disabling locking can lead to errors or data loss if multiple clients attempt to apply migrations simultaneously
     /// without some sort of mutual exclusion.
