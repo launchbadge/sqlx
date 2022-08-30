@@ -185,12 +185,14 @@ impl PgConnection {
 
     fn fetch_type_by_oid(&mut self, oid: Oid) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let (name, typ_type, category, relation_id, element, base_type): (String, i8, i8, Oid, Oid, Oid) = query_as(
+            let types_info: Vec<(String, i8, i8, Oid, Oid, Oid)> = query_as(
                 "SELECT typname, typtype, typcategory, typrelid, typelem, typbasetype FROM pg_catalog.pg_type WHERE oid = $1",
             )
             .bind(oid)
-            .fetch_one(&mut *self)
+            .fetch_all(&mut *self)
             .await?;
+            let (name, typ_type, category, relation_id, element, base_type) =
+                types_info.into_iter().next().ok_or(Error::RowNotFound)?;
 
             let typ_type = TypType::try_from(typ_type as u8);
             let category = TypCategory::try_from(category as u8);
@@ -317,7 +319,7 @@ ORDER BY attnum
         name: String,
     ) -> BoxFuture<'_, Result<PgTypeInfo, Error>> {
         Box::pin(async move {
-            let element_oid: Oid = query_scalar(
+            let element_oids: Vec<Oid> = query_scalar(
                 r#"
 SELECT rngsubtype
 FROM pg_catalog.pg_range
@@ -325,8 +327,13 @@ WHERE rngtypid = $1
                 "#,
             )
             .bind(oid)
-            .fetch_one(&mut *self)
+            .fetch_all(&mut *self)
             .await?;
+
+            let element_oid = element_oids
+                .into_iter()
+                .next()
+                .ok_or_else(|| Error::RowNotFound)?;
 
             let element = self.maybe_fetch_type_info_by_oid(element_oid, true).await?;
 
@@ -344,15 +351,16 @@ WHERE rngtypid = $1
         }
 
         // language=SQL
-        let (oid,): (Oid,) = query_as(
+        let oids: Vec<(Oid,)> = query_as(
             "
 SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
                 ",
         )
         .bind(name)
-        .fetch_optional(&mut *self)
-        .await?
-        .ok_or_else(|| Error::TypeNotFound {
+        .fetch_all(&mut *self)
+        .await?;
+
+        let (oid,) = oids.into_iter().next().ok_or_else(|| Error::TypeNotFound {
             type_name: String::from(name),
         })?;
 
