@@ -56,8 +56,8 @@ pub struct Metadata {
     ///
     /// Typically `target` at the workspace root, but can be overridden
     target_directory: PathBuf,
-    /// Package metadata for the crate in the current working directory, None if run from
-    /// a workspace with the `merged` flag.
+    /// Crate in the current working directory, empty if run from a
+    /// virtual workspace root.
     current_package: Option<Package>,
 }
 
@@ -110,8 +110,8 @@ impl FromStr for Metadata {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let cargo_metadata: CargoMetadata = serde_json::from_str(s)?;
 
-        // Extract the package for the current working directory, will be empty if running
-        // from a workspace root.
+        // Extract the package in the current working directory, empty if run from a
+        // virtual workspace root.
         let current_package: Option<Package> = cargo_metadata.root_package().map(Package::from);
 
         let CargoMetadata {
