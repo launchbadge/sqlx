@@ -204,6 +204,21 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(sqlite_ipaddr)]
+#[sqlx_macros::test]
+async fn it_opens_with_extension() -> anyhow::Result<()> {
+    use std::str::FromStr;
+
+    let opts = SqliteConnectOptions::from_str(&dotenvy::var("DATABASE_URL")?)?.extension("ipaddr");
+
+    let mut conn = SqliteConnection::connect_with(&opts).await?;
+    conn.execute("SELECT ipmasklen('192.168.16.12/24');")
+        .await?;
+    conn.close().await?;
+
+    Ok(())
+}
+
 #[sqlx_macros::test]
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database

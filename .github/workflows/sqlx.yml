@@ -46,7 +46,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ runner.os }}-check-${{ matrix.runtime }}-${{ matrix.tls }}
-          
+
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -144,6 +144,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - run: mkdir /tmp/sqlite3-lib && wget -O /tmp/sqlite3-lib/ipaddr.so https://github.com/nalgeon/sqlean/releases/download/0.15.2/ipaddr.so
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -164,6 +166,8 @@ jobs:
             --test-threads=1
         env:
           DATABASE_URL: sqlite://tests/sqlite/sqlite.db
+          RUSTFLAGS: --cfg sqlite_ipaddr
+          LD_LIBRARY_PATH: /tmp/sqlite3-lib
 
   postgres:
     name: Postgres
