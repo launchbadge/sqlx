@@ -354,4 +354,85 @@ async fn test_column_override_exact_enum() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[sqlx_macros::test]
+async fn test_try_from_attr_for_native_type() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(try_from = "i64")]
+        id: u64,
+    }
+
+    let mut conn = new::<MySql>().await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as::<_, Record>("select id from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, id.0 as u64);
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_try_from_attr_for_custom_type() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(try_from = "i64")]
+        id: Id,
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Id(i64);
+    impl std::convert::TryFrom<i64> for Id {
+        type Error = std::io::Error;
+        fn try_from(value: i64) -> Result<Self, Self::Error> {
+            Ok(Id(value))
+        }
+    }
+
+    let mut conn = new::<MySql>().await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as::<_, Record>("select id from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, Id(id.0));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn test_try_from_attr_with_flatten() -> anyhow::Result<()> {
+    #[derive(sqlx::FromRow)]
+    struct Record {
+        #[sqlx(try_from = "Id", flatten)]
+        id: u64,
+    }
+
+    #[derive(Debug, PartialEq, sqlx::FromRow)]
+    struct Id {
+        id: i64,
+    }
+
+    impl std::convert::TryFrom<Id> for u64 {
+        type Error = std::io::Error;
+        fn try_from(value: Id) -> Result<Self, Self::Error> {
+            Ok(value.id as u64)
+        }
+    }
+
+    let mut conn = new::<MySql>().await?;
+    let (mut conn, id) = with_test_row(&mut conn).await?;
+
+    let record = sqlx::query_as::<_, Record>("select id from tweet")
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(record.id, id.0 as u64);
+
+    Ok(())
+}
+
 // we don't emit bind parameter type-checks for MySQL so testing the overrides is redundant

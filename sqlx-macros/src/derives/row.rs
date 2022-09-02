@@ -72,22 +72,45 @@ fn expand_derive_from_row_struct(
             let attributes = parse_child_attributes(&field.attrs).unwrap();
             let ty = &field.ty;
 
-            let expr: Expr = if attributes.flatten {
-                predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
-                parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
-            } else {
-                predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
-                predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
+            let expr: Expr = match (attributes.flatten, attributes.try_from) {
+                (true, None) => {
+                    predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
+                    parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
+                }
+                (false, None) => {
+                    predicates
+                        .push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
 
-                let id_s = attributes
-                    .rename
-                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                    .map(|s| match container_attributes.rename_all {
-                        Some(pattern) => rename_all(&s, pattern),
-                        None => s,
-                    })
-                    .unwrap();
-                parse_quote!(row.try_get(#id_s))
+                    let id_s = attributes
+                        .rename
+                        .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                        .map(|s| match container_attributes.rename_all {
+                            Some(pattern) => rename_all(&s, pattern),
+                            None => s,
+                        })
+                        .unwrap();
+                    parse_quote!(row.try_get(#id_s))
+                }
+                (true,Some(try_from)) => {
+                    predicates.push(parse_quote!(#try_from: ::sqlx::FromRow<#lifetime, R>));
+                    parse_quote!(<#try_from as ::sqlx::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string())))) 
+                }
+                (false,Some(try_from)) => {
+                    predicates
+                        .push(parse_quote!(#try_from: ::sqlx::decode::Decode<#lifetime, R::Database>));
+                    predicates.push(parse_quote!(#try_from: ::sqlx::types::Type<R::Database>)); 
+
+                    let id_s = attributes
+                        .rename
+                        .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                        .map(|s| match container_attributes.rename_all {
+                            Some(pattern) => rename_all(&s, pattern),
+                            None => s,
+                        })
+                        .unwrap();
+                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| ::sqlx::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                }
             };
 
             if attributes.default {
