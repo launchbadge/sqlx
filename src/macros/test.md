@@ -132,6 +132,7 @@ use sqlx::PgPool;
 #   static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate::Migrator {
 #       migrations: Cow::Borrowed(&[]),
 #       ignore_missing: false,
+#       locking: true,
 #   };
 # } 
 
