@@ -74,7 +74,7 @@ fn expand_derive_from_row_struct(
 
             let expr: Expr = if attributes.flatten {
                 predicates.push(parse_quote!(#ty: ::sqlx::FromRow<#lifetime, R>));
-                parse_quote!(#ty::from_row(row))
+                parse_quote!(<#ty as ::sqlx::FromRow<#lifetime, R>>::from_row(row))
             } else {
                 predicates.push(parse_quote!(#ty: ::sqlx::decode::Decode<#lifetime, R::Database>));
                 predicates.push(parse_quote!(#ty: ::sqlx::types::Type<R::Database>));
