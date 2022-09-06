@@ -9,6 +9,7 @@ use std::slice;
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
+    pub locking: bool,
 }
 
 fn validate_applied_migrations(
@@ -56,12 +57,26 @@ impl Migrator {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ignore_missing: false,
+            locking: true,
         })
     }
 
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
+    }
+
+    /// Specify whether or not to lock database during migration. Defaults to `true`.
+    ///
+    /// ### Warning
+    /// Disabling locking can lead to errors or data loss if multiple clients attempt to apply migrations simultaneously
+    /// without some sort of mutual exclusion.
+    ///
+    /// This should only be used if the database does not support locking, e.g. CockroachDB which talks the Postgres
+    /// protocol but does not support advisory locks used by SQLx's migrations support for Postgres.
+    pub fn set_locking(&mut self, locking: bool) -> &Self {
+        self.locking = locking;
         self
     }
 
@@ -103,7 +118,9 @@ impl Migrator {
         C: Migrate,
     {
         // lock the database for exclusive access by the migrator
-        conn.lock().await?;
+        if self.locking {
+            conn.lock().await?;
+        }
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
@@ -141,7 +158,9 @@ impl Migrator {
 
         // unlock the migrator to allow other migrators to run
         // but do nothing as we already migrated
-        conn.unlock().await?;
+        if self.locking {
+            conn.unlock().await?;
+        }
 
         Ok(())
     }
@@ -170,7 +189,9 @@ impl Migrator {
         let mut conn = migrator.acquire().await?;
 
         // lock the database for exclusive access by the migrator
-        conn.lock().await?;
+        if self.locking {
+            conn.lock().await?;
+        }
 
         // creates [_migrations] table only if needed
         // eventually this will likely migrate previous versions of the table
@@ -201,7 +222,9 @@ impl Migrator {
 
         // unlock the migrator to allow other migrators to run
         // but do nothing as we already migrated
-        conn.unlock().await?;
+        if self.locking {
+            conn.unlock().await?;
+        }
 
         Ok(())
     }
