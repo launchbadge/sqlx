@@ -77,7 +77,7 @@ fn expand_derive_has_sql_type_transparent(
             .push(parse_quote!(#ty: ::sqlx::postgres::PgHasArrayType));
         let (array_impl_generics, _, array_where_clause) = array_generics.split_for_impl();
 
-        return Ok(quote!(
+        let mut tokens = quote!(
             #[automatically_derived]
             impl #impl_generics ::sqlx::Type< DB > for #ident #ty_generics #where_clause {
                 fn type_info() -> DB::TypeInfo {
@@ -88,15 +88,21 @@ fn expand_derive_has_sql_type_transparent(
                     <#ty as ::sqlx::Type<DB>>::compatible(ty)
                 }
             }
-            #[automatically_derived]
-            #[cfg(feature = "postgres")]
-            impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics
-            #array_where_clause {
-                fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
-                    <#ty as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+        );
+
+        if cfg!(feature = "postgres") {
+            tokens.extend(quote!(
+                #[automatically_derived]
+                impl #array_impl_generics ::sqlx::postgres::PgHasArrayType for #ident #ty_generics
+                #array_where_clause {
+                    fn array_type_info() -> ::sqlx::postgres::PgTypeInfo {
+                        <#ty as ::sqlx::postgres::PgHasArrayType>::array_type_info()
+                    }
                 }
-            }
-        ));
+            ));
+        }
+
+        return Ok(tokens);
     }
 
     let mut tts = TokenStream::new();
