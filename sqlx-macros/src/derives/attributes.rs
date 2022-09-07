@@ -71,6 +71,7 @@ pub struct SqlxChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
+    pub try_from: Option<Ident>,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -178,6 +179,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
 pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttributes> {
     let mut rename = None;
     let mut default = false;
+    let mut try_from = None;
     let mut flatten = false;
 
     for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
@@ -194,6 +196,11 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                             lit: Lit::Str(val),
                             ..
                         }) if path.is_ident("rename") => try_set!(rename, val.value(), value),
+                        Meta::NameValue(MetaNameValue {
+                            path,
+                            lit: Lit::Str(val),
+                            ..
+                        }) if path.is_ident("try_from") => try_set!(try_from, val.parse()?, value),
                         Meta::Path(path) if path.is_ident("default") => default = true,
                         Meta::Path(path) if path.is_ident("flatten") => flatten = true,
                         u => fail!(u, "unexpected attribute"),
@@ -208,6 +215,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         rename,
         default,
         flatten,
+        try_from,
     })
 }
 

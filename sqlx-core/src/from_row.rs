@@ -149,6 +149,32 @@ use crate::row::Row;
 ///     }
 /// }
 /// ```
+///
+/// #### `try_from`
+///
+/// When your struct contains a field whose type is not matched with the database type,
+/// if the field type has an implementation [`TryFrom`] for the database type,
+/// you can use the `try_from` attribute to convert the database type to the field type.
+/// For example:
+///
+/// ```rust,ignore
+/// #[derive(sqlx::FromRow)]
+/// struct User {
+///     id: i32,
+///     name: String,
+///     #[sqlx(try_from = "i64")]
+///     bigIntInMySql: u64
+/// }
+/// ```
+///
+/// Given a query such as:
+///
+/// ```sql
+/// SELECT id, name, bigIntInMySql FROM users;
+/// ```
+///
+/// In MySql, `BigInt` type matches `i64`, but you can convert it to `u64` by `try_from`.
+///
 pub trait FromRow<'r, R: Row>: Sized {
     fn from_row(row: &'r R) -> Result<Self, Error>;
 }
