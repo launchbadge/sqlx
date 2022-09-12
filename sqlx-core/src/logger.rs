@@ -85,28 +85,28 @@ impl<'q> Drop for QueryLogger<'q> {
 }
 
 #[cfg(feature = "sqlite")]
-pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> {
+pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> {
     sql: &'q str,
     unknown_operations: HashSet<O>,
-    results: HashSet<R>,
+    results: Vec<R>,
     program: &'q [P],
     settings: LogSettings,
 }
 
 #[cfg(feature = "sqlite")]
-impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'q, O, R, P> {
+impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> {
     pub(crate) fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
         Self {
             sql,
             unknown_operations: HashSet::new(),
-            results: HashSet::new(),
+            results: Vec::new(),
             program,
             settings,
         }
     }
 
     pub(crate) fn add_result(&mut self, result: R) {
-        self.results.insert(result);
+        self.results.push(result);
     }
 
     pub(crate) fn add_unknown_operation(&mut self, operation: O) {
@@ -152,9 +152,7 @@ impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'
 }
 
 #[cfg(feature = "sqlite")]
-impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> Drop
-    for QueryPlanLogger<'q, O, R, P>
-{
+impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> Drop for QueryPlanLogger<'q, O, R, P> {
     fn drop(&mut self) {
         self.finish();
     }
