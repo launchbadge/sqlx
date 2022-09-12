@@ -89,28 +89,24 @@ pub(crate) struct QueryPlanLogger<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq
     sql: &'q str,
     unknown_operations: HashSet<O>,
     results: HashSet<R>,
-    program: Vec<P>,
+    program: &'q [P],
     settings: LogSettings,
 }
 
 #[cfg(feature = "sqlite")]
 impl<'q, O: Debug + Hash + Eq, R: Debug + Hash + Eq, P: Debug> QueryPlanLogger<'q, O, R, P> {
-    pub(crate) fn new(sql: &'q str, settings: LogSettings) -> Self {
+    pub(crate) fn new(sql: &'q str, program: &'q [P], settings: LogSettings) -> Self {
         Self {
             sql,
             unknown_operations: HashSet::new(),
             results: HashSet::new(),
-            program: Vec::new(),
+            program,
             settings,
         }
     }
 
     pub(crate) fn add_result(&mut self, result: R) {
         self.results.insert(result);
-    }
-
-    pub(crate) fn add_program(&mut self, program: Vec<P>) {
-        self.program = program;
     }
 
     pub(crate) fn add_unknown_operation(&mut self, operation: O) {
