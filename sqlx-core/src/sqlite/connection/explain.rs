@@ -753,9 +753,12 @@ pub(super) fn explain(
                             .collect(),
                     );
 
-                    let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                        state.history.iter().map(|i| &program[*i]).collect();
-                    logger.add_result((program_history, state.result.clone()));
+                    if logger.log_enabled() {
+                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                            state.history.iter().map(|i| &program[*i]).collect();
+                        logger.add_result((program_history, state.result.clone()));
+                    }
+
                     result_states.push(state.clone());
                 }
 

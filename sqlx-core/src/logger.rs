@@ -105,6 +105,19 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
         }
     }
 
+    pub(crate) fn log_enabled(&self) -> bool {
+        if let Some(_lvl) = self
+            .settings
+            .statements_level
+            .to_level()
+            .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
+        {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     pub(crate) fn add_result(&mut self, result: R) {
         self.results.push(result);
     }
