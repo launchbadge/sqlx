@@ -1,4 +1,4 @@
-use crate::connection::ConnectOptions;
+use crate::connection::{ConnectOptions, Connection};
 use crate::error::Error;
 use crate::executor::Executor;
 use crate::migrate::MigrateError;
@@ -209,28 +209,66 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+            // The `execution_time` however can only be measured for the whole transaction. This value _only_ exists for
+            // data lineage and debugging reasons, so it is not super important if it is lost. So we initialize it to -1
+            // and update it once the actual transaction completed.
+            let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            let res = self.execute(&*migration.sql).await;
-
-            let elapsed = start.elapsed();
-
+            // For MySQL we cannot really isolate migrations due to implicit commits caused by table modification, see
+            // https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+            //
+            // To somewhat try to detect this, we first insert the migration into the migration table with
+            // `success=FALSE` and later modify the flag.
+            //
             // language=MySQL
             let _ = query(
                 r#"
     INSERT INTO _sqlx_migrations ( version, description, success, checksum, execution_time )
-    VALUES ( ?, ?, ?, ?, ? )
+    VALUES ( ?, ?, FALSE, ?, -1 )
                 "#,
             )
             .bind(migration.version)
             .bind(&*migration.description)
-            .bind(res.is_ok())
             .bind(&*migration.checksum)
-            .bind(elapsed.as_nanos() as i64)
-            .execute(self)
+            .execute(&mut tx)
             .await?;
 
-            res?;
+            let _ = tx.execute(&*migration.sql).await?;
+
+            // language=MySQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET success = TRUE
+    WHERE version = ?
+                "#,
+            )
+            .bind(migration.version)
+            .execute(&mut tx)
+            .await?;
+
+            tx.commit().await?;
+
+            // Update `elapsed_time`.
+            // NOTE: The process may disconnect/die at this point, so the elapsed time value might be lost. We accept
+            //       this small risk since this value is not super important.
+
+            let elapsed = start.elapsed();
+
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET execution_time = ?
+    WHERE version = ?
+                "#,
+            )
+            .bind(elapsed.as_nanos() as i64)
+            .bind(migration.version)
+            .execute(self)
+            .await?;
 
             Ok(elapsed)
         })
@@ -241,17 +279,40 @@ CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         migration: &'m Migration,
     ) -> BoxFuture<'m, Result<Duration, MigrateError>> {
         Box::pin(async move {
+            // Use a single transaction for the actual migration script and the essential bookeeping so we never
+            // execute migrations twice. See https://github.com/launchbadge/sqlx/issues/1966.
+            let mut tx = self.begin().await?;
             let start = Instant::now();
 
-            self.execute(&*migration.sql).await?;
+            // For MySQL we cannot really isolate migrations due to implicit commits caused by table modification, see
+            // https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+            //
+            // To somewhat try to detect this, we first insert the migration into the migration table with
+            // `success=FALSE` and later remove the migration altogether.
+            //
+            // language=MySQL
+            let _ = query(
+                r#"
+    UPDATE _sqlx_migrations
+    SET success = FALSE
+    WHERE version = ?
+                "#,
+            )
+            .bind(migration.version)
+            .execute(&mut tx)
+            .await?;
 
-            let elapsed = start.elapsed();
+            tx.execute(&*migration.sql).await?;
 
             // language=SQL
             let _ = query(r#"DELETE FROM _sqlx_migrations WHERE version = ?"#)
                 .bind(migration.version)
-                .execute(self)
+                .execute(&mut tx)
                 .await?;
+
+            tx.commit().await?;
+
+            let elapsed = start.elapsed();
 
             Ok(elapsed)
         })

@@ -212,6 +212,11 @@ name = "sqlite-test-attr"
 path = "tests/sqlite/test-attr.rs"
 required-features = ["sqlite", "macros", "migrate"]
 
+[[test]]
+name = "sqlite-migrate"
+path = "tests/sqlite/migrate.rs"
+required-features = ["sqlite", "macros", "migrate"]
+
 #
 # MySQL
 #
@@ -239,6 +244,11 @@ required-features = ["mysql", "macros"]
 [[test]]
 name = "mysql-test-attr"
 path = "tests/mysql/test-attr.rs"
+required-features = ["mysql", "macros", "migrate"]
+
+[[test]]
+name = "mysql-migrate"
+path = "tests/mysql/migrate.rs"
 required-features = ["mysql", "macros", "migrate"]
 
 #
@@ -273,6 +283,11 @@ required-features = ["postgres", "macros"]
 [[test]]
 name = "postgres-test-attr"
 path = "tests/postgres/test-attr.rs"
+required-features = ["postgres", "macros", "migrate"]
+
+[[test]]
+name = "postgres-migrate"
+path = "tests/postgres/migrate.rs"
 required-features = ["postgres", "macros", "migrate"]
 
 #
