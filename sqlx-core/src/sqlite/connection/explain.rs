@@ -328,16 +328,16 @@ pub(super) fn explain(
     conn: &mut ConnectionState,
     query: &str,
 ) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
-    let mut logger = crate::logger::QueryPlanLogger::new(query, conn.log_settings.clone());
-
     let root_block_cols = root_block_columns(conn)?;
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
         execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
             .filter_map(|res| res.map(|either| either.right()).transpose())
             .map(|row| FromRow::from_row(&row?))
             .collect::<Result<Vec<_>, Error>>()?;
-    logger.add_program(program.clone());
     let program_size = program.len();
+
+    let mut logger =
+        crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
 
     let mut states = vec![QueryState {
         visited: vec![false; program_size],
@@ -588,7 +588,7 @@ pub(super) fn explain(
                             );
                         }
 
-                        _ => logger.add_unknown_operation(program[state.program_i].clone()),
+                        _ => logger.add_unknown_operation(&program[state.program_i]),
                     }
                 }
 
@@ -753,9 +753,12 @@ pub(super) fn explain(
                             .collect(),
                     );
 
-                    let program_history: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
-                        state.history.iter().map(|i| program[*i].clone()).collect();
-                    logger.add_result((program_history, state.result.clone()));
+                    if logger.log_enabled() {
+                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                            state.history.iter().map(|i| &program[*i]).collect();
+                        logger.add_result((program_history, state.result.clone()));
+                    }
+
                     result_states.push(state.clone());
                 }
 
@@ -766,7 +769,7 @@ pub(super) fn explain(
                 _ => {
                     // ignore unsupported operations
                     // if we fail to find an r later, we just give up
-                    logger.add_unknown_operation(program[state.program_i].clone());
+                    logger.add_unknown_operation(&program[state.program_i]);
                 }
             }
 
