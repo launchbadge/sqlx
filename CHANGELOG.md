@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.2 - 2022-09-14
+
+[25 pull requests][0.6.2-prs] were merged this release cycle.
+
+### Added
+* [[#1081]]: Add `try_from` attribute for `FromRow` derive [[@zzhengzhuo]]
+    * Exemplifies "out of sight, out of mind." It's surprisingly easy to forget about PRs when they get pushed onto
+      the second page. We'll be sure to clean out the backlog for 0.7.0.
+* [[#2014]]: Support additional SQLCipher options in SQLite driver. [[@szymek156]]
+* [[#2052]]: Add issue templates [[@abonander]]
+* [[#2053]]: Add documentation for `IpAddr` support in Postgres [[@rakshith-ravi]]
+* [[#2062]]: Add extension support for SQLite [[@bradfier]]
+* [[#2063]]: customizable db locking during migration [[@fuzzbuck]]
+
+### Changed
+* [[#2025]]: Bump sqlformat to 2.0 [[@NSMustache]]
+* [[#2056]]: chore: Switch to sha1 crate [[@stoically]]
+* [[#2071]]: Use cargo check consistently in `prepare` [[@cycraig]]
+
+### Fixed
+* [[#1991]]: Ensure migration progress is not lost for Postgres, MySQL and SQLite. [[@crepererum]]
+* [[#2023]]: Fix expansion of `#[sqlx(flatten)]` for `FromRow` derive [[@RustyYato]]
+* [[#2028]]: Use fully qualified path when forwarding to `#[test]` from `#[sqlx::test]` [[@alexander-jackson]]
+* [[#2040]]: Fix typo in `FromRow` docs [[@zlidner]]
+* [[#2046]]: added flag for PIPES_AS_CONCAT connection setting for MySQL to fix #2034 [[@marcustut]]
+* [[#2055]]: Use unlock notify also on `sqlite3_exec`  [[@madadam]]
+* [[#2057]]: Make begin,commit,rollback cancel-safe in sqlite  [[@madadam]]
+* [[#2058]]: fix typo in documentation [[@lovasoa]]
+* [[#2067]]: fix(docs): close code block in query_builder.rs [[@abonander]]
+* [[#2069]]: Fix `prepare` race condition in workspaces [[@cycraig]]
+* [[#2072]]: SqliteConnectOptions typo [[@fasterthanlime]]
+* [[#2074]]: fix: mssql uses unsigned for tinyint instead of signed [[@he4d]]
+* [[#2081]]: close unnamed portal after each executed extended query [[@DXist]]
+* [[#2086]]: PgHasArrayType for transparent types fix. [[@Wopple]]
+    * NOTE: this is a breaking change and has been postponed to 0.7.0.
+* [[#2089]]: fix: Remove default chrono dep on time for sqlx-cli [[@TravisWhitehead]]
+* [[#2091]]: Sqlite explain plan log efficiency [[@tyrelr]]
+
+[0.6.2-prs]: https://github.com/launchbadge/sqlx/pulls?q=is%3Apr+is%3Aclosed+merged%3A2022-08-04..2022-09-14+
+
+[#1081]: https://github.com/launchbadge/sqlx/pull/1081
+[#1991]: https://github.com/launchbadge/sqlx/pull/1991
+[#2014]: https://github.com/launchbadge/sqlx/pull/2014
+[#2023]: https://github.com/launchbadge/sqlx/pull/2023
+[#2025]: https://github.com/launchbadge/sqlx/pull/2025
+[#2028]: https://github.com/launchbadge/sqlx/pull/2028
+[#2040]: https://github.com/launchbadge/sqlx/pull/2040
+[#2046]: https://github.com/launchbadge/sqlx/pull/2046
+[#2052]: https://github.com/launchbadge/sqlx/pull/2052
+[#2053]: https://github.com/launchbadge/sqlx/pull/2053
+[#2055]: https://github.com/launchbadge/sqlx/pull/2055
+[#2056]: https://github.com/launchbadge/sqlx/pull/2056
+[#2057]: https://github.com/launchbadge/sqlx/pull/2057
+[#2058]: https://github.com/launchbadge/sqlx/pull/2058
+[#2062]: https://github.com/launchbadge/sqlx/pull/2062
+[#2063]: https://github.com/launchbadge/sqlx/pull/2063
+[#2067]: https://github.com/launchbadge/sqlx/pull/2067
+[#2069]: https://github.com/launchbadge/sqlx/pull/2069
+[#2071]: https://github.com/launchbadge/sqlx/pull/2071
+[#2072]: https://github.com/launchbadge/sqlx/pull/2072
+[#2074]: https://github.com/launchbadge/sqlx/pull/2074
+[#2081]: https://github.com/launchbadge/sqlx/pull/2081
+[#2086]: https://github.com/launchbadge/sqlx/pull/2086
+[#2089]: https://github.com/launchbadge/sqlx/pull/2089
+[#2091]: https://github.com/launchbadge/sqlx/pull/2091
+
 ## 0.6.1 - 2022-08-02
 
 [33 pull requests][0.6.1-prs] were merged this release cycle.
@@ -1510,3 +1576,21 @@ Fix docs.rs build by enabling a runtime feature in the docs.rs metadata in `Carg
 [@crepererum]: https://github.com/crepererum
 [@UramnOIL]: https://github.com/UramnOIL
 [@liningpan]: https://github.com/liningpan
+[@zzhengzhuo]: https://github.com/zzhengzhuo
+[@crepererum]: https://github.com/crepererum
+[@szymek156]: https://github.com/szymek156
+[@NSMustache]: https://github.com/NSMustache
+[@RustyYato]: https://github.com/RustyYato
+[@alexander-jackson]: https://github.com/alexander-jackson
+[@zlidner]: https://github.com/zlidner
+[@zlindner]: https://github.com/zlindner
+[@marcustut]: https://github.com/marcustut
+[@rakshith-ravi]: https://github.com/rakshith-ravi
+[@bradfier]: https://github.com/bradfier
+[@fuzzbuck]: https://github.com/fuzzbuck
+[@cycraig]: https://github.com/cycraig
+[@fasterthanlime]: https://github.com/fasterthanlime
+[@he4d]: https://github.com/he4d
+[@DXist]: https://github.com/DXist
+[@Wopple]: https://github.com/Wopple
+[@TravisWhitehead]: https://github.com/TravisWhitehead
