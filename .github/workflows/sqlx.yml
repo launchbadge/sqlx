@@ -279,7 +279,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }} mysql_${{ matrix.mysql }}
       - run: sleep 60
 
       - uses: actions-rs/cargo@v1
@@ -308,7 +308,7 @@ jobs:
 
       - run: |
           docker stop mysql_${{ matrix.mysql }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mysql_${{ matrix.mysql }}_client_ssl
+          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
       - uses: actions-rs/cargo@v1
@@ -349,7 +349,7 @@ jobs:
           args: >
             --features mysql,_unstable-all-types,runtime-${{ matrix.runtime }},tls-${{ matrix.tls }}
 
-      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}
+      - run: docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }} mariadb_${{ matrix.mariadb }}
       - run: sleep 30
 
       - uses: actions-rs/cargo@v1
@@ -366,7 +366,7 @@ jobs:
 
       - run: |
           docker stop mariadb_${{ matrix.mariadb }}
-          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 mariadb_${{ matrix.mariadb }}_client_ssl
+          docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mariadb_${{ matrix.mariadb }}_client_ssl mariadb_${{ matrix.mariadb }}_client_ssl
           sleep 60
 
       - uses: actions-rs/cargo@v1
