@@ -1,26 +1,31 @@
 //! Core of SQLx, the rust SQL toolkit.
-//! Not intended to be used directly; semver exempt.
+//!
+//! ### Note: Semver Exempt API
+//! The API of this crate is not meant for general use and does *not* follow Semantic Versioning.
+//! The only crate that follows Semantic Versioning in the project is the `sqlx` crate itself.
+//! If you are building a custom SQLx driver, you should pin an exact version for `sqlx-core` to
+//! avoid breakages:
+//!
+//! ```toml
+//! sqlx-core = { version = "=0.6.2" }
+//! ```
+//!
+//! And then make releases in lockstep with `sqlx-core`. We recommend all driver crates, in-tree
+//! or otherwise, use the same version numbers as `sqlx-core` to avoid confusion.
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
 // See `clippy.toml` at the workspace root
 #![deny(clippy::disallowed_method)]
-//
+// The only unsafe code in SQLx is that necessary to interact with native APIs like with SQLite,
+// and that can live in its own separate driver crate.
+#![forbid(unsafe_code)]
 // Allows an API be documented as only available in some specific platforms.
 // <https://doc.rust-lang.org/unstable-book/language-features/doc-cfg.html>
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//
-// When compiling with support for SQLite we must allow some unsafe code in order to
-// interface with the inherently unsafe C module. This unsafe code is contained
-// to the sqlite module.
-#![cfg_attr(feature = "sqlite", deny(unsafe_code))]
-#![cfg_attr(not(feature = "sqlite"), forbid(unsafe_code))]
-
-#[cfg(feature = "bigdecimal")]
-extern crate bigdecimal_ as bigdecimal;
 
 #[macro_use]
-mod ext;
+pub mod ext;
 
 #[macro_use]
 pub mod error;
@@ -58,7 +63,6 @@ pub mod column;
 pub mod statement;
 
 pub mod common;
-pub use either::Either;
 pub mod database;
 pub mod describe;
 pub mod executor;
@@ -79,32 +83,8 @@ pub mod value;
 #[cfg(feature = "migrate")]
 pub mod migrate;
 
-#[cfg(all(
-    any(
-        feature = "postgres",
-        feature = "mysql",
-        feature = "mssql",
-        feature = "sqlite"
-    ),
-    feature = "any"
-))]
+#[cfg(feature = "any")]
 pub mod any;
-
-#[cfg(feature = "postgres")]
-#[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
-pub mod postgres;
-
-#[cfg(feature = "sqlite")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
-pub mod sqlite;
-
-#[cfg(feature = "mysql")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]
-pub mod mysql;
-
-#[cfg(feature = "mssql")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mssql")))]
-pub mod mssql;
 
 // Implements test support with automatic DB management.
 #[cfg(feature = "migrate")]
@@ -114,4 +94,28 @@ pub use error::{Error, Result};
 
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
 pub use ahash::AHashMap as HashMap;
+pub use either::Either;
+pub use indexmap::IndexMap;
+pub use percent_encoding;
+pub use smallvec::SmallVec;
+pub use url::{self, Url};
+
+pub use bytes;
+
 //type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
+
+/// Helper module to get drivers compiling again that used to be in this crate,
+/// to avoid having to replace tons of `use crate::<...>` imports.
+///
+/// This module can be glob-imported and should not clash with any modules a driver
+/// would want to implement itself.
+pub mod driver_prelude {
+    pub use crate::{
+        acquire, common, decode, describe, encode, executor, ext, from_row, fs, io, logger, net,
+        pool, query, query_as, query_builder, query_scalar, rt, sync,
+    };
+
+    pub use crate::error::{Error, Result};
+    pub use crate::HashMap;
+    pub use either::Either;
+}

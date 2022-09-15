@@ -58,6 +58,7 @@ impl<'a, T> Stream for TryAsyncStream<'a, T> {
     }
 }
 
+#[macro_export]
 macro_rules! try_stream {
     ($($block:tt)*) => {
         crate::ext::async_stream::TryAsyncStream::new(move |mut sender| async move {

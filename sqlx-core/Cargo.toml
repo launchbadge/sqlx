@@ -1,116 +1,59 @@
 [package]
 name = "sqlx-core"
-version = "0.6.2"
-repository = "https://github.com/launchbadge/sqlx"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
-license = "MIT OR Apache-2.0"
-edition = "2021"
-authors = [
-    "Ryan Leckey <leckey.ryan@gmail.com>",
-    "Austin Bonander <austin.bonander@gmail.com>",
-    "Chloe Ross <orangesnowfox@gmail.com>",
-    "Daniel Akhterov <akhterovd@gmail.com>",
-]
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "all-types", "offline", "runtime-tokio-native-tls"]
+features = ["offline", "runtime-tokio-native-tls"]
 
 [features]
-default = ["migrate"]
+default = []
 migrate = ["sha2", "crc"]
 
-# databases
-all-databases = ["postgres", "mysql", "sqlite", "mssql", "any"]
-postgres = [
-    "md-5",
-    "sha2",
-    "base64",
-    "sha1",
-    "rand",
-    "hmac",
-    "futures-channel/sink",
-    "futures-util/sink",
-    "json",
-    "dirs",
-    "whoami",
-    "hkdf"
-]
-mysql = [
-    "sha1",
-    "sha2",
-    "generic-array",
-    "num-bigint",
-    "digest",
-    "rand",
-    "rsa",
-]
-sqlite = ["libsqlite3-sys", "futures-executor", "flume"]
-mssql = ["uuid", "encoding_rs", "regex"]
 any = []
 
-# types
-all-types = [
-    "chrono",
-    "time",
-    "bigdecimal",
-    "decimal",
-    "ipnetwork",
-    "mac_address",
-    "json",
-    "uuid",
-    "bit-vec",
-]
-bigdecimal = ["bigdecimal_", "num-bigint"]
-decimal = ["rust_decimal", "num-bigint"]
 json = ["serde", "serde_json"]
 
-# runtimes
-runtime-actix-native-tls = ["runtime-tokio-native-tls"]
-runtime-async-std-native-tls = [
-    "sqlx-rt/runtime-async-std-native-tls",
-    "sqlx/runtime-async-std-native-tls",
-    "_tls-native-tls",
-    "_rt-async-std",
-]
-runtime-tokio-native-tls = [
-    "sqlx-rt/runtime-tokio-native-tls",
-    "sqlx/runtime-tokio-native-tls",
-    "_tls-native-tls",
-    "_rt-tokio",
-]
-
-runtime-actix-rustls = ['runtime-tokio-rustls']
-runtime-async-std-rustls = [
-    "sqlx-rt/runtime-async-std-rustls",
-    "sqlx/runtime-async-std-rustls",
-    "_tls-rustls",
-    "_rt-async-std",
-]
-runtime-tokio-rustls = [
-    "sqlx-rt/runtime-tokio-rustls",
-    "sqlx/runtime-tokio-rustls",
-    "_tls-rustls",
-    "_rt-tokio"
-]
-
 # for conditional compilation
-_rt-async-std = []
-_rt-tokio = ["tokio-stream"]
-_tls-native-tls = []
+_rt-async-std = ["async-std", "async-io"]
+_rt-tokio = ["tokio", "tokio-stream"]
+_tls-native-tls = ["native-tls"]
 _tls-rustls = ["rustls", "rustls-pemfile", "webpki-roots"]
+_tls-none = []
 
 # support offline/decoupled building (enables serialization of `Describe`)
 offline = ["serde", "either/serde"]
 
 [dependencies]
+# Runtimes
+async-std = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+# TLS
+native-tls = { version = "0.2.10", optional = true }
+
+rustls = { version = "0.20.6", features = ["dangerous_configuration"], optional = true }
+rustls-pemfile = { version = "1.0", optional = true }
+webpki-roots = { version = "0.22.0", optional = true }
+
+# Type Integrations
+bit-vec = { workspace = true, optional = true }
+bigdecimal = { workspace = true, optional = true }
+rust_decimal = { workspace = true, optional = true }
+time = { workspace = true, optional = true }
+ipnetwork = { workspace = true, optional = true }
+mac_address = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+
+async-io = { version = "1.9.0", optional = true }
 paste = "1.0.6"
 ahash = "0.7.6"
 atoi = "1.0"
-sqlx-rt = { path = "../sqlx-rt", version = "0.6.2" }
-base64 = { version = "0.13.0", default-features = false, optional = true, features = ["std"] }
-bigdecimal_ = { version = "0.3.0", optional = true, package = "bigdecimal" }
-rust_decimal = { version = "1.19.0", optional = true }
-bit-vec = { version = "0.6.3", optional = true }
+
 bitflags = { version = "1.3.2", default-features = false }
 bytes = "1.1.0"
 byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
@@ -118,65 +61,41 @@ chrono = { version = "0.4.19", default-features = false, features = ["clock"], o
 crc = { version = "3", optional = true }
 crossbeam-queue = "0.3.2"
 digest = { version = "0.10.0", default-features = false, optional = true, features = ["std"] }
-dirs = { version = "4.0.0", optional = true }
 encoding_rs = { version = "0.8.30", optional = true }
 either = "1.6.1"
 futures-channel = { version = "0.3.19", default-features = false, features = ["sink", "alloc", "std"] }
 futures-core = { version = "0.3.19", default-features = false }
+futures-io = "0.3.24"
 futures-intrusive = "0.4.0"
-futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink"] }
-# used by the SQLite worker thread to block on the async mutex that locks the database handle
-futures-executor = { version = "0.3.19", optional = true }
-flume = { version = "0.10.9", optional = true, default-features = false, features = ["async"] }
+futures-util = { version = "0.3.19", default-features = false, features = ["alloc", "sink", "io"] }
 generic-array = { version = "0.14.4", default-features = false, optional = true }
 hex = "0.4.3"
-hmac = { version = "0.12.0", default-features = false, optional = true }
-itoa = "1.0.1"
-ipnetwork = { version = "0.19.0", default-features = false, optional = true }
-mac_address = { version = "1.1.2", default-features = false, optional = true }
-libc = "0.2.112"
-libsqlite3-sys = { version = "0.25.1", optional = true, default-features = false, features = [
-    "pkg-config",
-    "vcpkg",
-    "bundled",
-    "unlock_notify"
-] }
+
 log = { version = "0.4.14", default-features = false }
-md-5 = { version = "0.10.0", default-features = false, optional = true }
 memchr = { version = "2.4.1", default-features = false }
 num-bigint = { version = "0.4.0", default-features = false, optional = true, features = ["std"] }
 once_cell = "1.9.0"
 percent-encoding = "2.1.0"
-rand = { version = "0.8.4", default-features = false, optional = true, features = ["std", "std_rng"] }
 regex = { version = "1.5.5", optional = true }
 rsa = { version = "0.6.0", optional = true }
-rustls = { version = "0.20.1", features = ["dangerous_configuration"], optional = true }
-rustls-pemfile = { version = "1.0", optional = true }
 serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
 serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
 sha1 = { version = "0.10.1", default-features = false, optional = true }
 sha2 = { version = "0.10.0", default-features = false, optional = true }
 sqlformat = "0.2.0"
 thiserror = "1.0.30"
-time = { version = "0.3.2", features = ["macros", "formatting", "parsing"], optional = true }
 tokio-stream = { version = "0.1.8", features = ["fs"], optional = true }
 smallvec = "1.7.0"
 url = { version = "2.2.2", default-features = false }
-uuid = { version = "1.0", default-features = false, optional = true, features = ["std"] }
-webpki-roots = { version = "0.22.0", optional = true }
-whoami = { version = "1.2.1", optional = true }
-stringprep = "0.1.2"
 bstr = { version = "0.2.17", default-features = false, features = ["std"], optional = true }
-git2 = { version = "0.14", default-features = false, optional = true }
 hashlink = "0.8.0"
 # NOTE: *must* remain below 1.7.0 to allow users to avoid the `ahash` cyclic dependency problem by pinning the version
 # https://github.com/tkaitchuck/aHash/issues/95#issuecomment-874150078
 indexmap = "1.6.0"
-hkdf = { version = "0.12.0", optional = true }
 event-listener = "2.5.2"
 
 dotenvy = "0.15"
 
 [dev-dependencies]
-sqlx = { version = "0.6.2", path = "..", features = ["postgres", "sqlite", "mysql"] }
+sqlx = { version = "0.6.2", path = "..", features = ["postgres", "sqlite", "mysql", "migrate"] }
 tokio = { version = "1", features = ["rt"] }

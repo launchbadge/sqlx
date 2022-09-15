@@ -310,7 +310,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
 
     let tweet_id: u64 = sqlx::query("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' )")
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?
         .last_insert_id();
 
@@ -326,7 +326,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     assert_eq!(statement.column(2).type_info().name(), "TEXT");
     assert_eq!(statement.column(3).type_info().name(), "BIGINT");
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -359,7 +359,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx::query("SELECT 1").fetch_one(&mut *conn).await.unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }
@@ -399,10 +399,10 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
     sqlx::query("INSERT INTO users (id) VALUES (?)")
         .bind(1_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
     assert_eq!(count, 1);
     tx.rollback().await?;
@@ -416,7 +416,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
     sqlx::query("INSERT INTO users (id) VALUES (?)")
         .bind(1_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
     tx.commit().await?;
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
@@ -431,10 +431,10 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
         sqlx::query("INSERT INTO users (id) VALUES (?)")
             .bind(2)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?;
         assert_eq!(count, 2);
         // tx is dropped

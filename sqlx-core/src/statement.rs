@@ -92,82 +92,82 @@ pub trait Statement<'q>: Send + Sync {
 macro_rules! impl_statement_query {
     ($A:ty) => {
         #[inline]
-        fn query(&self) -> crate::query::Query<'_, Self::Database, $A> {
-            crate::query::query_statement(self)
+        fn query(&self) -> $crate::query::Query<'_, Self::Database, $A> {
+            $crate::query::query_statement(self)
         }
 
         #[inline]
-        fn query_with<'s, A>(&'s self, arguments: A) -> crate::query::Query<'s, Self::Database, A>
+        fn query_with<'s, A>(&'s self, arguments: A) -> $crate::query::Query<'s, Self::Database, A>
         where
-            A: crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s, Self::Database>,
         {
-            crate::query::query_statement_with(self, arguments)
+            $crate::query::query_statement_with(self, arguments)
         }
 
         #[inline]
         fn query_as<O>(
             &self,
-        ) -> crate::query_as::QueryAs<
+        ) -> $crate::query_as::QueryAs<
             '_,
             Self::Database,
             O,
-            <Self::Database as crate::database::HasArguments<'_>>::Arguments,
+            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
         >
         where
-            O: for<'r> crate::from_row::FromRow<
+            O: for<'r> $crate::from_row::FromRow<
                 'r,
-                <Self::Database as crate::database::Database>::Row,
+                <Self::Database as $crate::database::Database>::Row,
             >,
         {
-            crate::query_as::query_statement_as(self)
+            $crate::query_as::query_statement_as(self)
         }
 
         #[inline]
         fn query_as_with<'s, O, A>(
             &'s self,
             arguments: A,
-        ) -> crate::query_as::QueryAs<'s, Self::Database, O, A>
+        ) -> $crate::query_as::QueryAs<'s, Self::Database, O, A>
         where
-            O: for<'r> crate::from_row::FromRow<
+            O: for<'r> $crate::from_row::FromRow<
                 'r,
-                <Self::Database as crate::database::Database>::Row,
+                <Self::Database as $crate::database::Database>::Row,
             >,
-            A: crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s, Self::Database>,
         {
-            crate::query_as::query_statement_as_with(self, arguments)
+            $crate::query_as::query_statement_as_with(self, arguments)
         }
 
         #[inline]
         fn query_scalar<O>(
             &self,
-        ) -> crate::query_scalar::QueryScalar<
+        ) -> $crate::query_scalar::QueryScalar<
             '_,
             Self::Database,
             O,
-            <Self::Database as crate::database::HasArguments<'_>>::Arguments,
+            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
         >
         where
-            (O,): for<'r> crate::from_row::FromRow<
+            (O,): for<'r> $crate::from_row::FromRow<
                 'r,
-                <Self::Database as crate::database::Database>::Row,
+                <Self::Database as $crate::database::Database>::Row,
             >,
         {
-            crate::query_scalar::query_statement_scalar(self)
+            $crate::query_scalar::query_statement_scalar(self)
         }
 
         #[inline]
         fn query_scalar_with<'s, O, A>(
             &'s self,
             arguments: A,
-        ) -> crate::query_scalar::QueryScalar<'s, Self::Database, O, A>
+        ) -> $crate::query_scalar::QueryScalar<'s, Self::Database, O, A>
         where
-            (O,): for<'r> crate::from_row::FromRow<
+            (O,): for<'r> $crate::from_row::FromRow<
                 'r,
-                <Self::Database as crate::database::Database>::Row,
+                <Self::Database as $crate::database::Database>::Row,
             >,
-            A: crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s, Self::Database>,
         {
-            crate::query_scalar::query_statement_scalar_with(self, arguments)
+            $crate::query_scalar::query_statement_scalar_with(self, arguments)
         }
     };
 }

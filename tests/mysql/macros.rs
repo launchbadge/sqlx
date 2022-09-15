@@ -191,7 +191,7 @@ async fn with_test_row<'a>(
 ) -> anyhow::Result<(Transaction<'a, MySql>, MyInt)> {
     let mut transaction = conn.begin().await?;
     let id = sqlx::query!("INSERT INTO tweet(text, owner_id) VALUES ('#sqlx is pretty cool!', 1)")
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?
         .last_insert_id();
     Ok((transaction, MyInt(id as i64)))
@@ -215,20 +215,20 @@ async fn test_column_override_wildcard() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(Record, "select id as `id: _` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, id);
 
     // this syntax is also useful for expressions
     let record = sqlx::query_as!(Record, "select * from (select 1 as `id: _`) records")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
 
     let record = sqlx::query_as!(OptionalRecord, "select owner_id as `id: _` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, Some(MyInt(1)));
@@ -242,7 +242,7 @@ async fn test_column_override_wildcard_not_null() -> anyhow::Result<()> {
     let (mut conn, _) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(Record, "select owner_id as `id!: _` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
@@ -256,7 +256,7 @@ async fn test_column_override_wildcard_nullable() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as!(OptionalRecord, "select id as `id?: _` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, Some(id));
@@ -270,20 +270,20 @@ async fn test_column_override_exact() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select id as `id: MyInt` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, id);
 
     // we can also support this syntax for expressions
     let record = sqlx::query!("select * from (select 1 as `id: MyInt`) records")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
 
     let record = sqlx::query!("select owner_id as `id: MyInt` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, Some(MyInt(1)));
@@ -297,7 +297,7 @@ async fn test_column_override_exact_not_null() -> anyhow::Result<()> {
     let (mut conn, _) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select owner_id as `id!: MyInt` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, MyInt(1));
@@ -311,7 +311,7 @@ async fn test_column_override_exact_nullable() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query!("select id as `id?: MyInt` from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, Some(id));
@@ -366,7 +366,7 @@ async fn test_try_from_attr_for_native_type() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as::<_, Record>("select id from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, id.0 as u64);
@@ -395,7 +395,7 @@ async fn test_try_from_attr_for_custom_type() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as::<_, Record>("select id from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, Id(id.0));
@@ -427,7 +427,7 @@ async fn test_try_from_attr_with_flatten() -> anyhow::Result<()> {
     let (mut conn, id) = with_test_row(&mut conn).await?;
 
     let record = sqlx::query_as::<_, Record>("select id from tweet")
-        .fetch_one(&mut conn)
+        .fetch_one(&mut *conn)
         .await?;
 
     assert_eq!(record.id, id.0 as u64);

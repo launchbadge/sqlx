@@ -402,7 +402,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.rollback().await?;
@@ -419,7 +419,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
     sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.commit().await?;
@@ -437,7 +437,7 @@ async fn it_can_work_with_transactions() -> anyhow::Result<()> {
 
         sqlx::query("INSERT INTO _sqlx_users_1922 (id) VALUES ($1)")
             .bind(20_i32)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
     }
 
@@ -467,7 +467,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     // insert a user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
         .bind(50_i32)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     // begin once more
@@ -476,7 +476,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
     // insert another user
     sqlx::query("INSERT INTO _sqlx_users_2523 (id) VALUES ($1)")
         .bind(10_i32)
-        .execute(&mut tx2)
+        .execute(&mut *tx2)
         .await?;
 
     // never mind, rollback
@@ -484,7 +484,7 @@ async fn it_can_work_with_nested_transactions() -> anyhow::Result<()> {
 
     // did we really?
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM _sqlx_users_2523")
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     assert_eq!(count, 1);
@@ -521,7 +521,7 @@ async fn it_can_drop_multiple_transactions() -> anyhow::Result<()> {
             // do actually something before dropping
             let _user = sqlx::query("INSERT INTO _sqlx_users_3952 (id) VALUES ($1) RETURNING id")
                 .bind(20_i32)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await?;
         }
 
@@ -786,7 +786,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let tweet_id: i64 =
         sqlx::query_scalar("INSERT INTO tweet ( text ) VALUES ( 'Hello, World' ) RETURNING id")
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?;
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = $1").await?;
@@ -801,7 +801,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     assert_eq!(statement.column(2).type_info().name(), "TEXT");
     assert_eq!(statement.column(3).type_info().name(), "INT8");
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
     let tweet_text: &str = row.try_get("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -834,7 +834,7 @@ async fn test_issue_622() -> anyhow::Result<()> {
             {
                 let mut conn = pool.acquire().await.unwrap();
 
-                let _ = sqlx::query("SELECT 1").fetch_one(&mut conn).await.unwrap();
+                let _ = sqlx::query("SELECT 1").fetch_one(&mut *conn).await.unwrap();
 
                 // conn gets dropped here and should be returned to the pool
             }

@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 /// A wrapper for `Fn`s that provides a debug impl that just says "Function"
-pub(crate) struct DebugFn<F: ?Sized>(pub F);
+pub struct DebugFn<F: ?Sized>(pub F);
 
 impl<F: ?Sized> Deref for DebugFn<F> {
     type Target = F;

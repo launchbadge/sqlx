@@ -1,6 +1,7 @@
 use crate::database::Database;
 use crate::error::Error;
 use crate::pool::{MaybePoolConnection, Pool, PoolConnection};
+
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
 use std::ops::{Deref, DerefMut};
@@ -97,18 +98,18 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
     }
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! impl_acquire {
     ($DB:ident, $C:ident) => {
-        impl<'c> crate::acquire::Acquire<'c> for &'c mut $C {
+        impl<'c> $crate::acquire::Acquire<'c> for &'c mut $C {
             type Database = $DB;
 
-            type Connection = &'c mut <$DB as crate::database::Database>::Connection;
+            type Connection = &'c mut <$DB as $crate::database::Database>::Connection;
 
             #[inline]
             fn acquire(
                 self,
-            ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, crate::error::Error>>
+            ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, $crate::error::Error>>
             {
                 Box::pin(futures_util::future::ok(self))
             }
@@ -118,59 +119,9 @@ macro_rules! impl_acquire {
                 self,
             ) -> futures_core::future::BoxFuture<
                 'c,
-                Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
+                Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
             > {
-                crate::transaction::Transaction::begin(self)
-            }
-        }
-
-        impl<'c> crate::acquire::Acquire<'c> for &'c mut crate::pool::PoolConnection<$DB> {
-            type Database = $DB;
-
-            type Connection = &'c mut <$DB as crate::database::Database>::Connection;
-
-            #[inline]
-            fn acquire(
-                self,
-            ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, crate::error::Error>>
-            {
-                Box::pin(futures_util::future::ok(&mut **self))
-            }
-
-            #[inline]
-            fn begin(
-                self,
-            ) -> futures_core::future::BoxFuture<
-                'c,
-                Result<crate::transaction::Transaction<'c, $DB>, crate::error::Error>,
-            > {
-                crate::transaction::Transaction::begin(&mut **self)
-            }
-        }
-
-        impl<'c, 't> crate::acquire::Acquire<'t>
-            for &'t mut crate::transaction::Transaction<'c, $DB>
-        {
-            type Database = $DB;
-
-            type Connection = &'t mut <$DB as crate::database::Database>::Connection;
-
-            #[inline]
-            fn acquire(
-                self,
-            ) -> futures_core::future::BoxFuture<'t, Result<Self::Connection, crate::error::Error>>
-            {
-                Box::pin(futures_util::future::ok(&mut **self))
-            }
-
-            #[inline]
-            fn begin(
-                self,
-            ) -> futures_core::future::BoxFuture<
-                't,
-                Result<crate::transaction::Transaction<'t, $DB>, crate::error::Error>,
-            > {
-                crate::transaction::Transaction::begin(&mut **self)
+                $crate::transaction::Transaction::begin(self)
             }
         }
     };

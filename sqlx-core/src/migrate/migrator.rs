@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::slice;
 
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
@@ -91,13 +92,14 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
-    /// # #[cfg(feature = "sqlite")]
+    /// # use sqlx::migrate::MigrateError;
     /// # fn main() -> Result<(), MigrateError> {
     /// #     sqlx::__rt::test_block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
+    /// use sqlx::migrate::Migrator;
+    /// use sqlx::sqlite::SqlitePoolOptions;
+    ///
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
-    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// let pool = SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.run(&pool).await
     /// #     })
     /// # }
@@ -170,13 +172,14 @@ impl Migrator {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use sqlx_core::migrate::MigrateError;
-    /// # #[cfg(feature = "sqlite")]
+    /// # use sqlx::migrate::MigrateError;
     /// # fn main() -> Result<(), MigrateError> {
     /// #     sqlx::__rt::test_block_on(async move {
-    /// # use sqlx_core::migrate::Migrator;
+    /// use sqlx::migrate::Migrator;
+    /// use sqlx::sqlite::SqlitePoolOptions;
+    ///
     /// let m = Migrator::new(std::path::Path::new("./migrations")).await?;
-    /// let pool = sqlx_core::sqlite::SqlitePoolOptions::new().connect("sqlite::memory:").await?;
+    /// let pool = SqlitePoolOptions::new().connect("sqlite::memory:").await?;
     /// m.undo(&pool, 4).await
     /// #     })
     /// # }

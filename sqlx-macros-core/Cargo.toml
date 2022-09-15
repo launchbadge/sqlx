@@ -1,0 +1,60 @@
+[package]
+name = "sqlx-macros-core"
+description = "Macro support core for SQLx, the Rust SQL toolkit. Not intended to be used directly."
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+# for conditional compilation
+_rt-async-std = ["async-std", "sqlx-core/_rt-async-std"]
+_rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
+
+_tls-native-tls = ["sqlx-core/_tls-native-tls"]
+_tls-rustls = ["sqlx-core/_tls-rustls"]
+
+# SQLx features
+migrate = ["sqlx-core/migrate"]
+
+# database
+mysql = ["sqlx-mysql"]
+postgres = ["sqlx-postgres"]
+sqlite = ["sqlx-sqlite"]
+
+# type integrations
+json = ["sqlx-core/json", "sqlx-mysql?/json", "sqlx-sqlite?/json"]
+
+bigdecimal = ["sqlx-core/bigdecimal", "sqlx-mysql?/bigdecimal", "sqlx-postgres?/bigdecimal"]
+bit-vec = ["sqlx-core/bit-vec", "sqlx-postgres?/bit-vec"]
+chrono = ["sqlx-core/chrono", "sqlx-mysql?/chrono", "sqlx-postgres?/chrono", "sqlx-sqlite?/chrono"]
+ipnetwork = ["sqlx-core/ipnetwork", "sqlx-postgres?/ipnetwork"]
+mac_address = ["sqlx-core/mac_address", "sqlx-postgres?/mac_address"]
+rust_decimal = ["sqlx-core/rust_decimal", "sqlx-mysql?/rust_decimal", "sqlx-postgres?/rust_decimal"]
+time = ["sqlx-core/time", "sqlx-mysql?/time", "sqlx-postgres?/time", "sqlx-sqlite?/time"]
+uuid = ["sqlx-core/uuid", "sqlx-mysql?/uuid", "sqlx-postgres?/uuid", "sqlx-sqlite?/uuid"]
+
+[dependencies]
+sqlx-core = { version = "0.6.2", default-features = false, features = ["offline"], path = "../sqlx-core" }
+sqlx-mysql = { workspace = true, features = ["offline", "migrate"], optional = true }
+sqlx-postgres = { workspace = true, features = ["offline", "migrate"], optional = true }
+sqlx-sqlite = { workspace = true, features = ["offline", "migrate"], optional = true }
+
+async-std = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+dotenvy = { workspace = true }
+
+hex = { version = "0.4.3" }
+heck = { version = "0.4", features = ["unicode"] }
+either = "1.6.1"
+once_cell = "1.9.0"
+proc-macro2 = { version = "1.0.36", default-features = false }
+serde = { version = "1.0.132", features = ["derive"] }
+serde_json = { version = "1.0.73" }
+sha2 = { version = "0.10.0" }
+syn = { version = "1.0.84", default-features = false, features = ["full", "derive", "parsing", "printing", "clone-impls"] }
+quote = { version = "1.0.14", default-features = false }
+url = { version = "2.2.2", default-features = false }
+

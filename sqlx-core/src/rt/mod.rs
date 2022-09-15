@@ -144,7 +144,7 @@ pub fn missing_rt<T>(_unused: T) -> ! {
         panic!("this functionality requires a Tokio context")
     }
 
-    panic!("at least one of the `runtime-*` features must be enabled")
+    panic!("either the `runtime-async-std` or `runtime-tokio` feature must be enabled")
 }
 
 impl<T: Send + 'static> Future for JoinHandle<T> {

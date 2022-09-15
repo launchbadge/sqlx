@@ -105,7 +105,8 @@ impl<DB: Database> PoolConnection<DB> {
     /// Test the connection to make sure it is still live before returning it to the pool.
     ///
     /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
-    pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
+    #[doc(hidden)]
+    pub fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         // float the connection in the pool before we move into the task
         // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
         // https://github.com/launchbadge/sqlx/issues/1396
@@ -126,6 +127,25 @@ impl<DB: Database> PoolConnection<DB> {
                 pool.min_connections_maintenance(None).await;
             }
         }
+    }
+}
+
+impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB> {
+    type Database = DB;
+
+    type Connection = &'c mut <DB as Database>::Connection;
+
+    #[inline]
+    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
+        Box::pin(futures_util::future::ok(&mut **self))
+    }
+
+    #[inline]
+    fn begin(
+        self,
+    ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c, DB>, Error>>
+    {
+        crate::transaction::Transaction::begin(&mut **self)
     }
 }
 

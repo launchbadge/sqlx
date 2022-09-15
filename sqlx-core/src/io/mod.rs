@@ -18,3 +18,9 @@ pub use futures_io::AsyncRead;
 
 #[cfg(feature = "_rt-tokio")]
 pub use tokio::io::AsyncRead;
+
+#[cfg(not(feature = "_rt-tokio"))]
+pub use futures_util::io::AsyncReadExt;
+
+#[cfg(feature = "_rt-tokio")]
+pub use tokio::io::AsyncReadExt;

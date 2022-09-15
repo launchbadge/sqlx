@@ -38,13 +38,6 @@ impl<S: Socket> Socket for NativeTlsSocket<S> {
     }
 }
 
-/// DEPRECATED: this should never have been public.
-impl From<native_tls::Error> for Error {
-    fn from(e: native_tls::Error) -> Self {
-        Error::Tls(Box::new(e))
-    }
-}
-
 pub async fn handshake<S: Socket>(
     socket: S,
     config: TlsConfig<'_>,
@@ -57,10 +50,10 @@ pub async fn handshake<S: Socket>(
 
     if let Some(root_cert_path) = config.root_cert_path {
         let data = root_cert_path.data().await?;
-        builder.add_root_certificate(native_tls::Certificate::from_pem(&data)?);
+        builder.add_root_certificate(native_tls::Certificate::from_pem(&data).map_err(Error::tls)?);
     }
 
-    let connector = builder.build()?;
+    let connector = builder.build().map_err(Error::tls)?;
 
     let mut mid_handshake = match connector.connect(config.hostname, StdSocket::new(socket)) {
         Ok(tls_stream) => return Ok(NativeTlsSocket { stream: tls_stream }),

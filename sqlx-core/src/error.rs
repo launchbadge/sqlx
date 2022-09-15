@@ -5,14 +5,14 @@ use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
-use std::result::Result as StdResult;
 
 use crate::database::Database;
+
 use crate::type_info::TypeInfo;
 use crate::types::Type;
 
 /// A specialized `Result` type for SQLx.
-pub type Result<T> = StdResult<T, Error>;
+pub type Result<T, E = Error> = ::std::result::Result<T, E>;
 
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
@@ -82,6 +82,10 @@ pub enum Error {
     #[error("error occurred while decoding: {0}")]
     Decode(#[source] BoxDynError),
 
+    /// Error occurred within the `Any` driver mapping to/from the native driver.
+    #[error("error in Any driver mapping: {0}")]
+    AnyDriverError(#[source] BoxDynError),
+
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
     ///
@@ -122,24 +126,30 @@ impl Error {
         }
     }
 
-    #[allow(dead_code)]
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn protocol(err: impl Display) -> Self {
+    pub fn protocol(err: impl Display) -> Self {
         Error::Protocol(err.to_string())
     }
 
-    #[allow(dead_code)]
+    #[doc(hidden)]
     #[inline]
-    pub(crate) fn config(err: impl StdError + Send + Sync + 'static) -> Self {
+    pub fn config(err: impl StdError + Send + Sync + 'static) -> Self {
         Error::Configuration(err.into())
     }
 
     pub(crate) fn tls(err: impl Into<Box<dyn StdError + Send + Sync + 'static>>) -> Self {
         Error::Tls(err.into())
     }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn decode(err: impl Into<Box<dyn StdError + Send + Sync + 'static>>) -> Self {
+        Error::Decode(err.into())
+    }
 }
 
-pub(crate) fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
+pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
     // TODO: `#name` only produces `TINYINT` but perhaps we want to show `TINYINT(1)`
     format!(
         "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
@@ -227,7 +237,7 @@ impl dyn DatabaseError {
 
     /// Downcast this generic database error to a specific database error type.
     #[inline]
-    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> StdResult<Box<E>, Box<Self>> {
+    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> Result<Box<E>, Box<Self>> {
         if self.as_error().is::<E>() {
             Ok(self.into_error().downcast().unwrap())
         } else {
@@ -254,7 +264,8 @@ impl From<crate::migrate::MigrateError> for Error {
     }
 }
 
-// Format an error message as a `Protocol` error
+/// Format an error message as a `Protocol` error
+#[macro_export]
 macro_rules! err_protocol {
     ($expr:expr) => {
         $crate::error::Error::Protocol($expr.into())

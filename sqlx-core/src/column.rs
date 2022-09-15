@@ -1,8 +1,9 @@
 use crate::database::Database;
 use crate::error::Error;
+
 use std::fmt::Debug;
 
-pub trait Column: private_column::Sealed + 'static + Send + Sync + Debug {
+pub trait Column: 'static + Send + Sync + Debug {
     type Database: Database;
 
     /// Gets the column ordinal.
@@ -21,11 +22,6 @@ pub trait Column: private_column::Sealed + 'static + Send + Sync + Debug {
     fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
 }
 
-// Prevent users from implementing the `Row` trait.
-pub(crate) mod private_column {
-    pub trait Sealed {}
-}
-
 /// A type that can be used to index into a [`Row`] or [`Statement`].
 ///
 /// The [`get`] and [`try_get`] methods of [`Row`] accept any type that implements `ColumnIndex`.
@@ -39,7 +35,7 @@ pub(crate) mod private_column {
 /// [`get`]: crate::row::Row::get
 /// [`try_get`]: crate::row::Row::try_get
 ///
-pub trait ColumnIndex<T: ?Sized>: private_column_index::Sealed + Debug {
+pub trait ColumnIndex<T: ?Sized>: Debug {
     /// Returns a valid positional index into the row or statement, [`ColumnIndexOutOfBounds`], or,
     /// [`ColumnNotFound`].
     ///
@@ -58,12 +54,12 @@ impl<T: ?Sized, I: ColumnIndex<T> + ?Sized> ColumnIndex<T> for &'_ I {
 #[macro_export]
 macro_rules! impl_column_index_for_row {
     ($R:ident) => {
-        impl crate::column::ColumnIndex<$R> for usize {
-            fn index(&self, row: &$R) -> Result<usize, crate::error::Error> {
-                let len = crate::row::Row::len(row);
+        impl $crate::column::ColumnIndex<$R> for usize {
+            fn index(&self, row: &$R) -> Result<usize, $crate::error::Error> {
+                let len = $crate::row::Row::len(row);
 
                 if *self >= len {
-                    return Err(crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
+                    return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
                 }
 
                 Ok(*self)
@@ -75,25 +71,16 @@ macro_rules! impl_column_index_for_row {
 #[macro_export]
 macro_rules! impl_column_index_for_statement {
     ($S:ident) => {
-        impl crate::column::ColumnIndex<$S<'_>> for usize {
-            fn index(&self, statement: &$S<'_>) -> Result<usize, crate::error::Error> {
-                let len = crate::statement::Statement::columns(statement).len();
+        impl $crate::column::ColumnIndex<$S<'_>> for usize {
+            fn index(&self, statement: &$S<'_>) -> Result<usize, $crate::error::Error> {
+                let len = $crate::statement::Statement::columns(statement).len();
 
                 if *self >= len {
-                    return Err(crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
+                    return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
                 }
 
                 Ok(*self)
             }
         }
     };
-}
-
-// Prevent users from implementing the `ColumnIndex` trait.
-mod private_column_index {
-    pub trait Sealed {}
-
-    impl Sealed for usize {}
-    impl Sealed for str {}
-    impl<T> Sealed for &'_ T where T: Sealed + ?Sized {}
 }

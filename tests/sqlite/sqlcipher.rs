@@ -24,7 +24,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
                  );
                  ",
             )
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
             query(
@@ -35,7 +35,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
                     (2, "bbb", 222)
                 "#,
             )
-            .execute(tx)
+            .execute(&mut **tx)
             .await
         })
     })
@@ -60,7 +60,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
 
     assert!(conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await
         .is_err());
@@ -88,7 +88,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await?;
 
@@ -117,7 +117,7 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
 
     assert!(conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM Company;").fetch_all(&mut **tx).await })
         })
         .await
         .is_err());
@@ -159,7 +159,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(&mut **tx).await })
         })
         .await?;
 
@@ -193,7 +193,7 @@ async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
 
     let result = conn
         .transaction(|tx| {
-            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(tx).await })
+            Box::pin(async move { query("SELECT * FROM COMPANY;").fetch_all(&mut **tx).await })
         })
         .await?;
 
