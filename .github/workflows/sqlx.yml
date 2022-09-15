@@ -311,7 +311,9 @@ jobs:
           docker-compose -f tests/docker-compose.yml run -d -p 3306:3306 --name mysql_${{ matrix.mysql }}_client_ssl mysql_${{ matrix.mysql }}_client_ssl
           sleep 60
 
+      # MySQL 5.7 supports TLS but not TLSv1.3 as required by RusTLS.
       - uses: actions-rs/cargo@v1
+        if: ${{ !(matrix.mysql == '5_7' && matrix.tls == 'rustls') }}
         with:
           command: test
           args: >
