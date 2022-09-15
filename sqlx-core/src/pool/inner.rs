@@ -20,7 +20,7 @@ use futures_util::FutureExt;
 use std::time::{Duration, Instant};
 
 pub(crate) struct PoolInner<DB: Database> {
-    pub(super) connect_options: RwLock<<DB::Connection as Connection>::Options>,
+    pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,
     pub(super) idle_conns: ArrayQueue<Idle<DB>>,
     pub(super) semaphore: Semaphore,
     pub(super) size: AtomicU32,
@@ -47,7 +47,7 @@ impl<DB: Database> PoolInner<DB> {
         };
 
         let pool = Self {
-            connect_options: RwLock::new(connect_options),
+            connect_options: RwLock::new(Arc::new(connect_options)),
             idle_conns: ArrayQueue::new(capacity),
             semaphore: Semaphore::new(options.fair, semaphore_capacity),
             size: AtomicU32::new(0),
@@ -292,7 +292,7 @@ impl<DB: Database> PoolInner<DB> {
         loop {
             let timeout = deadline_as_timeout::<DB>(deadline)?;
 
-            // clone the connect options so they can be used without holding the RwLockReadGuard
+            // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point
             let connect_options = self
                 .connect_options

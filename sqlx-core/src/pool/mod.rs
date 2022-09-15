@@ -491,7 +491,7 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Gets a clone of the connection options for this pool
-    pub fn connect_options(&self) -> <DB::Connection as Connection>::Options {
+    pub fn connect_options(&self) -> Arc<<DB::Connection as Connection>::Options> {
         self.0
             .connect_options
             .read()
@@ -501,10 +501,7 @@ impl<DB: Database> Pool<DB> {
 
     /// Updates the connection options this pool will use when opening any future connections.  Any
     /// existing open connection in the pool will be left as-is.
-    pub fn with_connect_options(
-        &self,
-        mut connect_options: <DB::Connection as Connection>::Options,
-    ) {
+    pub fn set_connect_options(&self, connect_options: <DB::Connection as Connection>::Options) {
         // technically write() could also panic if the current thread already holds the lock,
         // but because this method can't be re-entered by the same thread that shouldn't be a problem
         let mut guard = self
@@ -512,7 +509,7 @@ impl<DB: Database> Pool<DB> {
             .connect_options
             .write()
             .expect("write-lock holder panicked");
-        std::mem::swap(guard.deref_mut(), &mut connect_options);
+        std::mem::swap(guard.deref_mut(), &mut Arc::new(connect_options));
     }
 
     /// Get the options for this pool
