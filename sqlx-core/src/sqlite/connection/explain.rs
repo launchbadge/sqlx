@@ -360,8 +360,8 @@ impl BranchStateHash {
         let mut cur = vec![];
         for (k, v) in &st.p {
             match v {
-                CursorDataType::Normal(hm) => {
-                    for (i, col) in hm {
+                CursorDataType::Normal { cols, .. } => {
+                    for (i, col) in cols {
                         cur.push((*k, *i, Some(col.clone())));
                     }
                 }
