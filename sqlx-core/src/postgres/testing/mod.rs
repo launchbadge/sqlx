@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -159,7 +160,11 @@ async fn test_context(args: &TestArgs) -> Result<TestContext<Postgres>, Error> {
             // Close connections ASAP if left in the idle queue.
             .idle_timeout(Some(Duration::from_secs(1)))
             .parent(master_pool.clone()),
-        connect_opts: master_pool.connect_options().clone().database(&new_db_name),
+        connect_opts: master_pool
+            .connect_options()
+            .deref()
+            .clone()
+            .database(&new_db_name),
         db_name: new_db_name,
     })
 }

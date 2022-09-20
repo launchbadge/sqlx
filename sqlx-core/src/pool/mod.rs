@@ -74,6 +74,7 @@ use futures_core::FusedFuture;
 use futures_util::FutureExt;
 use std::fmt;
 use std::future::Future;
+use std::ops::DerefMut;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -489,9 +490,26 @@ impl<DB: Database> Pool<DB> {
         self.0.num_idle()
     }
 
-    /// Get the connection options for this pool
-    pub fn connect_options(&self) -> &<DB::Connection as Connection>::Options {
-        &self.0.connect_options
+    /// Gets a clone of the connection options for this pool
+    pub fn connect_options(&self) -> Arc<<DB::Connection as Connection>::Options> {
+        self.0
+            .connect_options
+            .read()
+            .expect("write-lock holder panicked")
+            .clone()
+    }
+
+    /// Updates the connection options this pool will use when opening any future connections.  Any
+    /// existing open connection in the pool will be left as-is.
+    pub fn set_connect_options(&self, connect_options: <DB::Connection as Connection>::Options) {
+        // technically write() could also panic if the current thread already holds the lock,
+        // but because this method can't be re-entered by the same thread that shouldn't be a problem
+        let mut guard = self
+            .0
+            .connect_options
+            .write()
+            .expect("write-lock holder panicked");
+        *guard = Arc::new(connect_options);
     }
 
     /// Get the options for this pool
@@ -514,7 +532,11 @@ impl Pool<Any> {
     ///
     /// Determined by the connection URL.
     pub fn any_kind(&self) -> AnyKind {
-        self.0.connect_options.kind()
+        self.0
+            .connect_options
+            .read()
+            .expect("write-lock holder panicked")
+            .kind()
     }
 }
 
