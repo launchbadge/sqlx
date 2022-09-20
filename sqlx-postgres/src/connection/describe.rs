@@ -346,7 +346,7 @@ WHERE rngtypid = $1
         // language=SQL
         let (oid,): (Oid,) = query_as(
             "
-SELECT oid FROM pg_catalog.pg_type WHERE typname ILIKE $1
+SELECT $1::regtype::oid
                 ",
         )
         .bind(name)
