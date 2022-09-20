@@ -3,7 +3,7 @@ use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, DeriveInput, Field, Lit, Meta, MetaNameValue, NestedMeta, Variant};
+use syn::{Attribute, DeriveInput, Field, Lit, Meta, MetaNameValue, NestedMeta, Type, Variant};
 
 macro_rules! assert_attribute {
     ($e:expr, $err:expr, $input:expr) => {
@@ -62,7 +62,7 @@ pub struct SqlxChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
-    pub try_from: Option<Ident>,
+    pub try_from: Option<Type>,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
