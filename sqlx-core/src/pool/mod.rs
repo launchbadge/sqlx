@@ -509,7 +509,7 @@ impl<DB: Database> Pool<DB> {
             .connect_options
             .write()
             .expect("write-lock holder panicked");
-        std::mem::swap(guard.deref_mut(), &mut Arc::new(connect_options));
+        *guard = Arc::new(connect_options);
     }
 
     /// Get the options for this pool
