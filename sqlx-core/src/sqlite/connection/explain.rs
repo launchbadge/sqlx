@@ -88,6 +88,7 @@ const OP_OPEN_WRITE: &str = "OpenWrite";
 const OP_OPEN_EPHEMERAL: &str = "OpenEphemeral";
 const OP_OPEN_AUTOINDEX: &str = "OpenAutoindex";
 const OP_AGG_FINAL: &str = "AggFinal";
+const OP_AGG_VALUE: &str = "AggValue";
 const OP_AGG_STEP: &str = "AggStep";
 const OP_FUNCTION: &str = "Function";
 const OP_MOVE: &str = "Move";
@@ -727,11 +728,16 @@ pub(super) fn explain(
                     //else we don't know about the cursor
                 }
 
-                OP_AGG_STEP => {
+                OP_AGG_STEP | OP_AGG_VALUE => {
                     //assume that AGG_FINAL will be called
                     let p4 = from_utf8(p4).map_err(Error::protocol)?;
 
-                    if p4.starts_with("count(") {
+                    if p4.starts_with("count(")
+                        || p4.starts_with("row_number(")
+                        || p4.starts_with("rank(")
+                        || p4.starts_with("dense_rank(")
+                        || p4.starts_with("ntile(")
+                    {
                         // count(_) -> INTEGER
                         state.r.insert(
                             p3,
@@ -749,7 +755,12 @@ pub(super) fn explain(
                 OP_AGG_FINAL => {
                     let p4 = from_utf8(p4).map_err(Error::protocol)?;
 
-                    if p4.starts_with("count(") {
+                    if p4.starts_with("count(")
+                        || p4.starts_with("row_number(")
+                        || p4.starts_with("rank(")
+                        || p4.starts_with("dense_rank(")
+                        || p4.starts_with("ntile(")
+                    {
                         // count(_) -> INTEGER
                         state.r.insert(
                             p1,
