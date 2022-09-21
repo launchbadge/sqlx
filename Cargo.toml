@@ -302,6 +302,11 @@ path = "tests/postgres/derives.rs"
 required-features = ["postgres", "macros"]
 
 [[test]]
+name = "postgres-error"
+path = "tests/postgres/error.rs"
+required-features = ["postgres"]
+
+[[test]]
 name = "postgres-test-attr"
 path = "tests/postgres/test-attr.rs"
 required-features = ["postgres", "macros", "migrate"]

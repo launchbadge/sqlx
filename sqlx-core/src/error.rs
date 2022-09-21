@@ -164,7 +164,7 @@ pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynE
 ///
 /// This enum is to be used to identify frequent errors that can be handled by the program.
 /// Although it currently only supports constraint violations, the type may grow in the future.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
     /// Unique/primary key constraint violation.
