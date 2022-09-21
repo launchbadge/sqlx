@@ -267,6 +267,11 @@ path = "tests/mysql/macros.rs"
 required-features = ["mysql", "macros"]
 
 [[test]]
+name = "mysql-error"
+path = "tests/mysql/error.rs"
+required-features = ["mysql"]
+
+[[test]]
 name = "mysql-test-attr"
 path = "tests/mysql/test-attr.rs"
 required-features = ["mysql", "macros", "migrate"]

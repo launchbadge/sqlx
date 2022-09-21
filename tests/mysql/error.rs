@@ -1,7 +1,7 @@
-use sqlx::{error::ErrorKind, postgres::Postgres, Connection, Executor, Transaction};
+use sqlx::{error::ErrorKind, mysql::MySql, Connection, Executor, Transaction};
 use sqlx_test::new;
 
-async fn with_test_row(conn: &mut Transaction<'_, Postgres>) -> anyhow::Result<()> {
+async fn with_test_row(conn: &mut Transaction<'_, MySql>) -> anyhow::Result<()> {
     sqlx::query!("INSERT INTO tweet(id, text, owner_id) VALUES (1, 'Foo', 1)")
         .execute(conn)
         .await?;
@@ -10,7 +10,7 @@ async fn with_test_row(conn: &mut Transaction<'_, Postgres>) -> anyhow::Result<(
 
 #[sqlx_macros::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
-    let mut conn = new::<Postgres>().await?;
+    let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
     with_test_row(&mut tx).await.unwrap();
 
@@ -28,7 +28,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
-    let mut conn = new::<Postgres>().await?;
+    let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
 
     let res: Result<_, sqlx::Error> =
@@ -46,7 +46,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
-    let mut conn = new::<Postgres>().await?;
+    let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
 
     let res: Result<_, sqlx::Error> = sqlx::query("INSERT INTO tweet (text) VALUES (null);")
@@ -63,7 +63,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
 
 #[sqlx_macros::test]
 async fn it_fails_with_check_violation() -> anyhow::Result<()> {
-    let mut conn = new::<Postgres>().await?;
+    let mut conn = new::<MySql>().await?;
     let mut tx = conn.begin().await?;
 
     let res: Result<_, sqlx::Error> =

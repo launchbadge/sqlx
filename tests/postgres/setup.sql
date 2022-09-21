@@ -24,7 +24,7 @@ CREATE TABLE tweet
 CREATE TABLE tweet_reply
 (
     id         BIGSERIAL PRIMARY KEY,
-    tweet      BIGINT REFERENCES tweet(id),
+    tweet_id   BIGINT      NOT NULL REFERENCES tweet(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     text       TEXT        NOT NULL,
     owner_id   BIGINT
