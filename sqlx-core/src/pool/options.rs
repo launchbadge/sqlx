@@ -141,6 +141,11 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
+    /// Get the maximum number of connections that this pool should maintain
+    pub fn get_max_connections(&self) -> u32 {
+        self.max_connections
+    }
+
     /// Set the minimum number of connections to maintain at all times.
     ///
     /// When the pool is built, this many connections will be automatically spun up.
@@ -168,6 +173,11 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
+    /// Get the minimum number of connections to maintain at all times.
+    pub fn get_min_connections(&self) -> u32 {
+        self.min_connections
+    }
+
     /// Set the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
     ///
     /// Caps the total amount of time `Pool::acquire()` can spend waiting across multiple phases:
@@ -184,6 +194,11 @@ impl<DB: Database> PoolOptions<DB> {
     pub fn acquire_timeout(mut self, timeout: Duration) -> Self {
         self.acquire_timeout = timeout;
         self
+    }
+
+    /// Get the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
+    pub fn get_acquire_timeout(&self) -> Duration {
+        self.acquire_timeout
     }
 
     /// Set the maximum lifetime of individual connections.
@@ -205,6 +220,11 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
+    /// Get the maximum lifetime of individual connections.
+    pub fn get_max_lifetime(&self) -> Option<Duration> {
+        self.max_lifetime
+    }
+
     /// Set a maximum idle duration for individual connections.
     ///
     /// Any connection that remains in the idle queue longer than this will be closed.
@@ -215,6 +235,11 @@ impl<DB: Database> PoolOptions<DB> {
         self
     }
 
+    /// Get the maximum idle duration for individual connections.
+    pub fn get_idle_timeout(&self) -> Option<Duration> {
+        self.idle_timeout
+    }
+
     /// If true, the health of a connection will be verified by a call to [`Connection::ping`]
     /// before returning the connection.
     ///
@@ -222,6 +247,11 @@ impl<DB: Database> PoolOptions<DB> {
     pub fn test_before_acquire(mut self, test: bool) -> Self {
         self.test_before_acquire = test;
         self
+    }
+
+    /// Get's whether `test_before_acquire` is currently set.
+    pub fn get_test_before_acquire(&self) -> bool {
+        self.test_before_acquire
     }
 
     /// If set to `true`, calls to `acquire()` are fair and connections  are issued
