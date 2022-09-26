@@ -1,9 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Comma;
-use syn::{Attribute, DeriveInput, Field, Lit, Meta, MetaNameValue, NestedMeta, Type, Variant};
+use syn::{
+    punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, DeriveInput, Field, Lit,
+    Meta, MetaNameValue, NestedMeta, Type, Variant,
+};
 
 macro_rules! assert_attribute {
     ($e:expr, $err:expr, $input:expr) => {
@@ -65,6 +65,7 @@ pub struct SqlxChildAttributes {
     pub flatten: bool,
     pub try_from: Option<Type>,
     pub skip: bool,
+    pub json: bool,
 }
 
 pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
@@ -164,6 +165,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
     let mut try_from = None;
     let mut flatten = false;
     let mut skip: bool = false;
+    let mut json = false;
 
     for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
         let meta = attr
@@ -187,11 +189,19 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
                         Meta::Path(path) if path.is_ident("default") => default = true,
                         Meta::Path(path) if path.is_ident("flatten") => flatten = true,
                         Meta::Path(path) if path.is_ident("skip") => skip = true,
+                        Meta::Path(path) if path.is_ident("json") => json = true,
                         u => fail!(u, "unexpected attribute"),
                     },
                     u => fail!(u, "unexpected attribute"),
                 }
             }
+        }
+
+        if json && flatten {
+            fail!(
+                attr,
+                "Cannot use `json` and `flatten` together on the same field"
+            );
         }
     }
 
@@ -201,6 +211,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         flatten,
         try_from,
         skip,
+        json,
     })
 }
 
