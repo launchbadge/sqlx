@@ -346,7 +346,11 @@ struct QueryState {
 #[derive(Debug, Hash, PartialEq, Eq)]
 struct BranchStateHash {
     instruction: usize,
+    //register index, data type
     registers: Vec<(i64, RegDataType)>,
+    //cursor index, is_empty, pseudo register index
+    cursor_metadata: Vec<(i64, Option<bool>, Option<i64>)>,
+    //cursor index, column index, data type
     cursors: Vec<(i64, i64, Option<ColumnType>)>,
 }
 
@@ -359,18 +363,22 @@ impl BranchStateHash {
         reg.sort_by_key(|v| v.0);
 
         let mut cur = vec![];
+        let mut cur_meta = vec![];
         for (k, v) in &st.p {
             match v {
-                CursorDataType::Normal { cols, .. } => {
+                CursorDataType::Normal { cols, is_empty } => {
+                    cur_meta.push((*k, *is_empty, None));
                     for (i, col) in cols {
                         cur.push((*k, *i, Some(col.clone())));
                     }
                 }
                 CursorDataType::Pseudo(i) => {
-                    cur.push((*k, *i, None));
+                    cur_meta.push((*k, None, Some(*i)));
+                    //don't bother copying columns, they are in register i
                 }
             }
         }
+        cur_meta.sort_by(|a, b| a.0.cmp(&b.0));
         cur.sort_by(|a, b| {
             if a.0 == b.0 {
                 a.1.cmp(&b.1)
@@ -381,6 +389,7 @@ impl BranchStateHash {
         Self {
             instruction: st.program_i,
             registers: reg,
+            cursor_metadata: cur_meta,
             cursors: cur,
         }
     }
