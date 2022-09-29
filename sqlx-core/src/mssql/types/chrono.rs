@@ -1,5 +1,3 @@
-use std::mem;
-
 use byteorder::{ByteOrder, LittleEndian};
 use chrono::{DateTime, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 
@@ -47,25 +45,25 @@ impl<Tz: TimeZone> Type<Mssql> for DateTime<Tz> {
 }
 
 impl Encode<'_, Mssql> for NaiveTime {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, _buf: &mut Vec<u8>) -> IsNull {
         todo!()
     }
 }
 
 impl<'r> Decode<'r, Mssql> for NaiveTime {
-    fn decode(value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(_value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
         todo!()
     }
 }
 
 impl Encode<'_, Mssql> for NaiveDate {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, _buf: &mut Vec<u8>) -> IsNull {
         todo!()
     }
 }
 
 impl<'r> Decode<'r, Mssql> for NaiveDate {
-    fn decode(value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(_value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
         todo!()
     }
 }
@@ -97,19 +95,19 @@ impl<'r> Decode<'r, Mssql> for NaiveDateTime {
 }
 
 impl<Tz: TimeZone> Encode<'_, Mssql> for DateTime<Tz> {
-    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> IsNull {
+    fn encode_by_ref(&self, _buf: &mut Vec<u8>) -> IsNull {
         todo!()
     }
 }
 
 impl<'r> Decode<'r, Mssql> for DateTime<Local> {
-    fn decode(value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(_value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
         todo!()
     }
 }
 
 impl<'r> Decode<'r, Mssql> for DateTime<Utc> {
-    fn decode(value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(_value: MssqlValueRef<'r>) -> Result<Self, BoxDynError> {
         todo!()
     }
 }
