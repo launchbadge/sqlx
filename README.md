@@ -381,6 +381,12 @@ Differences from `query()`:
     ```
     DATABASE_URL=mysql://localhost/my_database
     ```
+    
+    For a file-based database like SQLite, you must set absolute path using `$PWD` variable, where `$PWD` will be set to the location of the `.env` file.
+    
+    ```
+    DATABASE_URL=sqlite://$PWD/my_database.db
+    ```
 
 [dotenv]: https://github.com/dotenv-rs/dotenv#examples
 
