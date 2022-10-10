@@ -129,6 +129,12 @@ impl_any_type!(chrono::DateTime<chrono::offset::Utc>);
     not(feature = "mssql")
 ))]
 impl_any_type!(chrono::DateTime<chrono::offset::Local>);
+#[cfg(all(
+    feature = "json",
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
+))]
+impl_any_type!(crate::types::Json<T>, T);
 
 // Encode
 #[cfg(all(
@@ -161,6 +167,12 @@ impl_any_encode!(chrono::DateTime<chrono::offset::Utc>);
     not(feature = "mssql")
 ))]
 impl_any_encode!(chrono::DateTime<chrono::offset::Local>);
+#[cfg(all(
+    feature = "json",
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
+))]
+impl_any_encode!(crate::types::Json<T>, T);
 
 // Decode
 #[cfg(all(
@@ -193,3 +205,9 @@ impl_any_decode!(chrono::DateTime<chrono::offset::Utc>);
     not(feature = "mssql")
 ))]
 impl_any_decode!(chrono::DateTime<chrono::offset::Local>);
+#[cfg(all(
+    feature = "json",
+    any(feature = "sqlite", feature = "postgres", feature = "mysql"),
+    not(feature = "mssql")
+))]
+impl_any_decode!(crate::types::Json<T>, T);

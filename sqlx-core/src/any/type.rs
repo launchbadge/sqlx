@@ -5,8 +5,8 @@
 // The other use of this trait is for compile-time verification which is not feasible to support
 // for the [`Any`] driver.
 macro_rules! impl_any_type {
-    ($ty:ty) => {
-        impl crate::types::Type<crate::any::Any> for $ty {
+    ($ty:ty $(, $generic_arg:ident)*) => {
+        impl<$($generic_arg),*> crate::types::Type<crate::any::Any> for $ty {
             fn type_info() -> crate::any::AnyTypeInfo {
                 // FIXME: nicer panic explaining why this isn't possible
                 unimplemented!()

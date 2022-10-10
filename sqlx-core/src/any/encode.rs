@@ -16,8 +16,8 @@ use crate::sqlite::Sqlite;
 // Implements Encode for any T where T supports Encode for any database that has support currently
 // compiled into SQLx
 macro_rules! impl_any_encode {
-    ($ty:ty) => {
-        impl<'q> crate::encode::Encode<'q, crate::any::Any> for $ty
+    ($ty:ty $(, $generic_arg:ident)*) => {
+        impl<'q $(, $generic_arg)*> crate::encode::Encode<'q, crate::any::Any> for $ty
         where
             $ty: crate::any::AnyEncode<'q>,
         {

@@ -16,8 +16,8 @@ use crate::sqlite::Sqlite;
 // Implements Decode for any T where T supports Decode for any database that has support currently
 // compiled into SQLx
 macro_rules! impl_any_decode {
-    ($ty:ty) => {
-        impl<'r> crate::decode::Decode<'r, crate::any::Any> for $ty
+    ($ty:ty $(, $generic_arg:ident)*) => {
+        impl<'r $(, $generic_arg)*> crate::decode::Decode<'r, crate::any::Any> for $ty
         where
             $ty: crate::any::AnyDecode<'r>,
         {
