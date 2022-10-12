@@ -166,6 +166,11 @@ impl PgTypeInfo {
         self.0.kind()
     }
 
+    /// Returns the OID for this type.
+    pub fn oid(&self) -> Oid {
+        self.0.oid()
+    }
+
     #[doc(hidden)]
     pub fn __type_feature_gate(&self) -> Option<&'static str> {
         if [
