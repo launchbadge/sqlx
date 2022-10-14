@@ -29,7 +29,13 @@ impl Encode<'_, Postgres> for bool {
 impl Decode<'_, Postgres> for bool {
     fn decode(value: PgValueRef<'_>) -> Result<Self, BoxDynError> {
         Ok(match value.format() {
-            PgValueFormat::Binary => value.as_bytes()?[0] != 0,
+            PgValueFormat::Binary => {
+                let b = value.as_bytes()?.first().ok_or_else(|| {
+                    BoxDynError::from("unexpected missing value for boolean".to_string())
+                })?;
+
+                *b != 0
+            }
 
             PgValueFormat::Text => match value.as_str()? {
                 "t" => true,
