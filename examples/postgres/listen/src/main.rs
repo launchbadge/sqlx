@@ -1,82 +1,178 @@
-use futures::StreamExt;
-use futures::TryStreamExt;
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use sqlx::postgres::PgListener;
-use sqlx::{Executor, PgPool};
-use std::sync::atomic::{AtomicI64, Ordering};
-use std::time::Duration;
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::{error::Error, io};
+use tokio::{sync::Mutex, time::Duration};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Span, Spans, Text},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
+    Frame, Terminal,
+};
+use unicode_width::UnicodeWidthStr;
+
+struct ChatApp {
+    input: String,
+    messages: Arc<Mutex<Vec<String>>>,
+    pool: PgPool,
+}
+
+impl ChatApp {
+    fn new(pool: PgPool) -> Self {
+        ChatApp {
+            input: String::new(),
+            messages: Arc::new(Mutex::new(Vec::new())),
+            pool,
+        }
+    }
+
+    async fn run<B: Backend>(
+        mut self,
+        terminal: &mut Terminal<B>,
+        mut listener: PgListener,
+    ) -> Result<(), Box<dyn Error>> {
+        // setup listener task
+        let messages = self.messages.clone();
+        let _ = tokio::spawn(async move {
+            while let Ok(msg) = listener.recv().await {
+                messages.lock().await.push(msg.payload().to_string());
+            }
+        });
+
+        loop {
+            let messages: Vec<ListItem> = self
+                .messages
+                .lock()
+                .await
+                .iter()
+                .map(|m| {
+                    let content = vec![Spans::from(Span::raw(m.to_owned()))];
+                    ListItem::new(content)
+                })
+                .collect();
+
+            terminal.draw(|f| self.ui(f, messages))?;
+
+            if !event::poll(Duration::from_millis(20))? {
+                continue;
+            }
+
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Enter => {
+                        notify(&self.pool, self.input.drain(..).collect()).await?;
+                    }
+                    KeyCode::Char(c) => {
+                        self.input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn ui<B: Backend>(&mut self, f: &mut Frame<B>, messages: Vec<ListItem>) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(2)
+            .constraints(
+                [
+                    Constraint::Length(1),
+                    Constraint::Length(3),
+                    Constraint::Min(1),
+                ]
+                .as_ref(),
+            )
+            .split(f.size());
+
+        let mut text = Text::from(Spans::from(vec![
+            Span::raw("Press "),
+            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(" to send the message, "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(" to quit"),
+        ]));
+        text.patch_style(Style::default());
+        let help_message = Paragraph::new(text);
+        f.render_widget(help_message, chunks[0]);
+
+        let input = Paragraph::new(self.input.as_ref())
+            .style(Style::default().fg(Color::Yellow))
+            .block(Block::default().borders(Borders::ALL).title("Input"));
+        f.render_widget(input, chunks[1]);
+        f.set_cursor(
+            // Put cursor past the end of the input text
+            chunks[1].x + self.input.width() as u16 + 1,
+            // Move one line down, from the border to the input line
+            chunks[1].y + 1,
+        );
+
+        let messages =
+            List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
+        f.render_widget(messages, chunks[2]);
+    }
+}
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Building PG pool.");
+async fn main() -> Result<(), Box<dyn Error>> {
+    // setup postgres
     let conn_str =
         std::env::var("DATABASE_URL").expect("Env var DATABASE_URL is required for this example.");
     let pool = sqlx::PgPool::connect(&conn_str).await?;
 
     let mut listener = PgListener::connect(&conn_str).await?;
+    listener.listen_all(vec!["chan0"]).await?;
 
-    // let notify_pool = pool.clone();
-    let _t = async_std::task::spawn(async move {
-        stream::interval(Duration::from_secs(2))
-            .for_each(|_| notify(&pool))
-            .await
-    });
+    // setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
-    println!("Starting LISTEN loop.");
+    // create app and run it
+    let app = ChatApp::new(pool);
+    let res = app.run(&mut terminal, listener).await;
 
-    listener.listen_all(vec!["chan0", "chan1", "chan2"]).await?;
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
-    let mut counter = 0usize;
-    loop {
-        let notification = listener.recv().await?;
-        println!("[from recv]: {:?}", notification);
-
-        counter += 1;
-        if counter >= 3 {
-            break;
-        }
-    }
-
-    // Prove that we are buffering messages by waiting for 6 seconds
-    listener.execute("SELECT pg_sleep(6)").await?;
-
-    let mut stream = listener.into_stream();
-    while let Some(notification) = stream.try_next().await? {
-        println!("[from stream]: {:?}", notification);
+    if let Err(err) = res {
+        println!("{:?}", err)
     }
 
     Ok(())
 }
 
-async fn notify(pool: &PgPool) {
-    static COUNTER: AtomicI64 = AtomicI64::new(0);
-
-    // There's two ways you can invoke `NOTIFY`:
-    //
-    // 1: `NOTIFY <channel>, '<payload>'` which cannot take bind parameters and
-    // <channel> is an identifier which is lowercased unless double-quoted
-    //
-    // 2: `SELECT pg_notify('<channel>', '<payload>')` which can take bind parameters
-    // and <channel> preserves its case
-    //
-    // We recommend #2 for consistency and usability.
-
-    // language=PostgreSQL
-    let res = sqlx::query(
+async fn notify(pool: &PgPool, s: String) -> Result<(), sqlx::Error> {
+    sqlx::query(
         r#"
--- this emits '{ "payload": N }' as the actual payload
-select pg_notify(chan, json_build_object('payload', payload)::text)
-from (
-         values ('chan0', $1),
-                ('chan1', $2),
-                ('chan2', $3)
-     ) notifies(chan, payload)
-    "#,
+SELECT pg_notify(chan, payload)
+FROM (VALUES ('chan0', $1)) v(chan, payload)
+"#,
     )
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
-    .bind(&COUNTER.fetch_add(1, Ordering::SeqCst))
+    .bind(s)
     .execute(pool)
-    .await;
+    .await?;
 
-    println!("[from notify]: {:?}", res);
+    Ok(())
 }
