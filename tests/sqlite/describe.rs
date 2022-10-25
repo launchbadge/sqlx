@@ -469,3 +469,52 @@ async fn it_describes_union() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_select_with_order_and_limit() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let d = conn
+        .describe(
+            r#"
+                SELECT accounts.name FROM accounts
+                ORDER BY accounts.name ASC
+                LIMIT 1
+            "#,
+        )
+        .await?;
+
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(false));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_non_nullable_columns() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.execute(
+        r#"
+            create temp table _temp_primary_keys (
+                id integer primary key autoincrement,
+                email text not null unique,
+                password_hash text not null
+            );
+        "#,
+    )
+    .await?;
+
+    let d = conn.describe("SELECT * FROM _temp_primary_keys").await?;
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    assert_eq!(d.column(1).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(1), Some(false));
+
+    assert_eq!(d.column(2).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(2), Some(false));
+
+    Ok(())
+}
