@@ -123,6 +123,8 @@ const OP_CONCAT: &str = "Concat";
 const OP_RESULT_ROW: &str = "ResultRow";
 const OP_HALT: &str = "Halt";
 
+const MAX_LOOP_COUNT: u8 = 2;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 struct ColumnType {
     pub datatype: DataType,
@@ -331,7 +333,9 @@ fn root_block_columns(
 
 #[derive(Debug, Clone, PartialEq)]
 struct QueryState {
-    pub visited: Vec<bool>,
+    // The number of times each instruction has been visited
+    pub visited: Vec<u8>,
+    // A log of the order of execution of each instruction
     pub history: Vec<usize>,
     // Registers
     pub r: HashMap<i64, RegDataType>,
@@ -412,7 +416,7 @@ pub(super) fn explain(
         crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
 
     let mut states = vec![QueryState {
-        visited: vec![false; program_size],
+        visited: vec![0; program_size],
         history: Vec::new(),
         r: HashMap::with_capacity(6),
         p: HashMap::with_capacity(6),
@@ -426,25 +430,32 @@ pub(super) fn explain(
 
     while let Some(mut state) = states.pop() {
         while state.program_i < program_size {
-            if state.visited[state.program_i] {
-                state.program_i += 1;
+            let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
+            state.history.push(state.program_i);
+
+            if state.visited[state.program_i] > MAX_LOOP_COUNT {
+                if logger.log_enabled() {
+                    let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                        state.history.iter().map(|i| &program[*i]).collect();
+                    logger.add_result((program_history, None));
+                }
+
                 //avoid (infinite) loops by breaking if we ever hit the same instruction twice
                 break;
             }
-            let (_, ref opcode, p1, p2, p3, ref p4) = program[state.program_i];
-            state.history.push(state.program_i);
+
+            state.visited[state.program_i] += 1;
 
             match &**opcode {
                 OP_INIT => {
                     // start at <p2>
-                    state.visited[state.program_i] = true;
                     state.program_i = p2 as usize;
                     continue;
                 }
 
                 OP_GOTO => {
                     // goto <p2>
-                    state.visited[state.program_i] = true;
+
                     state.program_i = p2 as usize;
                     continue;
                 }
@@ -459,7 +470,6 @@ pub(super) fn explain(
                 | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
                 | OP_SORTER_NEXT | OP_V_FILTER | OP_V_NEXT => {
                     // goto <p2> or next instruction (depending on actual values)
-                    state.visited[state.program_i] = true;
 
                     let mut branch_state = state.clone();
                     branch_state.program_i = p2 as usize;
@@ -469,14 +479,12 @@ pub(super) fn explain(
                         visited_branch_state.insert(bs_hash);
                         states.push(branch_state);
                     }
-
                     state.program_i += 1;
                     continue;
                 }
 
                 OP_REWIND | OP_LAST | OP_SORT | OP_SORTER_SORT => {
                     // goto <p2> if cursor p1 is empty, else next instruction
-                    state.visited[state.program_i] = true;
 
                     if let Some(cursor) = state.p.get(&p1) {
                         if matches!(cursor.is_empty(), None | Some(true)) {
@@ -500,12 +508,18 @@ pub(super) fn explain(
                         }
                     }
 
+                    if logger.log_enabled() {
+                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                            state.history.iter().map(|i| &program[*i]).collect();
+                        logger.add_result((program_history, None));
+                    }
+
                     break;
                 }
 
                 OP_INIT_COROUTINE => {
                     // goto <p2> or next instruction (depending on actual values)
-                    state.visited[state.program_i] = true;
+
                     state.r.insert(p1, RegDataType::Int(p3));
 
                     if p2 != 0 {
@@ -518,7 +532,7 @@ pub(super) fn explain(
 
                 OP_END_COROUTINE => {
                     // jump to p2 of the yield instruction pointed at by register p1
-                    state.visited[state.program_i] = true;
+
                     if let Some(RegDataType::Int(yield_i)) = state.r.get(&p1) {
                         if let Some((_, yield_op, _, yield_p2, _, _)) =
                             program.get(*yield_i as usize)
@@ -528,31 +542,58 @@ pub(super) fn explain(
                                 state.r.remove(&p1);
                                 continue;
                             } else {
+                                if logger.log_enabled() {
+                                    let program_history: Vec<&(
+                                        i64,
+                                        String,
+                                        i64,
+                                        i64,
+                                        i64,
+                                        Vec<u8>,
+                                    )> = state.history.iter().map(|i| &program[*i]).collect();
+                                    logger.add_result((program_history, None));
+                                }
+
                                 break;
                             }
                         } else {
+                            if logger.log_enabled() {
+                                let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                                    state.history.iter().map(|i| &program[*i]).collect();
+                                logger.add_result((program_history, None));
+                            }
                             break;
                         }
                     } else {
+                        if logger.log_enabled() {
+                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                                state.history.iter().map(|i| &program[*i]).collect();
+                            logger.add_result((program_history, None));
+                        }
                         break;
                     }
                 }
 
                 OP_RETURN => {
                     // jump to the instruction after the instruction pointed at by register p1
-                    state.visited[state.program_i] = true;
+
                     if let Some(RegDataType::Int(return_i)) = state.r.get(&p1) {
                         state.program_i = (*return_i + 1) as usize;
                         state.r.remove(&p1);
                         continue;
                     } else {
+                        if logger.log_enabled() {
+                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                                state.history.iter().map(|i| &program[*i]).collect();
+                            logger.add_result((program_history, None));
+                        }
                         break;
                     }
                 }
 
                 OP_YIELD => {
                     // jump to p2 of the yield instruction pointed at by register p1, store prior instruction in p1
-                    state.visited[state.program_i] = true;
+
                     if let Some(RegDataType::Int(yield_i)) = state.r.get_mut(&p1) {
                         let program_i: usize = state.program_i;
 
@@ -571,13 +612,17 @@ pub(super) fn explain(
                             continue;
                         }
                     } else {
+                        if logger.log_enabled() {
+                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                                state.history.iter().map(|i| &program[*i]).collect();
+                            logger.add_result((program_history, None));
+                        }
                         break;
                     }
                 }
 
                 OP_JUMP => {
                     // goto one of <p1>, <p2>, or <p3> based on the result of a prior compare
-                    state.visited[state.program_i] = true;
 
                     let mut branch_state = state.clone();
                     branch_state.program_i = p1 as usize;
@@ -909,7 +954,7 @@ pub(super) fn explain(
 
                 OP_RESULT_ROW => {
                     // output = r[p1 .. p1 + p2]
-                    state.visited[state.program_i] = true;
+
                     state.result = Some(
                         (p1..p1 + p2)
                             .map(|i| {
@@ -928,13 +973,18 @@ pub(super) fn explain(
                     if logger.log_enabled() {
                         let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
                             state.history.iter().map(|i| &program[*i]).collect();
-                        logger.add_result((program_history, state.result.clone()));
+                        logger.add_result((program_history, Some(state.result.clone())));
                     }
 
                     result_states.push(state.clone());
                 }
 
                 OP_HALT => {
+                    if logger.log_enabled() {
+                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
+                            state.history.iter().map(|i| &program[*i]).collect();
+                        logger.add_result((program_history, None));
+                    }
                     break;
                 }
 
@@ -945,7 +995,6 @@ pub(super) fn explain(
                 }
             }
 
-            state.visited[state.program_i] = true;
             state.program_i += 1;
         }
     }
