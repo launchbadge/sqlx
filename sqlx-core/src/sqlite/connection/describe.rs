@@ -40,8 +40,8 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
         // if explain.. fails, ignore the failure and we'll have no fallback
         let (fallback, fallback_nullable) = match explain(conn, stmt.handle.sql()) {
             Ok(v) => v,
-            Err(err) => {
-                log::debug!("describe: explain introspection failed: {}", err);
+            Err(error) => {
+                tracing::debug!(%error, "describe: explain introspection failed");
 
                 (vec![], vec![])
             }

@@ -100,7 +100,7 @@ impl FromStr for PgConnectOptions {
                     }
                 }
 
-                _ => log::warn!("ignoring unrecognized connect parameter: {}={}", key, value),
+                _ => tracing::warn!(%key, %value, "ignoring unrecognized connect parameter"),
             }
         }
 

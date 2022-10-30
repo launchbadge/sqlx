@@ -151,10 +151,10 @@ impl PgAdvisoryLock {
         // architecture for server software, so it should be a no-op there.
         let key = PgAdvisoryLockKey::BigInt(i64::from_le_bytes(output_key_material));
 
-        log::trace!(
-            "generated {:?} from key string {:?}",
-            key,
-            input_key_material
+        tracing::trace!(
+            ?key,
+            key_string = ?input_key_material,
+            "generated key from key string",
         );
 
         Self::with_key(key)
@@ -346,9 +346,9 @@ impl<'lock, C: AsMut<PgConnection>> PgAdvisoryLockGuard<'lock, C> {
             .await?;
 
         if !released {
-            log::warn!(
-                "PgAdvisoryLockGuard: advisory lock {:?} was not held by the contained connection",
-                self.lock.key
+            tracing::warn!(
+                lock = ?self.lock.key,
+                "PgAdvisoryLockGuard: advisory lock was not held by the contained connection",
             );
         }
 
