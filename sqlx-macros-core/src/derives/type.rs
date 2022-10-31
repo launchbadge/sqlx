@@ -1,9 +1,10 @@
 use super::attributes::{
     check_strong_enum_attributes, check_struct_attributes, check_transparent_attributes,
-    check_weak_enum_attributes, parse_container_attributes, TypeName,
+    check_weak_enum_attributes, parse_container_attributes, SchemaName, TypeName,
 };
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned};
+use sqlx_core::type_info::get_type_name;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
@@ -108,7 +109,7 @@ fn expand_derive_has_sql_type_transparent(
     let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = type_name(ident, attr.type_name.as_ref());
+        let ty_name = type_name(ident, attr.type_name.as_ref(), attr.schema_name.as_ref());
 
         tts.extend(quote!(
             #[automatically_derived]
@@ -174,7 +175,11 @@ fn expand_derive_has_sql_type_strong_enum(
     }
 
     if cfg!(feature = "postgres") {
-        let ty_name = type_name(ident, attributes.type_name.as_ref());
+        let ty_name = type_name(
+            ident,
+            attributes.type_name.as_ref(),
+            attributes.schema_name.as_ref(),
+        );
 
         tts.extend(quote!(
             #[automatically_derived]
@@ -214,7 +219,11 @@ fn expand_derive_has_sql_type_struct(
     let mut tts = TokenStream::new();
 
     if cfg!(feature = "postgres") {
-        let ty_name = type_name(ident, attributes.type_name.as_ref());
+        let ty_name = type_name(
+            ident,
+            attributes.type_name.as_ref(),
+            attributes.schema_name.as_ref(),
+        );
 
         tts.extend(quote!(
             #[automatically_derived]
@@ -229,9 +238,16 @@ fn expand_derive_has_sql_type_struct(
     Ok(tts)
 }
 
-fn type_name(ident: &Ident, explicit_name: Option<&TypeName>) -> TokenStream {
-    explicit_name.map(|tn| tn.get()).unwrap_or_else(|| {
-        let s = ident.to_string();
-        quote_spanned!(ident.span()=> #s)
-    })
+fn type_name(
+    ident: &Ident,
+    explicit_name: Option<&TypeName>,
+    schema_name: Option<&SchemaName>,
+) -> TokenStream {
+    let schema_name = schema_name.map(|s| s.val.as_str());
+    explicit_name
+        .map(|tn| tn.get(schema_name))
+        .unwrap_or_else(|| {
+            let s = get_type_name(&ident.to_string(), schema_name);
+            quote_spanned!(ident.span()=> #s)
+        })
 }

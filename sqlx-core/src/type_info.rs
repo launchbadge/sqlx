@@ -14,3 +14,13 @@ pub trait TypeInfo: Debug + Display + Clone + PartialEq<Self> + Send + Sync {
         false
     }
 }
+
+pub fn get_type_name(type_name: &str, schema_name: Option<&str>) -> String {
+    let mut val = String::new();
+    if let Some(schema_str) = schema_name {
+        val.push_str(schema_str);
+        val.push('.');
+    }
+    val.push_str(type_name);
+    val
+}

@@ -80,6 +80,15 @@ enum ColorUpper {
 }
 
 #[derive(PartialEq, Debug, sqlx::Type)]
+#[sqlx(type_name = "color_upper", schema = "test")]
+#[sqlx(rename_all = "UPPERCASE")]
+enum ColorInTestSchema {
+    Yellow,
+    Orange,
+    Pink,
+}
+
+#[derive(PartialEq, Debug, sqlx::Type)]
 #[sqlx(type_name = "color_screaming_snake")]
 #[sqlx(rename_all = "SCREAMING_SNAKE_CASE")]
 enum ColorScreamingSnake {
@@ -173,9 +182,13 @@ async fn test_enum_type() -> anyhow::Result<()> {
 
     conn.execute(
         r#"
+DROP SCHEMA IF EXISTS test CASCADE;
+CREATE SCHEMA test;
+
 DROP TABLE IF EXISTS people;
 
 DROP TYPE IF EXISTS mood CASCADE;
+
 
 CREATE TYPE mood AS ENUM ( 'ok', 'happy', 'sad' );
 
@@ -186,6 +199,7 @@ DROP TYPE IF EXISTS color_screaming_snake CASCADE;
 DROP TYPE IF EXISTS color_kebab_case CASCADE;
 DROP TYPE IF EXISTS color_mixed_case CASCADE;
 DROP TYPE IF EXISTS color_camel_case CASCADE;
+DROP TYPE IF EXISTS test.color_upper CASCADE;
 
 
 CREATE TYPE color_lower AS ENUM ( 'red', 'green', 'blue' );
@@ -195,6 +209,7 @@ CREATE TYPE color_screaming_snake AS ENUM ( 'RED_GREEN', 'BLUE_BLACK' );
 CREATE TYPE color_kebab_case AS ENUM ( 'red-green', 'blue-black' );
 CREATE TYPE color_mixed_case AS ENUM ( 'redGreen', 'blueBlack' );
 CREATE TYPE color_camel_case AS ENUM ( 'RedGreen', 'BlueBlack' );
+CREATE TYPE test.color_upper AS ENUM ( 'YELLOW', 'ORANGE', 'PINK' );
 
 
 CREATE TABLE people (
@@ -357,6 +372,15 @@ SELECT id, mood FROM people WHERE id = $1
 
     assert!(rec.0);
     assert_eq!(rec.1, ColorPascalCase::RedGreen);
+
+    let rec: (bool, ColorInTestSchema) =
+        sqlx::query_as("SELECT $1 = 'YELLOW'::test.color_upper, $1")
+            .bind(&ColorInTestSchema::Yellow)
+            .fetch_one(&mut conn)
+            .await?;
+
+    assert!(rec.0);
+    assert_eq!(rec.1, ColorInTestSchema::Yellow);
 
     Ok(())
 }
