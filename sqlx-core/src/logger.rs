@@ -43,13 +43,19 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
+        let pretty = self.settings.pretty_print;
+
         if let Some(lvl) = lvl
             .to_level()
             .filter(|lvl| log::log_enabled!(target: "sqlx::query", *lvl))
         {
-            let mut summary = parse_query_summary(&self.sql);
+            let mut summary = if pretty {
+                parse_query_summary(&self.sql)
+            } else {
+                self.sql.to_owned()
+            };
 
-            let sql = if summary != self.sql {
+            let sql = if pretty && summary != self.sql {
                 summary.push_str(" …");
                 format!(
                     "\n\n{}\n",
@@ -128,14 +134,19 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
 
     pub(crate) fn finish(&self) {
         let lvl = self.settings.statements_level;
+        let pretty = self.settings.pretty_print;
 
         if let Some(lvl) = lvl
             .to_level()
             .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
         {
-            let mut summary = parse_query_summary(&self.sql);
+            let mut summary = if pretty {
+                parse_query_summary(&self.sql)
+            } else {
+                self.sql.to_string()
+            };
 
-            let sql = if summary != self.sql {
+            let sql = if pretty && summary != self.sql {
                 summary.push_str(" …");
                 format!(
                     "\n\n{}\n",

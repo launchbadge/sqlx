@@ -233,4 +233,29 @@ impl ConnectOptions for AnyConnectOptions {
         };
         self
     }
+
+    fn pretty_print(&mut self, pretty_print: bool) -> &mut Self {
+        match &mut self.0 {
+            #[cfg(feature = "postgres")]
+            AnyConnectOptionsKind::Postgres(o) => {
+                o.pretty_print(pretty_print);
+            }
+
+            #[cfg(feature = "mysql")]
+            AnyConnectOptionsKind::MySql(o) => {
+                o.pretty_print(pretty_print);
+            }
+
+            #[cfg(feature = "sqlite")]
+            AnyConnectOptionsKind::Sqlite(o) => {
+                o.pretty_print(pretty_print);
+            }
+
+            #[cfg(feature = "mssql")]
+            AnyConnectOptionsKind::Mssql(o) => {
+                o.pretty_print(pretty_print);
+            }
+        };
+        self
+    }
 }

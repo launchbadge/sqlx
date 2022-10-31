@@ -41,6 +41,11 @@ impl ConnectOptions for SqliteConnectOptions {
         self.log_settings.log_slow_statements(level, duration);
         self
     }
+
+    fn pretty_print(&mut self, pretty_print: bool) -> &mut Self {
+        self.log_settings.pretty_print(pretty_print);
+        self
+    }
 }
 
 impl SqliteConnectOptions {

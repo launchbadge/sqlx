@@ -136,6 +136,7 @@ pub(crate) struct LogSettings {
     pub(crate) statements_level: LevelFilter,
     pub(crate) slow_statements_level: LevelFilter,
     pub(crate) slow_statements_duration: Duration,
+    pub(crate) pretty_print: bool,
 }
 
 impl Default for LogSettings {
@@ -144,6 +145,7 @@ impl Default for LogSettings {
             statements_level: LevelFilter::Info,
             slow_statements_level: LevelFilter::Warn,
             slow_statements_duration: Duration::from_secs(1),
+            pretty_print: true,
         }
     }
 }
@@ -155,6 +157,10 @@ impl LogSettings {
     pub(crate) fn log_slow_statements(&mut self, level: LevelFilter, duration: Duration) {
         self.slow_statements_level = level;
         self.slow_statements_duration = duration;
+    }
+
+    pub(crate)fn pretty_print(&mut self, pretty_print: bool) {
+        self.pretty_print = pretty_print;
     }
 }
 
@@ -178,4 +184,8 @@ pub trait ConnectOptions: 'static + Send + Sync + FromStr<Err = Error> + Debug +
         self.log_statements(LevelFilter::Off)
             .log_slow_statements(LevelFilter::Off, Duration::default())
     }
+
+    /// Print multi-line SQL queries
+    fn pretty_print(&mut self, pretty_print: bool) -> &mut Self;
+
 }
