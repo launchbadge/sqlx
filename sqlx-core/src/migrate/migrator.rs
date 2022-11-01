@@ -9,6 +9,7 @@ use std::slice;
 pub struct Migrator {
     pub migrations: Cow<'static, [Migration]>,
     pub ignore_missing: bool,
+    pub ignore_checksums: bool,
     pub locking: bool,
 }
 
@@ -57,6 +58,7 @@ impl Migrator {
         Ok(Self {
             migrations: Cow::Owned(source.resolve().await.map_err(MigrateError::Source)?),
             ignore_missing: false,
+            ignore_checksums: false,
             locking: true,
         })
     }
@@ -64,6 +66,12 @@ impl Migrator {
     /// Specify whether applied migrations that are missing from the resolved migrations should be ignored.
     pub fn set_ignore_missing(&mut self, ignore_missing: bool) -> &Self {
         self.ignore_missing = ignore_missing;
+        self
+    }
+
+    /// Specify whether checksum mismatches for already applied migrations should be ignored.
+    pub fn set_ignore_checksums(&mut self, ignore_checksums: bool) -> &Self {
+        self.ignore_checksums = ignore_checksums;
         self
     }
 
@@ -146,7 +154,7 @@ impl Migrator {
 
             match applied_migrations.get(&migration.version) {
                 Some(applied_migration) => {
-                    if migration.checksum != applied_migration.checksum {
+                    if !self.ignore_checksums && migration.checksum != applied_migration.checksum {
                         return Err(MigrateError::VersionMismatch(migration.version));
                     }
                 }
