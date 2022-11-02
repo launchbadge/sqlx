@@ -7,6 +7,49 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::time::Instant;
 
+// Yes these look silly. `tracing` doesn't currently support dynamic levels
+// https://github.com/tokio-rs/tracing/issues/372
+macro_rules! tracing_dynamic_enabled {
+    (target: $target:expr, $level:expr) => {{
+        use ::tracing::Level;
+
+        match $level {
+            Level::ERROR => ::tracing::enabled!(target: $target, Level::ERROR),
+            Level::WARN => ::tracing::enabled!(target: $target, Level::WARN),
+            Level::INFO => ::tracing::enabled!(target: $target, Level::INFO),
+            Level::DEBUG => ::tracing::enabled!(target: $target, Level::DEBUG),
+            Level::TRACE => ::tracing::enabled!(target: $target, Level::TRACE),
+        }
+    }};
+}
+
+macro_rules! tracing_dynamic_event {
+    (target: $target:expr, $level:expr, $($args:tt)*) => {{
+        use ::tracing::Level;
+
+        match $level {
+            Level::ERROR => ::tracing::event!(target: $target, Level::ERROR, $($args)*),
+            Level::WARN => ::tracing::event!(target: $target, Level::WARN, $($args)*),
+            Level::INFO => ::tracing::event!(target: $target, Level::INFO, $($args)*),
+            Level::DEBUG => ::tracing::event!(target: $target, Level::DEBUG, $($args)*),
+            Level::TRACE => ::tracing::event!(target: $target, Level::TRACE, $($args)*),
+        }
+    }};
+}
+
+fn level_filter_to_levels(filter: log::LevelFilter) -> Option<(tracing::Level, log::Level)> {
+    let tracing_level = match filter {
+        log::LevelFilter::Error => Some(tracing::Level::ERROR),
+        log::LevelFilter::Warn => Some(tracing::Level::WARN),
+        log::LevelFilter::Info => Some(tracing::Level::INFO),
+        log::LevelFilter::Debug => Some(tracing::Level::DEBUG),
+        log::LevelFilter::Trace => Some(tracing::Level::TRACE),
+        log::LevelFilter::Off => None,
+    };
+
+    tracing_level.zip(filter.to_level())
+}
+
 pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
     rows_returned: u64,
@@ -43,37 +86,35 @@ impl<'q> QueryLogger<'q> {
             self.settings.statements_level
         };
 
-        if let Some(lvl) = lvl
-            .to_level()
-            .filter(|lvl| log::log_enabled!(target: "sqlx::query", *lvl))
-        {
-            let mut summary = parse_query_summary(&self.sql);
+        if let Some((tracing_level, log_level)) = level_filter_to_levels(lvl) {
+            // The enabled level could be set from either tracing world or log world, so check both
+            // to see if logging should be enabled for our level
+            let log_is_enabled = tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
+                || log::log_enabled!(target: "sqlx::query", log_level);
+            if log_is_enabled {
+                let mut summary = parse_query_summary(&self.sql);
 
-            let sql = if summary != self.sql {
-                summary.push_str(" …");
-                format!(
-                    "\n\n{}\n",
-                    sqlformat::format(
-                        &self.sql,
-                        &sqlformat::QueryParams::None,
-                        sqlformat::FormatOptions::default()
+                let sql = if summary != self.sql {
+                    summary.push_str(" …");
+                    format!(
+                        "\n\n{}\n",
+                        sqlformat::format(
+                            &self.sql,
+                            &sqlformat::QueryParams::None,
+                            sqlformat::FormatOptions::default()
+                        )
                     )
-                )
-            } else {
-                String::new()
-            };
+                } else {
+                    String::new()
+                };
 
-            log::logger().log(
-                &log::Record::builder()
-                    .args(format_args!(
-                        "{}; rows affected: {}, rows returned: {}, elapsed: {:.3?}{}",
-                        summary, self.rows_affected, self.rows_returned, elapsed, sql
-                    ))
-                    .level(lvl)
-                    .module_path_static(Some("sqlx::query"))
-                    .target("sqlx::query")
-                    .build(),
-            );
+                let message = format!(
+                    "{}; rows affected: {}, rows returned: {}, elapsed: {:.3?}{}",
+                    summary, self.rows_affected, self.rows_returned, elapsed, sql
+                );
+
+                tracing_dynamic_event!(target: "sqlx::query", tracing_level, message);
+            }
         }
     }
 }
@@ -106,16 +147,12 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
     }
 
     pub(crate) fn log_enabled(&self) -> bool {
-        if let Some(_lvl) = self
-            .settings
-            .statements_level
-            .to_level()
-            .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
-        {
-            return true;
-        } else {
-            return false;
-        }
+        level_filter_to_levels(self.settings.statements_level)
+            .map(|(tracing_level, log_level)| {
+                tracing_dynamic_enabled!(target: "sqlx::query", tracing_level)
+                    || log::log_enabled!(target: "sqlx::query", log_level)
+            })
+            .unwrap_or_default()
     }
 
     pub(crate) fn add_result(&mut self, result: R) {
@@ -129,37 +166,33 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
     pub(crate) fn finish(&self) {
         let lvl = self.settings.statements_level;
 
-        if let Some(lvl) = lvl
-            .to_level()
-            .filter(|lvl| log::log_enabled!(target: "sqlx::explain", *lvl))
-        {
-            let mut summary = parse_query_summary(&self.sql);
+        if let Some((tracing_level, log_level)) = level_filter_to_levels(lvl) {
+            let log_is_enabled = tracing_dynamic_enabled!(target: "sqlx::explain", tracing_level)
+                || log::log_enabled!(target: "sqlx::explain", log_level);
+            if log_is_enabled {
+                let mut summary = parse_query_summary(&self.sql);
 
-            let sql = if summary != self.sql {
-                summary.push_str(" …");
-                format!(
-                    "\n\n{}\n",
-                    sqlformat::format(
-                        &self.sql,
-                        &sqlformat::QueryParams::None,
-                        sqlformat::FormatOptions::default()
+                let sql = if summary != self.sql {
+                    summary.push_str(" …");
+                    format!(
+                        "\n\n{}\n",
+                        sqlformat::format(
+                            &self.sql,
+                            &sqlformat::QueryParams::None,
+                            sqlformat::FormatOptions::default()
+                        )
                     )
-                )
-            } else {
-                String::new()
-            };
+                } else {
+                    String::new()
+                };
 
-            log::logger().log(
-                &log::Record::builder()
-                    .args(format_args!(
-                        "{}; program:{:?}, unknown_operations:{:?}, results: {:?}{}",
-                        summary, self.program, self.unknown_operations, self.results, sql
-                    ))
-                    .level(lvl)
-                    .module_path_static(Some("sqlx::explain"))
-                    .target("sqlx::explain")
-                    .build(),
-            );
+                let message = format!(
+                    "{}; program:{:?}, unknown_operations:{:?}, results: {:?}{}",
+                    summary, self.program, self.unknown_operations, self.results, sql
+                );
+
+                tracing_dynamic_event!(target: "sqlx::explain", tracing_level, message);
+            }
         }
     }
 }
