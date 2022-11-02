@@ -74,7 +74,7 @@ impl MySqlConnection {
                     if let Some(&rustls::Error::CorruptMessage) =
                         ioe.get_ref().and_then(|e| e.downcast_ref())
                     {
-                        tracing::trace!(local_addr, "got corrupt message on socket");
+                        tracing::trace!(local_addr = %local_addr, "got corrupt message on socket");
                     }
 
                     return Err(Error::Io(ioe));
