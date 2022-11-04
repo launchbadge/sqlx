@@ -72,6 +72,9 @@ mod value;
 #[cfg(feature = "any")]
 pub mod any;
 
+#[cfg(feature = "regex")]
+mod regexp;
+
 #[cfg(feature = "migrate")]
 mod migrate;
 

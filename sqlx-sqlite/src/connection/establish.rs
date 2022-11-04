@@ -238,17 +238,24 @@ impl EstablishParams {
                         &err_msg,
                     ))));
                 }
-            }
-
-            // Preempt any hypothetical security issues arising from leaving ENABLE_LOAD_EXTENSION
-            // on by disabling the flag again once we've loaded all the requested modules.
-            // Fail-fast (via `?`) if disabling the extension loader didn't work for some reason,
-            // avoids an unexpected state going undetected.
+            } // Preempt any hypothetical security issues arising from leaving ENABLE_LOAD_EXTENSION
+              // on by disabling the flag again once we've loaded all the requested modules.
+              // Fail-fast (via `?`) if disabling the extension loader didn't work for some reason,
+              // avoids an unexpected state going undetected.
             unsafe {
                 Self::sqlite3_set_load_extension(
                     handle.as_ptr(),
                     SqliteLoadExtensionMode::DisableAll,
                 )?;
+            }
+        }
+
+        #[cfg(feature = "regex")]
+        {
+            // configure a `regexp` function for sqlite, it does not come with one by default
+            let status = crate::sqlite::regexp::register(handle.as_ptr());
+            if status != SQLITE_OK {
+                return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
             }
         }
 
