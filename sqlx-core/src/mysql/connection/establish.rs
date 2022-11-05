@@ -20,6 +20,13 @@ impl MySqlConnection {
         let handshake: Handshake = stream.recv_packet().await?.decode()?;
 
         let mut plugin = handshake.auth_plugin;
+
+        // if a auth plugin is not getting recognized but a password was provided,
+        // fallback to mysql native password
+        if plugin.is_none() && options.password.is_some() {
+            plugin = Some(crate::mysql::protocol::auth::AuthPlugin::MySqlNativePassword)
+        }
+
         let mut nonce = handshake.auth_plugin_data;
 
         // FIXME: server version parse is a bit ugly
