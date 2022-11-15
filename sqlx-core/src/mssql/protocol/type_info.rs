@@ -119,6 +119,7 @@ impl TypeInfo {
                     // which is known as Latin 1.
                     0x0409 => encoding_rs::WINDOWS_1252,
                     0x0424 => encoding_rs::ISO_8859_2,
+                    0x040C => encoding_rs::ISO_8859_16,
 
                     locale => {
                         return Err(err_protocol!("unsupported locale 0x{:04X?}", locale));
