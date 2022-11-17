@@ -132,7 +132,7 @@ const OP_HALT_IF_NULL: &str = "HaltIfNull";
 const MAX_LOOP_COUNT: u8 = 2;
 const MAX_TOTAL_INSTRUCTION_COUNT: u32 = 100_000;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 enum ColumnType {
     Single {
         datatype: DataType,
@@ -167,6 +167,32 @@ impl ColumnType {
         match self {
             Self::Single { nullable, .. } => *nullable,
             Self::Record(_) => None, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+        }
+    }
+}
+
+impl core::fmt::Debug for ColumnType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Single { datatype, nullable } => {
+                let nullable_str = match nullable {
+                    Some(true) => "NULL",
+                    Some(false) => "NOT NULL",
+                    None => "NULL?",
+                };
+                write!(f, "{:?} {}", datatype, nullable_str)
+            }
+            Self::Record(columns) => {
+                f.write_str("Record(")?;
+                let mut column_iter = columns.iter();
+                if let Some(item) = column_iter.next() {
+                    write!(f, "{:?}", item)?;
+                    while let Some(item) = column_iter.next() {
+                        write!(f, ", {:?}", item)?;
+                    }
+                }
+                f.write_str(")")
+            }
         }
     }
 }
@@ -468,9 +494,7 @@ pub(super) fn explain(
 
             if state.visited[state.mem.program_i] > MAX_LOOP_COUNT {
                 if logger.log_enabled() {
-                    let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                        state.history.iter().map(|i| &program[*i]).collect();
-                    logger.add_result((program_history, None));
+                    logger.add_result((state.history, None));
                 }
 
                 //avoid (infinite) loops by breaking if we ever hit the same instruction twice
@@ -693,9 +717,7 @@ pub(super) fn explain(
                     }
 
                     if logger.log_enabled() {
-                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                            state.history.iter().map(|i| &program[*i]).collect();
-                        logger.add_result((program_history, None));
+                        logger.add_result((state.history, None));
                     }
 
                     break;
@@ -727,32 +749,19 @@ pub(super) fn explain(
                                 continue;
                             } else {
                                 if logger.log_enabled() {
-                                    let program_history: Vec<&(
-                                        i64,
-                                        String,
-                                        i64,
-                                        i64,
-                                        i64,
-                                        Vec<u8>,
-                                    )> = state.history.iter().map(|i| &program[*i]).collect();
-                                    logger.add_result((program_history, None));
+                                    logger.add_result((state.history, None));
                                 }
-
                                 break;
                             }
                         } else {
                             if logger.log_enabled() {
-                                let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                                    state.history.iter().map(|i| &program[*i]).collect();
-                                logger.add_result((program_history, None));
+                                logger.add_result((state.history, None));
                             }
                             break;
                         }
                     } else {
                         if logger.log_enabled() {
-                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                                state.history.iter().map(|i| &program[*i]).collect();
-                            logger.add_result((program_history, None));
+                            logger.add_result((state.history, None));
                         }
                         break;
                     }
@@ -767,9 +776,7 @@ pub(super) fn explain(
                         continue;
                     } else {
                         if logger.log_enabled() {
-                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                                state.history.iter().map(|i| &program[*i]).collect();
-                            logger.add_result((program_history, None));
+                            logger.add_result((state.history, None));
                         }
                         break;
                     }
@@ -797,9 +804,7 @@ pub(super) fn explain(
                         }
                     } else {
                         if logger.log_enabled() {
-                            let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                                state.history.iter().map(|i| &program[*i]).collect();
-                            logger.add_result((program_history, None));
+                            logger.add_result((state.history, None));
                         }
                         break;
                     }
@@ -952,6 +957,10 @@ pub(super) fn explain(
                         }
                     };
 
+                    if logger.log_enabled() {
+                        logger.add_table_info(state.mem.program_i, Some(table_info.clone()));
+                    }
+
                     state.mem.t.insert(state.mem.program_i as i64, table_info);
                     state
                         .mem
@@ -1035,7 +1044,7 @@ pub(super) fn explain(
                             );
                         }
 
-                        _ => logger.add_unknown_operation(&program[state.mem.program_i]),
+                        _ => logger.add_unknown_operation(state.mem.program_i),
                     }
                 }
 
@@ -1284,36 +1293,30 @@ pub(super) fn explain(
 
                 OP_RESULT_ROW => {
                     // output = r[p1 .. p1 + p2]
-
-                    state.result = Some(
-                        (p1..p1 + p2)
-                            .map(|i| {
-                                let coltype = state.mem.r.get(&i);
-
-                                let sqltype =
-                                    coltype.map(|d| d.map_to_datatype()).map(SqliteTypeInfo);
-                                let nullable =
-                                    coltype.map(|d| d.map_to_nullable()).unwrap_or_default();
-
-                                (sqltype, nullable)
-                            })
-                            .collect(),
-                    );
+                    let result: Vec<_> = (p1..p1 + p2)
+                        .map(|i| {
+                            state
+                                .mem
+                                .r
+                                .get(&i)
+                                .map(RegDataType::map_to_columntype)
+                                .unwrap_or_default()
+                        })
+                        .collect();
 
                     if logger.log_enabled() {
-                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                            state.history.iter().map(|i| &program[*i]).collect();
-                        logger.add_result((program_history, Some(state.result.clone())));
+                        logger.add_result((
+                            state.history.clone(),
+                            Some(IntMap::from_dense_record(&result)),
+                        ));
                     }
 
-                    result_states.push(state.clone());
+                    result_states.push(result);
                 }
 
                 OP_HALT => {
                     if logger.log_enabled() {
-                        let program_history: Vec<&(i64, String, i64, i64, i64, Vec<u8>)> =
-                            state.history.iter().map(|i| &program[*i]).collect();
-                        logger.add_result((program_history, None));
+                        logger.add_result((state.history, None));
                     }
                     break;
                 }
@@ -1321,7 +1324,7 @@ pub(super) fn explain(
                 _ => {
                     // ignore unsupported operations
                     // if we fail to find an r later, we just give up
-                    logger.add_unknown_operation(&program[state.mem.program_i]);
+                    logger.add_unknown_operation(state.mem.program_i);
                 }
             }
 
@@ -1332,31 +1335,32 @@ pub(super) fn explain(
     let mut output: Vec<Option<SqliteTypeInfo>> = Vec::new();
     let mut nullable: Vec<Option<bool>> = Vec::new();
 
-    while let Some(state) = result_states.pop() {
+    while let Some(result) = result_states.pop() {
         // find the datatype info from each ResultRow execution
-        if let Some(result) = state.result {
-            let mut idx = 0;
-            for (this_type, this_nullable) in result {
-                if output.len() == idx {
-                    output.push(this_type);
-                } else if output[idx].is_none()
-                    || matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
-                {
-                    output[idx] = this_type;
-                }
-
-                if nullable.len() == idx {
-                    nullable.push(this_nullable);
-                } else if let Some(ref mut null) = nullable[idx] {
-                    //if any ResultRow's column is nullable, the final result is nullable
-                    if let Some(this_null) = this_nullable {
-                        *null |= this_null;
-                    }
-                } else {
-                    nullable[idx] = this_nullable;
-                }
-                idx += 1;
+        let mut idx = 0;
+        for this_col in result {
+            let this_type = this_col.map_to_datatype();
+            let this_nullable = this_col.map_to_nullable();
+            if output.len() == idx {
+                output.push(Some(SqliteTypeInfo(this_type)));
+            } else if output[idx].is_none()
+                || matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
+                    && !matches!(this_type, DataType::Null)
+            {
+                output[idx] = Some(SqliteTypeInfo(this_type));
             }
+
+            if nullable.len() == idx {
+                nullable.push(this_nullable);
+            } else if let Some(ref mut null) = nullable[idx] {
+                //if any ResultRow's column is nullable, the final result is nullable
+                if let Some(this_null) = this_nullable {
+                    *null |= this_null;
+                }
+            } else {
+                nullable[idx] = this_nullable;
+            }
+            idx += 1;
         }
     }
 
