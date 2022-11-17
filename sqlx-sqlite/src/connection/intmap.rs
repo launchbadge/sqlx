@@ -67,6 +67,10 @@ impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> IntMap<V> {
             None => None,
         }
     }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = Option<&V>> {
+        self.0.iter().map(Option::as_ref)
+    }
 }
 
 impl<V: std::fmt::Debug + Clone + Eq + PartialEq + std::hash::Hash> std::hash::Hash for IntMap<V> {
