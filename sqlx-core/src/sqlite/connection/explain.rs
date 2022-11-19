@@ -127,15 +127,18 @@ const OP_HALT: &str = "Halt";
 
 const MAX_LOOP_COUNT: u8 = 2;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct ColumnType {
-    pub datatype: DataType,
-    pub nullable: Option<bool>,
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum ColumnType {
+    Single {
+        datatype: DataType,
+        nullable: Option<bool>,
+    },
+    Record(Vec<ColumnType>),
 }
 
 impl Default for ColumnType {
     fn default() -> Self {
-        Self {
+        Self::Single {
             datatype: DataType::Null,
             nullable: None,
         }
@@ -144,9 +147,21 @@ impl Default for ColumnType {
 
 impl ColumnType {
     fn null() -> Self {
-        Self {
+        Self::Single {
             datatype: DataType::Null,
             nullable: Some(true),
+        }
+    }
+    fn map_to_datatype(&self) -> DataType {
+        match self {
+            Self::Single { datatype, .. } => datatype.clone(),
+            Self::Record(_) => DataType::Null, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+        }
+    }
+    fn map_to_nullable(&self) -> Option<bool> {
+        match self {
+            Self::Single { nullable, .. } => *nullable,
+            Self::Record(_) => None, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
         }
     }
 }
@@ -154,33 +169,26 @@ impl ColumnType {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum RegDataType {
     Single(ColumnType),
-    Record(Vec<ColumnType>),
     Int(i64),
 }
 
 impl RegDataType {
     fn map_to_datatype(&self) -> DataType {
         match self {
-            RegDataType::Single(d) => d.datatype,
-            RegDataType::Record(_) => DataType::Null, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+            RegDataType::Single(d) => d.map_to_datatype(),
             RegDataType::Int(_) => DataType::Int,
         }
     }
     fn map_to_nullable(&self) -> Option<bool> {
         match self {
-            RegDataType::Single(d) => d.nullable,
-            RegDataType::Record(_) => None, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
+            RegDataType::Single(d) => d.map_to_nullable(),
             RegDataType::Int(_) => Some(false),
         }
     }
     fn map_to_columntype(&self) -> ColumnType {
         match self {
-            RegDataType::Single(d) => *d,
-            RegDataType::Record(_) => ColumnType {
-                datatype: DataType::Null,
-                nullable: None,
-            }, //If we're trying to coerce to a regular Datatype, we can assume a Record is invalid for the context
-            RegDataType::Int(_) => ColumnType {
+            RegDataType::Single(d) => d.clone(),
+            RegDataType::Int(_) => ColumnType::Single {
                 datatype: DataType::Int,
                 nullable: Some(false),
             },
@@ -202,7 +210,7 @@ impl CursorDataType {
         Self::Normal {
             cols: record
                 .iter()
-                .map(|(&colnum, &datatype)| (colnum, datatype))
+                .map(|(colnum, datatype)| (*colnum, datatype.clone()))
                 .collect(),
             is_empty,
         }
@@ -210,7 +218,7 @@ impl CursorDataType {
 
     fn from_dense_record(record: &Vec<ColumnType>, is_empty: Option<bool>) -> Self {
         Self::Normal {
-            cols: (0..).zip(record.iter().copied()).collect(),
+            cols: (0..).zip(record.iter().cloned()).collect(),
             is_empty,
         }
     }
@@ -225,7 +233,7 @@ impl CursorDataType {
                 rowdata
             }
             Self::Pseudo(i) => match registers.get(i) {
-                Some(RegDataType::Record(r)) => r.clone(),
+                Some(RegDataType::Single(ColumnType::Record(r))) => r.clone(),
                 _ => Vec::new(),
             },
         }
@@ -238,7 +246,9 @@ impl CursorDataType {
         match self {
             Self::Normal { cols, .. } => cols.clone(),
             Self::Pseudo(i) => match registers.get(i) {
-                Some(RegDataType::Record(r)) => (0..).zip(r.iter().copied()).collect(),
+                Some(RegDataType::Single(ColumnType::Record(r))) => {
+                    (0..).zip(r.iter().cloned()).collect()
+                }
                 _ => HashMap::new(),
             },
         }
@@ -313,7 +323,7 @@ fn root_block_columns(
         let row_info = row_info.entry(block).or_default();
         row_info.insert(
             colnum,
-            ColumnType {
+            ColumnType::Single {
                 datatype: datatype.parse().unwrap_or(DataType::Null),
                 nullable: Some(!notnull),
             },
@@ -323,7 +333,7 @@ fn root_block_columns(
         let row_info = row_info.entry(block).or_default();
         row_info.insert(
             colnum,
-            ColumnType {
+            ColumnType::Single {
                 datatype: datatype.parse().unwrap_or(DataType::Null),
                 nullable: Some(!notnull),
             },
@@ -656,7 +666,7 @@ pub(super) fn explain(
                     {
                         if let Some(col) = record.get(&p2) {
                             // insert into p3 the datatype of the col
-                            state.r.insert(p3, RegDataType::Single(*col));
+                            state.r.insert(p3, RegDataType::Single(col.clone()));
                         } else {
                             state
                                 .r
@@ -675,7 +685,7 @@ pub(super) fn explain(
                     //Cursor emulation doesn't sequence value, but it is an int
                     state.r.insert(
                         p2,
-                        RegDataType::Single(ColumnType {
+                        RegDataType::Single(ColumnType::Single {
                             datatype: DataType::Int64,
                             nullable: Some(false),
                         }),
@@ -686,9 +696,13 @@ pub(super) fn explain(
                     //Get entire row from cursor p1, store it into register p2
                     if let Some(record) = state.p.get(&p1) {
                         let rowdata = record.map_to_dense_record(&state.r);
-                        state.r.insert(p2, RegDataType::Record(rowdata));
+                        state
+                            .r
+                            .insert(p2, RegDataType::Single(ColumnType::Record(rowdata)));
                     } else {
-                        state.r.insert(p2, RegDataType::Record(Vec::new()));
+                        state
+                            .r
+                            .insert(p2, RegDataType::Single(ColumnType::Record(Vec::new())));
                     }
                 }
 
@@ -704,16 +718,19 @@ pub(super) fn explain(
                                 .unwrap_or(ColumnType::default()),
                         );
                     }
-                    state.r.insert(p3, RegDataType::Record(record));
+                    state
+                        .r
+                        .insert(p3, RegDataType::Single(ColumnType::Record(record)));
                 }
 
                 OP_INSERT | OP_IDX_INSERT | OP_SORTER_INSERT => {
-                    if let Some(RegDataType::Record(record)) = state.r.get(&p2) {
+                    if let Some(RegDataType::Single(ColumnType::Record(record))) = state.r.get(&p2)
+                    {
                         if let Some(CursorDataType::Normal { cols, is_empty }) =
                             state.p.get_mut(&p1)
                         {
                             // Insert the record into wherever pointer p1 is
-                            *cols = (0..).zip(record.iter().copied()).collect();
+                            *cols = (0..).zip(record.iter().cloned()).collect();
                             *is_empty = Some(false);
                         }
                     }
@@ -775,7 +792,7 @@ pub(super) fn explain(
                             // last_insert_rowid() -> INTEGER
                             state.r.insert(
                                 p3,
-                                RegDataType::Single(ColumnType {
+                                RegDataType::Single(ColumnType::Single {
                                     datatype: DataType::Int64,
                                     nullable: Some(false),
                                 }),
@@ -790,8 +807,13 @@ pub(super) fn explain(
                     // all columns in cursor X are potentially nullable
                     if let Some(CursorDataType::Normal { ref mut cols, .. }) = state.p.get_mut(&p1)
                     {
-                        for ref mut col in cols.values_mut() {
-                            col.nullable = Some(true);
+                        for col in cols.values_mut() {
+                            if let ColumnType::Single {
+                                ref mut nullable, ..
+                            } = col
+                            {
+                                *nullable = Some(true);
+                            }
                         }
                     }
                     //else we don't know about the cursor
@@ -810,7 +832,7 @@ pub(super) fn explain(
                         // count(_) -> INTEGER
                         state.r.insert(
                             p3,
-                            RegDataType::Single(ColumnType {
+                            RegDataType::Single(ColumnType::Single {
                                 datatype: DataType::Int64,
                                 nullable: Some(false),
                             }),
@@ -833,7 +855,7 @@ pub(super) fn explain(
                         // count(_) -> INTEGER
                         state.r.insert(
                             p1,
-                            RegDataType::Single(ColumnType {
+                            RegDataType::Single(ColumnType::Single {
                                 datatype: DataType::Int64,
                                 nullable: Some(false),
                             }),
@@ -847,7 +869,7 @@ pub(super) fn explain(
                 OP_CAST => {
                     // affinity(r[p1])
                     if let Some(v) = state.r.get_mut(&p1) {
-                        *v = RegDataType::Single(ColumnType {
+                        *v = RegDataType::Single(ColumnType::Single {
                             datatype: affinity_to_type(p2 as u8),
                             nullable: v.map_to_nullable(),
                         });
@@ -897,7 +919,7 @@ pub(super) fn explain(
                     // r[p2] = <value of constant>
                     state.r.insert(
                         p2,
-                        RegDataType::Single(ColumnType {
+                        RegDataType::Single(ColumnType::Single {
                             datatype: opcode_to_type(&opcode),
                             nullable: Some(false),
                         }),
@@ -927,7 +949,7 @@ pub(super) fn explain(
                         (Some(a), Some(b)) => {
                             state.r.insert(
                                 p3,
-                                RegDataType::Single(ColumnType {
+                                RegDataType::Single(ColumnType::Single {
                                     datatype: if matches!(a.map_to_datatype(), DataType::Null) {
                                         b.map_to_datatype()
                                     } else {
@@ -946,7 +968,7 @@ pub(super) fn explain(
                         (Some(v), None) => {
                             state.r.insert(
                                 p3,
-                                RegDataType::Single(ColumnType {
+                                RegDataType::Single(ColumnType::Single {
                                     datatype: v.map_to_datatype(),
                                     nullable: None,
                                 }),
@@ -956,7 +978,7 @@ pub(super) fn explain(
                         (None, Some(v)) => {
                             state.r.insert(
                                 p3,
-                                RegDataType::Single(ColumnType {
+                                RegDataType::Single(ColumnType::Single {
                                     datatype: v.map_to_datatype(),
                                     nullable: None,
                                 }),
@@ -971,7 +993,7 @@ pub(super) fn explain(
                     // r[p2] = if r[p2] < 0 { r[p1] } else if r[p1]<0 { -1 } else { r[p1] + r[p3] }
                     state.r.insert(
                         p2,
-                        RegDataType::Single(ColumnType {
+                        RegDataType::Single(ColumnType::Single {
                             datatype: DataType::Int64,
                             nullable: Some(false),
                         }),
@@ -1151,21 +1173,21 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["t"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
             root_block_cols[&blocknum][&1]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(false)
             },
@@ -1176,14 +1198,14 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["i1"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
@@ -1194,14 +1216,14 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["i2"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
@@ -1212,21 +1234,21 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["t2"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
             },
             root_block_cols[&blocknum][&1]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
             },
@@ -1237,14 +1259,14 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["t2i1"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
             },
@@ -1255,14 +1277,14 @@ fn test_root_block_columns_has_types() {
     {
         let blocknum = table_block_nums["t2i2"];
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
             root_block_cols[&blocknum][&0]
         );
         assert_eq!(
-            ColumnType {
+            ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
             },
