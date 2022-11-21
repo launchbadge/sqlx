@@ -89,6 +89,56 @@ async fn it_describes_expression() -> anyhow::Result<()> {
 }
 
 #[sqlx_macros::test]
+async fn it_describes_temporary_table() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    conn.execute(
+        "CREATE TEMPORARY TABLE IF NOT EXISTS empty_all_types_and_nulls(
+        i1 integer NULL,
+        r1 real NULL,
+        t1 text NULL,
+        b1 blob NULL,
+        i2 INTEGER NOT NULL,
+        r2 REAL NOT NULL,
+        t2 TEXT NOT NULL,
+        b2 BLOB NOT NULL
+        )",
+    )
+    .await?;
+
+    let d = conn
+        .describe("SELECT * FROM empty_all_types_and_nulls")
+        .await?;
+    assert_eq!(d.columns().len(), 8);
+
+    assert_eq!(d.column(0).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(0), Some(false));
+
+    assert_eq!(d.column(1).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(1), Some(false));
+
+    assert_eq!(d.column(2).type_info().name(), "REAL");
+    assert_eq!(d.nullable(2), Some(false));
+
+    assert_eq!(d.column(3).type_info().name(), "BLOB");
+    assert_eq!(d.nullable(3), Some(false));
+
+    assert_eq!(d.column(4).type_info().name(), "INTEGER");
+    assert_eq!(d.nullable(4), Some(true));
+
+    assert_eq!(d.column(5).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(5), Some(true));
+
+    assert_eq!(d.column(6).type_info().name(), "REAL");
+    assert_eq!(d.nullable(6), Some(true));
+
+    assert_eq!(d.column(7).type_info().name(), "BLOB");
+    assert_eq!(d.nullable(7), Some(true));
+
+    Ok(())
+}
+
+#[sqlx_macros::test]
 async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
