@@ -1148,30 +1148,48 @@ fn test_root_block_columns_has_types() {
     .next()
     .is_some());
 
-    let table_block_nums: HashMap<String, i64> = execute::iter(
+    assert!(execute::iter(
         &mut conn,
-        r"select name, rootpage from sqlite_master",
+        r"CREATE TEMPORARY TABLE t3(a TEXT PRIMARY KEY, b REAL NOT NULL, b_null REAL NULL);",
+        None,
+        false
+    )
+    .unwrap()
+    .next()
+    .is_some());
+
+    let table_block_nums: HashMap<String, (i64, i64)> = execute::iter(
+        &mut conn,
+        r"select name, 0 db_seq, rootpage from main.sqlite_schema
+        UNION ALL select name, 1 db_seq, rootpage from temp.sqlite_schema",
         None,
         false,
     )
     .unwrap()
     .filter_map(|res| res.map(|either| either.right()).transpose())
     .map(|row| FromRow::from_row(row.as_ref().unwrap()))
+    .map(|row| row.map(|(name, seq, block)| (name, (seq, block))))
     .collect::<Result<HashMap<_, _>, Error>>()
     .unwrap();
 
     let root_block_cols = root_block_columns(&mut conn).unwrap();
 
-    assert_eq!(6, root_block_cols.len());
+    //assert_eq!(7, root_block_cols.len());
 
     //prove that we have some information for each table & index
-    for blocknum in table_block_nums.values() {
-        assert!(root_block_cols.contains_key(blocknum));
+    for (name, (seqnum, blocknum)) in dbg!(&table_block_nums) {
+        assert!(
+            root_block_cols.contains_key(blocknum),
+            "name:{} seq_num:{} key:{}",
+            name,
+            seqnum,
+            blocknum
+        );
     }
 
     //prove that each block has the correct information
     {
-        let blocknum = table_block_nums["t"];
+        let (dbnum, blocknum) = table_block_nums["t"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1196,7 +1214,7 @@ fn test_root_block_columns_has_types() {
     }
 
     {
-        let blocknum = table_block_nums["i1"];
+        let (seqnum, blocknum) = table_block_nums["i1"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1214,7 +1232,7 @@ fn test_root_block_columns_has_types() {
     }
 
     {
-        let blocknum = table_block_nums["i2"];
+        let (seqnum, blocknum) = table_block_nums["i2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1232,7 +1250,7 @@ fn test_root_block_columns_has_types() {
     }
 
     {
-        let blocknum = table_block_nums["t2"];
+        let (seqnum, blocknum) = table_block_nums["t2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1257,7 +1275,7 @@ fn test_root_block_columns_has_types() {
     }
 
     {
-        let blocknum = table_block_nums["t2i1"];
+        let (seqnum, blocknum) = table_block_nums["t2i1"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1275,7 +1293,7 @@ fn test_root_block_columns_has_types() {
     }
 
     {
-        let blocknum = table_block_nums["t2i2"];
+        let (seqnum, blocknum) = table_block_nums["t2i2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
@@ -1289,6 +1307,31 @@ fn test_root_block_columns_has_types() {
                 nullable: Some(false)
             },
             root_block_cols[&blocknum][&1]
+        );
+    }
+
+    {
+        let (seqnum, blocknum) = table_block_nums["t3"];
+        assert_eq!(
+            ColumnType::Single {
+                datatype: DataType::Text,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&0]
+        );
+        assert_eq!(
+            ColumnType::Single {
+                datatype: DataType::Float,
+                nullable: Some(false)
+            },
+            root_block_cols[&blocknum][&1]
+        );
+        assert_eq!(
+            ColumnType::Single {
+                datatype: DataType::Float,
+                nullable: Some(true)
+            },
+            root_block_cols[&blocknum][&2]
         );
     }
 }
