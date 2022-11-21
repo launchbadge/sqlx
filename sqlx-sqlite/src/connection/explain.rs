@@ -289,24 +289,22 @@ fn opcode_to_type(op: &str) -> DataType {
 
 fn root_block_columns(
     conn: &mut ConnectionState,
-) -> Result<HashMap<i64, HashMap<i64, ColumnType>>, Error> {
-    let table_block_columns: Vec<(i64, i64, String, bool)> = execute::iter(
+) -> Result<HashMap<(i64, i64), HashMap<i64, ColumnType>>, Error> {
+    let table_block_columns: Vec<(i64, i64, i64, String, bool)> = execute::iter(
         conn,
-        "SELECT s.rootpage, col.cid as colnum, col.type, col.\"notnull\"
-         FROM (select * from sqlite_temp_schema UNION select * from sqlite_schema) s
+        "SELECT s.dbnum, s.rootpage, col.cid as colnum, col.type, col.\"notnull\"
+         FROM (
+             select 1 dbnum, tss.* from temp.sqlite_schema tss
+             UNION ALL select 0 dbnum, mss.* from main.sqlite_schema mss
+             ) s
          JOIN pragma_table_info(s.name) AS col
-         WHERE s.type = 'table'",
-        None,
-        false,
-    )?
-    .filter_map(|res| res.map(|either| either.right()).transpose())
-    .map(|row| FromRow::from_row(&row?))
-    .collect::<Result<Vec<_>, Error>>()?;
-
-    let index_block_columns: Vec<(i64, i64, String, bool)> = execute::iter(
-        conn,
-        "SELECT s.rootpage, idx.seqno as colnum, col.type, col.\"notnull\"
-         FROM (select * from sqlite_temp_schema UNION select * from sqlite_schema) s
+         WHERE s.type = 'table'
+         UNION ALL
+         SELECT s.dbnum, s.rootpage, idx.seqno as colnum, col.type, col.\"notnull\"
+         FROM (
+             select 1 dbnum, tss.* from temp.sqlite_schema tss
+             UNION ALL select 0 dbnum, mss.* from main.sqlite_schema mss
+             ) s
          JOIN pragma_index_info(s.name) AS idx
          LEFT JOIN pragma_table_info(s.tbl_name) as col
            ON col.cid = idx.cid
@@ -318,19 +316,9 @@ fn root_block_columns(
     .map(|row| FromRow::from_row(&row?))
     .collect::<Result<Vec<_>, Error>>()?;
 
-    let mut row_info: HashMap<i64, HashMap<i64, ColumnType>> = HashMap::new();
-    for (block, colnum, datatype, notnull) in table_block_columns {
-        let row_info = row_info.entry(block).or_default();
-        row_info.insert(
-            colnum,
-            ColumnType::Single {
-                datatype: datatype.parse().unwrap_or(DataType::Null),
-                nullable: Some(!notnull),
-            },
-        );
-    }
-    for (block, colnum, datatype, notnull) in index_block_columns {
-        let row_info = row_info.entry(block).or_default();
+    let mut row_info: HashMap<(i64, i64), HashMap<i64, ColumnType>> = HashMap::new();
+    for (dbnum, block, colnum, datatype, notnull) in table_block_columns {
+        let row_info = row_info.entry((dbnum, block)).or_default();
         row_info.insert(
             colnum,
             ColumnType::Single {
@@ -753,8 +741,8 @@ pub(super) fn explain(
 
                 OP_OPEN_READ | OP_OPEN_WRITE => {
                     //Create a new pointer which is referenced by p1, take column metadata from db schema if found
-                    if p3 == 0 {
-                        if let Some(columns) = root_block_cols.get(&p2) {
+                    if p3 == 0 || p3 == 1 {
+                        if let Some(columns) = root_block_cols.get(&(p3, p2)) {
                             state
                                 .p
                                 .insert(p1, CursorDataType::from_sparse_record(columns, None));
@@ -1167,180 +1155,178 @@ fn test_root_block_columns_has_types() {
     .next()
     .is_some());
 
-    let table_block_nums: HashMap<String, (i64, i64)> = execute::iter(
+    let table_block_nums: HashMap<String, (i64,i64)> = execute::iter(
         &mut conn,
-        r"select name, 0 db_seq, rootpage from main.sqlite_schema
-        UNION ALL select name, 1 db_seq, rootpage from temp.sqlite_schema",
+        r"select name, 0 db_seq, rootpage from main.sqlite_schema UNION ALL select name, 1 db_seq, rootpage from temp.sqlite_schema",
         None,
         false,
     )
     .unwrap()
     .filter_map(|res| res.map(|either| either.right()).transpose())
     .map(|row| FromRow::from_row(row.as_ref().unwrap()))
-    .map(|row| row.map(|(name, seq, block)| (name, (seq, block))))
+    .map(|row| row.map(|(name,seq,block)|(name,(seq,block))))
     .collect::<Result<HashMap<_, _>, Error>>()
     .unwrap();
 
     let root_block_cols = root_block_columns(&mut conn).unwrap();
 
-    //assert_eq!(7, root_block_cols.len());
+    // there should be 7 tables/indexes created explicitly, plus 1 autoindex for t3
+    assert_eq!(8, root_block_cols.len());
 
     //prove that we have some information for each table & index
-    for (name, (seqnum, blocknum)) in dbg!(&table_block_nums) {
+    for (name, db_seq_block) in dbg!(&table_block_nums) {
         assert!(
-            root_block_cols.contains_key(blocknum),
-            "name:{} seq_num:{} key:{}",
-            name,
-            seqnum,
-            blocknum
+            root_block_cols.contains_key(db_seq_block),
+            "{:?}",
+            (name, db_seq_block)
         );
     }
 
     //prove that each block has the correct information
     {
-        let (dbnum, blocknum) = table_block_nums["t"];
+        let table_db_block = table_block_nums["t"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&2]
+            root_block_cols[&table_db_block][&2]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["i1"];
+        let table_db_block = table_block_nums["i1"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["i2"];
+        let table_db_block = table_block_nums["i2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(true) //sqlite primary key columns are nullable unless declared not null
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Text,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["t2"];
+        let table_db_block = table_block_nums["t2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&2]
+            root_block_cols[&table_db_block][&2]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["t2i1"];
+        let table_db_block = table_block_nums["t2i1"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["t2i2"];
+        let table_db_block = table_block_nums["t2i2"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Int64,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Null,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
     }
 
     {
-        let (seqnum, blocknum) = table_block_nums["t3"];
+        let table_db_block = table_block_nums["t3"];
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Text,
-                nullable: Some(false)
+                nullable: Some(true)
             },
-            root_block_cols[&blocknum][&0]
+            root_block_cols[&table_db_block][&0]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Float,
                 nullable: Some(false)
             },
-            root_block_cols[&blocknum][&1]
+            root_block_cols[&table_db_block][&1]
         );
         assert_eq!(
             ColumnType::Single {
                 datatype: DataType::Float,
                 nullable: Some(true)
             },
-            root_block_cols[&blocknum][&2]
+            root_block_cols[&table_db_block][&2]
         );
     }
 }
