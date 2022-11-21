@@ -112,28 +112,28 @@ async fn it_describes_temporary_table() -> anyhow::Result<()> {
     assert_eq!(d.columns().len(), 8);
 
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
-    assert_eq!(d.nullable(0), Some(false));
+    assert_eq!(d.nullable(0), Some(true));
 
-    assert_eq!(d.column(1).type_info().name(), "TEXT");
-    assert_eq!(d.nullable(1), Some(false));
+    assert_eq!(d.column(1).type_info().name(), "REAL");
+    assert_eq!(d.nullable(1), Some(true));
 
-    assert_eq!(d.column(2).type_info().name(), "REAL");
-    assert_eq!(d.nullable(2), Some(false));
+    assert_eq!(d.column(2).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(2), Some(true));
 
     assert_eq!(d.column(3).type_info().name(), "BLOB");
-    assert_eq!(d.nullable(3), Some(false));
+    assert_eq!(d.nullable(3), Some(true));
 
     assert_eq!(d.column(4).type_info().name(), "INTEGER");
-    assert_eq!(d.nullable(4), Some(true));
+    assert_eq!(d.nullable(4), Some(false));
 
-    assert_eq!(d.column(5).type_info().name(), "TEXT");
-    assert_eq!(d.nullable(5), Some(true));
+    assert_eq!(d.column(5).type_info().name(), "REAL");
+    assert_eq!(d.nullable(5), Some(false));
 
-    assert_eq!(d.column(6).type_info().name(), "REAL");
-    assert_eq!(d.nullable(6), Some(true));
+    assert_eq!(d.column(6).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(6), Some(false));
 
     assert_eq!(d.column(7).type_info().name(), "BLOB");
-    assert_eq!(d.nullable(7), Some(true));
+    assert_eq!(d.nullable(7), Some(false));
 
     Ok(())
 }
