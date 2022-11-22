@@ -111,7 +111,9 @@ hint: This command only works in the manifest directory of a Cargo package."#
 
     let output_str =
         std::str::from_utf8(&output.stdout).context("Invalid `cargo metadata` output")?;
-    let metadata: Metadata = output_str.parse()?;
+    let metadata: Metadata = output_str.parse().context(
+        "Issue parsing `cargo metadata` output - consider manually running it to check for issues",
+    )?;
 
     // try removing the target/sqlx directory before running, as stale files
     // have repeatedly caused issues in the past.
