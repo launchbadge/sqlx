@@ -4,6 +4,7 @@ use bytes::Bytes;
 use crate::common::StatementCache;
 use crate::error::Error;
 use crate::mysql::connection::{tls, MySqlStream, MAX_PACKET_SIZE};
+use crate::mysql::protocol::auth::AuthPlugin;
 use crate::mysql::protocol::connect::{
     AuthSwitchRequest, AuthSwitchResponse, Handshake, HandshakeResponse,
 };
@@ -19,7 +20,15 @@ impl MySqlConnection {
 
         let handshake: Handshake = stream.recv_packet().await?.decode()?;
 
-        let mut plugin = handshake.auth_plugin;
+        // This logic allows password authentication with very old MySQL servers (such as 5.1)
+        // that don't send the PLUGIN_AUTH capability. This behavior will only apply when:
+        // 1) Server doesn't advertise PLUGIN_AUTH, 2) A password is provided, 3) auth_plugin is None
+        let fallback_auth_plugin = (!handshake
+            .server_capabilities
+            .contains(Capabilities::PLUGIN_AUTH)
+            && options.password.is_some())
+        .then_some(AuthPlugin::MySqlNativePassword);
+        let mut plugin = handshake.auth_plugin.or(fallback_auth_plugin);
         let mut nonce = handshake.auth_plugin_data;
 
         // FIXME: server version parse is a bit ugly
