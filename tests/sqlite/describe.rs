@@ -469,3 +469,17 @@ async fn it_describes_union() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+//documents a failure originally found through property testing
+#[sqlx_macros::test]
+async fn it_describes_nested_ordered() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+    let info = conn
+        .describe("SELECT true FROM (SELECT true) a ORDER BY true")
+        .await?;
+
+    assert_eq!(info.column(0).type_info().name(), "INTEGER");
+    assert_eq!(info.nullable(0), Some(false));
+
+    Ok(())
+}
