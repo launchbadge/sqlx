@@ -421,6 +421,16 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
     .await?;
     assert_literal_order_by_described(&mut conn, "SELECT 'a', text FROM tweet ORDER BY text")
         .await?;
+    assert_literal_order_by_described(
+        &mut conn,
+        "SELECT 'a', text FROM tweet ORDER BY text NULLS LAST",
+    )
+    .await?;
+    assert_literal_order_by_described(
+        &mut conn,
+        "SELECT 'a', text FROM tweet ORDER BY text DESC NULLS LAST",
+    )
+    .await?;
 
     Ok(())
 }
@@ -470,16 +480,51 @@ async fn it_describes_union() -> anyhow::Result<()> {
     Ok(())
 }
 
-//documents a failure originally found through property testing
+//documents failures originally found through property testing
 #[sqlx_macros::test]
 async fn it_describes_nested_ordered() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
-    let info = conn
-        .describe("SELECT true FROM (SELECT true) a ORDER BY true")
-        .await?;
+    async fn assert_single_true_column_described(
+        conn: &mut sqlx::SqliteConnection,
+        query: &str,
+    ) -> anyhow::Result<()> {
+        let info = conn.describe(query).await?;
+        assert_eq!(info.column(0).type_info().name(), "INTEGER", "{}", query);
+        assert_eq!(info.nullable(0), Some(false), "{}", query);
 
-    assert_eq!(info.column(0).type_info().name(), "INTEGER");
-    assert_eq!(info.nullable(0), Some(false));
+        Ok(())
+    }
+
+    let mut conn = new::<Sqlite>().await?;
+
+    assert_single_true_column_described(
+        &mut conn,
+        "SELECT true FROM (SELECT true) a ORDER BY true",
+    )
+    .await?;
+    assert_single_true_column_described(
+        &mut conn,
+        "
+    	SELECT true
+    	FROM (
+    	    SELECT 'a'
+    	)
+    	CROSS JOIN (
+    	    SELECT 'b'
+    	    FROM (SELECT 'c')
+            CROSS JOIN accounts
+            ORDER BY id
+            LIMIT 1
+            )
+    	",
+    )
+    .await?;
+
+    assert_single_true_column_described(
+        &mut conn,
+        "SELECT true FROM tweet
+            ORDER BY true ASC NULLS LAST",
+    )
+    .await?;
 
     Ok(())
 }
