@@ -67,6 +67,7 @@ const OP_SEEK_LE: &str = "SeekLE";
 const OP_SEEK_LT: &str = "SeekLT";
 const OP_SEEK_ROW_ID: &str = "SeekRowId";
 const OP_SEEK_SCAN: &str = "SeekScan";
+const OP_SEQUENCE: &str = "Sequence";
 const OP_SEQUENCE_TEST: &str = "SequenceTest";
 const OP_SORT: &str = "Sort";
 const OP_SORTER_DATA: &str = "SorterData";
@@ -120,6 +121,7 @@ const OP_MULTIPLY: &str = "Multiply";
 const OP_DIVIDE: &str = "Divide";
 const OP_REMAINDER: &str = "Remainder";
 const OP_CONCAT: &str = "Concat";
+const OP_OFFSET_LIMIT: &str = "OffsetLimit";
 const OP_RESULT_ROW: &str = "ResultRow";
 const OP_HALT: &str = "Halt";
 
@@ -464,7 +466,7 @@ pub(super) fn explain(
                 | OP_GE | OP_GO_SUB | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT
                 | OP_IF | OP_IF_NO_HOPE | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO
                 | OP_IF_NULL_ROW | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM | OP_IS_NULL
-                | OP_IS_NULL_OR_TYPE | OP_LE | OP_LT | OP_MUST_BE_INT | OP_NE | OP_NEXT
+                | OP_IS_NULL_OR_TYPE | OP_MUST_BE_INT | OP_LE | OP_LT | OP_NE | OP_NEXT
                 | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_NOT_NULL | OP_ONCE | OP_PREV | OP_PROGRAM
                 | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE
                 | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
@@ -479,12 +481,18 @@ pub(super) fn explain(
                         visited_branch_state.insert(bs_hash);
                         states.push(branch_state);
                     }
+
                     state.program_i += 1;
                     continue;
                 }
 
                 OP_REWIND | OP_LAST | OP_SORT | OP_SORTER_SORT => {
-                    // goto <p2> if cursor p1 is empty, else next instruction
+                    // goto <p2> if cursor p1 is empty and p2 != 0, else next instruction
+
+                    if p2 == 0 {
+                        state.program_i += 1;
+                        continue;
+                    }
 
                     if let Some(cursor) = state.p.get(&p1) {
                         if matches!(cursor.is_empty(), None | Some(true)) {
@@ -505,6 +513,8 @@ pub(super) fn explain(
                             //only take this branch if the cursor is non-empty
                             state.program_i += 1;
                             continue;
+                        } else {
+                            break;
                         }
                     }
 
@@ -668,6 +678,19 @@ pub(super) fn explain(
                     }
                 }
 
+                OP_SEQUENCE => {
+                    //Copy sequence number from cursor p1 to register p2, increment cursor p1 sequence number
+
+                    //Cursor emulation doesn't sequence value, but it is an int
+                    state.r.insert(
+                        p2,
+                        RegDataType::Single(ColumnType {
+                            datatype: DataType::Int64,
+                            nullable: Some(false),
+                        }),
+                    );
+                }
+
                 OP_ROW_DATA | OP_SORTER_DATA => {
                     //Get entire row from cursor p1, store it into register p2
                     if let Some(record) = state.p.get(&p1) {
@@ -710,6 +733,7 @@ pub(super) fn explain(
                     // Create a cursor p1 aliasing the record from register p2
                     state.p.insert(p1, CursorDataType::Pseudo(p2));
                 }
+
                 OP_OPEN_READ | OP_OPEN_WRITE => {
                     //Create a new pointer which is referenced by p1, take column metadata from db schema if found
                     if p3 == 0 {
@@ -950,6 +974,17 @@ pub(super) fn explain(
 
                         _ => {}
                     }
+                }
+
+                OP_OFFSET_LIMIT => {
+                    // r[p2] = if r[p2] < 0 { r[p1] } else if r[p1]<0 { -1 } else { r[p1] + r[p3] }
+                    state.r.insert(
+                        p2,
+                        RegDataType::Single(ColumnType {
+                            datatype: DataType::Int64,
+                            nullable: Some(false),
+                        }),
+                    );
                 }
 
                 OP_RESULT_ROW => {
