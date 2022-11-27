@@ -578,3 +578,128 @@ async fn it_describes_nested_ordered() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[sqlx_macros::test]
+async fn it_describes_func_date() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT date();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT date('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT date('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT date(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_time() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT time();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT time('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT time('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT time(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_datetime() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT datetime();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT datetime('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT datetime('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT datetime(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_julianday() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT julianday();";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(false), "{}", query);
+
+    let query = "SELECT julianday('now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT julianday('now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT julianday(:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "REAL", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
+
+#[sqlx_macros::test]
+async fn it_describes_func_strftime() -> anyhow::Result<()> {
+    let mut conn = new::<Sqlite>().await?;
+
+    let query = "SELECT strftime('%s','now');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT strftime('%s', 'now', 'start of month');";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query); //can't prove that it's not-null yet
+
+    let query = "SELECT strftime('%s',:datebind);";
+    let info = conn.describe(query).await?;
+    assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
+    assert_eq!(info.nullable(0), Some(true), "{}", query);
+    Ok(())
+}
