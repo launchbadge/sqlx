@@ -48,10 +48,11 @@ impl Notify {
     }
 
     fn wait(&self) {
-        let _ = self
-            .condvar
-            .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
-            .unwrap();
+        drop(
+            self.condvar
+                .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
+                .unwrap(),
+        );
     }
 
     fn fire(&self) {
