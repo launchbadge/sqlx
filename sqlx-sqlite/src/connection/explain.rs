@@ -795,6 +795,36 @@ pub(super) fn explain(
                                 }),
                             );
                         }
+                        "date(-1)" | "time(-1)" | "datetime(-1)" | "strftime(-1)" => {
+                            // date|time|datetime|strftime(...) -> TEXT
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype: DataType::Text,
+                                    nullable: Some(p2 != 0), //never a null result if no argument provided
+                                }),
+                            );
+                        }
+                        "julianday(-1)" => {
+                            // julianday(...) -> REAL
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype: DataType::Float,
+                                    nullable: Some(p2 != 0), //never a null result if no argument provided
+                                }),
+                            );
+                        }
+                        "unixepoch(-1)" => {
+                            // unixepoch(p2...) -> INTEGER
+                            state.r.insert(
+                                p3,
+                                RegDataType::Single(ColumnType::Single {
+                                    datatype: DataType::Int64,
+                                    nullable: Some(p2 != 0), //never a null result if no argument provided
+                                }),
+                            );
+                        }
 
                         _ => logger.add_unknown_operation(&program[state.program_i]),
                     }
