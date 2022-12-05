@@ -460,12 +460,19 @@ pub(super) fn explain(
                     continue;
                 }
 
+                OP_GO_SUB => {
+                    // store current instruction in r[p1], goto <p2>
+                    state.r.insert(p1, RegDataType::Int(state.program_i as i64));
+                    state.program_i = p2 as usize;
+                    continue;
+                }
+
                 OP_DECR_JUMP_ZERO | OP_ELSE_EQ | OP_EQ | OP_FILTER | OP_FK_IF_ZERO | OP_FOUND
-                | OP_GE | OP_GO_SUB | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT
-                | OP_IF | OP_IF_NO_HOPE | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO
-                | OP_IF_NULL_ROW | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM | OP_IS_NULL
-                | OP_IS_NULL_OR_TYPE | OP_MUST_BE_INT | OP_LE | OP_LT | OP_NE | OP_NEXT
-                | OP_NO_CONFLICT | OP_NOT_EXISTS | OP_NOT_NULL | OP_ONCE | OP_PREV | OP_PROGRAM
+                | OP_GE | OP_GT | OP_IDX_GE | OP_IDX_GT | OP_IDX_LE | OP_IDX_LT | OP_IF
+                | OP_IF_NO_HOPE | OP_IF_NOT | OP_IF_NOT_OPEN | OP_IF_NOT_ZERO | OP_IF_NULL_ROW
+                | OP_IF_POS | OP_IF_SMALLER | OP_INCR_VACUUM | OP_IS_NULL | OP_IS_NULL_OR_TYPE
+                | OP_MUST_BE_INT | OP_LE | OP_LT | OP_NE | OP_NEXT | OP_NO_CONFLICT
+                | OP_NOT_EXISTS | OP_NOT_NULL | OP_ONCE | OP_PREV | OP_PROGRAM
                 | OP_ROW_SET_READ | OP_ROW_SET_TEST | OP_SEEK_GE | OP_SEEK_GT | OP_SEEK_LE
                 | OP_SEEK_LT | OP_SEEK_ROW_ID | OP_SEEK_SCAN | OP_SEQUENCE_TEST
                 | OP_SORTER_NEXT | OP_V_FILTER | OP_V_NEXT => {
