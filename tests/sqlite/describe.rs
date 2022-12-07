@@ -359,6 +359,12 @@ async fn it_describes_group_by() -> anyhow::Result<()> {
     assert_eq!(d.column(0).type_info().name(), "INTEGER");
     assert_eq!(d.nullable(0), Some(false));
 
+    let d = conn
+        .describe("SELECT name from accounts GROUP BY 1 LIMIT -1 OFFSET 1")
+        .await?;
+    assert_eq!(d.column(0).type_info().name(), "TEXT");
+    assert_eq!(d.nullable(0), Some(false));
+
     Ok(())
 }
 
